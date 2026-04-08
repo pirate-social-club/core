@@ -1,0 +1,94 @@
+NamespaceAttachmentInput:
+  type: object
+  properties:
+    display_label:
+      type: string
+    normalized_label:
+      type: string
+    resolver_label:
+      type: string
+      nullable: true
+    route_family:
+      type: string
+      nullable: true
+HandlePolicyInput:
+  type: object
+  required:
+    - policy_template
+  properties:
+    policy_template:
+      type: string
+      enum:
+        - standard
+        - premium
+        - membership_gated
+        - custom
+    pricing_model:
+      type: string
+      enum:
+        - free
+        - flat_by_length
+        - custom_curve
+        - gated_then_flat
+      nullable: true
+    membership_required_for_claim:
+      type: boolean
+      default: true
+HandleAvailability:
+  type: object
+  required:
+    - label
+    - available
+    - eligible
+  properties:
+    label:
+      type: string
+    available:
+      type: boolean
+    eligible:
+      type: boolean
+    estimated_price_usd:
+      type: number
+      nullable: true
+    reason:
+      type: string
+      nullable: true
+GuildHandle:
+  type: object
+  required:
+    - guild_handle_id
+    - user_id
+    - namespace_id
+    - label
+    - status
+    - issuance_source
+  properties:
+    guild_handle_id:
+      type: string
+    user_id:
+      type: string
+    namespace_id:
+      type: string
+    label:
+      type: string
+    status:
+      type: string
+      enum:
+        - active
+        - grace
+        - expired
+        - revoked
+    issuance_source:
+      type: string
+      enum:
+        - claim
+        - auction
+        - admin_grant
+    lease_started_at:
+      type: string
+      format: date-time
+      nullable: true
+    lease_expires_at:
+      type: string
+      format: date-time
+      nullable: true

@@ -1,0 +1,264 @@
+CreatePostRequest:
+  type: object
+  required:
+    - guild_id
+    - post_type
+  properties:
+    guild_id:
+      type: string
+    is_anonymous:
+      type: boolean
+      default: false
+    parent_post_id:
+      type: string
+      nullable: true
+    flair_id:
+      type: string
+      nullable: true
+    post_type:
+      type: string
+      enum:
+        - text
+        - image
+        - video
+        - song
+    title:
+      type: string
+      nullable: true
+    body:
+      type: string
+      nullable: true
+    caption:
+      type: string
+      nullable: true
+    media_refs:
+      type: array
+      items:
+        $ref: ./posts.yaml#/MediaDescriptor
+    translation_policy:
+      type: string
+      enum:
+        - none
+        - machine_allowed
+        - human_only
+        - hybrid
+      nullable: true
+    asset_id:
+      type: string
+      nullable: true
+    song_mode:
+      type: string
+      enum:
+        - original
+        - remix
+      nullable: true
+    rights_basis:
+      type: string
+      enum:
+        - none
+        - original
+        - derivative
+        - attribution_only
+      nullable: true
+    age_gate_policy:
+      type: string
+      enum:
+        - none
+        - 18_plus
+      nullable: true
+    lyrics:
+      type: string
+      nullable: true
+      description: |
+        Plain-text lyrics for song posts. Required when post_type is song. Optional for other post types.
+Post:
+  type: object
+  required:
+    - post_id
+    - guild_id
+    - is_anonymous
+    - post_type
+    - status
+    - analysis_state
+    - content_safety_state
+    - age_gate_policy
+    - created_at
+    - updated_at
+  properties:
+    post_id:
+      type: string
+    guild_id:
+      type: string
+    author_user_id:
+      type: string
+      nullable: true
+      description: |
+        Public read models omit this field for anonymous posts. It remains present for non-anonymous posts and privileged internal reads.
+    is_anonymous:
+      type: boolean
+    anonymous_label:
+      type: string
+      nullable: true
+    flair_id:
+      type: string
+      nullable: true
+    post_type:
+      type: string
+      enum:
+        - text
+        - image
+        - video
+        - song
+    status:
+      type: string
+      enum:
+        - draft
+        - published
+        - hidden
+        - removed
+        - deleted
+    title:
+      type: string
+      nullable: true
+    body:
+      type: string
+      nullable: true
+    caption:
+      type: string
+      nullable: true
+    media_refs:
+      type: array
+      items:
+        $ref: ./posts.yaml#/MediaDescriptor
+    source_language:
+      type: string
+      nullable: true
+      description: |
+        Server-authored detected source language. May be null only while `analysis_state = pending`; published posts should have a non-null value.
+    translation_policy:
+      type: string
+      enum:
+        - none
+        - machine_allowed
+        - human_only
+        - hybrid
+      nullable: true
+    asset_id:
+      type: string
+      nullable: true
+    parent_post_id:
+      type: string
+      nullable: true
+    song_mode:
+      type: string
+      enum:
+        - original
+        - remix
+      nullable: true
+    rights_basis:
+      type: string
+      enum:
+        - none
+        - original
+        - derivative
+        - attribution_only
+      nullable: true
+    analysis_state:
+      type: string
+      enum:
+        - pending
+        - allow
+        - allow_with_required_reference
+        - review_required
+        - blocked
+    analysis_result_ref:
+      type: string
+      nullable: true
+    content_safety_state:
+      type: string
+      enum:
+        - pending
+        - safe
+        - sensitive
+        - adult
+    age_gate_policy:
+      type: string
+      enum:
+        - none
+        - 18_plus
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+LocalizedPostResponse:
+  type: object
+  description: |
+    Localized read envelope for a canonical post. Read endpoints return this wrapper so locale-resolved translation fields stay out of the canonical `Post` schema.
+  required:
+    - post
+    - resolved_locale
+    - translation_state
+    - machine_translated
+    - source_hash
+  properties:
+    post:
+      $ref: ./posts.yaml#/Post
+    flair:
+      $ref: ./guilds-community.yaml#/PostFlair
+      nullable: true
+    resolved_locale:
+      type: string
+    translation_state:
+      type: string
+      enum:
+        - ready
+        - pending
+        - same_language
+        - policy_blocked
+      description: |
+        Translation resolution state for the resolved locale. `ready` means a machine translation exists. `pending` means the translation is being materialized lazily. `same_language` means no translation is needed. `policy_blocked` means `translation_policy` forbids machine translation.
+    machine_translated:
+      type: boolean
+      description: |
+        True only when `translation_state = ready` and translated text is being surfaced for the resolved locale.
+    translated_body:
+      type: string
+      nullable: true
+      description: |
+        Viewer-facing translated body text when `translation_state = ready`.
+    translated_caption:
+      type: string
+      nullable: true
+      description: |
+        Viewer-facing translated caption text when `translation_state = ready`.
+    source_hash:
+      type: string
+      description: |
+        Content fingerprint for translation cache invalidation. Changes when the canonical source text changes.
+MediaDescriptor:
+  type: object
+  required:
+    - storage_ref
+  properties:
+    storage_ref:
+      type: string
+    mime_type:
+      type: string
+      nullable: true
+    size_bytes:
+      type: integer
+      nullable: true
+    content_hash:
+      type: string
+      nullable: true
+    duration_ms:
+      type: integer
+      nullable: true
+    width:
+      type: integer
+      nullable: true
+    height:
+      type: integer
+      nullable: true

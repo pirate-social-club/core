@@ -1,0 +1,48 @@
+RedditVerification:
+  type: object
+  required:
+    - reddit_username
+    - status
+  properties:
+    reddit_username:
+      type: string
+    status:
+      type: string
+      enum:
+        - pending
+        - verified
+        - failed
+    verification_hint:
+      type: string
+      nullable: true
+OnboardingStatus:
+  type: object
+  required:
+    - generated_handle_assigned
+    - cleanup_rename_available
+    - reddit_verification_status
+    - reddit_import_status
+  properties:
+    generated_handle_assigned:
+      type: boolean
+    cleanup_rename_available:
+      type: boolean
+    reddit_verification_status:
+      type: string
+      enum:
+        - not_started
+        - pending
+        - verified
+        - failed
+    reddit_import_status:
+      type: string
+      enum:
+        - not_started
+        - queued
+        - running
+        - succeeded
+        - failed
+    suggested_guild_ids:
+      type: array
+      items:
+        type: string

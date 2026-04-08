@@ -1,0 +1,68 @@
+onboarding_status:
+  get:
+    tags:
+      - Onboarding
+    summary: Fetch onboarding status for the current user
+    responses:
+      "200":
+        description: Onboarding state
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/onboarding.yaml#/OnboardingStatus
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+onboarding_reddit_verification:
+  post:
+    tags:
+      - Onboarding
+    summary: Start or refresh Reddit ownership verification
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - reddit_username
+            properties:
+              reddit_username:
+                type: string
+    responses:
+      "200":
+        description: Reddit verification state
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/onboarding.yaml#/RedditVerification
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+onboarding_reddit_imports:
+  post:
+    tags:
+      - Onboarding
+    summary: Trigger a Reddit snapshot import job
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - reddit_username
+            properties:
+              reddit_username:
+                type: string
+    responses:
+      "202":
+        description: Import job queued
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/jobs.yaml#/JobAcceptedResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited

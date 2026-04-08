@@ -1,0 +1,42 @@
+User:
+  type: object
+  required:
+    - user_id
+    - verification_state
+    - verification_capabilities
+    - created_at
+    - updated_at
+  properties:
+    user_id:
+      type: string
+    primary_wallet_attachment_id:
+      type: string
+      nullable: true
+    verification_state:
+      type: string
+      enum:
+        - unverified
+        - pending
+        - verified
+        - reverification_required
+    verification_provider:
+      type: string
+      enum:
+        - self
+        - very
+      nullable: true
+    verification_capabilities:
+      $ref: ./verification.yaml#/VerificationCapabilities
+    verified_at:
+      type: string
+      format: date-time
+      nullable: true
+    nationality:
+      type: string
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time

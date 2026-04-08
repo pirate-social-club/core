@@ -1,0 +1,457 @@
+CreateCentralizedGuildRequest:
+  allOf:
+    - $ref: ./guilds-core.yaml#/CreateGuildRequestBase
+    - type: object
+      required:
+        - governance_mode
+      properties:
+        governance_mode:
+          type: string
+          enum:
+            - centralized
+          default: centralized
+CreateMultisigGuildRequest:
+  allOf:
+    - $ref: ./guilds-core.yaml#/CreateGuildRequestBase
+    - type: object
+      required:
+        - governance_mode
+        - governance_backend
+      properties:
+        governance_mode:
+          type: string
+          enum:
+            - multisig
+        governance_backend:
+          $ref: ./guilds-governance.yaml#/MultisigGovernanceAttachmentInput
+CreateMajeurGuildRequest:
+  allOf:
+    - $ref: ./guilds-core.yaml#/CreateGuildRequestBase
+    - type: object
+      required:
+        - governance_mode
+        - governance_backend
+      properties:
+        governance_mode:
+          type: string
+          enum:
+            - majeur
+        governance_backend:
+          $ref: ./guilds-governance.yaml#/MajeurGovernanceCreateInput
+AttachGovernanceRequest:
+  oneOf:
+    - $ref: ./guilds-governance.yaml#/AttachMultisigGovernanceRequest
+    - $ref: ./guilds-governance.yaml#/AttachMajeurGovernanceRequest
+  discriminator:
+    propertyName: governance_mode
+    mapping:
+      multisig: "#/components/schemas/AttachMultisigGovernanceRequest"
+      majeur: "#/components/schemas/AttachMajeurGovernanceRequest"
+AttachMultisigGovernanceRequest:
+  type: object
+  required:
+    - governance_mode
+    - governance_backend
+  properties:
+    governance_mode:
+      type: string
+      enum:
+        - multisig
+    governance_backend:
+      $ref: ./guilds-governance.yaml#/MultisigGovernanceAttachmentInput
+AttachMajeurGovernanceRequest:
+  type: object
+  required:
+    - governance_mode
+    - governance_backend
+  properties:
+    governance_mode:
+      type: string
+      enum:
+        - majeur
+    governance_backend:
+      $ref: ./guilds-governance.yaml#/MajeurGovernanceAttachInput
+GovernanceAction:
+  type: object
+  required:
+    - governance_action_id
+    - guild_id
+    - action_kind
+    - governance_mode
+    - payload_hash
+    - status
+    - created_at
+    - updated_at
+  properties:
+    governance_action_id:
+      type: string
+    guild_id:
+      type: string
+    action_kind:
+      type: string
+      enum:
+        - attach_governance
+        - replace_governance
+    requested_by_user_id:
+      type: string
+      nullable: true
+    governance_mode:
+      type: string
+      enum:
+        - multisig
+        - majeur
+    chain_id:
+      type: integer
+      nullable: true
+    target_address:
+      type: string
+      nullable: true
+    payload_hash:
+      type: string
+    status:
+      type: string
+      enum:
+        - draft
+        - awaiting_external_approval
+        - executed
+        - rejected
+        - expired
+    external_state:
+      type: string
+      nullable: true
+    execution_tx_hash:
+      type: string
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+GovernanceVerificationState:
+  type: string
+  enum:
+    - not_required
+    - pending
+    - verified
+    - broken
+GuildGovernanceBackend:
+  oneOf:
+    - $ref: ./guilds-governance.yaml#/CentralizedGovernanceBackend
+    - $ref: ./guilds-governance.yaml#/MultisigGovernanceBackend
+    - $ref: ./guilds-governance.yaml#/MajeurGovernanceBackend
+  discriminator:
+    propertyName: governance_mode
+    mapping:
+      centralized: "#/components/schemas/CentralizedGovernanceBackend"
+      multisig: "#/components/schemas/MultisigGovernanceBackend"
+      majeur: "#/components/schemas/MajeurGovernanceBackend"
+CentralizedGovernanceBackend:
+  type: object
+  required:
+    - governance_mode
+    - governance_verification_state
+  properties:
+    governance_mode:
+      type: string
+      enum:
+        - centralized
+    governance_verification_state:
+      $ref: ./guilds-governance.yaml#/GovernanceVerificationState
+    governance_display_label:
+      type: string
+      nullable: true
+MultisigGovernanceAttachmentInput:
+  type: object
+  required:
+    - chain_id
+    - contract_address
+    - attachment_proof
+  properties:
+    chain_id:
+      type: integer
+    contract_address:
+      type: string
+    treasury_address:
+      type: string
+      nullable: true
+    attachment_proof:
+      $ref: ./guilds-governance.yaml#/MultisigAttachmentProofInput
+MultisigAttachmentProofInput:
+  type: object
+  required:
+    - proof_kind
+    - challenge
+    - signature
+  properties:
+    proof_kind:
+      type: string
+      enum:
+        - eip1271
+    challenge:
+      type: string
+    signature:
+      type: string
+MultisigGovernanceBackend:
+  type: object
+  required:
+    - governance_mode
+    - governance_chain_id
+    - governance_contract_address
+    - governance_verification_state
+    - governance_metadata
+  properties:
+    governance_mode:
+      type: string
+      enum:
+        - multisig
+    governance_chain_id:
+      type: integer
+    governance_contract_address:
+      type: string
+    governance_treasury_address:
+      type: string
+      nullable: true
+    governance_verification_state:
+      $ref: ./guilds-governance.yaml#/GovernanceVerificationState
+    governance_display_label:
+      type: string
+      nullable: true
+    governance_attached_at:
+      type: string
+      format: date-time
+      nullable: true
+    governance_last_verified_at:
+      type: string
+      format: date-time
+      nullable: true
+    governance_metadata:
+      $ref: ./guilds-governance.yaml#/MultisigGovernanceMetadata
+MultisigGovernanceMetadata:
+  type: object
+  required:
+    - owners
+    - threshold
+    - is_safe_compatible
+  properties:
+    owners:
+      type: array
+      items:
+        type: string
+    threshold:
+      type: integer
+    is_safe_compatible:
+      type: boolean
+    version_label:
+      type: string
+      nullable: true
+    master_copy_address:
+      type: string
+      nullable: true
+MajeurGovernanceCreateInput:
+  type: object
+  required:
+    - chain_id
+    - summon
+  properties:
+    chain_id:
+      type: integer
+    summon:
+      $ref: ./guilds-governance.yaml#/MajeurSafeSummonInput
+MajeurGovernanceAttachInput:
+  type: object
+  required:
+    - chain_id
+    - dao_address
+  properties:
+    chain_id:
+      type: integer
+    dao_address:
+      type: string
+    deployment_tx_hash:
+      type: string
+      nullable: true
+    shares_address:
+      type: string
+      nullable: true
+    loot_address:
+      type: string
+      nullable: true
+    badges_address:
+      type: string
+      nullable: true
+    renderer_address:
+      type: string
+      nullable: true
+MajeurSafeSummonInput:
+  type: object
+  required:
+    - org_name
+    - org_symbol
+    - ragequittable
+    - init_holders
+    - init_shares
+    - config
+  properties:
+    preset:
+      type: string
+      enum:
+        - founder
+        - standard
+        - fast
+        - custom
+      nullable: true
+    org_name:
+      type: string
+    org_symbol:
+      type: string
+    org_uri:
+      type: string
+      nullable: true
+    quorum_bps:
+      type: integer
+      nullable: true
+    ragequittable:
+      type: boolean
+    renderer:
+      type: string
+      nullable: true
+    init_holders:
+      type: array
+      items:
+        type: string
+    init_shares:
+      type: array
+      items:
+        type: string
+    init_loot:
+      type: array
+      items:
+        type: string
+      nullable: true
+    config:
+      $ref: ./guilds-governance.yaml#/MajeurSafeConfigInput
+MajeurSafeConfigInput:
+  type: object
+  required:
+    - proposal_threshold
+    - proposal_ttl_seconds
+  properties:
+    proposal_threshold:
+      type: string
+    proposal_ttl_seconds:
+      type: integer
+    timelock_delay_seconds:
+      type: integer
+      nullable: true
+    quorum_absolute:
+      type: string
+      nullable: true
+    min_yes_votes_absolute:
+      type: string
+      nullable: true
+    lock_shares:
+      type: boolean
+      default: false
+    lock_loot:
+      type: boolean
+      default: false
+    rollback_guardian:
+      type: string
+      nullable: true
+    rollback_singleton:
+      type: string
+      nullable: true
+    rollback_expiry:
+      type: integer
+      nullable: true
+MajeurGovernanceBackend:
+  type: object
+  required:
+    - governance_mode
+    - governance_chain_id
+    - governance_contract_address
+    - governance_verification_state
+    - governance_metadata
+  properties:
+    governance_mode:
+      type: string
+      enum:
+        - majeur
+    governance_chain_id:
+      type: integer
+    governance_contract_address:
+      type: string
+    governance_treasury_address:
+      type: string
+      nullable: true
+    governance_verification_state:
+      $ref: ./guilds-governance.yaml#/GovernanceVerificationState
+    governance_display_label:
+      type: string
+      nullable: true
+    governance_attached_at:
+      type: string
+      format: date-time
+      nullable: true
+    governance_last_verified_at:
+      type: string
+      format: date-time
+      nullable: true
+    governance_metadata:
+      $ref: ./guilds-governance.yaml#/MajeurGovernanceMetadata
+MajeurGovernanceMetadata:
+  type: object
+  required:
+    - shares_address
+    - loot_address
+    - badges_address
+    - ragequittable
+    - proposal_threshold
+    - proposal_ttl_seconds
+    - shares_locked
+    - loot_locked
+    - config_version
+  properties:
+    shares_address:
+      type: string
+    loot_address:
+      type: string
+    badges_address:
+      type: string
+    renderer_address:
+      type: string
+      nullable: true
+    ragequittable:
+      type: boolean
+    proposal_threshold:
+      type: string
+    proposal_ttl_seconds:
+      type: integer
+    timelock_delay_seconds:
+      type: integer
+      nullable: true
+    quorum_bps:
+      type: integer
+      nullable: true
+    quorum_absolute:
+      type: string
+      nullable: true
+    min_yes_votes_absolute:
+      type: string
+      nullable: true
+    shares_locked:
+      type: boolean
+    loot_locked:
+      type: boolean
+    auto_futarchy_param:
+      type: string
+      nullable: true
+    auto_futarchy_cap:
+      type: string
+      nullable: true
+    futarchy_reward_token:
+      type: string
+      nullable: true
+    config_version:
+      type: integer

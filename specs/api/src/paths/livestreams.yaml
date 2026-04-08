@@ -1,0 +1,204 @@
+live_rooms_by_live_room_id:
+  get:
+    tags:
+      - Livestreams
+    summary: Get a livestream room
+    parameters:
+      - $ref: ../components/parameters.yaml#/LiveRoomId
+    responses:
+      "200":
+        description: Livestream room
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/livestreams.yaml#/LiveRoom
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+live_rooms_by_live_room_id_access:
+  get:
+    tags:
+      - Livestreams
+    summary: Inspect current access state for a livestream room
+    parameters:
+      - $ref: ../components/parameters.yaml#/LiveRoomId
+    responses:
+      "200":
+        description: Livestream access state
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/livestreams.yaml#/LiveRoomAccessView
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+live_rooms_by_live_room_id_host_attach:
+  post:
+    tags:
+      - Livestreams
+    summary: Issue host broadcast credentials for a livestream room
+    parameters:
+      - $ref: ../components/parameters.yaml#/LiveRoomId
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/livestreams.yaml#/HostAttachRequest
+    responses:
+      "200":
+        description: Host attach credentials
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/livestreams.yaml#/LiveRoomAttachSession
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+live_rooms_by_live_room_id_guest_attach:
+  post:
+    tags:
+      - Livestreams
+    summary: Issue guest broadcast credentials for an invited livestream collaborator
+    parameters:
+      - $ref: ../components/parameters.yaml#/LiveRoomId
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/livestreams.yaml#/GuestAttachRequest
+    responses:
+      "200":
+        description: Guest attach credentials
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/livestreams.yaml#/LiveRoomAttachSession
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+live_rooms_by_live_room_id_replay:
+  get:
+    tags:
+      - Livestreams
+    summary: Inspect replay state and replay-facing metadata for a livestream room
+    parameters:
+      - $ref: ../components/parameters.yaml#/LiveRoomId
+    responses:
+      "200":
+        description: Livestream replay view
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/livestreams.yaml#/LiveRoomReplayView
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+live_rooms_by_live_room_id_replay_access:
+  get:
+    tags:
+      - Livestreams
+    summary: Inspect current replay access state for a livestream room
+    parameters:
+      - $ref: ../components/parameters.yaml#/LiveRoomId
+    responses:
+      "200":
+        description: Livestream replay access state
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/livestreams.yaml#/LiveRoomReplayAccessView
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+live_rooms_by_live_room_id_start:
+  post:
+    tags:
+      - Livestreams
+    summary: Transition a scheduled livestream room to live
+    parameters:
+      - $ref: ../components/parameters.yaml#/LiveRoomId
+    responses:
+      "200":
+        description: Livestream room started
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/livestreams.yaml#/LiveRoom
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+live_rooms_by_live_room_id_end:
+  post:
+    tags:
+      - Livestreams
+    summary: End a live livestream room
+    parameters:
+      - $ref: ../components/parameters.yaml#/LiveRoomId
+    responses:
+      "200":
+        description: Livestream room ended
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/livestreams.yaml#/LiveRoom
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+live_rooms_by_live_room_id_cancel:
+  post:
+    tags:
+      - Livestreams
+    summary: Cancel a scheduled or active livestream room
+    parameters:
+      - $ref: ../components/parameters.yaml#/LiveRoomId
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              reason:
+                type: string
+                nullable: true
+    responses:
+      "200":
+        description: Livestream room canceled
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/livestreams.yaml#/LiveRoom
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict

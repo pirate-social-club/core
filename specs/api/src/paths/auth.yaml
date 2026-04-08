@@ -1,0 +1,29 @@
+auth_session_exchange:
+  post:
+    tags:
+      - Auth
+    summary: Exchange a Privy proof for a Pirate app session
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - privy_access_token
+            properties:
+              privy_access_token:
+                type: string
+              wallet_address:
+                type: string
+                nullable: true
+    responses:
+      "200":
+        description: Session created or resumed
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/auth.yaml#/SessionExchangeResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError

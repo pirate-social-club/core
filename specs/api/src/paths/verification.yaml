@@ -1,0 +1,82 @@
+verification_sessions:
+  post:
+    tags:
+      - Verification
+    summary: Start a verification session
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - provider
+            properties:
+              provider:
+                type: string
+                enum:
+                  - self
+                  - very
+              wallet_attachment_id:
+                type: string
+                nullable: true
+    responses:
+      "201":
+        description: Verification session started
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/verification.yaml#/VerificationSession
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+verification_sessions_by_verification_session_id:
+  get:
+    tags:
+      - Verification
+    summary: Inspect a verification session
+    parameters:
+      - $ref: ../components/parameters.yaml#/VerificationSessionId
+    responses:
+      "200":
+        description: Verification session
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/verification.yaml#/VerificationSession
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+verification_sessions_by_verification_session_id_complete:
+  post:
+    tags:
+      - Verification
+    summary: Complete or refresh a verification session
+    parameters:
+      - $ref: ../components/parameters.yaml#/VerificationSessionId
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              attestation_id:
+                type: string
+                nullable: true
+              proof_hash:
+                type: string
+                nullable: true
+    responses:
+      "200":
+        description: Verification session updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/verification.yaml#/VerificationSession
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound

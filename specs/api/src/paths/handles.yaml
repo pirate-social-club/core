@@ -1,0 +1,59 @@
+namespaces_by_namespace_id_handles_availability:
+  get:
+    tags:
+      - Handles
+    summary: Check availability and eligibility for a namespace-local handle
+    parameters:
+      - $ref: ../components/parameters.yaml#/NamespaceId
+      - in: query
+        name: label
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Handle availability result
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/handles.yaml#/HandleAvailability
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+namespaces_by_namespace_id_handles_claims:
+  post:
+    tags:
+      - Handles
+    summary: Claim or purchase a namespace-local handle
+    parameters:
+      - $ref: ../components/parameters.yaml#/NamespaceId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - label
+            properties:
+              label:
+                type: string
+              anti_bot_token:
+                type: string
+                nullable: true
+    responses:
+      "201":
+        description: Handle claimed
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/handles.yaml#/GuildHandle
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited

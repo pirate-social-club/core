@@ -1,0 +1,148 @@
+TrackResolveRequest:
+  type: object
+  description: |
+    At least one identity path must be supplied. Clients may resolve by MBID, Story IP ID, metadata hash, or a metadata pair such as title plus artist display name. The server may enrich omitted metadata when a stronger identity path already exists.
+  anyOf:
+    - required:
+        - recording_mbid
+    - required:
+        - story_ip_id
+    - required:
+        - metadata_hash
+    - required:
+        - title
+        - artist_display_name
+  properties:
+    recording_mbid:
+      type: string
+      nullable: true
+    story_ip_id:
+      type: string
+      nullable: true
+    metadata_hash:
+      type: string
+      nullable: true
+    asset_id:
+      type: string
+      nullable: true
+    guild_id:
+      type: string
+      nullable: true
+    title:
+      type: string
+      nullable: true
+    artist_display_name:
+      type: string
+      nullable: true
+    album:
+      type: string
+      nullable: true
+ListingDonationConfig:
+  type: object
+  description: |
+    Listing-level creator donation sidecar configuration. When `donation_opt_in = true`, both `donation_share_pct` and `donation_partner_id_snapshot` must be non-null.
+  required:
+    - donation_opt_in
+  properties:
+    donation_opt_in:
+      type: boolean
+    donation_share_pct:
+      type: number
+      minimum: 0.01
+      maximum: 50
+      nullable: true
+    donation_partner_id_snapshot:
+      type: string
+      nullable: true
+PurchaseDonationSettlement:
+  type: object
+  description: |
+    Purchase-time snapshot of donation routing and settlement outcome. Money fields are represented here as numbers for readability, but decimal strings are recommended in implementation to avoid floating-point precision issues.
+  properties:
+    donation_partner_id:
+      type: string
+      nullable: true
+    donation_share_pct:
+      type: number
+      nullable: true
+    donation_amount_usd:
+      type: number
+      nullable: true
+    donation_settlement_ref:
+      type: string
+      nullable: true
+Track:
+  type: object
+  required:
+    - track_id
+    - track_kind
+    - title
+    - metadata_hash
+    - status
+    - created_at
+    - updated_at
+  properties:
+    track_id:
+      type: string
+    track_kind:
+      type: string
+      enum:
+        - mbid
+        - story_ip
+        - metadata_hash
+    recording_mbid:
+      type: string
+      nullable: true
+    story_ip_id:
+      type: string
+      nullable: true
+    asset_id:
+      type: string
+      nullable: true
+    guild_id:
+      type: string
+      nullable: true
+    publisher_ref:
+      type: string
+      nullable: true
+    title:
+      type: string
+    artist_display_name:
+      type: string
+    album:
+      type: string
+      nullable: true
+    duration_ms:
+      type: integer
+      nullable: true
+    audio_fingerprint_ref:
+      type: string
+      nullable: true
+    cover_ref:
+      type: string
+      nullable: true
+    lyrics_ref:
+      type: string
+      nullable: true
+    genius_song_id:
+      type: string
+      nullable: true
+    artist_identity_ids:
+      type: array
+      items:
+        type: string
+      nullable: true
+    metadata_hash:
+      type: string
+    status:
+      type: string
+      enum:
+        - draft
+        - active
+        - deprecated
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time

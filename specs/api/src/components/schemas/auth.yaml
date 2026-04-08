@@ -1,0 +1,16 @@
+SessionExchangeResponse:
+  type: object
+  required:
+    - access_token
+    - user
+    - profile
+    - onboarding
+  properties:
+    access_token:
+      type: string
+    user:
+      $ref: ./users.yaml#/User
+    profile:
+      $ref: ./profiles.yaml#/Profile
+    onboarding:
+      $ref: ./onboarding.yaml#/OnboardingStatus

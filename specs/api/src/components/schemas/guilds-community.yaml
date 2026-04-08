@@ -1,0 +1,462 @@
+CreateGuildDonationPolicyInput:
+  type: object
+  description: |
+    Optional guild-level donation configuration supplied at creation time. If omitted, the guild defaults to no donation policy. If `donation_policy_mode = optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id` must be non-null. If `donation_policy_mode = none`, `donation_partner_id` must be null.
+  required:
+    - donation_policy_mode
+  properties:
+    donation_policy_mode:
+      type: string
+      enum:
+        - none
+        - optional_creator_sidecar
+        - fundraiser_default
+    donation_partner_id:
+      type: string
+      nullable: true
+UpdateGuildDonationPolicyRequest:
+  type: object
+  description: |
+    Update the guild donation policy. If `donation_policy_mode = optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id` must be non-null. If `donation_policy_mode = none`, `donation_partner_id` must be null. Donation partner lifecycle management is platform-admin-controlled in v0.
+  required:
+    - donation_policy_mode
+  properties:
+    donation_policy_mode:
+      type: string
+      enum:
+        - none
+        - optional_creator_sidecar
+        - fundraiser_default
+    donation_partner_id:
+      type: string
+      nullable: true
+    donation_partner_status:
+      type: string
+      enum:
+        - unconfigured
+        - active
+        - paused
+      nullable: true
+DonationPartnerSummary:
+  type: object
+  description: |
+    Public/admin-safe summary of a reviewed donation partner. Full payout routing details remain internal to Pirate settlement systems in v0.
+  required:
+    - donation_partner_id
+    - display_name
+    - provider
+    - review_status
+    - status
+  properties:
+    donation_partner_id:
+      type: string
+    display_name:
+      type: string
+    provider:
+      type: string
+      enum:
+        - endaoment
+    provider_partner_ref:
+      type: string
+      nullable: true
+    review_status:
+      type: string
+      enum:
+        - pending
+        - approved
+        - rejected
+    status:
+      type: string
+      enum:
+        - active
+        - paused
+        - retired
+GuildDonationPolicy:
+  type: object
+  description: |
+    Resolved donation policy attached to a guild. This policy enables or disables listing-level creator donation sidecars for content sold inside the guild.
+  required:
+    - guild_id
+    - donation_policy_mode
+    - donation_partner_status
+  properties:
+    guild_id:
+      type: string
+    donation_policy_mode:
+      type: string
+      enum:
+        - none
+        - optional_creator_sidecar
+        - fundraiser_default
+    donation_partner_status:
+      type: string
+      enum:
+        - unconfigured
+        - active
+        - paused
+    donation_partner_id:
+      type: string
+      nullable: true
+    donation_partner:
+      $ref: ./guilds-community.yaml#/DonationPartnerSummary
+      nullable: true
+    updated_at:
+      type: string
+      format: date-time
+CreateGuildCommunityBootstrapInput:
+  type: object
+  properties:
+    flair_policy:
+      $ref: ./guilds-community.yaml#/CreateGuildFlairPolicyInput
+      nullable: true
+    rules:
+      type: array
+      items:
+        $ref: ./guilds-community.yaml#/CreateGuildRuleInput
+    resource_links:
+      type: array
+      items:
+        $ref: ./guilds-community.yaml#/CreateGuildResourceLinkInput
+CreateGuildFlairPolicyInput:
+  type: object
+  properties:
+    flair_enabled:
+      type: boolean
+      default: false
+    require_flair_on_top_level_posts:
+      type: boolean
+      default: false
+    definitions:
+      type: array
+      items:
+        $ref: ./guilds-community.yaml#/CreateGuildFlairDefinitionInput
+UpdateGuildFlairPolicyRequest:
+  type: object
+  properties:
+    flair_enabled:
+      type: boolean
+    require_flair_on_top_level_posts:
+      type: boolean
+    definitions:
+      type: array
+      items:
+        $ref: ./guilds-community.yaml#/GuildFlairDefinitionMutationInput
+CreateGuildFlairDefinitionInput:
+  type: object
+  required:
+    - label
+    - position
+  additionalProperties: false
+  properties:
+    label:
+      type: string
+    description:
+      type: string
+      nullable: true
+    color_token:
+      type: string
+      nullable: true
+    position:
+      type: integer
+      minimum: 0
+    allowed_post_types:
+      type: array
+      items:
+        type: string
+        enum:
+          - text
+          - image
+          - video
+          - song
+      nullable: true
+UpdateGuildFlairDefinitionInput:
+  type: object
+  required:
+    - flair_id
+  additionalProperties: false
+  properties:
+    flair_id:
+      type: string
+    label:
+      type: string
+    description:
+      type: string
+      nullable: true
+    color_token:
+      type: string
+      nullable: true
+    position:
+      type: integer
+      minimum: 0
+    allowed_post_types:
+      type: array
+      items:
+        type: string
+        enum:
+          - text
+          - image
+          - video
+          - song
+      nullable: true
+    status:
+      type: string
+      enum:
+        - active
+        - archived
+GuildFlairDefinitionMutationInput:
+  oneOf:
+    - $ref: ./guilds-community.yaml#/CreateGuildFlairDefinitionInput
+    - $ref: ./guilds-community.yaml#/UpdateGuildFlairDefinitionInput
+GuildFlairDefinition:
+  type: object
+  required:
+    - flair_id
+    - label
+    - status
+    - position
+  properties:
+    flair_id:
+      type: string
+    label:
+      type: string
+    description:
+      type: string
+      nullable: true
+    color_token:
+      type: string
+      nullable: true
+    status:
+      type: string
+      enum:
+        - active
+        - archived
+    position:
+      type: integer
+      minimum: 0
+    allowed_post_types:
+      type: array
+      items:
+        type: string
+        enum:
+          - text
+          - image
+          - video
+          - song
+      nullable: true
+GuildFlairPolicy:
+  type: object
+  required:
+    - flair_enabled
+    - require_flair_on_top_level_posts
+    - definitions
+  properties:
+    flair_enabled:
+      type: boolean
+    require_flair_on_top_level_posts:
+      type: boolean
+    definitions:
+      type: array
+      items:
+        $ref: ./guilds-community.yaml#/GuildFlairDefinition
+PostFlair:
+  type: object
+  description: |
+    Resolved flair summary for a post read surface. Historical posts may continue to return flair definitions whose current `status` is `archived`; clients should still render the flair pill normally in that case rather than treating it as hidden or as a special archived badge.
+  required:
+    - flair_id
+    - label
+    - status
+  properties:
+    flair_id:
+      type: string
+    label:
+      type: string
+    color_token:
+      type: string
+      nullable: true
+    status:
+      type: string
+      enum:
+        - active
+        - archived
+CreateGuildRuleInput:
+  type: object
+  required:
+    - title
+    - body
+    - position
+  additionalProperties: false
+  properties:
+    title:
+      type: string
+    body:
+      type: string
+    position:
+      type: integer
+      minimum: 0
+UpdateGuildRuleInput:
+  type: object
+  required:
+    - rule_id
+  additionalProperties: false
+  properties:
+    rule_id:
+      type: string
+    title:
+      type: string
+    body:
+      type: string
+    position:
+      type: integer
+      minimum: 0
+    status:
+      type: string
+      enum:
+        - active
+        - archived
+GuildRuleMutationInput:
+  oneOf:
+    - $ref: ./guilds-community.yaml#/CreateGuildRuleInput
+    - $ref: ./guilds-community.yaml#/UpdateGuildRuleInput
+GuildRule:
+  type: object
+  required:
+    - rule_id
+    - title
+    - body
+    - position
+    - status
+  properties:
+    rule_id:
+      type: string
+    title:
+      type: string
+    body:
+      type: string
+    position:
+      type: integer
+      minimum: 0
+    status:
+      type: string
+      enum:
+        - active
+        - archived
+CreateGuildResourceLinkInput:
+  type: object
+  required:
+    - label
+    - url
+    - resource_kind
+    - position
+  additionalProperties: false
+  properties:
+    label:
+      type: string
+    url:
+      type: string
+      format: uri
+    resource_kind:
+      type: string
+      enum:
+        - link
+        - playlist
+        - document
+        - discord
+        - website
+        - other
+    position:
+      type: integer
+      minimum: 0
+UpdateGuildResourceLinkInput:
+  type: object
+  required:
+    - resource_link_id
+  additionalProperties: false
+  properties:
+    resource_link_id:
+      type: string
+    label:
+      type: string
+    url:
+      type: string
+      format: uri
+    resource_kind:
+      type: string
+      enum:
+        - link
+        - playlist
+        - document
+        - discord
+        - website
+        - other
+    position:
+      type: integer
+      minimum: 0
+    status:
+      type: string
+      enum:
+        - active
+        - archived
+GuildResourceLinkMutationInput:
+  oneOf:
+    - $ref: ./guilds-community.yaml#/CreateGuildResourceLinkInput
+    - $ref: ./guilds-community.yaml#/UpdateGuildResourceLinkInput
+GuildResourceLink:
+  type: object
+  required:
+    - resource_link_id
+    - label
+    - url
+    - resource_kind
+    - position
+    - status
+  properties:
+    resource_link_id:
+      type: string
+    label:
+      type: string
+    url:
+      type: string
+      format: uri
+    resource_kind:
+      type: string
+      enum:
+        - link
+        - playlist
+        - document
+        - discord
+        - website
+        - other
+    position:
+      type: integer
+      minimum: 0
+    status:
+      type: string
+      enum:
+        - active
+        - archived
+GuildCommunityProfile:
+  type: object
+  required:
+    - rules
+    - resource_links
+  properties:
+    rules:
+      type: array
+      items:
+        $ref: ./guilds-community.yaml#/GuildRule
+    resource_links:
+      type: array
+      items:
+        $ref: ./guilds-community.yaml#/GuildResourceLink
+UpdateGuildCommunityProfileRequest:
+  type: object
+  properties:
+    rules:
+      type: array
+      items:
+        $ref: ./guilds-community.yaml#/GuildRuleMutationInput
+    resource_links:
+      type: array
+      items:
+        $ref: ./guilds-community.yaml#/GuildResourceLinkMutationInput

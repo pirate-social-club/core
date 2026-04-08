@@ -1,0 +1,91 @@
+posts:
+  post:
+    tags:
+      - Posts
+    summary: Create a post
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/posts.yaml#/CreatePostRequest
+    responses:
+      "201":
+        description: |
+          Post created. Returns the canonical post row; localized read projections are returned by `GET /posts/{post_id}`.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/posts.yaml#/Post
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "422":
+        $ref: ../components/responses.yaml#/AnalysisBlocked
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+posts_by_post_id:
+  get:
+    tags:
+      - Posts
+    summary: Get a post
+    parameters:
+      - $ref: ../components/parameters.yaml#/PostId
+      - $ref: ../components/parameters.yaml#/Locale
+    responses:
+      "200":
+        description: Post
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/posts.yaml#/LocalizedPostResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+posts_by_post_id_vote:
+  post:
+    tags:
+      - Posts
+    summary: Cast or update a vote on a post
+    parameters:
+      - $ref: ../components/parameters.yaml#/PostId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - value
+            properties:
+              value:
+                type: integer
+                enum:
+                  - -1
+                  - 1
+    responses:
+      "200":
+        description: Vote recorded
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - post_id
+                - value
+              properties:
+                post_id:
+                  type: string
+                value:
+                  type: integer
+                  enum:
+                    - -1
+                    - 1
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/VerificationRequired
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited

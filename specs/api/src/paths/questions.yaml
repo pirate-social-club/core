@@ -1,0 +1,80 @@
+guilds_by_guild_id_questions_daily:
+  get:
+    tags:
+      - Questions
+    summary: Fetch the current daily question for a guild
+    parameters:
+      - $ref: ../components/parameters.yaml#/GuildId
+    responses:
+      "200":
+        description: Current daily question or null
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                item:
+                  type: object
+                  allOf:
+                    - $ref: ../components/schemas/questions.yaml#/Question
+                  nullable: true
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+  post:
+    tags:
+      - Questions
+    summary: Publish or schedule a daily question for a guild
+    parameters:
+      - $ref: ../components/parameters.yaml#/GuildId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/questions.yaml#/CreateQuestionRequest
+    responses:
+      "201":
+        description: Question created
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/questions.yaml#/Question
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+guilds_by_guild_id_questions_daily_answers:
+  post:
+    tags:
+      - Questions
+    summary: Submit an answer to the current daily question
+    parameters:
+      - $ref: ../components/parameters.yaml#/GuildId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - question_id
+              - selected_answer_ref
+            properties:
+              question_id:
+                type: string
+              selected_answer_ref:
+                type: integer
+                minimum: 0
+    responses:
+      "200":
+        description: Answer recorded
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/questions.yaml#/QuestionAnswer
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited

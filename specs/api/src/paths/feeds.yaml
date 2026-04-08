@@ -1,0 +1,43 @@
+feeds_home:
+  get:
+    tags:
+      - Feeds
+    summary: Read the global Home feed
+    security: []
+    parameters:
+      - $ref: ../components/parameters.yaml#/Locale
+      - $ref: ../components/parameters.yaml#/FeedSort
+      - $ref: ../components/parameters.yaml#/TopWindow
+      - $ref: ../components/parameters.yaml#/Cursor
+      - $ref: ../components/parameters.yaml#/Limit
+    responses:
+      "200":
+        description: Home feed
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/feeds.yaml#/FeedResponse
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+feeds_your_guilds:
+  get:
+    tags:
+      - Feeds
+    summary: Read the Your Guilds feed
+    parameters:
+      - $ref: ../components/parameters.yaml#/Locale
+      - $ref: ../components/parameters.yaml#/FeedSort
+      - $ref: ../components/parameters.yaml#/TopWindow
+      - $ref: ../components/parameters.yaml#/Cursor
+      - $ref: ../components/parameters.yaml#/Limit
+    responses:
+      "200":
+        description: Personalized guild feed
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/feeds.yaml#/FeedResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited

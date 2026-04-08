@@ -1,0 +1,94 @@
+CreateScrobbleRequest:
+  type: object
+  required:
+    - track_id
+    - source_type
+    - playback_started_at
+    - submission_mode
+  properties:
+    track_id:
+      type: string
+    guild_id:
+      type: string
+      nullable: true
+    source_type:
+      type: string
+      enum:
+        - web
+        - desktop
+        - mobile
+        - operator_ingested
+    playback_started_at:
+      type: string
+      format: date-time
+    playback_position_ms:
+      type: integer
+      nullable: true
+    credited_duration_ms:
+      type: integer
+      nullable: true
+    submission_mode:
+      type: string
+      enum:
+        - direct
+        - delegated
+Scrobble:
+  type: object
+  required:
+    - scrobble_id
+    - track_id
+    - user_id
+    - source_type
+    - playback_started_at
+    - submission_mode
+    - created_at
+  properties:
+    scrobble_id:
+      type: string
+    track_id:
+      type: string
+    user_id:
+      type: string
+    guild_id:
+      type: string
+      nullable: true
+    source_type:
+      type: string
+      enum:
+        - web
+        - desktop
+        - mobile
+        - operator_ingested
+    playback_started_at:
+      type: string
+      format: date-time
+    playback_position_ms:
+      type: integer
+      nullable: true
+    credited_duration_ms:
+      type: integer
+      nullable: true
+    submission_mode:
+      type: string
+      enum:
+        - direct
+        - delegated
+    chain_tx_ref:
+      type: string
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+ListenerSummary:
+  type: object
+  required:
+    - user_id
+    - scrobble_count
+  properties:
+    user_id:
+      type: string
+    display_handle:
+      type: string
+      nullable: true
+    scrobble_count:
+      type: integer

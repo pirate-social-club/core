@@ -1,0 +1,129 @@
+VerificationCapabilities:
+  type: object
+  required:
+    - unique_human
+    - age_over_18
+    - nationality
+  properties:
+    unique_human:
+      $ref: ./verification.yaml#/VerificationCapabilityState
+    age_over_18:
+      $ref: ./verification.yaml#/VerifiedCapabilityState
+    nationality:
+      allOf:
+        - $ref: ./verification.yaml#/VerifiedCapabilityState
+      type: object
+      properties:
+        value:
+          type: string
+          nullable: true
+          description: ISO country code when verified
+VerificationCapabilityState:
+  type: object
+  required:
+    - state
+  description: |
+    Capability state for unique_human, which may be pending during an active verification session.
+  properties:
+    state:
+      type: string
+      enum:
+        - unverified
+        - pending
+        - verified
+        - expired
+    assurance_level:
+      type: string
+      enum:
+        - basic
+        - strong
+      nullable: true
+    provider:
+      type: string
+      enum:
+        - self
+        - very
+      nullable: true
+    verified_at:
+      type: string
+      format: date-time
+      nullable: true
+VerifiedCapabilityState:
+  type: object
+  required:
+    - state
+  description: |
+    Capability state for age_over_18 and nationality, which have no pending state — they are either unverified, verified from an accepted record, or expired after a re-verification requirement.
+  properties:
+    state:
+      type: string
+      enum:
+        - unverified
+        - verified
+        - expired
+    provider:
+      type: string
+      enum:
+        - self
+      nullable: true
+    verified_at:
+      type: string
+      format: date-time
+      nullable: true
+VerificationSession:
+  type: object
+  required:
+    - verification_session_id
+    - user_id
+    - provider
+    - status
+    - created_at
+    - expires_at
+  properties:
+    verification_session_id:
+      type: string
+    user_id:
+      type: string
+    provider:
+      type: string
+      enum:
+        - self
+        - very
+    wallet_attachment_id:
+      type: string
+      nullable: true
+    status:
+      type: string
+      enum:
+        - pending
+        - verified
+        - failed
+        - expired
+    nationality:
+      type: string
+      nullable: true
+    age_at_verification:
+      type: integer
+      nullable: true
+    attestation_id:
+      type: string
+      nullable: true
+    proof_hash:
+      type: string
+      nullable: true
+    evidence_ref:
+      type: string
+      nullable: true
+    verified_at:
+      type: string
+      format: date-time
+      nullable: true
+    failure_reason:
+      type: string
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+    expires_at:
+      type: string
+      format: date-time

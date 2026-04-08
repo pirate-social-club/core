@@ -1,0 +1,30 @@
+Error:
+  type: object
+  required:
+    - code
+    - message
+  properties:
+    code:
+      type: string
+      enum:
+        - auth_error
+        - payment_required
+        - verification_required
+        - eligibility_failed
+        - gate_failed
+        - analysis_blocked
+        - analysis_review_required
+        - flair_required
+        - invalid_flair_selection
+        - flair_required_but_none_applicable
+        - conflict
+        - not_found
+        - rate_limited
+        - payment_failed
+        - settlement_pending
+        - internal_error
+    message:
+      type: string
+    retryable:
+      type: boolean
+      default: false

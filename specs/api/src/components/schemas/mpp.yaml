@@ -1,0 +1,82 @@
+MppChallenge:
+  type: object
+  required:
+    - code
+    - message
+    - resource_type
+    - payment_intent
+  properties:
+    code:
+      type: string
+      enum:
+        - payment_required
+    message:
+      type: string
+    resource_type:
+      type: string
+    payment_intent:
+      type: string
+      enum:
+        - charge
+        - session
+    payment_methods:
+      type: array
+      items:
+        type: string
+    challenge_ref:
+      type: string
+      nullable: true
+PaymentFailure:
+  type: object
+  required:
+    - code
+    - message
+  properties:
+    code:
+      type: string
+      enum:
+        - payment_failed
+    message:
+      type: string
+    retryable:
+      type: boolean
+      default: false
+    challenge_ref:
+      type: string
+      nullable: true
+ThreadExportRequest:
+  type: object
+  required:
+    - format
+  properties:
+    format:
+      type: string
+      enum:
+        - jsonl
+        - ndjson
+    include_replies:
+      type: boolean
+      default: true
+    limit:
+      type: integer
+      minimum: 1
+      maximum: 100000
+      nullable: true
+    after_cursor:
+      type: string
+      nullable: true
+ThreadExportAcceptedResponse:
+  type: object
+  required:
+    - guild_id
+    - job
+    - job_status_url
+  properties:
+    guild_id:
+      type: string
+    job:
+      $ref: ./jobs.yaml#/Job
+    job_status_url:
+      type: string
+      description: |
+        Payment-auth polling URL for this export job. App clients may instead use the bearer-auth `/jobs/{job_id}` endpoint.

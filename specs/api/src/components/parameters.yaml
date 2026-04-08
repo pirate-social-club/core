@@ -1,0 +1,93 @@
+GuildId:
+  in: path
+  name: guild_id
+  required: true
+  schema:
+    type: string
+NamespaceId:
+  in: path
+  name: namespace_id
+  required: true
+  schema:
+    type: string
+UserId:
+  in: path
+  name: user_id
+  required: true
+  schema:
+    type: string
+PostId:
+  in: path
+  name: post_id
+  required: true
+  schema:
+    type: string
+LiveRoomId:
+  in: path
+  name: live_room_id
+  required: true
+  schema:
+    type: string
+TrackId:
+  in: path
+  name: track_id
+  required: true
+  schema:
+    type: string
+JobId:
+  in: path
+  name: job_id
+  required: true
+  schema:
+    type: string
+VerificationSessionId:
+  in: path
+  name: verification_session_id
+  required: true
+  schema:
+    type: string
+FeedSort:
+  in: query
+  name: sort
+  schema:
+    type: string
+    enum:
+      - best
+      - top
+      - new
+Locale:
+  in: query
+  name: locale
+  description: |
+    Optional locale override for localized read surfaces. When omitted, the server should resolve locale using the SSR precedence contract.
+  schema:
+    type: string
+Cursor:
+  in: query
+  name: cursor
+  schema:
+    type: string
+Limit:
+  in: query
+  name: limit
+  schema:
+    type: integer
+    minimum: 1
+    maximum: 100
+TopWindow:
+  in: query
+  name: top_window
+  schema:
+    type: string
+    enum:
+      - now
+      - today
+      - this_week
+      - this_month
+      - all_time
+FlairId:
+  in: query
+  name: flair_id
+  schema:
+    type: string
+    nullable: true

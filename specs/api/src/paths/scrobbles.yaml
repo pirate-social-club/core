@@ -1,0 +1,52 @@
+scrobbles:
+  post:
+    tags:
+      - Scrobbles
+    summary: Submit a scrobble
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/scrobbles.yaml#/CreateScrobbleRequest
+    responses:
+      "201":
+        description: Scrobble accepted
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/scrobbles.yaml#/Scrobble
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+users_by_user_id_scrobbles:
+  get:
+    tags:
+      - Scrobbles
+    summary: Read scrobbles for a user
+    parameters:
+      - $ref: ../components/parameters.yaml#/UserId
+      - $ref: ../components/parameters.yaml#/Cursor
+      - $ref: ../components/parameters.yaml#/Limit
+    responses:
+      "200":
+        description: Scrobbles
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - items
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: ../components/schemas/scrobbles.yaml#/Scrobble
+                next_cursor:
+                  type: string
+                  nullable: true
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited

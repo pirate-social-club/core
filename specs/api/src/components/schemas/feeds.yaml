@@ -1,0 +1,53 @@
+FeedResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: ./feeds.yaml#/FeedItem
+    next_cursor:
+      type: string
+      nullable: true
+FeedItem:
+  type: object
+  required:
+    - post
+    - resolved_locale
+    - translation_state
+    - machine_translated
+    - source_hash
+  properties:
+    post:
+      $ref: ./posts.yaml#/Post
+    flair:
+      $ref: ./guilds-community.yaml#/PostFlair
+      nullable: true
+    resolved_locale:
+      type: string
+    translation_state:
+      type: string
+      enum:
+        - ready
+        - pending
+        - same_language
+        - policy_blocked
+      description: |
+        Translation resolution state for the resolved locale. `ready` means a machine translation exists. `pending` means the translation is being materialized lazily. `same_language` means no translation is needed. `policy_blocked` means `translation_policy` forbids machine translation.
+    machine_translated:
+      type: boolean
+      description: |
+        True only when `translation_state = ready` and translated text is being surfaced for the resolved locale.
+    translated_body:
+      type: string
+      nullable: true
+      description: |
+        Viewer-facing translated body text when `translation_state = ready`.
+    translated_caption:
+      type: string
+      nullable: true
+      description: |
+        Viewer-facing translated caption text when `translation_state = ready`.
+    source_hash:
+      type: string

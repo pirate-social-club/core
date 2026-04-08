@@ -1,0 +1,60 @@
+Job:
+  type: object
+  required:
+    - job_id
+    - job_type
+    - status
+    - subject_type
+    - subject_id
+    - created_at
+    - updated_at
+  properties:
+    job_id:
+      type: string
+    job_type:
+      type: string
+      enum:
+        - reddit_snapshot_import
+        - guild_threads_export
+        - media_analysis
+        - story_publication
+        - purchase_settlement_confirmation
+        - entitlement_grant
+        - artist_metadata_enrichment
+        - track_reconciliation
+        - catalog_track_preregistration
+        - stem_separation
+        - forced_alignment
+        - karaoke_package_assembly
+    status:
+      type: string
+      enum:
+        - queued
+        - running
+        - succeeded
+        - failed
+    subject_type:
+      type: string
+    subject_id:
+      type: string
+    result_ref:
+      type: string
+      description: |
+        Opaque result reference. For succeeded machine-export jobs this may be a signed download URL.
+      nullable: true
+    error_code:
+      type: string
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+JobAcceptedResponse:
+  type: object
+  required:
+    - job
+  properties:
+    job:
+      $ref: ./jobs.yaml#/Job

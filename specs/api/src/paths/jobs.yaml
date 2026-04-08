@@ -1,0 +1,57 @@
+jobs:
+  get:
+    tags:
+      - Jobs
+    summary: List jobs by subject or type
+    parameters:
+      - in: query
+        name: subject_type
+        schema:
+          type: string
+      - in: query
+        name: subject_id
+        schema:
+          type: string
+      - in: query
+        name: job_type
+        schema:
+          type: string
+      - $ref: ../components/parameters.yaml#/Cursor
+      - $ref: ../components/parameters.yaml#/Limit
+    responses:
+      "200":
+        description: Jobs
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - items
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: ../components/schemas/jobs.yaml#/Job
+                next_cursor:
+                  type: string
+                  nullable: true
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+jobs_by_job_id:
+  get:
+    tags:
+      - Jobs
+    summary: Inspect a pollable async job
+    parameters:
+      - $ref: ../components/parameters.yaml#/JobId
+    responses:
+      "200":
+        description: Job
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/jobs.yaml#/Job
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound

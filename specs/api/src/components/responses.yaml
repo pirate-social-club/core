@@ -1,0 +1,78 @@
+AuthError:
+  description: Authentication failed
+  content:
+    application/json:
+      schema:
+        $ref: ./schemas/common.yaml#/Error
+PaymentRequired:
+  description: Payment is required before the resource can be accessed
+  headers:
+    WWW-Authenticate:
+      description: MPP payment challenge header
+      schema:
+        type: string
+  content:
+    application/json:
+      schema:
+        $ref: ./schemas/mpp.yaml#/MppChallenge
+PaymentRequiredOrFailed:
+  description: Payment is required or a payment attempt failed
+  headers:
+    WWW-Authenticate:
+      description: MPP payment challenge header
+      schema:
+        type: string
+  content:
+    application/json:
+      schema:
+        oneOf:
+          - $ref: ./schemas/mpp.yaml#/MppChallenge
+          - $ref: ./schemas/mpp.yaml#/PaymentFailure
+VerificationRequired:
+  description: Verification is required
+  content:
+    application/json:
+      schema:
+        $ref: ./schemas/common.yaml#/Error
+MppExportForbidden:
+  description: Export blocked by a guild gate or export-eligibility rule
+  content:
+    application/json:
+      schema:
+        $ref: ./schemas/common.yaml#/Error
+GateFailed:
+  description: Guild gate or membership rule failed
+  content:
+    application/json:
+      schema:
+        $ref: ./schemas/common.yaml#/Error
+EligibilityFailed:
+  description: Policy or eligibility requirement failed
+  content:
+    application/json:
+      schema:
+        $ref: ./schemas/common.yaml#/Error
+AnalysisBlocked:
+  description: Content analysis blocked publication
+  content:
+    application/json:
+      schema:
+        $ref: ./schemas/common.yaml#/Error
+Conflict:
+  description: Resource conflict
+  content:
+    application/json:
+      schema:
+        $ref: ./schemas/common.yaml#/Error
+NotFound:
+  description: Resource not found
+  content:
+    application/json:
+      schema:
+        $ref: ./schemas/common.yaml#/Error
+RateLimited:
+  description: Request rate limited
+  content:
+    application/json:
+      schema:
+        $ref: ./schemas/common.yaml#/Error

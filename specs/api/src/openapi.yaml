@@ -1,0 +1,390 @@
+openapi: 3.0.3
+info:
+  title: Pirate API
+  version: 0.1.0
+  description: |
+    First-pass happy-path API for Pirate v2.
+    This OpenAPI file is intentionally narrow. It encodes the core v0 flows that are already stable in the domain specs: auth bootstrap, verification, onboarding, global profile identity, guilds, namespace handles, posts, daily questions, tracks, scrobbles, feeds, and async jobs.
+servers:
+  - url: https://api.pirate.example
+    description: Placeholder production server
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Verification
+  - name: Onboarding
+  - name: Users
+  - name: Profiles
+  - name: Guilds
+  - name: Handles
+  - name: Posts
+  - name: Livestreams
+  - name: Questions
+  - name: Feeds
+  - name: Tracks
+  - name: Scrobbles
+  - name: MPP
+  - name: Jobs
+paths:
+  /auth/session/exchange:
+    $ref: ./paths/auth.yaml#/auth_session_exchange
+  /verification/sessions:
+    $ref: ./paths/verification.yaml#/verification_sessions
+  /verification/sessions/{verification_session_id}:
+    $ref: ./paths/verification.yaml#/verification_sessions_by_verification_session_id
+  /verification/sessions/{verification_session_id}/complete:
+    $ref: ./paths/verification.yaml#/verification_sessions_by_verification_session_id_complete
+  /onboarding/status:
+    $ref: ./paths/onboarding.yaml#/onboarding_status
+  /onboarding/reddit-verification:
+    $ref: ./paths/onboarding.yaml#/onboarding_reddit_verification
+  /onboarding/reddit-imports:
+    $ref: ./paths/onboarding.yaml#/onboarding_reddit_imports
+  /users/me:
+    $ref: ./paths/users.yaml#/users_me
+  /profiles/me:
+    $ref: ./paths/profiles.yaml#/profiles_me
+  /profiles/me/global-handle/rename:
+    $ref: ./paths/profiles.yaml#/profiles_me_global_handle_rename
+  /profiles/me/global-handle/upgrade-quote:
+    $ref: ./paths/profiles.yaml#/profiles_me_global_handle_upgrade_quote
+  /profiles/{user_id}:
+    $ref: ./paths/profiles.yaml#/profiles_by_user_id
+  /guilds:
+    $ref: ./paths/guilds.yaml#/guilds
+  /guilds/{guild_id}:
+    $ref: ./paths/guilds.yaml#/guilds_by_guild_id
+  /guilds/{guild_id}/attach-governance:
+    $ref: ./paths/guilds.yaml#/guilds_by_guild_id_attach_governance
+  /guilds/{guild_id}/flairs:
+    $ref: ./paths/guilds.yaml#/guilds_by_guild_id_flairs
+  /guilds/{guild_id}/community-profile:
+    $ref: ./paths/guilds.yaml#/guilds_by_guild_id_community_profile
+  /guilds/{guild_id}/donation-policy:
+    $ref: ./paths/guilds.yaml#/guilds_by_guild_id_donation_policy
+  /guilds/{guild_id}/join:
+    $ref: ./paths/guilds.yaml#/guilds_by_guild_id_join
+  /guilds/{guild_id}/live-rooms:
+    $ref: ./paths/guilds.yaml#/guilds_by_guild_id_live_rooms
+  /guilds/{guild_id}/leave:
+    $ref: ./paths/guilds.yaml#/guilds_by_guild_id_leave
+  /guilds/{guild_id}/posts:
+    $ref: ./paths/guilds.yaml#/guilds_by_guild_id_posts
+  /live-rooms/{live_room_id}:
+    $ref: ./paths/livestreams.yaml#/live_rooms_by_live_room_id
+  /live-rooms/{live_room_id}/access:
+    $ref: ./paths/livestreams.yaml#/live_rooms_by_live_room_id_access
+  /live-rooms/{live_room_id}/host-attach:
+    $ref: ./paths/livestreams.yaml#/live_rooms_by_live_room_id_host_attach
+  /live-rooms/{live_room_id}/guest-attach:
+    $ref: ./paths/livestreams.yaml#/live_rooms_by_live_room_id_guest_attach
+  /live-rooms/{live_room_id}/replay:
+    $ref: ./paths/livestreams.yaml#/live_rooms_by_live_room_id_replay
+  /live-rooms/{live_room_id}/replay/access:
+    $ref: ./paths/livestreams.yaml#/live_rooms_by_live_room_id_replay_access
+  /live-rooms/{live_room_id}/start:
+    $ref: ./paths/livestreams.yaml#/live_rooms_by_live_room_id_start
+  /live-rooms/{live_room_id}/end:
+    $ref: ./paths/livestreams.yaml#/live_rooms_by_live_room_id_end
+  /live-rooms/{live_room_id}/cancel:
+    $ref: ./paths/livestreams.yaml#/live_rooms_by_live_room_id_cancel
+  /guilds/{guild_id}/questions/daily:
+    $ref: ./paths/questions.yaml#/guilds_by_guild_id_questions_daily
+  /guilds/{guild_id}/questions/daily/answers:
+    $ref: ./paths/questions.yaml#/guilds_by_guild_id_questions_daily_answers
+  /namespaces/{namespace_id}/handles/availability:
+    $ref: ./paths/handles.yaml#/namespaces_by_namespace_id_handles_availability
+  /namespaces/{namespace_id}/handles/claims:
+    $ref: ./paths/handles.yaml#/namespaces_by_namespace_id_handles_claims
+  /posts:
+    $ref: ./paths/posts.yaml#/posts
+  /posts/{post_id}:
+    $ref: ./paths/posts.yaml#/posts_by_post_id
+  /posts/{post_id}/vote:
+    $ref: ./paths/posts.yaml#/posts_by_post_id_vote
+  /feeds/home:
+    $ref: ./paths/feeds.yaml#/feeds_home
+  /feeds/your-guilds:
+    $ref: ./paths/feeds.yaml#/feeds_your_guilds
+  /tracks:
+    $ref: ./paths/tracks.yaml#/tracks
+  /tracks/{track_id}:
+    $ref: ./paths/tracks.yaml#/tracks_by_track_id
+  /tracks/{track_id}/listeners:
+    $ref: ./paths/tracks.yaml#/tracks_by_track_id_listeners
+  /scrobbles:
+    $ref: ./paths/scrobbles.yaml#/scrobbles
+  /users/{user_id}/scrobbles:
+    $ref: ./paths/scrobbles.yaml#/users_by_user_id_scrobbles
+  /mpp/guilds/{guild_id}/threads/export:
+    $ref: ./paths/mpp.yaml#/mpp_guilds_by_guild_id_threads_export
+  /mpp/jobs/{job_id}:
+    $ref: ./paths/mpp.yaml#/mpp_jobs_by_job_id
+  /jobs:
+    $ref: ./paths/jobs.yaml#/jobs
+  /jobs/{job_id}:
+    $ref: ./paths/jobs.yaml#/jobs_by_job_id
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    paymentAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: |
+        Payment credential sent as `Authorization: Payment ...` on retry after an MPP `402 Payment Required` challenge.
+  parameters:
+    GuildId:
+      $ref: ./components/parameters.yaml#/GuildId
+    NamespaceId:
+      $ref: ./components/parameters.yaml#/NamespaceId
+    UserId:
+      $ref: ./components/parameters.yaml#/UserId
+    PostId:
+      $ref: ./components/parameters.yaml#/PostId
+    LiveRoomId:
+      $ref: ./components/parameters.yaml#/LiveRoomId
+    TrackId:
+      $ref: ./components/parameters.yaml#/TrackId
+    JobId:
+      $ref: ./components/parameters.yaml#/JobId
+    VerificationSessionId:
+      $ref: ./components/parameters.yaml#/VerificationSessionId
+    FeedSort:
+      $ref: ./components/parameters.yaml#/FeedSort
+    Locale:
+      $ref: ./components/parameters.yaml#/Locale
+    Cursor:
+      $ref: ./components/parameters.yaml#/Cursor
+    Limit:
+      $ref: ./components/parameters.yaml#/Limit
+    TopWindow:
+      $ref: ./components/parameters.yaml#/TopWindow
+    FlairId:
+      $ref: ./components/parameters.yaml#/FlairId
+  responses:
+    AuthError:
+      $ref: ./components/responses.yaml#/AuthError
+    PaymentRequired:
+      $ref: ./components/responses.yaml#/PaymentRequired
+    PaymentRequiredOrFailed:
+      $ref: ./components/responses.yaml#/PaymentRequiredOrFailed
+    VerificationRequired:
+      $ref: ./components/responses.yaml#/VerificationRequired
+    MppExportForbidden:
+      $ref: ./components/responses.yaml#/MppExportForbidden
+    GateFailed:
+      $ref: ./components/responses.yaml#/GateFailed
+    EligibilityFailed:
+      $ref: ./components/responses.yaml#/EligibilityFailed
+    AnalysisBlocked:
+      $ref: ./components/responses.yaml#/AnalysisBlocked
+    Conflict:
+      $ref: ./components/responses.yaml#/Conflict
+    NotFound:
+      $ref: ./components/responses.yaml#/NotFound
+    RateLimited:
+      $ref: ./components/responses.yaml#/RateLimited
+  schemas:
+    Error:
+      $ref: ./components/schemas/common.yaml#/Error
+    SessionExchangeResponse:
+      $ref: ./components/schemas/auth.yaml#/SessionExchangeResponse
+    User:
+      $ref: ./components/schemas/users.yaml#/User
+    VerificationCapabilities:
+      $ref: ./components/schemas/verification.yaml#/VerificationCapabilities
+    VerificationCapabilityState:
+      $ref: ./components/schemas/verification.yaml#/VerificationCapabilityState
+    VerifiedCapabilityState:
+      $ref: ./components/schemas/verification.yaml#/VerifiedCapabilityState
+    Profile:
+      $ref: ./components/schemas/profiles.yaml#/Profile
+    GlobalHandle:
+      $ref: ./components/schemas/profiles.yaml#/GlobalHandle
+    HandleUpgradeQuote:
+      $ref: ./components/schemas/profiles.yaml#/HandleUpgradeQuote
+    VerificationSession:
+      $ref: ./components/schemas/verification.yaml#/VerificationSession
+    RedditVerification:
+      $ref: ./components/schemas/onboarding.yaml#/RedditVerification
+    OnboardingStatus:
+      $ref: ./components/schemas/onboarding.yaml#/OnboardingStatus
+    CreateGuildRequestBase:
+      $ref: ./components/schemas/guilds-core.yaml#/CreateGuildRequestBase
+    GateRuleInput:
+      $ref: ./components/schemas/guilds-core.yaml#/GateRuleInput
+    GateRule:
+      $ref: ./components/schemas/guilds-core.yaml#/GateRule
+    CreateGuildRequest:
+      $ref: ./components/schemas/guilds-core.yaml#/CreateGuildRequest
+    UpdateGuildRequest:
+      $ref: ./components/schemas/guilds-core.yaml#/UpdateGuildRequest
+    CreateCentralizedGuildRequest:
+      $ref: ./components/schemas/guilds-governance.yaml#/CreateCentralizedGuildRequest
+    CreateMultisigGuildRequest:
+      $ref: ./components/schemas/guilds-governance.yaml#/CreateMultisigGuildRequest
+    CreateMajeurGuildRequest:
+      $ref: ./components/schemas/guilds-governance.yaml#/CreateMajeurGuildRequest
+    AttachGovernanceRequest:
+      $ref: ./components/schemas/guilds-governance.yaml#/AttachGovernanceRequest
+    AttachMultisigGovernanceRequest:
+      $ref: ./components/schemas/guilds-governance.yaml#/AttachMultisigGovernanceRequest
+    AttachMajeurGovernanceRequest:
+      $ref: ./components/schemas/guilds-governance.yaml#/AttachMajeurGovernanceRequest
+    GovernanceAction:
+      $ref: ./components/schemas/guilds-governance.yaml#/GovernanceAction
+    GovernanceVerificationState:
+      $ref: ./components/schemas/guilds-governance.yaml#/GovernanceVerificationState
+    GuildGovernanceBackend:
+      $ref: ./components/schemas/guilds-governance.yaml#/GuildGovernanceBackend
+    CentralizedGovernanceBackend:
+      $ref: ./components/schemas/guilds-governance.yaml#/CentralizedGovernanceBackend
+    MultisigGovernanceAttachmentInput:
+      $ref: ./components/schemas/guilds-governance.yaml#/MultisigGovernanceAttachmentInput
+    MultisigAttachmentProofInput:
+      $ref: ./components/schemas/guilds-governance.yaml#/MultisigAttachmentProofInput
+    MultisigGovernanceBackend:
+      $ref: ./components/schemas/guilds-governance.yaml#/MultisigGovernanceBackend
+    MultisigGovernanceMetadata:
+      $ref: ./components/schemas/guilds-governance.yaml#/MultisigGovernanceMetadata
+    MajeurGovernanceCreateInput:
+      $ref: ./components/schemas/guilds-governance.yaml#/MajeurGovernanceCreateInput
+    MajeurGovernanceAttachInput:
+      $ref: ./components/schemas/guilds-governance.yaml#/MajeurGovernanceAttachInput
+    MajeurSafeSummonInput:
+      $ref: ./components/schemas/guilds-governance.yaml#/MajeurSafeSummonInput
+    MajeurSafeConfigInput:
+      $ref: ./components/schemas/guilds-governance.yaml#/MajeurSafeConfigInput
+    MajeurGovernanceBackend:
+      $ref: ./components/schemas/guilds-governance.yaml#/MajeurGovernanceBackend
+    MajeurGovernanceMetadata:
+      $ref: ./components/schemas/guilds-governance.yaml#/MajeurGovernanceMetadata
+    NamespaceAttachmentInput:
+      $ref: ./components/schemas/handles.yaml#/NamespaceAttachmentInput
+    HandlePolicyInput:
+      $ref: ./components/schemas/handles.yaml#/HandlePolicyInput
+    Guild:
+      $ref: ./components/schemas/guilds-core.yaml#/Guild
+    CreateLiveRoomRequest:
+      $ref: ./components/schemas/livestreams.yaml#/CreateLiveRoomRequest
+    InitialLiveSetlistInput:
+      $ref: ./components/schemas/livestreams.yaml#/InitialLiveSetlistInput
+    LiveSetlistItemInput:
+      $ref: ./components/schemas/livestreams.yaml#/LiveSetlistItemInput
+    LiveRoomPerformerAllocationInput:
+      $ref: ./components/schemas/livestreams.yaml#/LiveRoomPerformerAllocationInput
+    LiveRoom:
+      $ref: ./components/schemas/livestreams.yaml#/LiveRoom
+    HostAttachRequest:
+      $ref: ./components/schemas/livestreams.yaml#/HostAttachRequest
+    GuestAttachRequest:
+      $ref: ./components/schemas/livestreams.yaml#/GuestAttachRequest
+    LiveRoomAttachSession:
+      $ref: ./components/schemas/livestreams.yaml#/LiveRoomAttachSession
+    LiveRoomAccessView:
+      $ref: ./components/schemas/livestreams.yaml#/LiveRoomAccessView
+    LiveRoomReplayView:
+      $ref: ./components/schemas/livestreams.yaml#/LiveRoomReplayView
+    LiveRoomReplayAccessView:
+      $ref: ./components/schemas/livestreams.yaml#/LiveRoomReplayAccessView
+    MembershipResult:
+      $ref: ./components/schemas/guilds-core.yaml#/MembershipResult
+    CreateGuildDonationPolicyInput:
+      $ref: ./components/schemas/guilds-community.yaml#/CreateGuildDonationPolicyInput
+    UpdateGuildDonationPolicyRequest:
+      $ref: ./components/schemas/guilds-community.yaml#/UpdateGuildDonationPolicyRequest
+    DonationPartnerSummary:
+      $ref: ./components/schemas/guilds-community.yaml#/DonationPartnerSummary
+    GuildDonationPolicy:
+      $ref: ./components/schemas/guilds-community.yaml#/GuildDonationPolicy
+    HandleAvailability:
+      $ref: ./components/schemas/handles.yaml#/HandleAvailability
+    GuildHandle:
+      $ref: ./components/schemas/handles.yaml#/GuildHandle
+    CreatePostRequest:
+      $ref: ./components/schemas/posts.yaml#/CreatePostRequest
+    Post:
+      $ref: ./components/schemas/posts.yaml#/Post
+    LocalizedPostResponse:
+      $ref: ./components/schemas/posts.yaml#/LocalizedPostResponse
+    MediaDescriptor:
+      $ref: ./components/schemas/posts.yaml#/MediaDescriptor
+    Question:
+      $ref: ./components/schemas/questions.yaml#/Question
+    CreateQuestionRequest:
+      $ref: ./components/schemas/questions.yaml#/CreateQuestionRequest
+    QuestionAnswer:
+      $ref: ./components/schemas/questions.yaml#/QuestionAnswer
+    FeedResponse:
+      $ref: ./components/schemas/feeds.yaml#/FeedResponse
+    FeedItem:
+      $ref: ./components/schemas/feeds.yaml#/FeedItem
+    CreateGuildCommunityBootstrapInput:
+      $ref: ./components/schemas/guilds-community.yaml#/CreateGuildCommunityBootstrapInput
+    CreateGuildFlairPolicyInput:
+      $ref: ./components/schemas/guilds-community.yaml#/CreateGuildFlairPolicyInput
+    UpdateGuildFlairPolicyRequest:
+      $ref: ./components/schemas/guilds-community.yaml#/UpdateGuildFlairPolicyRequest
+    CreateGuildFlairDefinitionInput:
+      $ref: ./components/schemas/guilds-community.yaml#/CreateGuildFlairDefinitionInput
+    UpdateGuildFlairDefinitionInput:
+      $ref: ./components/schemas/guilds-community.yaml#/UpdateGuildFlairDefinitionInput
+    GuildFlairDefinitionMutationInput:
+      $ref: ./components/schemas/guilds-community.yaml#/GuildFlairDefinitionMutationInput
+    GuildFlairDefinition:
+      $ref: ./components/schemas/guilds-community.yaml#/GuildFlairDefinition
+    GuildFlairPolicy:
+      $ref: ./components/schemas/guilds-community.yaml#/GuildFlairPolicy
+    PostFlair:
+      $ref: ./components/schemas/guilds-community.yaml#/PostFlair
+    CreateGuildRuleInput:
+      $ref: ./components/schemas/guilds-community.yaml#/CreateGuildRuleInput
+    UpdateGuildRuleInput:
+      $ref: ./components/schemas/guilds-community.yaml#/UpdateGuildRuleInput
+    GuildRuleMutationInput:
+      $ref: ./components/schemas/guilds-community.yaml#/GuildRuleMutationInput
+    GuildRule:
+      $ref: ./components/schemas/guilds-community.yaml#/GuildRule
+    CreateGuildResourceLinkInput:
+      $ref: ./components/schemas/guilds-community.yaml#/CreateGuildResourceLinkInput
+    UpdateGuildResourceLinkInput:
+      $ref: ./components/schemas/guilds-community.yaml#/UpdateGuildResourceLinkInput
+    GuildResourceLinkMutationInput:
+      $ref: ./components/schemas/guilds-community.yaml#/GuildResourceLinkMutationInput
+    GuildResourceLink:
+      $ref: ./components/schemas/guilds-community.yaml#/GuildResourceLink
+    GuildCommunityProfile:
+      $ref: ./components/schemas/guilds-community.yaml#/GuildCommunityProfile
+    UpdateGuildCommunityProfileRequest:
+      $ref: ./components/schemas/guilds-community.yaml#/UpdateGuildCommunityProfileRequest
+    TrackResolveRequest:
+      $ref: ./components/schemas/tracks.yaml#/TrackResolveRequest
+    ListingDonationConfig:
+      $ref: ./components/schemas/tracks.yaml#/ListingDonationConfig
+    PurchaseDonationSettlement:
+      $ref: ./components/schemas/tracks.yaml#/PurchaseDonationSettlement
+    Track:
+      $ref: ./components/schemas/tracks.yaml#/Track
+    CreateScrobbleRequest:
+      $ref: ./components/schemas/scrobbles.yaml#/CreateScrobbleRequest
+    Scrobble:
+      $ref: ./components/schemas/scrobbles.yaml#/Scrobble
+    ListenerSummary:
+      $ref: ./components/schemas/scrobbles.yaml#/ListenerSummary
+    Job:
+      $ref: ./components/schemas/jobs.yaml#/Job
+    JobAcceptedResponse:
+      $ref: ./components/schemas/jobs.yaml#/JobAcceptedResponse
+    MppChallenge:
+      $ref: ./components/schemas/mpp.yaml#/MppChallenge
+    PaymentFailure:
+      $ref: ./components/schemas/mpp.yaml#/PaymentFailure
+    ThreadExportRequest:
+      $ref: ./components/schemas/mpp.yaml#/ThreadExportRequest
+    ThreadExportAcceptedResponse:
+      $ref: ./components/schemas/mpp.yaml#/ThreadExportAcceptedResponse

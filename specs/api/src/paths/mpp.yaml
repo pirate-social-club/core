@@ -1,0 +1,61 @@
+mpp_guilds_by_guild_id_threads_export:
+  post:
+    tags:
+      - MPP
+    summary: Request a paid guild thread export
+    description: |
+      This is the v0 machine-access export surface. Initial requests may return `402 Payment Required` with `WWW-Authenticate: Payment`. Successful paid requests return `Payment-Receipt` and a pollable export job. Payment-auth callers complete the async flow through `/mpp/jobs/{job_id}`.
+    security:
+      - paymentAuth: []
+    parameters:
+      - $ref: ../components/parameters.yaml#/GuildId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/mpp.yaml#/ThreadExportRequest
+    responses:
+      "202":
+        description: Export accepted as an async job
+        headers:
+          Payment-Receipt:
+            description: Machine-payment receipt for the accepted export request
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/mpp.yaml#/ThreadExportAcceptedResponse
+      "402":
+        $ref: ../components/responses.yaml#/PaymentRequiredOrFailed
+      "403":
+        $ref: ../components/responses.yaml#/MppExportForbidden
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+mpp_jobs_by_job_id:
+  get:
+    tags:
+      - MPP
+    summary: Inspect a pollable async MPP job
+    description: |
+      Payment-auth callers use this endpoint to poll async jobs returned by paid machine-access endpoints such as guild thread exports.
+    security:
+      - paymentAuth: []
+    parameters:
+      - $ref: ../components/parameters.yaml#/JobId
+    responses:
+      "200":
+        description: Job
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/jobs.yaml#/Job
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited

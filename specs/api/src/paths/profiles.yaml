@@ -1,0 +1,123 @@
+profiles_me:
+  get:
+    tags:
+      - Profiles
+    summary: Get the current user's public/editable profile
+    responses:
+      "200":
+        description: Current profile
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/profiles.yaml#/Profile
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+  patch:
+    tags:
+      - Profiles
+    summary: Update editable profile fields
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              display_name:
+                type: string
+              avatar_ref:
+                type: string
+                nullable: true
+              bio:
+                type: string
+                nullable: true
+              preferred_locale:
+                type: string
+                nullable: true
+    responses:
+      "200":
+        description: Updated profile
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/profiles.yaml#/Profile
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+profiles_me_global_handle_rename:
+  post:
+    tags:
+      - Profiles
+    summary: Rename the current active global .pirate handle
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - desired_label
+            properties:
+              desired_label:
+                type: string
+    responses:
+      "200":
+        description: Global handle updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/profiles.yaml#/GlobalHandle
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+profiles_me_global_handle_upgrade_quote:
+  post:
+    tags:
+      - Profiles
+    summary: Quote a paid upgrade into a cleaner .pirate handle
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - desired_label
+            properties:
+              desired_label:
+                type: string
+    responses:
+      "200":
+        description: Upgrade quote
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/profiles.yaml#/HandleUpgradeQuote
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+profiles_by_user_id:
+  get:
+    tags:
+      - Profiles
+    summary: Get a public profile
+    parameters:
+      - $ref: ../components/parameters.yaml#/UserId
+    responses:
+      "200":
+        description: Public profile
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/profiles.yaml#/Profile
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound

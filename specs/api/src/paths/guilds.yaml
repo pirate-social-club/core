@@ -1,0 +1,350 @@
+guilds:
+  post:
+    tags:
+      - Guilds
+    summary: Create a guild
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/guilds-core.yaml#/CreateGuildRequest
+    responses:
+      "201":
+        description: Guild created
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/guilds-core.yaml#/Guild
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+  get:
+    tags:
+      - Guilds
+    summary: List guilds
+    parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: artist_identity_id
+        schema:
+          type: string
+      - $ref: ../components/parameters.yaml#/Cursor
+      - $ref: ../components/parameters.yaml#/Limit
+    responses:
+      "200":
+        description: Guilds
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - items
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: ../components/schemas/guilds-core.yaml#/Guild
+                next_cursor:
+                  type: string
+                  nullable: true
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+guilds_by_guild_id:
+  get:
+    tags:
+      - Guilds
+    summary: Get a guild
+    parameters:
+      - $ref: ../components/parameters.yaml#/GuildId
+    responses:
+      "200":
+        description: Guild
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/guilds-core.yaml#/Guild
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  patch:
+    tags:
+      - Guilds
+    summary: Update mutable guild settings
+    parameters:
+      - $ref: ../components/parameters.yaml#/GuildId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/guilds-core.yaml#/UpdateGuildRequest
+    responses:
+      "200":
+        description: Guild updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/guilds-core.yaml#/Guild
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+guilds_by_guild_id_attach_governance:
+  post:
+    tags:
+      - Guilds
+    summary: Attach or replace an external governance backend for a guild
+    parameters:
+      - $ref: ../components/parameters.yaml#/GuildId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/guilds-governance.yaml#/AttachGovernanceRequest
+    responses:
+      "202":
+        description: Governance attachment action accepted
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/guilds-governance.yaml#/GovernanceAction
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+guilds_by_guild_id_flairs:
+  get:
+    tags:
+      - Guilds
+    summary: List flair definitions for a guild
+    parameters:
+      - $ref: ../components/parameters.yaml#/GuildId
+    responses:
+      "200":
+        description: Guild flair policy
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/guilds-community.yaml#/GuildFlairPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  patch:
+    tags:
+      - Guilds
+    summary: Replace or update flair definitions for a guild
+    parameters:
+      - $ref: ../components/parameters.yaml#/GuildId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/guilds-community.yaml#/UpdateGuildFlairPolicyRequest
+    responses:
+      "200":
+        description: Guild flair policy updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/guilds-community.yaml#/GuildFlairPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+guilds_by_guild_id_community_profile:
+  get:
+    tags:
+      - Guilds
+    summary: Get the community profile for a guild
+    parameters:
+      - $ref: ../components/parameters.yaml#/GuildId
+    responses:
+      "200":
+        description: Guild community profile
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/guilds-community.yaml#/GuildCommunityProfile
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  patch:
+    tags:
+      - Guilds
+    summary: Update the community profile for a guild
+    parameters:
+      - $ref: ../components/parameters.yaml#/GuildId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/guilds-community.yaml#/UpdateGuildCommunityProfileRequest
+    responses:
+      "200":
+        description: Guild community profile updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/guilds-community.yaml#/GuildCommunityProfile
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+guilds_by_guild_id_donation_policy:
+  get:
+    tags:
+      - Guilds
+    summary: Get the active donation policy for a guild
+    parameters:
+      - $ref: ../components/parameters.yaml#/GuildId
+    responses:
+      "200":
+        description: Guild donation policy
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/guilds-community.yaml#/GuildDonationPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  patch:
+    tags:
+      - Guilds
+    summary: Configure or update the donation policy for a guild
+    parameters:
+      - $ref: ../components/parameters.yaml#/GuildId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/guilds-community.yaml#/UpdateGuildDonationPolicyRequest
+    responses:
+      "200":
+        description: Guild donation policy updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/guilds-community.yaml#/GuildDonationPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+guilds_by_guild_id_join:
+  post:
+    tags:
+      - Guilds
+    summary: Join a guild
+    parameters:
+      - $ref: ../components/parameters.yaml#/GuildId
+    responses:
+      "200":
+        description: Membership created or request recorded
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/guilds-core.yaml#/MembershipResult
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/GateFailed
+guilds_by_guild_id_live_rooms:
+  post:
+    tags:
+      - Livestreams
+    summary: Create a livestream room for a guild
+    parameters:
+      - $ref: ../components/parameters.yaml#/GuildId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/livestreams.yaml#/CreateLiveRoomRequest
+    responses:
+      "201":
+        description: Livestream room created
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/livestreams.yaml#/LiveRoom
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+guilds_by_guild_id_leave:
+  post:
+    tags:
+      - Guilds
+    summary: Leave a guild
+    parameters:
+      - $ref: ../components/parameters.yaml#/GuildId
+    responses:
+      "200":
+        description: Membership removed
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/guilds-core.yaml#/MembershipResult
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+guilds_by_guild_id_posts:
+  get:
+    tags:
+      - Posts
+    summary: List posts in a guild
+    parameters:
+      - $ref: ../components/parameters.yaml#/GuildId
+      - $ref: ../components/parameters.yaml#/Locale
+      - $ref: ../components/parameters.yaml#/FeedSort
+      - $ref: ../components/parameters.yaml#/TopWindow
+      - $ref: ../components/parameters.yaml#/FlairId
+      - $ref: ../components/parameters.yaml#/Cursor
+      - $ref: ../components/parameters.yaml#/Limit
+    responses:
+      "200":
+        description: Guild posts
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/feeds.yaml#/FeedResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited

@@ -1,0 +1,14 @@
+users_me:
+  get:
+    tags:
+      - Users
+    summary: Get the current user
+    responses:
+      "200":
+        description: Current user
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/users.yaml#/User
+      "401":
+        $ref: ../components/responses.yaml#/AuthError

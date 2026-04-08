@@ -1,0 +1,368 @@
+CreateGuildRequestBase:
+  type: object
+  required:
+    - display_name
+    - membership_mode
+    - posting_identity_mode
+    - namespace
+    - handle_policy
+  properties:
+    display_name:
+      type: string
+    description:
+      type: string
+      nullable: true
+    artist_identity_id:
+      type: string
+      nullable: true
+    membership_mode:
+      type: string
+      enum:
+        - open
+        - request
+        - gated
+    posting_identity_mode:
+      type: string
+      enum:
+        - public_handle_only
+        - allow_anonymous
+    anonymous_identity_scope:
+      type: string
+      enum:
+        - guild_stable
+        - thread_stable
+        - post_ephemeral
+      nullable: true
+    default_author_presentation:
+      type: string
+      enum:
+        - public_handle
+        - anonymous_label
+        - anonymous_label_with_verified_badges
+      nullable: true
+    allowed_verified_author_badges:
+      type: array
+      items:
+        type: string
+        enum:
+          - nationality
+          - age_over_18
+      nullable: true
+    default_age_gate_policy:
+      type: string
+      enum:
+        - none
+        - 18_plus
+      default: none
+    namespace:
+      $ref: ./handles.yaml#/NamespaceAttachmentInput
+    handle_policy:
+      $ref: ./handles.yaml#/HandlePolicyInput
+    donation_policy:
+      allOf:
+        - $ref: ./guilds-community.yaml#/CreateGuildDonationPolicyInput
+      type: object
+      nullable: true
+    community_bootstrap:
+      $ref: ./guilds-community.yaml#/CreateGuildCommunityBootstrapInput
+      nullable: true
+    gate_rules:
+      type: array
+      items:
+        $ref: ./guilds-core.yaml#/GateRuleInput
+      nullable: true
+GateRuleInput:
+  type: object
+  required:
+    - scope
+    - gate_family
+    - gate_type
+  properties:
+    scope:
+      type: string
+      enum:
+        - membership
+        - viewer
+        - posting
+    gate_family:
+      type: string
+      enum:
+        - token_holding
+        - identity_proof
+    gate_type:
+      type: string
+      enum:
+        - erc721_holding
+        - erc1155_holding
+        - erc20_balance
+        - solana_nft_holding
+        - unique_human
+        - age_over_18
+        - nationality
+    minimum_assurance_level:
+      type: string
+      enum:
+        - basic
+        - strong
+      nullable: true
+      description: |
+        Minimum assurance level for identity-proof gates. Null means use the default for the gate type (basic for unique_human, strong for age_over_18 and nationality). Ignored for token_holding gates.
+    chain_namespace:
+      type: string
+      nullable: true
+    gate_config:
+      type: object
+      nullable: true
+      additionalProperties: true
+GateRule:
+  type: object
+  required:
+    - gate_rule_id
+    - guild_id
+    - scope
+    - gate_family
+    - gate_type
+    - status
+    - created_at
+    - updated_at
+  properties:
+    gate_rule_id:
+      type: string
+    guild_id:
+      type: string
+    scope:
+      type: string
+      enum:
+        - membership
+        - viewer
+        - posting
+    gate_family:
+      type: string
+      enum:
+        - token_holding
+        - identity_proof
+    gate_type:
+      type: string
+      enum:
+        - erc721_holding
+        - erc1155_holding
+        - erc20_balance
+        - solana_nft_holding
+        - unique_human
+        - age_over_18
+        - nationality
+    minimum_assurance_level:
+      type: string
+      enum:
+        - basic
+        - strong
+      nullable: true
+    chain_namespace:
+      type: string
+      nullable: true
+    gate_config:
+      type: object
+      nullable: true
+      additionalProperties: true
+    status:
+      type: string
+      enum:
+        - active
+        - disabled
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+CreateGuildRequest:
+  oneOf:
+    - $ref: ./guilds-governance.yaml#/CreateCentralizedGuildRequest
+    - $ref: ./guilds-governance.yaml#/CreateMultisigGuildRequest
+    - $ref: ./guilds-governance.yaml#/CreateMajeurGuildRequest
+  discriminator:
+    propertyName: governance_mode
+    mapping:
+      centralized: "#/components/schemas/CreateCentralizedGuildRequest"
+      multisig: "#/components/schemas/CreateMultisigGuildRequest"
+      majeur: "#/components/schemas/CreateMajeurGuildRequest"
+UpdateGuildRequest:
+  type: object
+  properties:
+    display_name:
+      type: string
+    description:
+      type: string
+      nullable: true
+    membership_mode:
+      type: string
+      enum:
+        - open
+        - request
+        - gated
+    posting_identity_mode:
+      type: string
+      enum:
+        - public_handle_only
+        - allow_anonymous
+    anonymous_identity_scope:
+      type: string
+      enum:
+        - guild_stable
+        - thread_stable
+        - post_ephemeral
+      nullable: true
+    default_author_presentation:
+      type: string
+      enum:
+        - public_handle
+        - anonymous_label
+        - anonymous_label_with_verified_badges
+      nullable: true
+    allowed_verified_author_badges:
+      type: array
+      items:
+        type: string
+        enum:
+          - nationality
+          - age_over_18
+      nullable: true
+    default_age_gate_policy:
+      type: string
+      enum:
+        - none
+        - 18_plus
+Guild:
+  type: object
+  required:
+    - guild_id
+    - display_name
+    - status
+    - membership_mode
+    - posting_identity_mode
+    - governance_mode
+    - donation_policy_mode
+    - donation_partner_status
+    - created_by_user_id
+    - created_at
+    - updated_at
+  properties:
+    guild_id:
+      type: string
+    display_name:
+      type: string
+    description:
+      type: string
+      nullable: true
+    status:
+      type: string
+      enum:
+        - draft
+        - active
+        - frozen
+        - archived
+        - deleted
+    artist_identity_id:
+      type: string
+      nullable: true
+    guild_agent_user_id:
+      type: string
+      nullable: true
+    membership_mode:
+      type: string
+      enum:
+        - open
+        - request
+        - gated
+    posting_identity_mode:
+      type: string
+      enum:
+        - public_handle_only
+        - allow_anonymous
+    anonymous_identity_scope:
+      type: string
+      enum:
+        - guild_stable
+        - thread_stable
+        - post_ephemeral
+      nullable: true
+    default_author_presentation:
+      type: string
+      enum:
+        - public_handle
+        - anonymous_label
+        - anonymous_label_with_verified_badges
+      nullable: true
+    allowed_verified_author_badges:
+      type: array
+      items:
+        type: string
+        enum:
+          - nationality
+          - age_over_18
+      nullable: true
+    default_age_gate_policy:
+      type: string
+      enum:
+        - none
+        - 18_plus
+    donation_policy_mode:
+      type: string
+      enum:
+        - none
+        - optional_creator_sidecar
+        - fundraiser_default
+    donation_partner_status:
+      type: string
+      enum:
+        - unconfigured
+        - active
+        - paused
+    donation_partner_id:
+      type: string
+      nullable: true
+    donation_partner:
+      $ref: ./guilds-community.yaml#/DonationPartnerSummary
+      nullable: true
+    flair_policy:
+      $ref: ./guilds-community.yaml#/GuildFlairPolicy
+      nullable: true
+    community_profile:
+      $ref: ./guilds-community.yaml#/GuildCommunityProfile
+      nullable: true
+    governance_mode:
+      type: string
+      enum:
+        - centralized
+        - multisig
+        - majeur
+    governance_backend:
+      $ref: ./guilds-governance.yaml#/GuildGovernanceBackend
+      nullable: true
+    gate_rules:
+      type: array
+      items:
+        $ref: ./guilds-core.yaml#/GateRule
+      nullable: true
+    created_by_user_id:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+MembershipResult:
+  type: object
+  required:
+    - guild_id
+    - status
+  properties:
+    guild_id:
+      type: string
+    status:
+      type: string
+      enum:
+        - joined
+        - requested
+        - left

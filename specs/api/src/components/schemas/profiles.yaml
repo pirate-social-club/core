@@ -1,0 +1,101 @@
+Profile:
+  type: object
+  required:
+    - user_id
+    - global_handle
+    - created_at
+    - updated_at
+  properties:
+    user_id:
+      type: string
+    display_name:
+      type: string
+      nullable: true
+    avatar_ref:
+      type: string
+      nullable: true
+    bio:
+      type: string
+      nullable: true
+    preferred_locale:
+      type: string
+      nullable: true
+    global_handle:
+      $ref: ./profiles.yaml#/GlobalHandle
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+GlobalHandle:
+  type: object
+  required:
+    - global_handle_id
+    - label
+    - tier
+    - status
+    - issuance_source
+    - issued_at
+  properties:
+    global_handle_id:
+      type: string
+    label:
+      type: string
+    tier:
+      type: string
+      enum:
+        - generated
+        - standard
+        - premium
+    status:
+      type: string
+      enum:
+        - active
+        - redirect
+        - retired
+    issuance_source:
+      type: string
+      enum:
+        - generated_signup
+        - free_cleanup_rename
+        - reddit_verified_claim
+        - paid_upgrade
+        - admin_grant
+    redirect_target_global_handle_id:
+      type: string
+      nullable: true
+    price_paid_usd:
+      type: number
+      nullable: true
+    free_rename_consumed:
+      type: boolean
+    issued_at:
+      type: string
+      format: date-time
+    replaced_at:
+      type: string
+      format: date-time
+      nullable: true
+HandleUpgradeQuote:
+  type: object
+  required:
+    - desired_label
+    - tier
+    - price_usd
+    - eligible
+  properties:
+    desired_label:
+      type: string
+    tier:
+      type: string
+      enum:
+        - standard
+        - premium
+    price_usd:
+      type: number
+    eligible:
+      type: boolean
+    reason:
+      type: string
+      nullable: true

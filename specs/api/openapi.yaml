@@ -2,12 +2,9 @@ openapi: 3.0.3
 info:
   title: Pirate API
   version: 0.1.0
-  summary: First-pass happy-path API for Pirate v2.
-  description: >
-    This OpenAPI file is intentionally narrow. It encodes the core v0 flows that
-    are already stable in the domain specs: auth bootstrap, verification,
-    onboarding, global profile identity, guilds, namespace handles, posts,
-    daily questions, tracks, scrobbles, feeds, and async jobs.
+  description: |
+    First-pass happy-path API for Pirate v2.
+    This OpenAPI file is intentionally narrow. It encodes the core v0 flows that are already stable in the domain specs: auth bootstrap, verification, onboarding, global profile identity, guilds, namespace handles, posts, daily questions, tracks, scrobbles, feeds, and async jobs.
 servers:
   - url: https://api.pirate.example
     description: Placeholder production server
@@ -32,7 +29,8 @@ tags:
 paths:
   /auth/session/exchange:
     post:
-      tags: [Auth]
+      tags:
+        - Auth
       summary: Exchange a Privy proof for a Pirate app session
       security: []
       requestBody:
@@ -41,7 +39,8 @@ paths:
           application/json:
             schema:
               type: object
-              required: [privy_access_token]
+              required:
+                - privy_access_token
               properties:
                 privy_access_token:
                   type: string
@@ -49,65 +48,72 @@ paths:
                   type: string
                   nullable: true
       responses:
-        '200':
+        "200":
           description: Session created or resumed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SessionExchangeResponse'
-        '401':
-          $ref: '#/components/responses/AuthError'
-
-  /verification/self/sessions:
+                $ref: "#/components/schemas/SessionExchangeResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+  /verification/sessions:
     post:
-      tags: [Verification]
-      summary: Start a Self verification session
+      tags:
+        - Verification
+      summary: Start a verification session
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              required:
+                - provider
               properties:
+                provider:
+                  type: string
+                  enum:
+                    - self
+                    - very
                 wallet_attachment_id:
                   type: string
                   nullable: true
       responses:
-        '201':
+        "201":
           description: Verification session started
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SelfVerificationSession'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
-  /verification/self/sessions/{self_verification_session_id}:
+                $ref: "#/components/schemas/VerificationSession"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /verification/sessions/{verification_session_id}:
     get:
-      tags: [Verification]
-      summary: Inspect a Self verification session
+      tags:
+        - Verification
+      summary: Inspect a verification session
       parameters:
-        - $ref: '#/components/parameters/SelfVerificationSessionId'
+        - $ref: "#/components/parameters/VerificationSessionId"
       responses:
-        '200':
+        "200":
           description: Verification session
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SelfVerificationSession'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /verification/self/sessions/{self_verification_session_id}/complete:
+                $ref: "#/components/schemas/VerificationSession"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /verification/sessions/{verification_session_id}/complete:
     post:
-      tags: [Verification]
-      summary: Complete or refresh a Self verification session
+      tags:
+        - Verification
+      summary: Complete or refresh a verification session
       parameters:
-        - $ref: '#/components/parameters/SelfVerificationSessionId'
+        - $ref: "#/components/parameters/VerificationSessionId"
       requestBody:
         required: false
         content:
@@ -122,34 +128,34 @@ paths:
                   type: string
                   nullable: true
       responses:
-        '200':
+        "200":
           description: Verification session updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SelfVerificationSession'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
+                $ref: "#/components/schemas/VerificationSession"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /onboarding/status:
     get:
-      tags: [Onboarding]
+      tags:
+        - Onboarding
       summary: Fetch onboarding status for the current user
       responses:
-        '200':
+        "200":
           description: Onboarding state
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OnboardingStatus'
-        '401':
-          $ref: '#/components/responses/AuthError'
-
+                $ref: "#/components/schemas/OnboardingStatus"
+        "401":
+          $ref: "#/components/responses/AuthError"
   /onboarding/reddit-verification:
     post:
-      tags: [Onboarding]
+      tags:
+        - Onboarding
       summary: Start or refresh Reddit ownership verification
       requestBody:
         required: true
@@ -157,25 +163,26 @@ paths:
           application/json:
             schema:
               type: object
-              required: [reddit_username]
+              required:
+                - reddit_username
               properties:
                 reddit_username:
                   type: string
       responses:
-        '200':
+        "200":
           description: Reddit verification state
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RedditVerification'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+                $ref: "#/components/schemas/RedditVerification"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /onboarding/reddit-imports:
     post:
-      tags: [Onboarding]
+      tags:
+        - Onboarding
       summary: Trigger a Reddit snapshot import job
       requestBody:
         required: true
@@ -183,51 +190,53 @@ paths:
           application/json:
             schema:
               type: object
-              required: [reddit_username]
+              required:
+                - reddit_username
               properties:
                 reddit_username:
                   type: string
       responses:
-        '202':
+        "202":
           description: Import job queued
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JobAcceptedResponse'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+                $ref: "#/components/schemas/JobAcceptedResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /users/me:
     get:
-      tags: [Users]
+      tags:
+        - Users
       summary: Get the current user
       responses:
-        '200':
+        "200":
           description: Current user
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
-        '401':
-          $ref: '#/components/responses/AuthError'
-
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/AuthError"
   /profiles/me:
     get:
-      tags: [Profiles]
+      tags:
+        - Profiles
       summary: Get the current user's public/editable profile
       responses:
-        '200':
+        "200":
           description: Current profile
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Profile'
-        '401':
-          $ref: '#/components/responses/AuthError'
+                $ref: "#/components/schemas/Profile"
+        "401":
+          $ref: "#/components/responses/AuthError"
     patch:
-      tags: [Profiles]
+      tags:
+        - Profiles
       summary: Update editable profile fields
       requestBody:
         required: true
@@ -248,18 +257,18 @@ paths:
                   type: string
                   nullable: true
       responses:
-        '200':
+        "200":
           description: Updated profile
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Profile'
-        '401':
-          $ref: '#/components/responses/AuthError'
-
+                $ref: "#/components/schemas/Profile"
+        "401":
+          $ref: "#/components/responses/AuthError"
   /profiles/me/global-handle/rename:
     post:
-      tags: [Profiles]
+      tags:
+        - Profiles
       summary: Rename the current active global .pirate handle
       requestBody:
         required: true
@@ -267,29 +276,30 @@ paths:
           application/json:
             schema:
               type: object
-              required: [desired_label]
+              required:
+                - desired_label
               properties:
                 desired_label:
                   type: string
       responses:
-        '200':
+        "200":
           description: Global handle updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GlobalHandle'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '403':
-          $ref: '#/components/responses/EligibilityFailed'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+                $ref: "#/components/schemas/GlobalHandle"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /profiles/me/global-handle/upgrade-quote:
     post:
-      tags: [Profiles]
+      tags:
+        - Profiles
       summary: Quote a paid upgrade into a cleaner .pirate handle
       requestBody:
         required: true
@@ -297,65 +307,67 @@ paths:
           application/json:
             schema:
               type: object
-              required: [desired_label]
+              required:
+                - desired_label
               properties:
                 desired_label:
                   type: string
       responses:
-        '200':
+        "200":
           description: Upgrade quote
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HandleUpgradeQuote'
-        '403':
-          $ref: '#/components/responses/EligibilityFailed'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+                $ref: "#/components/schemas/HandleUpgradeQuote"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /profiles/{user_id}:
     get:
-      tags: [Profiles]
+      tags:
+        - Profiles
       summary: Get a public profile
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: "#/components/parameters/UserId"
       responses:
-        '200':
+        "200":
           description: Public profile
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Profile'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
+                $ref: "#/components/schemas/Profile"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /guilds:
     post:
-      tags: [Guilds]
+      tags:
+        - Guilds
       summary: Create a guild
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateGuildRequest'
+              $ref: "#/components/schemas/CreateGuildRequest"
       responses:
-        '201':
+        "201":
           description: Guild created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Guild'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '429':
-          $ref: '#/components/responses/RateLimited'
+                $ref: "#/components/schemas/Guild"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
     get:
-      tags: [Guilds]
+      tags:
+        - Guilds
       summary: List guilds
       parameters:
         - in: query
@@ -366,262 +378,500 @@ paths:
           name: artist_identity_id
           schema:
             type: string
-        - $ref: '#/components/parameters/Cursor'
-        - $ref: '#/components/parameters/Limit'
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        '200':
+        "200":
           description: Guilds
           content:
             application/json:
               schema:
                 type: object
-                required: [items]
+                required:
+                  - items
                 properties:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Guild'
+                      $ref: "#/components/schemas/Guild"
                   next_cursor:
                     type: string
                     nullable: true
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /guilds/{guild_id}:
     get:
-      tags: [Guilds]
+      tags:
+        - Guilds
       summary: Get a guild
       parameters:
-        - $ref: '#/components/parameters/GuildId'
+        - $ref: "#/components/parameters/GuildId"
       responses:
-        '200':
+        "200":
           description: Guild
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Guild'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
+                $ref: "#/components/schemas/Guild"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - Guilds
+      summary: Update mutable guild settings
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGuildRequest"
+      responses:
+        "200":
+          description: Guild updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Guild"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /guilds/{guild_id}/attach-governance:
+    post:
+      tags:
+        - Guilds
+      summary: Attach or replace an external governance backend for a guild
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttachGovernanceRequest"
+      responses:
+        "202":
+          description: Governance attachment action accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GovernanceAction"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /guilds/{guild_id}/flairs:
+    get:
+      tags:
+        - Guilds
+      summary: List flair definitions for a guild
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      responses:
+        "200":
+          description: Guild flair policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuildFlairPolicy"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - Guilds
+      summary: Replace or update flair definitions for a guild
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGuildFlairPolicyRequest"
+      responses:
+        "200":
+          description: Guild flair policy updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuildFlairPolicy"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /guilds/{guild_id}/community-profile:
+    get:
+      tags:
+        - Guilds
+      summary: Get the community profile for a guild
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      responses:
+        "200":
+          description: Guild community profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuildCommunityProfile"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - Guilds
+      summary: Update the community profile for a guild
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGuildCommunityProfileRequest"
+      responses:
+        "200":
+          description: Guild community profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuildCommunityProfile"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /guilds/{guild_id}/donation-policy:
     get:
-      tags: [Guilds]
+      tags:
+        - Guilds
       summary: Get the active donation policy for a guild
       parameters:
-        - $ref: '#/components/parameters/GuildId'
+        - $ref: "#/components/parameters/GuildId"
       responses:
-        '200':
+        "200":
           description: Guild donation policy
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GuildDonationPolicy'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/GuildDonationPolicy"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
     patch:
-      tags: [Guilds]
+      tags:
+        - Guilds
       summary: Configure or update the donation policy for a guild
       parameters:
-        - $ref: '#/components/parameters/GuildId'
+        - $ref: "#/components/parameters/GuildId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateGuildDonationPolicyRequest'
+              $ref: "#/components/schemas/UpdateGuildDonationPolicyRequest"
       responses:
-        '200':
+        "200":
           description: Guild donation policy updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GuildDonationPolicy'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '403':
-          $ref: '#/components/responses/EligibilityFailed'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+                $ref: "#/components/schemas/GuildDonationPolicy"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /guilds/{guild_id}/join:
     post:
-      tags: [Guilds]
+      tags:
+        - Guilds
       summary: Join a guild
       parameters:
-        - $ref: '#/components/parameters/GuildId'
+        - $ref: "#/components/parameters/GuildId"
       responses:
-        '200':
+        "200":
           description: Membership created or request recorded
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MembershipResult'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '403':
-          $ref: '#/components/responses/GateFailed'
-
+                $ref: "#/components/schemas/MembershipResult"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/GateFailed"
   /guilds/{guild_id}/live-rooms:
     post:
-      tags: [Livestreams]
+      tags:
+        - Livestreams
       summary: Create a livestream room for a guild
       parameters:
-        - $ref: '#/components/parameters/GuildId'
+        - $ref: "#/components/parameters/GuildId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateLiveRoomRequest'
+              $ref: "#/components/schemas/CreateLiveRoomRequest"
       responses:
-        '201':
+        "201":
           description: Livestream room created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LiveRoom'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '403':
-          $ref: '#/components/responses/EligibilityFailed'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+                $ref: "#/components/schemas/LiveRoom"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /guilds/{guild_id}/leave:
     post:
-      tags: [Guilds]
+      tags:
+        - Guilds
       summary: Leave a guild
       parameters:
-        - $ref: '#/components/parameters/GuildId'
+        - $ref: "#/components/parameters/GuildId"
       responses:
-        '200':
+        "200":
           description: Membership removed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MembershipResult'
-        '401':
-          $ref: '#/components/responses/AuthError'
-
+                $ref: "#/components/schemas/MembershipResult"
+        "401":
+          $ref: "#/components/responses/AuthError"
   /guilds/{guild_id}/posts:
     get:
-      tags: [Posts]
+      tags:
+        - Posts
       summary: List posts in a guild
       parameters:
-        - $ref: '#/components/parameters/GuildId'
-        - $ref: '#/components/parameters/Locale'
-        - $ref: '#/components/parameters/FeedSort'
-        - $ref: '#/components/parameters/TopWindow'
-        - $ref: '#/components/parameters/Cursor'
-        - $ref: '#/components/parameters/Limit'
+        - $ref: "#/components/parameters/GuildId"
+        - $ref: "#/components/parameters/Locale"
+        - $ref: "#/components/parameters/FeedSort"
+        - $ref: "#/components/parameters/TopWindow"
+        - $ref: "#/components/parameters/FlairId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        '200':
+        "200":
           description: Guild posts
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FeedResponse'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+                $ref: "#/components/schemas/FeedResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /live-rooms/{live_room_id}:
     get:
-      tags: [Livestreams]
+      tags:
+        - Livestreams
       summary: Get a livestream room
       parameters:
-        - $ref: '#/components/parameters/LiveRoomId'
+        - $ref: "#/components/parameters/LiveRoomId"
       responses:
-        '200':
+        "200":
           description: Livestream room
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LiveRoom'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
+                $ref: "#/components/schemas/LiveRoom"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /live-rooms/{live_room_id}/access:
     get:
-      tags: [Livestreams]
+      tags:
+        - Livestreams
       summary: Inspect current access state for a livestream room
       parameters:
-        - $ref: '#/components/parameters/LiveRoomId'
+        - $ref: "#/components/parameters/LiveRoomId"
       responses:
-        '200':
+        "200":
           description: Livestream access state
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LiveRoomAccessView'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
+                $ref: "#/components/schemas/LiveRoomAccessView"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /live-rooms/{live_room_id}/host-attach:
+    post:
+      tags:
+        - Livestreams
+      summary: Issue host broadcast credentials for a livestream room
+      parameters:
+        - $ref: "#/components/parameters/LiveRoomId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HostAttachRequest"
+      responses:
+        "200":
+          description: Host attach credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveRoomAttachSession"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /live-rooms/{live_room_id}/guest-attach:
+    post:
+      tags:
+        - Livestreams
+      summary: Issue guest broadcast credentials for an invited livestream collaborator
+      parameters:
+        - $ref: "#/components/parameters/LiveRoomId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestAttachRequest"
+      responses:
+        "200":
+          description: Guest attach credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveRoomAttachSession"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /live-rooms/{live_room_id}/replay:
+    get:
+      tags:
+        - Livestreams
+      summary: Inspect replay state and replay-facing metadata for a livestream room
+      parameters:
+        - $ref: "#/components/parameters/LiveRoomId"
+      responses:
+        "200":
+          description: Livestream replay view
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveRoomReplayView"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /live-rooms/{live_room_id}/replay/access:
+    get:
+      tags:
+        - Livestreams
+      summary: Inspect current replay access state for a livestream room
+      parameters:
+        - $ref: "#/components/parameters/LiveRoomId"
+      responses:
+        "200":
+          description: Livestream replay access state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveRoomReplayAccessView"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /live-rooms/{live_room_id}/start:
     post:
-      tags: [Livestreams]
+      tags:
+        - Livestreams
       summary: Transition a scheduled livestream room to live
       parameters:
-        - $ref: '#/components/parameters/LiveRoomId'
+        - $ref: "#/components/parameters/LiveRoomId"
       responses:
-        '200':
+        "200":
           description: Livestream room started
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LiveRoom'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '403':
-          $ref: '#/components/responses/EligibilityFailed'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-
+                $ref: "#/components/schemas/LiveRoom"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /live-rooms/{live_room_id}/end:
     post:
-      tags: [Livestreams]
+      tags:
+        - Livestreams
       summary: End a live livestream room
       parameters:
-        - $ref: '#/components/parameters/LiveRoomId'
+        - $ref: "#/components/parameters/LiveRoomId"
       responses:
-        '200':
+        "200":
           description: Livestream room ended
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LiveRoom'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '403':
-          $ref: '#/components/responses/EligibilityFailed'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-
+                $ref: "#/components/schemas/LiveRoom"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /live-rooms/{live_room_id}/cancel:
     post:
-      tags: [Livestreams]
+      tags:
+        - Livestreams
       summary: Cancel a scheduled or active livestream room
       parameters:
-        - $ref: '#/components/parameters/LiveRoomId'
+        - $ref: "#/components/parameters/LiveRoomId"
       requestBody:
         required: false
         content:
@@ -633,29 +883,29 @@ paths:
                   type: string
                   nullable: true
       responses:
-        '200':
+        "200":
           description: Livestream room canceled
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LiveRoom'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '403':
-          $ref: '#/components/responses/EligibilityFailed'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-
+                $ref: "#/components/schemas/LiveRoom"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /guilds/{guild_id}/questions/daily:
     get:
-      tags: [Questions]
+      tags:
+        - Questions
       summary: Fetch the current daily question for a guild
       parameters:
-        - $ref: '#/components/parameters/GuildId'
+        - $ref: "#/components/parameters/GuildId"
       responses:
-        '200':
+        "200":
           description: Current daily question or null
           content:
             application/json:
@@ -663,47 +913,51 @@ paths:
                 type: object
                 properties:
                   item:
+                    type: object
                     allOf:
-                      - $ref: '#/components/schemas/Question'
+                      - $ref: "#/components/schemas/Question"
                     nullable: true
-        '401':
-          $ref: '#/components/responses/AuthError'
+        "401":
+          $ref: "#/components/responses/AuthError"
     post:
-      tags: [Questions]
+      tags:
+        - Questions
       summary: Publish or schedule a daily question for a guild
       parameters:
-        - $ref: '#/components/parameters/GuildId'
+        - $ref: "#/components/parameters/GuildId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateQuestionRequest'
+              $ref: "#/components/schemas/CreateQuestionRequest"
       responses:
-        '201':
+        "201":
           description: Question created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Question'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+                $ref: "#/components/schemas/Question"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /guilds/{guild_id}/questions/daily/answers:
     post:
-      tags: [Questions]
+      tags:
+        - Questions
       summary: Submit an answer to the current daily question
       parameters:
-        - $ref: '#/components/parameters/GuildId'
+        - $ref: "#/components/parameters/GuildId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [question_id, selected_answer_ref]
+              required:
+                - question_id
+                - selected_answer_ref
               properties:
                 question_id:
                   type: string
@@ -711,55 +965,56 @@ paths:
                   type: integer
                   minimum: 0
       responses:
-        '200':
+        "200":
           description: Answer recorded
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/QuestionAnswer'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+                $ref: "#/components/schemas/QuestionAnswer"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /namespaces/{namespace_id}/handles/availability:
     get:
-      tags: [Handles]
+      tags:
+        - Handles
       summary: Check availability and eligibility for a namespace-local handle
       parameters:
-        - $ref: '#/components/parameters/NamespaceId'
+        - $ref: "#/components/parameters/NamespaceId"
         - in: query
           name: label
           required: true
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Handle availability result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HandleAvailability'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+                $ref: "#/components/schemas/HandleAvailability"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /namespaces/{namespace_id}/handles/claims:
     post:
-      tags: [Handles]
+      tags:
+        - Handles
       summary: Claim or purchase a namespace-local handle
       parameters:
-        - $ref: '#/components/parameters/NamespaceId'
+        - $ref: "#/components/parameters/NamespaceId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [label]
+              required:
+                - label
               properties:
                 label:
                   type: string
@@ -767,290 +1022,298 @@ paths:
                   type: string
                   nullable: true
       responses:
-        '201':
+        "201":
           description: Handle claimed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GuildHandle'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '403':
-          $ref: '#/components/responses/EligibilityFailed'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+                $ref: "#/components/schemas/GuildHandle"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /posts:
     post:
-      tags: [Posts]
+      tags:
+        - Posts
       summary: Create a post
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreatePostRequest'
+              $ref: "#/components/schemas/CreatePostRequest"
       responses:
-        '201':
-          description: >
-            Post created. Returns the canonical post row; localized read
-            projections are returned by `GET /posts/{post_id}`.
+        "201":
+          description: |
+            Post created. Returns the canonical post row; localized read projections are returned by `GET /posts/{post_id}`.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Post'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '422':
-          $ref: '#/components/responses/AnalysisBlocked'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+                $ref: "#/components/schemas/Post"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/AnalysisBlocked"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /posts/{post_id}:
     get:
-      tags: [Posts]
+      tags:
+        - Posts
       summary: Get a post
       parameters:
-        - $ref: '#/components/parameters/PostId'
-        - $ref: '#/components/parameters/Locale'
+        - $ref: "#/components/parameters/PostId"
+        - $ref: "#/components/parameters/Locale"
       responses:
-        '200':
+        "200":
           description: Post
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LocalizedPostResponse'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
+                $ref: "#/components/schemas/LocalizedPostResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /posts/{post_id}/vote:
     post:
-      tags: [Posts]
+      tags:
+        - Posts
       summary: Cast or update a vote on a post
       parameters:
-        - $ref: '#/components/parameters/PostId'
+        - $ref: "#/components/parameters/PostId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [value]
+              required:
+                - value
               properties:
                 value:
                   type: integer
-                  enum: [-1, 1]
+                  enum:
+                    - -1
+                    - 1
       responses:
-        '200':
+        "200":
           description: Vote recorded
           content:
             application/json:
               schema:
                 type: object
-                required: [post_id, value]
+                required:
+                  - post_id
+                  - value
                 properties:
                   post_id:
                     type: string
                   value:
                     type: integer
-                    enum: [-1, 1]
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '403':
-          $ref: '#/components/responses/VerificationRequired'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+                    enum:
+                      - -1
+                      - 1
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/VerificationRequired"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /feeds/home:
     get:
-      tags: [Feeds]
+      tags:
+        - Feeds
       summary: Read the global Home feed
       security: []
       parameters:
-        - $ref: '#/components/parameters/Locale'
-        - $ref: '#/components/parameters/FeedSort'
-        - $ref: '#/components/parameters/TopWindow'
-        - $ref: '#/components/parameters/Cursor'
-        - $ref: '#/components/parameters/Limit'
+        - $ref: "#/components/parameters/Locale"
+        - $ref: "#/components/parameters/FeedSort"
+        - $ref: "#/components/parameters/TopWindow"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        '200':
+        "200":
           description: Home feed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FeedResponse'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+                $ref: "#/components/schemas/FeedResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /feeds/your-guilds:
     get:
-      tags: [Feeds]
+      tags:
+        - Feeds
       summary: Read the Your Guilds feed
       parameters:
-        - $ref: '#/components/parameters/Locale'
-        - $ref: '#/components/parameters/FeedSort'
-        - $ref: '#/components/parameters/TopWindow'
-        - $ref: '#/components/parameters/Cursor'
-        - $ref: '#/components/parameters/Limit'
+        - $ref: "#/components/parameters/Locale"
+        - $ref: "#/components/parameters/FeedSort"
+        - $ref: "#/components/parameters/TopWindow"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        '200':
+        "200":
           description: Personalized guild feed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FeedResponse'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+                $ref: "#/components/schemas/FeedResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /tracks:
     post:
-      tags: [Tracks]
+      tags:
+        - Tracks
       summary: Resolve or create a canonical track identity
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TrackResolveRequest'
+              $ref: "#/components/schemas/TrackResolveRequest"
       responses:
-        '200':
+        "200":
           description: Track resolved or created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Track'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+                $ref: "#/components/schemas/Track"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /tracks/{track_id}:
     get:
-      tags: [Tracks]
+      tags:
+        - Tracks
       summary: Get a canonical track
       parameters:
-        - $ref: '#/components/parameters/TrackId'
+        - $ref: "#/components/parameters/TrackId"
       responses:
-        '200':
+        "200":
           description: Track
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Track'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
+                $ref: "#/components/schemas/Track"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /tracks/{track_id}/listeners:
     get:
-      tags: [Scrobbles]
+      tags:
+        - Scrobbles
       summary: Read listener summaries for a track
       parameters:
-        - $ref: '#/components/parameters/TrackId'
-        - $ref: '#/components/parameters/Cursor'
-        - $ref: '#/components/parameters/Limit'
+        - $ref: "#/components/parameters/TrackId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        '200':
+        "200":
           description: Listener summaries
           content:
             application/json:
               schema:
                 type: object
-                required: [track_id, items]
+                required:
+                  - track_id
+                  - items
                 properties:
                   track_id:
                     type: string
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/ListenerSummary'
+                      $ref: "#/components/schemas/ListenerSummary"
                   next_cursor:
                     type: string
                     nullable: true
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /scrobbles:
     post:
-      tags: [Scrobbles]
+      tags:
+        - Scrobbles
       summary: Submit a scrobble
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateScrobbleRequest'
+              $ref: "#/components/schemas/CreateScrobbleRequest"
       responses:
-        '201':
+        "201":
           description: Scrobble accepted
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Scrobble'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+                $ref: "#/components/schemas/Scrobble"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /users/{user_id}/scrobbles:
     get:
-      tags: [Scrobbles]
+      tags:
+        - Scrobbles
       summary: Read scrobbles for a user
       parameters:
-        - $ref: '#/components/parameters/UserId'
-        - $ref: '#/components/parameters/Cursor'
-        - $ref: '#/components/parameters/Limit'
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        '200':
+        "200":
           description: Scrobbles
           content:
             application/json:
               schema:
                 type: object
-                required: [items]
+                required:
+                  - items
                 properties:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Scrobble'
+                      $ref: "#/components/schemas/Scrobble"
                   next_cursor:
                     type: string
                     nullable: true
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /mpp/guilds/{guild_id}/threads/export:
     post:
-      tags: [MPP]
+      tags:
+        - MPP
       summary: Request a paid guild thread export
-      description: >
-        This is the v0 machine-access export surface. Initial requests may return
-        `402 Payment Required` with `WWW-Authenticate: Payment`. Successful paid
-        requests return `Payment-Receipt` and a pollable export job. Payment-auth
-        callers complete the async flow through `/mpp/jobs/{job_id}`.
+      description: |
+        This is the v0 machine-access export surface. Initial requests may return `402 Payment Required` with `WWW-Authenticate: Payment`. Successful paid requests return `Payment-Receipt` and a pollable export job. Payment-auth callers complete the async flow through `/mpp/jobs/{job_id}`.
       security:
         - paymentAuth: []
       parameters:
-        - $ref: '#/components/parameters/GuildId'
+        - $ref: "#/components/parameters/GuildId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ThreadExportRequest'
+              $ref: "#/components/schemas/ThreadExportRequest"
       responses:
-        '202':
+        "202":
           description: Export accepted as an async job
           headers:
             Payment-Receipt:
@@ -1060,44 +1323,43 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ThreadExportAcceptedResponse'
-        '402':
-          $ref: '#/components/responses/PaymentRequiredOrFailed'
-        '403':
-          $ref: '#/components/responses/MppExportForbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+                $ref: "#/components/schemas/ThreadExportAcceptedResponse"
+        "402":
+          $ref: "#/components/responses/PaymentRequiredOrFailed"
+        "403":
+          $ref: "#/components/responses/MppExportForbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /mpp/jobs/{job_id}:
     get:
-      tags: [MPP]
+      tags:
+        - MPP
       summary: Inspect a pollable async MPP job
-      description: >
-        Payment-auth callers use this endpoint to poll async jobs returned by
-        paid machine-access endpoints such as guild thread exports.
+      description: |
+        Payment-auth callers use this endpoint to poll async jobs returned by paid machine-access endpoints such as guild thread exports.
       security:
         - paymentAuth: []
       parameters:
-        - $ref: '#/components/parameters/JobId'
+        - $ref: "#/components/parameters/JobId"
       responses:
-        '200':
+        "200":
           description: Job
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Job'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-
+                $ref: "#/components/schemas/Job"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /jobs:
     get:
-      tags: [Jobs]
+      tags:
+        - Jobs
       summary: List jobs by subject or type
       parameters:
         - in: query
@@ -1112,44 +1374,45 @@ paths:
           name: job_type
           schema:
             type: string
-        - $ref: '#/components/parameters/Cursor'
-        - $ref: '#/components/parameters/Limit'
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        '200':
+        "200":
           description: Jobs
           content:
             application/json:
               schema:
                 type: object
-                required: [items]
+                required:
+                  - items
                 properties:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Job'
+                      $ref: "#/components/schemas/Job"
                   next_cursor:
                     type: string
                     nullable: true
-        '401':
-          $ref: '#/components/responses/AuthError'
-
+        "401":
+          $ref: "#/components/responses/AuthError"
   /jobs/{job_id}:
     get:
-      tags: [Jobs]
+      tags:
+        - Jobs
       summary: Inspect a pollable async job
       parameters:
-        - $ref: '#/components/parameters/JobId'
+        - $ref: "#/components/parameters/JobId"
       responses:
-        '200':
+        "200":
           description: Job
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Job'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/Job"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
 components:
   securitySchemes:
     bearerAuth:
@@ -1160,9 +1423,8 @@ components:
       type: apiKey
       in: header
       name: Authorization
-      description: >
-        Payment credential sent as `Authorization: Payment ...` on retry after an
-        MPP `402 Payment Required` challenge.
+      description: |
+        Payment credential sent as `Authorization: Payment ...` on retry after an MPP `402 Payment Required` challenge.
   parameters:
     GuildId:
       in: path
@@ -1206,9 +1468,9 @@ components:
       required: true
       schema:
         type: string
-    SelfVerificationSessionId:
+    VerificationSessionId:
       in: path
-      name: self_verification_session_id
+      name: verification_session_id
       required: true
       schema:
         type: string
@@ -1217,13 +1479,15 @@ components:
       name: sort
       schema:
         type: string
-        enum: [best, top, new]
+        enum:
+          - best
+          - top
+          - new
     Locale:
       in: query
       name: locale
-      description: >
-        Optional locale override for localized read surfaces. When omitted, the
-        server should resolve locale using the SSR precedence contract.
+      description: |
+        Optional locale override for localized read surfaces. When omitted, the server should resolve locale using the SSR precedence contract.
       schema:
         type: string
     Cursor:
@@ -1243,14 +1507,25 @@ components:
       name: top_window
       schema:
         type: string
-        enum: [now, today, this_week, this_month, all_time]
+        enum:
+          - now
+          - today
+          - this_week
+          - this_month
+          - all_time
+    FlairId:
+      in: query
+      name: flair_id
+      schema:
+        type: string
+        nullable: true
   responses:
     AuthError:
       description: Authentication failed
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     PaymentRequired:
       description: Payment is required before the resource can be accessed
       headers:
@@ -1261,7 +1536,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/MppChallenge'
+            $ref: "#/components/schemas/MppChallenge"
     PaymentRequiredOrFailed:
       description: Payment is required or a payment attempt failed
       headers:
@@ -1273,60 +1548,62 @@ components:
         application/json:
           schema:
             oneOf:
-              - $ref: '#/components/schemas/MppChallenge'
-              - $ref: '#/components/schemas/PaymentFailure'
+              - $ref: "#/components/schemas/MppChallenge"
+              - $ref: "#/components/schemas/PaymentFailure"
     VerificationRequired:
       description: Verification is required
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     MppExportForbidden:
       description: Export blocked by a guild gate or export-eligibility rule
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     GateFailed:
       description: Guild gate or membership rule failed
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     EligibilityFailed:
       description: Policy or eligibility requirement failed
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     AnalysisBlocked:
       description: Content analysis blocked publication
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     Conflict:
       description: Resource conflict
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     NotFound:
       description: Resource not found
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     RateLimited:
       description: Request rate limited
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
   schemas:
     Error:
       type: object
-      required: [code, message]
+      required:
+        - code
+        - message
       properties:
         code:
           type: string
@@ -1338,6 +1615,9 @@ components:
             - gate_failed
             - analysis_blocked
             - analysis_review_required
+            - flair_required
+            - invalid_flair_selection
+            - flair_required_but_none_applicable
             - conflict
             - not_found
             - rate_limited
@@ -1349,25 +1629,28 @@ components:
         retryable:
           type: boolean
           default: false
-
     SessionExchangeResponse:
       type: object
-      required: [access_token, user, profile, onboarding]
+      required:
+        - access_token
+        - user
+        - profile
+        - onboarding
       properties:
         access_token:
           type: string
         user:
-          $ref: '#/components/schemas/User'
+          $ref: "#/components/schemas/User"
         profile:
-          $ref: '#/components/schemas/Profile'
+          $ref: "#/components/schemas/Profile"
         onboarding:
-          $ref: '#/components/schemas/OnboardingStatus'
-
+          $ref: "#/components/schemas/OnboardingStatus"
     User:
       type: object
       required:
         - user_id
-        - self_verification_state
+        - verification_state
+        - verification_capabilities
         - created_at
         - updated_at
       properties:
@@ -1376,9 +1659,21 @@ components:
         primary_wallet_attachment_id:
           type: string
           nullable: true
-        self_verification_state:
+        verification_state:
           type: string
-          enum: [unverified, pending, verified, reverification_required]
+          enum:
+            - unverified
+            - pending
+            - verified
+            - reverification_required
+        verification_provider:
+          type: string
+          enum:
+            - self
+            - very
+          nullable: true
+        verification_capabilities:
+          $ref: "#/components/schemas/VerificationCapabilities"
         verified_at:
           type: string
           format: date-time
@@ -1392,7 +1687,78 @@ components:
         updated_at:
           type: string
           format: date-time
-
+    VerificationCapabilities:
+      type: object
+      required:
+        - unique_human
+        - age_over_18
+        - nationality
+      properties:
+        unique_human:
+          $ref: "#/components/schemas/VerificationCapabilityState"
+        age_over_18:
+          $ref: "#/components/schemas/VerifiedCapabilityState"
+        nationality:
+          allOf:
+            - $ref: "#/components/schemas/VerifiedCapabilityState"
+          type: object
+          properties:
+            value:
+              type: string
+              nullable: true
+              description: ISO country code when verified
+    VerificationCapabilityState:
+      type: object
+      required:
+        - state
+      description: |
+        Capability state for unique_human, which may be pending during an active verification session.
+      properties:
+        state:
+          type: string
+          enum:
+            - unverified
+            - pending
+            - verified
+            - expired
+        assurance_level:
+          type: string
+          enum:
+            - basic
+            - strong
+          nullable: true
+        provider:
+          type: string
+          enum:
+            - self
+            - very
+          nullable: true
+        verified_at:
+          type: string
+          format: date-time
+          nullable: true
+    VerifiedCapabilityState:
+      type: object
+      required:
+        - state
+      description: |
+        Capability state for age_over_18 and nationality, which have no pending state — they are either unverified, verified from an accepted record, or expired after a re-verification requirement.
+      properties:
+        state:
+          type: string
+          enum:
+            - unverified
+            - verified
+            - expired
+        provider:
+          type: string
+          enum:
+            - self
+          nullable: true
+        verified_at:
+          type: string
+          format: date-time
+          nullable: true
     Profile:
       type: object
       required:
@@ -1416,14 +1782,13 @@ components:
           type: string
           nullable: true
         global_handle:
-          $ref: '#/components/schemas/GlobalHandle'
+          $ref: "#/components/schemas/GlobalHandle"
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
-
     GlobalHandle:
       type: object
       required:
@@ -1440,10 +1805,16 @@ components:
           type: string
         tier:
           type: string
-          enum: [generated, standard, premium]
+          enum:
+            - generated
+            - standard
+            - premium
         status:
           type: string
-          enum: [active, redirect, retired]
+          enum:
+            - active
+            - redirect
+            - retired
         issuance_source:
           type: string
           enum:
@@ -1467,16 +1838,21 @@ components:
           type: string
           format: date-time
           nullable: true
-
     HandleUpgradeQuote:
       type: object
-      required: [desired_label, tier, price_usd, eligible]
+      required:
+        - desired_label
+        - tier
+        - price_usd
+        - eligible
       properties:
         desired_label:
           type: string
         tier:
           type: string
-          enum: [standard, premium]
+          enum:
+            - standard
+            - premium
         price_usd:
           type: number
         eligible:
@@ -1484,26 +1860,35 @@ components:
         reason:
           type: string
           nullable: true
-
-    SelfVerificationSession:
+    VerificationSession:
       type: object
       required:
-        - self_verification_session_id
+        - verification_session_id
         - user_id
+        - provider
         - status
         - created_at
         - expires_at
       properties:
-        self_verification_session_id:
+        verification_session_id:
           type: string
         user_id:
           type: string
+        provider:
+          type: string
+          enum:
+            - self
+            - very
         wallet_attachment_id:
           type: string
           nullable: true
         status:
           type: string
-          enum: [pending, verified, failed, expired]
+          enum:
+            - pending
+            - verified
+            - failed
+            - expired
         nationality:
           type: string
           nullable: true
@@ -1532,20 +1917,23 @@ components:
         expires_at:
           type: string
           format: date-time
-
     RedditVerification:
       type: object
-      required: [reddit_username, status]
+      required:
+        - reddit_username
+        - status
       properties:
         reddit_username:
           type: string
         status:
           type: string
-          enum: [pending, verified, failed]
+          enum:
+            - pending
+            - verified
+            - failed
         verification_hint:
           type: string
           nullable: true
-
     OnboardingStatus:
       type: object
       required:
@@ -1560,18 +1948,31 @@ components:
           type: boolean
         reddit_verification_status:
           type: string
-          enum: [not_started, pending, verified, failed]
+          enum:
+            - not_started
+            - pending
+            - verified
+            - failed
         reddit_import_status:
           type: string
-          enum: [not_started, queued, running, succeeded, failed]
+          enum:
+            - not_started
+            - queued
+            - running
+            - succeeded
+            - failed
         suggested_guild_ids:
           type: array
           items:
             type: string
-
-    CreateGuildRequest:
+    CreateGuildRequestBase:
       type: object
-      required: [display_name, membership_mode, handle_policy]
+      required:
+        - display_name
+        - membership_mode
+        - posting_identity_mode
+        - namespace
+        - handle_policy
       properties:
         display_name:
           type: string
@@ -1583,24 +1984,678 @@ components:
           nullable: true
         membership_mode:
           type: string
-          enum: [open, request, gated]
-        governance_mode:
+          enum:
+            - open
+            - request
+            - gated
+        posting_identity_mode:
           type: string
-          enum: [centralized, multisig, majeur]
-          default: centralized
+          enum:
+            - public_handle_only
+            - allow_anonymous
+        anonymous_identity_scope:
+          type: string
+          enum:
+            - guild_stable
+            - thread_stable
+            - post_ephemeral
+          nullable: true
+        default_author_presentation:
+          type: string
+          enum:
+            - public_handle
+            - anonymous_label
+            - anonymous_label_with_verified_badges
+          nullable: true
+        allowed_verified_author_badges:
+          type: array
+          items:
+            type: string
+            enum:
+              - nationality
+              - age_over_18
+          nullable: true
         default_age_gate_policy:
           type: string
-          enum: [none, 18_plus]
+          enum:
+            - none
+            - 18_plus
           default: none
         namespace:
-          $ref: '#/components/schemas/NamespaceAttachmentInput'
+          $ref: "#/components/schemas/NamespaceAttachmentInput"
         handle_policy:
-          $ref: '#/components/schemas/HandlePolicyInput'
+          $ref: "#/components/schemas/HandlePolicyInput"
         donation_policy:
           allOf:
-            - $ref: '#/components/schemas/CreateGuildDonationPolicyInput'
+            - $ref: "#/components/schemas/CreateGuildDonationPolicyInput"
+          type: object
           nullable: true
-
+        community_bootstrap:
+          $ref: "#/components/schemas/CreateGuildCommunityBootstrapInput"
+          nullable: true
+        gate_rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/GateRuleInput"
+          nullable: true
+    GateRuleInput:
+      type: object
+      required:
+        - scope
+        - gate_family
+        - gate_type
+      properties:
+        scope:
+          type: string
+          enum:
+            - membership
+            - viewer
+            - posting
+        gate_family:
+          type: string
+          enum:
+            - token_holding
+            - identity_proof
+        gate_type:
+          type: string
+          enum:
+            - erc721_holding
+            - erc1155_holding
+            - erc20_balance
+            - solana_nft_holding
+            - unique_human
+            - age_over_18
+            - nationality
+        minimum_assurance_level:
+          type: string
+          enum:
+            - basic
+            - strong
+          nullable: true
+          description: |
+            Minimum assurance level for identity-proof gates. Null means use the default for the gate type (basic for unique_human, strong for age_over_18 and nationality). Ignored for token_holding gates.
+        chain_namespace:
+          type: string
+          nullable: true
+        gate_config:
+          type: object
+          nullable: true
+          additionalProperties: true
+    GateRule:
+      type: object
+      required:
+        - gate_rule_id
+        - guild_id
+        - scope
+        - gate_family
+        - gate_type
+        - status
+        - created_at
+        - updated_at
+      properties:
+        gate_rule_id:
+          type: string
+        guild_id:
+          type: string
+        scope:
+          type: string
+          enum:
+            - membership
+            - viewer
+            - posting
+        gate_family:
+          type: string
+          enum:
+            - token_holding
+            - identity_proof
+        gate_type:
+          type: string
+          enum:
+            - erc721_holding
+            - erc1155_holding
+            - erc20_balance
+            - solana_nft_holding
+            - unique_human
+            - age_over_18
+            - nationality
+        minimum_assurance_level:
+          type: string
+          enum:
+            - basic
+            - strong
+          nullable: true
+        chain_namespace:
+          type: string
+          nullable: true
+        gate_config:
+          type: object
+          nullable: true
+          additionalProperties: true
+        status:
+          type: string
+          enum:
+            - active
+            - disabled
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateGuildRequest:
+      oneOf:
+        - $ref: "#/components/schemas/CreateCentralizedGuildRequest"
+        - $ref: "#/components/schemas/CreateMultisigGuildRequest"
+        - $ref: "#/components/schemas/CreateMajeurGuildRequest"
+      discriminator:
+        propertyName: governance_mode
+        mapping:
+          centralized: "#/components/schemas/CreateCentralizedGuildRequest"
+          multisig: "#/components/schemas/CreateMultisigGuildRequest"
+          majeur: "#/components/schemas/CreateMajeurGuildRequest"
+    UpdateGuildRequest:
+      type: object
+      properties:
+        display_name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        membership_mode:
+          type: string
+          enum:
+            - open
+            - request
+            - gated
+        posting_identity_mode:
+          type: string
+          enum:
+            - public_handle_only
+            - allow_anonymous
+        anonymous_identity_scope:
+          type: string
+          enum:
+            - guild_stable
+            - thread_stable
+            - post_ephemeral
+          nullable: true
+        default_author_presentation:
+          type: string
+          enum:
+            - public_handle
+            - anonymous_label
+            - anonymous_label_with_verified_badges
+          nullable: true
+        allowed_verified_author_badges:
+          type: array
+          items:
+            type: string
+            enum:
+              - nationality
+              - age_over_18
+          nullable: true
+        default_age_gate_policy:
+          type: string
+          enum:
+            - none
+            - 18_plus
+    CreateCentralizedGuildRequest:
+      allOf:
+        - $ref: "#/components/schemas/CreateGuildRequestBase"
+        - type: object
+          required:
+            - governance_mode
+          properties:
+            governance_mode:
+              type: string
+              enum:
+                - centralized
+              default: centralized
+    CreateMultisigGuildRequest:
+      allOf:
+        - $ref: "#/components/schemas/CreateGuildRequestBase"
+        - type: object
+          required:
+            - governance_mode
+            - governance_backend
+          properties:
+            governance_mode:
+              type: string
+              enum:
+                - multisig
+            governance_backend:
+              $ref: "#/components/schemas/MultisigGovernanceAttachmentInput"
+    CreateMajeurGuildRequest:
+      allOf:
+        - $ref: "#/components/schemas/CreateGuildRequestBase"
+        - type: object
+          required:
+            - governance_mode
+            - governance_backend
+          properties:
+            governance_mode:
+              type: string
+              enum:
+                - majeur
+            governance_backend:
+              $ref: "#/components/schemas/MajeurGovernanceCreateInput"
+    AttachGovernanceRequest:
+      oneOf:
+        - $ref: "#/components/schemas/AttachMultisigGovernanceRequest"
+        - $ref: "#/components/schemas/AttachMajeurGovernanceRequest"
+      discriminator:
+        propertyName: governance_mode
+        mapping:
+          multisig: "#/components/schemas/AttachMultisigGovernanceRequest"
+          majeur: "#/components/schemas/AttachMajeurGovernanceRequest"
+    AttachMultisigGovernanceRequest:
+      type: object
+      required:
+        - governance_mode
+        - governance_backend
+      properties:
+        governance_mode:
+          type: string
+          enum:
+            - multisig
+        governance_backend:
+          $ref: "#/components/schemas/MultisigGovernanceAttachmentInput"
+    AttachMajeurGovernanceRequest:
+      type: object
+      required:
+        - governance_mode
+        - governance_backend
+      properties:
+        governance_mode:
+          type: string
+          enum:
+            - majeur
+        governance_backend:
+          $ref: "#/components/schemas/MajeurGovernanceAttachInput"
+    GovernanceAction:
+      type: object
+      required:
+        - governance_action_id
+        - guild_id
+        - action_kind
+        - governance_mode
+        - payload_hash
+        - status
+        - created_at
+        - updated_at
+      properties:
+        governance_action_id:
+          type: string
+        guild_id:
+          type: string
+        action_kind:
+          type: string
+          enum:
+            - attach_governance
+            - replace_governance
+        requested_by_user_id:
+          type: string
+          nullable: true
+        governance_mode:
+          type: string
+          enum:
+            - multisig
+            - majeur
+        chain_id:
+          type: integer
+          nullable: true
+        target_address:
+          type: string
+          nullable: true
+        payload_hash:
+          type: string
+        status:
+          type: string
+          enum:
+            - draft
+            - awaiting_external_approval
+            - executed
+            - rejected
+            - expired
+        external_state:
+          type: string
+          nullable: true
+        execution_tx_hash:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    GovernanceVerificationState:
+      type: string
+      enum:
+        - not_required
+        - pending
+        - verified
+        - broken
+    GuildGovernanceBackend:
+      oneOf:
+        - $ref: "#/components/schemas/CentralizedGovernanceBackend"
+        - $ref: "#/components/schemas/MultisigGovernanceBackend"
+        - $ref: "#/components/schemas/MajeurGovernanceBackend"
+      discriminator:
+        propertyName: governance_mode
+        mapping:
+          centralized: "#/components/schemas/CentralizedGovernanceBackend"
+          multisig: "#/components/schemas/MultisigGovernanceBackend"
+          majeur: "#/components/schemas/MajeurGovernanceBackend"
+    CentralizedGovernanceBackend:
+      type: object
+      required:
+        - governance_mode
+        - governance_verification_state
+      properties:
+        governance_mode:
+          type: string
+          enum:
+            - centralized
+        governance_verification_state:
+          $ref: "#/components/schemas/GovernanceVerificationState"
+        governance_display_label:
+          type: string
+          nullable: true
+    MultisigGovernanceAttachmentInput:
+      type: object
+      required:
+        - chain_id
+        - contract_address
+        - attachment_proof
+      properties:
+        chain_id:
+          type: integer
+        contract_address:
+          type: string
+        treasury_address:
+          type: string
+          nullable: true
+        attachment_proof:
+          $ref: "#/components/schemas/MultisigAttachmentProofInput"
+    MultisigAttachmentProofInput:
+      type: object
+      required:
+        - proof_kind
+        - challenge
+        - signature
+      properties:
+        proof_kind:
+          type: string
+          enum:
+            - eip1271
+        challenge:
+          type: string
+        signature:
+          type: string
+    MultisigGovernanceBackend:
+      type: object
+      required:
+        - governance_mode
+        - governance_chain_id
+        - governance_contract_address
+        - governance_verification_state
+        - governance_metadata
+      properties:
+        governance_mode:
+          type: string
+          enum:
+            - multisig
+        governance_chain_id:
+          type: integer
+        governance_contract_address:
+          type: string
+        governance_treasury_address:
+          type: string
+          nullable: true
+        governance_verification_state:
+          $ref: "#/components/schemas/GovernanceVerificationState"
+        governance_display_label:
+          type: string
+          nullable: true
+        governance_attached_at:
+          type: string
+          format: date-time
+          nullable: true
+        governance_last_verified_at:
+          type: string
+          format: date-time
+          nullable: true
+        governance_metadata:
+          $ref: "#/components/schemas/MultisigGovernanceMetadata"
+    MultisigGovernanceMetadata:
+      type: object
+      required:
+        - owners
+        - threshold
+        - is_safe_compatible
+      properties:
+        owners:
+          type: array
+          items:
+            type: string
+        threshold:
+          type: integer
+        is_safe_compatible:
+          type: boolean
+        version_label:
+          type: string
+          nullable: true
+        master_copy_address:
+          type: string
+          nullable: true
+    MajeurGovernanceCreateInput:
+      type: object
+      required:
+        - chain_id
+        - summon
+      properties:
+        chain_id:
+          type: integer
+        summon:
+          $ref: "#/components/schemas/MajeurSafeSummonInput"
+    MajeurGovernanceAttachInput:
+      type: object
+      required:
+        - chain_id
+        - dao_address
+      properties:
+        chain_id:
+          type: integer
+        dao_address:
+          type: string
+        deployment_tx_hash:
+          type: string
+          nullable: true
+        shares_address:
+          type: string
+          nullable: true
+        loot_address:
+          type: string
+          nullable: true
+        badges_address:
+          type: string
+          nullable: true
+        renderer_address:
+          type: string
+          nullable: true
+    MajeurSafeSummonInput:
+      type: object
+      required:
+        - org_name
+        - org_symbol
+        - ragequittable
+        - init_holders
+        - init_shares
+        - config
+      properties:
+        preset:
+          type: string
+          enum:
+            - founder
+            - standard
+            - fast
+            - custom
+          nullable: true
+        org_name:
+          type: string
+        org_symbol:
+          type: string
+        org_uri:
+          type: string
+          nullable: true
+        quorum_bps:
+          type: integer
+          nullable: true
+        ragequittable:
+          type: boolean
+        renderer:
+          type: string
+          nullable: true
+        init_holders:
+          type: array
+          items:
+            type: string
+        init_shares:
+          type: array
+          items:
+            type: string
+        init_loot:
+          type: array
+          items:
+            type: string
+          nullable: true
+        config:
+          $ref: "#/components/schemas/MajeurSafeConfigInput"
+    MajeurSafeConfigInput:
+      type: object
+      required:
+        - proposal_threshold
+        - proposal_ttl_seconds
+      properties:
+        proposal_threshold:
+          type: string
+        proposal_ttl_seconds:
+          type: integer
+        timelock_delay_seconds:
+          type: integer
+          nullable: true
+        quorum_absolute:
+          type: string
+          nullable: true
+        min_yes_votes_absolute:
+          type: string
+          nullable: true
+        lock_shares:
+          type: boolean
+          default: false
+        lock_loot:
+          type: boolean
+          default: false
+        rollback_guardian:
+          type: string
+          nullable: true
+        rollback_singleton:
+          type: string
+          nullable: true
+        rollback_expiry:
+          type: integer
+          nullable: true
+    MajeurGovernanceBackend:
+      type: object
+      required:
+        - governance_mode
+        - governance_chain_id
+        - governance_contract_address
+        - governance_verification_state
+        - governance_metadata
+      properties:
+        governance_mode:
+          type: string
+          enum:
+            - majeur
+        governance_chain_id:
+          type: integer
+        governance_contract_address:
+          type: string
+        governance_treasury_address:
+          type: string
+          nullable: true
+        governance_verification_state:
+          $ref: "#/components/schemas/GovernanceVerificationState"
+        governance_display_label:
+          type: string
+          nullable: true
+        governance_attached_at:
+          type: string
+          format: date-time
+          nullable: true
+        governance_last_verified_at:
+          type: string
+          format: date-time
+          nullable: true
+        governance_metadata:
+          $ref: "#/components/schemas/MajeurGovernanceMetadata"
+    MajeurGovernanceMetadata:
+      type: object
+      required:
+        - shares_address
+        - loot_address
+        - badges_address
+        - ragequittable
+        - proposal_threshold
+        - proposal_ttl_seconds
+        - shares_locked
+        - loot_locked
+        - config_version
+      properties:
+        shares_address:
+          type: string
+        loot_address:
+          type: string
+        badges_address:
+          type: string
+        renderer_address:
+          type: string
+          nullable: true
+        ragequittable:
+          type: boolean
+        proposal_threshold:
+          type: string
+        proposal_ttl_seconds:
+          type: integer
+        timelock_delay_seconds:
+          type: integer
+          nullable: true
+        quorum_bps:
+          type: integer
+          nullable: true
+        quorum_absolute:
+          type: string
+          nullable: true
+        min_yes_votes_absolute:
+          type: string
+          nullable: true
+        shares_locked:
+          type: boolean
+        loot_locked:
+          type: boolean
+        auto_futarchy_param:
+          type: string
+          nullable: true
+        auto_futarchy_cap:
+          type: string
+          nullable: true
+        futarchy_reward_token:
+          type: string
+          nullable: true
+        config_version:
+          type: integer
     NamespaceAttachmentInput:
       type: object
       properties:
@@ -1614,22 +2669,29 @@ components:
         route_family:
           type: string
           nullable: true
-
     HandlePolicyInput:
       type: object
-      required: [policy_template]
+      required:
+        - policy_template
       properties:
         policy_template:
           type: string
-          enum: [standard, premium, membership_gated, custom]
+          enum:
+            - standard
+            - premium
+            - membership_gated
+            - custom
         pricing_model:
           type: string
-          enum: [free, flat_by_length, custom_curve, gated_then_flat]
+          enum:
+            - free
+            - flat_by_length
+            - custom_curve
+            - gated_then_flat
           nullable: true
         membership_required_for_claim:
           type: boolean
           default: true
-
     Guild:
       type: object
       required:
@@ -1637,6 +2699,7 @@ components:
         - display_name
         - status
         - membership_mode
+        - posting_identity_mode
         - governance_mode
         - donation_policy_mode
         - donation_partner_status
@@ -1653,7 +2716,12 @@ components:
           nullable: true
         status:
           type: string
-          enum: [draft, active, frozen, archived, deleted]
+          enum:
+            - draft
+            - active
+            - frozen
+            - archived
+            - deleted
         artist_identity_id:
           type: string
           nullable: true
@@ -1662,25 +2730,80 @@ components:
           nullable: true
         membership_mode:
           type: string
-          enum: [open, request, gated]
+          enum:
+            - open
+            - request
+            - gated
+        posting_identity_mode:
+          type: string
+          enum:
+            - public_handle_only
+            - allow_anonymous
+        anonymous_identity_scope:
+          type: string
+          enum:
+            - guild_stable
+            - thread_stable
+            - post_ephemeral
+          nullable: true
+        default_author_presentation:
+          type: string
+          enum:
+            - public_handle
+            - anonymous_label
+            - anonymous_label_with_verified_badges
+          nullable: true
+        allowed_verified_author_badges:
+          type: array
+          items:
+            type: string
+            enum:
+              - nationality
+              - age_over_18
+          nullable: true
         default_age_gate_policy:
           type: string
-          enum: [none, 18_plus]
+          enum:
+            - none
+            - 18_plus
         donation_policy_mode:
           type: string
-          enum: [none, optional_creator_sidecar, fundraiser_default]
+          enum:
+            - none
+            - optional_creator_sidecar
+            - fundraiser_default
         donation_partner_status:
           type: string
-          enum: [unconfigured, active, paused]
+          enum:
+            - unconfigured
+            - active
+            - paused
         donation_partner_id:
           type: string
           nullable: true
         donation_partner:
-          $ref: '#/components/schemas/DonationPartnerSummary'
+          $ref: "#/components/schemas/DonationPartnerSummary"
+          nullable: true
+        flair_policy:
+          $ref: "#/components/schemas/GuildFlairPolicy"
+          nullable: true
+        community_profile:
+          $ref: "#/components/schemas/GuildCommunityProfile"
           nullable: true
         governance_mode:
           type: string
-          enum: [centralized, multisig, majeur]
+          enum:
+            - centralized
+            - multisig
+            - majeur
+        governance_backend:
+          $ref: "#/components/schemas/GuildGovernanceBackend"
+          nullable: true
+        gate_rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/GateRule"
+          nullable: true
         created_by_user_id:
           type: string
         created_at:
@@ -1689,10 +2812,15 @@ components:
         updated_at:
           type: string
           format: date-time
-
     CreateLiveRoomRequest:
       type: object
-      required: [title, access_mode]
+      required:
+        - title
+        - access_mode
+        - room_kind
+        - visibility
+        - performer_allocations
+        - initial_setlist
       properties:
         title:
           type: string
@@ -1705,7 +2833,28 @@ components:
           nullable: true
         access_mode:
           type: string
-          enum: [free, gated, paid]
+          enum:
+            - free
+            - gated
+            - paid
+        room_kind:
+          type: string
+          enum:
+            - solo
+            - duet
+        visibility:
+          type: string
+          enum:
+            - public
+            - unlisted
+        guest_user_id:
+          type: string
+          nullable: true
+        performer_allocations:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/LiveRoomPerformerAllocationInput"
         cover_ref:
           type: string
           nullable: true
@@ -1721,7 +2870,85 @@ components:
         anchor_post_id:
           type: string
           nullable: true
-
+        initial_setlist:
+          $ref: "#/components/schemas/InitialLiveSetlistInput"
+    InitialLiveSetlistInput:
+      type: object
+      description: |
+        Initial setlist payload required when creating a live room. The setlist may begin in `draft` state, but it must exist from creation time onward.
+      required:
+        - status
+        - items
+      properties:
+        status:
+          type: string
+          enum:
+            - draft
+            - active
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/LiveSetlistItemInput"
+    LiveSetlistItemInput:
+      type: object
+      description: |
+        Setlist items should resolve against Pirate's canonical track catalog by default. `title_text` and `artist_text` are stored as display snapshots or manual fallback metadata when canonical resolution is not yet available.
+      required:
+        - sequence_index
+        - title_text
+        - performance_kind
+        - rights_hint
+      properties:
+        sequence_index:
+          type: integer
+          minimum: 0
+        title_text:
+          type: string
+        artist_text:
+          type: string
+          nullable: true
+        declared_track_id:
+          type: string
+          nullable: true
+        performance_kind:
+          type: string
+          enum:
+            - original
+            - cover
+            - remix
+            - dj_playback
+            - unknown
+        rights_hint:
+          type: string
+          enum:
+            - community_catalog
+            - story_catalog
+            - third_party
+            - unknown
+        notes:
+          type: string
+          nullable: true
+    LiveRoomPerformerAllocationInput:
+      type: object
+      description: |
+        Explicit performer-side revenue allocation for the room. In v0, solo rooms should provide one host allocation at 100, and duet rooms should provide two allocations whose shares sum to 100.
+      required:
+        - user_id
+        - role
+        - share_pct
+      properties:
+        user_id:
+          type: string
+        role:
+          type: string
+          enum:
+            - host
+            - guest
+        share_pct:
+          type: number
+          minimum: 0
+          maximum: 100
     LiveRoom:
       type: object
       required:
@@ -1732,6 +2959,10 @@ components:
         - title
         - status
         - access_mode
+        - room_kind
+        - visibility
+        - performer_allocations
+        - replay_status
         - created_at
         - updated_at
       properties:
@@ -1750,10 +2981,34 @@ components:
           nullable: true
         status:
           type: string
-          enum: [scheduled, live, ended, canceled]
+          enum:
+            - scheduled
+            - live
+            - ended
+            - canceled
         access_mode:
           type: string
-          enum: [free, gated, paid]
+          enum:
+            - free
+            - gated
+            - paid
+        room_kind:
+          type: string
+          enum:
+            - solo
+            - duet
+        visibility:
+          type: string
+          enum:
+            - public
+            - unlisted
+        guest_user_id:
+          type: string
+          nullable: true
+        performer_allocations:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveRoomPerformerAllocationInput"
         listing_id:
           type: string
           nullable: true
@@ -1788,25 +3043,102 @@ components:
         replay_asset_id:
           type: string
           nullable: true
+        replay_status:
+          type: string
+          enum:
+            - none
+            - processing
+            - review_pending
+            - published
+            - failed
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
-
+    HostAttachRequest:
+      type: object
+      description: |
+        Optional host-attach request parameters. The host-attach flow is idempotent for a given host session and may refresh credentials.
+      properties:
+        client_kind:
+          type: string
+          enum:
+            - web_host_console
+            - desktop_native
+        refresh:
+          type: boolean
+          default: false
+    GuestAttachRequest:
+      type: object
+      description: |
+        Optional guest-attach request parameters. The caller must match the invited collaborator for the room.
+      properties:
+        client_kind:
+          type: string
+          enum:
+            - desktop_native
+            - web_host_console
+        refresh:
+          type: boolean
+          default: false
+    LiveRoomAttachSession:
+      type: object
+      required:
+        - live_room_id
+        - broadcast_ref
+        - agora_channel
+        - agora_role
+        - agora_token
+        - bridge_token
+        - expires_at
+      properties:
+        live_room_id:
+          type: string
+        broadcast_ref:
+          type: string
+        agora_channel:
+          type: string
+        agora_role:
+          type: string
+          enum:
+            - host
+            - guest
+        agora_token:
+          type: string
+        bridge_token:
+          type: string
+        route_base:
+          type: string
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
     LiveRoomAccessView:
       type: object
-      required: [live_room_id, access_mode, join_state]
+      required:
+        - live_room_id
+        - access_mode
+        - join_state
       properties:
         live_room_id:
           type: string
         access_mode:
           type: string
-          enum: [free, gated, paid]
+          enum:
+            - free
+            - gated
+            - paid
         join_state:
           type: string
-          enum: [allowed, gate_failed, payment_required, not_live, ended, canceled]
+          enum:
+            - allowed
+            - gate_failed
+            - payment_required
+            - not_live
+            - ended
+            - canceled
         listing_id:
           type: string
           nullable: true
@@ -1818,60 +3150,138 @@ components:
         reason:
           type: string
           nullable: true
-
+    LiveRoomReplayView:
+      type: object
+      required:
+        - live_room_id
+        - anchor_post_id
+        - replay_status
+        - is_playable
+        - is_purchasable
+        - viewer_entitled
+      properties:
+        live_room_id:
+          type: string
+        anchor_post_id:
+          type: string
+        replay_status:
+          type: string
+          enum:
+            - none
+            - processing
+            - review_pending
+            - published
+            - failed
+        replay_asset_id:
+          type: string
+          nullable: true
+        replay_listing_id:
+          type: string
+          nullable: true
+        is_playable:
+          type: boolean
+        is_purchasable:
+          type: boolean
+        viewer_entitled:
+          type: boolean
+        preview_ref:
+          type: string
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+    LiveRoomReplayAccessView:
+      type: object
+      required:
+        - live_room_id
+        - replay_status
+        - access_state
+      properties:
+        live_room_id:
+          type: string
+        replay_status:
+          type: string
+          enum:
+            - none
+            - processing
+            - review_pending
+            - published
+            - failed
+        access_state:
+          type: string
+          enum:
+            - not_available
+            - processing
+            - under_review
+            - allowed
+            - purchase_required
+            - failed
+        replay_asset_id:
+          type: string
+          nullable: true
+        replay_listing_id:
+          type: string
+          nullable: true
+        reason:
+          type: string
+          nullable: true
     MembershipResult:
       type: object
-      required: [guild_id, status]
+      required:
+        - guild_id
+        - status
       properties:
         guild_id:
           type: string
         status:
           type: string
-          enum: [joined, requested, left]
-
+          enum:
+            - joined
+            - requested
+            - left
     CreateGuildDonationPolicyInput:
       type: object
-      description: >
-        Optional guild-level donation configuration supplied at creation
-        time. If omitted, the guild defaults to no donation policy. If
-        `donation_policy_mode = optional_creator_sidecar` or
-        `fundraiser_default`, `donation_partner_id` must be non-null. If
-        `donation_policy_mode = none`, `donation_partner_id` must be null.
-      required: [donation_policy_mode]
+      description: |
+        Optional guild-level donation configuration supplied at creation time. If omitted, the guild defaults to no donation policy. If `donation_policy_mode = optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id` must be non-null. If `donation_policy_mode = none`, `donation_partner_id` must be null.
+      required:
+        - donation_policy_mode
       properties:
         donation_policy_mode:
           type: string
-          enum: [none, optional_creator_sidecar, fundraiser_default]
+          enum:
+            - none
+            - optional_creator_sidecar
+            - fundraiser_default
         donation_partner_id:
           type: string
           nullable: true
-
     UpdateGuildDonationPolicyRequest:
       type: object
-      description: >
-        Update the guild donation policy. If `donation_policy_mode =
-        optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id`
-        must be non-null. If `donation_policy_mode = none`,
-        `donation_partner_id` must be null. Donation partner lifecycle
-        management is platform-admin-controlled in v0.
-      required: [donation_policy_mode]
+      description: |
+        Update the guild donation policy. If `donation_policy_mode = optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id` must be non-null. If `donation_policy_mode = none`, `donation_partner_id` must be null. Donation partner lifecycle management is platform-admin-controlled in v0.
+      required:
+        - donation_policy_mode
       properties:
         donation_policy_mode:
           type: string
-          enum: [none, optional_creator_sidecar, fundraiser_default]
+          enum:
+            - none
+            - optional_creator_sidecar
+            - fundraiser_default
         donation_partner_id:
           type: string
           nullable: true
         donation_partner_status:
           type: string
-          enum: [unconfigured, active, paused]
+          enum:
+            - unconfigured
+            - active
+            - paused
           nullable: true
-
     DonationPartnerSummary:
       type: object
-      description: >
-        Public/admin-safe summary of a reviewed donation partner. Full payout
-        routing details remain internal to Pirate settlement systems in v0.
+      description: |
+        Public/admin-safe summary of a reviewed donation partner. Full payout routing details remain internal to Pirate settlement systems in v0.
       required:
         - donation_partner_id
         - display_name
@@ -1885,23 +3295,27 @@ components:
           type: string
         provider:
           type: string
-          enum: [endaoment]
+          enum:
+            - endaoment
         provider_partner_ref:
           type: string
           nullable: true
         review_status:
           type: string
-          enum: [pending, approved, rejected]
+          enum:
+            - pending
+            - approved
+            - rejected
         status:
           type: string
-          enum: [active, paused, retired]
-
+          enum:
+            - active
+            - paused
+            - retired
     GuildDonationPolicy:
       type: object
-      description: >
-        Resolved donation policy attached to a guild. This policy enables or
-        disables listing-level creator donation sidecars for content sold inside
-        the guild.
+      description: |
+        Resolved donation policy attached to a guild. This policy enables or disables listing-level creator donation sidecars for content sold inside the guild.
       required:
         - guild_id
         - donation_policy_mode
@@ -1911,23 +3325,31 @@ components:
           type: string
         donation_policy_mode:
           type: string
-          enum: [none, optional_creator_sidecar, fundraiser_default]
+          enum:
+            - none
+            - optional_creator_sidecar
+            - fundraiser_default
         donation_partner_status:
           type: string
-          enum: [unconfigured, active, paused]
+          enum:
+            - unconfigured
+            - active
+            - paused
         donation_partner_id:
           type: string
           nullable: true
         donation_partner:
-          $ref: '#/components/schemas/DonationPartnerSummary'
+          $ref: "#/components/schemas/DonationPartnerSummary"
           nullable: true
         updated_at:
           type: string
           format: date-time
-
     HandleAvailability:
       type: object
-      required: [label, available, eligible]
+      required:
+        - label
+        - available
+        - eligible
       properties:
         label:
           type: string
@@ -1941,7 +3363,6 @@ components:
         reason:
           type: string
           nullable: true
-
     GuildHandle:
       type: object
       required:
@@ -1962,10 +3383,17 @@ components:
           type: string
         status:
           type: string
-          enum: [active, grace, expired, revoked]
+          enum:
+            - active
+            - grace
+            - expired
+            - revoked
         issuance_source:
           type: string
-          enum: [claim, auction, admin_grant]
+          enum:
+            - claim
+            - auction
+            - admin_grant
         lease_started_at:
           type: string
           format: date-time
@@ -1974,10 +3402,11 @@ components:
           type: string
           format: date-time
           nullable: true
-
     CreatePostRequest:
       type: object
-      required: [guild_id, post_type]
+      required:
+        - guild_id
+        - post_type
       properties:
         guild_id:
           type: string
@@ -1987,9 +3416,16 @@ components:
         parent_post_id:
           type: string
           nullable: true
+        flair_id:
+          type: string
+          nullable: true
         post_type:
           type: string
-          enum: [text, image, video, song]
+          enum:
+            - text
+            - image
+            - video
+            - song
         title:
           type: string
           nullable: true
@@ -2002,33 +3438,43 @@ components:
         media_refs:
           type: array
           items:
-            $ref: '#/components/schemas/MediaDescriptor'
+            $ref: "#/components/schemas/MediaDescriptor"
         translation_policy:
           type: string
-          enum: [none, machine_allowed, human_only, hybrid]
+          enum:
+            - none
+            - machine_allowed
+            - human_only
+            - hybrid
           nullable: true
         asset_id:
           type: string
           nullable: true
         song_mode:
           type: string
-          enum: [original, remix]
+          enum:
+            - original
+            - remix
           nullable: true
         rights_basis:
           type: string
-          enum: [none, original, derivative, attribution_only]
+          enum:
+            - none
+            - original
+            - derivative
+            - attribution_only
           nullable: true
         age_gate_policy:
           type: string
-          enum: [none, 18_plus]
+          enum:
+            - none
+            - 18_plus
           nullable: true
         lyrics:
           type: string
           nullable: true
-          description: >
-            Plain-text lyrics for song posts. Required when post_type is song.
-            Optional for other post types.
-
+          description: |
+            Plain-text lyrics for song posts. Required when post_type is song. Optional for other post types.
     Post:
       type: object
       required:
@@ -2050,20 +3496,31 @@ components:
         author_user_id:
           type: string
           nullable: true
-          description: >
-            Public read models omit this field for anonymous posts. It remains
-            present for non-anonymous posts and privileged internal reads.
+          description: |
+            Public read models omit this field for anonymous posts. It remains present for non-anonymous posts and privileged internal reads.
         is_anonymous:
           type: boolean
         anonymous_label:
           type: string
           nullable: true
+        flair_id:
+          type: string
+          nullable: true
         post_type:
           type: string
-          enum: [text, image, video, song]
+          enum:
+            - text
+            - image
+            - video
+            - song
         status:
           type: string
-          enum: [draft, published, hidden, removed, deleted]
+          enum:
+            - draft
+            - published
+            - hidden
+            - removed
+            - deleted
         title:
           type: string
           nullable: true
@@ -2076,17 +3533,19 @@ components:
         media_refs:
           type: array
           items:
-            $ref: '#/components/schemas/MediaDescriptor'
+            $ref: "#/components/schemas/MediaDescriptor"
         source_language:
           type: string
           nullable: true
-          description: >
-            Server-authored detected source language. May be null only while
-            `analysis_state = pending`; published posts should have a non-null
-            value.
+          description: |
+            Server-authored detected source language. May be null only while `analysis_state = pending`; published posts should have a non-null value.
         translation_policy:
           type: string
-          enum: [none, machine_allowed, human_only, hybrid]
+          enum:
+            - none
+            - machine_allowed
+            - human_only
+            - hybrid
           nullable: true
         asset_id:
           type: string
@@ -2096,60 +3555,96 @@ components:
           nullable: true
         song_mode:
           type: string
-          enum: [original, remix]
+          enum:
+            - original
+            - remix
           nullable: true
         rights_basis:
           type: string
-          enum: [none, original, derivative, attribution_only]
+          enum:
+            - none
+            - original
+            - derivative
+            - attribution_only
           nullable: true
         analysis_state:
           type: string
-          enum: [pending, allow, allow_with_required_reference, review_required, blocked]
+          enum:
+            - pending
+            - allow
+            - allow_with_required_reference
+            - review_required
+            - blocked
         analysis_result_ref:
           type: string
           nullable: true
         content_safety_state:
           type: string
-          enum: [pending, safe, sensitive, adult]
+          enum:
+            - pending
+            - safe
+            - sensitive
+            - adult
         age_gate_policy:
           type: string
-          enum: [none, 18_plus]
+          enum:
+            - none
+            - 18_plus
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
-
     LocalizedPostResponse:
       type: object
-      description: >
-        Localized read envelope for a canonical post. Read endpoints return this
-        wrapper so locale-resolved translation fields stay out of the canonical
-        `Post` schema.
-      required: [post, resolved_locale, machine_translated, source_hash]
+      description: |
+        Localized read envelope for a canonical post. Read endpoints return this wrapper so locale-resolved translation fields stay out of the canonical `Post` schema.
+      required:
+        - post
+        - resolved_locale
+        - translation_state
+        - machine_translated
+        - source_hash
       properties:
         post:
-          $ref: '#/components/schemas/Post'
+          $ref: "#/components/schemas/Post"
+        flair:
+          $ref: "#/components/schemas/PostFlair"
+          nullable: true
         resolved_locale:
           type: string
+        translation_state:
+          type: string
+          enum:
+            - ready
+            - pending
+            - same_language
+            - policy_blocked
+          description: |
+            Translation resolution state for the resolved locale. `ready` means a machine translation exists. `pending` means the translation is being materialized lazily. `same_language` means no translation is needed. `policy_blocked` means `translation_policy` forbids machine translation.
         machine_translated:
           type: boolean
+          description: |
+            True only when `translation_state = ready` and translated text is being surfaced for the resolved locale.
         translated_body:
           type: string
           nullable: true
+          description: |
+            Viewer-facing translated body text when `translation_state = ready`.
         translated_caption:
           type: string
           nullable: true
+          description: |
+            Viewer-facing translated caption text when `translation_state = ready`.
         source_hash:
           type: string
-          description: >
-            Content fingerprint for translation cache invalidation. Changes when
-            the canonical source text changes.
-
+          description: |
+            Content fingerprint for translation cache invalidation. Changes when the canonical source text changes.
     MediaDescriptor:
       type: object
-      required: [storage_ref]
+      required:
+        - storage_ref
       properties:
         storage_ref:
           type: string
@@ -2171,7 +3666,6 @@ components:
         height:
           type: integer
           nullable: true
-
     Question:
       type: object
       required:
@@ -2194,7 +3688,12 @@ components:
           type: string
         question_kind:
           type: string
-          enum: [meaning, slang_context, song_id, artist_fact, translation]
+          enum:
+            - meaning
+            - slang_context
+            - song_id
+            - artist_fact
+            - translation
         prompt:
           type: string
         choices:
@@ -2211,13 +3710,21 @@ components:
           nullable: true
         source_type:
           type: string
-          enum: [lyrics, annotation, artist_catalog, guild_lore]
+          enum:
+            - lyrics
+            - annotation
+            - artist_catalog
+            - guild_lore
         source_ref:
           type: string
           nullable: true
         status:
           type: string
-          enum: [draft, published, closed, revealed]
+          enum:
+            - draft
+            - published
+            - closed
+            - revealed
         published_at:
           type: string
           format: date-time
@@ -2225,7 +3732,6 @@ components:
           type: string
           format: date-time
           nullable: true
-
     CreateQuestionRequest:
       type: object
       required:
@@ -2236,7 +3742,12 @@ components:
       properties:
         question_kind:
           type: string
-          enum: [meaning, slang_context, song_id, artist_fact, translation]
+          enum:
+            - meaning
+            - slang_context
+            - song_id
+            - artist_fact
+            - translation
         prompt:
           type: string
         choices:
@@ -2252,7 +3763,11 @@ components:
           nullable: true
         source_type:
           type: string
-          enum: [lyrics, annotation, artist_catalog, guild_lore]
+          enum:
+            - lyrics
+            - annotation
+            - artist_catalog
+            - guild_lore
         source_ref:
           type: string
           nullable: true
@@ -2260,7 +3775,6 @@ components:
           type: string
           format: date-time
           nullable: true
-
     QuestionAnswer:
       type: object
       required:
@@ -2290,68 +3804,430 @@ components:
         submitted_at:
           type: string
           format: date-time
-
     FeedResponse:
       type: object
-      required: [items]
+      required:
+        - items
       properties:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/FeedItem'
+            $ref: "#/components/schemas/FeedItem"
         next_cursor:
           type: string
           nullable: true
-
     FeedItem:
       type: object
-      required: [post, resolved_locale, machine_translated, source_hash]
+      required:
+        - post
+        - resolved_locale
+        - translation_state
+        - machine_translated
+        - source_hash
       properties:
         post:
-          $ref: '#/components/schemas/Post'
+          $ref: "#/components/schemas/Post"
+        flair:
+          $ref: "#/components/schemas/PostFlair"
+          nullable: true
         resolved_locale:
           type: string
+        translation_state:
+          type: string
+          enum:
+            - ready
+            - pending
+            - same_language
+            - policy_blocked
+          description: |
+            Translation resolution state for the resolved locale. `ready` means a machine translation exists. `pending` means the translation is being materialized lazily. `same_language` means no translation is needed. `policy_blocked` means `translation_policy` forbids machine translation.
         machine_translated:
           type: boolean
+          description: |
+            True only when `translation_state = ready` and translated text is being surfaced for the resolved locale.
         translated_body:
           type: string
           nullable: true
+          description: |
+            Viewer-facing translated body text when `translation_state = ready`.
         translated_caption:
           type: string
           nullable: true
+          description: |
+            Viewer-facing translated caption text when `translation_state = ready`.
         source_hash:
           type: string
-          description: >
-            Content fingerprint for translation cache invalidation. Changes when
-            the canonical source text changes.
-        display_handle:
+    CreateGuildCommunityBootstrapInput:
+      type: object
+      properties:
+        flair_policy:
+          $ref: "#/components/schemas/CreateGuildFlairPolicyInput"
+          nullable: true
+        rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateGuildRuleInput"
+        resource_links:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateGuildResourceLinkInput"
+    CreateGuildFlairPolicyInput:
+      type: object
+      properties:
+        flair_enabled:
+          type: boolean
+          default: false
+        require_flair_on_top_level_posts:
+          type: boolean
+          default: false
+        definitions:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateGuildFlairDefinitionInput"
+    UpdateGuildFlairPolicyRequest:
+      type: object
+      properties:
+        flair_enabled:
+          type: boolean
+        require_flair_on_top_level_posts:
+          type: boolean
+        definitions:
+          type: array
+          items:
+            $ref: "#/components/schemas/GuildFlairDefinitionMutationInput"
+    CreateGuildFlairDefinitionInput:
+      type: object
+      required:
+        - label
+        - position
+      additionalProperties: false
+      properties:
+        label:
+          type: string
+        description:
           type: string
           nullable: true
-          description: >
-            The single author label rendered for this feed item in v0. Mixed
-            global feeds use the author's active global .pirate handle unless
-            the post is anonymous. Guild feeds may render the guild
-            handle when available.
-        question:
-          allOf:
-            - $ref: '#/components/schemas/Question'
+        color_token:
+          type: string
           nullable: true
-          description: >
-            Nullable question projection included when the feed item represents
-            a daily-question post or another question-linked feed card.
-
+        position:
+          type: integer
+          minimum: 0
+        allowed_post_types:
+          type: array
+          items:
+            type: string
+            enum:
+              - text
+              - image
+              - video
+              - song
+          nullable: true
+    UpdateGuildFlairDefinitionInput:
+      type: object
+      required:
+        - flair_id
+      additionalProperties: false
+      properties:
+        flair_id:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+          nullable: true
+        color_token:
+          type: string
+          nullable: true
+        position:
+          type: integer
+          minimum: 0
+        allowed_post_types:
+          type: array
+          items:
+            type: string
+            enum:
+              - text
+              - image
+              - video
+              - song
+          nullable: true
+        status:
+          type: string
+          enum:
+            - active
+            - archived
+    GuildFlairDefinitionMutationInput:
+      oneOf:
+        - $ref: "#/components/schemas/CreateGuildFlairDefinitionInput"
+        - $ref: "#/components/schemas/UpdateGuildFlairDefinitionInput"
+    GuildFlairDefinition:
+      type: object
+      required:
+        - flair_id
+        - label
+        - status
+        - position
+      properties:
+        flair_id:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+          nullable: true
+        color_token:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum:
+            - active
+            - archived
+        position:
+          type: integer
+          minimum: 0
+        allowed_post_types:
+          type: array
+          items:
+            type: string
+            enum:
+              - text
+              - image
+              - video
+              - song
+          nullable: true
+    GuildFlairPolicy:
+      type: object
+      required:
+        - flair_enabled
+        - require_flair_on_top_level_posts
+        - definitions
+      properties:
+        flair_enabled:
+          type: boolean
+        require_flair_on_top_level_posts:
+          type: boolean
+        definitions:
+          type: array
+          items:
+            $ref: "#/components/schemas/GuildFlairDefinition"
+    PostFlair:
+      type: object
+      description: |
+        Resolved flair summary for a post read surface. Historical posts may continue to return flair definitions whose current `status` is `archived`; clients should still render the flair pill normally in that case rather than treating it as hidden or as a special archived badge.
+      required:
+        - flair_id
+        - label
+        - status
+      properties:
+        flair_id:
+          type: string
+        label:
+          type: string
+        color_token:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum:
+            - active
+            - archived
+    CreateGuildRuleInput:
+      type: object
+      required:
+        - title
+        - body
+        - position
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+        body:
+          type: string
+        position:
+          type: integer
+          minimum: 0
+    UpdateGuildRuleInput:
+      type: object
+      required:
+        - rule_id
+      additionalProperties: false
+      properties:
+        rule_id:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        position:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum:
+            - active
+            - archived
+    GuildRuleMutationInput:
+      oneOf:
+        - $ref: "#/components/schemas/CreateGuildRuleInput"
+        - $ref: "#/components/schemas/UpdateGuildRuleInput"
+    GuildRule:
+      type: object
+      required:
+        - rule_id
+        - title
+        - body
+        - position
+        - status
+      properties:
+        rule_id:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        position:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum:
+            - active
+            - archived
+    CreateGuildResourceLinkInput:
+      type: object
+      required:
+        - label
+        - url
+        - resource_kind
+        - position
+      additionalProperties: false
+      properties:
+        label:
+          type: string
+        url:
+          type: string
+          format: uri
+        resource_kind:
+          type: string
+          enum:
+            - link
+            - playlist
+            - document
+            - discord
+            - website
+            - other
+        position:
+          type: integer
+          minimum: 0
+    UpdateGuildResourceLinkInput:
+      type: object
+      required:
+        - resource_link_id
+      additionalProperties: false
+      properties:
+        resource_link_id:
+          type: string
+        label:
+          type: string
+        url:
+          type: string
+          format: uri
+        resource_kind:
+          type: string
+          enum:
+            - link
+            - playlist
+            - document
+            - discord
+            - website
+            - other
+        position:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum:
+            - active
+            - archived
+    GuildResourceLinkMutationInput:
+      oneOf:
+        - $ref: "#/components/schemas/CreateGuildResourceLinkInput"
+        - $ref: "#/components/schemas/UpdateGuildResourceLinkInput"
+    GuildResourceLink:
+      type: object
+      required:
+        - resource_link_id
+        - label
+        - url
+        - resource_kind
+        - position
+        - status
+      properties:
+        resource_link_id:
+          type: string
+        label:
+          type: string
+        url:
+          type: string
+          format: uri
+        resource_kind:
+          type: string
+          enum:
+            - link
+            - playlist
+            - document
+            - discord
+            - website
+            - other
+        position:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum:
+            - active
+            - archived
+    GuildCommunityProfile:
+      type: object
+      required:
+        - rules
+        - resource_links
+      properties:
+        rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/GuildRule"
+        resource_links:
+          type: array
+          items:
+            $ref: "#/components/schemas/GuildResourceLink"
+    UpdateGuildCommunityProfileRequest:
+      type: object
+      properties:
+        rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/GuildRuleMutationInput"
+        resource_links:
+          type: array
+          items:
+            $ref: "#/components/schemas/GuildResourceLinkMutationInput"
     TrackResolveRequest:
       type: object
-      description: >
-        At least one identity path must be supplied. Clients may resolve by MBID,
-        Story IP ID, metadata hash, or a metadata pair such as title plus artist
-        display name. The server may enrich omitted metadata when a stronger
-        identity path already exists.
+      description: |
+        At least one identity path must be supplied. Clients may resolve by MBID, Story IP ID, metadata hash, or a metadata pair such as title plus artist display name. The server may enrich omitted metadata when a stronger identity path already exists.
       anyOf:
-        - required: [recording_mbid]
-        - required: [story_ip_id]
-        - required: [metadata_hash]
-        - required: [title, artist_display_name]
+        - required:
+            - recording_mbid
+        - required:
+            - story_ip_id
+        - required:
+            - metadata_hash
+        - required:
+            - title
+            - artist_display_name
       properties:
         recording_mbid:
           type: string
@@ -2377,14 +4253,12 @@ components:
         album:
           type: string
           nullable: true
-
     ListingDonationConfig:
       type: object
-      description: >
-        Listing-level creator donation sidecar configuration. When
-        `donation_opt_in = true`, both `donation_share_pct` and
-        `donation_partner_id_snapshot` must be non-null.
-      required: [donation_opt_in]
+      description: |
+        Listing-level creator donation sidecar configuration. When `donation_opt_in = true`, both `donation_share_pct` and `donation_partner_id_snapshot` must be non-null.
+      required:
+        - donation_opt_in
       properties:
         donation_opt_in:
           type: boolean
@@ -2396,14 +4270,10 @@ components:
         donation_partner_id_snapshot:
           type: string
           nullable: true
-
     PurchaseDonationSettlement:
       type: object
-      description: >
-        Purchase-time snapshot of donation routing and settlement outcome. Money
-        fields are represented here as numbers for readability, but decimal
-        strings are recommended in implementation to avoid floating-point
-        precision issues.
+      description: |
+        Purchase-time snapshot of donation routing and settlement outcome. Money fields are represented here as numbers for readability, but decimal strings are recommended in implementation to avoid floating-point precision issues.
       properties:
         donation_partner_id:
           type: string
@@ -2417,7 +4287,6 @@ components:
         donation_settlement_ref:
           type: string
           nullable: true
-
     Track:
       type: object
       required:
@@ -2433,7 +4302,10 @@ components:
           type: string
         track_kind:
           type: string
-          enum: [mbid, story_ip, metadata_hash]
+          enum:
+            - mbid
+            - story_ip
+            - metadata_hash
         recording_mbid:
           type: string
           nullable: true
@@ -2480,17 +4352,23 @@ components:
           type: string
         status:
           type: string
-          enum: [draft, active, deprecated]
+          enum:
+            - draft
+            - active
+            - deprecated
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
-
     CreateScrobbleRequest:
       type: object
-      required: [track_id, source_type, playback_started_at, submission_mode]
+      required:
+        - track_id
+        - source_type
+        - playback_started_at
+        - submission_mode
       properties:
         track_id:
           type: string
@@ -2499,7 +4377,11 @@ components:
           nullable: true
         source_type:
           type: string
-          enum: [web, desktop, mobile, operator_ingested]
+          enum:
+            - web
+            - desktop
+            - mobile
+            - operator_ingested
         playback_started_at:
           type: string
           format: date-time
@@ -2511,8 +4393,9 @@ components:
           nullable: true
         submission_mode:
           type: string
-          enum: [direct, delegated]
-
+          enum:
+            - direct
+            - delegated
     Scrobble:
       type: object
       required:
@@ -2535,7 +4418,11 @@ components:
           nullable: true
         source_type:
           type: string
-          enum: [web, desktop, mobile, operator_ingested]
+          enum:
+            - web
+            - desktop
+            - mobile
+            - operator_ingested
         playback_started_at:
           type: string
           format: date-time
@@ -2547,17 +4434,20 @@ components:
           nullable: true
         submission_mode:
           type: string
-          enum: [direct, delegated]
+          enum:
+            - direct
+            - delegated
         chain_tx_ref:
           type: string
           nullable: true
         created_at:
           type: string
           format: date-time
-
     ListenerSummary:
       type: object
-      required: [user_id, scrobble_count]
+      required:
+        - user_id
+        - scrobble_count
       properties:
         user_id:
           type: string
@@ -2566,7 +4456,6 @@ components:
           nullable: true
         scrobble_count:
           type: integer
-
     Job:
       type: object
       required:
@@ -2597,16 +4486,19 @@ components:
             - karaoke_package_assembly
         status:
           type: string
-          enum: [queued, running, succeeded, failed]
+          enum:
+            - queued
+            - running
+            - succeeded
+            - failed
         subject_type:
           type: string
         subject_id:
           type: string
         result_ref:
           type: string
-          description: >
-            Opaque result reference. For succeeded machine-export jobs this may be
-            a signed download URL.
+          description: |
+            Opaque result reference. For succeeded machine-export jobs this may be a signed download URL.
           nullable: true
         error_code:
           type: string
@@ -2617,28 +4509,34 @@ components:
         updated_at:
           type: string
           format: date-time
-
     JobAcceptedResponse:
       type: object
-      required: [job]
+      required:
+        - job
       properties:
         job:
-          $ref: '#/components/schemas/Job'
-
+          $ref: "#/components/schemas/Job"
     MppChallenge:
       type: object
-      required: [code, message, resource_type, payment_intent]
+      required:
+        - code
+        - message
+        - resource_type
+        - payment_intent
       properties:
         code:
           type: string
-          enum: [payment_required]
+          enum:
+            - payment_required
         message:
           type: string
         resource_type:
           type: string
         payment_intent:
           type: string
-          enum: [charge, session]
+          enum:
+            - charge
+            - session
         payment_methods:
           type: array
           items:
@@ -2646,14 +4544,16 @@ components:
         challenge_ref:
           type: string
           nullable: true
-
     PaymentFailure:
       type: object
-      required: [code, message]
+      required:
+        - code
+        - message
       properties:
         code:
           type: string
-          enum: [payment_failed]
+          enum:
+            - payment_failed
         message:
           type: string
         retryable:
@@ -2662,14 +4562,16 @@ components:
         challenge_ref:
           type: string
           nullable: true
-
     ThreadExportRequest:
       type: object
-      required: [format]
+      required:
+        - format
       properties:
         format:
           type: string
-          enum: [jsonl, ndjson]
+          enum:
+            - jsonl
+            - ndjson
         include_replies:
           type: boolean
           default: true
@@ -2681,17 +4583,18 @@ components:
         after_cursor:
           type: string
           nullable: true
-
     ThreadExportAcceptedResponse:
       type: object
-      required: [guild_id, job, job_status_url]
+      required:
+        - guild_id
+        - job
+        - job_status_url
       properties:
         guild_id:
           type: string
         job:
-          $ref: '#/components/schemas/Job'
+          $ref: "#/components/schemas/Job"
         job_status_url:
           type: string
-          description: >
-            Payment-auth polling URL for this export job. App clients may instead
-            use the bearer-auth `/jobs/{job_id}` endpoint.
+          description: |
+            Payment-auth polling URL for this export job. App clients may instead use the bearer-auth `/jobs/{job_id}` endpoint.

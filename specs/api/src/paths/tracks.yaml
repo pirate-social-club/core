@@ -1,0 +1,73 @@
+tracks:
+  post:
+    tags:
+      - Tracks
+    summary: Resolve or create a canonical track identity
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/tracks.yaml#/TrackResolveRequest
+    responses:
+      "200":
+        description: Track resolved or created
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/tracks.yaml#/Track
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+tracks_by_track_id:
+  get:
+    tags:
+      - Tracks
+    summary: Get a canonical track
+    parameters:
+      - $ref: ../components/parameters.yaml#/TrackId
+    responses:
+      "200":
+        description: Track
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/tracks.yaml#/Track
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+tracks_by_track_id_listeners:
+  get:
+    tags:
+      - Scrobbles
+    summary: Read listener summaries for a track
+    parameters:
+      - $ref: ../components/parameters.yaml#/TrackId
+      - $ref: ../components/parameters.yaml#/Cursor
+      - $ref: ../components/parameters.yaml#/Limit
+    responses:
+      "200":
+        description: Listener summaries
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - track_id
+                - items
+              properties:
+                track_id:
+                  type: string
+                items:
+                  type: array
+                  items:
+                    $ref: ../components/schemas/scrobbles.yaml#/ListenerSummary
+                next_cursor:
+                  type: string
+                  nullable: true
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited

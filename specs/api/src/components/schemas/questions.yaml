@@ -1,0 +1,138 @@
+Question:
+  type: object
+  required:
+    - question_id
+    - post_id
+    - guild_id
+    - author_user_id
+    - question_kind
+    - prompt
+    - status
+    - published_at
+  properties:
+    question_id:
+      type: string
+    post_id:
+      type: string
+    guild_id:
+      type: string
+    author_user_id:
+      type: string
+    question_kind:
+      type: string
+      enum:
+        - meaning
+        - slang_context
+        - song_id
+        - artist_fact
+        - translation
+    prompt:
+      type: string
+    choices:
+      type: array
+      items:
+        type: string
+      nullable: true
+    correct_answer_ref:
+      type: integer
+      minimum: 0
+      nullable: true
+    explanation:
+      type: string
+      nullable: true
+    source_type:
+      type: string
+      enum:
+        - lyrics
+        - annotation
+        - artist_catalog
+        - guild_lore
+    source_ref:
+      type: string
+      nullable: true
+    status:
+      type: string
+      enum:
+        - draft
+        - published
+        - closed
+        - revealed
+    published_at:
+      type: string
+      format: date-time
+    expires_at:
+      type: string
+      format: date-time
+      nullable: true
+CreateQuestionRequest:
+  type: object
+  required:
+    - question_kind
+    - prompt
+    - choices
+    - correct_answer_ref
+  properties:
+    question_kind:
+      type: string
+      enum:
+        - meaning
+        - slang_context
+        - song_id
+        - artist_fact
+        - translation
+    prompt:
+      type: string
+    choices:
+      type: array
+      minItems: 2
+      items:
+        type: string
+    correct_answer_ref:
+      type: integer
+      minimum: 0
+    explanation:
+      type: string
+      nullable: true
+    source_type:
+      type: string
+      enum:
+        - lyrics
+        - annotation
+        - artist_catalog
+        - guild_lore
+    source_ref:
+      type: string
+      nullable: true
+    expires_at:
+      type: string
+      format: date-time
+      nullable: true
+QuestionAnswer:
+  type: object
+  required:
+    - question_answer_id
+    - question_id
+    - user_id
+    - selected_answer_ref
+    - is_correct
+    - submitted_at
+  properties:
+    question_answer_id:
+      type: string
+    question_id:
+      type: string
+    user_id:
+      type: string
+    selected_answer_ref:
+      type: integer
+      minimum: 0
+    is_correct:
+      type: boolean
+      nullable: true
+    rewarded_at:
+      type: string
+      format: date-time
+      nullable: true
+    submitted_at:
+      type: string
+      format: date-time
