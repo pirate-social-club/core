@@ -1,0 +1,2691 @@
+openapi: 3.0.3
+info:
+  title: Pirate API
+  version: 0.1.0
+  summary: First-pass happy-path API for Pirate v2.
+  description: >
+    This OpenAPI file is intentionally narrow. It encodes the core v0 flows that
+    are already stable in the domain specs: auth bootstrap, verification,
+    onboarding, global profile identity, guilds, namespace handles, posts,
+    daily questions, tracks, scrobbles, feeds, and async jobs.
+servers:
+  - url: https://api.pirate.example
+    description: Placeholder production server
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Verification
+  - name: Onboarding
+  - name: Users
+  - name: Profiles
+  - name: Guilds
+  - name: Handles
+  - name: Posts
+  - name: Livestreams
+  - name: Questions
+  - name: Feeds
+  - name: Tracks
+  - name: Scrobbles
+  - name: MPP
+  - name: Jobs
+paths:
+  /auth/session/exchange:
+    post:
+      tags: [Auth]
+      summary: Exchange a Privy proof for a Pirate app session
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [privy_access_token]
+              properties:
+                privy_access_token:
+                  type: string
+                wallet_address:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Session created or resumed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionExchangeResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+
+  /verification/self/sessions:
+    post:
+      tags: [Verification]
+      summary: Start a Self verification session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                wallet_attachment_id:
+                  type: string
+                  nullable: true
+      responses:
+        '201':
+          description: Verification session started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SelfVerificationSession'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /verification/self/sessions/{self_verification_session_id}:
+    get:
+      tags: [Verification]
+      summary: Inspect a Self verification session
+      parameters:
+        - $ref: '#/components/parameters/SelfVerificationSessionId'
+      responses:
+        '200':
+          description: Verification session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SelfVerificationSession'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /verification/self/sessions/{self_verification_session_id}/complete:
+    post:
+      tags: [Verification]
+      summary: Complete or refresh a Self verification session
+      parameters:
+        - $ref: '#/components/parameters/SelfVerificationSessionId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                attestation_id:
+                  type: string
+                  nullable: true
+                proof_hash:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Verification session updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SelfVerificationSession'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /onboarding/status:
+    get:
+      tags: [Onboarding]
+      summary: Fetch onboarding status for the current user
+      responses:
+        '200':
+          description: Onboarding state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingStatus'
+        '401':
+          $ref: '#/components/responses/AuthError'
+
+  /onboarding/reddit-verification:
+    post:
+      tags: [Onboarding]
+      summary: Start or refresh Reddit ownership verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reddit_username]
+              properties:
+                reddit_username:
+                  type: string
+      responses:
+        '200':
+          description: Reddit verification state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedditVerification'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /onboarding/reddit-imports:
+    post:
+      tags: [Onboarding]
+      summary: Trigger a Reddit snapshot import job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reddit_username]
+              properties:
+                reddit_username:
+                  type: string
+      responses:
+        '202':
+          description: Import job queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobAcceptedResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get the current user
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/AuthError'
+
+  /profiles/me:
+    get:
+      tags: [Profiles]
+      summary: Get the current user's public/editable profile
+      responses:
+        '200':
+          description: Current profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/AuthError'
+    patch:
+      tags: [Profiles]
+      summary: Update editable profile fields
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                display_name:
+                  type: string
+                avatar_ref:
+                  type: string
+                  nullable: true
+                bio:
+                  type: string
+                  nullable: true
+                preferred_locale:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/AuthError'
+
+  /profiles/me/global-handle/rename:
+    post:
+      tags: [Profiles]
+      summary: Rename the current active global .pirate handle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [desired_label]
+              properties:
+                desired_label:
+                  type: string
+      responses:
+        '200':
+          description: Global handle updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GlobalHandle'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/EligibilityFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /profiles/me/global-handle/upgrade-quote:
+    post:
+      tags: [Profiles]
+      summary: Quote a paid upgrade into a cleaner .pirate handle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [desired_label]
+              properties:
+                desired_label:
+                  type: string
+      responses:
+        '200':
+          description: Upgrade quote
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleUpgradeQuote'
+        '403':
+          $ref: '#/components/responses/EligibilityFailed'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /profiles/{user_id}:
+    get:
+      tags: [Profiles]
+      summary: Get a public profile
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Public profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /guilds:
+    post:
+      tags: [Guilds]
+      summary: Create a guild
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGuildRequest'
+      responses:
+        '201':
+          description: Guild created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Guild'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+    get:
+      tags: [Guilds]
+      summary: List guilds
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+        - in: query
+          name: artist_identity_id
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Guilds
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Guild'
+                  next_cursor:
+                    type: string
+                    nullable: true
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /guilds/{guild_id}:
+    get:
+      tags: [Guilds]
+      summary: Get a guild
+      parameters:
+        - $ref: '#/components/parameters/GuildId'
+      responses:
+        '200':
+          description: Guild
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Guild'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /guilds/{guild_id}/donation-policy:
+    get:
+      tags: [Guilds]
+      summary: Get the active donation policy for a guild
+      parameters:
+        - $ref: '#/components/parameters/GuildId'
+      responses:
+        '200':
+          description: Guild donation policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuildDonationPolicy'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Guilds]
+      summary: Configure or update the donation policy for a guild
+      parameters:
+        - $ref: '#/components/parameters/GuildId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateGuildDonationPolicyRequest'
+      responses:
+        '200':
+          description: Guild donation policy updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuildDonationPolicy'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/EligibilityFailed'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /guilds/{guild_id}/join:
+    post:
+      tags: [Guilds]
+      summary: Join a guild
+      parameters:
+        - $ref: '#/components/parameters/GuildId'
+      responses:
+        '200':
+          description: Membership created or request recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipResult'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/GateFailed'
+
+  /guilds/{guild_id}/live-rooms:
+    post:
+      tags: [Livestreams]
+      summary: Create a livestream room for a guild
+      parameters:
+        - $ref: '#/components/parameters/GuildId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLiveRoomRequest'
+      responses:
+        '201':
+          description: Livestream room created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LiveRoom'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/EligibilityFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /guilds/{guild_id}/leave:
+    post:
+      tags: [Guilds]
+      summary: Leave a guild
+      parameters:
+        - $ref: '#/components/parameters/GuildId'
+      responses:
+        '200':
+          description: Membership removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipResult'
+        '401':
+          $ref: '#/components/responses/AuthError'
+
+  /guilds/{guild_id}/posts:
+    get:
+      tags: [Posts]
+      summary: List posts in a guild
+      parameters:
+        - $ref: '#/components/parameters/GuildId'
+        - $ref: '#/components/parameters/Locale'
+        - $ref: '#/components/parameters/FeedSort'
+        - $ref: '#/components/parameters/TopWindow'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Guild posts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /live-rooms/{live_room_id}:
+    get:
+      tags: [Livestreams]
+      summary: Get a livestream room
+      parameters:
+        - $ref: '#/components/parameters/LiveRoomId'
+      responses:
+        '200':
+          description: Livestream room
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LiveRoom'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /live-rooms/{live_room_id}/access:
+    get:
+      tags: [Livestreams]
+      summary: Inspect current access state for a livestream room
+      parameters:
+        - $ref: '#/components/parameters/LiveRoomId'
+      responses:
+        '200':
+          description: Livestream access state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LiveRoomAccessView'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /live-rooms/{live_room_id}/start:
+    post:
+      tags: [Livestreams]
+      summary: Transition a scheduled livestream room to live
+      parameters:
+        - $ref: '#/components/parameters/LiveRoomId'
+      responses:
+        '200':
+          description: Livestream room started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LiveRoom'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/EligibilityFailed'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /live-rooms/{live_room_id}/end:
+    post:
+      tags: [Livestreams]
+      summary: End a live livestream room
+      parameters:
+        - $ref: '#/components/parameters/LiveRoomId'
+      responses:
+        '200':
+          description: Livestream room ended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LiveRoom'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/EligibilityFailed'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /live-rooms/{live_room_id}/cancel:
+    post:
+      tags: [Livestreams]
+      summary: Cancel a scheduled or active livestream room
+      parameters:
+        - $ref: '#/components/parameters/LiveRoomId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Livestream room canceled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LiveRoom'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/EligibilityFailed'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /guilds/{guild_id}/questions/daily:
+    get:
+      tags: [Questions]
+      summary: Fetch the current daily question for a guild
+      parameters:
+        - $ref: '#/components/parameters/GuildId'
+      responses:
+        '200':
+          description: Current daily question or null
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item:
+                    allOf:
+                      - $ref: '#/components/schemas/Question'
+                    nullable: true
+        '401':
+          $ref: '#/components/responses/AuthError'
+    post:
+      tags: [Questions]
+      summary: Publish or schedule a daily question for a guild
+      parameters:
+        - $ref: '#/components/parameters/GuildId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateQuestionRequest'
+      responses:
+        '201':
+          description: Question created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Question'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /guilds/{guild_id}/questions/daily/answers:
+    post:
+      tags: [Questions]
+      summary: Submit an answer to the current daily question
+      parameters:
+        - $ref: '#/components/parameters/GuildId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question_id, selected_answer_ref]
+              properties:
+                question_id:
+                  type: string
+                selected_answer_ref:
+                  type: integer
+                  minimum: 0
+      responses:
+        '200':
+          description: Answer recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionAnswer'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /namespaces/{namespace_id}/handles/availability:
+    get:
+      tags: [Handles]
+      summary: Check availability and eligibility for a namespace-local handle
+      parameters:
+        - $ref: '#/components/parameters/NamespaceId'
+        - in: query
+          name: label
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Handle availability result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleAvailability'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /namespaces/{namespace_id}/handles/claims:
+    post:
+      tags: [Handles]
+      summary: Claim or purchase a namespace-local handle
+      parameters:
+        - $ref: '#/components/parameters/NamespaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label]
+              properties:
+                label:
+                  type: string
+                anti_bot_token:
+                  type: string
+                  nullable: true
+      responses:
+        '201':
+          description: Handle claimed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuildHandle'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/EligibilityFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /posts:
+    post:
+      tags: [Posts]
+      summary: Create a post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostRequest'
+      responses:
+        '201':
+          description: Post created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '422':
+          $ref: '#/components/responses/AnalysisBlocked'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /posts/{post_id}:
+    get:
+      tags: [Posts]
+      summary: Get a post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+        - $ref: '#/components/parameters/Locale'
+      responses:
+        '200':
+          description: Post
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocalizedPostResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /posts/{post_id}/vote:
+    post:
+      tags: [Posts]
+      summary: Cast or update a vote on a post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value:
+                  type: integer
+                  enum: [-1, 1]
+      responses:
+        '200':
+          description: Vote recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [post_id, value]
+                properties:
+                  post_id:
+                    type: string
+                  value:
+                    type: integer
+                    enum: [-1, 1]
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/VerificationRequired'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /feeds/home:
+    get:
+      tags: [Feeds]
+      summary: Read the global Home feed
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Locale'
+        - $ref: '#/components/parameters/FeedSort'
+        - $ref: '#/components/parameters/TopWindow'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Home feed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedResponse'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /feeds/your-guilds:
+    get:
+      tags: [Feeds]
+      summary: Read the Your Guilds feed
+      parameters:
+        - $ref: '#/components/parameters/Locale'
+        - $ref: '#/components/parameters/FeedSort'
+        - $ref: '#/components/parameters/TopWindow'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Personalized guild feed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /tracks:
+    post:
+      tags: [Tracks]
+      summary: Resolve or create a canonical track identity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrackResolveRequest'
+      responses:
+        '200':
+          description: Track resolved or created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Track'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /tracks/{track_id}:
+    get:
+      tags: [Tracks]
+      summary: Get a canonical track
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '200':
+          description: Track
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Track'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tracks/{track_id}/listeners:
+    get:
+      tags: [Scrobbles]
+      summary: Read listener summaries for a track
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Listener summaries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [track_id, items]
+                properties:
+                  track_id:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ListenerSummary'
+                  next_cursor:
+                    type: string
+                    nullable: true
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /scrobbles:
+    post:
+      tags: [Scrobbles]
+      summary: Submit a scrobble
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateScrobbleRequest'
+      responses:
+        '201':
+          description: Scrobble accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Scrobble'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /users/{user_id}/scrobbles:
+    get:
+      tags: [Scrobbles]
+      summary: Read scrobbles for a user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Scrobbles
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Scrobble'
+                  next_cursor:
+                    type: string
+                    nullable: true
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /mpp/guilds/{guild_id}/threads/export:
+    post:
+      tags: [MPP]
+      summary: Request a paid guild thread export
+      description: >
+        This is the v0 machine-access export surface. Initial requests may return
+        `402 Payment Required` with `WWW-Authenticate: Payment`. Successful paid
+        requests return `Payment-Receipt` and a pollable export job. Payment-auth
+        callers complete the async flow through `/mpp/jobs/{job_id}`.
+      security:
+        - paymentAuth: []
+      parameters:
+        - $ref: '#/components/parameters/GuildId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ThreadExportRequest'
+      responses:
+        '202':
+          description: Export accepted as an async job
+          headers:
+            Payment-Receipt:
+              description: Machine-payment receipt for the accepted export request
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThreadExportAcceptedResponse'
+        '402':
+          $ref: '#/components/responses/PaymentRequiredOrFailed'
+        '403':
+          $ref: '#/components/responses/MppExportForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /mpp/jobs/{job_id}:
+    get:
+      tags: [MPP]
+      summary: Inspect a pollable async MPP job
+      description: >
+        Payment-auth callers use this endpoint to poll async jobs returned by
+        paid machine-access endpoints such as guild thread exports.
+      security:
+        - paymentAuth: []
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /jobs:
+    get:
+      tags: [Jobs]
+      summary: List jobs by subject or type
+      parameters:
+        - in: query
+          name: subject_type
+          schema:
+            type: string
+        - in: query
+          name: subject_id
+          schema:
+            type: string
+        - in: query
+          name: job_type
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Job'
+                  next_cursor:
+                    type: string
+                    nullable: true
+        '401':
+          $ref: '#/components/responses/AuthError'
+
+  /jobs/{job_id}:
+    get:
+      tags: [Jobs]
+      summary: Inspect a pollable async job
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    paymentAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: >
+        Payment credential sent as `Authorization: Payment ...` on retry after an
+        MPP `402 Payment Required` challenge.
+  parameters:
+    GuildId:
+      in: path
+      name: guild_id
+      required: true
+      schema:
+        type: string
+    NamespaceId:
+      in: path
+      name: namespace_id
+      required: true
+      schema:
+        type: string
+    UserId:
+      in: path
+      name: user_id
+      required: true
+      schema:
+        type: string
+    PostId:
+      in: path
+      name: post_id
+      required: true
+      schema:
+        type: string
+    LiveRoomId:
+      in: path
+      name: live_room_id
+      required: true
+      schema:
+        type: string
+    TrackId:
+      in: path
+      name: track_id
+      required: true
+      schema:
+        type: string
+    JobId:
+      in: path
+      name: job_id
+      required: true
+      schema:
+        type: string
+    SelfVerificationSessionId:
+      in: path
+      name: self_verification_session_id
+      required: true
+      schema:
+        type: string
+    FeedSort:
+      in: query
+      name: sort
+      schema:
+        type: string
+        enum: [best, top, new]
+    Locale:
+      in: query
+      name: locale
+      description: >
+        Optional locale override for localized read surfaces. When omitted, the
+        server should resolve locale using the SSR precedence contract.
+      schema:
+        type: string
+    Cursor:
+      in: query
+      name: cursor
+      schema:
+        type: string
+    Limit:
+      in: query
+      name: limit
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    TopWindow:
+      in: query
+      name: top_window
+      schema:
+        type: string
+        enum: [now, today, this_week, this_month, all_time]
+  responses:
+    AuthError:
+      description: Authentication failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    PaymentRequired:
+      description: Payment is required before the resource can be accessed
+      headers:
+        WWW-Authenticate:
+          description: MPP payment challenge header
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MppChallenge'
+    PaymentRequiredOrFailed:
+      description: Payment is required or a payment attempt failed
+      headers:
+        WWW-Authenticate:
+          description: MPP payment challenge header
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/MppChallenge'
+              - $ref: '#/components/schemas/PaymentFailure'
+    VerificationRequired:
+      description: Verification is required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    MppExportForbidden:
+      description: Export blocked by a guild gate or export-eligibility rule
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    GateFailed:
+      description: Guild gate or membership rule failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    EligibilityFailed:
+      description: Policy or eligibility requirement failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    AnalysisBlocked:
+      description: Content analysis blocked publication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Request rate limited
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum:
+            - auth_error
+            - payment_required
+            - verification_required
+            - eligibility_failed
+            - gate_failed
+            - analysis_blocked
+            - analysis_review_required
+            - conflict
+            - not_found
+            - rate_limited
+            - payment_failed
+            - settlement_pending
+            - internal_error
+        message:
+          type: string
+        retryable:
+          type: boolean
+          default: false
+
+    SessionExchangeResponse:
+      type: object
+      required: [access_token, user, profile, onboarding]
+      properties:
+        access_token:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+        profile:
+          $ref: '#/components/schemas/Profile'
+        onboarding:
+          $ref: '#/components/schemas/OnboardingStatus'
+
+    User:
+      type: object
+      required:
+        - user_id
+        - self_verification_state
+        - created_at
+        - updated_at
+      properties:
+        user_id:
+          type: string
+        primary_wallet_attachment_id:
+          type: string
+          nullable: true
+        self_verification_state:
+          type: string
+          enum: [unverified, pending, verified, reverification_required]
+        verified_at:
+          type: string
+          format: date-time
+          nullable: true
+        nationality:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Profile:
+      type: object
+      required:
+        - user_id
+        - global_handle
+        - created_at
+        - updated_at
+      properties:
+        user_id:
+          type: string
+        display_name:
+          type: string
+          nullable: true
+        avatar_ref:
+          type: string
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        preferred_locale:
+          type: string
+          nullable: true
+        global_handle:
+          $ref: '#/components/schemas/GlobalHandle'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    GlobalHandle:
+      type: object
+      required:
+        - global_handle_id
+        - label
+        - tier
+        - status
+        - issuance_source
+        - issued_at
+      properties:
+        global_handle_id:
+          type: string
+        label:
+          type: string
+        tier:
+          type: string
+          enum: [generated, standard, premium]
+        status:
+          type: string
+          enum: [active, redirect, retired]
+        issuance_source:
+          type: string
+          enum:
+            - generated_signup
+            - free_cleanup_rename
+            - reddit_verified_claim
+            - paid_upgrade
+            - admin_grant
+        redirect_target_global_handle_id:
+          type: string
+          nullable: true
+        price_paid_usd:
+          type: number
+          nullable: true
+        free_rename_consumed:
+          type: boolean
+        issued_at:
+          type: string
+          format: date-time
+        replaced_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    HandleUpgradeQuote:
+      type: object
+      required: [desired_label, tier, price_usd, eligible]
+      properties:
+        desired_label:
+          type: string
+        tier:
+          type: string
+          enum: [standard, premium]
+        price_usd:
+          type: number
+        eligible:
+          type: boolean
+        reason:
+          type: string
+          nullable: true
+
+    SelfVerificationSession:
+      type: object
+      required:
+        - self_verification_session_id
+        - user_id
+        - status
+        - created_at
+        - expires_at
+      properties:
+        self_verification_session_id:
+          type: string
+        user_id:
+          type: string
+        wallet_attachment_id:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, verified, failed, expired]
+        nationality:
+          type: string
+          nullable: true
+        age_at_verification:
+          type: integer
+          nullable: true
+        attestation_id:
+          type: string
+          nullable: true
+        proof_hash:
+          type: string
+          nullable: true
+        evidence_ref:
+          type: string
+          nullable: true
+        verified_at:
+          type: string
+          format: date-time
+          nullable: true
+        failure_reason:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+
+    RedditVerification:
+      type: object
+      required: [reddit_username, status]
+      properties:
+        reddit_username:
+          type: string
+        status:
+          type: string
+          enum: [pending, verified, failed]
+        verification_hint:
+          type: string
+          nullable: true
+
+    OnboardingStatus:
+      type: object
+      required:
+        - generated_handle_assigned
+        - cleanup_rename_available
+        - reddit_verification_status
+        - reddit_import_status
+      properties:
+        generated_handle_assigned:
+          type: boolean
+        cleanup_rename_available:
+          type: boolean
+        reddit_verification_status:
+          type: string
+          enum: [not_started, pending, verified, failed]
+        reddit_import_status:
+          type: string
+          enum: [not_started, queued, running, succeeded, failed]
+        suggested_guild_ids:
+          type: array
+          items:
+            type: string
+
+    CreateGuildRequest:
+      type: object
+      required: [display_name, membership_mode, handle_policy]
+      properties:
+        display_name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        artist_identity_id:
+          type: string
+          nullable: true
+        membership_mode:
+          type: string
+          enum: [open, request, gated]
+        governance_mode:
+          type: string
+          enum: [centralized, multisig, majeur]
+          default: centralized
+        default_age_gate_policy:
+          type: string
+          enum: [none, 18_plus]
+          default: none
+        namespace:
+          $ref: '#/components/schemas/NamespaceAttachmentInput'
+        handle_policy:
+          $ref: '#/components/schemas/HandlePolicyInput'
+        donation_policy:
+          allOf:
+            - $ref: '#/components/schemas/CreateGuildDonationPolicyInput'
+          nullable: true
+
+    NamespaceAttachmentInput:
+      type: object
+      properties:
+        display_label:
+          type: string
+        normalized_label:
+          type: string
+        resolver_label:
+          type: string
+          nullable: true
+        route_family:
+          type: string
+          nullable: true
+
+    HandlePolicyInput:
+      type: object
+      required: [policy_template]
+      properties:
+        policy_template:
+          type: string
+          enum: [standard, premium, membership_gated, custom]
+        pricing_model:
+          type: string
+          enum: [free, flat_by_length, custom_curve, gated_then_flat]
+          nullable: true
+        membership_required_for_claim:
+          type: boolean
+          default: true
+
+    Guild:
+      type: object
+      required:
+        - guild_id
+        - display_name
+        - status
+        - membership_mode
+        - governance_mode
+        - donation_policy_mode
+        - donation_partner_status
+        - created_by_user_id
+        - created_at
+        - updated_at
+      properties:
+        guild_id:
+          type: string
+        display_name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [draft, active, frozen, archived, deleted]
+        artist_identity_id:
+          type: string
+          nullable: true
+        guild_agent_user_id:
+          type: string
+          nullable: true
+        membership_mode:
+          type: string
+          enum: [open, request, gated]
+        default_age_gate_policy:
+          type: string
+          enum: [none, 18_plus]
+        donation_policy_mode:
+          type: string
+          enum: [none, optional_creator_sidecar, fundraiser_default]
+        donation_partner_status:
+          type: string
+          enum: [unconfigured, active, paused]
+        donation_partner_id:
+          type: string
+          nullable: true
+        donation_partner:
+          $ref: '#/components/schemas/DonationPartnerSummary'
+          nullable: true
+        governance_mode:
+          type: string
+          enum: [centralized, multisig, majeur]
+        created_by_user_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateLiveRoomRequest:
+      type: object
+      required: [title, access_mode]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        event_start_at:
+          type: string
+          format: date-time
+          nullable: true
+        access_mode:
+          type: string
+          enum: [free, gated, paid]
+        cover_ref:
+          type: string
+          nullable: true
+        participant_capacity:
+          type: integer
+          nullable: true
+        listing_id:
+          type: string
+          nullable: true
+        replay_listing_id:
+          type: string
+          nullable: true
+        anchor_post_id:
+          type: string
+          nullable: true
+
+    LiveRoom:
+      type: object
+      required:
+        - live_room_id
+        - guild_id
+        - anchor_post_id
+        - host_user_id
+        - title
+        - status
+        - access_mode
+        - created_at
+        - updated_at
+      properties:
+        live_room_id:
+          type: string
+        guild_id:
+          type: string
+        anchor_post_id:
+          type: string
+        host_user_id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [scheduled, live, ended, canceled]
+        access_mode:
+          type: string
+          enum: [free, gated, paid]
+        listing_id:
+          type: string
+          nullable: true
+        replay_listing_id:
+          type: string
+          nullable: true
+        broadcast_ref:
+          type: string
+          nullable: true
+        event_start_at:
+          type: string
+          format: date-time
+          nullable: true
+        live_started_at:
+          type: string
+          format: date-time
+          nullable: true
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+        canceled_at:
+          type: string
+          format: date-time
+          nullable: true
+        cover_ref:
+          type: string
+          nullable: true
+        participant_capacity:
+          type: integer
+          nullable: true
+        replay_asset_id:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    LiveRoomAccessView:
+      type: object
+      required: [live_room_id, access_mode, join_state]
+      properties:
+        live_room_id:
+          type: string
+        access_mode:
+          type: string
+          enum: [free, gated, paid]
+        join_state:
+          type: string
+          enum: [allowed, gate_failed, payment_required, not_live, ended, canceled]
+        listing_id:
+          type: string
+          nullable: true
+        replay_listing_id:
+          type: string
+          nullable: true
+        replay_available:
+          type: boolean
+        reason:
+          type: string
+          nullable: true
+
+    MembershipResult:
+      type: object
+      required: [guild_id, status]
+      properties:
+        guild_id:
+          type: string
+        status:
+          type: string
+          enum: [joined, requested, left]
+
+    CreateGuildDonationPolicyInput:
+      type: object
+      description: >
+        Optional guild-level donation configuration supplied at creation
+        time. If omitted, the guild defaults to no donation policy. If
+        `donation_policy_mode = optional_creator_sidecar` or
+        `fundraiser_default`, `donation_partner_id` must be non-null. If
+        `donation_policy_mode = none`, `donation_partner_id` must be null.
+      required: [donation_policy_mode]
+      properties:
+        donation_policy_mode:
+          type: string
+          enum: [none, optional_creator_sidecar, fundraiser_default]
+        donation_partner_id:
+          type: string
+          nullable: true
+
+    UpdateGuildDonationPolicyRequest:
+      type: object
+      description: >
+        Update the guild donation policy. If `donation_policy_mode =
+        optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id`
+        must be non-null. If `donation_policy_mode = none`,
+        `donation_partner_id` must be null. Donation partner lifecycle
+        management is platform-admin-controlled in v0.
+      required: [donation_policy_mode]
+      properties:
+        donation_policy_mode:
+          type: string
+          enum: [none, optional_creator_sidecar, fundraiser_default]
+        donation_partner_id:
+          type: string
+          nullable: true
+        donation_partner_status:
+          type: string
+          enum: [unconfigured, active, paused]
+          nullable: true
+
+    DonationPartnerSummary:
+      type: object
+      description: >
+        Public/admin-safe summary of a reviewed donation partner. Full payout
+        routing details remain internal to Pirate settlement systems in v0.
+      required:
+        - donation_partner_id
+        - display_name
+        - provider
+        - review_status
+        - status
+      properties:
+        donation_partner_id:
+          type: string
+        display_name:
+          type: string
+        provider:
+          type: string
+          enum: [endaoment]
+        provider_partner_ref:
+          type: string
+          nullable: true
+        review_status:
+          type: string
+          enum: [pending, approved, rejected]
+        status:
+          type: string
+          enum: [active, paused, retired]
+
+    GuildDonationPolicy:
+      type: object
+      description: >
+        Resolved donation policy attached to a guild. This policy enables or
+        disables listing-level creator donation sidecars for content sold inside
+        the guild.
+      required:
+        - guild_id
+        - donation_policy_mode
+        - donation_partner_status
+      properties:
+        guild_id:
+          type: string
+        donation_policy_mode:
+          type: string
+          enum: [none, optional_creator_sidecar, fundraiser_default]
+        donation_partner_status:
+          type: string
+          enum: [unconfigured, active, paused]
+        donation_partner_id:
+          type: string
+          nullable: true
+        donation_partner:
+          $ref: '#/components/schemas/DonationPartnerSummary'
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+
+    HandleAvailability:
+      type: object
+      required: [label, available, eligible]
+      properties:
+        label:
+          type: string
+        available:
+          type: boolean
+        eligible:
+          type: boolean
+        estimated_price_usd:
+          type: number
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+
+    GuildHandle:
+      type: object
+      required:
+        - guild_handle_id
+        - user_id
+        - namespace_id
+        - label
+        - status
+        - issuance_source
+      properties:
+        guild_handle_id:
+          type: string
+        user_id:
+          type: string
+        namespace_id:
+          type: string
+        label:
+          type: string
+        status:
+          type: string
+          enum: [active, grace, expired, revoked]
+        issuance_source:
+          type: string
+          enum: [claim, auction, admin_grant]
+        lease_started_at:
+          type: string
+          format: date-time
+          nullable: true
+        lease_expires_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreatePostRequest:
+      type: object
+      required: [guild_id, post_type]
+      properties:
+        guild_id:
+          type: string
+        is_anonymous:
+          type: boolean
+          default: false
+        parent_post_id:
+          type: string
+          nullable: true
+        post_type:
+          type: string
+          enum: [text, image, video, song]
+        title:
+          type: string
+          nullable: true
+        body:
+          type: string
+          nullable: true
+        caption:
+          type: string
+          nullable: true
+        media_refs:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaDescriptor'
+        translation_policy:
+          type: string
+          enum: [none, machine_allowed, human_only, hybrid]
+          nullable: true
+        asset_id:
+          type: string
+          nullable: true
+        song_mode:
+          type: string
+          enum: [original, remix]
+          nullable: true
+        rights_basis:
+          type: string
+          enum: [none, original, derivative, attribution_only]
+          nullable: true
+        age_gate_policy:
+          type: string
+          enum: [none, 18_plus]
+          nullable: true
+        lyrics:
+          type: string
+          nullable: true
+          description: >
+            Plain-text lyrics for song posts. Required when post_type is song.
+            Optional for other post types.
+
+    Post:
+      type: object
+      required:
+        - post_id
+        - guild_id
+        - is_anonymous
+        - post_type
+        - status
+        - analysis_state
+        - content_safety_state
+        - age_gate_policy
+        - created_at
+        - updated_at
+      properties:
+        post_id:
+          type: string
+        guild_id:
+          type: string
+        author_user_id:
+          type: string
+          nullable: true
+          description: >
+            Public read models omit this field for anonymous posts. It remains
+            present for non-anonymous posts and privileged internal reads.
+        is_anonymous:
+          type: boolean
+        anonymous_label:
+          type: string
+          nullable: true
+        post_type:
+          type: string
+          enum: [text, image, video, song]
+        status:
+          type: string
+          enum: [draft, published, hidden, removed, deleted]
+        title:
+          type: string
+          nullable: true
+        body:
+          type: string
+          nullable: true
+        caption:
+          type: string
+          nullable: true
+        media_refs:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaDescriptor'
+        source_language:
+          type: string
+          nullable: true
+          description: >
+            Server-authored detected source language. May be null only while
+            `analysis_state = pending`; published posts should have a non-null
+            value.
+        translation_policy:
+          type: string
+          enum: [none, machine_allowed, human_only, hybrid]
+          nullable: true
+        asset_id:
+          type: string
+          nullable: true
+        parent_post_id:
+          type: string
+          nullable: true
+        song_mode:
+          type: string
+          enum: [original, remix]
+          nullable: true
+        rights_basis:
+          type: string
+          enum: [none, original, derivative, attribution_only]
+          nullable: true
+        analysis_state:
+          type: string
+          enum: [pending, allow, allow_with_required_reference, review_required, blocked]
+        analysis_result_ref:
+          type: string
+          nullable: true
+        content_safety_state:
+          type: string
+          enum: [pending, safe, sensitive, adult]
+        age_gate_policy:
+          type: string
+          enum: [none, 18_plus]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    LocalizedPostResponse:
+      type: object
+      required: [post, resolved_locale, machine_translated, source_hash]
+      properties:
+        post:
+          $ref: '#/components/schemas/Post'
+        resolved_locale:
+          type: string
+        machine_translated:
+          type: boolean
+        translated_body:
+          type: string
+          nullable: true
+        translated_caption:
+          type: string
+          nullable: true
+        source_hash:
+          type: string
+          description: >
+            Content fingerprint for translation cache invalidation. Changes when
+            the canonical source text changes.
+
+    MediaDescriptor:
+      type: object
+      required: [storage_ref]
+      properties:
+        storage_ref:
+          type: string
+        mime_type:
+          type: string
+          nullable: true
+        size_bytes:
+          type: integer
+          nullable: true
+        content_hash:
+          type: string
+          nullable: true
+        duration_ms:
+          type: integer
+          nullable: true
+        width:
+          type: integer
+          nullable: true
+        height:
+          type: integer
+          nullable: true
+
+    Question:
+      type: object
+      required:
+        - question_id
+        - post_id
+        - guild_id
+        - author_user_id
+        - question_kind
+        - prompt
+        - status
+        - published_at
+      properties:
+        question_id:
+          type: string
+        post_id:
+          type: string
+        guild_id:
+          type: string
+        author_user_id:
+          type: string
+        question_kind:
+          type: string
+          enum: [meaning, slang_context, song_id, artist_fact, translation]
+        prompt:
+          type: string
+        choices:
+          type: array
+          items:
+            type: string
+          nullable: true
+        correct_answer_ref:
+          type: integer
+          minimum: 0
+          nullable: true
+        explanation:
+          type: string
+          nullable: true
+        source_type:
+          type: string
+          enum: [lyrics, annotation, artist_catalog, guild_lore]
+        source_ref:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [draft, published, closed, revealed]
+        published_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateQuestionRequest:
+      type: object
+      required:
+        - question_kind
+        - prompt
+        - choices
+        - correct_answer_ref
+      properties:
+        question_kind:
+          type: string
+          enum: [meaning, slang_context, song_id, artist_fact, translation]
+        prompt:
+          type: string
+        choices:
+          type: array
+          minItems: 2
+          items:
+            type: string
+        correct_answer_ref:
+          type: integer
+          minimum: 0
+        explanation:
+          type: string
+          nullable: true
+        source_type:
+          type: string
+          enum: [lyrics, annotation, artist_catalog, guild_lore]
+        source_ref:
+          type: string
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    QuestionAnswer:
+      type: object
+      required:
+        - question_answer_id
+        - question_id
+        - user_id
+        - selected_answer_ref
+        - is_correct
+        - submitted_at
+      properties:
+        question_answer_id:
+          type: string
+        question_id:
+          type: string
+        user_id:
+          type: string
+        selected_answer_ref:
+          type: integer
+          minimum: 0
+        is_correct:
+          type: boolean
+          nullable: true
+        rewarded_at:
+          type: string
+          format: date-time
+          nullable: true
+        submitted_at:
+          type: string
+          format: date-time
+
+    FeedResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeedItem'
+        next_cursor:
+          type: string
+          nullable: true
+
+    FeedItem:
+      type: object
+      required: [post, resolved_locale, machine_translated, source_hash]
+      properties:
+        post:
+          $ref: '#/components/schemas/Post'
+        resolved_locale:
+          type: string
+        machine_translated:
+          type: boolean
+        translated_body:
+          type: string
+          nullable: true
+        translated_caption:
+          type: string
+          nullable: true
+        source_hash:
+          type: string
+          description: >
+            Content fingerprint for translation cache invalidation. Changes when
+            the canonical source text changes.
+        display_handle:
+          type: string
+          nullable: true
+          description: >
+            The single author label rendered for this feed item in v0. Mixed
+            global feeds use the author's active global .pirate handle unless
+            the post is anonymous. Guild feeds may render the guild
+            handle when available.
+        question:
+          allOf:
+            - $ref: '#/components/schemas/Question'
+          nullable: true
+          description: >
+            Nullable question projection included when the feed item represents
+            a daily-question post or another question-linked feed card.
+
+    TrackResolveRequest:
+      type: object
+      description: >
+        At least one identity path must be supplied. Clients may resolve by MBID,
+        Story IP ID, metadata hash, or a metadata pair such as title plus artist
+        display name. The server may enrich omitted metadata when a stronger
+        identity path already exists.
+      anyOf:
+        - required: [recording_mbid]
+        - required: [story_ip_id]
+        - required: [metadata_hash]
+        - required: [title, artist_display_name]
+      properties:
+        recording_mbid:
+          type: string
+          nullable: true
+        story_ip_id:
+          type: string
+          nullable: true
+        metadata_hash:
+          type: string
+          nullable: true
+        asset_id:
+          type: string
+          nullable: true
+        guild_id:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        artist_display_name:
+          type: string
+          nullable: true
+        album:
+          type: string
+          nullable: true
+
+    ListingDonationConfig:
+      type: object
+      description: >
+        Listing-level creator donation sidecar configuration. When
+        `donation_opt_in = true`, both `donation_share_pct` and
+        `donation_partner_id_snapshot` must be non-null.
+      required: [donation_opt_in]
+      properties:
+        donation_opt_in:
+          type: boolean
+        donation_share_pct:
+          type: number
+          minimum: 0.01
+          maximum: 50
+          nullable: true
+        donation_partner_id_snapshot:
+          type: string
+          nullable: true
+
+    PurchaseDonationSettlement:
+      type: object
+      description: >
+        Purchase-time snapshot of donation routing and settlement outcome. Money
+        fields are represented here as numbers for readability, but decimal
+        strings are recommended in implementation to avoid floating-point
+        precision issues.
+      properties:
+        donation_partner_id:
+          type: string
+          nullable: true
+        donation_share_pct:
+          type: number
+          nullable: true
+        donation_amount_usd:
+          type: number
+          nullable: true
+        donation_settlement_ref:
+          type: string
+          nullable: true
+
+    Track:
+      type: object
+      required:
+        - track_id
+        - track_kind
+        - title
+        - metadata_hash
+        - status
+        - created_at
+        - updated_at
+      properties:
+        track_id:
+          type: string
+        track_kind:
+          type: string
+          enum: [mbid, story_ip, metadata_hash]
+        recording_mbid:
+          type: string
+          nullable: true
+        story_ip_id:
+          type: string
+          nullable: true
+        asset_id:
+          type: string
+          nullable: true
+        guild_id:
+          type: string
+          nullable: true
+        publisher_ref:
+          type: string
+          nullable: true
+        title:
+          type: string
+        artist_display_name:
+          type: string
+        album:
+          type: string
+          nullable: true
+        duration_ms:
+          type: integer
+          nullable: true
+        audio_fingerprint_ref:
+          type: string
+          nullable: true
+        cover_ref:
+          type: string
+          nullable: true
+        lyrics_ref:
+          type: string
+          nullable: true
+        genius_song_id:
+          type: string
+          nullable: true
+        artist_identity_ids:
+          type: array
+          items:
+            type: string
+          nullable: true
+        metadata_hash:
+          type: string
+        status:
+          type: string
+          enum: [draft, active, deprecated]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateScrobbleRequest:
+      type: object
+      required: [track_id, source_type, playback_started_at, submission_mode]
+      properties:
+        track_id:
+          type: string
+        guild_id:
+          type: string
+          nullable: true
+        source_type:
+          type: string
+          enum: [web, desktop, mobile, operator_ingested]
+        playback_started_at:
+          type: string
+          format: date-time
+        playback_position_ms:
+          type: integer
+          nullable: true
+        credited_duration_ms:
+          type: integer
+          nullable: true
+        submission_mode:
+          type: string
+          enum: [direct, delegated]
+
+    Scrobble:
+      type: object
+      required:
+        - scrobble_id
+        - track_id
+        - user_id
+        - source_type
+        - playback_started_at
+        - submission_mode
+        - created_at
+      properties:
+        scrobble_id:
+          type: string
+        track_id:
+          type: string
+        user_id:
+          type: string
+        guild_id:
+          type: string
+          nullable: true
+        source_type:
+          type: string
+          enum: [web, desktop, mobile, operator_ingested]
+        playback_started_at:
+          type: string
+          format: date-time
+        playback_position_ms:
+          type: integer
+          nullable: true
+        credited_duration_ms:
+          type: integer
+          nullable: true
+        submission_mode:
+          type: string
+          enum: [direct, delegated]
+        chain_tx_ref:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    ListenerSummary:
+      type: object
+      required: [user_id, scrobble_count]
+      properties:
+        user_id:
+          type: string
+        display_handle:
+          type: string
+          nullable: true
+        scrobble_count:
+          type: integer
+
+    Job:
+      type: object
+      required:
+        - job_id
+        - job_type
+        - status
+        - subject_type
+        - subject_id
+        - created_at
+        - updated_at
+      properties:
+        job_id:
+          type: string
+        job_type:
+          type: string
+          enum:
+            - reddit_snapshot_import
+            - guild_threads_export
+            - media_analysis
+            - story_publication
+            - purchase_settlement_confirmation
+            - entitlement_grant
+            - artist_metadata_enrichment
+            - track_reconciliation
+            - catalog_track_preregistration
+            - stem_separation
+            - forced_alignment
+            - karaoke_package_assembly
+        status:
+          type: string
+          enum: [queued, running, succeeded, failed]
+        subject_type:
+          type: string
+        subject_id:
+          type: string
+        result_ref:
+          type: string
+          description: >
+            Opaque result reference. For succeeded machine-export jobs this may be
+            a signed download URL.
+          nullable: true
+        error_code:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    JobAcceptedResponse:
+      type: object
+      required: [job]
+      properties:
+        job:
+          $ref: '#/components/schemas/Job'
+
+    MppChallenge:
+      type: object
+      required: [code, message, resource_type, payment_intent]
+      properties:
+        code:
+          type: string
+          enum: [payment_required]
+        message:
+          type: string
+        resource_type:
+          type: string
+        payment_intent:
+          type: string
+          enum: [charge, session]
+        payment_methods:
+          type: array
+          items:
+            type: string
+        challenge_ref:
+          type: string
+          nullable: true
+
+    PaymentFailure:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [payment_failed]
+        message:
+          type: string
+        retryable:
+          type: boolean
+          default: false
+        challenge_ref:
+          type: string
+          nullable: true
+
+    ThreadExportRequest:
+      type: object
+      required: [format]
+      properties:
+        format:
+          type: string
+          enum: [jsonl, ndjson]
+        include_replies:
+          type: boolean
+          default: true
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100000
+          nullable: true
+        after_cursor:
+          type: string
+          nullable: true
+
+    ThreadExportAcceptedResponse:
+      type: object
+      required: [guild_id, job, job_status_url]
+      properties:
+        guild_id:
+          type: string
+        job:
+          $ref: '#/components/schemas/Job'
+        job_status_url:
+          type: string
+          description: >
+            Payment-auth polling URL for this export job. App clients may instead
+            use the bearer-auth `/jobs/{job_id}` endpoint.
