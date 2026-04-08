@@ -6,8 +6,11 @@ Related docs:
 
 - [post.md](./post.md)
 - [guild.md](./guild.md)
+- [identity-presentation.md](./identity-presentation.md)
 - [donations.md](./donations.md)
 - [asset.md](./asset.md)
+- [livestream.md](./livestream.md)
+- [live-segments.md](./live-segments.md)
 
 ## Purpose
 
@@ -17,6 +20,7 @@ It covers:
 
 - the page shell and layout
 - the primary composer tabs and their fields
+- live-mode composition
 - what appears by default vs behind "More options" or expanders
 - the contextual derivative/reference step
 - how rights basis is derived rather than manually selected
@@ -26,7 +30,6 @@ It covers:
 It does not cover:
 
 - final copy or pixel-level layout
-- the livestream or room creation flows (separate specs)
 - donation UI on published posts (belongs to monetization/display specs)
 - full media analysis pipeline (see post.md)
 
@@ -40,7 +43,7 @@ The composer should feel like Reddit's "Create post" flow: pick a type, add a ti
 ┌─────────────────────────────────────────────┐
 │  Create post    [guild selector]  Drafts │
 ├─────────────────────────────────────────────┤
-│  [Text]  [Image]  [Video]  [Song]           │
+│  [Text]  [Image]  [Video]  [Link] [Song] [Live] │
 ├─────────────────────────────────────────────┤
 │                                             │
 │  Title                                       │
@@ -57,9 +60,9 @@ The composer should feel like Reddit's "Create post" flow: pick a type, add a ti
 
 **Top row**: "Create post" heading, guild selector, and a drafts link.
 
-**Tab row**: Text, Image, Video, Song. One active at a time. Song is the main Pirate-specific addition. Link and Poll are not v0.
+**Tab row**: Text, Image, Video, Link, Song, Live. One active at a time. Song and Live are the main Pirate-specific additions. Poll is not v0.
 
-**Main body**: Title first, then the content surface that swaps by tab. Guild metadata (flair, tags) is not a v0 composer concern; it belongs to guild display settings.
+**Main body**: Title first, then the content surface that swaps by tab. If the guild has flair enabled, the composer may expose one optional flair picker for top-level posts using the guild's curated definitions. Freeform tags remain out of scope.
 
 **Footer**: Save Draft and Post actions.
 
@@ -93,17 +96,82 @@ Poster/thumbnail is a secondary field under "More options," not primary.
 
 If the uploaded video contains audio, Pirate runs ACRCloud analysis automatically. The user does not see this happen; results surface only if attribution or derivative linking is needed.
 
+### Link
+
+- **Title** — optional
+- **URL** — required
+- **Commentary** — optional
+- **Link preview** — derived automatically when available; it is preview UI, not a required authoring field
+
+This should follow the same simple mental model as Reddit link posts: paste a URL, optionally add title/commentary, and post.
+
 ### Song
 
 - **Title** — optional
 - **Primary audio upload** — required
 - **Caption** — optional
 - **Lyrics** — required, text input
+- **Instrumental stem** — optional
+- **Vocal stem** — optional
 - **Original / Remix toggle** — small inline toggle inside the song tab. Default is Original. Selecting Remix triggers the derivative step (see below).
 
-Advanced song inputs (instrumental stem, vocal stem) are under an expander, not in the primary view. They are **optional** at post-creation time. Stems and timed lyrics may be attached later through async enrichment. Karaoke readiness is determined by the asset's `karaoke_package_ref` completeness, not by composer completeness. See karaoke.md for the staged enrichment model.
+Instrumental and vocal stems are first-class song inputs in the main song flow, but they remain **optional** at post-creation time. Stems and timed lyrics may also be attached later through async enrichment. Karaoke readiness is determined by the asset's `karaoke_package_ref` completeness, not by composer completeness. See karaoke.md for the staged enrichment model.
 
 Song tab is hidden or disabled unless the user has `create_song_post` permission per the guild permissions matrix.
+
+### Live
+
+Live is a composer mode, not a normal `post_type`.
+
+Submitting the Live mode creates:
+
+- the anchor post
+- the `live_room`
+- the initial setlist
+- optional listing scaffolding when live access is paid
+
+Primary fields:
+
+- **Title** — required
+- **Description** — optional
+- **Cover** — optional
+- **Schedule** — optional; defaults to "ready now"
+- **Room kind** — required (`solo`, `duet`)
+- **Visibility** — required (`public`, `unlisted`)
+- **Access mode** — required (`free`, `gated`, `paid`)
+- **Guest performer** — optional, only when relevant
+- **Performer allocations** — required; percentages must sum to `100`
+- **Setlist** — required as part of creation
+
+Identity rule:
+
+- Song and Live modes should not expose anonymous identity controls
+- song and live creation must use public identity in v0
+- the host's verified public identity is operationally relevant for room authority, rights review, payouts, guest invitations, and later replay clearance
+- the anchor post created for a live room should therefore be non-anonymous in v0
+- song posts should likewise be non-anonymous in v0 because authorship, rights review, Story publication, and payout routing depend on the author's verified public identity
+
+Setlist behavior:
+
+- the initial setlist must be present in the create request
+- the setlist may be created in `draft` state when the host is still editing it
+- the room may be created or scheduled with a draft setlist
+- the room must not start live until the setlist becomes `active`
+- surprise songs during live still append `added_live` items later
+
+Setlist entry behavior:
+
+- the setlist editor should default to searching Pirate's canonical songbase / track catalog
+- selecting an existing track should populate the display title and artist automatically
+- manual title/artist entry is a fallback for unreleased originals, unresolved tracks, or temporary placeholders
+
+Performer allocation behavior:
+
+- `solo` rooms still require an explicit allocation row for the host with `100%`
+- `duet` rooms require explicit host and guest allocations summing to `100%`
+- the composer must not allow ambiguous "we'll split it later" live rooms
+
+This keeps the host's intent structured from the first write, not only at go-live time.
 
 ## Contextual Derivative Step
 
@@ -145,24 +213,83 @@ The user may be asked "Is this your original work?" or "Is this based on another
 
 A later "Treat as asset" path may exist for upgrading a social post to a rights-bearing one, but it is not a giant visible config panel.
 
-## More Options
+## Identity Presentation
 
-The following are hidden behind a "More options" collapse or menu. Most users never need to touch these.
+For post types that allow anonymous identity, the composer should keep identity simple.
+
+Recommended UI shape:
+
+1. `Post anonymously` toggle when the guild allows anonymous posting
+2. qualifier multi-select dropdown, shown only when anonymous posting is active
+3. qualifier chips rendered below the control
+
+Rules:
+
+- the qualifier picker must only show platform-defined qualifiers that the user is eligible to disclose
+- v0 qualifiers should come from [user.md](./user.md) `verification_capabilities` plus explicitly supported provider-specific qualifier templates
+- qualifiers must render as normalized labels such as `18+`, `US National`, or `Palm Scan`, not raw proof payloads
+- the composer must not allow freeform user-authored authority qualifiers
+- qualifiers already implied by guild gates should be hidden from the picker
+- public posts should not expose the qualifier picker in v0
+- `song` and `live` must not expose anonymous identity controls
+- anonymous scope remains part of guild policy in v0; it does not need to be a first-class composer control
+
+## Secondary Options
+
+Less common controls may still live under a lightweight secondary section when implemented.
 
 - **Schedule** — defaults to "Post now"
-- **Age gate** — defaults to `none`; auto-set to `18_plus` if media analysis classifies content as adult, or if any upstream asset referenced by the post is already `18_plus` (per post.md, downstream derivatives must inherit the stricter gate)
 - **Translation policy** — defaults to `machine_allowed`
 - **Poster / thumbnail** — for video posts, secondary to the video upload
-- **Advanced song inputs** — instrumental stem, vocal stem (optional; may also be attached or generated later)
 - **Derivative / upstream reference search** — for video posts that want to attribute or claim derivative status (appears here if not already triggered by analysis or remix mode)
+
+## Flair
+
+Flair is optional community labeling metadata, not canonical post truth.
+
+Composer rules:
+
+- at most one flair may be selected per post
+- the picker should only show active flair definitions for the selected guild
+- if a flair definition has `allowed_post_types`, the picker should only show options valid for the active composer tab
+- flair selection should be visible but lightweight, closer to a subreddit flair chooser than to a tagging surface
+- freeform tag entry does not exist in v0
+- replies should not expose flair selection in v0 unless Pirate later decides thread replies need their own conversational labeling
+
+Recommended placement:
+
+- below the title and above the primary content surface for top-level posts
+- collapsed behind a lightweight trigger such as `Add flair` when no flair is selected
+- rendered as a pill selector or modal list, not a tokenizing multi-select input
+
+Behavior:
+
+- if the guild does not have flair enabled, no flair UI appears
+- if the guild requires flair on top-level posts, publishing should be blocked until one active flair is selected
+- if the selected post type has no active applicable flair definitions, the composer must not dead-end the user; the guild settings are invalid and should be treated as an admin configuration problem rather than a user error
+- if a previously selected flair becomes archived before publish, the draft must prompt the user to choose a new active flair or clear it if the guild does not require flair
 
 ## Livestream And Room
 
-Livestream and room creation are not composer tabs or adjacent composer CTAs in v0.
+Livestream authoring should happen inside the composer shell through the Live mode.
 
-Livestreams are separate first-class objects with their own creation surface. See [livestream.md](./livestream.md) for the canonical `live_room` model and lifecycle.
+Important boundary:
 
-Rooms (synchronous voice rooms) are similarly outside the post composer flow. They may be added to guild-level navigation or a separate creation surface, but they do not appear as post types or CTAs inside the composer.
+- Live is a composer mode, not a normal `post_type`
+- the composer still creates a normal anchor post plus a first-class `live_room`
+- room lifecycle remains owned by `live_room`, not by the post row
+
+This gives Pirate one structured authoring surface while preserving the correct backend object model.
+
+## Anonymous Identity Boundary
+
+Anonymous identity is useful for social or journalistic speech, not for rights-bearing music objects.
+
+Recommended v0 rule:
+
+- `text`, `image`, `video`, and `link` modes may expose guild-allowed anonymous identity controls when guild policy allows it
+- `song` and `live` modes must not expose anonymous identity controls
+- the backend should reject anonymous creation attempts for song posts and live anchor posts even if a buggy client submits them
 
 ## Donation
 
@@ -221,7 +348,7 @@ After the user submits:
 3. If `allow_with_required_reference`, the user must attach upstream references before publishing
 4. If `review_required`, the post enters moderation review
 5. If `blocked`, the post cannot be published and the user is told why
-6. Age gate may be auto-set to `18_plus` based on analysis results, or inherited from an upstream asset that is already `18_plus`
+6. Age gate is set automatically to `18_plus` when analysis classifies the content as adult, or when an upstream asset already carries the stricter gate
 7. The user is not exposed to `analysis_state` or `rights_basis` directly; they see human-readable messages and prompts
 
 ## Summary
@@ -239,11 +366,12 @@ And only when the content implies it:
 
 Key constraints:
 
-- Four tabs: Text, Image, Video, Song. One active at a time.
-- Song contains an Original/Remix toggle and hides advanced stems under an expander.
+- Six tabs: Text, Image, Video, Link, Song, Live. One active at a time.
+- Song contains an Original/Remix toggle and keeps optional stems in the main song flow.
+- Live creates both an anchor post and a `live_room`, and requires an initial setlist payload.
 - Derivative step is contextual, triggered by remix mode, user declaration, or analysis detection.
 - Rights basis is derived, never shown as a dropdown.
-- Livestream and room: separate CTAs, not tabs.
+- Identity is a presentation-mode choice with optional disclosed verified claim chips on eligible post types.
+- Flair is optional, single-select, guild-scoped, and never freeform.
 - Donation: creator-side opt-in on monetized listings only, not in the composer for free posts.
-- Advanced options collapsed under "More options."
 - Permission gates control tab visibility, not UI surface area.

@@ -9,12 +9,53 @@ const baseComposer: PostComposerProps = {
   guildAvatarSrc: "https://picsum.photos/seed/yeezy/80/80",
   draftsLabel: "Drafts",
   mode: "text",
-  availableTabs: ["text", "image", "video", "link", "song"],
+  availableTabs: ["text", "image", "video", "link", "song", "live"],
   canCreateSongPost: true,
   titleValue: "What is the best Ye opener?",
   titleCountLabel: "29/300",
   textBodyValue:
     "Keep it close to Reddit: title first, content next, extras collapsed. Pirate-specific flows should only appear when the content actually calls for them.",
+  identity: {
+    allowAnonymousIdentity: true,
+    allowQualifiersOnAnonymousPosts: true,
+    identityMode: "public",
+    publicHandle: "@saint-pablo",
+    anonymousLabel: "anon_mercury-17",
+    availableQualifiers: [
+      {
+        qualifierId: "qlf_unique_human",
+        label: "Unique Human",
+        description: "Verified uniqueness",
+        sensitivityLevel: "low",
+        sourceProvider: "self",
+        sourceField: "unique_human",
+        redundancyKey: "unique_human:true",
+      },
+      {
+        qualifierId: "qlf_age_over_18",
+        label: "18+",
+        description: "Adult",
+        sensitivityLevel: "low",
+        sourceProvider: "self",
+        sourceField: "minimumAge",
+        redundancyKey: "age_over_18:true",
+      },
+      {
+        qualifierId: "qlf_nationality_us",
+        label: "US National",
+        description: "Nationality",
+        sensitivityLevel: "high",
+        sourceProvider: "self",
+        sourceField: "nationality",
+        redundancyKey: "nationality:US",
+        suppressedByGuildGate: true,
+        suppressionReason: "Already required for posting in this guild.",
+      },
+    ],
+    selectedQualifierIds: [],
+    helpText:
+      "Attach optional qualifiers to add authority. Anything already required by this guild stays hidden.",
+  },
 };
 
 const meta = {
@@ -44,16 +85,167 @@ export const DefaultGuildAllTypes: Story = {
   render: () => <PostComposer {...baseComposer} />,
 };
 
+export const PublicHandleOnly: Story = {
+  name: "Guild / No Optional Qualifiers",
+  render: () => (
+    <PostComposer
+      {...baseComposer}
+      identity={{
+        allowAnonymousIdentity: true,
+        identityMode: "public",
+        publicHandle: "@saint-pablo",
+        anonymousLabel: "anon_mercury-17",
+        availableQualifiers: [],
+      }}
+    />
+  ),
+};
+
+export const QualifiersDropdown: Story = {
+  name: "Guild / Qualifiers Dropdown",
+  render: () => (
+    <PostComposer
+      {...baseComposer}
+      identity={{
+        allowAnonymousIdentity: true,
+        allowQualifiersOnAnonymousPosts: true,
+        identityMode: "anonymous",
+        publicHandle: "@saint-pablo",
+        anonymousLabel: "anon_mercury-17",
+        availableQualifiers: [
+          {
+            qualifierId: "qlf_unique_human",
+            label: "Unique Human",
+            description: "Verified uniqueness",
+            sensitivityLevel: "low",
+            sourceProvider: "self",
+            sourceField: "unique_human",
+            redundancyKey: "unique_human:true",
+          },
+          {
+            qualifierId: "qlf_age_over_18",
+            label: "18+",
+            description: "Adult",
+            sensitivityLevel: "low",
+            sourceProvider: "self",
+            sourceField: "minimumAge",
+            redundancyKey: "age_over_18:true",
+          },
+          {
+            qualifierId: "qlf_nationality_us",
+            label: "US National",
+            description: "Nationality",
+            sensitivityLevel: "high",
+            sourceProvider: "self",
+            sourceField: "nationality",
+            redundancyKey: "nationality:US",
+            suppressedByGuildGate: true,
+          },
+          {
+            qualifierId: "qlf_very_palm_scan",
+            label: "Palm Scan",
+            description: "Very biometric verification",
+            sensitivityLevel: "low",
+            sourceProvider: "very",
+            sourceField: "palm_scan",
+          },
+        ],
+        selectedQualifierIds: ["qlf_unique_human", "qlf_age_over_18", "qlf_very_palm_scan"],
+        helpText:
+          "Select any qualifiers that add authority to this post. Guild-required ones are omitted.",
+      }}
+    />
+  ),
+};
+
+export const GuildGateSuppressesQualifier: Story = {
+  name: "Guild / Gate Suppresses Qualifier",
+  render: () => (
+    <PostComposer
+      {...baseComposer}
+      guildName="g/america"
+      identity={{
+        allowAnonymousIdentity: true,
+        identityMode: "anonymous",
+        publicHandle: "@saint-pablo",
+        anonymousLabel: "anon_america-17",
+        availableQualifiers: [
+          {
+            qualifierId: "qlf_unique_human",
+            label: "Unique Human",
+            sensitivityLevel: "low",
+            sourceProvider: "self",
+            sourceField: "unique_human",
+            redundancyKey: "unique_human:true",
+          },
+          {
+            qualifierId: "qlf_nationality_us",
+            label: "US National",
+            sensitivityLevel: "high",
+            sourceProvider: "self",
+            sourceField: "nationality",
+            redundancyKey: "nationality:US",
+            suppressedByGuildGate: true,
+            suppressionReason: "US nationality is already required to post in this guild.",
+          },
+        ],
+        selectedQualifierIds: ["qlf_unique_human"],
+        helpText:
+          "US nationality is already enforced by the guild gate, so it does not appear as an optional qualifier.",
+      }}
+    />
+  ),
+};
+
+export const AnonymousWithoutQualifierDisclosure: Story = {
+  name: "Guild / Anonymous Without Qualifier Disclosure",
+  render: () => (
+    <PostComposer
+      {...baseComposer}
+      identity={{
+        allowAnonymousIdentity: true,
+        allowQualifiersOnAnonymousPosts: false,
+        identityMode: "anonymous",
+        publicHandle: "@saint-pablo",
+        anonymousLabel: "anon_mercury-17",
+        availableQualifiers: [
+          {
+            qualifierId: "qlf_unique_human",
+            label: "Unique Human",
+            description: "Verified uniqueness",
+            sensitivityLevel: "low",
+            sourceProvider: "self",
+            sourceField: "unique_human",
+            redundancyKey: "unique_human:true",
+          },
+          {
+            qualifierId: "qlf_age_over_18",
+            label: "18+",
+            description: "Adult",
+            sensitivityLevel: "low",
+            sourceProvider: "self",
+            sourceField: "minimumAge",
+            redundancyKey: "age_over_18:true",
+          },
+        ],
+        selectedQualifierIds: [],
+        helpText:
+          "This guild allows anonymous posting but does not allow qualifier disclosure on anonymous posts.",
+      }}
+    />
+  ),
+};
+
 export const ImagePost: Story = {
   name: "Flow / Image",
   render: () => (
     <PostComposer
       {...baseComposer}
       mode="image"
-      titleValue="Tour photo dump from last night"
-      titleCountLabel="31/300"
+      titleValue="Backstage at the show"
+      titleCountLabel="21/300"
       textBodyValue=""
-      captionValue="Backstage, crowd shots, and the broken synth in slide four."
+      captionValue="Caught this backstage right before the set."
     />
   ),
 };
@@ -118,10 +310,6 @@ export const SongRemix: Story = {
         ],
         requirementLabel: "Attach the original track before posting.",
       }}
-      moreOptions={{
-        open: true,
-        ageGateChecked: false,
-      }}
     />
   ),
 };
@@ -137,10 +325,6 @@ export const MonetizedDonationFlow: Story = {
       titleCountLabel="36/300"
       captionValue="Sale listing with optional creator-side donation."
       lyricsValue="Raise the room up / hold the line / send the chorus over..."
-      moreOptions={{
-        open: true,
-        ageGateChecked: false,
-      }}
       monetization={{
         visible: true,
         priceLabel: "$3.99",
@@ -148,6 +332,45 @@ export const MonetizedDonationFlow: Story = {
         donationOptIn: true,
         donationPartnerName: "MusiCares",
         donationSharePct: 10,
+      }}
+    />
+  ),
+};
+
+export const LiveStream: Story = {
+  name: "Flow / Live Stream",
+  render: () => (
+    <PostComposer
+      {...baseComposer}
+      mode="live"
+      availableTabs={["text", "image", "video", "link", "song", "live"]}
+      titleValue="Friday night set"
+      titleCountLabel="16/300"
+      live={{
+        roomKind: "solo",
+        accessMode: "free",
+        visibility: "public",
+        setlistItems: [
+          {
+            declaredTrackId: "trk_01midnightwaves",
+            titleText: "Midnight Waves",
+            artistText: "DJ Solar",
+            performanceKind: "original",
+          },
+          {
+            declaredTrackId: "trk_01echoes",
+            titleText: "Echoes",
+            artistText: "DJ Solar",
+            performanceKind: "original",
+          },
+          {
+            titleText: "Blue",
+            artistText: "Joni Mitchell",
+            performanceKind: "cover",
+          },
+        ],
+        setlistStatus: "draft",
+        performerAllocations: [{ userId: "", role: "host", sharePct: 100 }],
       }}
     />
   ),

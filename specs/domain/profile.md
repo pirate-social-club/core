@@ -9,6 +9,8 @@ Related docs:
 - [guild.md](./guild.md)
 - [onboarding.md](./onboarding.md)
 - [feed.md](./feed.md)
+- [follow.md](./follow.md)
+- [messaging.md](./messaging.md)
 - [karma.md](./karma.md)
 - [localization.md](./localization.md)
 
@@ -77,6 +79,17 @@ Notes:
 - `global_handle` is the stable default identity surface before the user joins or claims guild-local handles
 - every user should have exactly one active `global_handle` in v0
 - the initial generated `.pirate` handle should be a safe fallback identity, not a premium allocation
+
+### Profile Read-Model Extensions
+
+Some profile read-model fields are defined in adjacent domain docs rather than repeated here.
+
+In particular:
+
+- follow-related read-model fields such as `viewer_follows`, `follower_count`, and `following_count` are defined in [follow.md](./follow.md)
+- messaging capability read-model fields such as `dm_capabilities` are defined in [messaging.md](./messaging.md)
+
+This doc treats those fields as valid profile-surface projections even though their source-of-truth logic is defined elsewhere.
 
 ### Global `.pirate` Handle Record
 
@@ -157,7 +170,7 @@ Not every verified or collected user field belongs on the public profile.
 
 Rules:
 
-- Self-derived age and nationality are product-policy inputs, not default public profile fields
+- verification-derived age and nationality are product-policy inputs, not default public profile fields
 - wallet attachments are not default public profile fields
 - external reputation imports are not default public profile fields
 - privacy-sensitive demographic fields from old Pirate should not be part of default v0 onboarding

@@ -2,21 +2,33 @@
 
 import * as React from "react";
 import {
+  Check,
   ChevronDown,
   Image as ImageIcon,
   Link2,
   List,
+  Mic,
   MoreHorizontal,
   Music2,
+  Plus,
   Search,
   SquareDashed,
   Tag,
+  Trash2,
   Video,
 } from "lucide-react";
 
 import { Button } from "@/components/primitives/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/primitives/card";
+import { Checkbox } from "@/components/primitives/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/primitives/dropdown-menu";
 import { Input } from "@/components/primitives/input";
+import { Label } from "@/components/primitives/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/primitives/tabs";
 import { Textarea } from "@/components/primitives/textarea";
 import { cn } from "@/lib/utils";
@@ -24,6 +36,14 @@ import { cn } from "@/lib/utils";
 import type {
   ComposerReference,
   ComposerTab,
+  ComposerIdentityState,
+  IdentityMode,
+  LiveAccessMode,
+  LiveComposerState,
+  LiveRoomKind,
+  LiveSetlistItemInput,
+  LiveSetlistItemKind,
+  LiveVisibility,
   PostComposerProps,
 } from "./post-composer.types";
 
@@ -33,9 +53,35 @@ const tabMeta: Record<ComposerTab, { label: string; icon: React.ReactNode }> = {
   video: { label: "Video", icon: <Video className="size-4" /> },
   link: { label: "Link", icon: <Link2 className="size-4" /> },
   song: { label: "Song", icon: <Music2 className="size-4" /> },
+  live: { label: "Live", icon: <Mic className="size-4" /> },
 };
 
-const defaultTabs: ComposerTab[] = ["text", "image", "video", "link", "song"];
+const defaultTabs: ComposerTab[] = ["text", "image", "video", "link", "song", "live"];
+const anonymousEligibleTabs: ComposerTab[] = ["text", "image", "video", "link"];
+
+const roomKindOptions: { value: LiveRoomKind; label: string }[] = [
+  { value: "solo", label: "Solo" },
+  { value: "duet", label: "Duet" },
+];
+
+const accessModeOptions: { value: LiveAccessMode; label: string }[] = [
+  { value: "free", label: "Free" },
+  { value: "gated", label: "Gated" },
+  { value: "paid", label: "Paid" },
+];
+
+const visibilityOptions: { value: LiveVisibility; label: string }[] = [
+  { value: "public", label: "Public" },
+  { value: "unlisted", label: "Unlisted" },
+];
+
+const setlistItemKindOptions: { value: LiveSetlistItemKind; label: string }[] = [
+  { value: "original", label: "Original" },
+  { value: "cover", label: "Cover" },
+  { value: "remix", label: "Remix" },
+  { value: "dj_playback", label: "DJ playback" },
+  { value: "unknown", label: "Unknown" },
+];
 
 function ShellPill({
   avatarSrc,
@@ -195,6 +241,426 @@ function LinkPreviewCard({
   );
 }
 
+function deriveSelectedQualifierIds(
+  identity: NonNullable<PostComposerProps["identity"]>,
+): string[] {
+  return identity.selectedQualifierIds ?? [];
+}
+
+function SetlistItemRow({
+  item,
+  index,
+  onRemove,
+  onUpdate,
+}: {
+  item: LiveSetlistItemInput;
+  index: number;
+  onRemove: (index: number) => void;
+  onUpdate: (index: number, field: keyof LiveSetlistItemInput, value: string) => void;
+}) {
+  return (
+    <div className="space-y-2 rounded-[var(--radius-lg)] border border-border-soft bg-background px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs font-semibold text-muted-foreground">{index + 1}</span>
+        <button
+          className="text-muted-foreground hover:text-foreground"
+          onClick={() => onRemove(index)}
+          type="button"
+        >
+          <Trash2 className="size-4" />
+        </button>
+      </div>
+      <div className="space-y-2">
+        <FieldLabel label="Track search" />
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="h-10 rounded-[var(--radius-lg)] pl-10"
+            placeholder="Search Pirate songbase"
+            defaultValue={item.declaredTrackId ?? ""}
+            onChange={(e) => onUpdate(index, "declaredTrackId", e.target.value)}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Choose a canonical track first. Manual title and artist are only fallback metadata.
+        </p>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <Input
+          className="h-10 rounded-[var(--radius-lg)]"
+          placeholder="Manual song title"
+          defaultValue={item.titleText}
+          onChange={(e) => onUpdate(index, "titleText", e.target.value)}
+        />
+        <Input
+          className="h-10 rounded-[var(--radius-lg)]"
+          placeholder="Manual artist"
+          defaultValue={item.artistText ?? ""}
+          onChange={(e) => onUpdate(index, "artistText", e.target.value)}
+        />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {setlistItemKindOptions.map((opt) => (
+          <button
+            key={opt.value}
+            className={cn(
+              "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+              item.performanceKind === opt.value
+                ? "bg-primary/10 text-primary"
+                : "bg-muted text-muted-foreground hover:text-foreground",
+            )}
+            onClick={() => onUpdate(index, "performanceKind", opt.value)}
+            type="button"
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LiveTabContent({
+  live,
+  onLiveChange,
+}: {
+  live: LiveComposerState;
+  onLiveChange: (state: LiveComposerState) => void;
+}) {
+  const handleSetlistItemUpdate = (
+    index: number,
+    field: keyof LiveSetlistItemInput,
+    value: string,
+  ) => {
+    const updated = [...live.setlistItems];
+    updated[index] = { ...updated[index], [field]: value };
+    onLiveChange({ ...live, setlistItems: updated });
+  };
+
+  const handleAddSetlistItem = () => {
+    onLiveChange({
+      ...live,
+      setlistItems: [
+        ...live.setlistItems,
+        { titleText: "", performanceKind: "unknown" },
+      ],
+    });
+  };
+
+  const handleRemoveSetlistItem = (index: number) => {
+    const updated = live.setlistItems.filter((_, i) => i !== index);
+    onLiveChange({ ...live, setlistItems: updated });
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-3 md:grid-cols-3">
+        <div>
+          <FieldLabel label="Room kind" />
+          <div className="flex flex-wrap gap-2">
+            {roomKindOptions.map((opt) => (
+              <button
+                key={opt.value}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+                  live.roomKind === opt.value
+                    ? "bg-primary/10 text-primary"
+                    : "bg-muted text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => onLiveChange({ ...live, roomKind: opt.value })}
+                type="button"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <FieldLabel label="Access" />
+          <div className="flex flex-wrap gap-2">
+            {accessModeOptions.map((opt) => (
+              <button
+                key={opt.value}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+                  live.accessMode === opt.value
+                    ? "bg-primary/10 text-primary"
+                    : "bg-muted text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => onLiveChange({ ...live, accessMode: opt.value })}
+                type="button"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <FieldLabel label="Visibility" />
+          <div className="flex flex-wrap gap-2">
+            {visibilityOptions.map((opt) => (
+              <button
+                key={opt.value}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+                  live.visibility === opt.value
+                    ? "bg-primary/10 text-primary"
+                    : "bg-muted text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => onLiveChange({ ...live, visibility: opt.value })}
+                type="button"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {live.roomKind === "duet" ? (
+        <div>
+          <FieldLabel label="Guest performer" />
+          <Input
+            className="h-10 rounded-[var(--radius-lg)]"
+            placeholder="Search for a collaborator"
+            defaultValue={live.guestUserId ?? ""}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Invite a collaborator for this duet session.
+          </p>
+        </div>
+      ) : null}
+
+      <div className="space-y-3 rounded-[var(--radius-lg)] border border-border-soft bg-card px-4 py-4">
+        <div className="space-y-1">
+          <h3 className="text-sm font-semibold text-foreground">Performer allocations</h3>
+          <p className="text-sm text-muted-foreground">
+            {live.roomKind === "solo"
+              ? "The host receives 100% of performer-side proceeds."
+              : "Split performer-side proceeds between host and collaborator."}
+          </p>
+        </div>
+        <div className="space-y-2">
+          {live.performerAllocations.map((alloc, i) => (
+            <div
+              key={i}
+              className="flex items-center justify-between rounded-[var(--radius-lg)] border border-border-soft bg-background px-4 py-3"
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className={cn(
+                    "rounded-full px-2.5 py-1 text-xs font-medium",
+                    alloc.role === "host"
+                      ? "bg-primary/10 text-primary"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {alloc.role === "host" ? "Host" : "Guest"}
+                </span>
+                <span className="text-sm text-foreground">
+                  {alloc.role === "host" ? "You" : live.guestUserId || "Collaborator"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  className="h-8 w-16 rounded-[var(--radius-lg)] text-center text-sm"
+                  defaultValue={String(alloc.sharePct)}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (isNaN(val)) return;
+                    const updated = [...live.performerAllocations];
+                    updated[i] = { ...updated[i], sharePct: val };
+                    onLiveChange({ ...live, performerAllocations: updated });
+                  }}
+                  type="number"
+                  min={0}
+                  max={100}
+                />
+                <span className="text-sm text-muted-foreground">%</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        {live.performerAllocations.reduce((sum, a) => sum + a.sharePct, 0) !== 100 ? (
+          <p className="text-xs font-medium text-destructive">
+            Allocations must sum to 100%
+          </p>
+        ) : null}
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold text-foreground">Setlist</h3>
+            <p className="text-xs text-muted-foreground">
+              Search Pirate&apos;s songbase for the songs you plan to perform. Required before going live.
+            </p>
+          </div>
+          <button
+            className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted/80"
+            onClick={handleAddSetlistItem}
+            type="button"
+          >
+            <Plus className="size-3.5" />
+            Add song
+          </button>
+        </div>
+        {live.setlistItems.length === 0 ? (
+          <div className="rounded-[var(--radius-lg)] border border-dashed border-border-soft px-4 py-6 text-center text-sm text-muted-foreground">
+            No songs yet. Add at least one song before going live.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {live.setlistItems.map((item, i) => (
+              <SetlistItemRow
+                key={i}
+                item={item}
+                index={i}
+                onRemove={handleRemoveSetlistItem}
+                onUpdate={handleSetlistItemUpdate}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function IdentitySection({
+  identity,
+  identityMode,
+  onIdentityModeChange,
+}: {
+  identity: ComposerIdentityState;
+  identityMode: IdentityMode;
+  onIdentityModeChange: (mode: IdentityMode) => void;
+}) {
+  const handleLabel = identity.publicHandle ?? "@handle";
+  const anonymousLabel = identity.anonymousLabel ?? "anon_guild";
+
+  return (
+    <section className="space-y-3 rounded-[var(--radius-lg)] border border-border-soft bg-card px-4 py-4">
+      <div className="space-y-1">
+        <h3 className="text-sm font-semibold text-foreground">Post As</h3>
+        <p className="text-sm text-muted-foreground">
+          {identityMode === "anonymous" ? anonymousLabel : handleLabel}
+        </p>
+      </div>
+      <div className="flex items-start gap-3 rounded-[var(--radius-lg)] border border-border-soft bg-background px-4 py-3">
+        <Checkbox
+          checked={identityMode === "anonymous"}
+          className="mt-0.5"
+          id="post-anonymously"
+          onCheckedChange={(next) => onIdentityModeChange(next === true ? "anonymous" : "public")}
+        />
+        <div className="space-y-1">
+          <Label htmlFor="post-anonymously">Post anonymously</Label>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function QualifierSection({
+  identity,
+  selectedQualifierIds,
+  onToggleQualifier,
+}: {
+  identity: ComposerIdentityState;
+  selectedQualifierIds: string[];
+  onToggleQualifier: (qualifierId: string) => void;
+}) {
+  const availableQualifiers = (identity.availableQualifiers ?? []).filter(
+    (qualifier) => !qualifier.suppressedByGuildGate,
+  );
+  const activeQualifiers = availableQualifiers.filter((qualifier) =>
+    selectedQualifierIds.includes(qualifier.qualifierId),
+  );
+  const helpText =
+    identity.helpText ??
+    "Attach verified qualifiers to this post. Qualifiers already implied by guild gates are omitted.";
+
+  return (
+    <section className="space-y-3 rounded-[var(--radius-lg)] border border-border-soft bg-card px-4 py-4">
+      <div className="space-y-1">
+        <h3 className="text-sm font-semibold text-foreground">Qualifiers</h3>
+        <p className="text-sm text-muted-foreground">{helpText}</p>
+      </div>
+
+      {availableQualifiers.length > 0 ? (
+        <div className="space-y-3">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="justify-between" variant="secondary">
+                <span>
+                  {activeQualifiers.length > 0
+                    ? `${activeQualifiers.length} qualifier${activeQualifiers.length === 1 ? "" : "s"} attached`
+                    : "Add qualifiers"}
+                </span>
+                <ChevronDown className="size-4 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-[320px]">
+              {availableQualifiers.map((qualifier) => {
+                const selected = selectedQualifierIds.includes(qualifier.qualifierId);
+                return (
+                  <DropdownMenuItem
+                    key={qualifier.qualifierId}
+                    className="items-start justify-between gap-3"
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      onToggleQualifier(qualifier.qualifierId);
+                    }}
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground">{qualifier.label}</p>
+                      {qualifier.description ? (
+                        <p className="text-xs text-muted-foreground">{qualifier.description}</p>
+                      ) : null}
+                    </div>
+                    <span
+                      className={cn(
+                        "mt-0.5 inline-flex size-5 items-center justify-center rounded-full border",
+                        selected
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border-soft text-transparent",
+                      )}
+                    >
+                      <Check className="size-3.5" />
+                    </span>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {activeQualifiers.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {activeQualifiers.map((qualifier) => (
+                <button
+                  key={qualifier.qualifierId}
+                  className="rounded-full bg-muted px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted/80"
+                  onClick={() => onToggleQualifier(qualifier.qualifierId)}
+                  type="button"
+                >
+                  {qualifier.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {availableQualifiers.length === 0 ? (
+        <div className="rounded-[var(--radius-lg)] border border-dashed border-border-soft px-4 py-4 text-sm text-muted-foreground">
+          No optional qualifiers are available for this guild.
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export function PostComposer({
   guildName,
   guildAvatarSrc,
@@ -211,8 +677,9 @@ export function PostComposer({
   linkPreview,
   songMode = "original",
   derivativeStep,
-  moreOptions,
   monetization,
+  identity,
+  live,
 }: PostComposerProps) {
   const visibleTabs = React.useMemo(
     () => availableTabs.filter((tab) => tab !== "song" || canCreateSongPost),
@@ -220,7 +687,45 @@ export function PostComposer({
   );
   const [activeTab, setActiveTab] = React.useState<ComposerTab>(visibleTabs[0] ?? "text");
   const [activeSongMode, setActiveSongMode] = React.useState(songMode);
-  const [moreOptionsOpen, setMoreOptionsOpen] = React.useState(Boolean(moreOptions?.open));
+  const [identityMode, setIdentityMode] = React.useState<IdentityMode>(
+    identity?.identityMode ?? "public",
+  );
+  const [selectedQualifierIds, setSelectedQualifierIds] = React.useState<string[]>(
+    identity ? deriveSelectedQualifierIds(identity) : [],
+  );
+  const [liveState, setLiveState] = React.useState<LiveComposerState>(
+    live ?? {
+      roomKind: "solo",
+      accessMode: "free",
+      visibility: "public",
+      setlistItems: [],
+      setlistStatus: "draft",
+      performerAllocations: [{ userId: "", role: "host", sharePct: 100 }],
+    },
+  );
+  const [prevRoomKind, setPrevRoomKind] = React.useState<LiveRoomKind>(liveState.roomKind);
+
+  React.useEffect(() => {
+    if (liveState.roomKind !== prevRoomKind) {
+      const hostAlloc = liveState.performerAllocations.find((a) => a.role === "host");
+      if (liveState.roomKind === "solo") {
+        setLiveState({
+          ...liveState,
+          performerAllocations: [{ ...hostAlloc!, sharePct: 100 }],
+          guestUserId: undefined,
+        });
+      } else if (liveState.roomKind === "duet") {
+        setLiveState({
+          ...liveState,
+          performerAllocations: [
+            { ...hostAlloc!, sharePct: 50 },
+            { userId: "", role: "guest", sharePct: 50 },
+          ],
+        });
+      }
+      setPrevRoomKind(liveState.roomKind);
+    }
+  }, [liveState.roomKind]);
 
   React.useEffect(() => {
     if (visibleTabs.includes(mode)) {
@@ -236,12 +741,48 @@ export function PostComposer({
   }, [songMode]);
 
   React.useEffect(() => {
-    setMoreOptionsOpen(Boolean(moreOptions?.open));
-  }, [moreOptions?.open]);
+    if (live) {
+      setLiveState(live);
+    }
+  }, [live]);
+
+  React.useEffect(() => {
+    if (!identity) {
+      return;
+    }
+
+    setIdentityMode(identity.identityMode ?? "public");
+    setSelectedQualifierIds(deriveSelectedQualifierIds(identity));
+  }, [identity]);
+
+  React.useEffect(() => {
+    if (!anonymousEligibleTabs.includes(activeTab) && identityMode === "anonymous") {
+      setIdentityMode("public");
+    }
+  }, [activeTab, identityMode]);
+
+  React.useEffect(() => {
+    if (identityMode === "anonymous" && identity?.allowQualifiersOnAnonymousPosts === false) {
+      setSelectedQualifierIds([]);
+    }
+  }, [identity?.allowQualifiersOnAnonymousPosts, identityMode]);
+
+  React.useEffect(() => {
+    if (identityMode !== "anonymous" && selectedQualifierIds.length > 0) {
+      setSelectedQualifierIds([]);
+    }
+  }, [identityMode, selectedQualifierIds]);
 
   const shouldShowDerivativeStep = Boolean(
     derivativeStep?.visible || (activeTab === "song" && activeSongMode === "remix"),
   );
+  const shouldShowIdentity =
+    Boolean(identity?.allowAnonymousIdentity) && anonymousEligibleTabs.includes(activeTab);
+  const shouldShowQualifiers =
+    Boolean(identity) &&
+    Boolean(identity?.availableQualifiers?.some((qualifier) => !qualifier.suppressedByGuildGate)) &&
+    identityMode === "anonymous" &&
+    identity?.allowQualifiersOnAnonymousPosts !== false;
 
   const renderPrimaryArea = () => {
     switch (activeTab) {
@@ -250,7 +791,7 @@ export function PostComposer({
       case "image":
         return (
           <div className="space-y-3">
-            <UploadField accept="image/*" label="Images" multiple />
+            <UploadField accept="image/*" label="Image" />
             <Textarea
               className="min-h-28"
               placeholder="Add a caption"
@@ -289,41 +830,55 @@ export function PostComposer({
           </div>
         );
       case "song":
-        return (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 rounded-full bg-muted p-1">
-                {(["original", "remix"] as const).map((value) => (
-                  <button
-                    key={value}
-                    onClick={() => setActiveSongMode(value)}
-                    className={cn(
-                      "rounded-full px-3 py-1.5 text-sm font-medium capitalize transition-colors",
-                      activeSongMode === value
-                        ? "bg-card text-foreground shadow-sm"
-                        : "text-muted-foreground",
-                    )}
-                    type="button"
-                  >
-                    {value}
-                  </button>
-                ))}
+          return (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 rounded-full bg-muted p-1">
+                  {(["original", "remix"] as const).map((value) => (
+                    <button
+                      key={value}
+                      onClick={() => setActiveSongMode(value)}
+                      className={cn(
+                        "rounded-full px-3 py-1.5 text-sm font-medium capitalize transition-colors",
+                        activeSongMode === value
+                          ? "bg-card text-foreground shadow-sm"
+                          : "text-muted-foreground",
+                      )}
+                      type="button"
+                    >
+                      {value}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-sm text-muted-foreground">Song</span>
               </div>
-              <span className="text-sm text-muted-foreground">Song</span>
+              <UploadField accept="audio/*" label="Audio" />
+              <Textarea
+                className="min-h-24"
+                placeholder="Add a caption"
+                defaultValue={captionValue}
+              />
+              <Textarea
+                className="min-h-36"
+                placeholder="Paste lyrics"
+                defaultValue={lyricsValue}
+              />
+              <div className="space-y-3 rounded-[var(--radius-lg)] border border-border-soft bg-card px-4 py-4">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-semibold text-foreground">Stems</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Optional uploads for karaoke and remix workflows.
+                  </p>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <UploadField accept="audio/*" label="Instrumental stem" />
+                  <UploadField accept="audio/*" label="Vocal stem" />
+                </div>
+              </div>
             </div>
-            <UploadField accept="audio/*" label="Audio" />
-            <Textarea
-              className="min-h-24"
-              placeholder="Add a caption"
-              defaultValue={captionValue}
-            />
-            <Textarea
-              className="min-h-36"
-              placeholder="Paste lyrics"
-              defaultValue={lyricsValue}
-            />
-          </div>
-        );
+          );
+        case "live":
+          return <LiveTabContent live={liveState} onLiveChange={setLiveState} />;
       default:
         return null;
     }
@@ -374,6 +929,28 @@ export function PostComposer({
             />
           </div>
 
+          {shouldShowIdentity ? (
+            <IdentitySection
+              identity={identity!}
+              identityMode={identityMode}
+              onIdentityModeChange={setIdentityMode}
+            />
+          ) : null}
+
+          {shouldShowQualifiers ? (
+            <QualifierSection
+              identity={identity!}
+              onToggleQualifier={(qualifierId) =>
+                setSelectedQualifierIds((current) =>
+                  current.includes(qualifierId)
+                    ? current.filter((id) => id !== qualifierId)
+                    : [...current, qualifierId],
+                )
+              }
+              selectedQualifierIds={selectedQualifierIds}
+            />
+          ) : null}
+
           {renderPrimaryArea()}
 
           {shouldShowDerivativeStep ? (
@@ -398,43 +975,6 @@ export function PostComposer({
                 </div>
               ) : null}
               <References items={derivativeStep?.references} />
-            </section>
-          ) : null}
-
-          {moreOptions && (activeTab === "song" || moreOptions.ageGateChecked) ? (
-            <section className="rounded-[var(--radius-lg)] border border-border-soft bg-card px-4 py-4">
-              <button
-                className="flex w-full items-center justify-between gap-3 text-left"
-                onClick={() => setMoreOptionsOpen((current) => !current)}
-                type="button"
-              >
-                <span className="text-sm font-semibold text-foreground">More options</span>
-                <ChevronDown
-                  className={cn(
-                    "size-4 text-muted-foreground transition-transform",
-                    moreOptionsOpen && "rotate-180",
-                  )}
-                />
-              </button>
-
-              {moreOptionsOpen ? (
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <label className="flex items-center gap-3 rounded-[var(--radius-lg)] border border-border-soft px-4 py-3">
-                    <input
-                      defaultChecked={Boolean(moreOptions.ageGateChecked)}
-                      className="size-4 accent-[var(--color-primary)]"
-                      type="checkbox"
-                    />
-                    <span className="text-sm font-medium text-foreground">18+ content</span>
-                  </label>
-                  {activeTab === "song" ? (
-                    <div className="grid gap-3 md:col-span-2 md:grid-cols-2">
-                      <UploadField accept="audio/*" label="Instrumental stem" />
-                      <UploadField accept="audio/*" label="Vocal stem" />
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
             </section>
           ) : null}
 
