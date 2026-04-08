@@ -181,6 +181,10 @@ components:
       $ref: ./components/responses.yaml#/GateFailed
     EligibilityFailed:
       $ref: ./components/responses.yaml#/EligibilityFailed
+    PostingTrustTierTooLow:
+      $ref: ./components/responses.yaml#/PostingTrustTierTooLow
+    PostingQuotaExhausted:
+      $ref: ./components/responses.yaml#/PostingQuotaExhausted
     AnalysisBlocked:
       $ref: ./components/responses.yaml#/AnalysisBlocked
     Conflict:
@@ -220,6 +224,14 @@ components:
       $ref: ./components/schemas/guilds-core.yaml#/GateRuleInput
     GateRule:
       $ref: ./components/schemas/guilds-core.yaml#/GateRule
+    RootPostQuotaRule:
+      $ref: ./components/schemas/guilds-core.yaml#/RootPostQuotaRule
+    RootPostQuotaByTrustTier:
+      $ref: ./components/schemas/guilds-core.yaml#/RootPostQuotaByTrustTier
+    ReplyQuotaRule:
+      $ref: ./components/schemas/guilds-core.yaml#/ReplyQuotaRule
+    ReplyQuotaByTrustTier:
+      $ref: ./components/schemas/guilds-core.yaml#/ReplyQuotaByTrustTier
     CreateGuildRequest:
       $ref: ./components/schemas/guilds-core.yaml#/CreateGuildRequest
     UpdateGuildRequest:

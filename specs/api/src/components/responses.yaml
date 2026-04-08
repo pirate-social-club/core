@@ -52,6 +52,18 @@ EligibilityFailed:
     application/json:
       schema:
         $ref: ./schemas/common.yaml#/Error
+PostingTrustTierTooLow:
+  description: The requested posting action is not available at the author's current guild trust level
+  content:
+    application/json:
+      schema:
+        $ref: ./schemas/common.yaml#/Error
+PostingQuotaExhausted:
+  description: The requested posting action is temporarily unavailable until the relevant posting window resets
+  content:
+    application/json:
+      schema:
+        $ref: ./schemas/common.yaml#/Error
 AnalysisBlocked:
   description: Content analysis blocked publication
   content:

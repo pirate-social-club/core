@@ -19,12 +19,14 @@ posts:
               $ref: ../components/schemas/posts.yaml#/Post
       "401":
         $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/PostingTrustTierTooLow
       "409":
         $ref: ../components/responses.yaml#/Conflict
       "422":
         $ref: ../components/responses.yaml#/AnalysisBlocked
       "429":
-        $ref: ../components/responses.yaml#/RateLimited
+        $ref: ../components/responses.yaml#/PostingQuotaExhausted
 posts_by_post_id:
   get:
     tags:

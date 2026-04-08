@@ -55,6 +55,7 @@ Recommended v0 model:
 - the agent is platform-managed in v0
 - the agent may post system-tagged guild content such as daily questions
 - moderators may disable or review agent-generated questions
+- when the guild agent publishes system-tagged question content in v0, it is exempt from ordinary member posting quotas; see [guild.md](./guild.md) under Posting Policy
 
 Important boundary:
 

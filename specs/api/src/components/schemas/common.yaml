@@ -12,6 +12,8 @@ Error:
         - verification_required
         - eligibility_failed
         - gate_failed
+        - posting_trust_tier_too_low
+        - posting_quota_exhausted
         - analysis_blocked
         - analysis_review_required
         - flair_required

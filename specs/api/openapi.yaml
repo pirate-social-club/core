@@ -1057,12 +1057,14 @@ paths:
                 $ref: "#/components/schemas/Post"
         "401":
           $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/PostingTrustTierTooLow"
         "409":
           $ref: "#/components/responses/Conflict"
         "422":
           $ref: "#/components/responses/AnalysisBlocked"
         "429":
-          $ref: "#/components/responses/RateLimited"
+          $ref: "#/components/responses/PostingQuotaExhausted"
   /posts/{post_id}:
     get:
       tags:
@@ -1574,6 +1576,18 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+    PostingTrustTierTooLow:
+      description: The requested posting action is not available at the author's current guild trust level
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    PostingQuotaExhausted:
+      description: The requested posting action is temporarily unavailable until the relevant posting window resets
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
     AnalysisBlocked:
       description: Content analysis blocked publication
       content:
@@ -1613,6 +1627,8 @@ components:
             - verification_required
             - eligibility_failed
             - gate_failed
+            - posting_trust_tier_too_low
+            - posting_quota_exhausted
             - analysis_blocked
             - analysis_review_required
             - flair_required
@@ -1970,7 +1986,7 @@ components:
       required:
         - display_name
         - membership_mode
-        - posting_identity_mode
+        - allow_anonymous_identity
         - namespace
         - handle_policy
       properties:
@@ -1988,11 +2004,8 @@ components:
             - open
             - request
             - gated
-        posting_identity_mode:
-          type: string
-          enum:
-            - public_handle_only
-            - allow_anonymous
+        allow_anonymous_identity:
+          type: boolean
         anonymous_identity_scope:
           type: string
           enum:
@@ -2000,20 +2013,52 @@ components:
             - thread_stable
             - post_ephemeral
           nullable: true
-        default_author_presentation:
-          type: string
-          enum:
-            - public_handle
-            - anonymous_label
-            - anonymous_label_with_verified_badges
-          nullable: true
-        allowed_verified_author_badges:
+        allowed_disclosed_qualifiers:
           type: array
           items:
             type: string
-            enum:
-              - nationality
-              - age_over_18
+          nullable: true
+        allow_qualifiers_on_anonymous_posts:
+          type: boolean
+          nullable: true
+        root_post_min_trust_tier:
+          type: string
+          enum:
+            - new
+            - established
+            - trusted
+            - high_trust
+          nullable: true
+        reply_min_trust_tier:
+          type: string
+          enum:
+            - new
+            - established
+            - trusted
+            - high_trust
+          nullable: true
+        anonymous_posting_min_trust_tier:
+          type: string
+          enum:
+            - new
+            - established
+            - trusted
+            - high_trust
+          nullable: true
+        root_post_quota_by_trust_tier:
+          $ref: "#/components/schemas/RootPostQuotaByTrustTier"
+          nullable: true
+        reply_quota_by_trust_tier:
+          $ref: "#/components/schemas/ReplyQuotaByTrustTier"
+          nullable: true
+        probation_window_days:
+          type: integer
+          nullable: true
+        link_post_policy:
+          type: string
+          enum:
+            - allow
+            - require_established
           nullable: true
         default_age_gate_policy:
           type: string
@@ -2142,6 +2187,60 @@ components:
         updated_at:
           type: string
           format: date-time
+    RootPostQuotaRule:
+      type: object
+      required:
+        - window_hours
+        - max_root_posts
+        - max_song_posts
+        - max_video_posts
+      properties:
+        window_hours:
+          type: integer
+        max_root_posts:
+          type: integer
+        max_song_posts:
+          type: integer
+        max_video_posts:
+          type: integer
+    RootPostQuotaByTrustTier:
+      type: object
+      properties:
+        new:
+          $ref: "#/components/schemas/RootPostQuotaRule"
+        established:
+          $ref: "#/components/schemas/RootPostQuotaRule"
+        trusted:
+          $ref: "#/components/schemas/RootPostQuotaRule"
+        high_trust:
+          $ref: "#/components/schemas/RootPostQuotaRule"
+    ReplyQuotaRule:
+      type: object
+      required:
+        - window_hours
+        - max_replies
+        - burst_window_minutes
+        - max_replies_per_burst
+      properties:
+        window_hours:
+          type: integer
+        max_replies:
+          type: integer
+        burst_window_minutes:
+          type: integer
+        max_replies_per_burst:
+          type: integer
+    ReplyQuotaByTrustTier:
+      type: object
+      properties:
+        new:
+          $ref: "#/components/schemas/ReplyQuotaRule"
+        established:
+          $ref: "#/components/schemas/ReplyQuotaRule"
+        trusted:
+          $ref: "#/components/schemas/ReplyQuotaRule"
+        high_trust:
+          $ref: "#/components/schemas/ReplyQuotaRule"
     CreateGuildRequest:
       oneOf:
         - $ref: "#/components/schemas/CreateCentralizedGuildRequest"
@@ -2167,11 +2266,8 @@ components:
             - open
             - request
             - gated
-        posting_identity_mode:
-          type: string
-          enum:
-            - public_handle_only
-            - allow_anonymous
+        allow_anonymous_identity:
+          type: boolean
         anonymous_identity_scope:
           type: string
           enum:
@@ -2179,21 +2275,47 @@ components:
             - thread_stable
             - post_ephemeral
           nullable: true
-        default_author_presentation:
-          type: string
-          enum:
-            - public_handle
-            - anonymous_label
-            - anonymous_label_with_verified_badges
-          nullable: true
-        allowed_verified_author_badges:
+        allowed_disclosed_qualifiers:
           type: array
           items:
             type: string
-            enum:
-              - nationality
-              - age_over_18
           nullable: true
+        allow_qualifiers_on_anonymous_posts:
+          type: boolean
+          nullable: true
+        root_post_min_trust_tier:
+          type: string
+          enum:
+            - new
+            - established
+            - trusted
+            - high_trust
+        reply_min_trust_tier:
+          type: string
+          enum:
+            - new
+            - established
+            - trusted
+            - high_trust
+        anonymous_posting_min_trust_tier:
+          type: string
+          enum:
+            - new
+            - established
+            - trusted
+            - high_trust
+        root_post_quota_by_trust_tier:
+          $ref: "#/components/schemas/RootPostQuotaByTrustTier"
+        reply_quota_by_trust_tier:
+          $ref: "#/components/schemas/ReplyQuotaByTrustTier"
+        probation_window_days:
+          type: integer
+          nullable: true
+        link_post_policy:
+          type: string
+          enum:
+            - allow
+            - require_established
         default_age_gate_policy:
           type: string
           enum:
@@ -2699,7 +2821,7 @@ components:
         - display_name
         - status
         - membership_mode
-        - posting_identity_mode
+        - allow_anonymous_identity
         - governance_mode
         - donation_policy_mode
         - donation_partner_status
@@ -2728,17 +2850,16 @@ components:
         guild_agent_user_id:
           type: string
           nullable: true
+          description: |
+            App-level system actor for platform-managed guild content such as daily questions. In v0, this actor is exempt from ordinary member trust-tier minima and posting quotas when publishing system-tagged content.
         membership_mode:
           type: string
           enum:
             - open
             - request
             - gated
-        posting_identity_mode:
-          type: string
-          enum:
-            - public_handle_only
-            - allow_anonymous
+        allow_anonymous_identity:
+          type: boolean
         anonymous_identity_scope:
           type: string
           enum:
@@ -2746,20 +2867,52 @@ components:
             - thread_stable
             - post_ephemeral
           nullable: true
-        default_author_presentation:
-          type: string
-          enum:
-            - public_handle
-            - anonymous_label
-            - anonymous_label_with_verified_badges
-          nullable: true
-        allowed_verified_author_badges:
+        allowed_disclosed_qualifiers:
           type: array
           items:
             type: string
-            enum:
-              - nationality
-              - age_over_18
+          nullable: true
+        allow_qualifiers_on_anonymous_posts:
+          type: boolean
+          nullable: true
+        root_post_min_trust_tier:
+          type: string
+          enum:
+            - new
+            - established
+            - trusted
+            - high_trust
+          nullable: true
+        reply_min_trust_tier:
+          type: string
+          enum:
+            - new
+            - established
+            - trusted
+            - high_trust
+          nullable: true
+        anonymous_posting_min_trust_tier:
+          type: string
+          enum:
+            - new
+            - established
+            - trusted
+            - high_trust
+          nullable: true
+        root_post_quota_by_trust_tier:
+          $ref: "#/components/schemas/RootPostQuotaByTrustTier"
+          nullable: true
+        reply_quota_by_trust_tier:
+          $ref: "#/components/schemas/ReplyQuotaByTrustTier"
+          nullable: true
+        probation_window_days:
+          type: integer
+          nullable: true
+        link_post_policy:
+          type: string
+          enum:
+            - allow
+            - require_established
           nullable: true
         default_age_gate_policy:
           type: string
@@ -3404,6 +3557,8 @@ components:
           nullable: true
     CreatePostRequest:
       type: object
+      description: |
+        V0 write requests do not distinguish human-initiated writes from agent-initiated writes on the canonical post object. If Pirate later supports user-owned agents posting on behalf of a user, a field such as `submission_mode` or `authorship_mode` should be added as the auditability extension point.
       required:
         - guild_id
         - post_type
@@ -3477,6 +3632,8 @@ components:
             Plain-text lyrics for song posts. Required when post_type is song. Optional for other post types.
     Post:
       type: object
+      description: |
+        Canonical post row. V0 read models do not distinguish human-initiated writes from agent-initiated writes on the base object; if Pirate later supports user-owned agents posting on behalf of a user, a field such as `submission_mode` or `authorship_mode` should be added rather than overloading `author_user_id`.
       required:
         - post_id
         - guild_id

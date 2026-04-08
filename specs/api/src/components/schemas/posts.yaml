@@ -1,5 +1,7 @@
 CreatePostRequest:
   type: object
+  description: |
+    V0 write requests do not distinguish human-initiated writes from agent-initiated writes on the canonical post object. If Pirate later supports user-owned agents posting on behalf of a user, a field such as `submission_mode` or `authorship_mode` should be added as the auditability extension point.
   required:
     - guild_id
     - post_type
@@ -73,6 +75,8 @@ CreatePostRequest:
         Plain-text lyrics for song posts. Required when post_type is song. Optional for other post types.
 Post:
   type: object
+  description: |
+    Canonical post row. V0 read models do not distinguish human-initiated writes from agent-initiated writes on the base object; if Pirate later supports user-owned agents posting on behalf of a user, a field such as `submission_mode` or `authorship_mode` should be added rather than overloading `author_user_id`.
   required:
     - post_id
     - guild_id

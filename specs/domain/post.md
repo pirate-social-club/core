@@ -9,8 +9,10 @@ Related docs:
 - [artist-identity.md](./artist-identity.md)
 - [handles.md](./handles.md)
 - [user.md](./user.md)
+- [identity-presentation.md](./identity-presentation.md)
 - [asset.md](./asset.md)
 - [livestream.md](./livestream.md)
+- [replay.md](./replay.md)
 - [karaoke.md](./karaoke.md)
 - [donations.md](./donations.md)
 - [karma.md](./karma.md)
@@ -65,13 +67,15 @@ Examples:
 
 ## Posting Eligibility
 
-Posting in Pirate requires Self.xyz verification in v0.
+Posting in Pirate requires identity verification in v0.
 
 The exact verification policy belongs in a later identity/onboarding spec, but the product rule is:
 
-- users must satisfy the required Self verification checks before they can publish posts
+- users must satisfy the required verification capability checks before they can publish posts
+- the minimum verification for posting is `unique_human` capability at `basic` assurance or higher
+- passing the identity gate is necessary but not always sufficient; guild posting policy may impose additional trust-tier and pacing requirements. See [guild.md](./guild.md) under Posting Policy.
 
-Examples of why Pirate may require Self verification:
+Examples of why Pirate may require verification:
 
 - anti-bot protection
 - age checks
@@ -83,7 +87,7 @@ Viewing eligibility may be stricter than posting eligibility.
 
 In v0:
 
-- posts classified as `18+` must require Self.xyz proof that the viewer is 18 or older
+- posts classified as `18+` must require verification that the viewer satisfies the `age_over_18` capability at `strong` assurance
 - guild or jurisdiction policy may impose stricter viewing rules later, but the minimum v0 gate is age proof for adult content
 - if a derivative post references an upstream asset that is already gated `18+`, the derived post must inherit at least that same viewer gate
 
@@ -94,8 +98,11 @@ Suggested v0 fields:
 - `post_id`
 - `guild_id`
 - `author_user_id`
-- `is_anonymous`
+- `identity_mode`
+- `anonymous_scope` nullable
 - `anonymous_label` nullable
+- `disclosed_qualifiers_json`
+- `flair_id` nullable
 - `post_type`
 - `status`
 - `song_mode` nullable
@@ -118,6 +125,13 @@ Suggested v0 fields:
 
 Suggested meanings:
 
+- `identity_mode`
+  - `public`
+  - `anonymous`
+- `anonymous_scope`
+  - `guild_stable`
+  - `thread_stable`
+  - `post_ephemeral`
 - `post_type`
   - `text`
   - `image`
@@ -158,6 +172,13 @@ Suggested meanings:
 
 Notes:
 
+- `flair_id` is an optional pointer to a guild-defined flair definition used for community labeling and filtering; it is not a substitute for canonical post fields such as `post_type`, `song_mode`, `rights_basis`, `analysis_state`, `content_safety_state`, `age_gate_policy`, or monetization state
+- `identity_mode` is the canonical author-presentation choice for the post
+- `anonymous_scope` is nullable and applies only when `identity_mode = anonymous`
+- `disclosed_qualifiers_json` stores a publish-time snapshot of the verified qualifier labels the author chose to disclose on this post
+- `analysis_state = review_required` is reserved for content, safety, rights, or compliance review signals from analysis
+- v0 disclosed qualifiers should come from [user.md](./user.md) `verification_capabilities` plus explicitly supported provider-specific qualifier templates
+- v0 canonical posts do not distinguish human-initiated writes from agent-initiated writes on the base row; if Pirate later supports user-owned agents posting on behalf of a user, a field such as `submission_mode` or `authorship_mode` should be added as the auditability extension point rather than overloading `author_user_id`
 - `asset_id` is nullable because not every post becomes a rights-bearing asset
 - `media_refs` points to uploaded content blobs stored separately from the post row
 - `media_refs` in v0 should be treated as a JSON array of media descriptor objects such as `{ storage_ref, mime_type, size_bytes, content_hash, duration_ms, width, height }`
@@ -174,21 +195,99 @@ Notes:
 - charitable donation destination should not be an arbitrary post-level field in v0; when monetized content opts into donation, it should use the guild-level donation partner through the monetization layer
 - creator donation participation belongs on the listing, not the post row and not the asset row
 
-### Anonymous Post Fields
+### Flair
 
-- `is_anonymous` is a boolean indicating whether the post was published under the guild's anonymous identity layer
-- `anonymous_label` stores the derived anonymous label rendered to other users; it is `null` when `is_anonymous = false`
-- `author_user_id` is always stored on the post row regardless of `is_anonymous`
+Pirate should support one optional guild-scoped flair per post.
 
-### Anonymous Post Access Boundary
+Purpose:
 
-`author_user_id` on anonymous posts is privileged data. The following rules enforce the access boundary:
+- help communities label conversational lanes such as `Question`, `Announcement`, `Trip Report`, `Gear Review`, `WIP`, or `Release`
+- support lightweight filtering inside a guild feed
+- give guilds some self-definition without turning posts into freeform taxonomy objects
 
-- the public API and standard read models must not return `author_user_id` on posts where `is_anonymous = true`
-- guild moderators and other users must never see `author_user_id` on anonymous posts through any normal product surface
+Non-goals:
+
+- replacing canonical post facts already modeled elsewhere
+- freeform hashtags or user-created tags
+- cross-guild global flair semantics
+- ranking boosts tied to flair usage
+
+Rules:
+
+- each post may store `flair_id` or `null`
+- `flair_id` must resolve to an active flair definition owned by the same `guild_id` as the post
+- in v0, `flair_id` must be `null` when `parent_post_id` is non-null; reply flair is future work
+- flair is optional in v0 unless a guild later chooses to require one through guild settings
+- flair is display and filtering metadata, not canonical domain truth
+- system-derived facts must not be modeled as flair when Pirate already has a structured field for them
+
+Examples of what should not be flair:
+
+- `Remix` when `song_mode = remix`
+- `18+` when `age_gate_policy = 18_plus`
+- `Paid` when monetization or listing state already expresses that
+- `Original` when `rights_basis = original`
+
+Examples of good flair:
+
+- `Question`
+- `Announcement`
+- `Review`
+- `Theory`
+- `Production`
+- `Remix Feedback`
+- `WIP`
+
+### Presentation Fields
+
+- `identity_mode`
+  - `public`
+  - `anonymous`
+- `anonymous_scope`
+  - `guild_stable`
+  - `thread_stable`
+  - `post_ephemeral`
+  - `null`
+- `anonymous_label` stores the derived anonymous label rendered to other users; it is `null` when `identity_mode = public`
+- `disclosed_qualifiers_json` stores a snapshot of the disclosed verified qualifiers rendered with the post
+- `author_user_id` is always stored on the post row regardless of identity mode
+
+Suggested v0 `disclosed_qualifiers_json` item shape:
+
+- `qualifier_template_id`
+- `rendered_label`
+- `qualifier_kind`
+  - `verification_capability`
+- `qualifier_source`
+  Example: `verification_capabilities`
+- `sensitivity_level`
+- `redundancy_key`
+
+### Presentation Eligibility
+
+Anonymous-capable presentation is not valid for every post shape.
+
+Recommended v0 rule:
+
+- `text`, `image`, `video`, and `link` posts may use public or anonymous identity according to guild policy
+- `song` posts must use public identity in v0
+- live anchor posts must use public identity in v0
+- disclosed qualifiers are only valid on anonymous posts in v0
+
+Reasoning:
+
+- song posts require stable authorship for rights review, Story publication, and payout routing
+- live anchor posts require stable host identity for room authority, guest invitations, replay clearance, and payout release
+
+### Anonymous Presentation Access Boundary
+
+`author_user_id` on anonymously presented posts is privileged data. The following rules enforce the access boundary:
+
+- the public API and standard read models must not return `author_user_id` on posts where `identity_mode = anonymous`
+- guild moderators and other users must never see `author_user_id` on anonymously presented posts through any normal product surface
 - only the privileged resolver path defined in [guild.md](./guild.md) may map an anonymous post back to `author_user_id`, and only through the audited break-glass workflow
 - internal services and background jobs that need `author_user_id` for operational purposes must operate behind the privileged resolver boundary or receive explicit clearance to access the field
-- the `is_anonymous` and `anonymous_label` fields are public; they are visible in all normal API responses
+- `identity_mode`, `anonymous_label`, and `disclosed_qualifiers_json` are public presentation fields; they are visible in normal API responses
 
 Anonymous post lifecycle is defined in [guild.md](./guild.md) under Anonymous Lifecycle Rules, including handling for guild bans, account deletion, policy flips, and re-verification loss.
 
@@ -254,6 +353,7 @@ Important v0 boundary:
 - livestreams are not a top-level `post_type`
 - a livestream is a separate `live_room` object with an associated anchor post
 - `anchor_live_room_id` may appear in read models, but it is not a canonical post field; the canonical relationship is `live_room.anchor_post_id`
+- after the room ends, the same anchor post should remain the primary replay discovery surface rather than creating a separate replay-only post in v0
 - karaoke is not a top-level `post_type`; it is primarily an asset capability on song assets
 
 ## Media Ingestion And Analysis
@@ -403,6 +503,8 @@ Decision rules derived from this table:
 Mapping to post fields:
 
 - if no post row exists yet and the outcome is `blocked`, Pirate should not create a publishable post
+- if guild posting policy rejects the write due to trust-tier or pacing rules, Pirate should reject the write directly rather than creating a pending moderation item
+- trust-tier rejection and pacing rejection should remain distinct failure cases even when both come from guild posting policy; clients should be able to tell "not allowed at your current trust level" apart from "quota exhausted for now"
 - when a draft post is created from an allowed upload, `analysis_state` should mirror the final non-blocking upload outcome
 - the full reasoning and provider payload live on the shared `media_analysis_results` row referenced by `analysis_result_ref`
 - `content_safety_state` and `age_gate_policy` should be copied from the final analysis outcome at post creation time and may later be tightened by moderation
@@ -525,16 +627,18 @@ Rules:
 - the detected `source_language` is the authoritative language used for eager translation fanout, same-language sentinel checks, and read-time translation decisions
 - client-authored language declarations should not be treated as canonical for translation cache keys or translation gating
 
-### Eager Translation Strategy
+### Translation Materialization Strategy
 
 Machine translation is cheap enough that Pirate should not treat translation as a rare manual exception.
 
 Recommended v0 rule:
 
-- when `translation_policy = machine_allowed` or `translation_policy = hybrid`, Pirate should eagerly translate the post into a bounded platform-owned target-locale tier
-- when `translation_policy = none` or `translation_policy = human_only`, Pirate should not eagerly generate machine translations
-- the eager target set must be explicit and bounded rather than "every language"
-- locales outside the eager target tier should be translated lazily on first read and then cached
+- when `translation_policy = machine_allowed` or `translation_policy = hybrid`, Pirate may materialize machine translations for a bounded platform-owned target-locale tier either eagerly after write or lazily on first read
+- when `translation_policy = none` or `translation_policy = human_only`, Pirate should not generate machine translations
+- the target-locale tier must be explicit and bounded rather than "every language"
+- locales outside the target-locale tier should be translated lazily on first read and then cached
+- the API contract must not depend on whether a translation was prewarmed eagerly or materialized lazily
+- eager fanout is therefore an optimization, not a semantic requirement
 
 Recommended initial target-locale tier:
 
@@ -554,6 +658,12 @@ Recommended initial target-locale tier:
 - `it`
 - `tr`
 
+Operational recommendation:
+
+- Pirate may asynchronously prewarm translations for the default tier after post creation
+- Pirate may also choose to keep the same tier lazy in v0 if read latency remains acceptable
+- non-tier locales should stay lazy by default
+
 ### Translation Cache Rules
 
 Pirate should treat the translation cache as production-critical infrastructure, not as an incidental optimization.
@@ -567,6 +677,69 @@ Required rules:
 - translation cache reads should reject obviously invalid or corrupted payloads and treat them as cache misses
 - corruption guards are required because earlier Pirate translation flows already hit malformed-cache cases in production
 
+### Translation Execution
+
+Pirate should standardize one execution contract for machine translation so provider choice does not leak into product behavior.
+
+Recommended v0 provider stack:
+
+- provider: OpenRouter
+- default model: `google/gemini-2.5-flash-lite`
+- request mode: non-streaming
+- output mode: structured JSON with a strict schema
+- request granularity: one target locale per model call
+
+Recommended response schema:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "source_language": {
+      "type": "string",
+      "description": "Detected source language for the canonical source text"
+    },
+    "target_locale": {
+      "type": "string",
+      "description": "Normalized target locale for this translation"
+    },
+    "outcome": {
+      "type": "string",
+      "enum": ["translated", "same_language"]
+    },
+    "translated_body": {
+      "type": ["string", "null"],
+      "description": "Translated body text when present"
+    },
+    "translated_caption": {
+      "type": ["string", "null"],
+      "description": "Translated caption text when present"
+    }
+  },
+  "required": [
+    "source_language",
+    "target_locale",
+    "outcome",
+    "translated_body",
+    "translated_caption"
+  ],
+  "additionalProperties": false
+}
+```
+
+Execution rules:
+
+- use strict schema enforcement so parsing failures and hallucinated fields do not become cache writes
+- `outcome = same_language` is the model-level representation of the same-language sentinel
+- one locale per request keeps retries, cache writes, and invalidation simple
+- Pirate may add a fallback model later, but `google/gemini-2.5-flash-lite` is the default v0 choice
+
+Concurrency rules:
+
+- if Pirate prewarms default-tier translations asynchronously, it should use bounded concurrency rather than faning out unbounded parallel requests
+- recommended concurrent requests per post: `4-6`
+- lazy non-tier translations should resolve as one request per cache miss
+
 ### Localized Read Projection
 
 Post reads should always return a localized view layered around the canonical post object.
@@ -577,6 +750,7 @@ Recommended response shape:
   - includes `source_language`
 - localized envelope fields
   - `resolved_locale`
+  - `translation_state`
   - `machine_translated`
   - `translated_body` nullable
   - `translated_caption` nullable
@@ -585,9 +759,15 @@ Recommended response shape:
 Read-path rules:
 
 - localized read fields should live on the read-model envelope rather than on the canonical post row
+- `translation_state`
+  - `ready`
+  - `pending`
+  - `same_language`
+  - `policy_blocked`
+- `machine_translated = true` only when `translation_state = ready`
 - `body` and `caption` remain the canonical original text in the response
 - `translated_body` and `translated_caption` are viewer-facing renderings for the resolved locale when available
-- if eager translation is still pending or policy blocks translation, the read model should fall back to original text with `machine_translated = false`
+- if translation has not yet been materialized or policy blocks translation, the read model should fall back to original text with `machine_translated = false`
 - `source_hash` is a content fingerprint for translation cache invalidation and may be returned to clients for debugging and local-cache coordination
 - clients should always offer one-tap inline `Show original` when translated text is being shown
 
