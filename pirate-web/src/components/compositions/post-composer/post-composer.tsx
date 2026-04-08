@@ -8,7 +8,6 @@ import {
   List,
   MoreHorizontal,
   Music2,
-  Radio,
   Search,
   SquareDashed,
   Tag,
@@ -32,9 +31,11 @@ const tabMeta: Record<ComposerTab, { label: string; icon: React.ReactNode }> = {
   text: { label: "Text", icon: <SquareDashed className="size-4" /> },
   image: { label: "Image", icon: <ImageIcon className="size-4" /> },
   video: { label: "Video", icon: <Video className="size-4" /> },
+  link: { label: "Link", icon: <Link2 className="size-4" /> },
   song: { label: "Song", icon: <Music2 className="size-4" /> },
-  room: { label: "Room", icon: <Radio className="size-4" /> },
 };
+
+const defaultTabs: ComposerTab[] = ["text", "image", "video", "link", "song"];
 
 function ShellPill({
   avatarSrc,
@@ -160,30 +161,75 @@ function References({
   );
 }
 
+function LinkPreviewCard({
+  title,
+  domain,
+  description,
+  imageSrc,
+}: {
+  title: string;
+  domain: string;
+  description?: string;
+  imageSrc?: string;
+}) {
+  return (
+    <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border-soft bg-card">
+      <div className="flex min-h-28 flex-col md:flex-row">
+        <div className="flex-1 space-y-2 px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Preview
+          </p>
+          <p className="text-sm font-semibold text-foreground">{title}</p>
+          {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+          <p className="text-sm text-muted-foreground">{domain}</p>
+        </div>
+        {imageSrc ? (
+          <img
+            alt=""
+            className="h-28 w-full border-t border-border-soft object-cover md:h-auto md:w-40 md:border-l md:border-t-0"
+            src={imageSrc}
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export function PostComposer({
   guildName,
   guildAvatarSrc,
   draftsLabel = "Drafts",
   mode,
+  availableTabs = defaultTabs,
   canCreateSongPost = false,
-  canGoLive = false,
   titleValue = "",
   titleCountLabel = "0/300",
   textBodyValue = "",
   captionValue = "",
   lyricsValue = "",
+  linkUrlValue = "",
+  linkPreview,
   songMode = "original",
   derivativeStep,
   moreOptions,
   monetization,
 }: PostComposerProps) {
-  const [activeTab, setActiveTab] = React.useState<ComposerTab>(mode);
+  const visibleTabs = React.useMemo(
+    () => availableTabs.filter((tab) => tab !== "song" || canCreateSongPost),
+    [availableTabs, canCreateSongPost],
+  );
+  const [activeTab, setActiveTab] = React.useState<ComposerTab>(visibleTabs[0] ?? "text");
   const [activeSongMode, setActiveSongMode] = React.useState(songMode);
   const [moreOptionsOpen, setMoreOptionsOpen] = React.useState(Boolean(moreOptions?.open));
 
   React.useEffect(() => {
-    setActiveTab(mode);
-  }, [mode]);
+    if (visibleTabs.includes(mode)) {
+      setActiveTab(mode);
+      return;
+    }
+
+    setActiveTab(visibleTabs[0] ?? "text");
+  }, [mode, visibleTabs]);
 
   React.useEffect(() => {
     setActiveSongMode(songMode);
@@ -223,6 +269,25 @@ export function PostComposer({
             />
           </div>
         );
+      case "link":
+        return (
+          <div className="space-y-3">
+            <div>
+              <FieldLabel label="URL" />
+              <Input
+                className="h-14 rounded-[var(--radius-lg)]"
+                defaultValue={linkUrlValue}
+                placeholder="https://"
+              />
+            </div>
+            <Textarea
+              className="min-h-28"
+              placeholder="Add commentary"
+              defaultValue={captionValue}
+            />
+            {linkPreview ? <LinkPreviewCard {...linkPreview} /> : null}
+          </div>
+        );
       case "song":
         return (
           <div className="space-y-4">
@@ -259,16 +324,6 @@ export function PostComposer({
             />
           </div>
         );
-      case "room":
-        return (
-          <div className="space-y-3">
-            <Textarea
-              className="min-h-28"
-              placeholder="Describe the room"
-              defaultValue={captionValue}
-            />
-          </div>
-        );
       default:
         return null;
     }
@@ -285,25 +340,19 @@ export function PostComposer({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <ShellPill avatarSrc={guildAvatarSrc}>{guildName}</ShellPill>
-        {canGoLive ? (
-          <Button size="sm" variant="outline" leadingIcon={<Radio className="size-4" />}>
-            Go Live
-          </Button>
-        ) : null}
       </div>
 
       <Card className="overflow-hidden bg-background shadow-none">
         <CardHeader className="border-b border-border-soft px-0 pb-0 pt-0">
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ComposerTab)}>
             <TabsList className="h-auto w-full justify-start rounded-none border-b border-border-soft bg-transparent p-0">
-              {(["text", "image", "video", "song", "room"] as const).map((tab) => (
+              {visibleTabs.map((tab) => (
                 <TabsTrigger
                   key={tab}
                   value={tab}
                   className={cn(
                     "rounded-none border-b-2 border-transparent px-5 py-4 text-sm font-semibold data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none",
                   )}
-                  disabled={tab === "song" && !canCreateSongPost}
                 >
                   <span className="inline-flex items-center gap-2">
                     {tabMeta[tab].icon}
@@ -330,7 +379,9 @@ export function PostComposer({
           {shouldShowDerivativeStep ? (
             <section className="space-y-3 rounded-[var(--radius-lg)] border border-border-soft bg-card px-4 py-4">
               <div className="space-y-1">
-                <h3 className="text-sm font-semibold text-foreground">Find original / upstream work</h3>
+                <h3 className="text-sm font-semibold text-foreground">
+                  Find source audio or upstream work
+                </h3>
                 <p className="text-sm text-muted-foreground">Attach the source before posting when required.</p>
               </div>
               <div className="relative">

@@ -794,7 +794,9 @@ paths:
               $ref: '#/components/schemas/CreatePostRequest'
       responses:
         '201':
-          description: Post created
+          description: >
+            Post created. Returns the canonical post row; localized read
+            projections are returned by `GET /posts/{post_id}`.
           content:
             application/json:
               schema:
@@ -2121,6 +2123,10 @@ components:
 
     LocalizedPostResponse:
       type: object
+      description: >
+        Localized read envelope for a canonical post. Read endpoints return this
+        wrapper so locale-resolved translation fields stay out of the canonical
+        `Post` schema.
       required: [post, resolved_locale, machine_translated, source_hash]
       properties:
         post:

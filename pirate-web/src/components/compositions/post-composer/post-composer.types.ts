@@ -1,4 +1,4 @@
-export type ComposerTab = "text" | "image" | "video" | "song" | "room";
+export type ComposerTab = "text" | "image" | "video" | "link" | "song";
 
 export type SongMode = "original" | "remix";
 
@@ -24,6 +24,13 @@ export interface MoreOptionsState {
   ageGateChecked?: boolean;
 }
 
+export interface LinkPreviewState {
+  title: string;
+  domain: string;
+  description?: string;
+  imageSrc?: string;
+}
+
 export interface MonetizationState {
   visible: boolean;
   priceLabel?: string;
@@ -38,13 +45,15 @@ export interface PostComposerProps {
   guildAvatarSrc?: string;
   draftsLabel?: string;
   mode: ComposerTab;
+  availableTabs?: ComposerTab[];
   canCreateSongPost?: boolean;
-  canGoLive?: boolean;
   titleValue?: string;
   titleCountLabel?: string;
   textBodyValue?: string;
   captionValue?: string;
   lyricsValue?: string;
+  linkUrlValue?: string;
+  linkPreview?: LinkPreviewState;
   songMode?: SongMode;
   derivativeStep?: DerivativeStepState;
   moreOptions?: MoreOptionsState;

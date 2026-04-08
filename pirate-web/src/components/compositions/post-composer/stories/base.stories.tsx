@@ -9,6 +9,7 @@ const baseComposer: PostComposerProps = {
   guildAvatarSrc: "https://picsum.photos/seed/yeezy/80/80",
   draftsLabel: "Drafts",
   mode: "text",
+  availableTabs: ["text", "image", "video", "link", "song"],
   canCreateSongPost: true,
   titleValue: "What is the best Ye opener?",
   titleCountLabel: "29/300",
@@ -35,6 +36,11 @@ type Story = StoryObj<typeof meta>;
 
 export const DefaultText: Story = {
   name: "Flow / Default Text",
+  render: () => <PostComposer {...baseComposer} />,
+};
+
+export const DefaultGuildAllTypes: Story = {
+  name: "Guild / Default All Post Types",
   render: () => <PostComposer {...baseComposer} />,
 };
 
@@ -65,6 +71,27 @@ export const VideoWithFallbackReference: Story = {
   ),
 };
 
+export const LinkPost: Story = {
+  name: "Flow / Link",
+  render: () => (
+    <PostComposer
+      {...baseComposer}
+      mode="link"
+      titleValue="Interview on the design of Yeezus era staging"
+      titleCountLabel="46/300"
+      captionValue="Worth posting for the production notes alone."
+      linkUrlValue="https://032c.com/magazine/kanye-west-tour-design"
+      linkPreview={{
+        title: "Inside the Visual Language of the Yeezus Tour",
+        domain: "032c.com",
+        description:
+          "A look at staging, projection, and performance design choices that shaped the live show.",
+        imageSrc: "https://picsum.photos/seed/yeezus-link/320/180",
+      }}
+    />
+  ),
+};
+
 export const SongRemix: Story = {
   name: "Flow / Song Remix",
   render: () => (
@@ -72,7 +99,6 @@ export const SongRemix: Story = {
       {...baseComposer}
       mode="song"
       canCreateSongPost
-      canGoLive
       titleValue="Midnight Waves (club mix)"
       titleCountLabel="27/300"
       captionValue="Test mix before publishing the asset-bearing version."
@@ -123,19 +149,6 @@ export const MonetizedDonationFlow: Story = {
         donationPartnerName: "MusiCares",
         donationSharePct: 10,
       }}
-    />
-  ),
-};
-
-export const RoomPost: Story = {
-  name: "Flow / Room",
-  render: () => (
-    <PostComposer
-      {...baseComposer}
-      mode="room"
-      titleValue="808s listening room tonight"
-      titleCountLabel="27/300"
-      captionValue="Open room for a track-by-track listen, karaoke runs, and live reactions."
     />
   ),
 };
