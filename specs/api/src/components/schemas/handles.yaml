@@ -75,9 +75,10 @@ GuildHandle:
       type: string
       enum:
         - active
-        - grace
+        - grace_period
         - expired
         - revoked
+        - reserved
     issuance_source:
       type: string
       enum:

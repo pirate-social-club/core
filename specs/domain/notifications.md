@@ -5,9 +5,11 @@ Status: draft
 Related docs:
 
 - [guild.md](./guild.md)
+- [messaging.md](./messaging.md)
 - [post.md](./post.md)
 - [profile.md](./profile.md)
 - [user.md](./user.md)
+- [blocks.md](./blocks.md)
 
 ## Purpose
 

@@ -400,6 +400,8 @@ Suggested v0 field:
 Rules:
 
 - if `default_age_gate_policy = 18_plus`, guild viewing requires `age_over_18` capability with `minimum_assurance_level = strong`
+- creating a guild with `default_age_gate_policy = 18_plus` requires the acting creator to satisfy `age_over_18` capability with `minimum_assurance_level = strong`
+- updating an existing guild from `default_age_gate_policy = none` to `default_age_gate_policy = 18_plus` requires the acting owner/admin to satisfy `age_over_18` capability with `minimum_assurance_level = strong`
 - post-level or asset-level age gates may be stricter, but not looser, than the guild default
 - adult guilds should still use post and asset safety classification; the guild default is not a substitute for content scanning
 
@@ -1102,6 +1104,7 @@ Happy-path v0:
 2. User passes required identity verification policy.
    - for root-attached guild creation in v0, this means `verification_capabilities.unique_human.state = verified` with `assurance_level = strong`
    - because only `self` satisfies `unique_human` at `strong` assurance in v0, Self verification is the default creator-verification path
+   - if the new guild sets `default_age_gate_policy = 18_plus`, the creator must also satisfy `verification_capabilities.age_over_18.state = verified` with `assurance_level = strong`
 3. User supplies:
    - `display_name`
    - `description`
@@ -1163,6 +1166,7 @@ Important:
 - guild creation must not require a DAO
 - guild creation must require a namespace choice
 - guild creation must require creator verification at `unique_human = strong`
+- guild creation must additionally require creator verification at `age_over_18 = strong` whenever `default_age_gate_policy = 18_plus`
 - guild creation must require verified control of the corresponding external root
 - guild creation must produce a namespace handle policy, even if it starts from a platform template
 - guild creation may also capture community bootstrap settings so the guild launches with flair, rules, and resource links already defined

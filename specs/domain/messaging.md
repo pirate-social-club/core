@@ -8,6 +8,7 @@ Related docs:
 - [profile.md](./profile.md)
 - [notifications.md](./notifications.md)
 - [guild.md](./guild.md)
+- [blocks.md](./blocks.md)
 
 ## Purpose
 
@@ -109,6 +110,7 @@ Rules:
 - `open` means any eligible user may initiate a DM
 - `followers_only` means only users who already follow the target's public profile may initiate a DM
 - `nobody` means no new inbound DMs may be initiated by ordinary users
+- active user-level blocks defined in [blocks.md](./blocks.md) must be enforced before DM-policy checks; if either participant has blocked the other, DM initiation must fail
 - existing conversations may remain readable even if policy later tightens, unless moderation/product policy says otherwise
 - `dm_policy` must not live on the canonical `users` row
 - `dm_policy` must not be inferred from transport-registration state

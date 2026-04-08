@@ -1129,6 +1129,57 @@ paths:
           $ref: "#/components/responses/VerificationRequired"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /posts/{post_id}/reactions:
+    post:
+      tags:
+        - Posts
+      summary: Add or remove a reaction on a post
+      parameters:
+        - $ref: "#/components/parameters/PostId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reaction_kind
+                - active
+              properties:
+                reaction_kind:
+                  type: string
+                  enum:
+                    - like
+                active:
+                  type: boolean
+                  description: |
+                    When true, ensure the reaction exists. When false, remove the caller's active reaction of that kind.
+      responses:
+        "200":
+          description: Reaction state recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - post_id
+                  - reaction_kind
+                  - active
+                properties:
+                  post_id:
+                    type: string
+                  reaction_kind:
+                    type: string
+                    enum:
+                      - like
+                  active:
+                    type: boolean
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/VerificationRequired"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /feeds/home:
     get:
       tags:
@@ -1476,18 +1527,6 @@ components:
       required: true
       schema:
         type: string
-    ConversationId:
-      in: path
-      name: conversation_id
-      required: true
-      schema:
-        type: string
-    MembershipRequestId:
-      in: path
-      name: membership_request_id
-      required: true
-      schema:
-        type: string
     FeedSort:
       in: query
       name: sort
@@ -1651,10 +1690,6 @@ components:
             - rate_limited
             - payment_failed
             - settlement_pending
-            - dm_policy_denied
-            - messaging_target_unresolved
-            - messaging_transport_unavailable
-            - invalid_membership_request_state
             - internal_error
         message:
           type: string
@@ -1830,18 +1865,6 @@ components:
           nullable: true
         preferred_locale:
           type: string
-          nullable: true
-        viewer_follows:
-          type: boolean
-          nullable: true
-        follower_count:
-          type: integer
-          minimum: 0
-        following_count:
-          type: integer
-          minimum: 0
-        dm_capabilities:
-          $ref: "#/components/schemas/DmCapabilities"
           nullable: true
         global_handle:
           $ref: "#/components/schemas/GlobalHandle"
@@ -2050,14 +2073,6 @@ components:
             - open
             - request
             - gated
-        membership_state:
-          type: string
-          enum:
-            - not_member
-            - pending_request
-            - member
-            - banned
-          nullable: true
         allow_anonymous_identity:
           type: boolean
         anonymous_identity_scope:
@@ -2120,6 +2135,8 @@ components:
             - none
             - 18_plus
           default: none
+          description: |
+            Guild-wide default viewer age gate. Setting this to `18_plus` requires the acting creator or updating owner/admin to satisfy `verification_capabilities.age_over_18.state = verified` at `strong` assurance.
         namespace:
           $ref: "#/components/schemas/NamespaceAttachmentInput"
         handle_policy:
@@ -2375,6 +2392,8 @@ components:
           enum:
             - none
             - 18_plus
+          description: |
+            Guild-wide default viewer age gate. Updating this field from `none` to `18_plus` requires the acting owner/admin to satisfy `verification_capabilities.age_over_18.state = verified` at `strong` assurance.
     CreateCentralizedGuildRequest:
       allOf:
         - $ref: "#/components/schemas/CreateGuildRequestBase"
@@ -2973,6 +2992,8 @@ components:
           enum:
             - none
             - 18_plus
+          description: |
+            Guild-wide default viewer age gate.
         donation_policy_mode:
           type: string
           enum:
@@ -3446,410 +3467,6 @@ components:
             - joined
             - requested
             - left
-        membership_request_id:
-          type: string
-          nullable: true
-    DmCapabilities:
-      type: object
-      required:
-        - can_receive_dm
-      properties:
-        can_receive_dm:
-          type: boolean
-        transport:
-          type: string
-          enum:
-            - xmtp
-          nullable: true
-        inbox_id:
-          type: string
-          nullable: true
-    UserMessagingSettings:
-      type: object
-      required:
-        - user_id
-        - dm_policy
-        - created_at
-        - updated_at
-      properties:
-        user_id:
-          type: string
-        dm_policy:
-          type: string
-          enum:
-            - open
-            - followers_only
-            - nobody
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-    UpdateMessagingSettingsRequest:
-      type: object
-      required:
-        - dm_policy
-      properties:
-        dm_policy:
-          type: string
-          enum:
-            - open
-            - followers_only
-            - nobody
-    UnreadCountResponse:
-      type: object
-      required:
-        - unread_count
-      properties:
-        unread_count:
-          type: integer
-          minimum: 0
-    NotificationActorProfile:
-      type: object
-      required:
-        - global_handle
-      properties:
-        display_name:
-          type: string
-          nullable: true
-        avatar_ref:
-          type: string
-          nullable: true
-        global_handle:
-          $ref: "#/components/schemas/GlobalHandle"
-    NotificationActor:
-      type: object
-      properties:
-        profile:
-          $ref: "#/components/schemas/NotificationActorProfile"
-          nullable: true
-        anonymous_label:
-          type: string
-          nullable: true
-    Notification:
-      type: object
-      required:
-        - notification_id
-        - kind
-        - entity_type
-        - entity_id
-        - actor_identity_mode
-        - created_at
-      properties:
-        notification_id:
-          type: string
-        kind:
-          type: string
-          enum:
-            - membership_request_received
-            - membership_request_approved
-            - membership_request_rejected
-            - reply
-            - mention
-            - reaction
-            - quote
-            - post_review_required
-            - post_blocked
-        entity_type:
-          type: string
-          enum:
-            - guild_membership_request
-            - post
-            - post_reaction
-            - moderation_action
-        entity_id:
-          type: string
-        actor_identity_mode:
-          type: string
-          enum:
-            - public
-            - anonymous_guild_stable
-            - anonymous_thread_stable
-            - anonymous_post_ephemeral
-        actor:
-          $ref: "#/components/schemas/NotificationActor"
-          nullable: true
-        guild_id:
-          type: string
-          nullable: true
-        group_key:
-          type: string
-          nullable: true
-        read_at:
-          type: string
-          format: date-time
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-    NotificationListResponse:
-      type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: "#/components/schemas/Notification"
-        next_cursor:
-          type: string
-          nullable: true
-    GroupedNotification:
-      type: object
-      required:
-        - group_key
-        - kind
-        - count
-        - latest_created_at
-      properties:
-        group_key:
-          type: string
-        kind:
-          type: string
-        count:
-          type: integer
-          minimum: 1
-        unread_count:
-          type: integer
-          minimum: 0
-        guild_id:
-          type: string
-          nullable: true
-        latest_created_at:
-          type: string
-          format: date-time
-        latest_notification:
-          $ref: "#/components/schemas/Notification"
-        notifications:
-          type: array
-          items:
-            $ref: "#/components/schemas/Notification"
-          nullable: true
-    GroupedNotificationListResponse:
-      type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: "#/components/schemas/GroupedNotification"
-        next_cursor:
-          type: string
-          nullable: true
-    MarkNotificationsSeenRequest:
-      type: object
-      description: Mark notifications or grouped notifications as seen.
-      properties:
-        notification_ids:
-          type: array
-          minItems: 1
-          items:
-            type: string
-        group_keys:
-          type: array
-          minItems: 1
-          items:
-            type: string
-      anyOf:
-        - required:
-            - notification_ids
-        - required:
-            - group_keys
-      additionalProperties: false
-    SeenCountResponse:
-      type: object
-      required:
-        - seen_count
-      properties:
-        seen_count:
-          type: integer
-          minimum: 0
-    Conversation:
-      type: object
-      required:
-        - conversation_id
-        - participant_user_ids
-        - transport
-        - updated_at
-        - unread_count
-      properties:
-        conversation_id:
-          type: string
-        participant_user_ids:
-          type: array
-          items:
-            type: string
-        transport:
-          type: string
-          enum:
-            - xmtp
-        transport_conversation_ref:
-          type: string
-          nullable: true
-        updated_at:
-          type: string
-          format: date-time
-        last_message_preview:
-          type: string
-          nullable: true
-        unread_count:
-          type: integer
-          minimum: 0
-    ConversationListResponse:
-      type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: "#/components/schemas/Conversation"
-        next_cursor:
-          type: string
-          nullable: true
-    CreateConversationRequest:
-      type: object
-      oneOf:
-        - required:
-            - target_user_id
-        - required:
-            - target_handle
-        - required:
-            - target_address
-      properties:
-        target_user_id:
-          type: string
-        target_handle:
-          type: string
-        target_address:
-          type: string
-      additionalProperties: false
-    Message:
-      type: object
-      required:
-        - message_id
-        - conversation_id
-        - sender_user_id
-        - body
-        - created_at
-      properties:
-        message_id:
-          type: string
-        conversation_id:
-          type: string
-        sender_user_id:
-          type: string
-        body:
-          type: string
-        created_at:
-          type: string
-          format: date-time
-    MessageListResponse:
-      type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: "#/components/schemas/Message"
-        next_cursor:
-          type: string
-          nullable: true
-    SendMessageRequest:
-      type: object
-      required:
-        - body
-      properties:
-        body:
-          type: string
-    FollowActionResult:
-      type: object
-      required:
-        - target_user_id
-        - state
-      properties:
-        target_user_id:
-          type: string
-        state:
-          type: string
-          enum:
-            - following
-            - not_following
-    GuildMembershipRequest:
-      type: object
-      required:
-        - membership_request_id
-        - guild_id
-        - applicant_user_id
-        - status
-        - created_at
-        - updated_at
-        - expires_at
-      properties:
-        membership_request_id:
-          type: string
-        guild_id:
-          type: string
-        applicant_user_id:
-          type: string
-        status:
-          type: string
-          enum:
-            - pending
-            - approved
-            - rejected
-            - canceled
-            - expired
-        note:
-          type: string
-          nullable: true
-        reviewed_by_user_id:
-          type: string
-          nullable: true
-        review_reason:
-          type: string
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-        resolved_at:
-          type: string
-          format: date-time
-          nullable: true
-        expires_at:
-          type: string
-          format: date-time
-    MembershipRequestListResponse:
-      type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: "#/components/schemas/GuildMembershipRequest"
-        next_cursor:
-          type: string
-          nullable: true
-    ResolveMembershipRequest:
-      type: object
-      properties:
-        review_reason:
-          type: string
-          nullable: true
-    RejectMembershipRequest:
-      type: object
-      required:
-        - review_reason
-      properties:
-        review_reason:
-          type: string
     CreateGuildDonationPolicyInput:
       type: object
       description: |
@@ -3996,9 +3613,10 @@ components:
           type: string
           enum:
             - active
-            - grace
+            - grace_period
             - expired
             - revoked
+            - reserved
         issuance_source:
           type: string
           enum:
@@ -4017,6 +3635,30 @@ components:
       type: object
       description: |
         V0 write requests do not distinguish human-initiated writes from agent-initiated writes on the canonical post object. If Pirate later supports user-owned agents posting on behalf of a user, a field such as `submission_mode` or `authorship_mode` should be added as the auditability extension point.
+      oneOf:
+        - description: Link posts must include `link_url`.
+          required:
+            - post_type
+            - link_url
+          properties:
+            post_type:
+              type: string
+              enum:
+                - link
+        - description: Non-link posts must not send `link_url`.
+          required:
+            - post_type
+          properties:
+            post_type:
+              type: string
+              enum:
+                - text
+                - image
+                - video
+                - song
+          not:
+            required:
+              - link_url
       required:
         - guild_id
         - post_type
@@ -4057,6 +3699,7 @@ components:
             - text
             - image
             - video
+            - link
             - song
         title:
           type: string
@@ -4067,6 +3710,11 @@ components:
         caption:
           type: string
           nullable: true
+        link_url:
+          type: string
+          format: uri
+          nullable: true
+          description: Required when post_type is link. Must be null for all other post types.
         media_refs:
           type: array
           items:
@@ -4161,6 +3809,7 @@ components:
             - text
             - image
             - video
+            - link
             - song
         status:
           type: string
@@ -4178,6 +3827,10 @@ components:
           nullable: true
         caption:
           type: string
+          nullable: true
+        link_url:
+          type: string
+          format: uri
           nullable: true
         media_refs:
           type: array
@@ -4251,6 +3904,11 @@ components:
         Localized read envelope for a canonical post. Read endpoints return this wrapper so locale-resolved translation fields stay out of the canonical `Post` schema.
       required:
         - post
+        - upvote_count
+        - downvote_count
+        - like_count
+        - viewer_vote
+        - viewer_reaction_kinds
         - resolved_locale
         - translation_state
         - machine_translated
@@ -4261,6 +3919,31 @@ components:
         flair:
           $ref: "#/components/schemas/PostFlair"
           nullable: true
+        upvote_count:
+          type: integer
+          minimum: 0
+        downvote_count:
+          type: integer
+          minimum: 0
+        like_count:
+          type: integer
+          minimum: 0
+        viewer_vote:
+          type: integer
+          enum:
+            - -1
+            - 1
+          nullable: true
+          description: |
+            The caller's active vote on the post. Null means the caller has not cast a vote.
+        viewer_reaction_kinds:
+          type: array
+          description: |
+            Active reaction kinds from the caller on this post. Empty when the caller has no active reactions.
+          items:
+            type: string
+            enum:
+              - like
         resolved_locale:
           type: string
         translation_state:
@@ -4308,34 +3991,6 @@ components:
           nullable: true
         duration_ms:
           type: integer
-          nullable: true
-    DisclosedQualifierSnapshot:
-      type: object
-      required:
-        - qualifier_template_id
-        - rendered_label
-        - qualifier_kind
-        - qualifier_source
-      properties:
-        qualifier_template_id:
-          type: string
-        rendered_label:
-          type: string
-        qualifier_kind:
-          type: string
-          enum:
-            - verification_capability
-            - provider_attestation
-        qualifier_source:
-          type: string
-        sensitivity_level:
-          type: string
-          enum:
-            - low
-            - high
-          nullable: true
-        redundancy_key:
-          type: string
           nullable: true
     Question:
       type: object
@@ -4491,6 +4146,11 @@ components:
       type: object
       required:
         - post
+        - upvote_count
+        - downvote_count
+        - like_count
+        - viewer_vote
+        - viewer_reaction_kinds
         - resolved_locale
         - translation_state
         - machine_translated
@@ -4501,6 +4161,31 @@ components:
         flair:
           $ref: "#/components/schemas/PostFlair"
           nullable: true
+        upvote_count:
+          type: integer
+          minimum: 0
+        downvote_count:
+          type: integer
+          minimum: 0
+        like_count:
+          type: integer
+          minimum: 0
+        viewer_vote:
+          type: integer
+          enum:
+            - -1
+            - 1
+          nullable: true
+          description: |
+            The caller's active vote on the post. Null means the caller has not cast a vote.
+        viewer_reaction_kinds:
+          type: array
+          description: |
+            Active reaction kinds from the caller on this post. Empty when the caller has no active reactions.
+          items:
+            type: string
+            enum:
+              - like
         resolved_locale:
           type: string
         translation_state:

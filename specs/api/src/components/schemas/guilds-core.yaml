@@ -83,6 +83,8 @@ CreateGuildRequestBase:
         - none
         - 18_plus
       default: none
+      description: |
+        Guild-wide default viewer age gate. Setting this to `18_plus` requires the acting creator or updating owner/admin to satisfy `verification_capabilities.age_over_18.state = verified` at `strong` assurance.
     namespace:
       $ref: ./handles.yaml#/NamespaceAttachmentInput
     handle_policy:
@@ -338,6 +340,8 @@ UpdateGuildRequest:
       enum:
         - none
         - 18_plus
+      description: |
+        Guild-wide default viewer age gate. Updating this field from `none` to `18_plus` requires the acting owner/admin to satisfy `verification_capabilities.age_over_18.state = verified` at `strong` assurance.
 Guild:
   type: object
   required:
@@ -443,6 +447,8 @@ Guild:
       enum:
         - none
         - 18_plus
+      description: |
+        Guild-wide default viewer age gate.
     donation_policy_mode:
       type: string
       enum:

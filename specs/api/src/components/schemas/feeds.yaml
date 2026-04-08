@@ -14,6 +14,11 @@ FeedItem:
   type: object
   required:
     - post
+    - upvote_count
+    - downvote_count
+    - like_count
+    - viewer_vote
+    - viewer_reaction_kinds
     - resolved_locale
     - translation_state
     - machine_translated
@@ -24,6 +29,31 @@ FeedItem:
     flair:
       $ref: ./guilds-community.yaml#/PostFlair
       nullable: true
+    upvote_count:
+      type: integer
+      minimum: 0
+    downvote_count:
+      type: integer
+      minimum: 0
+    like_count:
+      type: integer
+      minimum: 0
+    viewer_vote:
+      type: integer
+      enum:
+        - -1
+        - 1
+      nullable: true
+      description: |
+        The caller's active vote on the post. Null means the caller has not cast a vote.
+    viewer_reaction_kinds:
+      type: array
+      description: |
+        Active reaction kinds from the caller on this post. Empty when the caller has no active reactions.
+      items:
+        type: string
+        enum:
+          - like
     resolved_locale:
       type: string
     translation_state:

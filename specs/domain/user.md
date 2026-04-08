@@ -10,6 +10,7 @@ Related docs:
 - [profile.md](./profile.md)
 - [follow.md](./follow.md)
 - [messaging.md](./messaging.md)
+- [blocks.md](./blocks.md)
 - [onboarding.md](./onboarding.md)
 - [post.md](./post.md)
 - [monetization.md](./monetization.md)

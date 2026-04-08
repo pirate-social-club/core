@@ -109,6 +109,7 @@ Suggested v0 fields:
 - `title` nullable
 - `body` nullable
 - `caption` nullable
+- `link_url` nullable
 - `media_refs`
 - `source_language`
 - `translation_policy`
@@ -136,6 +137,7 @@ Suggested meanings:
   - `text`
   - `image`
   - `video`
+  - `link`
   - `song`
 - `status`
   - `draft`
@@ -161,6 +163,7 @@ Suggested meanings:
   - `allow`
   - `allow_with_required_reference`
   - `review_required`
+  - `blocked`
 - `content_safety_state`
   - `pending`
   - `safe`
@@ -185,6 +188,7 @@ Notes:
 - song posts require audio and lyrics at post-creation time; instrumental and vocal stems are optional advanced inputs that may also be attached or derived later through async enrichment (see karaoke.md for the staged enrichment model)
 - `title` is optional on all v0 post types
 - `caption` is primarily for media posts and is optional in v0
+- `link_url` is the external URL for `link` type posts; it must be non-null when `post_type = link` and null otherwise
 - `source_language` is authoritative server-authored language metadata inferred during write-time analysis rather than user-authored input
 - `parent_post_id` supports replies or thread attachment without making all posts comments
 - `analysis_result_ref` points to a shared media-analysis record that may also be referenced by the attached asset
@@ -321,6 +325,20 @@ Video posts may opt into asset creation and Story publication when:
 - the uploader wants royalties
 - the uploader wants derivative attribution
 - the uploader wants to license the work
+
+### Link
+
+Link posts point to an external URL with optional title and commentary.
+
+Link posts follow the same simple mental model as Reddit link posts: paste a URL, optionally add title and commentary, and post.
+
+Rules:
+
+- `link` posts require at least a URL in v0
+- link preview metadata should be derived automatically when available
+- link preview is UI presentation, not a required authoring field
+- `link` posts may not attach assets or publish to Story in v0
+- `link` posts are subject to the same `link_post_policy` enforcement as described in [guild.md](./guild.md) under Posting Policy
 
 ### Song
 
@@ -509,6 +527,25 @@ Mapping to post fields:
 - the full reasoning and provider payload live on the shared `media_analysis_results` row referenced by `analysis_result_ref`
 - `content_safety_state` and `age_gate_policy` should be copied from the final analysis outcome at post creation time and may later be tightened by moderation
 
+### Publication Merge Rule
+
+Publication requires both decision axes to pass independently.
+
+A post may be published only when all of the following are true:
+
+- `analysis_state` is in {`allow`, `allow_with_required_reference`}
+- `content_safety_state` is in {`safe`, `sensitive`, `adult`}
+
+If either axis is in a blocking state, publication is blocked:
+
+- `analysis_state` in {`pending`, `review_required`, `blocked`} blocks publication
+- `content_safety_state = pending` blocks publication
+- `analysis_state = allow_with_required_reference` allows publication only after the user attaches the required upstream references
+- `content_safety_state = sensitive` allows publication but the post should carry any implied labeling or warnings according to product policy
+- `content_safety_state = adult` allows publication only when `age_gate_policy = 18_plus`; the published post must then be gated to adult-eligible viewers according to the guild and post viewing rules
+
+This merge rule is the authoritative publishability gate. Individual analysis and safety decisions feed into it but neither axis alone determines publishability.
+
 ## Story Publication Rules
 
 Recommended v0 rules:
@@ -573,6 +610,11 @@ Recommended v0 composer rules:
   - may link one or more upstream assets when derivative attribution is intended
   - audio-bearing uploads should run through ACRCloud analysis
   - image and video uploads should run through safety scanning where supported
+- `link`
+  - should require a URL
+  - may include optional `title` and optional commentary body
+  - link preview metadata should be derived automatically, not authored manually
+  - may not attach assets or publish to Story in v0
 - `song`
   - only available where guild posting policy allows it
   - canonical artist songs additionally require `artist_governance_state = artist_governed` or `org_governed`
@@ -802,6 +844,98 @@ Rules:
 - moderators act within guild policy; platform admins retain fallback authority
 - moderators may tighten `content_safety_state` or `age_gate_policy` after review, but should not weaken inherited upstream age gates without explicit admin tooling
 
+## Votes And Reactions
+
+Posts may receive votes and lightweight reactions from eligible users.
+
+### Eligibility
+
+Rules:
+
+- the voter must have `verification_capabilities.unique_human.state = verified` with `assurance_level = strong`
+- the voter's nullifier must be valid and not duplicated across accounts
+- unverified users may view vote counts but their interactions must not produce karma events
+- CAPTCHA must not be required for normal verified-user voting
+- self-votes must not produce karma events
+
+### Vote Shape
+
+Suggested v0 `post_votes` shape:
+
+- `post_vote_id`
+- `post_id`
+- `user_id`
+- `value`
+- `created_at`
+- `updated_at`
+
+Suggested meanings:
+
+- `value`
+  - `1` (upvote)
+  - `-1` (downvote)
+
+Rules:
+
+- one vote per user per post in v0
+- unique on `(user_id, post_id)`
+- votes are mutable: a user may change their vote from up to down or vice versa
+- changing a vote writes a new value on the existing row; it does not create a new vote row
+- removing a vote (setting to neutral) is not supported in v0; users may only switch direction
+- vote writes should be rate-limited to prevent vote-spam
+- vote weight is one user one vote in v0; weighted voting by karma is not part of v0
+- votes are app-level records, not onchain objects
+
+### Relationship To Karma
+
+- upvotes received on the author's posts produce `post_upvote_received` karma events for the author
+- downvotes received on the author's posts produce `post_downvote_received` karma events for the author
+- vote counts are denormalized on the post read model for display performance
+- vote counts on the post read model are aggregate projections, not the canonical source of truth
+
+### Reaction Shape
+
+Reactions are lightweight post signals distinct from votes.
+
+Suggested v0 `post_reactions` shape:
+
+- `post_reaction_id`
+- `post_id`
+- `user_id`
+- `reaction_kind`
+- `created_at`
+- `updated_at`
+
+Suggested `reaction_kind` values:
+
+- `like`
+
+Rules:
+
+- one active reaction per `(user_id, post_id, reaction_kind)` in v0
+- unique on `(user_id, post_id, reaction_kind)`
+- v0 supports `like` only; additional reaction kinds may be added later without changing the canonical shape
+- reactions are mutable through add/remove behavior; removing a reaction deletes or deactivates the user's active reaction row for that kind
+- reactions do not produce karma events in v0
+- reaction counts are denormalized on the post read model for display performance
+- reaction rows are the canonical source of truth for reaction notifications such as the aggregated `reaction` notification defined in [notifications.md](./notifications.md)
+
+### Suggested Interaction Read Fields
+
+Suggested viewer-facing post read-model fields:
+
+- `upvote_count`
+- `downvote_count`
+- `like_count`
+- `viewer_vote` nullable
+- `viewer_reaction_kinds`
+
+Rules:
+
+- interaction counts on read models are projections derived from canonical vote and reaction rows
+- `viewer_vote` should be `1`, `-1`, or `null`
+- `viewer_reaction_kinds` should list the caller's active reaction kinds on the post and should be empty when none are active
+
 ## V0 Scope Notes
 
 - reposts, crossposts, and quote-posts are not part of v0
@@ -809,6 +943,7 @@ Rules:
   - `text`
   - `image`
   - `video`
+  - `link`
   - `song`
 - remix behavior is modeled as a song submode in v0 rather than a separate top-level post type
 - dance is not a distinct v0 post type or submode; videos are just videos and may optionally carry derivative references

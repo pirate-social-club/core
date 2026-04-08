@@ -103,7 +103,7 @@ Interpretation:
 - `handles`
   Guild-handle search, eligibility, claim, renew, revoke, and availability flows.
 - `posts`
-  Social write model for root posts, replies, nested votes, and moderation state.
+  Social write model for root posts, replies, nested votes and reactions, and moderation state.
 - `livestreams`
   First-class `live_room` write model, including scheduling, lifecycle changes, anchor-post linkage, and live or replay access state.
 - `assets`
@@ -123,7 +123,7 @@ Interpretation:
 
 Important nested surfaces:
 
-- votes are nested under `posts` in v0
+- votes and reactions are nested under `posts` in v0
 - moderation is nested under `guilds` and `posts`
 - membership is nested under `guilds`
 - payout policy is nested under `guilds`
@@ -535,7 +535,7 @@ The API should make enforcement points explicit.
 - nullifier uniqueness must still be valid
 - rate limits and anti-abuse rules still apply
 - CAPTCHA must not be required for normal verified-user voting in v0
-- votes should be nested under `posts` in v0 rather than exposed as a top-level API family
+- votes and reactions should be nested under `posts` in v0 rather than exposed as top-level API families
 
 ### Guild Gates
 

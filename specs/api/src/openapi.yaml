@@ -103,6 +103,8 @@ paths:
     $ref: ./paths/posts.yaml#/posts_by_post_id
   /posts/{post_id}/vote:
     $ref: ./paths/posts.yaml#/posts_by_post_id_vote
+  /posts/{post_id}/reactions:
+    $ref: ./paths/posts.yaml#/posts_by_post_id_reactions
   /feeds/home:
     $ref: ./paths/feeds.yaml#/feeds_home
   /feeds/your-guilds:

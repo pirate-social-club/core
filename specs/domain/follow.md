@@ -7,6 +7,7 @@ Related docs:
 - [profile.md](./profile.md)
 - [user.md](./user.md)
 - [feed.md](./feed.md)
+- [blocks.md](./blocks.md)
 
 ## Purpose
 
@@ -22,7 +23,7 @@ It covers:
 
 It does not cover:
 
-- blocks or mutes
+- blocks or mutes (see [blocks.md](./blocks.md))
 - follow recommendations
 - notification behavior for follows
 - ranking formulas that may later use follow signals

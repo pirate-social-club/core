@@ -91,3 +91,54 @@ posts_by_post_id_vote:
         $ref: ../components/responses.yaml#/VerificationRequired
       "429":
         $ref: ../components/responses.yaml#/RateLimited
+posts_by_post_id_reactions:
+  post:
+    tags:
+      - Posts
+    summary: Add or remove a reaction on a post
+    parameters:
+      - $ref: ../components/parameters.yaml#/PostId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - reaction_kind
+              - active
+            properties:
+              reaction_kind:
+                type: string
+                enum:
+                  - like
+              active:
+                type: boolean
+                description: |
+                  When true, ensure the reaction exists. When false, remove the caller's active reaction of that kind.
+    responses:
+      "200":
+        description: Reaction state recorded
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - post_id
+                - reaction_kind
+                - active
+              properties:
+                post_id:
+                  type: string
+                reaction_kind:
+                  type: string
+                  enum:
+                    - like
+                active:
+                  type: boolean
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/VerificationRequired
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
