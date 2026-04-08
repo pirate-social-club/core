@@ -1,5 +1,7 @@
 User:
   type: object
+  description: |
+    Public user read model. Sensitive verified-identity fields that may exist on the canonical user row, such as `date_of_birth`, `age_at_verification`, `identity_nullifier_hash`, and `verification_session_id`, are intentionally omitted from this schema in v0.
   required:
     - user_id
     - verification_state
@@ -19,12 +21,14 @@ User:
         - pending
         - verified
         - reverification_required
-    verification_provider:
+    capability_provider:
       type: string
       enum:
         - self
         - very
       nullable: true
+      description: |
+        Convenience summary for the provider that produced the most recent accepted core capability set. Per-capability `provider` fields inside `verification_capabilities` remain authoritative.
     verification_capabilities:
       $ref: ./verification.yaml#/VerificationCapabilities
     verified_at:
@@ -34,6 +38,7 @@ User:
     nationality:
       type: string
       nullable: true
+      description: ISO country code when the current accepted identity includes nationality
     created_at:
       type: string
       format: date-time

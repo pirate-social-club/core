@@ -10,6 +10,9 @@ Related docs:
 - [monetization.md](./monetization.md)
 - [donations.md](./donations.md)
 - [performance.md](./performance.md)
+- [rights-review.md](./rights-review.md)
+- [replay.md](./replay.md)
+- [live-segments.md](./live-segments.md)
 
 ## Purpose
 
@@ -21,6 +24,8 @@ It covers:
 - the relationship between a livestream and its anchor post
 - room lifecycle
 - live and replay access
+- performer participation boundaries
+- recording and recognition boundaries
 - donation behavior during live events
 
 ## Non-goals
@@ -42,6 +47,7 @@ Recommended v0 split:
 
 - `live_room` owns scheduling, room state, access, and replay linkage
 - `anchor_post_id` points to the post used for feed distribution, discussion, and later replay discovery
+- the initial setlist is authored as part of room creation, even though song-level lifecycle lives in [live-segments.md](./live-segments.md)
 
 This avoids collapsing room lifecycle into the normal post lifecycle.
 
@@ -51,13 +57,13 @@ Room authoring and room hosting should not be conflated.
 
 Recommended v0 split:
 
-- web/app owns control-plane authoring for the room
+- web/app composer owns control-plane authoring for the room
 - desktop or host tooling may attach to an existing room as the host client
 - the control plane remains the source of truth for title, schedule, anchor post, listing, and donation/guild policy
 
 This means Pirate should prefer:
 
-1. create or schedule the room on web/app
+1. create or schedule the room through the composer on web/app
 2. persist `live_room_id`, `anchor_post_id`, and any listing linkage
 3. let desktop hook into that existing room for host/performance duties
 
@@ -77,6 +83,22 @@ Interpretation:
 - viewers should watch through the normal livestream/watch surfaces backed by Agora
 - performers may collaborate through JackTrip or similar low-latency tooling
 - a performer session may feed the live broadcast mix without becoming the viewer delivery protocol
+
+## Solo Rooms vs Multi-Performer Rooms
+
+Solo rooms should not require desktop/native host tooling in v0.
+
+Recommended v0 split:
+
+- `room_kind = solo` may be created on web/app and hosted either from a web host console or from desktop
+- desktop is optional for solo rooms and should be treated as a better performance tool, not a mandatory dependency
+- `room_kind = duet` is where desktop/native performance tooling becomes materially more important
+- JackTrip is relevant for multi-performer collaboration, not for ordinary solo broadcasting
+
+This means GPUI or other desktop host tooling should be thought of as:
+
+- optional for solo host flows
+- strongly preferred for low-latency multi-musician flows
 
 ## Canonical Object
 
@@ -103,6 +125,7 @@ Suggested v0 `live_rooms` shape:
 - `cover_ref` nullable
 - `participant_capacity` nullable
 - `replay_asset_id` nullable
+- `replay_status`
 - `created_at`
 - `updated_at`
 
@@ -120,13 +143,14 @@ Suggested meanings:
 - `room_kind`
   - `solo` — single host broadcasting
   - `duet` — host plus one invited collaborator
-  - `open_jam` — host plus open performer slot
-  - Old Pirate used `dj_set` for solo; `solo` is the cleaner v2 name. The old `duet` and `open_jam` kinds carry forward directly.
+  - Old Pirate used `dj_set` for solo; `solo` is the cleaner v2 name. `duet` carries forward as the structured multi-performer case in v0.
 - `visibility`
   - `public` — discoverable in live discovery
   - `unlisted` — accessible by direct link only
 - `guest_user_id`
-  When `room_kind` is `duet`, this points to the invited collaborator. Nullable for solo or open-jam rooms. For migration, an additional `guest_wallet_attachment_id` may be carried temporarily until wallet-to-user mapping stabilizes.
+  When `room_kind` is `duet`, this points to the invited collaborator. Nullable for solo rooms. For migration, an additional `guest_wallet_attachment_id` may be carried temporarily until wallet-to-user mapping stabilizes.
+- `performer_allocations`
+  Ordered allocation records describing how the performer-side proceeds are split across the room participants.
 - `broadcast_ref`
   Provider-specific broadcast session reference used by live media infrastructure. Provisioned at host-attach or room-start time, not at room creation time. See Host Attach below.
 - `event_start_at`
@@ -137,6 +161,15 @@ Suggested meanings:
   Pointer to the stream's cover image or thumbnail media
 - `participant_capacity`
   Optional audience cap when product or infrastructure policy imposes a room limit
+- `replay_status`
+  - `none`
+  - `processing`
+  - `review_pending`
+  - `published`
+  - `failed`
+- `performer_allocations`
+  - for `solo`, exactly one allocation for the host with `share_pct = 100`
+  - for `duet`, exactly two allocations whose `share_pct` values sum to `100`
 
 Rules:
 
@@ -145,13 +178,40 @@ Rules:
 - `broadcast_ref` is nullable and remains null until the host attaches and broadcast infrastructure is provisioned
 - `listing_id` is used only when live access is paid
 - `replay_listing_id` is used only when replay access is separately monetized
+- `replay_status` tracks replay processing and rights-review state without mutating the room lifecycle itself
 - `guild_id` is required at creation. There are no standalone room objects outside a guild context. A live room is a guild object with an anchor post from day one.
+- room creation should also require an initial setlist payload, even if that setlist begins in `draft`
+- room creation should require explicit performer allocations from day one
 - web/app is the authoritative creation surface for `live_room` in v0; desktop controls host start/stop and performer tooling only
 - the old Pirate `created` status is collapsed into `scheduled` in v0. `event_start_at = null` means "ready now". `event_start_at != null` means "scheduled for later". This removes the ambiguous `created` state that old Pirate used.
 
 Identity shift from old Pirate:
 
 - old Pirate identified hosts by wallet address (`host_wallet`). v2 uses `host_user_id` backed by the Pirate app session, with wallet addresses modeled as attachments rather than canonical identifiers. The API should enforce this consistently: no core write endpoint should key identity by raw wallet address alone.
+
+## Performer Participation Boundary
+
+The `live_room` row should stay small even when many musicians are involved.
+
+Recommended v0 rule:
+
+- `host_user_id` is the canonical room host
+- `guest_user_id` supports the single invited-collaborator case for `duet`
+- performer allocations must be explicit from creation time onward
+- larger open-ended performer rosters should not be part of v0 live rooms
+
+Interpretation:
+
+- `solo` rooms need only `host_user_id`
+- `duet` rooms use `guest_user_id` for the second performer
+- performer allocation records should identify who participates in performer-side proceeds and at what percentages
+- if Pirate later supports larger multi-performer rooms, they should use a stricter performer-roster child resource rather than an unstructured room kind
+
+Commerce boundary:
+
+- paid room access sells access to the room first
+- v0 live access revenue should follow the room listing plus the guild payout policy, then apply the room's explicit performer allocations to the performer-side proceeds
+- song-specific or segment-specific rights settlement still comes later through segment resources, replay assets, and royalty-graph-backed settlement rather than raw room-level split fields
 
 ## Anchor Post
 
@@ -174,6 +234,7 @@ Recommended v0 rule:
 
 - the anchor post should normally be a `video` post with `anchor_live_room_id` in read models or join-layer relations
 - if the client does not provide an existing `anchor_post_id`, Pirate should create the anchor post automatically as part of room creation
+- the anchor post for a live room should not use the guild anonymous identity layer in v0; live-room authority stays tied to the host's verified public identity
 
 ## Room Lifecycle
 
@@ -193,6 +254,7 @@ Transition guidance:
 
 Authority guidance:
 
+- host start should also require a valid active setlist as defined in [live-segments.md](./live-segments.md)
 - the host may transition `scheduled -> live`
 - the host may transition `live -> ended`
 - the host, `guild_owner`, `moderator`, or `platform_admin` may transition a room to `canceled`
@@ -216,12 +278,63 @@ Suggested replay fields:
 
 - `replay_asset_id` nullable
 - `replay_listing_id` nullable
+- `replay_status`
 
 Interpretation:
 
-- if `replay_asset_id` is non-null, replay exists
-- if `replay_listing_id` is also non-null, replay access may be separately sold
-- replay processing failure does not invent a separate room state; the room remains `ended`
+- `replay_status = none` means no replay exists yet
+- `replay_status = processing` means replay generation is underway
+- `replay_status = review_pending` means replay exists or is nearly ready but is held pending rights review
+- `replay_status = published` means replay is cleared for product use
+- `replay_status = failed` means replay processing failed without changing the room lifecycle
+- if `replay_asset_id` is non-null, replay media exists at the asset layer
+- if `replay_listing_id` is also non-null, replay access may be separately sold once replay is cleared for publication
+- if replay is separately sold, the replay asset should be locked and delivered through Pirate's CDR-compatible asset-access path rather than exposed as a plain public payload
+
+## Recording And Recognition
+
+Recording and music recognition are related but not the same thing.
+
+Recommended v0 rule:
+
+- a room may later produce a replay asset derived from the mixed live output
+- ACRCloud should be used for music recognition on the live mix or replay asset, not for room identity
+- recognition should run asynchronously and must not block room creation, host-attach, or go-live
+
+Replay-clearance rule:
+
+- if ACRCloud returns zero confident matches, replay should auto-clear and may advance to `replay_status = published`
+- if ACRCloud returns candidate matches, replay should move to `replay_status = review_pending`
+- if review rejects all candidate matches, replay may still advance to `replay_status = published`
+- if review accepts any candidate match as an upstream reference, replay may advance to `replay_status = published` only after the corresponding derivative links or royalty-graph edges are attached according to policy
+- replay may only advance to `published` when all relevant live segments are effectively clear; any segment with `rights_status = review_pending`, `blocked`, or reconciliation requiring review should keep the replay in review
+
+Review authority:
+
+- in v0, ACRCloud-triggered rights review is a Pirate platform function, not a guild-owner or TLD-owner function
+- the Pirate platform operator is the final authority for clearing or blocking replay publication and rights-sensitive payouts on flagged rooms
+- hosts, guests, guild owners, and TLD owners may submit context, claimed licenses, or official-catalog evidence, but they do not have unilateral final-clearance authority for third-party rights cases
+- this avoids self-review by economically interested room operators and keeps rights enforcement consistent across guilds
+
+Rights boundary:
+
+- songs performed inside a guild are not automatically royalty-free merely because they are inside that guild
+- Story-published works are not automatically "fair game" for unrestricted live performance or monetization
+- Pirate may parse Story-linked rights metadata and community relationships as evidence that a work is licensable or officially supported, but monetization policy must still check whether the rights path actually permits the use
+- guild-affiliated or officially linked catalog works may be allowlisted by product policy later, but that should be explicit policy, not an inference from guild membership alone
+
+Good v0 uses for live recognition:
+
+- "now playing" hints on a live room or replay page
+- moderation and copyright review support
+- suggested replay metadata or chapter markers
+- candidate evidence for later segment or royalty review
+
+Important boundary:
+
+- ACRCloud recognition on a livestream should not automatically rewrite payout splits in real time in v0
+- recognition produces evidence and product metadata first; money-routing changes still require the later segment or replay-rights path
+- when ACRCloud produces a rights-relevant match, replay publication and rights-sensitive payout release should be delayed until Pirate platform review resolves the case
 
 ## Cancellation Behavior
 
@@ -267,6 +380,7 @@ Rules:
 - do not invent a separate live-ticket protocol in v0
 - if a livestream costs money, that should be represented through the existing listing/purchase/entitlement model
 - replay access may reuse the same entitlement or use a separate replay listing, depending on guild policy
+- if replay access is paid or otherwise entitlement-gated, the replay should be represented by a locked replay asset rather than a publicly readable payload
 - implementations should enforce a maximum room duration and auto-end stale rooms after an operational timeout, but the exact timeout is an implementation detail rather than a product field in v0
 - `participant_capacity`, when present, is enforced by room or broadcast control logic rather than by marketplace settlement
 
@@ -279,6 +393,7 @@ Recommended v0 interpretation:
 - a paid livestream sells access to a live-room entitlement
 - a paid replay sells access to a replay entitlement
 - the buyer-facing listing is still a normal marketplace listing even when the thing being unlocked is live-room access rather than a static asset payload
+- free replay may remain publicly playable, but paid replay should resolve to a locked replay asset delivered through the normal entitlement path
 
 This avoids a parallel live-commerce surface.
 

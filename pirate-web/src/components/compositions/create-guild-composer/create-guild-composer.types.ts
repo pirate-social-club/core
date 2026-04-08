@@ -6,14 +6,17 @@ export type NamespaceFamily = "hns" | "spaces";
 
 export type NamespaceImportStatus = "not_imported" | "pending" | "verified";
 
-export type NamespaceDelegationMode = "owner_managed" | "pirate_managed";
+export type HnsDelegationMode = "owner_managed" | "pirate_managed";
+
+export type SpacesHandleMode = "owner_managed" | "operator_brokered" | "attach_certificate";
 
 export interface NamespaceImportState {
   family?: NamespaceFamily;
   externalRoot?: string;
   importStatus?: NamespaceImportStatus;
   ownerLabel?: string;
-  delegationMode?: NamespaceDelegationMode;
+  hnsDelegationMode?: HnsDelegationMode;
+  spacesHandleMode?: SpacesHandleMode;
 }
 
 export interface CreateGuildComposerProps {

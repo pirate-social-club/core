@@ -7,6 +7,7 @@ Related docs:
 - [guild.md](./guild.md)
 - [artist-identity.md](./artist-identity.md)
 - [handles.md](./handles.md)
+- [namespace-root-control.md](./namespace-root-control.md)
 
 ## Purpose
 
@@ -27,6 +28,7 @@ This doc does not define:
 - the full create-guild API
 - the full resolver implementation details for HNS or Spaces
 - generalized DNS or wallet record formats
+- the audit-oriented evidence and capability transition model for root attachment; see [namespace-root-control.md](./namespace-root-control.md)
 
 ## Core Principle
 

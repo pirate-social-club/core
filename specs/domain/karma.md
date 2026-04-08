@@ -86,21 +86,23 @@ Directional weighting:
 
 Karma is only meaningful if it cannot be easily farmed.
 
-### Self Verification Requirement
+### Verification Requirement
 
 Only verified users may cast reputation-affecting votes.
 
 Rules:
 
-- voting on posts and comments requires `self_verification_state = verified`
+- voting on posts and comments requires `verification_capabilities.unique_human.state = verified` with `assurance_level = strong`
+- in v0, only the `self` provider satisfies `unique_human` at `strong` assurance; this may be extended to other providers if they prove equivalent uniqueness semantics
 - unverified users may view content but their interactions must not produce karma events
-- mock or dev-mode Self verification must never count toward karma, voting, or trust-sensitive actions outside local development
+- mock or dev-mode verification must never count toward karma, voting, or trust-sensitive actions outside local development
 
 ### Nullifier Uniqueness
 
 At the app layer, not only the contract layer:
 
 - one active `identity_nullifier_hash` may map to only one active `user_id`
+- the nullifier model currently depends on the `self` provider; if other providers later offer equivalent uniqueness primitives, the nullifier enforcement layer must be extended
 - if a user rotates wallets, the verified identity follows the `user_id`, not a fresh account
 - reverification updates the same user record
 - a duplicate nullifier attempting to create or attach to another `user_id` must be rejected or flagged for review
@@ -112,9 +114,9 @@ This is stronger than "wallet X verified." It ties the uniqueness proof to the u
 
 Karma anti-Sybil is enforced through multiple layers:
 
-- Self verification with nullifier uniqueness
+- identity verification with nullifier uniqueness (see [user.md](./user.md) under Verification Capabilities)
 - CAPTCHA or Turnstile on signup, handle claims, account recovery, and suspicious or rate-limited behavior
-- CAPTCHA or Turnstile must not be required for normal verified-user voting; Self verification is the voting gate
+- CAPTCHA or Turnstile must not be required for normal verified-user voting; identity verification is the voting gate
 - rate limits on voting, posting, and handle availability probes
 - account age and activity minimums for trust-sensitive actions
 - moderation adjustments and penalties
@@ -372,8 +374,8 @@ Only verified users may cast karma-affecting votes.
 
 Rules:
 
-- the voter must have `self_verification_state = verified`
-- the vote must come from a user with a valid nullifier mapping
+- the voter must have `verification_capabilities.unique_human.state = verified` with `assurance_level = strong`
+- the vote must come from a user with a valid nullifier mapping from a provider that satisfies `unique_human` at `strong` assurance
 - duplicate votes from the same nullifier mapping to different `user_id` values must be rejected
 - unverified users may browse and view content but their interactions must not produce karma events
 - downvotes should be subject to at least the same verification requirements as upvotes

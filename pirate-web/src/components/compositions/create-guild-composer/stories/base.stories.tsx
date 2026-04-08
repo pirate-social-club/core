@@ -18,7 +18,7 @@ const baseComposer: CreateGuildComposerProps = {
     externalRoot: ".american",
     importStatus: "verified",
     ownerLabel: "0x83c4...f91a",
-    delegationMode: "pirate_managed",
+    hnsDelegationMode: "pirate_managed",
   },
 };
 
@@ -59,7 +59,8 @@ export const SpacesImportPending: Story = {
         externalRoot: "@american",
         importStatus: "pending",
         ownerLabel: "pending proof",
-        delegationMode: "owner_managed",
+        hnsDelegationMode: "owner_managed",
+        spacesHandleMode: "owner_managed",
       }}
     />
   ),

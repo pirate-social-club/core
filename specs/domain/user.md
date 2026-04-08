@@ -66,9 +66,8 @@ Suggested v0 fields:
 - `user_id`
 - `primary_wallet_attachment_id` nullable
 - `verification_state`
-- `verification_provider` nullable
+- `capability_provider` nullable
 - `verification_capabilities`
-- `user_attestations` nullable
 - `verified_at` nullable
 - `date_of_birth` nullable
 - `age_at_verification` nullable
@@ -85,14 +84,12 @@ Suggested meanings:
   - `pending`
   - `verified`
   - `reverification_required`
-- `verification_provider`
+- `capability_provider`
   - `self`
   - `very`
-  - Which provider produced the current accepted verification. Null when `verification_state = unverified`.
+  - Convenience summary for the provider that produced the most recent accepted core capability set. Null when `verification_state = unverified`.
 - `verification_capabilities`
   - Structured per-capability derived state; see Verification Capabilities below.
-- `user_attestations`
-  - Durable provider-backed attestation inventory; see [attestations.md](./attestations.md)
 
 Notes:
 
@@ -102,8 +99,10 @@ Notes:
 - `verification_state` is a derived convenience summary, not the source of truth
 - `verification_capabilities` is the authoritative per-capability state used by gate evaluation, voting eligibility, and feature degradation; `verification_state` is a coarse summary of `verification_capabilities.unique_human`
 - `verification_capabilities` is also the v0 source of truth for eligible disclosed identity claims; see [identity-presentation.md](./identity-presentation.md)
-- `user_attestations` is the durable source layer for provider-backed facts that do not belong in the small core `verification_capabilities` read model
+- per-capability `provider` fields inside `verification_capabilities` are authoritative when different capabilities originate from different providers; `capability_provider` is only a convenience summary
+- `user_attestations` is the durable source layer for provider-backed facts that do not belong in the small core `verification_capabilities` read model, but it should be modeled as a related collection owned by [attestations.md](./attestations.md), not as an inline user-row column
 - `date_of_birth`, `age_at_verification`, `nationality`, and `identity_nullifier_hash` reflect the user's current accepted verified identity in v0
+- some sensitive verified-identity fields such as `date_of_birth`, `age_at_verification`, `identity_nullifier_hash`, and `verification_session_id` may remain server-side in v0 even when they exist on the canonical user model; public API schemas may expose only the derived or lower-sensitivity subset they need
 - `verification_session_id` points to the session that produced the current accepted verified identity
 - `age_at_verification` is intentionally stored in v0 to preserve the exact age that was proven at verification time, even though current age can later be recomputed from `date_of_birth`
 - `identity_nullifier_hash` is for uniqueness enforcement only; it must never be used as the seed for anonymous label derivation — see [guild.md](./guild.md) under Anonymous Subject Derivation
@@ -141,10 +140,10 @@ Each capability carries an `assurance_level`:
 
 Provider assurance matrix in v0:
 
-| Provider | `unique_human` | `age_over_18` | `nationality` |
-|---|---|---|---|
-| `self` | `strong` | `strong` | `strong` |
-| `very` | `basic` | — | — |
+| Provider | `unique_human` | `age_over_18` | `nationality` | `gender` |
+|---|---|---|---|---|
+| `self` | `strong` | `strong` | `strong` | `strong` |
+| `very` | `basic` | — | — | — |
 
 Gates may specify a `minimum_assurance_level`. A gate with `minimum_assurance_level = basic` accepts either provider. A gate with `minimum_assurance_level = strong` accepts only providers that satisfy the capability at `strong` assurance.
 

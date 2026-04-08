@@ -14,6 +14,8 @@ Related docs:
 - [../domain/handles.md](../domain/handles.md)
 - [../domain/post.md](../domain/post.md)
 - [../domain/livestream.md](../domain/livestream.md)
+- [../domain/replay.md](../domain/replay.md)
+- [../domain/live-segments.md](../domain/live-segments.md)
 - [../domain/karaoke.md](../domain/karaoke.md)
 - [../domain/performance.md](../domain/performance.md)
 - [../domain/asset.md](../domain/asset.md)
@@ -21,6 +23,7 @@ Related docs:
 - [../domain/marketplace.md](../domain/marketplace.md)
 - [../domain/monetization.md](../domain/monetization.md)
 - [../domain/royalty-graph.md](../domain/royalty-graph.md)
+- [../domain/rights-review.md](../domain/rights-review.md)
 - [../domain/karma.md](../domain/karma.md)
 - [../domain/scrobbles.md](../domain/scrobbles.md)
 - [../domain/questions.md](../domain/questions.md)
@@ -86,7 +89,7 @@ Interpretation:
 - `auth`
   Privy-backed auth bootstrap and Pirate app-session endpoints.
 - `verification`
-  Self verification and other proof-driven verification session flows.
+  Provider-driven verification session flows.
 - `onboarding`
   Generated `.pirate` handle, Reddit bootstrap, interest seeding, first-guild suggestions, and onboarding status.
 - `users`
@@ -94,7 +97,7 @@ Interpretation:
 - `profiles`
   Public/editable profile surface, including the active global `.pirate` identity.
 - `guilds`
-  Guild creation, settings, membership, gates, moderation roles, payout-policy selection, and creation-time policy selection.
+  Guild creation, settings, membership, gates, moderation roles, payout-policy selection, and creation-time community bootstrap such as flair, rules, and resource links.
 - `namespaces`
   Root attachment state, mirrors, delegation state, and namespace-level policy surfaces.
 - `handles`
@@ -242,7 +245,7 @@ Recommended v0 assumptions:
 - Pirate issues its own app session after Privy authentication succeeds
 - domain identity is `user_id`
 - wallet addresses are attachments, not canonical IDs
-- Self verification status is checked from Pirate's verification model
+- verification status is checked from Pirate's provider-neutral verification model
 
 Important rule:
 
@@ -254,9 +257,9 @@ The API should expose verification as explicit workflows, not hidden side effect
 
 Key v0 flows:
 
-- start Self verification
-- inspect Self verification session
-- complete or refresh Self verification state
+- start verification session
+- inspect verification session
+- complete or refresh verification state
 - start Reddit verification through onboarding or verification
 - check Reddit verification result
 - trigger Reddit snapshot import
@@ -269,7 +272,7 @@ Verification outcomes should be visible to the client as:
 
 Recommended v0 boundary:
 
-- Self verification sessions stay under the verification or user model
+- verification sessions stay under the verification or user model
 - Reddit bootstrap stays under onboarding, even if some endpoints are also grouped under verification in the API
 
 ## Async Job Model
@@ -346,14 +349,16 @@ Recommended API shape:
 2. prove root ownership
 3. choose namespace handle policy template or custom policy
 4. create guild, namespace, handle policy, and default karma policy together
-5. optionally enqueue artist metadata enrichment when the guild is artist-linked
-6. optionally attach delegation or governance later
+5. optionally include initial community bootstrap such as flair definitions, rules, and resource links
+6. optionally enqueue artist metadata enrichment when the guild is artist-linked
+7. optionally attach delegation or governance later
 
 Recommended v0 stance:
 
 - use one final `POST /guilds` write once prerequisites are satisfied
 - root-proof and validation steps may happen before that final write
 - v0 does not need a separate guild-creation session resource
+- community bootstrap belongs in that same final guild-creation write so the guild launches with usable defaults rather than an empty shell
 
 ### Handle Claim
 
@@ -393,20 +398,23 @@ Recommended v0 stance:
 
 Recommended API shape:
 
-1. authorized actor creates a `live_room` on web/app (control plane)
-2. Pirate creates or attaches the anchor post used for feed and discussion
-3. if the room is paid, the room references the active listing or later receives one
-4. host client (desktop or native) calls host-attach to receive broadcast credentials
-5. host starts the room, transitioning it from `scheduled` to `live`
-6. host or moderator ends or cancels the room
-7. replay linkage may be attached later without changing the room into a separate replay-only type
+1. authorized actor uses the composer on web/app to create a live-mode draft
+2. the create request includes room metadata plus the initial setlist payload
+3. Pirate creates the `live_room` and the anchor post together
+4. if the room is paid, the room references the active listing or later receives one
+5. host client (desktop or native) calls host-attach to receive broadcast credentials
+6. host starts the room, transitioning it from `scheduled` to `live`
+7. host or moderator ends or cancels the room
+8. replay linkage may be attached later without changing the room into a separate replay-only type
 
 Recommended v0 stance:
 
 - livestreams are first-class room objects, not `post_type` variants
 - the anchor post is the social container, not the source of truth for room lifecycle
 - paid live and replay access should reuse the normal listing and entitlement model
-- room creation and scheduling should happen on web/app control-plane surfaces first
+- room creation and scheduling should happen through the composer on web/app first
+- the backend create-room path should require an initial setlist payload
+- the backend create-room path should also require explicit performer allocations
 - desktop/native host clients should consume existing `live_room` state and host credentials rather than defining the canonical room object themselves
 - karaoke remains an asset capability rather than a sibling room family
 
@@ -435,6 +443,44 @@ Commerce fields moved off the room object:
 - old Pirate stored `live_amount`, `replay_amount`, `payment_asset`, `split_address`, `network` directly on the room
 - v2 moves all pricing and payout routing to `listing_id` and `replay_listing_id` on the room, with the actual commerce details on the listing
 - settlement tracking is a known deferred gap for live; v0 can rely on marketplace purchase and entitlement records
+
+### Live Setlists And Segments
+
+Recommended API shape:
+
+1. host creates the room with an initial setlist payload
+2. host may batch-edit, reorder, or add surprise songs while the room is live
+3. host starts and ends segments as songs change
+4. ACRCloud and replay analysis verify or discover songs after the fact
+5. Pirate reconciles declared setlist items with detected tracks
+6. replay publication waits until all relevant segments are sufficiently clear
+
+Recommended v0 stance:
+
+- an initial setlist should be present at room creation time
+- room start should require an active setlist
+- one room may contain many song segments
+- batch setlist updates are preferred to item-by-item CRUD
+- segment outcomes drive replay clearance, not just raw room state
+- setlist item authoring should default to canonical track search, with manual text entry only as fallback
+
+### Replay Read And Access
+
+Recommended API shape:
+
+1. client reads the room or anchor-post replay state after the room ends
+2. if replay is `processing`, client shows a replay-processing state
+3. if replay is `review_pending`, client shows an under-review state without exposing operator detail
+4. if replay is `published`, client inspects replay access
+5. if replay is free or included, client plays replay
+6. if replay is separately paid, client follows the replay listing and entitlement path
+
+Recommended v0 stance:
+
+- replay remains nested under the live-room surface rather than becoming a separate top-level family
+- the anchor post is still the main replay discovery surface
+- `replay_status` is the public-facing lifecycle signal
+- `replay_asset_id` alone does not imply public availability
 
 ### Post And Asset Creation
 
@@ -485,7 +531,7 @@ The API should make enforcement points explicit.
 
 ### Voting
 
-- voter must be Self-verified
+- voter must have `verification_capabilities.unique_human` at `strong` assurance
 - nullifier uniqueness must still be valid
 - rate limits and anti-abuse rules still apply
 - CAPTCHA must not be required for normal verified-user voting in v0

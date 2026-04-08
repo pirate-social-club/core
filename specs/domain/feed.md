@@ -6,6 +6,7 @@ Related docs:
 
 - [guild.md](./guild.md)
 - [post.md](./post.md)
+- [identity-presentation.md](./identity-presentation.md)
 - [asset.md](./asset.md)
 - [user.md](./user.md)
 - [karma.md](./karma.md)
@@ -109,6 +110,31 @@ Interpretation:
   Highest-performing posts within a selected time window
 - `new`
   Most recent posts first
+
+## Flair Filtering
+
+Guild feeds may optionally expose flair filtering when the guild has active flair definitions.
+
+Recommended v0 behavior:
+
+- flair filtering is available on guild-scoped feeds only
+- flair filtering does not apply to `Home` or `Your Guilds` in v0
+- the filter is single-select to match the one-flair-per-post model
+- the default state is unfiltered
+- selecting a flair narrows the guild feed to posts whose `flair_id` matches the selected definition
+
+Rules:
+
+- flair filtering happens during candidate eligibility or query construction before ranking, not as a client-only cosmetic filter after ranking
+- flair filters must ignore archived definitions for new selection UI unless the current route is explicitly resolving a historical archived flair page
+- replies should not participate in top-level guild flair filters unless Pirate later defines reply flair behavior
+- flair filtering must not change ranking formulas beyond narrowing the candidate set
+- flair labels in filter UI are rendered as the guild-authored canonical strings in v0; Pirate does not translate flair definitions as part of localized feed reads
+
+Product boundary:
+
+- flair is a guild-local navigation aid, not a platform-wide discovery primitive
+- Pirate should avoid building cross-guild flair browse pages until there is clear evidence of stable shared semantics
 
 ## Top Time Windows
 
@@ -226,6 +252,7 @@ Rules:
 Recommended localized feed fields:
 
 - `resolved_locale`
+- `translation_state`
 - `machine_translated`
 - `translated_body` nullable
 - `translated_caption` nullable
@@ -237,9 +264,14 @@ Canonical source metadata:
 
 Translation behavior:
 
-- eager-tier translations should be returned immediately when available
-- non-tier translations may resolve lazily on first read and then be cached
+- default-tier translations may be prewarmed asynchronously or resolved lazily on first read behind the same cache contract
+- non-tier translations should resolve lazily on first read and then be cached
 - if translation is unavailable or blocked by policy, the feed should fall back to canonical original text with `machine_translated = false`
+- `translation_state`
+  - `ready`
+  - `pending`
+  - `same_language`
+  - `policy_blocked`
 
 ## SSR Locale Contract
 
@@ -274,7 +306,8 @@ Anonymous identity rendering:
 - when a post is published under an anonymous identity layer, feeds must render the derived anonymous label as defined in [guild.md](./guild.md) under Anonymous Subject Derivation
 - anonymous posts must never fall back to the author's `.pirate` handle or guild-local handle, regardless of the feed surface
 - this applies to all feed surfaces including `Home`, `Your Guilds`, and guild-scoped feeds
-- for `anonymous_only` guilds, the anonymous label is the only permissible author identity in any feed context
+- for guilds with anonymous posting enabled, feeds must reflect the author's chosen identity mode for that post rather than forcing anonymous rendering at the guild level
+- if the post carries disclosed qualifier snapshots, feeds should render those same normalized qualifier pills adjacent to the author presentation surface rather than recomputing them from current verification state
 
 ## Pagination
 

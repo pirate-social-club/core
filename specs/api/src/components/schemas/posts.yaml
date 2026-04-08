@@ -8,9 +8,28 @@ CreatePostRequest:
   properties:
     guild_id:
       type: string
-    is_anonymous:
-      type: boolean
-      default: false
+    identity_mode:
+      type: string
+      enum:
+        - public
+        - anonymous
+      default: public
+    anonymous_scope:
+      type: string
+      enum:
+        - guild_stable
+        - thread_stable
+        - post_ephemeral
+      nullable: true
+      description: |
+        Required when `identity_mode = anonymous`. Must be null when `identity_mode = public`.
+    disclosed_qualifier_ids:
+      type: array
+      items:
+        type: string
+      nullable: true
+      description: |
+        Platform-defined `qualifier_template_id` values chosen by the author for this post. In v0 these are only valid when `identity_mode = anonymous`.
     parent_post_id:
       type: string
       nullable: true
@@ -80,7 +99,7 @@ Post:
   required:
     - post_id
     - guild_id
-    - is_anonymous
+    - identity_mode
     - post_type
     - status
     - analysis_state
@@ -98,10 +117,25 @@ Post:
       nullable: true
       description: |
         Public read models omit this field for anonymous posts. It remains present for non-anonymous posts and privileged internal reads.
-    is_anonymous:
-      type: boolean
+    identity_mode:
+      type: string
+      enum:
+        - public
+        - anonymous
+    anonymous_scope:
+      type: string
+      enum:
+        - guild_stable
+        - thread_stable
+        - post_ephemeral
+      nullable: true
     anonymous_label:
       type: string
+      nullable: true
+    disclosed_qualifiers_json:
+      type: array
+      items:
+        $ref: ./posts.yaml#/DisclosedQualifierSnapshot
       nullable: true
     flair_id:
       type: string
@@ -260,9 +294,31 @@ MediaDescriptor:
     duration_ms:
       type: integer
       nullable: true
-    width:
-      type: integer
+DisclosedQualifierSnapshot:
+  type: object
+  required:
+    - qualifier_template_id
+    - rendered_label
+    - qualifier_kind
+    - qualifier_source
+  properties:
+    qualifier_template_id:
+      type: string
+    rendered_label:
+      type: string
+    qualifier_kind:
+      type: string
+      enum:
+        - verification_capability
+        - provider_attestation
+    qualifier_source:
+      type: string
+    sensitivity_level:
+      type: string
+      enum:
+        - low
+        - high
       nullable: true
-    height:
-      type: integer
+    redundancy_key:
+      type: string
       nullable: true

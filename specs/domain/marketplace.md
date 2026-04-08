@@ -12,7 +12,9 @@ Related docs:
 - [donations.md](./donations.md)
 - [user.md](./user.md)
 - [livestream.md](./livestream.md)
+- [replay.md](./replay.md)
 - [karaoke.md](./karaoke.md)
+- [rights-review.md](./rights-review.md)
 
 ## Purpose
 
@@ -152,13 +154,13 @@ Reasoning:
 
 - cost of living differs substantially across markets
 - music guilds are global
-- Self-verified nationality gives Pirate a fairer and more abuse-resistant basis for pricing tiers than self-declared location
+- verified nationality gives Pirate a fairer and more abuse-resistant basis for pricing tiers than self-declared location
 
 Recommended v0 model:
 
 - list prices are authored as a base USD price
 - a listing may optionally attach a `regional_pricing_policy`
-- the buyer's effective USD quote is derived before settlement using the buyer's currently valid Self-backed pricing tier
+- the buyer's effective USD quote is derived before settlement using the buyer's currently valid verified pricing tier
 
 Important boundaries:
 
@@ -169,7 +171,7 @@ Important boundaries:
 Good defaults:
 
 - regional pricing is optional, not mandatory, in v0
-- tier derivation should come from current Self-backed pricing policy rather than ad hoc seller rules
+- tier derivation should come from current verification-backed pricing policy rather than ad hoc seller rules
 - guilds may later override pricing policy only when governance hardens enough to support it safely
 
 ## Pricing And Settlement
@@ -245,6 +247,11 @@ Rules:
 - no platform treasury should hold buyer funds pending manual release in v0
 - if a donation-enabled listing points to a paused or retired donation partner, the purchase must fail until the listing is refreshed or donation is disabled
 
+Exception for flagged live-rights cases:
+
+- if Pirate flags a live room or replay for manual rights review after ACRCloud analysis, rights-sensitive payout release may be delayed pending platform review resolution
+- this is a narrow compliance exception, not a general escrow model for all purchases
+
 This fits digital assets that deliver immediately after purchase.
 
 ## Delivery And Locked Assets
@@ -263,6 +270,7 @@ For live-room-targeted listings:
 
 - the entitlement unlocks room or replay access rather than a static downloadable payload
 - delivery is enforced through live-room join or replay-access checks rather than generic asset download delivery
+- when the purchased thing is a paid replay, the replay asset should be `access_mode = locked` and delivered through Pirate's CDR-compatible locked-asset path rather than a plain public media URL
 
 ## Sellability Rules
 

@@ -1679,6 +1679,8 @@ components:
           $ref: "#/components/schemas/OnboardingStatus"
     User:
       type: object
+      description: |
+        Public user read model. Sensitive verified-identity fields that may exist on the canonical user row, such as `date_of_birth`, `age_at_verification`, `identity_nullifier_hash`, and `verification_session_id`, are intentionally omitted from this schema in v0.
       required:
         - user_id
         - verification_state
@@ -1698,12 +1700,14 @@ components:
             - pending
             - verified
             - reverification_required
-        verification_provider:
+        capability_provider:
           type: string
           enum:
             - self
             - very
           nullable: true
+          description: |
+            Convenience summary for the provider that produced the most recent accepted core capability set. Per-capability `provider` fields inside `verification_capabilities` remain authoritative.
         verification_capabilities:
           $ref: "#/components/schemas/VerificationCapabilities"
         verified_at:
@@ -1713,6 +1717,7 @@ components:
         nationality:
           type: string
           nullable: true
+          description: ISO country code when the current accepted identity includes nationality
         created_at:
           type: string
           format: date-time
@@ -1725,6 +1730,7 @@ components:
         - unique_human
         - age_over_18
         - nationality
+        - gender
       properties:
         unique_human:
           $ref: "#/components/schemas/VerificationCapabilityState"
@@ -1739,6 +1745,18 @@ components:
               type: string
               nullable: true
               description: ISO country code when verified
+        gender:
+          allOf:
+            - $ref: "#/components/schemas/VerifiedCapabilityState"
+          type: object
+          properties:
+            value:
+              type: string
+              enum:
+                - M
+                - F
+              nullable: true
+              description: Verified gender value when disclosed by an eligible flow
     VerificationCapabilityState:
       type: object
       required:

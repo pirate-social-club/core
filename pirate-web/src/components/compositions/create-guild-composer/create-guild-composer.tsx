@@ -26,8 +26,10 @@ import type {
   GuildDefaultAgeGatePolicy,
   GuildGovernanceMode,
   GuildMembershipMode,
+  HnsDelegationMode,
   NamespaceFamily,
   NamespaceImportState,
+  SpacesHandleMode,
 } from "./create-guild-composer.types";
 
 const membershipMeta: Record<GuildMembershipMode, { label: string; icon: React.ReactNode }> = {
@@ -74,6 +76,32 @@ const namespaceFamilyMeta: Record<
     externalExample: "@kanye",
     detail: "Use a Spaces root like `@kanye` for `/g/@kanye` guild routes.",
     icon: <AtSign className="size-4" />,
+  },
+};
+
+const hnsDelegationMeta: Record<HnsDelegationMode, { label: string; detail: string }> = {
+  owner_managed: {
+    label: "Owner-managed",
+    detail: "You keep external issuance control. Pirate only verifies and resolves.",
+  },
+  pirate_managed: {
+    label: "Delegate DNS authority to Pirate",
+    detail: "Pirate can issue handles under this root. Revocable at any time.",
+  },
+};
+
+const spacesHandleMeta: Record<SpacesHandleMode, { label: string; detail: string }> = {
+  owner_managed: {
+    label: "Owner-managed",
+    detail: "Pirate verifies issued certificates and displays valid handles.",
+  },
+  operator_brokered: {
+    label: "Request through Pirate",
+    detail: "Pirate collects requests; operator issues certificates. Handles go live after verification.",
+  },
+  attach_certificate: {
+    label: "Attach issued certificate",
+    detail: "Users attach existing subspace certificates. Pirate verifies before activation.",
   },
 };
 
@@ -151,6 +179,42 @@ function Segmented<T extends string>({
   );
 }
 
+function RadioCard<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: Record<T, { label: string; detail: string }>;
+  value: T;
+  onChange: (next: T) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      {(Object.keys(options) as T[]).map((key) => {
+        const option = options[key];
+        const active = key === value;
+
+        return (
+          <button
+            key={key}
+            className={cn(
+              "w-full rounded-[var(--radius-lg)] border px-4 py-3 text-left transition-colors",
+              active
+                ? "border-primary bg-primary/5"
+                : "border-border-soft bg-background hover:border-foreground/20",
+            )}
+            onClick={() => onChange(key)}
+            type="button"
+          >
+            <p className="text-sm font-semibold text-foreground">{option.label}</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">{option.detail}</p>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function NamespaceChoice({
   family,
   active,
@@ -191,12 +255,13 @@ function NamespaceChoice({
   );
 }
 
-function NamespaceStatus({
+function HnsNamespaceStatus({
   namespace,
+  onVerify,
 }: {
   namespace: NamespaceImportState;
+  onVerify: () => void;
 }) {
-  const familyLabel = namespace.family === "spaces" ? "Spaces" : "Handshake";
   const statusTone =
     namespace.importStatus === "verified"
       ? "bg-emerald-500/10 text-emerald-700"
@@ -209,11 +274,11 @@ function NamespaceStatus({
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-foreground">
-            {familyLabel}
+            Handshake
           </span>
           <span className={cn("rounded-full px-2.5 py-1 text-xs font-semibold", statusTone)}>
             {namespace.importStatus === "verified"
-              ? "Ownership verified"
+              ? "Root control verified"
               : namespace.importStatus === "pending"
                 ? "Verification pending"
                 : "Not imported"}
@@ -222,12 +287,71 @@ function NamespaceStatus({
         <p className="text-sm text-foreground">{namespace.externalRoot}</p>
         <p className="text-sm text-muted-foreground">Owner: {namespace.ownerLabel}</p>
         <p className="text-sm text-muted-foreground">
-          {namespace.delegationMode === "pirate_managed"
+          {namespace.hnsDelegationMode === "pirate_managed"
             ? "Pirate can issue handles under this root."
             : "Owner keeps external issuance control."}
         </p>
       </div>
-      <Button size="sm">Verify ownership</Button>
+      {namespace.importStatus !== "verified" ? (
+        <Button onClick={onVerify} size="sm">
+          Verify root control
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+function SpacesNamespaceStatus({
+  namespace,
+  onVerify,
+}: {
+  namespace: NamespaceImportState;
+  onVerify: () => void;
+}) {
+  const statusTone =
+    namespace.importStatus === "verified"
+      ? "bg-emerald-500/10 text-emerald-700"
+      : namespace.importStatus === "pending"
+        ? "bg-amber-500/10 text-amber-700"
+        : "bg-muted text-muted-foreground";
+
+  const rootLabel = namespace.externalRoot?.replace(/^@/, "") ?? "";
+  const route = `/g/@${rootLabel}`;
+  const handleFormat = `name@${rootLabel}`;
+
+  return (
+    <div className="grid gap-3 rounded-[var(--radius-lg)] border border-border-soft bg-background px-4 py-4 md:grid-cols-[1fr_auto] md:items-center">
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-foreground">
+            Spaces
+          </span>
+          <span className={cn("rounded-full px-2.5 py-1 text-xs font-semibold", statusTone)}>
+            {namespace.importStatus === "verified"
+              ? "Root key proof verified"
+              : namespace.importStatus === "pending"
+                ? "Verification pending"
+                : "Not imported"}
+          </span>
+        </div>
+        <p className="text-sm text-foreground">{namespace.externalRoot}</p>
+        <p className="text-sm text-muted-foreground">
+          Route: <span className="font-mono text-foreground">{route}</span>
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Handles: <span className="font-mono text-foreground">{handleFormat}</span>
+        </p>
+        {namespace.importStatus === "verified" ? (
+          <p className="text-sm text-muted-foreground">
+            Certificates required for {namespace.externalRoot} handles
+          </p>
+        ) : null}
+      </div>
+      {namespace.importStatus !== "verified" ? (
+        <Button onClick={onVerify} size="sm">
+          Verify root control
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -246,9 +370,10 @@ export function CreateGuildComposer({
   const initialNamespace = namespace ?? {
     family: "hns",
     externalRoot: ".american",
-    importStatus: "verified",
-    ownerLabel: "0x83c4...f91a",
-    delegationMode: "pirate_managed",
+    importStatus: "not_imported",
+    ownerLabel: "",
+    hnsDelegationMode: "owner_managed",
+    spacesHandleMode: "owner_managed",
   };
 
   const [activeMembershipMode, setActiveMembershipMode] =
@@ -262,6 +387,13 @@ export function CreateGuildComposer({
   const [activeNamespaceFamily, setActiveNamespaceFamily] = React.useState<NamespaceFamily>(
     initialNamespace.family ?? "hns",
   );
+  const [activeHnsDelegationMode, setActiveHnsDelegationMode] =
+    React.useState<HnsDelegationMode>(initialNamespace.hnsDelegationMode ?? "owner_managed");
+  const [activeSpacesHandleMode, setActiveSpacesHandleMode] =
+    React.useState<SpacesHandleMode>(initialNamespace.spacesHandleMode ?? "owner_managed");
+  const [rootInput, setRootInput] = React.useState(initialNamespace.externalRoot ?? "");
+  const [namespaceImportStatus, setNamespaceImportStatus] =
+    React.useState(initialNamespace.importStatus ?? "not_imported");
 
   React.useEffect(() => {
     setActiveMembershipMode(membershipMode);
@@ -285,14 +417,31 @@ export function CreateGuildComposer({
 
   const namespaceMeta = namespaceFamilyMeta[activeNamespaceFamily];
   const derivedRoot = activeNamespaceFamily === "hns" ? ".american" : "@american";
+  const displayRoot = rootInput || derivedRoot;
+  const rootLabel = displayRoot.replace(/^[@.]/, "");
+  const guildRoute =
+    activeNamespaceFamily === "hns" ? `/g/${rootLabel}` : `/g/@${rootLabel}`;
+  const handleFormat =
+    activeNamespaceFamily === "hns" ? `name.${rootLabel}` : `name@${rootLabel}`;
+
+  const handleVerify = React.useCallback(() => {
+    setNamespaceImportStatus("pending");
+    setTimeout(() => setNamespaceImportStatus("verified"), 1500);
+  }, []);
+
+  const handleFamilyChange = React.useCallback((family: NamespaceFamily) => {
+    setActiveNamespaceFamily(family);
+    setNamespaceImportStatus("not_imported");
+    setRootInput(family === "hns" ? ".american" : "@american");
+  }, []);
 
   const namespaceState: NamespaceImportState = {
     ...initialNamespace,
     family: activeNamespaceFamily,
-    externalRoot:
-      initialNamespace.family === activeNamespaceFamily
-        ? initialNamespace.externalRoot
-        : derivedRoot,
+    externalRoot: displayRoot,
+    importStatus: namespaceImportStatus,
+    hnsDelegationMode: activeHnsDelegationMode,
+    spacesHandleMode: activeSpacesHandleMode,
   };
 
   return (
@@ -315,46 +464,26 @@ export function CreateGuildComposer({
               Guild setup
             </p>
             <p className="text-sm text-muted-foreground">
-              Choose the root family, check the root, prove control, then finish policy.
+              Choose the root family, verify control, then finish policy.
             </p>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-4 p-5">
-          <section className="grid gap-4">
-            <div>
-              <FieldLabel label="Display name" />
-              <Input
-                className="h-12 rounded-[var(--radius-lg)]"
-                defaultValue={displayName}
-                placeholder="Guild name"
-              />
-            </div>
-
-            <div>
-              <FieldLabel label="Description" />
-              <Textarea
-                className="min-h-24"
-                defaultValue={description}
-                placeholder="What is this guild for?"
-              />
-            </div>
-          </section>
-
           <Section
             hint="Pick Handshake or Spaces, enter the root you control, then prove ownership before creation."
-            title="1. Namespace import"
+            title="1. Namespace"
           >
             <div className="grid gap-3 md:grid-cols-2">
               <NamespaceChoice
                 active={activeNamespaceFamily === "hns"}
                 family="hns"
-                onClick={() => setActiveNamespaceFamily("hns")}
+                onClick={() => handleFamilyChange("hns")}
               />
               <NamespaceChoice
                 active={activeNamespaceFamily === "spaces"}
                 family="spaces"
-                onClick={() => setActiveNamespaceFamily("spaces")}
+                onClick={() => handleFamilyChange("spaces")}
               />
             </div>
 
@@ -367,101 +496,170 @@ export function CreateGuildComposer({
                 />
                 <Input
                   className="h-12 rounded-[var(--radius-lg)]"
-                  defaultValue={namespaceState.externalRoot}
+                  onChange={(e) => setRootInput(e.target.value)}
                   placeholder={namespaceMeta.externalExample}
+                  value={displayRoot}
                 />
               </div>
               <Button className="h-12 px-5" variant="secondary">
-                Check {namespaceMeta.label}
+                {namespaceImportStatus === "not_imported"
+                  ? `Check ${namespaceMeta.label}`
+                  : namespaceImportStatus === "pending"
+                    ? "Checking..."
+                    : `Re-check ${namespaceMeta.label}`}
               </Button>
             </div>
 
-            <NamespaceStatus namespace={namespaceState} />
+            {activeNamespaceFamily === "hns" ? (
+              <HnsNamespaceStatus namespace={namespaceState} onVerify={handleVerify} />
+            ) : (
+              <SpacesNamespaceStatus namespace={namespaceState} onVerify={handleVerify} />
+            )}
+
+            {activeNamespaceFamily === "spaces" ? (
+              <p className="text-sm text-muted-foreground">
+                Spaces roots are separate from Handshake roots.
+              </p>
+            ) : null}
           </Section>
 
-          <Section hint="The rest should stay terse." title="2. Policy">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <FieldLabel label="Membership" />
-                <Segmented
-                  onChange={setActiveMembershipMode}
-                  options={membershipMeta}
-                  value={activeMembershipMode}
-                />
-              </div>
+          {namespaceImportStatus === "verified" ? (
+            <>
+              <Section title="2. Guild basics">
+                <div className="grid gap-4">
+                  <div>
+                    <FieldLabel label="Display name" />
+                    <Input
+                      className="h-12 rounded-[var(--radius-lg)]"
+                      defaultValue={displayName}
+                      placeholder="Guild name"
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <FieldLabel label="Posting identity" />
-                <div className="flex items-start gap-3 rounded-[var(--radius-lg)] border border-border-soft bg-background px-4 py-3">
-                  <Checkbox
-                    checked={activeAllowAnonymousIdentity}
-                    className="mt-0.5"
-                    id="guild-allow-anonymous-posting"
-                    onCheckedChange={(next) => setActiveAllowAnonymousIdentity(next === true)}
-                  />
-                  <div className="space-y-1">
-                    <Label htmlFor="guild-allow-anonymous-posting">Allow anonymous posting</Label>
-                    <p className="text-sm text-muted-foreground">
-                      {activeAllowAnonymousIdentity
-                        ? anonymousIdentityMeta.enabled.detail
-                        : anonymousIdentityMeta.disabled.detail}
-                    </p>
+                  <div>
+                    <FieldLabel label="Description" />
+                    <Textarea
+                      className="min-h-24"
+                      defaultValue={description}
+                      placeholder="What is this guild for?"
+                    />
                   </div>
                 </div>
-              </div>
+              </Section>
 
-              <div className="space-y-2">
-                <FieldLabel label="Audience age gate" />
-                <div className="flex items-start gap-3 rounded-[var(--radius-lg)] border border-border-soft bg-background px-4 py-3">
-                  <Checkbox
-                    checked={activeDefaultAgeGatePolicy === "18_plus"}
-                    className="mt-0.5"
-                    id="guild-18-plus-community"
-                    onCheckedChange={(next) =>
-                      setActiveDefaultAgeGatePolicy(next === true ? "18_plus" : "none")
-                    }
+              {activeNamespaceFamily === "spaces" ? (
+                <Section
+                  hint="How handles under this root get issued and verified."
+                  title="Subspace handle setup"
+                >
+                  <RadioCard
+                    onChange={setActiveSpacesHandleMode}
+                    options={spacesHandleMeta}
+                    value={activeSpacesHandleMode}
                   />
-                  <div className="space-y-1">
-                    <Label htmlFor="guild-18-plus-community">18+ community</Label>
-                    <p className="text-sm text-muted-foreground">
-                      {ageGateMeta[activeDefaultAgeGatePolicy].detail}
-                    </p>
+                </Section>
+              ) : null}
+
+              {activeNamespaceFamily === "hns" ? (
+                <Section
+                  hint="Whether Pirate issues handles under this root or you keep issuance control."
+                  title="DNS authority"
+                >
+                  <RadioCard
+                    onChange={setActiveHnsDelegationMode}
+                    options={hnsDelegationMeta}
+                    value={activeHnsDelegationMode}
+                  />
+                </Section>
+              ) : null}
+
+              <Section hint="The rest should stay terse." title="3. Policy">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <FieldLabel label="Membership" />
+                    <Segmented
+                      onChange={setActiveMembershipMode}
+                      options={membershipMeta}
+                      value={activeMembershipMode}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <FieldLabel label="Posting identity" />
+                    <div className="flex items-start gap-3 rounded-[var(--radius-lg)] border border-border-soft bg-background px-4 py-3">
+                      <Checkbox
+                        checked={activeAllowAnonymousIdentity}
+                        className="mt-0.5"
+                        id="guild-allow-anonymous-posting"
+                        onCheckedChange={(next) => setActiveAllowAnonymousIdentity(next === true)}
+                      />
+                      <div className="space-y-1">
+                        <Label htmlFor="guild-allow-anonymous-posting">Allow anonymous posting</Label>
+                        <p className="text-sm text-muted-foreground">
+                          {activeAllowAnonymousIdentity
+                            ? anonymousIdentityMeta.enabled.detail
+                            : anonymousIdentityMeta.disabled.detail}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <FieldLabel label="Audience age gate" />
+                    <div className="flex items-start gap-3 rounded-[var(--radius-lg)] border border-border-soft bg-background px-4 py-3">
+                      <Checkbox
+                        checked={activeDefaultAgeGatePolicy === "18_plus"}
+                        className="mt-0.5"
+                        id="guild-18-plus-community"
+                        onCheckedChange={(next) =>
+                          setActiveDefaultAgeGatePolicy(next === true ? "18_plus" : "none")
+                        }
+                      />
+                      <div className="space-y-1">
+                        <Label htmlFor="guild-18-plus-community">18+ community</Label>
+                        <p className="text-sm text-muted-foreground">
+                          {ageGateMeta[activeDefaultAgeGatePolicy].detail}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </Section>
+              </Section>
 
-          <section className="grid gap-4 md:grid-cols-[1fr_1fr]">
-            <Section title="3. Governance">
-              <Segmented
-                columns={3}
-                onChange={setActiveGovernanceMode}
-                options={governanceMeta}
-                value={activeGovernanceMode}
-              />
-            </Section>
+              <section className="grid gap-4 md:grid-cols-[1fr_1fr]">
+                <Section title="4. Governance">
+                  <Segmented
+                    columns={3}
+                    onChange={setActiveGovernanceMode}
+                    options={governanceMeta}
+                    value={activeGovernanceMode}
+                  />
+                </Section>
 
-            <Section title="Optional">
-              <div className="space-y-2">
-                <FieldLabel label="Endaoment URL" />
-                <Input
-                  className="h-12 rounded-[var(--radius-lg)]"
-                  defaultValue={endaomentUrl}
-                  placeholder="https://app.endaoment.org/orgs/..."
-                />
-                <p className="text-sm text-muted-foreground">
-                  Optional. Used when the guild routes creator donations through an approved Endaoment beneficiary.
-                </p>
-              </div>
-            </Section>
-          </section>
+                <Section title="Optional">
+                  <div className="space-y-2">
+                    <FieldLabel label="Endaoment URL" />
+                    <Input
+                      className="h-12 rounded-[var(--radius-lg)]"
+                      defaultValue={endaomentUrl}
+                      placeholder="https://app.endaoment.org/orgs/..."
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Optional. Used when the guild routes creator donations through an approved Endaoment beneficiary.
+                    </p>
+                  </div>
+                </Section>
+              </section>
+            </>
+          ) : null}
         </CardContent>
 
-        <CardFooter className="justify-end gap-3 border-t border-border-soft p-5">
-          <Button variant="secondary">Save Draft</Button>
-          <Button>Create Guild</Button>
-        </CardFooter>
+        {namespaceImportStatus === "verified" ? (
+          <CardFooter className="justify-end gap-3 border-t border-border-soft p-5">
+            <Button variant="secondary">Save Draft</Button>
+            <Button>Create Guild</Button>
+          </CardFooter>
+        ) : null}
       </Card>
     </div>
   );

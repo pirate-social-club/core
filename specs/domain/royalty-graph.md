@@ -9,6 +9,7 @@ Related docs:
 - [marketplace.md](./marketplace.md)
 - [monetization.md](./monetization.md)
 - [donations.md](./donations.md)
+- [rights-review.md](./rights-review.md)
 
 ## Purpose
 

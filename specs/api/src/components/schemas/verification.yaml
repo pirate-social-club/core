@@ -4,6 +4,7 @@ VerificationCapabilities:
     - unique_human
     - age_over_18
     - nationality
+    - gender
   properties:
     unique_human:
       $ref: ./verification.yaml#/VerificationCapabilityState
@@ -18,6 +19,18 @@ VerificationCapabilities:
           type: string
           nullable: true
           description: ISO country code when verified
+    gender:
+      allOf:
+        - $ref: ./verification.yaml#/VerifiedCapabilityState
+      type: object
+      properties:
+        value:
+          type: string
+          enum:
+            - M
+            - F
+          nullable: true
+          description: Verified gender value when disclosed by an eligible flow
 VerificationCapabilityState:
   type: object
   required:

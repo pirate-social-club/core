@@ -11,6 +11,8 @@ Related docs:
 - [marketplace.md](./marketplace.md)
 - [donations.md](./donations.md)
 - [livestream.md](./livestream.md)
+- [replay.md](./replay.md)
+- [rights-review.md](./rights-review.md)
 
 ## Purpose
 
@@ -187,6 +189,30 @@ Recommended v0 order:
 7. remaining creator payout is delivered
 
 This keeps upstream obligations ahead of guild/platform economics.
+
+## Livestream Revenue Boundary
+
+Livestream access sales follow the same payout waterfall, but room access and performer settlement should not be conflated.
+
+Recommended v0 rule:
+
+- a paid `live_room` listing sells access to the room or replay
+- sale proceeds follow the active guild payout policy
+- performer-side proceeds should then be split according to the room's explicit performer allocations
+
+Interpretation:
+
+- `solo` and `duet` rooms still settle through the room listing plus the guild payout policy first
+- performer allocations only divide the performer-side proceeds after upstream, guild, and platform obligations have been resolved
+- if a creator-side donation sidecar is enabled on a live or replay listing, it should reduce the performer-side pool before the final performer allocation split, unless later policy explicitly chooses a different ordering
+- song-specific live splits still require a later segment or replay-rights model
+- ACRCloud recognition on the live mix or replay may produce evidence for later rights or payout review, but it must not auto-rewrite the live settlement waterfall in real time in v0
+
+Rights-review hold:
+
+- if a room or replay triggers an ACRCloud match that Pirate treats as rights-relevant, creator or guild-side payout distribution should enter a pending rights-review hold
+- in v0, the Pirate platform operator is the review authority that releases, reroutes, or blocks those held payouts
+- guild owners, TLD owners, or performers may provide evidence, but they are not the final release authority for flagged third-party rights cases
 
 ## Guild Treasury Control
 

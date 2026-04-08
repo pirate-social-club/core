@@ -5,6 +5,7 @@ Status: draft
 Related docs:
 
 - [livestream.md](./livestream.md)
+- [live-segments.md](./live-segments.md)
 - [guild.md](./guild.md)
 - [marketplace.md](./marketplace.md)
 
@@ -17,6 +18,8 @@ It covers:
 - performer collaboration versus audience delivery
 - desktop host tooling
 - JackTrip's role relative to Agora
+- solo-host versus multi-performer boundaries
+- live recognition boundaries
 
 ## Core Principle
 
@@ -81,6 +84,18 @@ Recommended v0 interpretation:
 - JackTrip is not the viewer-facing streaming rail
 - Pirate may attach a JackTrip-backed performance session to a `live_room`, but the audience still watches through Agora or replay surfaces
 
+## Solo Host Boundary
+
+Desktop/native host tooling should be optional for solo rooms.
+
+Recommended v0 rule:
+
+- a `solo` room may be created on web/app and hosted entirely through a web host console
+- desktop becomes optional for solo rooms, useful when the host wants better audio routing, monitoring, or native device control
+- desktop becomes much more important when multiple performers need low-latency collaboration
+
+This keeps GPUI focused on performance quality rather than making it a mandatory authoring surface.
+
 ## Suggested Flow
 
 For multi-musician performance:
@@ -109,7 +124,7 @@ Old Pirate supports a duet guest flow:
 
 v2 should model this with:
 
-- `room_kind` on the `live_room` object (`solo`, `duet`, `open_jam`)
+- `room_kind` on the `live_room` object (`solo`, `duet`)
 - `guest_user_id` nullable on the room for duet rooms
 - a `POST /live-rooms/{live_room_id}/guest-attach` endpoint that issues guest credentials analogous to host-attach
 - invitation and acceptance as control-plane operations (web/app), not performance-plane plumbing
@@ -125,7 +140,30 @@ Recommended v0 guest flow:
 
 This preserves the old Pirate capability without letting the performance plane author room metadata.
 
-## Deferred: Per-Segment Pricing And Rights
+Structured-room boundary:
+
+- v0 should support `solo` and `duet` only
+- `open_jam` is intentionally excluded from v0 because open-ended participant rosters create ambiguous rights and payout state
+- every room must have explicit performer allocations before it can go live
+
+## Recognition And Recording Boundary
+
+Live music recognition should attach to the mixed output, not to the room-control object itself.
+
+Recommended v0 split:
+
+- room creation, scheduling, and host-attach do not depend on recognition
+- ACRCloud may analyze short samples from the live mix or the generated replay asset asynchronously
+- recognition results should feed product metadata, moderation review, and later royalty evidence rather than immediate live-control decisions
+
+Examples:
+
+- current-song hints during a stream
+- replay chapter suggestions
+- candidate song references for later segment declaration
+- moderation evidence for copyrighted playback
+
+## Live Segments
 
 Old Pirate has a rich segment model for DJ-set economics:
 
@@ -134,15 +172,33 @@ Old Pirate has a rich segment model for DJ-set economics:
 - `/live/:id/segments/start` creates a new segment mid-stream
 - segments support split routing, upstream BPS, and derivative-rights declarations
 
-This is real product value for DJ sets and hosted performances with multiple payout recipients.
+This is core product value for music performances where one room contains many songs.
 
-v2 defers segments to a later pass. The baseline `live_room` shape does not include segment fields. When segments are added, they should be:
+Recommended v0 rule:
+
+- segments should be modeled as a child resource under the `live_room`
+- rooms should not go live without an active setlist
+- host-declared setlists define intent; ACRCloud verifies and gap-fills
+- replay publication depends on segment reconciliation outcomes
+
+When segments are implemented, they should be:
 
 - modeled as a child resource under the `live_room`, not inline fields
 - authored through performance-plane endpoints, not the control-plane create-room flow
 - resolved against the existing marketplace royalty-graph for rights attestation
 
-This deferral is acknowledged so the capability is not silently lost.
+Until that exists:
+
+- paid room access follows the room listing and guild payout policy
+- ACRCloud recognition may suggest candidate songs or segments, but it does not by itself create enforceable payout splits
+
+Likely later extension:
+
+- hosts may predeclare songs or set segments at room creation time or host-attach time
+- declared songs would create candidate upstream references before playback begins
+- ACRCloud on the live mix or replay would then act more as verification and gap-filling than pure discovery
+
+This keeps room authoring simple while giving live music a real song-level model.
 
 ## Open Questions
 

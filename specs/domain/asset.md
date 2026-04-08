@@ -11,7 +11,9 @@ Related docs:
 - [monetization.md](./monetization.md)
 - [marketplace.md](./marketplace.md)
 - [donations.md](./donations.md)
+- [replay.md](./replay.md)
 - [karaoke.md](./karaoke.md)
+- [rights-review.md](./rights-review.md)
 
 ## Purpose
 
