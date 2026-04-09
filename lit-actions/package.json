@@ -1,0 +1,9 @@
+{
+  "name": "pirate-v2-lit-actions",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "dependencies": {
+    "ethers": "6.16.0"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "@pirate/specs-api",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "split": "bun scripts/split-openapi.ts",
+    "bundle": "bun scripts/bundle-openapi.ts",
+    "verify": "bun scripts/verify-openapi.ts"
+  },
+  "devDependencies": {
+    "bun-types": "latest",
+    "yaml": "^2.8.1"
+  }
+}

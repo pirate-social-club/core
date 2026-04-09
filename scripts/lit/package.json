@@ -1,0 +1,9 @@
+{
+  "name": "pirate-v2-lit-scripts",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "dependencies": {
+    "ipfs-only-hash": "4.0.0"
+  }
+}
