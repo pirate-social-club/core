@@ -5,7 +5,7 @@ Status: draft
 Related docs:
 
 - [artist-identity.md](./artist-identity.md)
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [asset.md](./asset.md)
 - [scrobbles.md](./scrobbles.md)
 - [questions.md](./questions.md)
@@ -45,9 +45,9 @@ The catalog should be good enough to support:
 - day-one artist club pages
 - day-one question generation
 
-without blocking club creation on large background imports.
+without blocking community creation on large background imports.
 
-## Artist-Linked Clubs
+## Artist-Linked Communities
 
 An artist-linked club is any club with:
 
@@ -119,13 +119,12 @@ Suggested v0 track fields:
 - `recording_mbid` nullable
 - `story_ip_id` nullable
 - `asset_id` nullable
-- `club_id` nullable
+- `community_id` nullable
 - `publisher_ref` nullable
 - `title`
 - `artist_display_name`
 - `album` nullable
 - `duration_ms` nullable
-- `audio_fingerprint_ref` nullable
 - `cover_ref` nullable
 - `lyrics_ref` nullable
 - `genius_song_id` nullable
@@ -153,15 +152,14 @@ Rules:
 - a Pirate-published song asset may still map to a Story-IP-backed track identity when MBID is absent
 - unknown or unresolved tracks may fall back to metadata-hash identity without blocking use
 - `artist_display_name` is a denormalized display convenience for product read surfaces
-- `audio_fingerprint_ref` is optional reconciliation support, not canonical identity
 
 Implementation note:
 
 - `artist_identity_ids_json` is acceptable as a directional v0 spec shortcut, but the eventual implementation should prefer a join table such as `track_artists` rather than a permanent JSON-array dependency
 
-## Club-Creation Bootstrap
+## Community-Creation Bootstrap
 
-Artist-linked club creation should enqueue an artist metadata enrichment job.
+Artist-linked community creation should enqueue an artist metadata enrichment job.
 
 Recommended v0 behavior:
 
@@ -179,7 +177,7 @@ The enrichment job may then:
 - fetch a first-pass known track list
 - pre-register known tracks into Pirate's track table
 
-This gives artist clubs better day-one scrobble and question-generation UX without making club creation fragile.
+This gives artist communities better day-one scrobble and question-generation UX without making community creation fragile.
 
 ## Pre-Registration vs Lazy Registration
 
@@ -189,7 +187,7 @@ Pirate should support both.
 
 Good for:
 
-- artist-linked clubs
+- artist-linked communities
 - high-signal top tracks
 - canonical song pages
 - better early question generation
@@ -208,6 +206,21 @@ Recommended v0 rule:
 - pre-register what Pirate knows with high confidence
 - lazily register the rest on demand
 
+## Track Registration State
+
+A track may exist offchain before it is registered onchain.
+
+The registration gap has two distinct causes:
+
+- `awaiting_track_metadata`
+  - the track lacks sufficient identity metadata for onchain registration
+  - enrichment jobs such as `artist_metadata_enrichment` fill this gap
+- `awaiting_track_registration`
+  - the track has sufficient metadata but has not yet been registered onchain
+  - the anchor worker or `catalog_track_preregistration` job handles this gap
+
+Global onchain track registration state is managed centrally, even for community-associated tracks. `ScrobbleV1` has a single global track registry, not per-community registries.
+
 ## Question Generation Support
 
 The artist catalog should be useful for question generation.
@@ -221,7 +234,7 @@ Good question-generation inputs include:
 - known tracks with MBIDs
 - club-linked reference links
 
-This is why artist-catalog enrichment is worth running at club creation time for artist-linked clubs.
+This is why artist-catalog enrichment is worth running at community creation time for artist-linked communities.
 
 ## API And Job Implications
 
@@ -241,5 +254,5 @@ Likely API surfaces:
 ## Open Questions
 
 - What minimum confidence is required before a metadata-hash track is upgraded to an MBID-backed identity?
-- Should Pirate pre-register only top tracks for artist-linked clubs, or a broader catalog slice?
+- Should Pirate pre-register only top tracks for artist-linked communities, or a broader catalog slice?
 - When MusicBrainz and Genius disagree on naming, which fields become public display defaults versus internal enrichment only?

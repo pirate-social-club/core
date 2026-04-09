@@ -27,7 +27,7 @@ FeedItem:
     post:
       $ref: ./posts.yaml#/Post
     flair:
-      $ref: ./clubs-community.yaml#/PostFlair
+      $ref: ./communities-community.yaml#/PostFlair
       nullable: true
     upvote_count:
       type: integer

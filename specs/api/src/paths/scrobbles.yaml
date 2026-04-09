@@ -3,6 +3,7 @@ scrobbles:
     tags:
       - Scrobbles
     summary: Submit a scrobble
+    description: Scrobble accepted for async anchoring.
     requestBody:
       required: true
       content:
@@ -10,8 +11,8 @@ scrobbles:
           schema:
             $ref: ../components/schemas/scrobbles.yaml#/CreateScrobbleRequest
     responses:
-      "201":
-        description: Scrobble accepted
+      "202":
+        description: Scrobble accepted for async anchoring
         content:
           application/json:
             schema:
@@ -29,6 +30,19 @@ users_by_user_id_scrobbles:
       - $ref: ../components/parameters.yaml#/UserId
       - $ref: ../components/parameters.yaml#/Cursor
       - $ref: ../components/parameters.yaml#/Limit
+      - name: anchor_status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+            - queued
+            - awaiting_wallet
+            - awaiting_track
+            - anchoring
+            - anchored
+            - failed
+            - suppressed
     responses:
       "200":
         description: Scrobbles
@@ -46,6 +60,44 @@ users_by_user_id_scrobbles:
                 next_cursor:
                   type: string
                   nullable: true
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+scrobbles_batch:
+  post:
+    tags:
+      - Scrobbles
+    summary: Submit a batch of scrobbles
+    description: Trusted/internal endpoint for bulk scrobble ingestion.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - items
+            properties:
+              items:
+                type: array
+                maxItems: 200
+                items:
+                  $ref: ../components/schemas/scrobbles.yaml#/CreateScrobbleRequest
+    responses:
+      "202":
+        description: Batch accepted for async anchoring
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - items
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: ../components/schemas/scrobbles.yaml#/Scrobble
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "429":

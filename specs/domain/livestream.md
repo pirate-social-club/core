@@ -4,8 +4,9 @@ Status: draft
 
 Related docs:
 
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [post.md](./post.md)
+- [live-access-runtime.md](./live-access-runtime.md)
 - [marketplace.md](./marketplace.md)
 - [monetization.md](./monetization.md)
 - [donations.md](./donations.md)
@@ -59,7 +60,7 @@ Recommended v0 split:
 
 - web/app composer owns control-plane authoring for the room
 - desktop or host tooling may attach to an existing room as the host client
-- the control plane remains the source of truth for title, schedule, anchor post, listing, and donation/club policy
+- the control plane remains the source of truth for title, schedule, anchor post, listing, and donation/community policy
 
 This means Pirate should prefer:
 
@@ -105,7 +106,7 @@ This means GPUI or other desktop host tooling should be thought of as:
 Suggested v0 `live_rooms` shape:
 
 - `live_room_id`
-- `club_id`
+- `community_id`
 - `anchor_post_id`
 - `host_user_id`
 - `title`
@@ -179,7 +180,10 @@ Rules:
 - `listing_id` is used only when live access is paid
 - `replay_listing_id` is used only when replay access is separately monetized
 - `replay_status` tracks replay processing and rights-review state without mutating the room lifecycle itself
-- `club_id` is required at creation. There are no standalone room objects outside a club context. A live room is a club object with an anchor post from day one.
+- `community_id` is required at creation. There are no standalone room objects outside a club context. A live room is a club object with an anchor post from day one.
+- `cover_ref` belongs to the `live_room` object, not to a separate live-only post subtype; the anchor post may render that room cover in feed and room surfaces
+- if `access_mode = paid`, then `visibility` must be `public` in v0
+- if replay is retained and later published, replay should default to evergreen availability rather than automatic expiry
 - room creation should also require an initial setlist payload, even if that setlist begins in `draft`
 - room creation should require explicit performer allocations from day one
 - web/app is the authoritative creation surface for `live_room` in v0; desktop controls host start/stop and performer tooling only
@@ -314,7 +318,7 @@ Review authority:
 - in v0, ACRCloud-triggered rights review is a Pirate platform function, not a club-owner or TLD-owner function
 - the Pirate platform operator is the final authority for clearing or blocking replay publication and rights-sensitive payouts on flagged rooms
 - hosts, guests, club owners, and TLD owners may submit context, claimed licenses, or official-catalog evidence, but they do not have unilateral final-clearance authority for third-party rights cases
-- this avoids self-review by economically interested room operators and keeps rights enforcement consistent across clubs
+- this avoids self-review by economically interested room operators and keeps rights enforcement consistent across communities
 
 Rights boundary:
 
@@ -362,12 +366,12 @@ Recommended v0 access modes:
 
 ### `gated`
 
-- club viewer or membership gates must pass before join
+- all active `membership`-scope and `viewer`-scope community gates must pass before join
 - no payment is implied
 
 Recommended v0 boundary:
 
-- v0 should reuse existing club gate evaluation rather than inventing a separate room-specific gate object
+- v0 should reuse existing community gate evaluation rather than inventing a separate room-specific gate object
 - room-specific audience segmentation may be added later after the base gate model hardens
 
 ### `paid`
@@ -379,7 +383,7 @@ Rules:
 
 - do not invent a separate live-ticket protocol in v0
 - if a livestream costs money, that should be represented through the existing listing/purchase/entitlement model
-- replay access may reuse the same entitlement or use a separate replay listing, depending on club policy
+- replay access may reuse the same entitlement or use a separate replay listing, depending on community policy
 - if replay access is paid or otherwise entitlement-gated, the replay should be represented by a locked replay asset rather than a publicly readable payload
 - implementations should enforce a maximum room duration and auto-end stale rooms after an operational timeout, but the exact timeout is an implementation detail rather than a product field in v0
 - `participant_capacity`, when present, is enforced by room or broadcast control logic rather than by marketplace settlement
@@ -413,16 +417,16 @@ Transition from old Pirate:
 
 - old Pirate had per-room Endaoment configuration (`endaoment_org_id`, `endaoment_org_name`, `endaoment_org_logo_url`, `donation_goal`) directly on the live room object
 - v2 intentionally moves charitable identity to the club level, not the room level
-- this is a product change, not an omission: per-room donation beneficiaries are replaced by club-scoped donation policy
-- rooms in clubs with an active donation partner may still display the donation sidecar, but the configuration lives on the club, not the room
+- this is a product change, not an omission: per-room donation beneficiaries are replaced by community-scoped donation policy
+- rooms in communities with an active donation partner may still display the donation sidecar, but the configuration lives on the club, not the room
 
-## Club And Moderation Interaction
+## Community And Moderation Interaction
 
-Livestreams are club-scoped objects.
+Livestreams are community-scoped objects.
 
 Rules:
 
-- `club_id` controls the room's moderation, visibility, and eligibility context
+- `community_id` controls the room's moderation, visibility, and eligibility context
 - only actors with `schedule_livestream` permission may create rooms
 - room cancellation, hiding the anchor post, and replay removal should remain separately controllable moderation actions
 
@@ -447,7 +451,6 @@ This replaces the old model where desktop owned creation and then opened a brows
 
 ## Open Questions
 
-- Should paid live access and paid replay default to one entitlement or two separate listings in v0?
 - Should live-room metadata edits such as title, cover, and scheduled time use a dedicated PATCH endpoint in the first public API pass?
 - Should desktop ever directly author `live_room` objects in production, or should it remain a host/performance client attached to rooms created by web/app?
 - Should club-gated livestreams support room-specific audience segments in v0, or should that wait until after the base club-gate model hardens?

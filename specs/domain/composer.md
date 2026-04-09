@@ -5,7 +5,7 @@ Status: draft
 Related docs:
 
 - [post.md](./post.md)
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [identity-presentation.md](./identity-presentation.md)
 - [donations.md](./donations.md)
 - [asset.md](./asset.md)
@@ -22,7 +22,7 @@ It covers:
 - the primary composer tabs and their fields
 - live-mode composition
 - what appears by default vs behind "More options" or expanders
-- the contextual derivative/reference step
+- the contextual derivative/reference section
 - how rights basis is derived rather than manually selected
 - what stays outside the composer entirely
 - permission gates that affect composer visibility
@@ -41,7 +41,7 @@ The composer should feel like Reddit's "Create post" flow: pick a type, add a ti
 
 ```
 ┌─────────────────────────────────────────────┐
-│  Create post    [club selector]  Drafts │
+│  Create post    [community selector]    │
 ├─────────────────────────────────────────────┤
 │  [Text]  [Image]  [Video]  [Link] [Song] [Live] │
 ├─────────────────────────────────────────────┤
@@ -54,21 +54,21 @@ The composer should feel like Reddit's "Create post" flow: pick a type, add a ti
 │  ...                                        │
 │                                             │
 ├─────────────────────────────────────────────┤
-│                  [Save Draft]  [Post]        │
+│                              [Post]     │
 └─────────────────────────────────────────────┘
 ```
 
-**Top row**: "Create post" heading, club selector, and a drafts link.
+**Top row**: "Create post" heading and community selector.
 
 **Tab row**: Text, Image, Video, Link, Song, Live. One active at a time. Song and Live are the main Pirate-specific additions. Poll is not v0.
 
-**Main body**: Title first, then the content surface that swaps by tab. If the club has flair enabled, the composer may expose one optional flair picker for top-level posts using the club's curated definitions. Freeform tags remain out of scope.
+**Main body**: Title first, then the content surface that swaps by tab. If the community has flair enabled, the composer may expose one optional flair picker for top-level posts using the community's curated definitions. Freeform tags remain out of scope.
 
-**Footer**: Save Draft and Post actions.
+**Footer**: Post action.
 
 ## Tabs And Fields
 
-One tab active at a time. Switching tabs preserves whatever the user typed in shared fields (title, caption) but swaps the content area.
+One tab active at a time. Switching tabs preserves whatever the user typed in shared fields when those fields exist for both modes, but swaps the content area.
 
 ### Text
 
@@ -109,11 +109,10 @@ This should follow the same simple mental model as Reddit link posts: paste a UR
 
 - **Title** — optional
 - **Primary audio upload** — required
-- **Caption** — optional
 - **Lyrics** — required, text input
 - **Instrumental stem** — optional
 - **Vocal stem** — optional
-- **Original / Remix toggle** — small inline toggle inside the song tab. Default is Original. Selecting Remix triggers the derivative step (see below).
+- **Original / Remix toggle** — small inline toggle inside the song tab. Default is Original. Selecting Remix reveals the derivative reference section inline (see below).
 
 Instrumental and vocal stems are first-class song inputs in the main song flow, but they remain **optional** at post-creation time. Stems and timed lyrics may also be attached later through async enrichment. Karaoke readiness is determined by the asset's `karaoke_package_ref` completeness, not by composer completeness. See karaoke.md for the staged enrichment model.
 
@@ -134,7 +133,7 @@ Primary fields:
 
 - **Title** — required
 - **Description** — optional
-- **Cover** — optional
+- **Cover** — optional; stored on `live_room.cover_ref` and used as room/anchor presentation media
 - **Schedule** — optional; defaults to "ready now"
 - **Room kind** — required (`solo`, `duet`)
 - **Visibility** — required (`public`, `unlisted`)
@@ -163,6 +162,8 @@ Setlist entry behavior:
 
 - the setlist editor should default to searching Pirate's canonical songbase / track catalog
 - selecting an existing track should populate the display title and artist automatically
+- selecting an existing canonical track should also carry its existing rights/ownership context into live handling; the host should not classify the item as `original`, `cover`, `remix`, or `dj_playback` in the live composer
+- if the performer wants to perform a remix or other derivative work, that work should first exist as its own canonical song/track and then be selected here like any other song
 - manual title/artist entry is a fallback for unreleased originals, unresolved tracks, or temporary placeholders
 
 Performer allocation behavior:
@@ -173,13 +174,18 @@ Performer allocation behavior:
 
 This keeps the host's intent structured from the first write, not only at go-live time.
 
-## Contextual Derivative Step
+Visibility/access constraint:
 
-The derivative/reference step is not a permanent field, not a tab, and not in "More options." It appears inline under the main editor only when triggered.
+- if `access_mode = paid`, the composer should force `visibility = public` in v0
+- `unlisted + paid` should not be offered in the v0 create flow
+
+## Contextual Derivative Section
+
+The derivative/reference section is not a permanent field, not a tab, and not in "More options." It appears inline inside the main song form only when triggered.
 
 ### Triggers
 
-The derivative step appears when:
+The derivative section appears when:
 
 1. User selects Song > Remix
 2. User indicates the upload is based on another work (a contextual prompt during asset flow)
@@ -194,7 +200,7 @@ When triggered, the derivative step shows:
 - **Selected source chips or cards** for attached upstream references
 - **Short requirement message** if attribution is mandatory: "Attach the original track before posting"
 
-This is a contextual step, not a separate composer mode. For Song > Remix, at least one upstream reference is required before the post can be published.
+This is a contextual section, not a separate composer mode and not a multi-step wizard. For Song > Remix, at least one upstream reference is required before the post can be published.
 
 ## Rights Basis
 
@@ -219,7 +225,7 @@ For post types that allow anonymous identity, the composer should keep identity 
 
 Recommended UI shape:
 
-1. `Post anonymously` toggle when the club allows anonymous posting
+1. `Post anonymously` toggle when the community allows anonymous posting
 2. qualifier multi-select dropdown, shown only when anonymous posting is active
 3. qualifier chips rendered below the control
 
@@ -229,10 +235,10 @@ Rules:
 - v0 qualifiers should come from [user.md](./user.md) `verification_capabilities` plus explicitly supported provider-specific qualifier templates
 - qualifiers must render as normalized labels such as `18+`, `US National`, or `Palm Scan`, not raw proof payloads
 - the composer must not allow freeform user-authored authority qualifiers
-- qualifiers already implied by club gates should be hidden from the picker
+- qualifiers already implied by community gates should be hidden from the picker
 - public posts should not expose the qualifier picker in v0
 - `song` and `live` must not expose anonymous identity controls
-- anonymous scope remains part of club policy in v0; it does not need to be a first-class composer control
+- anonymous scope remains part of community policy in v0; it does not need to be a first-class composer control
 
 ## Secondary Options
 
@@ -250,7 +256,7 @@ Flair is optional community labeling metadata, not canonical post truth.
 Composer rules:
 
 - at most one flair may be selected per post
-- the picker should only show active flair definitions for the selected club
+- the picker should only show active flair definitions for the selected community
 - if a flair definition has `allowed_post_types`, the picker should only show options valid for the active composer tab
 - flair selection should be visible but lightweight, closer to a subreddit flair chooser than to a tagging surface
 - freeform tag entry does not exist in v0
@@ -264,10 +270,10 @@ Recommended placement:
 
 Behavior:
 
-- if the club does not have flair enabled, no flair UI appears
-- if the club requires flair on top-level posts, publishing should be blocked until one active flair is selected
-- if the selected post type has no active applicable flair definitions, the composer must not dead-end the user; the club settings are invalid and should be treated as an admin configuration problem rather than a user error
-- if a previously selected flair becomes archived before publish, the draft must prompt the user to choose a new active flair or clear it if the club does not require flair
+- if the community does not have flair enabled, no flair UI appears
+- if the community requires flair on top-level posts, publishing should be blocked until one active flair is selected
+- if the selected post type has no active applicable flair definitions, the composer must not dead-end the user; the community settings are invalid and should be treated as an admin configuration problem rather than a user error
+- if a previously selected flair becomes archived before publish, the draft must prompt the user to choose a new active flair or clear it if the community does not require flair
 
 ## Livestream And Room
 
@@ -287,7 +293,7 @@ Anonymous identity is useful for social or journalistic speech, not for rights-b
 
 Recommended v0 rule:
 
-- `text`, `image`, `video`, and `link` modes may expose club-allowed anonymous identity controls when club policy allows it
+- `text`, `image`, `video`, and `link` modes may expose community-allowed anonymous identity controls when community policy allows it
 - `song` and `live` modes must not expose anonymous identity controls
 - the backend should reject anonymous creation attempts for song posts and live anchor posts even if a buggy client submits them
 
@@ -295,21 +301,21 @@ Recommended v0 rule:
 
 Donation is a creator-side opt-in on monetized listings, not a per-post charity picker.
 
-Per donations.md: the club defines the donation partner and the policy mode. The creator chooses whether to participate and at what percentage. The donation destination does not vary per post — it always routes to the club's active partner.
+Per donations.md: the community defines the donation partner and the policy mode. The creator chooses whether to participate and at what percentage. The donation destination does not vary per post — it always routes to the community's active partner.
 
 ### When donation appears in the composer
 
 Donation UI only appears when all three conditions are true:
 
-1. The club has an active donation partner (`donation_partner_status = active`)
-2. The club's `donation_policy_mode` is `optional_creator_sidecar` (the v0 default) or `fundraiser_default`
+1. The community has an active donation partner (`donation_partner_status = active`)
+2. The community's `donation_policy_mode` is `optional_creator_sidecar` (the v0 default) or `fundraiser_default`
 3. The creator is listing the content for sale (monetized listing flow)
 
 When those conditions are met, the monetization section of the composer shows:
 
 - **Donation opt-in** — a checkbox: "Donate part of your proceeds to [partner name]"
 - **Donation share** — a percentage input, visible only when opt-in is checked, constrained to `0 < share <= 50`, defaulting to a club-suggested value
-- **Partner name** — read-only, pulled from the club's `donation_partner_id`
+- **Partner name** — read-only, pulled from the community's `donation_partner_id`
 
 This is not a general post field. It belongs to the listing/monetization sub-flow inside the composer.
 
@@ -325,7 +331,7 @@ When a monetized post has `donation_opt_in = true`:
 
 ### What does NOT appear in the composer
 
-- A charity destination picker — the partner comes from club policy
+- A charity destination picker — the partner comes from community policy
 - Donation UI on free/social-only posts — it only applies to monetized listings
 
 ## Permission Gates Affecting Composer Visibility
@@ -335,21 +341,27 @@ When a monetized post has `donation_opt_in = true`:
 | `create_post` | Required to see the composer at all. All members have this. |
 | `create_song_post` | Without this, the Song tab is disabled or hidden. |
 | `schedule_livestream` | Affects the "Go Live" CTA visibility, not the composer. |
-| Club posting policy | May restrict which tab types are available in a given club. |
+| Community posting policy | May restrict which tab types are available in a given community. |
 
-The `artist_governance_state` of the club does not gate the composer UI directly; it is a property of the club that determines whether canonical artist song posts are allowed.
+The `artist_governance_state` of the community does not gate the composer UI directly; it is a property of the community that determines whether canonical artist song posts are allowed.
 
 ## Post-Submission Flow
 
 After the user submits:
 
-1. Media analysis runs automatically (ACRCloud for audio-bearing uploads, safety scanning for images/video)
-2. Analysis state is set on the post
-3. If `allow_with_required_reference`, the user must attach upstream references before publishing
-4. If `review_required`, the post enters moderation review
-5. If `blocked`, the post cannot be published and the user is told why
-6. Age gate is set automatically to `18_plus` when analysis classifies the content as adult, or when an upstream asset already carries the stricter gate
-7. The user is not exposed to `analysis_state` or `rights_basis` directly; they see human-readable messages and prompts
+1. Required pre-publish analysis runs automatically for native media uploads (ACRCloud for audio-bearing uploads, safety scanning for images/video, and authenticity/source analysis where applicable)
+2. Analysis state is resolved before the post becomes publicly visible in the common case
+3. If `allow`, the post publishes normally
+4. If `allow_with_required_reference`, the user must attach upstream references or required disclosures before publishing
+5. If `review_required`, the post does not publish; it is held for moderation review and the user is told that it is awaiting review
+6. If `blocked`, the post cannot be published and the user is told why
+7. Age gate is set automatically to `18_plus` when analysis classifies the content as adult, or when an upstream asset already carries the stricter gate
+8. The user is not exposed to `analysis_state` or `rights_basis` directly; they see human-readable messages and prompts
+
+Timeout / failure posture:
+
+- if required analysis does not complete inside the pre-publish budget, Pirate should prefer a non-published hold/review outcome over publish-first behavior
+- community AI/authenticity rules should therefore usually fail into hold/review, not public publication, when the analysis dependency is unavailable or inconclusive
 
 ## Summary
 
@@ -372,6 +384,6 @@ Key constraints:
 - Derivative step is contextual, triggered by remix mode, user declaration, or analysis detection.
 - Rights basis is derived, never shown as a dropdown.
 - Identity is a presentation-mode choice with optional disclosed verified claim chips on eligible post types.
-- Flair is optional, single-select, club-scoped, and never freeform.
+- Flair is optional, single-select, community-scoped, and never freeform.
 - Donation: creator-side opt-in on monetized listings only, not in the composer for free posts.
 - Permission gates control tab visibility, not UI surface area.

@@ -6,7 +6,7 @@ Related docs:
 
 - [livestream.md](./livestream.md)
 - [live-segments.md](./live-segments.md)
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [marketplace.md](./marketplace.md)
 
 ## Purpose
@@ -48,7 +48,7 @@ Examples:
 - schedule room
 - create anchor post
 - attach listing
-- attach donation/club policy
+- attach donation/community policy
 - manage replay linkage
 
 ### Performance Plane

@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [post.md](./post.md)
 - [asset.md](./asset.md)
 - [monetization.md](./monetization.md)
@@ -34,7 +34,7 @@ This doc does not define:
 
 ## Core Principle
 
-Donation destination should be a club policy, not an arbitrary post-level beneficiary field.
+Donation destination should be a community policy, not an arbitrary post-level beneficiary field.
 
 Recommended v0 model:
 
@@ -80,7 +80,7 @@ Suggested meanings:
 Rules:
 
 - v0 supports `provider = endaoment` only
-- only `review_status = approved` partners may be attached to clubs in v0
+- only `review_status = approved` partners may be attached to communities in v0
 - `payout_destination_ref` is the source of truth for where donation proceeds route
 - the partner object, not the post or listing, owns provider-specific payout routing data
 - partner approval is a platform-admin action in v0
@@ -90,7 +90,7 @@ V0 Endaoment note:
 - for `provider = endaoment`, `provider_partner_ref` should carry the Endaoment organization identifier
 - `payout_destination_ref` should resolve through Pirate's Endaoment integration to the actual donation settlement destination used at payout time
 
-## Club-Level Donation Partner
+## Community-Level Donation Partner
 
 Suggested v0 club donation fields:
 
@@ -192,7 +192,7 @@ Recommended v0 order:
 1. buyer pays
 2. external payment/network fees are removed
 3. required upstream royalties are paid when applicable
-4. platform and club policy shares are resolved
+4. platform and community policy shares are resolved
 5. if creator donation is enabled, the creator donation slice is routed from the creator-side proceeds
 6. remaining creator payout is delivered
 
@@ -226,5 +226,5 @@ Recommended v0 rules:
 
 ## Open Questions
 
-- Should fundraiser-default clubs later support temporary campaign overrides without changing the long-lived club donation partner?
+- Should fundraiser-default communities later support temporary campaign overrides without changing the long-lived club donation partner?
 - When Pirate supports live fundraiser-primary rooms, should those use this same donation policy object or a live-specific overlay?

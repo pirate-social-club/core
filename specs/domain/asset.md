@@ -5,8 +5,9 @@ Status: draft
 Related docs:
 
 - [post.md](./post.md)
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [artist-identity.md](./artist-identity.md)
+- [publish-matrix.md](./publish-matrix.md)
 - [royalty-graph.md](./royalty-graph.md)
 - [monetization.md](./monetization.md)
 - [marketplace.md](./marketplace.md)
@@ -59,7 +60,7 @@ Suggested v0 fields:
 
 - `asset_id`
 - `source_post_id`
-- `club_id`
+- `community_id`
 - `creator_user_id`
 - `asset_type`
 - `content_ref`
@@ -103,7 +104,7 @@ Suggested meanings:
 Notes:
 
 - `source_post_id` is required because every asset originates from exactly one post
-- `club_id` is intentionally denormalized for read performance in v0 because asset queries will commonly be club-scoped; the source of truth remains `source_post_id -> posts.club_id`, and the stored value must match it
+- `community_id` is intentionally denormalized for read performance in v0 because asset queries will commonly be community-scoped; the source of truth remains `source_post_id -> posts.community_id`, and the stored value must match it
 - `analysis_result_ref` may point to the same shared media-analysis record referenced by the source post
 - `analysis_result_ref` is a foreign key to a shared `media_analysis_results` record that stores the full ACRCloud response, match metadata, and the final upload-outcome decision
 - `rights_basis` is copied from the source post at asset creation time, becomes immutable on the asset row, and must match the source post's declared basis
@@ -168,6 +169,40 @@ Implementation note:
 - Story CDR is the preferred implementation primitive for encrypted/gated payloads on Story
 - Pirate should prefer Story-native access-control and encryption primitives over rolling its own encryption stack
 - CDR is not a required dependency for every asset in v0; it is primarily relevant when `access_mode = locked`
+
+## Locked Payload Shape
+
+`access_mode = locked` uses one delivery architecture across supported asset types.
+
+Core rule:
+
+- one asset version maps to one locked delivery object and one entitlement class
+- the locked-delivery contracts are media-type agnostic
+- the contracts do not distinguish between audio, video, text, or image bytes
+- what changes by asset type is the payload format and the client behavior after decryption
+
+Recommended v0 locked payload expectations:
+
+- `text`
+  - the locked payload should contain the full sellable text document or structured text package
+  - the source post may show title, excerpt, or teaser text publicly
+  - the full paid text should not rely only on the public post body stored in the app DB
+- `image`
+  - v0 commerce should support single-image locked assets
+  - the locked payload should contain the full-resolution image file
+  - the source post may expose preview-safe derivatives such as thumbnails or compressed previews
+- `audio`
+  - the locked payload should contain the audio file or audio package intended for buyer access
+- `video`
+  - the locked payload should contain the video file intended for buyer access
+  - v0 may use a simple download-then-play client path even though the entitlement architecture is the same as audio
+  - v0 should not support playable public teaser clips for locked video assets by default; public metadata and poster-style presentation are sufficient
+
+Deferred v0 posture:
+
+- multi-image gallery sales are deferred from the initial commerce surface
+- gallery delivery may later use a packaged blob or a manifest-style payload, but v0 does not need to standardize that yet
+- replay still uses the same locked entitlement architecture, but replay playback behavior is specified separately in [replay.md](./replay.md)
 
 ## Story Publication
 

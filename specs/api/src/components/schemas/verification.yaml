@@ -226,3 +226,232 @@ VerificationSession:
     expires_at:
       type: string
       format: date-time
+StartNamespaceVerificationSessionRequest:
+  type: object
+  required:
+    - family
+    - root_label
+  properties:
+    family:
+      type: string
+      enum:
+        - hns
+      description: |
+        Public v0 supports HNS only. Future namespace families may extend this surface without changing the session model.
+    root_label:
+      type: string
+      description: Root label as entered by the creator before server normalization.
+CompleteNamespaceVerificationSessionRequest:
+  type: object
+  description: |
+    Trigger a refresh of TXT challenge observations and assertion derivation after the creator has published the required record. The body is optional because many implementations can treat this as an idempotent recheck.
+  properties:
+    restart_challenge:
+      type: boolean
+      nullable: true
+      description: |
+        Optional hint to invalidate the current TXT challenge and issue a new one if the creator wants to restart the proof flow.
+NamespaceVerificationAssertions:
+  type: object
+  description: |
+    Accepted or in-flight namespace assertions derived from the current evidence bundle. These facts remain distinct so attach capability, routing capability, and Pirate-managed subdomain capability are not collapsed into one flag.
+  properties:
+    root_exists:
+      type: boolean
+      nullable: true
+    root_control_verified:
+      type: boolean
+      nullable: true
+    expiry_horizon_sufficient:
+      type: boolean
+      nullable: true
+    routing_enabled:
+      type: boolean
+      nullable: true
+    pirate_dns_authority_verified:
+      type: boolean
+      nullable: true
+NamespaceVerificationCapabilities:
+  type: object
+  description: |
+    Derived capabilities from the current accepted assertions. These are technical capability outputs, not automatic product permission for namespace commerce.
+  properties:
+    club_attach_allowed:
+      type: boolean
+      nullable: true
+    pirate_web_routing_allowed:
+      type: boolean
+      nullable: true
+    pirate_subdomain_issuance_allowed:
+      type: boolean
+      nullable: true
+NamespaceVerificationSession:
+  type: object
+  required:
+    - namespace_verification_session_id
+    - user_id
+    - family
+    - submitted_root_label
+    - status
+    - created_at
+    - expires_at
+  properties:
+    namespace_verification_session_id:
+      type: string
+    namespace_verification_id:
+      type: string
+      nullable: true
+      description: |
+        Populated only when the session reaches `verified` and Pirate has issued an accepted verification reference.
+    user_id:
+      type: string
+    family:
+      type: string
+      enum:
+        - hns
+    submitted_root_label:
+      type: string
+    normalized_root_label:
+      type: string
+      nullable: true
+    status:
+      type: string
+      enum:
+        - draft
+        - inspecting
+        - challenge_required
+        - challenge_pending
+        - verifying
+        - verified
+        - failed
+        - expired
+        - disputed
+    challenge_host:
+      type: string
+      nullable: true
+      description: Exact host where the TXT challenge must be published when required.
+    challenge_txt_value:
+      type: string
+      nullable: true
+      description: TXT value Pirate expects to observe for root-control proof.
+    challenge_expires_at:
+      type: string
+      format: date-time
+      nullable: true
+      description: Expiration time for the currently issued TXT challenge, distinct from the overall namespace verification session expiry.
+    assertions:
+      allOf:
+        - $ref: ./verification.yaml#/NamespaceVerificationAssertions
+      nullable: true
+    capabilities:
+      allOf:
+        - $ref: ./verification.yaml#/NamespaceVerificationCapabilities
+      nullable: true
+    control_class:
+      type: string
+      enum:
+        - single_holder_root
+        - multisig_controlled_root
+        - dao_controlled_root
+        - burned_or_immutable_root
+      nullable: true
+    operation_class:
+      type: string
+      enum:
+        - owner_managed_namespace
+        - routing_only_namespace
+        - pirate_delegated_namespace
+      nullable: true
+    observation_provider:
+      type: string
+      nullable: true
+      description: |
+        Trusted HNS-aware provider used for the most recent accepted observation in public v0, such as Fire HSD.
+    evidence_bundle_ref:
+      type: string
+      nullable: true
+    failure_reason:
+      type: string
+      nullable: true
+    accepted_at:
+      type: string
+      format: date-time
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+    expires_at:
+      type: string
+      format: date-time
+NamespaceVerification:
+  type: object
+  required:
+    - namespace_verification_id
+    - user_id
+    - family
+    - normalized_root_label
+    - status
+    - assertions
+    - capabilities
+    - accepted_at
+    - expires_at
+    - created_at
+    - updated_at
+  properties:
+    namespace_verification_id:
+      type: string
+    user_id:
+      type: string
+    family:
+      type: string
+      enum:
+        - hns
+    normalized_root_label:
+      type: string
+    status:
+      type: string
+      enum:
+        - verified
+        - stale
+        - expired
+        - disputed
+    assertions:
+      $ref: ./verification.yaml#/NamespaceVerificationAssertions
+    capabilities:
+      $ref: ./verification.yaml#/NamespaceVerificationCapabilities
+    control_class:
+      type: string
+      enum:
+        - single_holder_root
+        - multisig_controlled_root
+        - dao_controlled_root
+        - burned_or_immutable_root
+      nullable: true
+    operation_class:
+      type: string
+      enum:
+        - owner_managed_namespace
+        - routing_only_namespace
+        - pirate_delegated_namespace
+      nullable: true
+    observation_provider:
+      type: string
+      nullable: true
+    evidence_bundle_ref:
+      type: string
+      nullable: true
+    accepted_at:
+      type: string
+      format: date-time
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+    expires_at:
+      type: string
+      format: date-time

@@ -1,10 +1,10 @@
-clubs_by_club_id_questions_daily:
+communities_by_community_id_questions_daily:
   get:
     tags:
       - Questions
-    summary: Fetch the current daily question for a club
+    summary: Fetch the current daily question for a community
     parameters:
-      - $ref: ../components/parameters.yaml#/ClubId
+      - $ref: ../components/parameters.yaml#/CommunityId
     responses:
       "200":
         description: Current daily question or null
@@ -23,9 +23,9 @@ clubs_by_club_id_questions_daily:
   post:
     tags:
       - Questions
-    summary: Publish or schedule a daily question for a club
+    summary: Publish or schedule a daily question for a community
     parameters:
-      - $ref: ../components/parameters.yaml#/ClubId
+      - $ref: ../components/parameters.yaml#/CommunityId
     requestBody:
       required: true
       content:
@@ -43,13 +43,13 @@ clubs_by_club_id_questions_daily:
         $ref: ../components/responses.yaml#/AuthError
       "429":
         $ref: ../components/responses.yaml#/RateLimited
-clubs_by_club_id_questions_daily_answers:
+communities_by_community_id_questions_daily_answers:
   post:
     tags:
       - Questions
     summary: Submit an answer to the current daily question
     parameters:
-      - $ref: ../components/parameters.yaml#/ClubId
+      - $ref: ../components/parameters.yaml#/CommunityId
     requestBody:
       required: true
       content:

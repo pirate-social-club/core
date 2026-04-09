@@ -1,0 +1,744 @@
+communities:
+  post:
+    tags:
+      - Communities
+    summary: Create a community
+    description: |
+      Creates a community once all create-time prerequisites are already satisfied.
+
+      For namespace-backed public v0 create, the server must consume the accepted namespace-verification resource referenced by `namespace.namespace_verification_id`, not just the raw identifier string. Before writing any community state, the server must re-check:
+
+      - the accepted namespace verification exists
+      - it belongs to the requesting creator
+      - it is still accepted and not stale, disputed, or expired
+      - its current capabilities still satisfy `community_attach_allowed`
+
+      Public v0 create must fail closed when those checks do not pass.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-core.yaml#/CreateCommunityRequest
+    responses:
+      "202":
+        description: Community creation accepted
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-core.yaml#/CommunityCreateAcceptedResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+  get:
+    tags:
+      - Communities
+    summary: List communities
+    parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: artist_identity_id
+        schema:
+          type: string
+      - $ref: ../components/parameters.yaml#/Cursor
+      - $ref: ../components/parameters.yaml#/Limit
+    responses:
+      "200":
+        description: Communities
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - items
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: ../components/schemas/communities-core.yaml#/Community
+                next_cursor:
+                  type: string
+                  nullable: true
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+communities_by_community_id:
+  get:
+    tags:
+      - Communities
+    summary: Get a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-core.yaml#/Community
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  patch:
+    tags:
+      - Communities
+    summary: Update mutable community settings
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-core.yaml#/UpdateCommunityRequest
+    responses:
+      "200":
+        description: Community updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-core.yaml#/Community
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+communities_by_community_id_attach_governance:
+  post:
+    tags:
+      - Communities
+    summary: Attach or replace an external governance backend for a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-governance.yaml#/AttachGovernanceRequest
+    responses:
+      "202":
+        description: Governance attachment action accepted
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-governance.yaml#/GovernanceAction
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+communities_by_community_id_flairs:
+  get:
+    tags:
+      - Communities
+    summary: List flair definitions for a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community flair policy
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityFlairPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  patch:
+    tags:
+      - Communities
+    summary: Replace or update flair definitions for a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityFlairPolicyRequest
+    responses:
+      "200":
+        description: Community flair policy updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityFlairPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+communities_by_community_id_community_profile:
+  get:
+    tags:
+      - Communities
+    summary: Get the community profile for a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community profile
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityProfile
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  patch:
+    tags:
+      - Communities
+    summary: Update the community profile for a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityProfileRequest
+    responses:
+      "200":
+        description: Community profile updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityProfile
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_reference_links:
+  get:
+    tags:
+      - Communities
+    summary: List reference links for a community
+    description: |
+      Public callers receive public-safe link rows. Authorized community owners/admins receive the admin variant with verification workflow fields.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community reference links
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityReferenceLinkListResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  post:
+    tags:
+      - Communities
+    summary: Add a reference link to a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/CreateCommunityReferenceLinkRequest
+    responses:
+      "201":
+        description: Reference link created
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityReferenceLinkAdmin
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+communities_by_community_id_reference_links_by_community_reference_link_id:
+  get:
+    tags:
+      - Communities
+    summary: Get a reference link for a community
+    description: |
+      Public callers receive the public-safe link shape. Authorized community owners/admins receive the admin variant with verification workflow fields.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/CommunityReferenceLinkId
+    responses:
+      "200":
+        description: Community reference link
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityReferenceLinkReadResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  patch:
+    tags:
+      - Communities
+    summary: Update a reference link for a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/CommunityReferenceLinkId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityReferenceLinkRequest
+    responses:
+      "200":
+        description: Community reference link updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityReferenceLinkAdmin
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+communities_by_community_id_reference_links_by_community_reference_link_id_archive:
+  post:
+    tags:
+      - Communities
+    summary: Archive a reference link for a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/CommunityReferenceLinkId
+    responses:
+      "200":
+        description: Community reference link archived
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityReferenceLinkAdmin
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_reference_links_by_community_reference_link_id_verify:
+  post:
+    tags:
+      - Communities
+    summary: Start or refresh verification for a reference link
+    description: |
+      This starts an async verification attempt for an eligible reference link. The server creates a proof attempt, generates any required challenge code, and updates the link to `pending`. Clients poll the link read surface for status updates.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/CommunityReferenceLinkId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/VerifyCommunityReferenceLinkRequest
+    responses:
+      "202":
+        description: Reference-link verification accepted
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityReferenceLinkAdmin
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+communities_by_community_id_reference_links_by_community_reference_link_id_revoke:
+  post:
+    tags:
+      - Communities
+    summary: Revoke the current verified proof for a reference link
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/CommunityReferenceLinkId
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/RevokeCommunityReferenceLinkRequest
+    responses:
+      "200":
+        description: Reference-link verification revoked
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityReferenceLinkAdmin
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_reference_links_by_community_reference_link_id_proofs:
+  get:
+    tags:
+      - Communities
+    summary: List proof attempts for a reference link
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/CommunityReferenceLinkId
+    responses:
+      "200":
+        description: Reference-link proof attempts
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityReferenceLinkProofListResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_reference_links_by_community_reference_link_id_proofs_by_proof_id_review:
+  post:
+    tags:
+      - Communities
+    summary: Review a proof attempt for a reference link
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/CommunityReferenceLinkId
+      - $ref: ../components/parameters.yaml#/CommunityReferenceLinkProofId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/ReviewCommunityReferenceLinkProofRequest
+    responses:
+      "200":
+        description: Reference-link proof reviewed
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityReferenceLinkProof
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_donation_policy:
+  get:
+    tags:
+      - Communities
+    summary: Get the active donation policy for a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community donation policy
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityDonationPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  patch:
+    tags:
+      - Communities
+    summary: Configure or update the donation policy for a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityDonationPolicyRequest
+    responses:
+      "200":
+        description: Community donation policy updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityDonationPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+communities_by_community_id_content_authenticity_policy:
+  get:
+    tags:
+      - Communities
+    summary: Get the active content authenticity policy for a community
+    description: |
+      Returns the resolved effective policy. When the community has not explicitly configured an authenticity policy yet, the server must return the restrictive default policy with `policy_origin = default`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community content authenticity policy
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityContentAuthenticityPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  patch:
+    tags:
+      - Communities
+    summary: Configure or update the content authenticity policy for a community
+    description: |
+      Stores an explicit community authenticity policy. This replaces the resolved default policy for future posts and moderation decisions, but does not retroactively reclassify existing posts.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityContentAuthenticityPolicyRequest
+    responses:
+      "200":
+        description: Community content authenticity policy updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityContentAuthenticityPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+communities_by_community_id_content_authenticity_detection_policy:
+  get:
+    tags:
+      - Communities
+    summary: Get the active content authenticity detection policy for a community
+    description: |
+      Returns the resolved effective authenticity-detection selection. When the community has not explicitly configured a detection policy yet, the server must return the platform-default profile with `policy_origin = default`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community content authenticity detection policy
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityContentAuthenticityDetectionPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  patch:
+    tags:
+      - Communities
+    summary: Configure or update the content authenticity detection policy for a community
+    description: |
+      Stores an explicit community authenticity-detection selection from the platform-approved profile registry. This affects future authenticity analysis only and does not override platform-required safety analysis or retroactively reclassify existing posts.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityContentAuthenticityDetectionPolicyRequest
+    responses:
+      "200":
+        description: Community content authenticity detection policy updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityContentAuthenticityDetectionPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+communities_by_community_id_source_policy:
+  get:
+    tags:
+      - Communities
+    summary: Get the active source policy for a community
+    description: |
+      Returns the resolved effective policy. When the community has not explicitly configured a source policy yet, the server must return the restrictive default policy with `policy_origin = default`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community source policy
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunitySourcePolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  patch:
+    tags:
+      - Communities
+    summary: Configure or update the source policy for a community
+    description: |
+      Stores an explicit community source policy. This replaces the resolved default policy for future posts and moderation decisions, but does not retroactively reclassify existing posts.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunitySourcePolicyRequest
+    responses:
+      "200":
+        description: Community source policy updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunitySourcePolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+communities_by_community_id_join:
+  post:
+    tags:
+      - Communities
+    summary: Join a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Membership created or request recorded
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-core.yaml#/MembershipResult
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/GateFailed
+communities_by_community_id_live_rooms:
+  post:
+    tags:
+      - Livestreams
+    summary: Create a livestream room for a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/livestreams.yaml#/CreateLiveRoomRequest
+    responses:
+      "201":
+        description: Livestream room created
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/livestreams.yaml#/LiveRoom
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+communities_by_community_id_leave:
+  post:
+    tags:
+      - Communities
+    summary: Leave a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Membership removed
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-core.yaml#/MembershipResult
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+communities_by_community_id_posts:
+  get:
+    tags:
+      - Posts
+    summary: List posts in a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/Locale
+      - $ref: ../components/parameters.yaml#/FeedSort
+      - $ref: ../components/parameters.yaml#/TopWindow
+      - $ref: ../components/parameters.yaml#/FlairId
+      - $ref: ../components/parameters.yaml#/Cursor
+      - $ref: ../components/parameters.yaml#/Limit
+    responses:
+      "200":
+        description: Community posts
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/feeds.yaml#/FeedResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited

@@ -1,6 +1,6 @@
-CreateCentralizedClubRequest:
+CreateCentralizedCommunityRequest:
   allOf:
-    - $ref: ./clubs-core.yaml#/CreateClubRequestBase
+    - $ref: ./communities-core.yaml#/CreateCommunityRequestBase
     - type: object
       required:
         - governance_mode
@@ -10,9 +10,11 @@ CreateCentralizedClubRequest:
           enum:
             - centralized
           default: centralized
-CreateMultisigClubRequest:
+  description: |
+    The only create variant accepted from the public v0 client. All public community creation submits this request type.
+CreateMultisigCommunityRequest:
   allOf:
-    - $ref: ./clubs-core.yaml#/CreateClubRequestBase
+    - $ref: ./communities-core.yaml#/CreateCommunityRequestBase
     - type: object
       required:
         - governance_mode
@@ -23,10 +25,12 @@ CreateMultisigClubRequest:
           enum:
             - multisig
         governance_backend:
-          $ref: ./clubs-governance.yaml#/MultisigGovernanceAttachmentInput
-CreateMajeurClubRequest:
+          $ref: ./communities-governance.yaml#/MultisigGovernanceAttachmentInput
+  description: |
+    Internal, allowlisted, or feature-flagged only. The public v0 client must not submit this request type. Public multisig attachment happens after creation via POST /communities/{community_id}/attach-governance.
+CreateMajeurCommunityRequest:
   allOf:
-    - $ref: ./clubs-core.yaml#/CreateClubRequestBase
+    - $ref: ./communities-core.yaml#/CreateCommunityRequestBase
     - type: object
       required:
         - governance_mode
@@ -37,11 +41,13 @@ CreateMajeurClubRequest:
           enum:
             - majeur
         governance_backend:
-          $ref: ./clubs-governance.yaml#/MajeurGovernanceCreateInput
+          $ref: ./communities-governance.yaml#/MajeurGovernanceCreateInput
+  description: |
+    Internal, allowlisted, or feature-flagged only. The public v0 client must not submit this request type. Public majeur attachment happens after creation via POST /communities/{community_id}/attach-governance.
 AttachGovernanceRequest:
   oneOf:
-    - $ref: ./clubs-governance.yaml#/AttachMultisigGovernanceRequest
-    - $ref: ./clubs-governance.yaml#/AttachMajeurGovernanceRequest
+    - $ref: ./communities-governance.yaml#/AttachMultisigGovernanceRequest
+    - $ref: ./communities-governance.yaml#/AttachMajeurGovernanceRequest
   discriminator:
     propertyName: governance_mode
     mapping:
@@ -58,7 +64,7 @@ AttachMultisigGovernanceRequest:
       enum:
         - multisig
     governance_backend:
-      $ref: ./clubs-governance.yaml#/MultisigGovernanceAttachmentInput
+      $ref: ./communities-governance.yaml#/MultisigGovernanceAttachmentInput
 AttachMajeurGovernanceRequest:
   type: object
   required:
@@ -70,12 +76,12 @@ AttachMajeurGovernanceRequest:
       enum:
         - majeur
     governance_backend:
-      $ref: ./clubs-governance.yaml#/MajeurGovernanceAttachInput
+      $ref: ./communities-governance.yaml#/MajeurGovernanceAttachInput
 GovernanceAction:
   type: object
   required:
     - governance_action_id
-    - club_id
+    - community_id
     - action_kind
     - governance_mode
     - payload_hash
@@ -85,7 +91,7 @@ GovernanceAction:
   properties:
     governance_action_id:
       type: string
-    club_id:
+    community_id:
       type: string
     action_kind:
       type: string
@@ -135,11 +141,11 @@ GovernanceVerificationState:
     - pending
     - verified
     - broken
-ClubGovernanceBackend:
+CommunityGovernanceBackend:
   oneOf:
-    - $ref: ./clubs-governance.yaml#/CentralizedGovernanceBackend
-    - $ref: ./clubs-governance.yaml#/MultisigGovernanceBackend
-    - $ref: ./clubs-governance.yaml#/MajeurGovernanceBackend
+    - $ref: ./communities-governance.yaml#/CentralizedGovernanceBackend
+    - $ref: ./communities-governance.yaml#/MultisigGovernanceBackend
+    - $ref: ./communities-governance.yaml#/MajeurGovernanceBackend
   discriminator:
     propertyName: governance_mode
     mapping:
@@ -157,7 +163,7 @@ CentralizedGovernanceBackend:
       enum:
         - centralized
     governance_verification_state:
-      $ref: ./clubs-governance.yaml#/GovernanceVerificationState
+      $ref: ./communities-governance.yaml#/GovernanceVerificationState
     governance_display_label:
       type: string
       nullable: true
@@ -176,7 +182,7 @@ MultisigGovernanceAttachmentInput:
       type: string
       nullable: true
     attachment_proof:
-      $ref: ./clubs-governance.yaml#/MultisigAttachmentProofInput
+      $ref: ./communities-governance.yaml#/MultisigAttachmentProofInput
 MultisigAttachmentProofInput:
   type: object
   required:
@@ -213,7 +219,7 @@ MultisigGovernanceBackend:
       type: string
       nullable: true
     governance_verification_state:
-      $ref: ./clubs-governance.yaml#/GovernanceVerificationState
+      $ref: ./communities-governance.yaml#/GovernanceVerificationState
     governance_display_label:
       type: string
       nullable: true
@@ -226,7 +232,7 @@ MultisigGovernanceBackend:
       format: date-time
       nullable: true
     governance_metadata:
-      $ref: ./clubs-governance.yaml#/MultisigGovernanceMetadata
+      $ref: ./communities-governance.yaml#/MultisigGovernanceMetadata
 MultisigGovernanceMetadata:
   type: object
   required:
@@ -257,7 +263,7 @@ MajeurGovernanceCreateInput:
     chain_id:
       type: integer
     summon:
-      $ref: ./clubs-governance.yaml#/MajeurSafeSummonInput
+      $ref: ./communities-governance.yaml#/MajeurSafeSummonInput
 MajeurGovernanceAttachInput:
   type: object
   required:
@@ -330,7 +336,7 @@ MajeurSafeSummonInput:
         type: string
       nullable: true
     config:
-      $ref: ./clubs-governance.yaml#/MajeurSafeConfigInput
+      $ref: ./communities-governance.yaml#/MajeurSafeConfigInput
 MajeurSafeConfigInput:
   type: object
   required:
@@ -386,7 +392,7 @@ MajeurGovernanceBackend:
       type: string
       nullable: true
     governance_verification_state:
-      $ref: ./clubs-governance.yaml#/GovernanceVerificationState
+      $ref: ./communities-governance.yaml#/GovernanceVerificationState
     governance_display_label:
       type: string
       nullable: true
@@ -399,7 +405,7 @@ MajeurGovernanceBackend:
       format: date-time
       nullable: true
     governance_metadata:
-      $ref: ./clubs-governance.yaml#/MajeurGovernanceMetadata
+      $ref: ./communities-governance.yaml#/MajeurGovernanceMetadata
 MajeurGovernanceMetadata:
   type: object
   required:

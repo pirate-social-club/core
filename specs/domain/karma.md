@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [handles.md](./handles.md)
 - [user.md](./user.md)
 - [profile.md](./profile.md)
@@ -19,7 +19,7 @@ This doc defines Pirate's native reputation and trust model.
 It covers:
 
 - the three-layer reputation architecture
-- club-local karma as the primary signal
+- community-local karma as the primary signal
 - global reputation as a safety and trust floor
 - how karma events are recorded and aggregated
 - trust tiers and their relationship to handle eligibility
@@ -42,7 +42,7 @@ Pirate karma is earned, not imported.
 
 Three principles follow:
 
-1. Club-local activity matters most.
+1. Community-local activity matters most.
 2. Global platform trust is a safety signal, not a karma sum.
 3. Imported trust from external platforms is a bootstrap signal that fades in influence over time.
 
@@ -52,20 +52,20 @@ Karma should affect eligibility first, pricing later, and feed ranking never in 
 
 Pirate distinguishes three reputation layers.
 
-### Club Karma
+### Community Karma
 
-- scoped to one `club_id`
+- scoped to one `community_id`
 - primary native reputation signal
 - used for handle eligibility, posting trust, and moderation thresholds within that club
 - accumulates through verified participation
-- moderated by club moderators
+- moderated by community moderators
 
 ### Global Reputation
 
 - scoped to the platform, not to any club
 - weak platform-wide safety and trust signal
 - useful for spam resistance and baseline account quality
-- not the sum of club karmas
+- not the sum of community karmas
 - should not dominate club identity
 
 ### External Trust Snapshot
@@ -78,7 +78,7 @@ Pirate distinguishes three reputation layers.
 
 Directional weighting:
 
-- club karma matters most for local decisions
+- community karma matters most for local decisions
 - global reputation helps with spam resistance and baseline trust
 - external trust provides initial eligibility boost but fades in influence over time
 
@@ -137,7 +137,7 @@ Suggested v0 shape:
 
 - `reputation_event_id`
 - `user_id`
-- `club_id` nullable
+- `community_id` nullable
 - `event_type`
 - `source_ref` nullable
 - `delta`
@@ -160,21 +160,21 @@ Suggested `event_type` values:
 
 Suggested meanings:
 
-- `club_id` is `null` for global reputation events
+- `community_id` is `null` for global reputation events
 - `source_ref` points to the originating entity such as a post ID, comment ID, or moderation action ID
 - `delta` is an integer representing the raw karma change
 - `delta` may be `0` for binary events like tier promotions that carry no score change
 - events are immutable once written
 - corrections are new events, not updates
 
-### Club Reputation Aggregate
+### Community Reputation Aggregate
 
 Per-club aggregates store the derived state.
 
 Suggested v0 shape:
 
 - `user_id`
-- `club_id`
+- `community_id`
 - `post_karma`
 - `comment_karma`
 - `question_karma`
@@ -195,17 +195,17 @@ Suggested `trust_tier` values:
 Suggested meanings:
 
 - `post_karma`
-  Sum of upvotes received on the user's posts in this club, minus downvotes.
+  Sum of upvotes received on the user's posts in this community, minus downvotes.
 - `comment_karma`
-  Sum of upvotes received on the user's comments in this club, minus downvotes.
+  Sum of upvotes received on the user's comments in this community, minus downvotes.
 - `question_karma`
-  Sum of rewardable correct-answer karma granted from club questions in this club.
+  Sum of rewardable correct-answer karma granted from club questions in this community.
 - `scrobble_karma`
-  Sum of scrobble-derived karma in this club, subject to daily caps.
+  Sum of scrobble-derived karma in this community, subject to daily caps.
 - `moderation_adjustment`
   Sum of all moderator adjustments, both positive and negative.
 - `raw_karma`
-  Sum of all club-scoped event deltas before moderation adjustments.
+  Sum of all community-scoped event deltas before moderation adjustments.
   This is `post_karma + comment_karma + question_karma + scrobble_karma`.
 - `effective_karma`
   The trust-relevant karma after moderation adjustments.
@@ -216,11 +216,11 @@ Suggested meanings:
 
 Uniqueness:
 
-- unique on `(user_id, club_id)`
+- unique on `(user_id, community_id)`
 
 ### Global Reputation Aggregate
 
-Platform-level reputation is separate from club karma.
+Platform-level reputation is separate from community karma.
 
 Suggested v0 shape:
 
@@ -237,12 +237,12 @@ Suggested meanings:
 - `account_age_days_at_last_update`
   Age of the account in days at the time of the last global reputation recalculation.
 - `clubs_active`
-  Number of clubs where the user has `effective_karma` above a minimum threshold.
+  Number of communities where the user has `effective_karma` above a minimum threshold.
 - `has_been_site_banned`
   Whether the user has ever received a site-level ban.
 - `safety_score`
   An internal signal reflecting platform-level trust. Not directly visible to users.
-  Derived from verification status, account age, ban history, and cross-club behavior.
+  Derived from verification status, account age, ban history, and cross-community behavior.
 - `platform_reputation`
   A low-resolution tier or score used for spam resistance and baseline trust.
 
@@ -251,7 +251,7 @@ Suggested meanings:
   - `normal`
   - `trusted`
 
-This is not the sum of club karmas.
+This is not the sum of community karmas.
 
 `platform_reputation` is a safety floor, not a karma total.
 
@@ -265,7 +265,7 @@ The following are reasonable karma sources because they reflect recognized club 
 - comment upvotes received within a club
 - posts and comments remaining visible and non-removed over time, represented by the upvote and downvote event totals rather than a separate event type
 - correct answers to rewardable club questions
-- scrobble-derived karma for music clubs
+- scrobble-derived karma for music communities
 - moderator grants and penalties
 
 ### Inputs To Treat Carefully
@@ -300,10 +300,14 @@ Recommended v0 rules:
 
 - scrobble karma is a low-weight positive signal
 - only scrobbles that pass minimum listening validity rules contribute
-- scrobble karma is capped per `(user_id, club_id)` per day
+- scrobble karma is capped per `(user_id, community_id)` per day
 - the daily cap prevents passive-listening farms from inflating handle eligibility
 - scrobble karma is useful for fan status, top-listener recognition, and music-native participation
 - scrobble karma alone should not be enough to dominate handle allocation
+- scrobble karma derives only from anchored scrobbles
+- accepted but not-yet-anchored scrobbles do not produce `scrobble_karma_grant` events
+- the anchor worker emits karma-related side effects only after successful onchain confirmation
+- the daily cap is bucketed by `playback_started_at`, not by `anchored_at`
 
 The daily cap value and minimum listening rules are implementation policy, not protocol.
 
@@ -318,7 +322,7 @@ They exist because product policy is easier to express with tiers than raw numer
 Suggested v0 tier values:
 
 - `new`
-  Account exists but has not accumulated meaningful club karma.
+  Account exists but has not accumulated meaningful community karma.
 - `established`
   The user has demonstrated consistent positive participation.
 - `trusted`
@@ -332,7 +336,7 @@ Rules:
 
 - tiers are derived from `effective_karma` thresholds, not raw score comparisons
 - the platform defines minimum thresholds for each tier
-- clubs may use stricter thresholds but not looser ones
+- communities may use stricter thresholds but not looser ones
 - a club may not define `trusted` as requiring less karma than the platform minimum for `trusted`
 - the platform may adjust tier thresholds over time, but never retroactively demote a user without a moderation action
 - `trust_tier` is stored on the aggregate row for read performance, but its authority comes from the event log
@@ -347,7 +351,7 @@ When a user's `effective_karma` crosses a tier threshold:
 
 ## Relationship To Handle Eligibility
 
-Club karma and trust tiers are the primary inputs for club-local handle eligibility.
+Once a club enables namespace-local handle claims, community karma and trust tiers become the primary inputs for community-local handle eligibility.
 
 Directional v0 mapping:
 
@@ -364,7 +368,7 @@ These are directional guidelines.
 
 The authoritative policy lives in the namespace handle policy record defined in [handles.md](./handles.md).
 
-Global `.pirate` handles use the tier policy defined in [profile.md](./profile.md), not club karma.
+Global `.pirate` handles use the tier policy defined in [profile.md](./profile.md), not community karma.
 
 External trust snapshots may contribute to early eligibility as a bootstrap signal but must not override native karma-based tier requirements.
 
@@ -420,9 +424,9 @@ For karma-specific rules:
 - external trust may appear on the user's profile as contextual information but must not be displayed as native Pirate karma
 - the influence of external trust on eligibility should decrease over time as native karma accumulates
 
-## Relationship To Club
+## Relationship To Community
 
-Club karma is scoped to a single `club_id`.
+Community karma is scoped to a single `community_id`.
 
 Rules:
 
@@ -430,11 +434,11 @@ Rules:
 - a user may be `trusted` in one club and `new` in another
 - club owners and moderators are responsible for moderation adjustments within their club
 - platform admins retain override authority for site-wide violations
-- club-question rewards are part of club karma, not a separate product score
+- club-question rewards are part of community karma, not a separate product score
 
-Default karma policy should be created at club creation time alongside the namespace handle policy.
+Default karma policy should be created at community creation time alongside the namespace handle policy.
 
-See [club.md](./club.md) for the Create Club Flow.
+See [community.md](./community.md) for the create flow.
 
 ## On-chain vs Off-chain
 

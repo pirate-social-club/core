@@ -6,7 +6,7 @@ Related docs:
 
 - [user.md](./user.md)
 - [profile.md](./profile.md)
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [feed.md](./feed.md)
 - [handles.md](./handles.md)
 - [onboarding-reddit-bootstrap-storybook.md](./onboarding-reddit-bootstrap-storybook.md)
@@ -50,7 +50,7 @@ Recommended v0 steps:
 2. generate a default global Pirate handle
 3. optionally let the user rename it once during onboarding
 4. optionally import Reddit to seed interests and reputation snapshot
-5. optionally join a few suggested clubs
+5. optionally join a few suggested communities
 6. land the user in the product
 
 ## Generated Default Identity
@@ -66,7 +66,7 @@ Rules:
 - the generated handle should be stable and unique
 - it should be safe to show immediately even if the user skips customization
 - the user may rename it subject to global-handle policy
-- club-local handles remain separate and optional
+- community-local handles remain separate and optional
 - the initial generated handle should not require payment
 - the first onboarding cleanup rename should be free in v0
 - later upgrades into better `.pirate` inventory may require payment or stricter eligibility
@@ -75,6 +75,7 @@ Rules:
 - in v0, "early account setup" means the first `7 days` after account creation
 - onboarding should not let a user accumulate multiple active global `.pirate` handles
 - if Reddit verification is completed during onboarding, Pirate may suggest the verified Reddit username as the preferred cleanup rename
+- this global `.pirate` identity is the default way a user participates across bootstrap communities before community-local handles are enabled
 
 This gives every new user a "sailor without a home" identity before they join any specific club.
 
@@ -161,7 +162,7 @@ If Reddit import is skipped or unavailable, Pirate may still ask for very lightw
 Recommended fallback:
 
 - choose a few broad interests
-- optionally pick a few suggested clubs
+- optionally pick a few suggested communities
 
 But Pirate should prefer inferred cold-start hints over long questionnaires when trustworthy imported data exists.
 

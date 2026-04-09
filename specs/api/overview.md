@@ -8,7 +8,7 @@ Related docs:
 - [../domain/user.md](../domain/user.md)
 - [../domain/profile.md](../domain/profile.md)
 - [../domain/onboarding.md](../domain/onboarding.md)
-- [../domain/club.md](../domain/club.md)
+- [../domain/community.md](../domain/community.md)
 - [../domain/artist-catalog.md](../domain/artist-catalog.md)
 - [../domain/namespace.md](../domain/namespace.md)
 - [../domain/handles.md](../domain/handles.md)
@@ -60,7 +60,7 @@ Pirate's API should separate:
 - denormalized read surfaces
 
 The write model should stay close to the domain objects.
-The read model should optimize for product surfaces such as feeds, profiles, and club pages.
+The read model should optimize for product surfaces such as feeds, profiles, and community pages.
 
 ## API Families
 
@@ -71,7 +71,7 @@ Recommended v0 resource families:
 - `onboarding`
 - `users`
 - `profiles`
-- `clubs`
+- `communities`
 - `namespaces`
 - `handles`
 - `posts`
@@ -96,12 +96,12 @@ Interpretation:
   Canonical user object and account attachments.
 - `profiles`
   Public/editable profile surface, including the active global `.pirate` identity.
-- `clubs`
-  Club creation, settings, membership, gates, moderation roles, payout-policy selection, and creation-time community bootstrap such as flair, rules, and resource links.
+- `communities`
+  Community creation, settings, membership, gates, moderation roles, payout-policy selection, and creation-time community bootstrap such as flair, rules, and resource links.
 - `namespaces`
   Root attachment state, mirrors, delegation state, and namespace-level policy surfaces.
 - `handles`
-  Club-handle search, eligibility, claim, renew, revoke, and availability flows.
+  Community-handle search, eligibility, claim, renew, revoke, and availability flows.
 - `posts`
   Social write model for root posts, replies, nested votes and reactions, and moderation state.
 - `livestreams`
@@ -109,7 +109,7 @@ Interpretation:
 - `assets`
   Upload-backed rights-bearing objects, analysis, Story publication, access mode, and derivative lineage.
 - `feeds`
-  Read-only or read-mostly discovery and club feed surfaces.
+  Read-only or read-mostly discovery and community feed surfaces.
 - `marketplace`
   Listings, quote generation, purchase initiation, entitlement reads, and purchase history.
 - `tracks`
@@ -124,11 +124,11 @@ Interpretation:
 Important nested surfaces:
 
 - votes and reactions are nested under `posts` in v0
-- moderation is nested under `clubs` and `posts`
-- membership is nested under `clubs`
-- payout policy is nested under `clubs`
-- gate rules are nested under `clubs`
-- questions are nested under `clubs` and `posts`
+- moderation is nested under `communities` and `posts`
+- membership is nested under `communities`
+- payout policy is nested under `communities`
+- gate rules are nested under `communities`
+- questions are nested under `communities` and `posts`
 - karaoke remains nested under `assets` and song-post read models rather than becoming a top-level API family
 - royalty-graph reads are nested under `assets`
 - global `.pirate` handle lifecycle belongs under `profiles` or `users`, not club `handles`
@@ -154,7 +154,7 @@ The API should use opaque canonical IDs, not route-derived labels or wallet addr
 Examples:
 
 - `user_id`
-- `club_id`
+- `community_id`
 - `namespace_id`
 - `club_handle_id`
 - `post_id`
@@ -171,7 +171,7 @@ Sensitive actions should be checked when the action happens, not only when the p
 
 This includes:
 
-- club gate checks
+- community gate checks
 - handle eligibility
 - vote eligibility
 - `18+` access checks
@@ -189,7 +189,7 @@ Recommended v0 stance:
 
 ### Read Models Are Allowed
 
-Feeds, public profiles, club pages, and asset detail pages may use denormalized read models.
+Feeds, public profiles, community pages, and asset detail pages may use denormalized read models.
 
 The existence of those read models does not change the canonical domain object ownership defined in the domain specs.
 
@@ -219,7 +219,7 @@ The read model is optimized for UI surfaces.
 Examples:
 
 - `Home`
-- `Your Clubs`
+- `Your Communities`
 - public profile pages
 - club landing pages
 - handle availability/search results
@@ -243,9 +243,11 @@ Recommended v0 assumptions:
 
 - auth starts from a Privy-backed proof
 - Pirate issues its own app session after Privy authentication succeeds
+- a future human CLI flow should use browser handoff or device-code-style approval and then land on the same Pirate app session model
 - domain identity is `user_id`
 - wallet addresses are attachments, not canonical IDs
 - verification status is checked from Pirate's provider-neutral verification model
+- Privy wallet provisioning and auth are client-facing concerns; Story chain execution remains operator-driven and independent of Privy relay or sponsorship infrastructure
 
 Important rule:
 
@@ -260,6 +262,10 @@ Key v0 flows:
 - start verification session
 - inspect verification session
 - complete or refresh verification state
+- start HNS namespace verification session
+- inspect HNS namespace verification session
+- complete or refresh HNS namespace verification after TXT publication
+- inspect accepted namespace verification by `namespace_verification_id`
 - start Reddit verification through onboarding or verification
 - check Reddit verification result
 - trigger Reddit snapshot import
@@ -273,6 +279,7 @@ Verification outcomes should be visible to the client as:
 Recommended v0 boundary:
 
 - verification sessions stay under the verification or user model
+- namespace verification sessions may live under verification or a dedicated namespace-verification surface, but they must remain explicit session workflows rather than hidden preflights
 - Reddit bootstrap stays under onboarding, even if some endpoints are also grouped under verification in the API
 
 ## Async Job Model
@@ -334,43 +341,50 @@ Recommended API shape:
 3. optionally rename global handle
 4. optionally verify Reddit
 5. optionally trigger Reddit snapshot import job
-6. optionally join suggested clubs
+6. optionally join suggested communities
 
 Recommended v0 implementation posture:
 
 - auth bootstrap and onboarding do not need a dedicated onboarding-session resource
 - a normal authenticated app session plus onboarding status is sufficient in v0
 
-### Club Creation
+### Community Creation
 
 Recommended API shape:
 
-1. create club request
-2. prove root ownership
-3. choose namespace handle policy template or custom policy
-4. create club, namespace, handle policy, and default karma policy together
-5. optionally include initial community bootstrap such as flair definitions, rules, and resource links
-6. optionally enqueue artist metadata enrichment when the club is artist-linked
-7. optionally attach delegation or governance later
+1. complete namespace verification and obtain `namespace_verification_id`
+2. choose membership mode (`open` or `gated`) plus a namespace handle policy template or custom policy, defaulting new public communities to `standard`
+3. submit one final create request referencing the accepted namespace verification
+4. server re-checks creator binding, freshness, and `club_attach_allowed` on the accepted verification object
+5. create club, namespace, handle policy, and default karma policy together
+6. optionally include initial community bootstrap such as flair definitions, rules, and resource links for internal or later clients
+7. optionally enqueue artist metadata enrichment when the club is artist-linked
+8. optionally attach delegation or governance later
+9. optionally configure authenticity policy, authenticity-detection profile selection, and source policy during post-create onboarding or later community settings; if omitted, the server enforces restrictive defaults and the platform-default detection profile from the first post onward
 
 Recommended v0 stance:
 
-- use one final `POST /clubs` write once prerequisites are satisfied
-- root-proof and validation steps may happen before that final write
+- use one final `POST /communities` write once prerequisites are satisfied
+- root-proof and validation steps happen before that final write through namespace verification
+- `POST /communities` must consume the accepted namespace-verification object referenced by `namespace_verification_id`, not just trust the field's presence
 - v0 does not need a separate club-creation session resource
-- community bootstrap belongs in that same final club-creation write so the club launches with usable defaults rather than an empty shell
+- community bootstrap may share the same write in broader API shape, but it is deferred from the public v0 client
+- authenticity and source policy are also deferred from the public v0 create client; omission must not mean "no rules" and must not block the community from becoming active
+- authenticity-detection profile selection is likewise deferred from the public v0 create client; omission means the platform-default profile applies, not that authenticity detection is disabled
+- the initial handle-policy record does not imply public handle claims or namespace commerce are live; new public communities should begin with claims and sales disabled, then unlock later capabilities from derived community stage plus namespace/governance prerequisites
 
 ### Handle Claim
 
 Recommended API shape:
 
 1. resolve current namespace policy
-2. check membership and gate eligibility
-3. check trust/karma eligibility if required
-4. check availability
-5. require anti-bot challenge only where policy says it applies
-6. create claim or purchase result
-7. update the active namespace-local identity
+2. verify that namespace capabilities and derived community-stage permissions allow claims
+3. check membership and gate eligibility
+4. check trust/karma eligibility if required
+5. check availability
+6. require anti-bot challenge only where policy says it applies
+7. create claim or purchase result
+8. update the active namespace-local identity
 
 Global `.pirate` handle changes follow a different surface:
 
@@ -391,7 +405,7 @@ Recommended API shape:
 Recommended v0 stance:
 
 - questions stay nested under club or post surfaces rather than becoming a top-level API family
-- the club agent is an app-level actor referenced by the club record
+- the community agent is an app-level actor referenced by the club record
 - answer submission and reward state should be inspectable without creating a separate study-product API
 
 ### Livestream Creation And Room Lifecycle
@@ -463,6 +477,7 @@ Recommended v0 stance:
 - batch setlist updates are preferred to item-by-item CRUD
 - segment outcomes drive replay clearance, not just raw room state
 - setlist item authoring should default to canonical track search, with manual text entry only as fallback
+- the create flow should not ask the host to classify a live setlist item as `original`, `cover`, `remix`, or `dj_playback`; that context should come from the canonical track and later review surfaces
 
 ### Replay Read And Access
 
@@ -516,14 +531,17 @@ Recommended API shape:
 Recommended API shape:
 
 1. resolve or register track identity
-2. submit scrobble directly or through trusted delegated path
-3. record offchain reference and/or onchain submission state
-4. update read models and karma derivations asynchronously if needed
+2. submit scrobble; the server accepts it and queues it for async anchoring
+3. the accepted offchain row becomes the canonical ingest record; the anchored onchain event becomes the canonical anchor record
+4. an internal anchor worker periodically publishes batches onchain via `registerTracks(...)` then `scrobbleBatch(...)`
+5. read models and karma derivations update after anchoring
 
 Recommended URL posture:
 
 - track identity and scrobble submission are separate concerns
-- direct and delegated submissions may share one resource with a `submission_mode` field in v0
+- `POST /scrobbles` is the normal single-ingest path
+- `POST /scrobbles/batch` is the trusted/internal bulk-ingest path
+- users inspect `anchor_status` on scrobble resources rather than polling a separate anchor job
 
 ## Enforcement Boundaries
 
@@ -537,7 +555,7 @@ The API should make enforcement points explicit.
 - CAPTCHA must not be required for normal verified-user voting in v0
 - votes and reactions should be nested under `posts` in v0 rather than exposed as top-level API families
 
-### Club Gates
+### Community Gates
 
 - membership gates apply at join time
 - viewer gates apply at read time for gated surfaces
@@ -605,4 +623,4 @@ Recommended next step:
 ## Open Questions
 
 - Which flows deserve websocket or push updates in v0 versus plain polling?
-- Should scrobble submission be synchronous app acknowledgement with async chain reconciliation, or should the API expose both direct and delegated submission modes separately?
+- Should scrobble submission be synchronous app acknowledgement with async chain reconciliation, or should the API expose both direct and delegated submission modes separately? Resolved: scrobble submission is synchronous app acknowledgement with async chain reconciliation. The API accepts scrobbles and returns `202`. Onchain anchoring is performed asynchronously by a batch publisher. `ingestion_mode` preserves original provenance offchain; onchain `submissionMode` is effectively always delegated under batch publication.

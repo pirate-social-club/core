@@ -4,11 +4,10 @@ CreateScrobbleRequest:
     - track_id
     - source_type
     - playback_started_at
-    - submission_mode
   properties:
     track_id:
       type: string
-    club_id:
+    community_id:
       type: string
       nullable: true
     source_type:
@@ -27,11 +26,14 @@ CreateScrobbleRequest:
     credited_duration_ms:
       type: integer
       nullable: true
-    submission_mode:
+    ingestion_mode:
       type: string
       enum:
-        - direct
-        - delegated
+        - first_party
+        - trusted_import
+      default: first_party
+    idempotency_key:
+      type: string
 Scrobble:
   type: object
   required:
@@ -40,7 +42,9 @@ Scrobble:
     - user_id
     - source_type
     - playback_started_at
-    - submission_mode
+    - ingestion_mode
+    - anchor_status
+    - accepted_at
     - created_at
   properties:
     scrobble_id:
@@ -49,7 +53,7 @@ Scrobble:
       type: string
     user_id:
       type: string
-    club_id:
+    community_id:
       type: string
       nullable: true
     source_type:
@@ -68,13 +72,33 @@ Scrobble:
     credited_duration_ms:
       type: integer
       nullable: true
-    submission_mode:
+    ingestion_mode:
       type: string
       enum:
-        - direct
-        - delegated
-    chain_tx_ref:
+        - first_party
+        - trusted_import
+    anchor_status:
       type: string
+      enum:
+        - queued
+        - awaiting_wallet
+        - awaiting_track
+        - anchoring
+        - anchored
+        - failed
+        - suppressed
+    accepted_at:
+      type: string
+      format: date-time
+    anchored_at:
+      type: string
+      format: date-time
+      nullable: true
+    chain_tx_hash:
+      type: string
+      nullable: true
+    chain_log_index:
+      type: integer
       nullable: true
     created_at:
       type: string

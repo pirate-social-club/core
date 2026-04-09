@@ -2,6 +2,13 @@ AuthError:
   description: Authentication failed
   content:
     application/json:
+      examples:
+        default:
+          summary: Standard auth failure
+          value:
+            code: auth_error
+            message: Authentication failed
+            retryable: false
       schema:
         $ref: ./schemas/common.yaml#/Error
 PaymentRequired:
@@ -35,13 +42,13 @@ VerificationRequired:
       schema:
         $ref: ./schemas/common.yaml#/Error
 MppExportForbidden:
-  description: Export blocked by a club gate or export-eligibility rule
+  description: Export blocked by a community gate or export-eligibility rule
   content:
     application/json:
       schema:
         $ref: ./schemas/common.yaml#/Error
 GateFailed:
-  description: Club gate or membership rule failed
+  description: Community gate or membership rule failed
   content:
     application/json:
       schema:
@@ -53,7 +60,7 @@ EligibilityFailed:
       schema:
         $ref: ./schemas/common.yaml#/Error
 PostingTrustTierTooLow:
-  description: The requested posting action is not available at the author's current club trust level
+  description: The requested posting action is not available at the author's current community trust level
   content:
     application/json:
       schema:

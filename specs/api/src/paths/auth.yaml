@@ -2,7 +2,7 @@ auth_session_exchange:
   post:
     tags:
       - Auth
-    summary: Exchange a Privy proof for a Pirate app session
+    summary: Exchange an upstream auth proof for a Pirate app session
     security: []
     requestBody:
       required: true
@@ -11,13 +11,59 @@ auth_session_exchange:
           schema:
             type: object
             required:
-              - privy_access_token
+              - proof
             properties:
-              privy_access_token:
-                type: string
-              wallet_address:
-                type: string
-                nullable: true
+              proof:
+                description: |
+                  Upstream auth proof presented to Pirate. The first executable backend slice
+                  runs through `jwt_based_auth` so Bruno and local development can exercise
+                  account creation without a browser. `privy_access_token` remains part of the
+                  broader v0 product direction, and this request shape stays forward-compatible
+                  with multiple upstream providers. This JWT-first path is not the intended
+                  long-term human CLI login UX. A future Pirate CLI flow should use a browser
+                  handoff or device-code-style session and then terminate at the same Pirate app
+                  session model returned by this exchange endpoint.
+                oneOf:
+                  - type: object
+                    required:
+                      - type
+                      - privy_access_token
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - privy_access_token
+                      privy_access_token:
+                        type: string
+                      wallet_address:
+                        type: string
+                        nullable: true
+                        description: |
+                          Optional wallet-selection hint for the authenticated Privy subject.
+                          When present, Pirate must resolve it against the wallet set linked to
+                          the authenticated upstream identity and use that wallet attachment for
+                          session bootstrap rather than discovering the default wallet implicitly.
+                  - type: object
+                    required:
+                      - type
+                      - jwt
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - jwt_based_auth
+                      jwt:
+                        type: string
+                        description: |
+                          Signed JWT presented to Pirate for server-side verification. The server
+                          must validate the JWT signature, issuer, expiration, and any configured
+                          audience requirements, then treat validated `iss` + `sub` as the
+                          upstream provider identity. In the first executable JWT slice, this
+                          request variant does not create wallet attachments and does not accept a
+                          wallet-selection hint. Newly created JWT-path users therefore return an
+                          empty `wallet_attachments` array in `SessionExchangeResponse`.
+                discriminator:
+                  propertyName: type
     responses:
       "200":
         description: Session created or resumed

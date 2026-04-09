@@ -1,6 +1,6 @@
-ClubId:
+CommunityId:
   in: path
-  name: club_id
+  name: community_id
   required: true
   schema:
     type: string
@@ -43,6 +43,30 @@ JobId:
 VerificationSessionId:
   in: path
   name: verification_session_id
+  required: true
+  schema:
+    type: string
+NamespaceVerificationSessionId:
+  in: path
+  name: namespace_verification_session_id
+  required: true
+  schema:
+    type: string
+NamespaceVerificationId:
+  in: path
+  name: namespace_verification_id
+  required: true
+  schema:
+    type: string
+CommunityReferenceLinkId:
+  in: path
+  name: community_reference_link_id
+  required: true
+  schema:
+    type: string
+CommunityReferenceLinkProofId:
+  in: path
+  name: proof_id
   required: true
   schema:
     type: string

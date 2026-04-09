@@ -14,6 +14,7 @@ Job:
     job_type:
       type: string
       enum:
+        - community_provisioning
         - reddit_snapshot_import
         - club_threads_export
         - media_analysis

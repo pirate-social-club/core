@@ -23,7 +23,7 @@ feeds_your_clubs:
   get:
     tags:
       - Feeds
-    summary: Read the Your Clubs feed
+    summary: Read the Your Communities feed
     parameters:
       - $ref: ../components/parameters.yaml#/Locale
       - $ref: ../components/parameters.yaml#/FeedSort
@@ -32,7 +32,7 @@ feeds_your_clubs:
       - $ref: ../components/parameters.yaml#/Limit
     responses:
       "200":
-        description: Personalized club feed
+        description: Personalized community feed
         content:
           application/json:
             schema:

@@ -3,6 +3,22 @@ posts:
     tags:
       - Posts
     summary: Create a post
+    description: |
+      Post creation is a pre-publish gate for native media in the common v0 path.
+
+      The server should run required analysis before making the post publicly visible:
+
+      - platform-required safety analysis
+      - rights/reference analysis where applicable
+      - community authenticity/source policy evaluation where applicable
+
+      Recommended outcome mapping:
+
+      - `201` when the post is created and publishable in the current state
+      - `202` when the post is created or retained in a non-published review-held state because analysis resolved to `review_required`
+      - `422` when analysis resolved to `blocked`
+
+      Required analysis timeout or provider failure should normally resolve to a non-published hold/review outcome rather than publish-first behavior.
     requestBody:
       required: true
       content:
@@ -13,6 +29,13 @@ posts:
       "201":
         description: |
           Post created. Returns the canonical post row; localized read projections are returned by `GET /posts/{post_id}`.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/posts.yaml#/Post
+      "202":
+        description: |
+          Post accepted into a non-published review state. The canonical post row exists, but publication is held pending moderation or compliance review.
         content:
           application/json:
             schema:

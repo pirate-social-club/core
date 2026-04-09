@@ -7,7 +7,7 @@ Related docs:
 - [user.md](./user.md)
 - [profile.md](./profile.md)
 - [notifications.md](./notifications.md)
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [blocks.md](./blocks.md)
 
 ## Purpose

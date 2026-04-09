@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [namespace.md](./namespace.md)
 - [artist-identity.md](./artist-identity.md)
 - [handles.md](./handles.md)
@@ -62,7 +62,7 @@ Posts use opaque app-issued IDs.
 Examples:
 
 - `post_id = pst_01...`
-- `club_id = gld_01...`
+- `community_id = gld_01...`
 - `asset_id = ast_01...`
 
 ## Posting Eligibility
@@ -73,7 +73,7 @@ The exact verification policy belongs in a later identity/onboarding spec, but t
 
 - users must satisfy the required verification capability checks before they can publish posts
 - the minimum verification for posting is a verified `unique_human` capability from an accepted provider
-- passing the identity gate is necessary but not always sufficient; club posting policy may impose additional trust-tier and pacing requirements. See [club.md](./club.md) under Posting Policy.
+- passing the identity gate is necessary but not always sufficient; community posting policy may impose additional trust-tier and pacing requirements. See [community.md](./community.md).
 
 Examples of why Pirate may require verification:
 
@@ -96,7 +96,7 @@ In v0:
 Suggested v0 fields:
 
 - `post_id`
-- `club_id`
+- `community_id`
 - `author_user_id`
 - `identity_mode`
 - `anonymous_scope` nullable
@@ -130,7 +130,7 @@ Suggested meanings:
   - `public`
   - `anonymous`
 - `anonymous_scope`
-  - `club_stable`
+  - `community_stable`
   - `thread_stable`
   - `post_ephemeral`
 - `post_type`
@@ -179,8 +179,10 @@ Notes:
 - `identity_mode` is the canonical author-presentation choice for the post
 - `anonymous_scope` is nullable and applies only when `identity_mode = anonymous`
 - `disclosed_qualifiers_json` stores a publish-time snapshot of the verified qualifier labels the author chose to disclose on this post
+- `disclosed_qualifiers_json` may also store platform-authored content-authenticity disclosures required by community policy
 - `analysis_state = review_required` is reserved for content, safety, rights, or compliance review signals from analysis
-- v0 disclosed qualifiers should come from [user.md](./user.md) `verification_capabilities` plus explicitly supported provider-specific qualifier templates
+- identity-derived disclosed qualifiers should come from [user.md](./user.md) `verification_capabilities` plus explicitly supported provider-specific qualifier templates
+- content-authenticity disclosure entries may be platform-authored from upload analysis plus community policy without becoming freeform user-authored fields
 - v0 canonical posts do not distinguish human-initiated writes from agent-initiated writes on the base row; if Pirate later supports user-owned agents posting on behalf of a user, a field such as `submission_mode` or `authorship_mode` should be added as the auditability extension point rather than overloading `author_user_id`
 - `asset_id` is nullable because not every post becomes a rights-bearing asset
 - `media_refs` points to uploaded content blobs stored separately from the post row
@@ -192,36 +194,36 @@ Notes:
 - `source_language` is authoritative server-authored language metadata inferred during write-time analysis rather than user-authored input
 - `parent_post_id` supports replies or thread attachment without making all posts comments
 - `analysis_result_ref` points to a shared media-analysis record that may also be referenced by the attached asset
-- `analysis_result_ref` is a foreign key to a shared `media_analysis_results` record that stores copyright analysis, safety analysis, lyrics/transcript analysis where available, and the final upload-outcome decision
+- `analysis_result_ref` is a foreign key to a shared `media_analysis_results` record that stores copyright analysis, safety analysis, authenticity/source analysis where available, lyrics/transcript analysis where available, and the final upload-outcome decision
 - Story publication state is owned by the attached asset when one exists; API read models may derive a post-level Story badge from the asset's `publication_state`
 - `age_gate_policy` is the explicit viewer-access rule stored on the post
 - stricter upstream age gates must propagate downstream to derivative posts
-- charitable donation destination should not be an arbitrary post-level field in v0; when monetized content opts into donation, it should use the club-level donation partner through the monetization layer
+- charitable donation destination should not be an arbitrary post-level field in v0; when monetized content opts into donation, it should use the community-level donation partner through the monetization layer
 - creator donation participation belongs on the listing, not the post row and not the asset row
 
 ### Flair
 
-Pirate should support one optional club-scoped flair per post.
+Pirate should support one optional community-scoped flair per post.
 
 Purpose:
 
 - help communities label conversational lanes such as `Question`, `Announcement`, `Trip Report`, `Gear Review`, `WIP`, or `Release`
-- support lightweight filtering inside a club feed
-- give clubs some self-definition without turning posts into freeform taxonomy objects
+- support lightweight filtering inside a community feed
+- give communities some self-definition without turning posts into freeform taxonomy objects
 
 Non-goals:
 
 - replacing canonical post facts already modeled elsewhere
 - freeform hashtags or user-created tags
-- cross-club global flair semantics
+- cross-community global flair semantics
 - ranking boosts tied to flair usage
 
 Rules:
 
 - each post may store `flair_id` or `null`
-- `flair_id` must resolve to an active flair definition owned by the same `club_id` as the post
+- `flair_id` must resolve to an active flair definition owned by the same `community_id` as the post
 - in v0, `flair_id` must be `null` when `parent_post_id` is non-null; reply flair is future work
-- flair is optional in v0 unless a club later chooses to require one through club settings
+- flair is optional in v0 unless a community later chooses to require one through community settings
 - flair is display and filtering metadata, not canonical domain truth
 - system-derived facts must not be modeled as flair when Pirate already has a structured field for them
 
@@ -248,7 +250,7 @@ Examples of good flair:
   - `public`
   - `anonymous`
 - `anonymous_scope`
-  - `club_stable`
+  - `community_stable`
   - `thread_stable`
   - `post_ephemeral`
   - `null`
@@ -262,8 +264,10 @@ Suggested v0 `disclosed_qualifiers_json` item shape:
 - `rendered_label`
 - `qualifier_kind`
   - `verification_capability`
+  - `provider_attestation`
+  - `content_authenticity`
 - `qualifier_source`
-  Example: `verification_capabilities`
+  Example: `verification_capabilities` or `content_authenticity_policy`
 - `sensitivity_level`
 - `redundancy_key`
 
@@ -273,10 +277,11 @@ Anonymous-capable presentation is not valid for every post shape.
 
 Recommended v0 rule:
 
-- `text`, `image`, `video`, and `link` posts may use public or anonymous identity according to club policy
+- `text`, `image`, `video`, and `link` posts may use public or anonymous identity according to community policy
 - `song` posts must use public identity in v0
 - live anchor posts must use public identity in v0
-- disclosed qualifiers are only valid on anonymous posts in v0
+- identity-derived disclosed qualifiers are only valid on anonymous posts in v0
+- platform-authored `content_authenticity` disclosure entries may appear on eligible public or anonymous posts when community policy requires disclosure
 
 Reasoning:
 
@@ -288,12 +293,12 @@ Reasoning:
 `author_user_id` on anonymously presented posts is privileged data. The following rules enforce the access boundary:
 
 - the public API and standard read models must not return `author_user_id` on posts where `identity_mode = anonymous`
-- club moderators and other users must never see `author_user_id` on anonymously presented posts through any normal product surface
-- only the privileged resolver path defined in [club.md](./club.md) may map an anonymous post back to `author_user_id`, and only through the audited break-glass workflow
+- community moderators and other users must never see `author_user_id` on anonymously presented posts through any normal product surface
+- only the privileged resolver path defined in [community.md](./community.md) may map an anonymous post back to `author_user_id`, and only through the audited break-glass workflow
 - internal services and background jobs that need `author_user_id` for operational purposes must operate behind the privileged resolver boundary or receive explicit clearance to access the field
 - `identity_mode`, `anonymous_label`, and `disclosed_qualifiers_json` are public presentation fields; they are visible in normal API responses
 
-Anonymous post lifecycle is defined in [club.md](./club.md) under Anonymous Lifecycle Rules, including handling for club bans, account deletion, policy flips, and re-verification loss.
+Anonymous post lifecycle is defined in [community.md](./community.md), including handling for community bans, account deletion, policy flips, and re-verification loss.
 
 ## Post Types
 
@@ -338,7 +343,7 @@ Rules:
 - link preview metadata should be derived automatically when available
 - link preview is UI presentation, not a required authoring field
 - `link` posts may not attach assets or publish to Story in v0
-- `link` posts are subject to the same `link_post_policy` enforcement as described in [club.md](./club.md) under Posting Policy
+- `link` posts are subject to the same `link_post_policy` enforcement as described in [community.md](./community.md)
 
 ### Song
 
@@ -348,7 +353,7 @@ Rules:
 
 - a song post must attach an asset
 - a song post must publish that asset to Story in v0
-- canonical song uploads remain subject to the club's `artist_governance_state`
+- canonical song uploads remain subject to the community's `artist_governance_state`
 
 ## Post Submodes
 
@@ -429,10 +434,51 @@ Pirate should run both copyright-oriented analysis and safety-oriented analysis 
 
 The shared `media_analysis_results` record is the source of truth for those outputs.
 
+### Pre-Publish Analysis Gate
+
+Recommended v0 posture:
+
+- native media uploads should be evaluated before the post becomes publicly visible
+- platform-required safety analysis and community authenticity/source policy evaluation should therefore be part of the publish gate, not an ordinary after-the-fact moderation workflow
+- moderation review remains the fallback for ambiguity, provider failure, timeout, later abuse reports, and post-publication policy evolution
+
+Recommended v0 create outcomes:
+
+- `allow`
+  - create the post and allow publication
+- `allow_with_required_reference`
+  - create the draft or pending post row, but require the missing reference or disclosure before publication completes
+- `review_required`
+  - do not publish the post
+  - create or retain a non-published post row and route it into moderation review
+- `blocked`
+  - do not publish the post
+  - Pirate may reject the create outright or persist only an internal failed-attempt/audit record rather than a normal publishable post row
+
+Interpretation:
+
+- the common path for image, video, and song uploads should resolve before public visibility
+- this keeps community AI/content rules enforceable at the point of action rather than turning them into cleanup work for moderators
+- `review_required` is a hold state, not a successful publication with later moderation cleanup
+
+### Analysis Timing And Failure Posture
+
+Pirate should prefer fast pre-publish analysis, but should not assume every provider finishes instantly.
+
+Recommended v0 rules:
+
+- Pirate should use a bounded pre-publish analysis budget for blocking analysis work
+- if required analysis completes inside the budget, Pirate should decide publishability synchronously
+- if required analysis does not complete inside the budget for a high-risk or policy-critical category, Pirate should fail closed into `review_required` or equivalent non-published hold state rather than publishing first
+- Pirate should not silently fail open for platform-required safety checks
+- fail-open behavior, if ever allowed for low-risk community-optional cases, should still avoid public publication unless Pirate can defend the risk posture clearly; v0 should prefer hold/review over publish-first
+- link posts may use lighter-weight or deferred analysis because they do not always contain native media, but any later preview-media analysis should still respect the same platform/community policy boundaries
+
 Recommended v0 concerns:
 
 - copyrighted-audio detection
 - derivative/reference suggestions
+- AI-generated or manipulated media detection where supported
 - lyrics and transcript safety classification
 - nudity or sexual-content detection for images and video where supported
 - profanity, sexual-content, and other adult-content classification for text and lyrics
@@ -462,6 +508,63 @@ Important:
 - automated analysis is a classification and moderation aid
 - automated analysis is not final legal proof of ownership or authorization
 - safety analysis is also a classification and moderation aid, not a substitute for human review in edge cases
+
+### Provider Boundaries
+
+Pirate should separate platform-required safety providers from community-selectable authenticity-detection profiles.
+
+Rules:
+
+- platform-required safety analysis such as `18+`, CSAM, sexual-content, and violence detection remains platform-managed and is never chosen by the community
+- community authenticity-detection choice applies only to authenticity/source evidence used for community-optional AI-content decisions
+- communities may choose only among platform-approved authenticity-detection profiles; they must not submit raw provider keys, thresholds, or vendor-specific model switches
+- provider choice must not leak directly into product semantics; Pirate should normalize provider outputs before policy evaluation
+
+Suggested v0 normalized `media_analysis_results` authenticity fields:
+
+- `authenticity_detection_profile_id` nullable
+- `authenticity_provider_key` nullable
+- `authenticity_provider_task_ref` nullable
+- `authenticity_signals_json` nullable
+
+Suggested v0 `authenticity_signals_json` item shape:
+
+- `signal_type`
+  - `ai_generated`
+  - `generative_editing`
+  - `deepfake`
+  - `synthetic_voice`
+  - `synthetic_music`
+- `confidence`
+- `provider_label`
+- `provider_class`
+- `media_scope`
+  - `image`
+  - `video`
+  - `audio`
+
+Interpretation:
+
+- `provider_label` and `provider_class` preserve traceability to the underlying vendor output
+- `signal_type` is Pirate's normalized semantic layer used for policy lookup
+- the full raw provider payload should remain stored as provider evidence referenced by `analysis_result_ref`, not leaked directly into community policy semantics
+
+### Authenticity And Source Policy Interpretation
+
+Community authenticity and source policies should feed into the existing `analysis_state` decision, not create a parallel state machine.
+
+Recommended v0 policy interpretation:
+
+- if a community has not explicitly configured `content_authenticity_policy` or `source_policy`, Pirate must evaluate uploads against the restrictive resolved defaults rather than treating the policy as absent
+- if a community has not explicitly configured `content_authenticity_detection_policy`, Pirate must evaluate authenticity signals using the resolved platform-default detection profile rather than treating authenticity detection as disabled
+- platform-minimum prohibitions such as non-consensual sexual deepfakes, deceptive impersonation of real people, or other banned synthetic-likeness categories should produce `analysis_state = blocked` regardless of community settings
+- AI-detection providers and other authenticity signals are moderation inputs, not dispositive truth by themselves
+- if authenticity or source signals are ambiguous, Pirate should prefer `review_required` rather than silently allowing publication
+- if the community policy disallows the detected AI-assisted, AI-generated, or source category with high confidence, Pirate may set `analysis_state = blocked`
+- if the community policy disallows the category but detection confidence or provenance evidence is not strong enough for an automatic block, Pirate should set `analysis_state = review_required`
+- if the community policy allows the category, `analysis_state` should remain `allow` unless another rights, safety, or compliance rule blocks publication
+- if the community policy allows the category only with disclosure, disclosure should be handled as a publish-time validation requirement and post snapshot concern rather than a new `analysis_state` value
+- prospective policy changes should affect only future posts by default; Pirate should not automatically re-evaluate already published posts solely because the community later changed its authenticity or source settings
 
 Recommended v0 upload outcomes:
 
@@ -521,11 +624,13 @@ Decision rules derived from this table:
 Mapping to post fields:
 
 - if no post row exists yet and the outcome is `blocked`, Pirate should not create a publishable post
+- if the outcome is `review_required`, Pirate should not create a publicly visible post; any persisted row should remain non-published until review resolves it
 - if club posting policy rejects the write due to trust-tier or pacing rules, Pirate should reject the write directly rather than creating a pending moderation item
 - trust-tier rejection and pacing rejection should remain distinct failure cases even when both come from club posting policy; clients should be able to tell "not allowed at your current trust level" apart from "quota exhausted for now"
 - when a draft post is created from an allowed upload, `analysis_state` should mirror the final non-blocking upload outcome
 - the full reasoning and provider payload live on the shared `media_analysis_results` row referenced by `analysis_result_ref`
 - `content_safety_state` and `age_gate_policy` should be copied from the final analysis outcome at post creation time and may later be tightened by moderation
+- when authenticity disclosure is required by community policy, the publish flow should snapshot the normalized disclosure label onto `disclosed_qualifiers_json` before publication completes
 
 ### Publication Merge Rule
 
@@ -585,7 +690,7 @@ Suggested meanings:
 
 - memes
 - formats or performance patterns
-- other remix-adjacent content where clubs may want sharing norms even when legal status is less clean
+- other remix-adjacent content where communities may want sharing norms even when legal status is less clean
 
 Constraints:
 
@@ -821,7 +926,7 @@ Suggested v0 moderation record shape:
 
 - `post_moderation_action_id`
 - `post_id`
-- `club_id`
+- `community_id`
 - `actor_user_id`
 - `action_type`
 - `reason_code` nullable
@@ -841,7 +946,7 @@ Rules:
 
 - `status` on the post stores the current visible lifecycle state
 - moderation records store the action history that led to that state
-- moderators act within club policy; platform admins retain fallback authority
+- moderators act within community policy; platform admins retain fallback authority
 - moderators may tighten `content_safety_state` or `age_gate_policy` after review, but should not weaken inherited upstream age gates without explicit admin tooling
 
 ## Votes And Reactions

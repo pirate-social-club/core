@@ -1,0 +1,1108 @@
+CreateCommunityDonationPolicyInput:
+  type: object
+  description: |
+    Optional community-level donation configuration supplied at creation time. If omitted, the community defaults to no donation policy. If `donation_policy_mode = optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id` must be non-null. If `donation_policy_mode = none`, `donation_partner_id` must be null.
+  required:
+    - donation_policy_mode
+  properties:
+    donation_policy_mode:
+      type: string
+      enum:
+        - none
+        - optional_creator_sidecar
+        - fundraiser_default
+    donation_partner_id:
+      type: string
+      nullable: true
+UpdateCommunityDonationPolicyRequest:
+  type: object
+  description: |
+    Update the community donation policy. If `donation_policy_mode = optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id` must be non-null. If `donation_policy_mode = none`, `donation_partner_id` must be null. Donation partner lifecycle management is platform-admin-controlled in v0.
+  required:
+    - donation_policy_mode
+  properties:
+    donation_policy_mode:
+      type: string
+      enum:
+        - none
+        - optional_creator_sidecar
+        - fundraiser_default
+    donation_partner_id:
+      type: string
+      nullable: true
+    donation_partner_status:
+      type: string
+      enum:
+        - unconfigured
+        - active
+        - paused
+      nullable: true
+DonationPartnerSummary:
+  type: object
+  description: |
+    Public/admin-safe summary of a reviewed donation partner. Full payout routing details remain internal to Pirate settlement systems in v0.
+  required:
+    - donation_partner_id
+    - display_name
+    - provider
+    - review_status
+    - status
+  properties:
+    donation_partner_id:
+      type: string
+    display_name:
+      type: string
+    provider:
+      type: string
+      enum:
+        - endaoment
+    provider_partner_ref:
+      type: string
+      nullable: true
+    review_status:
+      type: string
+      enum:
+        - pending
+        - approved
+        - rejected
+    status:
+      type: string
+      enum:
+        - active
+        - paused
+        - retired
+CommunityDonationPolicy:
+  type: object
+  description: |
+    Resolved donation policy attached to a community. This policy enables or disables listing-level creator donation sidecars for content sold inside the community.
+  required:
+    - community_id
+    - donation_policy_mode
+    - donation_partner_status
+  properties:
+    community_id:
+      type: string
+    donation_policy_mode:
+      type: string
+      enum:
+        - none
+        - optional_creator_sidecar
+        - fundraiser_default
+    donation_partner_status:
+      type: string
+      enum:
+        - unconfigured
+        - active
+        - paused
+    donation_partner_id:
+      type: string
+      nullable: true
+    donation_partner:
+      $ref: ./communities-community.yaml#/DonationPartnerSummary
+      nullable: true
+    updated_at:
+      type: string
+      format: date-time
+CommunityContentAuthenticityStance:
+  type: string
+  enum:
+    - human_only
+    - human_first
+    - ai_allowed_with_disclosure
+    - ai_allowed
+CommunityPolicyOrigin:
+  type: string
+  enum:
+    - default
+    - explicit
+CommunityContentAuthenticityDetectionSelectionMode:
+  type: string
+  enum:
+    - platform_default
+    - approved_profile
+CommunityAuthenticityDetectionProfileStatus:
+  type: string
+  enum:
+    - active
+    - archived
+CommunityAuthenticityDetectionProfileSummary:
+  type: object
+  description: |
+    Public/admin-safe summary of a platform-approved authenticity-detection profile. Communities choose from these platform-managed profiles rather than configuring raw provider parameters directly.
+  required:
+    - authenticity_detection_profile_id
+    - profile_key
+    - provider_key
+    - supported_capabilities
+    - status
+  properties:
+    authenticity_detection_profile_id:
+      type: string
+    profile_key:
+      type: string
+    provider_key:
+      type: string
+      description: |
+        Provider implementation key such as `hive`, `truthscan`, or a future Pirate-managed detector.
+    supported_capabilities:
+      type: array
+      items:
+        type: string
+        enum:
+          - image_authenticity
+          - video_authenticity
+          - audio_authenticity
+          - deepfake_detection
+    status:
+      $ref: ./communities-community.yaml#/CommunityAuthenticityDetectionProfileStatus
+CommunityTextAuthenticityPolicySettings:
+  type: object
+  additionalProperties: false
+  required:
+    - allow_ai_assisted_editing
+    - allow_ai_generated
+  properties:
+    allow_ai_assisted_editing:
+      type: boolean
+    allow_ai_generated:
+      type: boolean
+CommunityImageAuthenticityPolicySettings:
+  type: object
+  additionalProperties: false
+  required:
+    - allow_ai_upscale
+    - allow_ai_restoration
+    - allow_generative_editing
+    - allow_ai_generated
+  properties:
+    allow_ai_upscale:
+      type: boolean
+    allow_ai_restoration:
+      type: boolean
+    allow_generative_editing:
+      type: boolean
+    allow_ai_generated:
+      type: boolean
+CommunityVideoAuthenticityPolicySettings:
+  type: object
+  additionalProperties: false
+  required:
+    - allow_ai_upscale
+    - allow_ai_restoration
+    - allow_ai_frame_interpolation
+    - allow_generative_editing
+    - allow_ai_generated
+  properties:
+    allow_ai_upscale:
+      type: boolean
+    allow_ai_restoration:
+      type: boolean
+    allow_ai_frame_interpolation:
+      type: boolean
+    allow_generative_editing:
+      type: boolean
+    allow_ai_generated:
+      type: boolean
+CommunitySongAuthenticityPolicySettings:
+  type: object
+  additionalProperties: false
+  required:
+    - allow_ai_assisted_mastering
+    - allow_ai_stem_separation
+    - allow_ai_generated_instrumentals
+    - allow_ai_generated_lyrics
+    - allow_ai_generated_vocals
+  properties:
+    allow_ai_assisted_mastering:
+      type: boolean
+    allow_ai_stem_separation:
+      type: boolean
+    allow_ai_generated_instrumentals:
+      type: boolean
+    allow_ai_generated_lyrics:
+      type: boolean
+    allow_ai_generated_vocals:
+      type: boolean
+CreateCommunityContentAuthenticityPolicyInput:
+  type: object
+  description: |
+    Structured community policy for AI-assisted and AI-generated content. Platform-level bans such as non-consensual sexual deepfakes or deceptive impersonation of real people are intentionally not represented here and must override any community setting.
+  required:
+    - authenticity_stance
+    - text_policy
+    - image_policy
+    - video_policy
+    - song_policy
+  additionalProperties: false
+  properties:
+    authenticity_stance:
+      $ref: ./communities-community.yaml#/CommunityContentAuthenticityStance
+    text_policy:
+      $ref: ./communities-community.yaml#/CommunityTextAuthenticityPolicySettings
+    image_policy:
+      $ref: ./communities-community.yaml#/CommunityImageAuthenticityPolicySettings
+    video_policy:
+      $ref: ./communities-community.yaml#/CommunityVideoAuthenticityPolicySettings
+    song_policy:
+      $ref: ./communities-community.yaml#/CommunitySongAuthenticityPolicySettings
+UpdateCommunityContentAuthenticityPolicyRequest:
+  type: object
+  description: |
+    Replace or update the community's structured authenticity policy. Changes apply prospectively to future posts and moderation decisions; existing posts are not automatically reclassified.
+  required:
+    - authenticity_stance
+    - text_policy
+    - image_policy
+    - video_policy
+    - song_policy
+  additionalProperties: false
+  properties:
+    authenticity_stance:
+      $ref: ./communities-community.yaml#/CommunityContentAuthenticityStance
+    text_policy:
+      $ref: ./communities-community.yaml#/CommunityTextAuthenticityPolicySettings
+    image_policy:
+      $ref: ./communities-community.yaml#/CommunityImageAuthenticityPolicySettings
+    video_policy:
+      $ref: ./communities-community.yaml#/CommunityVideoAuthenticityPolicySettings
+    song_policy:
+      $ref: ./communities-community.yaml#/CommunitySongAuthenticityPolicySettings
+CommunityContentAuthenticityPolicy:
+  type: object
+  description: |
+    Resolved community authenticity policy. This setting is separate from freeform rules text and separate from rights or source authorization policy. When no explicit policy has been configured, the server must still return the restrictive default policy with `policy_origin = default`. In that case, `updated_at` may be synthesized from the applicable default-policy revision timestamp or another server-defined default-policy source.
+  required:
+    - community_id
+    - policy_origin
+    - authenticity_stance
+    - text_policy
+    - image_policy
+    - video_policy
+    - song_policy
+    - updated_at
+  properties:
+    community_id:
+      type: string
+    policy_origin:
+      $ref: ./communities-community.yaml#/CommunityPolicyOrigin
+    authenticity_stance:
+      $ref: ./communities-community.yaml#/CommunityContentAuthenticityStance
+    text_policy:
+      $ref: ./communities-community.yaml#/CommunityTextAuthenticityPolicySettings
+    image_policy:
+      $ref: ./communities-community.yaml#/CommunityImageAuthenticityPolicySettings
+    video_policy:
+      $ref: ./communities-community.yaml#/CommunityVideoAuthenticityPolicySettings
+    song_policy:
+      $ref: ./communities-community.yaml#/CommunitySongAuthenticityPolicySettings
+    updated_at:
+      type: string
+      format: date-time
+CommunityIdentifiedPersonMediaScope:
+  type: string
+  enum:
+    - subject_only
+    - subject_or_authorized
+    - public_source_allowed
+CreateCommunitySourcePolicyInput:
+  type: object
+  description: |
+    Structured community policy for reposts, source attribution, and human-made fan works involving identified real people. Synthetic likeness rules remain platform-level constraints and are intentionally not represented here.
+  required:
+    - identified_person_media_scope
+    - require_source_url_for_reposts
+    - allow_human_made_fan_art_of_real_people
+    - require_fan_art_disclosure
+  additionalProperties: false
+  properties:
+    identified_person_media_scope:
+      $ref: ./communities-community.yaml#/CommunityIdentifiedPersonMediaScope
+    require_source_url_for_reposts:
+      type: boolean
+    allow_human_made_fan_art_of_real_people:
+      type: boolean
+    require_fan_art_disclosure:
+      type: boolean
+UpdateCommunitySourcePolicyRequest:
+  type: object
+  description: |
+    Replace or update the community's structured source policy. Changes apply prospectively to future posts and moderation decisions; existing posts are not automatically reclassified.
+  required:
+    - identified_person_media_scope
+    - require_source_url_for_reposts
+    - allow_human_made_fan_art_of_real_people
+    - require_fan_art_disclosure
+  additionalProperties: false
+  properties:
+    identified_person_media_scope:
+      $ref: ./communities-community.yaml#/CommunityIdentifiedPersonMediaScope
+    require_source_url_for_reposts:
+      type: boolean
+    allow_human_made_fan_art_of_real_people:
+      type: boolean
+    require_fan_art_disclosure:
+      type: boolean
+CommunitySourcePolicy:
+  type: object
+  description: |
+    Resolved community source policy for reposts and fan works. This policy is orthogonal to AI authenticity settings and does not weaken platform-level bans on deceptive synthetic likeness content. When no explicit policy has been configured, the server must still return the restrictive default policy with `policy_origin = default`. In that case, `updated_at` may be synthesized from the applicable default-policy revision timestamp or another server-defined default-policy source.
+  required:
+    - community_id
+    - policy_origin
+    - identified_person_media_scope
+    - require_source_url_for_reposts
+    - allow_human_made_fan_art_of_real_people
+    - require_fan_art_disclosure
+    - updated_at
+  properties:
+    community_id:
+      type: string
+    policy_origin:
+      $ref: ./communities-community.yaml#/CommunityPolicyOrigin
+    identified_person_media_scope:
+      $ref: ./communities-community.yaml#/CommunityIdentifiedPersonMediaScope
+    require_source_url_for_reposts:
+      type: boolean
+    allow_human_made_fan_art_of_real_people:
+      type: boolean
+    require_fan_art_disclosure:
+      type: boolean
+    updated_at:
+      type: string
+      format: date-time
+CreateCommunityContentAuthenticityDetectionPolicyInput:
+  type: object
+  description: |
+    Structured community setting for selecting which platform-approved authenticity-detection profile Pirate should use for community-optional authenticity decisions. Platform-required safety and age-gating analysis remain outside this setting and are never community-configurable.
+  required:
+    - selection_mode
+  additionalProperties: false
+  properties:
+    selection_mode:
+      $ref: ./communities-community.yaml#/CommunityContentAuthenticityDetectionSelectionMode
+    authenticity_detection_profile_id:
+      type: string
+      nullable: true
+      description: |
+        Required when `selection_mode = approved_profile`. Must reference an active platform-approved authenticity-detection profile.
+UpdateCommunityContentAuthenticityDetectionPolicyRequest:
+  type: object
+  description: |
+    Replace or update the community's authenticity-detection selection. Changes apply prospectively to future authenticity analysis and moderation decisions; existing posts are not automatically reclassified.
+  required:
+    - selection_mode
+  additionalProperties: false
+  properties:
+    selection_mode:
+      $ref: ./communities-community.yaml#/CommunityContentAuthenticityDetectionSelectionMode
+    authenticity_detection_profile_id:
+      type: string
+      nullable: true
+      description: |
+        Required when `selection_mode = approved_profile`. Must reference an active platform-approved authenticity-detection profile.
+CommunityContentAuthenticityDetectionPolicy:
+  type: object
+  description: |
+    Resolved community authenticity-detection policy. When no explicit selection has been configured, the server must still return the platform-default detection profile with `policy_origin = default`. The platform-default authenticity-detection profile is an operational invariant and must always exist while this feature is enabled. In that case, `updated_at` may be synthesized from the active platform-default profile version timestamp or another server-defined default-policy source.
+  required:
+    - community_id
+    - policy_origin
+    - selection_mode
+    - resolved_profile
+    - updated_at
+  properties:
+    community_id:
+      type: string
+    policy_origin:
+      $ref: ./communities-community.yaml#/CommunityPolicyOrigin
+    selection_mode:
+      $ref: ./communities-community.yaml#/CommunityContentAuthenticityDetectionSelectionMode
+    resolved_profile:
+      $ref: ./communities-community.yaml#/CommunityAuthenticityDetectionProfileSummary
+    updated_at:
+      type: string
+      format: date-time
+CreateCommunityBootstrapInput:
+  type: object
+  properties:
+    flair_policy:
+      $ref: ./communities-community.yaml#/CreateCommunityFlairPolicyInput
+      nullable: true
+    rules:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CreateCommunityRuleInput
+    resource_links:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CreateCommunityResourceLinkInput
+CreateCommunityFlairPolicyInput:
+  type: object
+  properties:
+    flair_enabled:
+      type: boolean
+      default: false
+    require_flair_on_top_level_posts:
+      type: boolean
+      default: false
+    definitions:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CreateCommunityFlairDefinitionInput
+UpdateCommunityFlairPolicyRequest:
+  type: object
+  properties:
+    flair_enabled:
+      type: boolean
+    require_flair_on_top_level_posts:
+      type: boolean
+    definitions:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityFlairDefinitionMutationInput
+CreateCommunityFlairDefinitionInput:
+  type: object
+  required:
+    - label
+    - position
+  additionalProperties: false
+  properties:
+    label:
+      type: string
+    description:
+      type: string
+      nullable: true
+    color_token:
+      type: string
+      nullable: true
+    position:
+      type: integer
+      minimum: 0
+    allowed_post_types:
+      type: array
+      items:
+        type: string
+        enum:
+          - text
+          - image
+          - video
+          - song
+      nullable: true
+UpdateCommunityFlairDefinitionInput:
+  type: object
+  required:
+    - flair_id
+  additionalProperties: false
+  properties:
+    flair_id:
+      type: string
+    label:
+      type: string
+    description:
+      type: string
+      nullable: true
+    color_token:
+      type: string
+      nullable: true
+    position:
+      type: integer
+      minimum: 0
+    allowed_post_types:
+      type: array
+      items:
+        type: string
+        enum:
+          - text
+          - image
+          - video
+          - song
+      nullable: true
+    status:
+      type: string
+      enum:
+        - active
+        - archived
+CommunityFlairDefinitionMutationInput:
+  oneOf:
+    - $ref: ./communities-community.yaml#/CreateCommunityFlairDefinitionInput
+    - $ref: ./communities-community.yaml#/UpdateCommunityFlairDefinitionInput
+CommunityFlairDefinition:
+  type: object
+  required:
+    - flair_id
+    - label
+    - status
+    - position
+  properties:
+    flair_id:
+      type: string
+    label:
+      type: string
+    description:
+      type: string
+      nullable: true
+    color_token:
+      type: string
+      nullable: true
+    status:
+      type: string
+      enum:
+        - active
+        - archived
+    position:
+      type: integer
+      minimum: 0
+    allowed_post_types:
+      type: array
+      items:
+        type: string
+        enum:
+          - text
+          - image
+          - video
+          - song
+      nullable: true
+CommunityFlairPolicy:
+  type: object
+  required:
+    - flair_enabled
+    - require_flair_on_top_level_posts
+    - definitions
+  properties:
+    flair_enabled:
+      type: boolean
+    require_flair_on_top_level_posts:
+      type: boolean
+    definitions:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityFlairDefinition
+PostFlair:
+  type: object
+  description: |
+    Resolved flair summary for a post read surface. Historical posts may continue to return flair definitions whose current `status` is `archived`; clients should still render the flair pill normally in that case rather than treating it as hidden or as a special archived badge.
+  required:
+    - flair_id
+    - label
+    - status
+  properties:
+    flair_id:
+      type: string
+    label:
+      type: string
+    color_token:
+      type: string
+      nullable: true
+    status:
+      type: string
+      enum:
+        - active
+        - archived
+CreateCommunityRuleInput:
+  type: object
+  required:
+    - title
+    - body
+    - position
+  additionalProperties: false
+  properties:
+    title:
+      type: string
+    body:
+      type: string
+    position:
+      type: integer
+      minimum: 0
+UpdateCommunityRuleInput:
+  type: object
+  required:
+    - rule_id
+  additionalProperties: false
+  properties:
+    rule_id:
+      type: string
+    title:
+      type: string
+    body:
+      type: string
+    position:
+      type: integer
+      minimum: 0
+    status:
+      type: string
+      enum:
+        - active
+        - archived
+CommunityRuleMutationInput:
+  oneOf:
+    - $ref: ./communities-community.yaml#/CreateCommunityRuleInput
+    - $ref: ./communities-community.yaml#/UpdateCommunityRuleInput
+CommunityRule:
+  type: object
+  required:
+    - rule_id
+    - title
+    - body
+    - position
+    - status
+  properties:
+    rule_id:
+      type: string
+    title:
+      type: string
+    body:
+      type: string
+    position:
+      type: integer
+      minimum: 0
+    status:
+      type: string
+      enum:
+        - active
+        - archived
+CreateCommunityResourceLinkInput:
+  type: object
+  required:
+    - label
+    - url
+    - resource_kind
+    - position
+  additionalProperties: false
+  properties:
+    label:
+      type: string
+    url:
+      type: string
+      format: uri
+    resource_kind:
+      type: string
+      enum:
+        - link
+        - playlist
+        - document
+        - discord
+        - website
+        - other
+    position:
+      type: integer
+      minimum: 0
+UpdateCommunityResourceLinkInput:
+  type: object
+  required:
+    - resource_link_id
+  additionalProperties: false
+  properties:
+    resource_link_id:
+      type: string
+    label:
+      type: string
+    url:
+      type: string
+      format: uri
+    resource_kind:
+      type: string
+      enum:
+        - link
+        - playlist
+        - document
+        - discord
+        - website
+        - other
+    position:
+      type: integer
+      minimum: 0
+    status:
+      type: string
+      enum:
+        - active
+        - archived
+CommunityResourceLinkMutationInput:
+  oneOf:
+    - $ref: ./communities-community.yaml#/CreateCommunityResourceLinkInput
+    - $ref: ./communities-community.yaml#/UpdateCommunityResourceLinkInput
+CommunityResourceLink:
+  type: object
+  required:
+    - resource_link_id
+    - label
+    - url
+    - resource_kind
+    - position
+    - status
+  properties:
+    resource_link_id:
+      type: string
+    label:
+      type: string
+    url:
+      type: string
+      format: uri
+    resource_kind:
+      type: string
+      enum:
+        - link
+        - playlist
+        - document
+        - discord
+        - website
+        - other
+    position:
+      type: integer
+      minimum: 0
+    status:
+      type: string
+      enum:
+        - active
+        - archived
+CommunityReferenceLinkPlatform:
+  type: string
+  enum:
+    - musicbrainz
+    - genius
+    - spotify
+    - apple_music
+    - wikipedia
+    - instagram
+    - tiktok
+    - x
+    - official_website
+    - youtube
+    - bandcamp
+    - soundcloud
+    - other
+CommunityReferenceLinkStatus:
+  type: string
+  enum:
+    - active
+    - archived
+CommunityReferenceLinkVerificationApplicability:
+  type: string
+  enum:
+    - eligible
+    - not_applicable
+CommunityReferenceLinkVerificationState:
+  type: string
+  enum:
+    - unverified
+    - pending
+    - verified
+    - rejected
+    - revoked
+CommunityReferenceLinkVerificationMethod:
+  type: string
+  enum:
+    - bio_code
+    - dns_txt
+    - website_meta
+    - website_file
+    - manual_review
+CommunityReferenceLinkMetadata:
+  type: object
+  description: |
+    Public/admin-safe metadata for rendering a club reference link. `display_name` and `image_url` are the only recommended cross-platform keys in v0; other keys may be platform-specific.
+  properties:
+    display_name:
+      type: string
+      nullable: true
+    image_url:
+      type: string
+      format: uri
+      nullable: true
+  additionalProperties: true
+CreateCommunityReferenceLinkRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - platform
+    - url
+  properties:
+    platform:
+      $ref: ./communities-community.yaml#/CommunityReferenceLinkPlatform
+    url:
+      type: string
+      format: uri
+    label:
+      type: string
+      nullable: true
+    position:
+      type: integer
+      minimum: 0
+      nullable: true
+UpdateCommunityReferenceLinkRequest:
+  type: object
+  additionalProperties: false
+  properties:
+    platform:
+      $ref: ./communities-community.yaml#/CommunityReferenceLinkPlatform
+    url:
+      type: string
+      format: uri
+    label:
+      type: string
+      nullable: true
+    position:
+      type: integer
+      minimum: 0
+      nullable: true
+CommunityReferenceLinkPublic:
+  type: object
+  additionalProperties: false
+  required:
+    - community_reference_link_id
+    - platform
+    - url
+    - link_status
+    - verified
+    - metadata
+    - position
+  properties:
+    community_reference_link_id:
+      type: string
+    platform:
+      $ref: ./communities-community.yaml#/CommunityReferenceLinkPlatform
+    url:
+      type: string
+      format: uri
+    external_id:
+      type: string
+      nullable: true
+    label:
+      type: string
+      nullable: true
+    link_status:
+      $ref: ./communities-community.yaml#/CommunityReferenceLinkStatus
+    verified:
+      type: boolean
+      description: |
+        Public-safe verification flag. This is true only when the current link state is `verified`; pending, rejected, revoked, and non-applicable states should all surface as `false` to public callers.
+    verified_at:
+      type: string
+      format: date-time
+      nullable: true
+    metadata:
+      $ref: ./communities-community.yaml#/CommunityReferenceLinkMetadata
+    position:
+      type: integer
+      minimum: 0
+CommunityReferenceLinkAdmin:
+  type: object
+  additionalProperties: false
+  required:
+    - community_reference_link_id
+    - community_id
+    - platform
+    - url
+    - normalized_url
+    - link_status
+    - verification_applicability
+    - metadata
+    - position
+    - created_at
+    - updated_at
+  properties:
+    community_reference_link_id:
+      type: string
+    community_id:
+      type: string
+    platform:
+      $ref: ./communities-community.yaml#/CommunityReferenceLinkPlatform
+    url:
+      type: string
+      format: uri
+    normalized_url:
+      type: string
+      format: uri
+    external_id:
+      type: string
+      nullable: true
+    label:
+      type: string
+      nullable: true
+    link_status:
+      $ref: ./communities-community.yaml#/CommunityReferenceLinkStatus
+    verification_applicability:
+      $ref: ./communities-community.yaml#/CommunityReferenceLinkVerificationApplicability
+    verification_state:
+      allOf:
+        - $ref: ./communities-community.yaml#/CommunityReferenceLinkVerificationState
+      nullable: true
+    verification_method:
+      allOf:
+        - $ref: ./communities-community.yaml#/CommunityReferenceLinkVerificationMethod
+      nullable: true
+    verified_at:
+      type: string
+      format: date-time
+      nullable: true
+    last_verification_checked_at:
+      type: string
+      format: date-time
+      nullable: true
+    active_proof_id:
+      type: string
+      nullable: true
+      description: |
+        Proof record that currently backs the link's `verified` state. This must be null whenever the link is not currently `verified`, including after a revoke transition.
+    metadata:
+      $ref: ./communities-community.yaml#/CommunityReferenceLinkMetadata
+    position:
+      type: integer
+      minimum: 0
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+CommunityReferenceLinkReadResponse:
+  oneOf:
+    - $ref: ./communities-community.yaml#/CommunityReferenceLinkPublic
+    - $ref: ./communities-community.yaml#/CommunityReferenceLinkAdmin
+CommunityReferenceLinkPublicListResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityReferenceLinkPublic
+CommunityReferenceLinkAdminListResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityReferenceLinkAdmin
+CommunityReferenceLinkListResponse:
+  oneOf:
+    - $ref: ./communities-community.yaml#/CommunityReferenceLinkPublicListResponse
+    - $ref: ./communities-community.yaml#/CommunityReferenceLinkAdminListResponse
+VerifyCommunityReferenceLinkRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - verification_method
+  properties:
+    verification_method:
+      $ref: ./communities-community.yaml#/CommunityReferenceLinkVerificationMethod
+    force:
+      type: boolean
+      default: false
+ReviewCommunityReferenceLinkProofRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - decision
+  properties:
+    decision:
+      type: string
+      enum:
+        - accept
+        - reject
+    review_notes:
+      type: string
+      nullable: true
+RevokeCommunityReferenceLinkRequest:
+  type: object
+  additionalProperties: false
+  properties:
+    reason:
+      type: string
+      nullable: true
+CommunityReferenceLinkProof:
+  type: object
+  additionalProperties: false
+  required:
+    - proof_id
+    - community_reference_link_id
+    - community_id
+    - proof_type
+    - proof_target
+    - status
+    - created_at
+    - updated_at
+  properties:
+    proof_id:
+      type: string
+    community_reference_link_id:
+      type: string
+    community_id:
+      type: string
+    proof_type:
+      $ref: ./communities-community.yaml#/CommunityReferenceLinkVerificationMethod
+    proof_target:
+      type: string
+    challenge_code:
+      type: string
+      nullable: true
+      description: |
+        Required for challenge-based proofs such as `bio_code`, `dns_txt`, `website_meta`, and `website_file`. Nullable only for non-challenge flows such as `manual_review`.
+    status:
+      type: string
+      enum:
+        - draft
+        - pending
+        - accepted
+        - rejected
+        - revoked
+        - expired
+    evidence_ref:
+      type: string
+      nullable: true
+    review_notes:
+      type: string
+      nullable: true
+    verified_at:
+      type: string
+      format: date-time
+      nullable: true
+    reviewed_at:
+      type: string
+      format: date-time
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+CommunityReferenceLinkProofListResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityReferenceLinkProof
+CommunityProfile:
+  type: object
+  required:
+    - rules
+    - resource_links
+  properties:
+    rules:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityRule
+    resource_links:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityResourceLink
+UpdateCommunityProfileRequest:
+  type: object
+  properties:
+    rules:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityRuleMutationInput
+    resource_links:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityResourceLinkMutationInput

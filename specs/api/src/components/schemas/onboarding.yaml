@@ -42,7 +42,7 @@ OnboardingStatus:
         - running
         - succeeded
         - failed
-    suggested_club_ids:
+    suggested_community_ids:
       type: array
       items:
         type: string

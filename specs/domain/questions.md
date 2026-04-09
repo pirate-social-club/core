@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [post.md](./post.md)
 - [artist-catalog.md](./artist-catalog.md)
 - [karma.md](./karma.md)
@@ -41,26 +41,26 @@ They should:
 - seed daily participation
 - create meaningful low-friction activity
 - fit naturally into the club board/feed
-- award small club karma when answered correctly
+- award small community karma when answered correctly
 
 Language learning may happen as a side effect, but it is not the primary frame.
 
-## Club Agent
+## Community Agent
 
-Questions should usually be posted by a club-associated bot or agent.
+Questions should usually be posted by a community-associated bot or agent.
 
 Recommended v0 model:
 
-- each club may have a `club_agent_user_id` or equivalent app-level system actor
+- each club may have a `community_agent_user_id` or equivalent app-level system actor
 - the agent is platform-managed in v0
 - the agent may post system-tagged club content such as daily questions
 - moderators may disable or review agent-generated questions
-- when the club agent publishes system-tagged question content in v0, it is exempt from ordinary member posting quotas; see [club.md](./club.md) under Posting Policy
+- when the community agent publishes system-tagged question content in v0, it is exempt from ordinary member posting quotas; see [community.md](./community.md)
 
 Important boundary:
 
-- the club agent is not an independent governance authority
-- it is a product actor operating within club settings and moderation rules
+- the community agent is not an independent governance authority
+- it is a product actor operating within community settings and moderation rules
 
 ## Relationship To Posts
 
@@ -69,14 +69,14 @@ Questions should appear as normal club posts with attached question metadata.
 Recommended v0 shape:
 
 - a question has a backing `post_id`
-- the visible board thread is just a normal post authored by the club agent
+- the visible board thread is just a normal post authored by the community agent
 - comments and discussion happen on that post as usual
 
 Suggested question fields:
 
 - `question_id`
 - `post_id`
-- `club_id`
+- `community_id`
 - `author_user_id`
 - `question_kind`
 - `prompt`
@@ -132,7 +132,7 @@ Good v0 inputs:
 
 Recommended v0 flow:
 
-1. backend or club agent generates candidate questions
+1. backend or community agent generates candidate questions
 2. club may optionally review or approve them
 3. one question is published as the daily club question
 4. users answer through the product UI
@@ -145,10 +145,10 @@ Questions work best as a lightweight cadence mechanic.
 Recommended v0 default:
 
 - at most one rewardable daily question per club per day
-- clubs may choose to disable daily questions entirely
+- communities may choose to disable daily questions entirely
 - later versions may support more frequent prompts, but v0 should stay simple
 
-This keeps the loop legible and reduces spam in smaller clubs.
+This keeps the loop legible and reduces spam in smaller communities.
 
 ## Answer Model
 
@@ -165,13 +165,13 @@ Suggested v0 answer fields:
 Rules:
 
 - one rewarded answer per user per question in v0
-- clubs may still allow answer discussion in comments even after a user has answered
+- communities may still allow answer discussion in comments even after a user has answered
 - answers are app-level records, not onchain objects
-- individual submitted answers should remain private to the answering user, moderators, and the club agent until reveal or close
+- individual submitted answers should remain private to the answering user, moderators, and the community agent until reveal or close
 
 ## Karma Relationship
 
-Correct answers may grant small club karma.
+Correct answers may grant small community karma.
 
 Recommended v0 rules:
 
@@ -209,9 +209,9 @@ Questions should remain auditable and moderator-controllable.
 
 Recommended v0 behavior:
 
-- moderators may disable the club agent's question posting
+- moderators may disable the community agent's question posting
 - moderators may remove a bad question post like any other post
-- clubs may require review before a generated question is published
+- communities may require review before a generated question is published
 
 ## On-chain vs Off-chain
 
@@ -225,7 +225,7 @@ Recommended v0 split:
 
 ## Open Questions
 
-- Should answer reveal happen automatically after a fixed time window, or only when the club agent posts the explanation?
-- Should clubs be allowed to show aggregate answer distributions before reveal, or should all answer visibility stay private until reveal?
-- Should clubs be allowed to choose between multiple daily questions, or should Pirate keep the cadence to one default question in v0?
+- Should answer reveal happen automatically after a fixed time window, or only when the community agent posts the explanation?
+- Should communities be allowed to show aggregate answer distributions before reveal, or should all answer visibility stay private until reveal?
+- Should communities be allowed to choose between multiple daily questions, or should Pirate keep the cadence to one default question in v0?
 - Should open-ended question formats be supported in v0, or should all rewardable questions stay multiple-choice at first?

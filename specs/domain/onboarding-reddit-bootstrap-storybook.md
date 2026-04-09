@@ -93,7 +93,7 @@ Storybook should assume a result summary that can show:
 - top subreddits
 - moderator communities
 - inferred interests
-- suggested clubs
+- suggested communities
 - warnings about incomplete coverage
 
 #### 4. Failure states need product meaning
@@ -162,7 +162,7 @@ This should be a composition-level surface, not a primitive.
 3. Verification instruction card
 4. Import status card
 5. Snapshot summary card
-6. Suggested clubs or interests section
+6. Suggested communities or interests section
 7. Sticky or persistent onboarding footer
 
 ### Content Hierarchy
@@ -236,7 +236,7 @@ type OnboardingRedditBootstrapProps = {
     }>;
     moderatorOf: string[];
     inferredInterests: string[];
-    suggestedClubs: Array<{ clubId: string; name: string; reason: string }>;
+    suggestedCommunities: Array<{ communityId: string; name: string; reason: string }>;
     coverageNote?: string;
   };
   handleSuggestion?: {
@@ -279,9 +279,9 @@ Storybook-only states that may be derived from richer backend payloads later:
 
 Migration note:
 
-- `suggested_club_ids` in the current onboarding API is too thin for this composition
+- `suggested_community_ids` in the current onboarding API is too thin for this composition
 - v0 UI can hydrate those IDs through a separate club read model if needed
-- preferred future API shape is to augment or replace bare IDs with display-ready suggestion objects such as `{ club_id, name, reason }`
+- preferred future API shape is to augment or replace bare IDs with display-ready suggestion objects such as `{ community_id, name, reason }`
 
 ## Storybook Scenarios
 

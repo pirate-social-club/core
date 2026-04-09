@@ -7,7 +7,7 @@ Related docs:
 - [overview.md](./overview.md)
 - [openapi.yaml](./openapi.yaml)
 - [../domain/user.md](../domain/user.md)
-- [../domain/club.md](../domain/club.md)
+- [../domain/community.md](../domain/community.md)
 - [../domain/post.md](../domain/post.md)
 - [../domain/feed.md](../domain/feed.md)
 - [../domain/karma.md](../domain/karma.md)
@@ -61,7 +61,7 @@ The key distinction is:
 
 Delegated use means a client, agent, or application is acting on behalf of a specific user through the normal authenticated product surface.
 
-Extraction use means a client is retrieving club corpus data in bulk or through machine-optimized search, export, archive, or feed surfaces.
+Extraction use means a client is retrieving community corpus data in bulk or through machine-optimized search, export, archive, or feed surfaces.
 
 Recommended v0 rule:
 
@@ -70,13 +70,13 @@ Recommended v0 rule:
 
 ## Why MPP Matters
 
-Pirate's club corpus is valuable.
+Pirate's community corpus is valuable.
 
 Examples:
 
 - threads and replies
-- club-specific language and slang
-- artist-club context
+- community-specific language and slang
+- artist-community context
 - question-answer history
 - scrobble-derived audience signals
 - high-quality human interaction data
@@ -99,7 +99,7 @@ This includes:
 
 - normal web pages
 - app views
-- club pages
+- community pages
 - thread views
 - feed reads
 - profile reads
@@ -202,10 +202,10 @@ Recommended v0 rules:
 
 Examples:
 
-- `GET /clubs`
-- `GET /clubs/{club_id}/posts`
+- `GET /communities`
+- `GET /communities/{community_id}/posts`
 - `GET /feeds/home`
-- `GET /feeds/your-clubs`
+- `GET /feeds/your-communities`
 
 These remain normal product endpoints, not bulk data pipes.
 
@@ -215,26 +215,26 @@ Good v0 candidates:
 
 - bulk thread export
 - high-volume reply retrieval
-- full club corpus export
+- full community corpus export
 - structured search across thread archives
-- machine-readable club history
+- machine-readable community history
 - paid firehose or changefeed later
 
 Bad v0 candidates:
 
 - normal thread page views
-- ordinary club browsing
+- ordinary community browsing
 - profile viewing in the web app
 - normal feed reads in the consumer product
 
 Recommended v0 in-scope endpoint:
 
-- `POST /mpp/clubs/{club_id}/threads/export`
+- `POST /mpp/communities/{community_id}/threads/export`
 - `GET /mpp/jobs/{job_id}` for polling async MPP export jobs
 
 Directional later candidates:
 
-- `POST /mpp/clubs/{club_id}/corpus/search`
+- `POST /mpp/communities/{community_id}/corpus/search`
 - `GET /mpp/posts/{post_id}/replies/full`
 - `GET /mpp/users/{user_id}/activity/export`
 
@@ -250,9 +250,9 @@ Recommended shape:
 
 Possible URL posture:
 
-- `/mpp/clubs/{club_id}/threads/export`
+- `/mpp/communities/{community_id}/threads/export`
 - `/mpp/jobs/{job_id}`
-- `/mpp/clubs/{club_id}/corpus/search`
+- `/mpp/communities/{community_id}/corpus/search`
 - `/mpp/posts/{post_id}/replies/full`
 - `/mpp/users/{user_id}/activity/export`
 
@@ -361,21 +361,21 @@ Bad uses:
 - mandatory identity verification for all public reading
 - treating verification as a replacement for machine-payment policy
 
-## Club Policy Interaction
+## Community Policy Interaction
 
-Clubs may later influence how their data is exposed to machine clients.
+Communities may later influence how their data is exposed to machine clients.
 
 Possible later controls:
 
 - machine export allowed or disabled
 - default machine-access price tier
 - public summary access versus full archive access
-- club-specific commercial licensing
+- community-specific commercial licensing
 
 Recommended v0 stance:
 
 - Pirate sets the default machine-access policy platform-wide
-- club-level overrides are a later policy layer
+- community-level overrides are a later policy layer
 
 ## Revenue Attribution And Settlement
 
@@ -385,7 +385,7 @@ Recommended v0 rule:
 
 - human participation is free
 - machine extraction is metered
-- club corpus value is licensed on behalf of the club
+- community corpus value is licensed on behalf of the community
 
 Definition:
 
@@ -394,31 +394,31 @@ Definition:
 
 ### Revenue Classes
 
-#### Direct Single-Club Corpus Product
+#### Direct Single-Community Corpus Product
 
 Examples:
 
-- club thread export
-- club corpus search
-- club archive retrieval
+- community thread export
+- community corpus search
+- community archive retrieval
 
 Recommended v0 split:
 
-- 90% to club treasury
+- 90% to community treasury
 - 10% to platform
 
-#### Cross-Club Corpus Product
+#### Cross-Community Corpus Product
 
 Examples:
 
-- cross-club search
-- cross-club export bundles
+- cross-community search
+- cross-community export bundles
 - multi-club archive products
 
 Recommended v0 split:
 
 - platform takes 10% of net distributable revenue
-- the remaining club pool is allocated pro rata by explicit weighting across included clubs
+- the remaining club pool is allocated pro rata by explicit weighting across included communities
 
 Recommended weighting inputs may include:
 
@@ -500,5 +500,5 @@ Directional implication:
 
 - Which machine-access surfaces should be in v0 versus later, beyond exports and search?
 - Should verified humans receive a larger free machine-style quota before payment is required?
-- Should clubs later define their own downstream treasury redistribution policies?
+- Should communities later define their own downstream treasury redistribution policies?
 - When should Pirate use one-time `charge` versus longer-lived `session` intents for agent consumption?

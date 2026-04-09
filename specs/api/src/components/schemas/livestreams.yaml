@@ -79,39 +79,27 @@ InitialLiveSetlistInput:
 LiveSetlistItemInput:
   type: object
   description: |
-    Setlist items should resolve against Pirate's canonical track catalog by default. `title_text` and `artist_text` are stored as display snapshots or manual fallback metadata when canonical resolution is not yet available.
+    Setlist items should resolve against Pirate's canonical track catalog by default. `title_text` and `artist_text` are display snapshots populated from the selected canonical track when available, with manual text entry used only as fallback when canonical resolution is not yet available.
+  anyOf:
+    - required:
+        - declared_track_id
+    - required:
+        - title_text
   required:
     - sequence_index
-    - title_text
-    - performance_kind
-    - rights_hint
   properties:
     sequence_index:
       type: integer
       minimum: 0
     title_text:
       type: string
+      nullable: true
     artist_text:
       type: string
       nullable: true
     declared_track_id:
       type: string
       nullable: true
-    performance_kind:
-      type: string
-      enum:
-        - original
-        - cover
-        - remix
-        - dj_playback
-        - unknown
-    rights_hint:
-      type: string
-      enum:
-        - community_catalog
-        - story_catalog
-        - third_party
-        - unknown
     notes:
       type: string
       nullable: true
@@ -139,7 +127,7 @@ LiveRoom:
   type: object
   required:
     - live_room_id
-    - club_id
+    - community_id
     - anchor_post_id
     - host_user_id
     - title
@@ -154,7 +142,7 @@ LiveRoom:
   properties:
     live_room_id:
       type: string
-    club_id:
+    community_id:
       type: string
     anchor_post_id:
       type: string
@@ -307,6 +295,7 @@ LiveRoomAccessView:
     - live_room_id
     - access_mode
     - join_state
+    - viewer_entitled
   properties:
     live_room_id:
       type: string
@@ -330,6 +319,11 @@ LiveRoomAccessView:
       nullable: true
     replay_listing_id:
       type: string
+      nullable: true
+    viewer_entitled:
+      type: boolean
+    replay_included:
+      type: boolean
       nullable: true
     replay_available:
       type: boolean

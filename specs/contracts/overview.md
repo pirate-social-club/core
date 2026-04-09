@@ -35,6 +35,14 @@ This doc does not define:
 - deployment scripts
 - final contract naming
 
+## Current Dev Deployment
+
+The current Story Aeneid delivery deployment is recorded in:
+
+- [story-aeneid-delivery.json](/home/t42/Documents/pirate-v2/config/story-aeneid-delivery.json)
+
+That file is the checked-in source of truth for the active dev delivery addresses. The shell manifest produced by the deploy script remains local operational output under `pirate-contracts/story/delivery/deployments/`, but repo-owned docs and tooling should prefer the JSON file above.
+
 ## Core Principle
 
 Only put onchain what benefits materially from onchain execution in v0.
@@ -80,7 +88,7 @@ Reasoning:
 - scrobbles are valuable music-club reputation and activity data
 - track registration and scrobble history benefit from shared onchain visibility
 - scrobble thresholds can later drive audience segments, unlocks, and club recognition
-- this is already a proven pattern in `pirate/` via `ScrobbleV4`
+- this is already a proven pattern in `pirate/` via `ScrobbleV4` (`pirate-v2` uses `ScrobbleV1` as the batch anchor contract)
 
 Recommended v0 shape:
 
@@ -150,8 +158,8 @@ Pirate should keep the legal/product meaning simple:
 These should remain app-level in v0:
 
 - club existence
-- club settings
-- club gates
+- community settings
+- community gates
 - moderation policy
 - feed policy
 
@@ -167,8 +175,8 @@ Feed generation and ranking stay offchain.
 This includes:
 
 - `Home`
-- `Your Clubs`
-- club feed ranking
+- `Your Communities`
+- community feed ranking
 
 Even if club governance later influences ranking policy, feed execution remains an app-level concern.
 
@@ -223,7 +231,7 @@ External attestations and mirrors may exist, but Pirate's canonical user model r
 
 ## External Roots And Proofs
 
-HNS and Spaces root ownership are required for club creation, but Pirate does not need to own those protocols.
+HNS and Spaces root ownership are required for community creation, but Pirate does not need to own those protocols.
 
 V0 contract implication:
 
@@ -289,7 +297,7 @@ Likely areas:
 
 Pirate should avoid building dedicated v0 contracts for:
 
-- club creation
+- community creation
 - feed ranking
 - gating policy storage
 - user identity
@@ -297,6 +305,16 @@ Pirate should avoid building dedicated v0 contracts for:
 ## Recommended V0 Contract Set
 
 Based on the existing `pirate/` Story stack, the most sensible v0 contract inventory is:
+
+Current concrete contract names implemented in `pirate-v2`:
+
+- `ScrobbleV1`
+- `AssetPublishCoordinatorV1`
+- `MarketplaceSettlementV1`
+- `PurchaseEntitlementToken`
+- `TokenGateCondition`
+- `PirateSignerRegistry`
+- `SignedAccessConditionV1`
 
 ### 1. Scrobble Contract
 
@@ -308,58 +326,65 @@ Role:
 
 Notes:
 
-- this is already validated by `ScrobbleV4` in `pirate/`
+- this is already validated by `ScrobbleV4` in `pirate/` (`pirate-v2` uses `ScrobbleV1` for this role)
 - it is the strongest candidate for a first-class Pirate v2 contract outside direct marketplace settlement
 
-### 2. Publish And Content Access Contracts
+### 2. Asset Publish Coordinator
 
 Role:
 
-- register locked song payload pointers
+- register locked asset version delivery metadata
 - coordinate content publication lifecycle
-- grant and revoke paid access
+- bind asset versions to CDR vault UUIDs and namespace metadata
 
 Notes:
 
-- `pirate/` currently uses `PublishCoordinatorV1` plus `ContentRegistry`
+- current v1 implementation name: `AssetPublishCoordinatorV1`
+- this is the v2 successor to `PublishCoordinatorV1`
+- unlike `pirate/`, v2 should not assume `ContentRegistry`-style grant rows as the purchase-access primitive
 - this should remain Story-side for locked song delivery flows
-- the exact v2 implementation may be a migration or a rewrite, but the responsibility split should remain similar
 
-### 3. CDR Condition / Access Proof Contracts
-
-Role:
-
-- enforce locked-payload reads and writes through Story CDR-compatible conditions
-- validate short-lived Pirate-issued access proofs
-
-Notes:
-
-- `pirate/` already has `SignedPurchaseCondition` and `ContentRegistryCdrConditionV1`
-- Pirate should reuse this direction rather than inventing a custom encryption gate
-
-### 4. Marketplace Settlement Contract
+### 3. Marketplace Settlement Contract
 
 Role:
 
 - receive the Story-side royalty-compatible settlement token
 - route payout according to the active payout policy
-- trigger or record purchase entitlement state
+- trigger or mint purchase entitlement state
 
 Notes:
 
-- this may stay separate from the CDR condition and content registry contracts
+- current v1 implementation name: `MarketplaceSettlementV1`
+- this may stay separate from the CDR condition and entitlement contracts
 - the marketplace contract should stay small and focused on purchase execution
 
-### 5. Optional Purchase Receipt Contract
+### 4. Purchase Entitlement Token
 
 Role:
 
-- mint a buyer-visible receipt or entitlement token
+- represent durable bought access for locked assets
+- serve as the canonical purchased-access primitive for token-gated CDR reads
 
 Notes:
 
-- useful, but not strictly required if app-level purchase records are enough at launch
-- `pirate/` currently has `PurchaseReceiptV2`
+- current v1 implementation name: `PurchaseEntitlementToken`
+- if Pirate adopts token-gated CDR reads for locked assets, this is no longer just an optional UX receipt
+- this may still look similar to `PurchaseReceiptV2`, but v2 should treat it as core locked-delivery infrastructure rather than decorative buyer proof
+
+### 5. CDR Condition / Access Proof Contracts
+
+Role:
+
+- enforce locked-payload reads and writes through Story CDR-compatible conditions
+- authorize durable purchased access through entitlement-token checks
+- validate short-lived Pirate-issued access proofs for temporary shares or delegated reads
+
+Notes:
+
+- current v1 implementation names: `TokenGateCondition`, `PirateSignerRegistry`, and `SignedAccessConditionV1`
+- `pirate/` already validated the signed-proof direction via `SignedPurchaseCondition`
+- v2 should prefer token-gated purchase reads over `ContentRegistry`-backed grant tables
+- temporary access can still use signed proofs where fast revocation matters
 
 ## Explicit Non-V0 Contracts
 
@@ -371,7 +396,7 @@ Pirate does not need dedicated v0 contracts for:
 - feed ranking formulas
 - artist verification
 - identity verification
-- club gate rule storage
+- community gate rule storage
 
 ## Royalty Graph Dependency
 

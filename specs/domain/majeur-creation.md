@@ -5,7 +5,7 @@ Status: draft
 Related docs:
 
 - [governance-backends.md](./governance-backends.md)
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [multisig-attachment.md](./multisig-attachment.md)
 
 ## Purpose
@@ -324,7 +324,7 @@ Pirate should still manage operational roles such as:
 
 - moderator
 - community admin
-- club agent operator
+- community agent operator
 
 Recommended rule:
 

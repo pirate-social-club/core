@@ -31,6 +31,28 @@ verification_sessions:
         $ref: ../components/responses.yaml#/AuthError
       "429":
         $ref: ../components/responses.yaml#/RateLimited
+namespace_verification_sessions:
+  post:
+    tags:
+      - Verification
+    summary: Start a namespace verification session
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/verification.yaml#/StartNamespaceVerificationSessionRequest
+    responses:
+      "201":
+        description: Namespace verification session started
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/verification.yaml#/NamespaceVerificationSession
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
 verification_sessions_by_verification_session_id:
   get:
     tags:
@@ -45,6 +67,24 @@ verification_sessions_by_verification_session_id:
           application/json:
             schema:
               $ref: ../components/schemas/verification.yaml#/VerificationSession
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+namespace_verification_sessions_by_namespace_verification_session_id:
+  get:
+    tags:
+      - Verification
+    summary: Inspect a namespace verification session
+    parameters:
+      - $ref: ../components/parameters.yaml#/NamespaceVerificationSessionId
+    responses:
+      "200":
+        description: Namespace verification session
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/verification.yaml#/NamespaceVerificationSession
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "404":
@@ -76,6 +116,48 @@ verification_sessions_by_verification_session_id_complete:
           application/json:
             schema:
               $ref: ../components/schemas/verification.yaml#/VerificationSession
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+namespace_verification_sessions_by_namespace_verification_session_id_complete:
+  post:
+    tags:
+      - Verification
+    summary: Complete or refresh a namespace verification session
+    parameters:
+      - $ref: ../components/parameters.yaml#/NamespaceVerificationSessionId
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/verification.yaml#/CompleteNamespaceVerificationSessionRequest
+    responses:
+      "200":
+        description: Namespace verification session updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/verification.yaml#/NamespaceVerificationSession
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+namespace_verifications_by_namespace_verification_id:
+  get:
+    tags:
+      - Verification
+    summary: Inspect an accepted namespace verification
+    parameters:
+      - $ref: ../components/parameters.yaml#/NamespaceVerificationId
+    responses:
+      "200":
+        description: Accepted namespace verification
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/verification.yaml#/NamespaceVerification
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "404":

@@ -49,7 +49,7 @@ Suggested v0 `rights_review_cases` shape:
 - `rights_review_case_id`
 - `subject_type`
 - `subject_id`
-- `club_id`
+- `community_id`
 - `status`
 - `trigger_source`
 - `analysis_result_ref` nullable
@@ -88,7 +88,7 @@ Recommended v0 authority model:
 - Pirate platform review is the final authority
 - in practice, the Pirate platform operator may personally perform this review in v0
 - club owners, TLD owners, hosts, guests, and other involved parties may submit evidence or context
-- club-local governance does not override Pirate platform review for flagged third-party rights cases
+- community-local governance does not override Pirate platform review for flagged third-party rights cases
 
 ## Evidence Submission
 

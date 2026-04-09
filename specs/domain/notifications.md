@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [messaging.md](./messaging.md)
 - [post.md](./post.md)
 - [profile.md](./profile.md)
@@ -76,7 +76,7 @@ Suggested v0 notification fields:
 - `entity_id`
 - `actor_user_id` nullable
 - `actor_identity_mode`
-- `club_id` nullable
+- `community_id` nullable
 - `group_key` nullable
 - `dedupe_key`
 - `read_at` nullable
@@ -140,7 +140,7 @@ Rules:
 - the public read model must not expose `actor_user_id`
 - if the triggering action was authored under anonymous club presentation, the notification must render the actor as that anonymous label
 - anonymous actor rendering in notifications must not leak the underlying `user_id`
-- if the actor label is derived from club-local scope, the notification read model should carry the rendered anonymous label as presentation data
+- if the actor label is derived from community-local scope, the notification read model should carry the rendered anonymous label as presentation data
 - internal services may retain `actor_user_id` for audit, dedupe, and enforcement, but public clients must only receive scrubbed presentation data
 
 Example:
@@ -160,7 +160,7 @@ Requirements:
 
 - `entity_type = club_membership_request`
 - `entity_id = membership_request_id`
-- `club_id` required
+- `community_id` required
 - `actor_identity_mode = public`
 
 ### Membership Request Approved
@@ -171,7 +171,7 @@ Requirements:
 
 - `entity_type = club_membership_request`
 - `entity_id = membership_request_id`
-- `club_id` required
+- `community_id` required
 - this is a standalone notification, not grouped
 
 ### Membership Request Rejected
@@ -182,7 +182,7 @@ Requirements:
 
 - `entity_type = club_membership_request`
 - `entity_id = membership_request_id`
-- `club_id` required
+- `community_id` required
 - this is a standalone notification, not grouped
 
 ### Reply
@@ -242,7 +242,7 @@ Requirements:
 - `entity_type = moderation_action`
 - `entity_id = post_id`
 - `actor_user_id` may be null because the writer is the system
-- recipients are the club moderators or equivalent review operators for the post's club
+- recipients are the community moderators or equivalent review operators for the post's community
 - this notification is for workflow triage, not for the post author
 
 ### Post Blocked
@@ -271,7 +271,7 @@ Grouped read models need deterministic `group_key` derivation.
 Recommended v0 derivation:
 
 - `membership_request_received`
-  - `group_key = "membership_request_received:club:{club_id}:pending"`
+  - `group_key = "membership_request_received:club:{community_id}:pending"`
 - `membership_request_approved`
   - `group_key = null`
 - `membership_request_rejected`

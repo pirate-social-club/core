@@ -5,7 +5,7 @@ Status: draft
 Related docs:
 
 - [governance-backends.md](./governance-backends.md)
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [monetization.md](./monetization.md)
 
 ## Purpose
@@ -67,7 +67,7 @@ Recommended v0 rule:
 
 Happy-path v0:
 
-1. Club owner chooses `Multisig` governance.
+1. Community owner chooses `Multisig` governance.
 2. User chooses chain.
 3. User either:
    - pastes an existing Safe address, or
@@ -78,7 +78,7 @@ Happy-path v0:
    - the user can prove authorization to attach it through a Safe-compatible signature flow
 5. Pirate snapshots owner and threshold metadata.
 6. Pirate stores the multisig as the club governance backend.
-7. Club moves to `governance_mode = multisig`.
+7. Community moves to `governance_mode = multisig`.
 
 ## Verification
 
@@ -105,7 +105,7 @@ Suggested v0 statuses:
 
 ## Treasury
 
-For multisig-backed clubs, the simplest treasury model is:
+For multisig-backed communities, the simplest treasury model is:
 
 - the club treasury lives in the multisig
 - Pirate reads balances and transaction history as an indexed view
@@ -158,6 +158,14 @@ Recommended v0 UX:
 Recommended launch posture:
 
 - Pirate may keep multisig attachment modeled in the domain and API while deferring public v1 exposure
-- if deferred, clubs should still launch under `governance_mode = centralized` and later migrate to `multisig`
+- if deferred, communities should still launch under `governance_mode = centralized` and later migrate to `multisig`
 - public launch should wait until Safe verification, backend indexing, and execution reconciliation are reliable enough for security-sensitive use
 - feature-flagged, allowlisted, or internal-only multisig support is acceptable before broad public launch
+
+### Public v0 Path
+
+Public v0 community creation must not expose multisig attachment. The only supported public create path is `governance_mode = centralized`. Create-time multisig is internal, allowlisted, or feature-flagged only.
+
+Multisig attachment for public users happens exclusively after community creation through `POST /communities/{community_id}/attach-governance` with `governance_mode = multisig`. This separates the governance-upgrade flow from the create flow entirely.
+
+The domain and API models for `CreateMultisigClubRequest` and `AttachMultisigGovernanceRequest` remain valid for internal and future use. They must not be removed. The public client must not call them at creation time.

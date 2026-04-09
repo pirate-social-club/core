@@ -3,7 +3,7 @@ Question:
   required:
     - question_id
     - post_id
-    - club_id
+    - community_id
     - author_user_id
     - question_kind
     - prompt
@@ -14,7 +14,7 @@ Question:
       type: string
     post_id:
       type: string
-    club_id:
+    community_id:
       type: string
     author_user_id:
       type: string

@@ -1,16 +1,30 @@
 NamespaceAttachmentInput:
   type: object
+  required:
+    - namespace_verification_id
   properties:
+    namespace_verification_id:
+      type: string
+      description: |
+        Opaque server-issued identifier for the previously accepted namespace verification session. The server resolves this to the underlying root-control evidence and assertions at create time. Creation must be rejected if the referenced verification is stale, disputed, or does not satisfy `community_attach_allowed` for the relevant protocol family. This field is required for public v0 create. Label and route fields below are derived from the verification session and are used for display and routing, not as proof of root control.
     display_label:
       type: string
+      description: |
+        Optional derived display label for the verified namespace root. Clients may omit this on create and let the server derive it from `namespace_verification_id`. If submitted, it must match the verified namespace session.
     normalized_label:
       type: string
+      description: |
+        Optional derived normalized root label. Clients may omit this on create and let the server derive it from `namespace_verification_id`. If submitted, it must match the verified namespace session.
     resolver_label:
       type: string
       nullable: true
+      description: |
+        Optional derived resolver-facing label for routing or downstream namespace operations. Clients may omit this on create and let the server derive it from `namespace_verification_id`.
     route_family:
       type: string
       nullable: true
+      description: |
+        Optional derived route family such as bare-label or `@`-style routing. Clients may omit this on create and let the server derive it from `namespace_verification_id`. If submitted, it must match the verified namespace session.
 HandlePolicyInput:
   type: object
   required:
@@ -23,6 +37,8 @@ HandlePolicyInput:
         - premium
         - membership_gated
         - custom
+      description: |
+        Namespace handle-policy template. This describes how community-local handles should behave once claims are enabled. Public v0 new communities should normally start with `standard`, while claim and sale availability remain disabled until server-derived capability flags enable them.
     pricing_model:
       type: string
       enum:
@@ -31,6 +47,8 @@ HandlePolicyInput:
         - custom_curve
         - gated_then_flat
       nullable: true
+      description: |
+        Optional pricing model for commerce-enabled templates. This does not by itself enable public claims or sales; launch availability is controlled separately by server-derived capability flags.
     membership_required_for_claim:
       type: boolean
       default: true
@@ -53,17 +71,19 @@ HandleAvailability:
     reason:
       type: string
       nullable: true
-ClubHandle:
+      description: |
+        Optional explanatory text when `eligible = false` or when availability is otherwise constrained. This may describe a claims-disabled launch posture, missing namespace delegation, governance preconditions, or policy-specific eligibility failures.
+CommunityHandle:
   type: object
   required:
-    - club_handle_id
+    - community_handle_id
     - user_id
     - namespace_id
     - label
     - status
     - issuance_source
   properties:
-    club_handle_id:
+    community_handle_id:
       type: string
     user_id:
       type: string

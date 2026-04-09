@@ -1,14 +1,14 @@
-mpp_clubs_by_club_id_threads_export:
+mpp_communities_by_community_id_threads_export:
   post:
     tags:
       - MPP
-    summary: Request a paid club thread export
+    summary: Request a paid community thread export
     description: |
       This is the v0 machine-access export surface. Initial requests may return `402 Payment Required` with `WWW-Authenticate: Payment`. Successful paid requests return `Payment-Receipt` and a pollable export job. Payment-auth callers complete the async flow through `/mpp/jobs/{job_id}`.
     security:
       - paymentAuth: []
     parameters:
-      - $ref: ../components/parameters.yaml#/ClubId
+      - $ref: ../components/parameters.yaml#/CommunityId
     requestBody:
       required: true
       content:

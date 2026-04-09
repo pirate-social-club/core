@@ -6,7 +6,7 @@ Related docs:
 
 - [attestations.md](./attestations.md)
 - [user.md](./user.md)
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [post.md](./post.md)
 - [composer.md](./composer.md)
 - [feed.md](./feed.md)
@@ -19,7 +19,7 @@ It covers:
 
 - identity mode
 - disclosed qualifiers
-- club policy for optional qualifiers
+- community policy for optional qualifiers
 - the relationship to anonymous scope
 - snapshot behavior on the post row
 
@@ -45,7 +45,7 @@ Pirate should not make normal users reason about a 4-way presentation taxonomy i
 
 ## V0 Scope
 
-V0 disclosed qualifiers should come only from [user.md](./user.md) `verification_capabilities` plus a small provider-specific qualifier layer.
+V0 identity-derived disclosed qualifiers should come only from [user.md](./user.md) `verification_capabilities` plus a small provider-specific qualifier layer.
 
 That means v0 can support fact-derived qualifiers such as:
 
@@ -80,14 +80,15 @@ Interpretation:
 - `public`
   Render the author's normal public identity
 - `anonymous`
-  Render the club anonymous label instead of the public identity
+  Render the community anonymous label instead of the public identity
 
-Qualifiers are attached to anonymous posting, not public-handle posting.
+Identity-derived qualifiers are attached to anonymous posting, not public-handle posting.
 
 That means:
 
 - a public post renders only the author's normal public identity
-- an anonymous post may attach zero or more qualifiers when club policy allows it
+- an anonymous post may attach zero or more qualifiers when community policy allows it
+- platform-authored content-authenticity disclosures are a separate exception and may appear on public or anonymous posts when required by community policy
 
 This means:
 
@@ -97,12 +98,12 @@ No additional top-level presentation modes are needed.
 
 ## Anonymous Scope Interaction
 
-Anonymous presentation still uses the existing anonymous scope system from [club.md](./club.md).
+Anonymous presentation still uses the existing anonymous scope system from [community.md](./community.md).
 
 Suggested v0 field:
 
 - `anonymous_scope`
-  - `club_stable`
+  - `community_stable`
   - `thread_stable`
   - `post_ephemeral`
   - `null`
@@ -111,13 +112,13 @@ Rules:
 
 - `anonymous_scope` is required when `identity_mode = anonymous`
 - `anonymous_scope` must be `null` when `identity_mode = public`
-- the club's configured anonymous policy constrains which scopes may be chosen
-- `club_stable` remains the recommended v0 default for moderation continuity
+- the community's configured anonymous policy constrains which scopes may be chosen
+- `community_stable` remains the recommended v0 default for moderation continuity
 
 Important UI note:
 
 - normal composer UI should usually expose only a simple `Post anonymously` control
-- anonymous scope is primarily club policy in v0, not a mainline authoring decision
+- anonymous scope is primarily community policy in v0, not a mainline authoring decision
 - if Pirate later exposes scope selection to users, it should appear as an advanced option rather than the default authoring surface
 
 ## Qualifier Templates
@@ -155,7 +156,7 @@ Suggested v0 shape:
   - `low`
   - `high`
 - `redundancy_key`
-  Semantic key used to suppress qualifiers already implied by club gates
+  Semantic key used to suppress qualifiers already implied by community gates
 
 Important distinction:
 
@@ -216,7 +217,7 @@ Recommended v0 rule:
   - the user's current eligible provider-backed attestations from [attestations.md](./attestations.md) when relevant
   - platform-level `qualifier_templates`
   - any explicitly supported provider-specific qualifier layer
-  - club-level allowlists
+- community-level allowlists
 
 This means the qualifier inventory is a compositional read model, not a replacement for `verification_capabilities` or `user_attestations`.
 
@@ -227,11 +228,11 @@ Provider-specific note:
 - zkPass may later feed registered schema-backed provider attestations through the attestation registry defined in [attestations.md](./attestations.md)
 - provider-specific qualifiers should be opt-in and secondary to fact-first qualifiers
 
-## Club Policy
+## Community Policy
 
-Clubs should choose from platform-approved qualifiers rather than inventing their own taxonomy.
+Communities should choose from platform-approved qualifiers rather than inventing their own taxonomy.
 
-Suggested v0 fields on club settings:
+Suggested v0 fields on community settings:
 
 - `allow_anonymous_identity`
 - `allowed_disclosed_qualifiers`
@@ -240,17 +241,23 @@ Suggested v0 fields on club settings:
 
 Rules:
 
-- clubs may whitelist only a subset of platform qualifier templates
-- clubs may not create arbitrary custom qualifiers in v0
-- qualifiers already implied by club gates should be suppressed from the picker and not shown as optional add-ons
+- communities may whitelist only a subset of platform qualifier templates
+- communities may not create arbitrary custom qualifiers in v0
+- qualifiers already implied by community gates should be suppressed from the picker and not shown as optional add-ons
 - if `allow_qualifiers_on_anonymous_posts = false`, anonymous posts may not attach qualifiers
+
+Public v0 create-flow note:
+
+- public v0 community creation may configure `allowed_disclosed_qualifiers` and `allow_qualifiers_on_anonymous_posts` at create time
+- those create-time settings are subject to the anonymous-policy constraints defined in [community.md](./community.md), including the public-v0 default of `anonymous_identity_scope = community_stable`
+- `post_ephemeral` and qualifier exposure must follow the guardrails from [community.md](./community.md); public v0 create must not expose combinations that violate those constraints
 
 Recommended defaults:
 
-- ordinary club:
+- ordinary community:
   - `allow_anonymous_identity = false`
   - `allowed_disclosed_qualifiers = []`
-- anonymous journalism-style club:
+- anonymous journalism-style community:
   - `allow_anonymous_identity = true`
 - `allowed_disclosed_qualifiers = [qlf_age_over_18, qlf_unique_human]`
   - `allow_qualifiers_on_anonymous_posts = true`
@@ -258,8 +265,8 @@ Recommended defaults:
 Gate-suppression example:
 
 - `/c/america` may require verified US nationality for posting
-- that club may still allow other qualifiers such as `18+` or `Unique Human`
-- `US National` should be suppressed from the optional qualifier picker because it is already implied by the club gate
+- that community may still allow other qualifiers such as `18+` or `Unique Human`
+- `US National` should be suppressed from the optional qualifier picker because it is already implied by the community gate
 
 ## Post Row Snapshot
 
@@ -276,8 +283,9 @@ Suggested item shape:
 - `qualifier_kind`
   - `verification_capability`
   - `provider_attestation`
+  - `content_authenticity`
 - `qualifier_source`
-  Example: `verification_capabilities`
+  Example: `verification_capabilities` or `content_authenticity_policy`
 - `sensitivity_level`
 - `redundancy_key`
 
@@ -304,18 +312,19 @@ Why snapshot:
 
 ## Proof Rules
 
-Each disclosed qualifier must satisfy the explicit proof requirements defined by its template.
+Each identity-derived disclosed qualifier must satisfy the explicit proof requirements defined by its template.
 
 Rules:
 
 - a qualifier may only be selected if the user currently satisfies the underlying capability or provider attestation required by the template's `proof_requirements`
-- qualifier disclosure must not lower the underlying club gate requirement
-- if a club already requires a stricter proof for posting or anonymous posting, that stricter requirement still applies
+- qualifier disclosure must not lower the underlying community gate requirement
+- if a community already requires a stricter proof for posting or anonymous posting, that stricter requirement still applies
+- platform-authored `content_authenticity` disclosures do not depend on user proof requirements; they derive from upload analysis plus community policy
 
 Examples:
 
 - `Unique Human` may be disclosed from accepted providers such as `self` or `very`
-- anonymous posting should still require the club's anonymous-posting proof requirements
+- anonymous posting should still require the community's anonymous-posting proof requirements
 - nationality disclosure should require an accepted nationality proof in v0
 
 ## Content-Type Restrictions
@@ -324,9 +333,11 @@ Not every post type should allow anonymous identity.
 
 Recommended v0 rule:
 
-- `text`, `image`, `video`, and `link` may use public or anonymous identity according to club policy
+- `text`, `image`, `video`, and `link` may use public or anonymous identity according to community policy
 - `song` and `live` must use public identity in v0
-- because qualifiers are anonymous-only in v0, `song` and `live` do not expose qualifiers either
+- identity-derived qualifiers remain anonymous-only in v0
+- platform-authored `content_authenticity` disclosures may still appear on public or anonymous posts when required by community policy
+- song posts therefore remain ineligible for anonymous identity qualifiers but may still carry authenticity disclosures when relevant
 
 Reason:
 
@@ -345,8 +356,9 @@ Rules:
 - the qualifier picker must only show platform-defined qualifiers that the user is eligible to disclose
 - qualifiers must render as normalized labels such as `18+`, `US National`, or `Palm Scan`, not raw proof payloads
 - the composer must not allow freeform user-authored qualifiers
-- the qualifier picker should hide options already implied by club gates
+- the qualifier picker should hide options already implied by community gates
 - if the current tab is `song` or `live`, anonymous identity controls should not appear and the qualifier picker should also stay hidden
+- platform-authored `content_authenticity` disclosures are not part of the optional qualifier picker; they should be attached automatically when the community policy requires them
 
 ## Rendering
 
@@ -374,7 +386,7 @@ Rules:
 - qualifiers should use normalized labels rather than precise sensitive values when possible
 - `sensitivity_level = high` qualifiers such as nationality or gender should produce club-admin warnings when enabled
 - `post_ephemeral` anonymous scope must not allow high-sensitivity disclosed qualifiers in v0
-- clubs should be warned that combining anonymous labels with high-sensitivity identity qualifiers can make re-identification easier in small communities
+- communities should be warned that combining anonymous labels with high-sensitivity identity qualifiers can make re-identification easier in small communities
 - wallet-score and Passport stamp-backed qualifiers should default to `allow_qualifiers_on_anonymous_posts = false`
 - if a club explicitly enables Passport-backed qualifiers on anonymous posts, Pirate should offer only a normalized low-sensitivity subset such as `Verified Human`, `Trusted Wallet`, or `Screened`
 - Pirate must not expose exact Passport scores, raw stamp lists, provider-branded stamp names, or score/stamp breakdowns on anonymous posts

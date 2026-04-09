@@ -90,8 +90,6 @@ Suggested v0 `setlist_items` shape:
 - `title_text`
 - `artist_text` nullable
 - `declared_track_id` nullable
-- `performance_kind`
-- `rights_hint`
 - `status`
 - `notes` nullable
 - `created_at`
@@ -118,38 +116,10 @@ Suggested v0 `live_segments` shape:
 - `top_match_confidence` nullable
 - `reconciliation_status`
 - `rights_status`
-- `performance_kind`
 - `created_at`
 - `updated_at`
 
 ## Meanings
-
-### `performance_kind`
-
-- `original`
-- `cover`
-- `remix`
-- `dj_playback`
-- `unknown`
-
-Interpretation:
-
-- this is host-declared or operator-corrected intent, not platform-verified truth by itself
-- `dj_playback` should default to stricter review assumptions because it implies playback of an existing recording rather than a purely live original performance
-
-### `rights_hint`
-
-- `community_catalog`
-- `story_catalog`
-- `third_party`
-- `unknown`
-
-Interpretation:
-
-- `rights_hint` is host-declared optimism, not platform clearance
-- `rights_hint = community_catalog` means the host believes the work belongs to or is associated with the community catalog
-- `rights_hint = story_catalog` means the host believes the work maps to a Story-linked catalog item
-- all hints still require reconciliation and rights policy evaluation
 
 ### `reconciliation_status`
 
@@ -176,6 +146,8 @@ Rules:
 - the setlist editor should default to searching Pirate's canonical songbase / track catalog first
 - `title_text` and `artist_text` should be treated as display snapshots or fallback manual metadata, not the primary resolution mechanism
 - Story IDs, MBIDs, and other external identifiers should be resolved through the track record rather than duplicated onto the setlist item
+- live setlist authoring should not ask the host to classify the song as `original`, `cover`, `remix`, or `dj_playback`; those distinctions should be inferred from the selected canonical track plus later replay/review evidence when needed
+- if a performer wants to do a remix live, that remix should first exist as a canonical Pirate song/track and then be selected in the setlist
 - manual text entry remains valid when no canonical track is resolved yet
 
 ## Setlist Mutability
@@ -291,7 +263,6 @@ Recommended v0 stance:
 - batch setlist updates are preferable to item-by-item CRUD
 - individual item CRUD is unnecessary complexity for the first pass
 - host start should require that the room already has an active setlist
-- `performance_kind` should remain mutable until the segment ends
 
 ## Open Questions
 

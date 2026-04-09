@@ -5,6 +5,7 @@ SessionExchangeResponse:
     - user
     - profile
     - onboarding
+    - wallet_attachments
   properties:
     access_token:
       type: string
@@ -14,3 +15,30 @@ SessionExchangeResponse:
       $ref: ./profiles.yaml#/Profile
     onboarding:
       $ref: ./onboarding.yaml#/OnboardingStatus
+    wallet_attachments:
+      type: array
+      description: |
+        Wallet attachments available to the authenticated Pirate user at session bootstrap time.
+        This lets clients render the active execution wallet without relying on provider SDK
+        side channels or an immediate follow-up fetch. This field is always present. In the first
+        executable `jwt_based_auth` slice, newly created JWT-path users return `[]` because that
+        request variant does not create wallet attachments.
+      items:
+        $ref: '#/WalletAttachmentSummary'
+
+WalletAttachmentSummary:
+  type: object
+  required:
+    - wallet_attachment_id
+    - chain_namespace
+    - wallet_address
+    - is_primary
+  properties:
+    wallet_attachment_id:
+      type: string
+    chain_namespace:
+      type: string
+    wallet_address:
+      type: string
+    is_primary:
+      type: boolean

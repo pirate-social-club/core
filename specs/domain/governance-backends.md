@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [multisig-attachment.md](./multisig-attachment.md)
 - [majeur-creation.md](./majeur-creation.md)
 - [namespace.md](./namespace.md)
@@ -131,7 +131,7 @@ When an action requires external governance approval, Pirate should model it as 
 Suggested v0 flow:
 
 1. User initiates a constitutional change in Pirate.
-2. Pirate validates the request against current club policy.
+2. Pirate validates the request against current community policy.
 3. Pirate creates a pending governance action record.
 4. Pirate prepares a backend-specific action payload.
 5. The external backend approves and executes that payload.
@@ -141,7 +141,7 @@ Suggested v0 flow:
 Suggested v0 governance action fields:
 
 - `governance_action_id`
-- `club_id`
+- `community_id`
 - `action_kind`
 - `requested_by_user_id`
 - `governance_mode`
@@ -234,7 +234,7 @@ Suggested metadata:
 
 Recommended v0 rules:
 
-- changing `governance_mode` must not create a new `club_id`
+- changing `governance_mode` must not create a new `community_id`
 - `centralized -> multisig` is allowed
 - `centralized -> majeur` is allowed
 - `multisig -> majeur` is allowed
@@ -251,7 +251,7 @@ Important asymmetry:
 
 Recommended v0 product stance:
 
-- default new clubs to `centralized`
+- default new communities to `centralized`
 - keep `multisig` in the domain model and API as the first advanced governance backend
 - public v1 may defer user-facing `multisig` launch until Safe verification, indexing, and reconciliation are production-ready
 - if deferred, `multisig` should remain available as a planned or internal capability rather than being removed from the model

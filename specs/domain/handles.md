@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [namespace.md](./namespace.md)
 - [artist-identity.md](./artist-identity.md)
 - [user.md](./user.md)
@@ -14,17 +14,17 @@ Related docs:
 
 ## Purpose
 
-This doc defines club-local user handles such as:
+This doc defines community-local user handles such as:
 
 - `name.kanye`
 - `name@kanye`
 
-It also defines how club-local handles relate to Pirate's global `.pirate` identity layer.
+It also defines how community-local handles relate to Pirate's global `.pirate` identity layer.
 
 It covers:
 
 - what a handle is
-- how handles relate to clubs and namespaces
+- how handles relate to communities and namespaces
 - issuance mode
 - length tiers and eligibility
 - lease and renewal semantics
@@ -43,7 +43,7 @@ This doc does not define:
 
 ## Core Principle
 
-A handle is a club-scoped namespace right.
+A handle is a community-scoped namespace right.
 
 Examples:
 
@@ -53,10 +53,10 @@ Examples:
 Handles are:
 
 - scarce
-- transferable only if club policy allows it
+- transferable only if community policy allows it
 - leasable rather than perpetual in v0
 - offchain by default in v0
-- governed by club policy and platform ToS
+- governed by community policy and platform ToS
 
 Handles are not absolute property.
 
@@ -86,10 +86,10 @@ Reasoning:
 
 - less contract work
 - less attack surface
-- fewer irreversible mistakes during bootstrap
-- clubs can learn policy implications before minting durable onchain rights
+- fewer irreversible mistakes before handle policy is proven in production
+- communities can learn policy implications before minting durable onchain rights
 
-Onchain issuance is a later upgrade step, not the default bootstrap behavior.
+Onchain issuance is a later upgrade step, not the default launch behavior.
 
 Suggested issuance fields:
 
@@ -107,12 +107,12 @@ Rules:
 - offchain issuance remains valid even if no onchain token exists
 - in v0, `issuance_mode` is always `offchain`
 - in v0, `issuance_chain`, `issuance_contract`, and `issuance_token_id` are always `null`
-- club creation already assumes verified control of the corresponding HNS or Spaces root
+- community creation already assumes verified control of the corresponding HNS or Spaces root
 - Pirate-managed externally resolvable handles require namespace delegation to Pirate
 
 ## Governance Threshold For Onchain Issuance
 
-Onchain handle issuance should not be enabled by default for creator-controlled bootstrap clubs.
+Onchain handle issuance should not be enabled by default for creator-controlled communities at launch.
 
 Directional v0 recommendation:
 
@@ -127,7 +127,7 @@ Examples of governance hardening:
 
 This reduces the risk that a single root owner prematurely mints durable onchain handle rights without the club understanding the policy implications.
 
-## Relationship To Club And Namespace
+## Relationship To Community And Namespace
 
 A handle belongs to exactly one namespace, and a namespace belongs to exactly one club.
 
@@ -151,7 +151,7 @@ In v0:
 - claims are not mirrored across route families
 - claims are not mirrored across namespace mirrors more generally
 - if cross-family mirroring ever exists, it must be an explicit future feature
-- the root owner is the effective authority during bootstrap until governance is upgraded
+- the root owner is the effective authority at launch until governance is upgraded
 - one user may hold different handles in different namespaces, including multiple sibling namespaces attached to the same club
 
 ## Relationship To Global `.pirate`
@@ -162,7 +162,7 @@ It should be treated as:
 
 - a platform-level identity layer
 - one active global handle per user in v0
-- separate from club-local handle inventories
+- separate from community-local handle inventories
 
 Recommended v0 behavior:
 
@@ -233,7 +233,7 @@ Uniqueness:
 
 Derived values:
 
-- `club_id` is derived through the namespace join
+- `community_id` is derived through the namespace join
 - `display_handle` is derived at read time from `label` plus the namespace label and route family
 - UI may also derive sibling-namespace handle badges for the same `user_id`, but those do not affect namespace-local ownership or claim rights
 
@@ -331,6 +331,9 @@ Suggested meanings:
 
 V0 defaults:
 
+These defaults apply only once a namespace has enabled public community-local handle claims.
+New public communities may carry a `standard` policy record while `club_local_handle_claims_enabled = false`.
+
 - `8+` characters
   Claimable by any verified eligible member
 - `7` characters
@@ -345,23 +348,46 @@ V0 defaults:
 - `auction_policy = null`
   Auctions are disabled by default in v0.
 - `trust_discount_policy = null`
-  Native-karma or trust-based pricing discounts are disabled by default in v0 until club karma tiers are well-established. See [karma.md](./karma.md).
+  Native-karma or trust-based pricing discounts are disabled by default in v0 until community karma tiers are well-established. See [karma.md](./karma.md).
+
+## Claims-Disabled Launch Posture
+
+New public communities should default to a `standard` namespace handle policy while public claims remain disabled at launch.
+
+Launch semantics:
+
+- the namespace route exists for the club
+- the namespace may still have verified root attachment and routing
+- public community-local handle claims are disabled
+- public premium handle sales are disabled
+- auctions are disabled
+- members identify publicly through their global `.pirate` handles by default
+- pricing configuration exists but is not yet actionable because no public claims or sales are enabled
+
+Important:
+
+- a claims-disabled launch posture does not mean the namespace is missing a handle policy; it means the handle policy exists before commerce is enabled
+- a new club may start with `policy_template = standard` while `club_local_handle_claims_enabled = false`
+- the namespace may later upgrade to `premium`, `membership_gated`, or `custom` once the club reaches the required derived community stage and other prerequisites
+- Pirate-managed external resolution capability alone does not imply public claims are live
 
 ## Handle Policy Templates
 
-Club creation should not leave namespace-handle economics undefined.
+Community creation should not leave namespace-handle economics undefined.
+These templates describe behavior once claims are enabled; they are not a substitute for launch-state capability flags.
 
 Recommended v0 templates:
 
 - `standard`
+  - default template for new public communities
   - `8+` broadly available
   - shorter names increasingly restricted
-  - good default for most artist and fan clubs
+  - first normal commerce-enabled template for most artist and fan communities once claims are enabled
 - `premium`
   - short and high-signal names explicitly monetized
   - reserved names like `king`, `vip`, or `official` may be individually priced or auctioned
 - `membership_gated`
-  - club gate or NFT/token gate comes first
+  - community gate or NFT/token gate comes first
   - names may then be free or cheap once the user is eligible
 - `custom`
   - creator picks explicit values for the policy fields above
@@ -369,11 +395,11 @@ Recommended v0 templates:
 
 Important rule:
 
-- every namespace should have a handle policy record at club creation time, even if it is just one of the default templates
+- every namespace should have a handle policy record at community creation time, even if it is just one of the default templates
 
 ## Generated Name Ontologies
 
-Clubs may want system-generated name suggestions rather than only raw freeform search.
+Communities may want system-generated name suggestions rather than only raw freeform search.
 
 Recommended v0 support:
 
@@ -472,7 +498,7 @@ When a lease expires:
 After grace ends:
 
 - the handle status becomes `expired`
-- the handle may be reclaimed, reissued, or auctioned under club policy
+- the handle may be reclaimed, reissued, or auctioned under community policy
 
 ## Renewal Semantics
 
@@ -480,8 +506,8 @@ Renewal behavior is a product-level rule, not contract-specific.
 
 V0 recommendations:
 
-- renewal price is set by club policy
-- club policy may be subject to platform minimums or fee rules
+- renewal price is set by community policy
+- community policy may be subject to platform minimums or fee rules
 - renewal revenue goes to the club treasury, the platform, or a configured split
 
 These three questions must be answered by the eventual monetization/governance specs:
@@ -494,7 +520,7 @@ These three questions must be answered by the eventual monetization/governance s
 
 Auction is a product concept for scarce handles, not a protocol requirement for every handle.
 
-Clubs may choose to allocate premium handles via auction in order to:
+Communities may choose to allocate premium handles via auction in order to:
 
 - raise treasury funds
 - distribute scarce names
@@ -538,6 +564,7 @@ Implications:
 - a club may still exist without Pirate-managed SLD issuance
 - Pirate-managed `name.kanye` or `name@kanye` issuance requires `pirate_managed` delegation on the namespace
 - without delegation, the owner remains responsible for actually issuing or publishing the external SLD even if Pirate tracks the handle right internally
+- delegation is necessary for Pirate-managed external resolution, but not sufficient for public handle commerce; community-stage and governance preconditions may still keep claims, premium sales, or auctions disabled
 
 ## Reserved Labels
 

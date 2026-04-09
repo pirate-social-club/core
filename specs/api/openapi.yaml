@@ -4,7 +4,7 @@ info:
   version: 0.1.0
   description: |
     First-pass happy-path API for Pirate v2.
-    This OpenAPI file is intentionally narrow. It encodes the core v0 flows that are already stable in the domain specs: auth bootstrap, verification, onboarding, global profile identity, clubs, namespace handles, posts, daily questions, tracks, scrobbles, feeds, and async jobs.
+    This OpenAPI file is intentionally narrow. It encodes the core v0 flows that are already stable in the domain specs: auth bootstrap, verification, onboarding, global profile identity, communities, namespace handles, posts, daily questions, tracks, scrobbles, feeds, and async jobs.
 servers:
   - url: https://api.pirate.example
     description: Placeholder production server
@@ -16,7 +16,7 @@ tags:
   - name: Onboarding
   - name: Users
   - name: Profiles
-  - name: Clubs
+  - name: Communities
   - name: Handles
   - name: Posts
   - name: Livestreams
@@ -31,7 +31,7 @@ paths:
     post:
       tags:
         - Auth
-      summary: Exchange a Privy proof for a Pirate app session
+      summary: Exchange an upstream auth proof for a Pirate app session
       security: []
       requestBody:
         required: true
@@ -40,13 +40,59 @@ paths:
             schema:
               type: object
               required:
-                - privy_access_token
+                - proof
               properties:
-                privy_access_token:
-                  type: string
-                wallet_address:
-                  type: string
-                  nullable: true
+                proof:
+                  description: |
+                    Upstream auth proof presented to Pirate. The first executable backend slice
+                    runs through `jwt_based_auth` so Bruno and local development can exercise
+                    account creation without a browser. `privy_access_token` remains part of the
+                    broader v0 product direction, and this request shape stays forward-compatible
+                    with multiple upstream providers. This JWT-first path is not the intended
+                    long-term human CLI login UX. A future Pirate CLI flow should use a browser
+                    handoff or device-code-style session and then terminate at the same Pirate app
+                    session model returned by this exchange endpoint.
+                  oneOf:
+                    - type: object
+                      required:
+                        - type
+                        - privy_access_token
+                      properties:
+                        type:
+                          type: string
+                          enum:
+                            - privy_access_token
+                        privy_access_token:
+                          type: string
+                        wallet_address:
+                          type: string
+                          nullable: true
+                          description: |
+                            Optional wallet-selection hint for the authenticated Privy subject.
+                            When present, Pirate must resolve it against the wallet set linked to
+                            the authenticated upstream identity and use that wallet attachment for
+                            session bootstrap rather than discovering the default wallet implicitly.
+                    - type: object
+                      required:
+                        - type
+                        - jwt
+                      properties:
+                        type:
+                          type: string
+                          enum:
+                            - jwt_based_auth
+                        jwt:
+                          type: string
+                          description: |
+                            Signed JWT presented to Pirate for server-side verification. The server
+                            must validate the JWT signature, issuer, expiration, and any configured
+                            audience requirements, then treat validated `iss` + `sub` as the
+                            upstream provider identity. In the first executable JWT slice, this
+                            request variant does not create wallet attachments and does not accept a
+                            wallet-selection hint. Newly created JWT-path users therefore return an
+                            empty `wallet_attachments` array in `SessionExchangeResponse`.
+                  discriminator:
+                    propertyName: type
       responses:
         "200":
           description: Session created or resumed
@@ -134,6 +180,88 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VerificationSession"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /verification/namespace-sessions:
+    post:
+      tags:
+        - Verification
+      summary: Start a namespace verification session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartNamespaceVerificationSessionRequest"
+      responses:
+        "201":
+          description: Namespace verification session started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NamespaceVerificationSession"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /verification/namespace-sessions/{namespace_verification_session_id}:
+    get:
+      tags:
+        - Verification
+      summary: Inspect a namespace verification session
+      parameters:
+        - $ref: "#/components/parameters/NamespaceVerificationSessionId"
+      responses:
+        "200":
+          description: Namespace verification session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NamespaceVerificationSession"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /verification/namespace-sessions/{namespace_verification_session_id}/complete:
+    post:
+      tags:
+        - Verification
+      summary: Complete or refresh a namespace verification session
+      parameters:
+        - $ref: "#/components/parameters/NamespaceVerificationSessionId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteNamespaceVerificationSessionRequest"
+      responses:
+        "200":
+          description: Namespace verification session updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NamespaceVerificationSession"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /verification/namespaces/{namespace_verification_id}:
+    get:
+      tags:
+        - Verification
+      summary: Inspect an accepted namespace verification
+      parameters:
+        - $ref: "#/components/parameters/NamespaceVerificationId"
+      responses:
+        "200":
+          description: Accepted namespace verification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NamespaceVerification"
         "401":
           $ref: "#/components/responses/AuthError"
         "404":
@@ -343,32 +471,49 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
-  /clubs:
+  /communities:
     post:
       tags:
-        - Clubs
-      summary: Create a club
+        - Communities
+      summary: Create a community
+      description: |
+        Creates a community once all create-time prerequisites are already satisfied.
+
+        For namespace-backed public v0 create, the server must consume the accepted namespace-verification resource referenced by `namespace.namespace_verification_id`, not just the raw identifier string. Before writing any community state, the server must re-check:
+
+        - the accepted namespace verification exists
+        - it belongs to the requesting creator
+        - it is still accepted and not stale, disputed, or expired
+        - its current capabilities still satisfy `community_attach_allowed`
+
+        Public v0 create must fail closed when those checks do not pass.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateClubRequest"
+              $ref: "#/components/schemas/CreateCommunityRequest"
       responses:
-        "201":
-          description: Club created
+        "202":
+          description: Community creation accepted
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Club"
+                $ref: "#/components/schemas/CommunityCreateAcceptedResponse"
         "401":
           $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/RateLimited"
     get:
       tags:
-        - Clubs
-      summary: List clubs
+        - Communities
+      summary: List communities
       parameters:
         - in: query
           name: q
@@ -382,7 +527,7 @@ paths:
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
-          description: Clubs
+          description: Communities
           content:
             application/json:
               schema:
@@ -393,7 +538,7 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: "#/components/schemas/Club"
+                      $ref: "#/components/schemas/Community"
                   next_cursor:
                     type: string
                     nullable: true
@@ -401,43 +546,43 @@ paths:
           $ref: "#/components/responses/AuthError"
         "429":
           $ref: "#/components/responses/RateLimited"
-  /clubs/{club_id}:
+  /communities/{community_id}:
     get:
       tags:
-        - Clubs
-      summary: Get a club
+        - Communities
+      summary: Get a community
       parameters:
-        - $ref: "#/components/parameters/ClubId"
+        - $ref: "#/components/parameters/CommunityId"
       responses:
         "200":
-          description: Club
+          description: Community
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Club"
+                $ref: "#/components/schemas/Community"
         "401":
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
     patch:
       tags:
-        - Clubs
-      summary: Update mutable club settings
+        - Communities
+      summary: Update mutable community settings
       parameters:
-        - $ref: "#/components/parameters/ClubId"
+        - $ref: "#/components/parameters/CommunityId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateClubRequest"
+              $ref: "#/components/schemas/UpdateCommunityRequest"
       responses:
         "200":
-          description: Club updated
+          description: Community updated
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Club"
+                $ref: "#/components/schemas/Community"
         "401":
           $ref: "#/components/responses/AuthError"
         "403":
@@ -446,13 +591,13 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
-  /clubs/{club_id}/attach-governance:
+  /communities/{community_id}/attach-governance:
     post:
       tags:
-        - Clubs
-      summary: Attach or replace an external governance backend for a club
+        - Communities
+      summary: Attach or replace an external governance backend for a community
       parameters:
-        - $ref: "#/components/parameters/ClubId"
+        - $ref: "#/components/parameters/CommunityId"
       requestBody:
         required: true
         content:
@@ -474,43 +619,43 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
-  /clubs/{club_id}/flairs:
+  /communities/{community_id}/flairs:
     get:
       tags:
-        - Clubs
-      summary: List flair definitions for a club
+        - Communities
+      summary: List flair definitions for a community
       parameters:
-        - $ref: "#/components/parameters/ClubId"
+        - $ref: "#/components/parameters/CommunityId"
       responses:
         "200":
-          description: Club flair policy
+          description: Community flair policy
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ClubFlairPolicy"
+                $ref: "#/components/schemas/CommunityFlairPolicy"
         "401":
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
     patch:
       tags:
-        - Clubs
-      summary: Replace or update flair definitions for a club
+        - Communities
+      summary: Replace or update flair definitions for a community
       parameters:
-        - $ref: "#/components/parameters/ClubId"
+        - $ref: "#/components/parameters/CommunityId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateClubFlairPolicyRequest"
+              $ref: "#/components/schemas/UpdateCommunityFlairPolicyRequest"
       responses:
         "200":
-          description: Club flair policy updated
+          description: Community flair policy updated
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ClubFlairPolicy"
+                $ref: "#/components/schemas/CommunityFlairPolicy"
         "401":
           $ref: "#/components/responses/AuthError"
         "403":
@@ -519,86 +664,310 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
-  /clubs/{club_id}/community-profile:
+  /communities/{community_id}/community-profile:
     get:
       tags:
-        - Clubs
-      summary: Get the community profile for a club
+        - Communities
+      summary: Get the community profile for a community
       parameters:
-        - $ref: "#/components/parameters/ClubId"
+        - $ref: "#/components/parameters/CommunityId"
       responses:
         "200":
-          description: Club community profile
+          description: Community profile
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ClubCommunityProfile"
+                $ref: "#/components/schemas/CommunityProfile"
         "401":
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
     patch:
       tags:
-        - Clubs
-      summary: Update the community profile for a club
+        - Communities
+      summary: Update the community profile for a community
       parameters:
-        - $ref: "#/components/parameters/ClubId"
+        - $ref: "#/components/parameters/CommunityId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateClubCommunityProfileRequest"
+              $ref: "#/components/schemas/UpdateCommunityProfileRequest"
       responses:
         "200":
-          description: Club community profile updated
+          description: Community profile updated
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ClubCommunityProfile"
+                $ref: "#/components/schemas/CommunityProfile"
         "401":
           $ref: "#/components/responses/AuthError"
         "403":
           $ref: "#/components/responses/EligibilityFailed"
         "404":
           $ref: "#/components/responses/NotFound"
-  /clubs/{club_id}/donation-policy:
+  /communities/{community_id}/reference-links:
     get:
       tags:
-        - Clubs
-      summary: Get the active donation policy for a club
+        - Communities
+      summary: List reference links for a community
+      description: |
+        Public callers receive public-safe link rows. Authorized community owners/admins receive the admin variant with verification workflow fields.
       parameters:
-        - $ref: "#/components/parameters/ClubId"
+        - $ref: "#/components/parameters/CommunityId"
       responses:
         "200":
-          description: Club donation policy
+          description: Community reference links
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ClubDonationPolicy"
+                $ref: "#/components/schemas/CommunityReferenceLinkListResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags:
+        - Communities
+      summary: Add a reference link to a community
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCommunityReferenceLinkRequest"
+      responses:
+        "201":
+          description: Reference link created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityReferenceLinkAdmin"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /communities/{community_id}/reference-links/{community_reference_link_id}:
+    get:
+      tags:
+        - Communities
+      summary: Get a reference link for a community
+      description: |
+        Public callers receive the public-safe link shape. Authorized community owners/admins receive the admin variant with verification workflow fields.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/CommunityReferenceLinkId"
+      responses:
+        "200":
+          description: Community reference link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityReferenceLinkReadResponse"
         "401":
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
     patch:
       tags:
-        - Clubs
-      summary: Configure or update the donation policy for a club
+        - Communities
+      summary: Update a reference link for a community
       parameters:
-        - $ref: "#/components/parameters/ClubId"
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/CommunityReferenceLinkId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateClubDonationPolicyRequest"
+              $ref: "#/components/schemas/UpdateCommunityReferenceLinkRequest"
       responses:
         "200":
-          description: Club donation policy updated
+          description: Community reference link updated
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ClubDonationPolicy"
+                $ref: "#/components/schemas/CommunityReferenceLinkAdmin"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /communities/{community_id}/reference-links/{community_reference_link_id}/archive:
+    post:
+      tags:
+        - Communities
+      summary: Archive a reference link for a community
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/CommunityReferenceLinkId"
+      responses:
+        "200":
+          description: Community reference link archived
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityReferenceLinkAdmin"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/reference-links/{community_reference_link_id}/verify:
+    post:
+      tags:
+        - Communities
+      summary: Start or refresh verification for a reference link
+      description: |
+        This starts an async verification attempt for an eligible reference link. The server creates a proof attempt, generates any required challenge code, and updates the link to `pending`. Clients poll the link read surface for status updates.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/CommunityReferenceLinkId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyCommunityReferenceLinkRequest"
+      responses:
+        "202":
+          description: Reference-link verification accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityReferenceLinkAdmin"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /communities/{community_id}/reference-links/{community_reference_link_id}/revoke:
+    post:
+      tags:
+        - Communities
+      summary: Revoke the current verified proof for a reference link
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/CommunityReferenceLinkId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevokeCommunityReferenceLinkRequest"
+      responses:
+        "200":
+          description: Reference-link verification revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityReferenceLinkAdmin"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/reference-links/{community_reference_link_id}/proofs:
+    get:
+      tags:
+        - Communities
+      summary: List proof attempts for a reference link
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/CommunityReferenceLinkId"
+      responses:
+        "200":
+          description: Reference-link proof attempts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityReferenceLinkProofListResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/reference-links/{community_reference_link_id}/proofs/{proof_id}/review:
+    post:
+      tags:
+        - Communities
+      summary: Review a proof attempt for a reference link
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/CommunityReferenceLinkId"
+        - $ref: "#/components/parameters/CommunityReferenceLinkProofId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewCommunityReferenceLinkProofRequest"
+      responses:
+        "200":
+          description: Reference-link proof reviewed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityReferenceLinkProof"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/donation-policy:
+    get:
+      tags:
+        - Communities
+      summary: Get the active donation policy for a community
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      responses:
+        "200":
+          description: Community donation policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityDonationPolicy"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - Communities
+      summary: Configure or update the donation policy for a community
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCommunityDonationPolicyRequest"
+      responses:
+        "200":
+          description: Community donation policy updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityDonationPolicy"
         "401":
           $ref: "#/components/responses/AuthError"
         "403":
@@ -609,13 +978,13 @@ paths:
           $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/RateLimited"
-  /clubs/{club_id}/join:
+  /communities/{community_id}/join:
     post:
       tags:
-        - Clubs
-      summary: Join a club
+        - Communities
+      summary: Join a community
       parameters:
-        - $ref: "#/components/parameters/ClubId"
+        - $ref: "#/components/parameters/CommunityId"
       responses:
         "200":
           description: Membership created or request recorded
@@ -627,13 +996,13 @@ paths:
           $ref: "#/components/responses/AuthError"
         "403":
           $ref: "#/components/responses/GateFailed"
-  /clubs/{club_id}/live-rooms:
+  /communities/{community_id}/live-rooms:
     post:
       tags:
         - Livestreams
-      summary: Create a livestream room for a club
+      summary: Create a livestream room for a community
       parameters:
-        - $ref: "#/components/parameters/ClubId"
+        - $ref: "#/components/parameters/CommunityId"
       requestBody:
         required: true
         content:
@@ -653,13 +1022,13 @@ paths:
           $ref: "#/components/responses/EligibilityFailed"
         "429":
           $ref: "#/components/responses/RateLimited"
-  /clubs/{club_id}/leave:
+  /communities/{community_id}/leave:
     post:
       tags:
-        - Clubs
-      summary: Leave a club
+        - Communities
+      summary: Leave a community
       parameters:
-        - $ref: "#/components/parameters/ClubId"
+        - $ref: "#/components/parameters/CommunityId"
       responses:
         "200":
           description: Membership removed
@@ -669,13 +1038,13 @@ paths:
                 $ref: "#/components/schemas/MembershipResult"
         "401":
           $ref: "#/components/responses/AuthError"
-  /clubs/{club_id}/posts:
+  /communities/{community_id}/posts:
     get:
       tags:
         - Posts
-      summary: List posts in a club
+      summary: List posts in a community
       parameters:
-        - $ref: "#/components/parameters/ClubId"
+        - $ref: "#/components/parameters/CommunityId"
         - $ref: "#/components/parameters/Locale"
         - $ref: "#/components/parameters/FeedSort"
         - $ref: "#/components/parameters/TopWindow"
@@ -684,7 +1053,7 @@ paths:
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
-          description: Club posts
+          description: Community posts
           content:
             application/json:
               schema:
@@ -897,13 +1266,13 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
-  /clubs/{club_id}/questions/daily:
+  /communities/{community_id}/questions/daily:
     get:
       tags:
         - Questions
-      summary: Fetch the current daily question for a club
+      summary: Fetch the current daily question for a community
       parameters:
-        - $ref: "#/components/parameters/ClubId"
+        - $ref: "#/components/parameters/CommunityId"
       responses:
         "200":
           description: Current daily question or null
@@ -922,9 +1291,9 @@ paths:
     post:
       tags:
         - Questions
-      summary: Publish or schedule a daily question for a club
+      summary: Publish or schedule a daily question for a community
       parameters:
-        - $ref: "#/components/parameters/ClubId"
+        - $ref: "#/components/parameters/CommunityId"
       requestBody:
         required: true
         content:
@@ -942,13 +1311,13 @@ paths:
           $ref: "#/components/responses/AuthError"
         "429":
           $ref: "#/components/responses/RateLimited"
-  /clubs/{club_id}/questions/daily/answers:
+  /communities/{community_id}/questions/daily/answers:
     post:
       tags:
         - Questions
       summary: Submit an answer to the current daily question
       parameters:
-        - $ref: "#/components/parameters/ClubId"
+        - $ref: "#/components/parameters/CommunityId"
       requestBody:
         required: true
         content:
@@ -1027,7 +1396,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ClubHandle"
+                $ref: "#/components/schemas/CommunityHandle"
         "401":
           $ref: "#/components/responses/AuthError"
         "403":
@@ -1041,6 +1410,22 @@ paths:
       tags:
         - Posts
       summary: Create a post
+      description: |
+        Post creation is a pre-publish gate for native media in the common v0 path.
+
+        The server should run required analysis before making the post publicly visible:
+
+        - platform-required safety analysis
+        - rights/reference analysis where applicable
+        - community authenticity/source policy evaluation where applicable
+
+        Recommended outcome mapping:
+
+        - `201` when the post is created and publishable in the current state
+        - `202` when the post is created or retained in a non-published review-held state because analysis resolved to `review_required`
+        - `422` when analysis resolved to `blocked`
+
+        Required analysis timeout or provider failure should normally resolve to a non-published hold/review outcome rather than publish-first behavior.
       requestBody:
         required: true
         content:
@@ -1051,6 +1436,13 @@ paths:
         "201":
           description: |
             Post created. Returns the canonical post row; localized read projections are returned by `GET /posts/{post_id}`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "202":
+          description: |
+            Post accepted into a non-published review state. The canonical post row exists, but publication is held pending moderation or compliance review.
           content:
             application/json:
               schema:
@@ -1201,11 +1593,11 @@ paths:
                 $ref: "#/components/schemas/FeedResponse"
         "429":
           $ref: "#/components/responses/RateLimited"
-  /feeds/your-clubs:
+  /feeds/your-communities:
     get:
       tags:
         - Feeds
-      summary: Read the Your Clubs feed
+      summary: Read the Your Communities feed
       parameters:
         - $ref: "#/components/parameters/Locale"
         - $ref: "#/components/parameters/FeedSort"
@@ -1214,7 +1606,7 @@ paths:
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
-          description: Personalized club feed
+          description: Personalized community feed
           content:
             application/json:
               schema:
@@ -1301,6 +1693,7 @@ paths:
       tags:
         - Scrobbles
       summary: Submit a scrobble
+      description: Scrobble accepted for async anchoring.
       requestBody:
         required: true
         content:
@@ -1308,8 +1701,8 @@ paths:
             schema:
               $ref: "#/components/schemas/CreateScrobbleRequest"
       responses:
-        "201":
-          description: Scrobble accepted
+        "202":
+          description: Scrobble accepted for async anchoring
           content:
             application/json:
               schema:
@@ -1327,6 +1720,19 @@ paths:
         - $ref: "#/components/parameters/UserId"
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/Limit"
+        - name: anchor_status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - queued
+              - awaiting_wallet
+              - awaiting_track
+              - anchoring
+              - anchored
+              - failed
+              - suppressed
       responses:
         "200":
           description: Scrobbles
@@ -1348,17 +1754,17 @@ paths:
           $ref: "#/components/responses/AuthError"
         "429":
           $ref: "#/components/responses/RateLimited"
-  /mpp/clubs/{club_id}/threads/export:
+  /mpp/communities/{community_id}/threads/export:
     post:
       tags:
         - MPP
-      summary: Request a paid club thread export
+      summary: Request a paid community thread export
       description: |
         This is the v0 machine-access export surface. Initial requests may return `402 Payment Required` with `WWW-Authenticate: Payment`. Successful paid requests return `Payment-Receipt` and a pollable export job. Payment-auth callers complete the async flow through `/mpp/jobs/{job_id}`.
       security:
         - paymentAuth: []
       parameters:
-        - $ref: "#/components/parameters/ClubId"
+        - $ref: "#/components/parameters/CommunityId"
       requestBody:
         required: true
         content:
@@ -1479,9 +1885,9 @@ components:
       description: |
         Payment credential sent as `Authorization: Payment ...` on retry after an MPP `402 Payment Required` challenge.
   parameters:
-    ClubId:
+    CommunityId:
       in: path
-      name: club_id
+      name: community_id
       required: true
       schema:
         type: string
@@ -1524,6 +1930,30 @@ components:
     VerificationSessionId:
       in: path
       name: verification_session_id
+      required: true
+      schema:
+        type: string
+    NamespaceVerificationSessionId:
+      in: path
+      name: namespace_verification_session_id
+      required: true
+      schema:
+        type: string
+    NamespaceVerificationId:
+      in: path
+      name: namespace_verification_id
+      required: true
+      schema:
+        type: string
+    CommunityReferenceLinkId:
+      in: path
+      name: community_reference_link_id
+      required: true
+      schema:
+        type: string
+    CommunityReferenceLinkProofId:
+      in: path
+      name: proof_id
       required: true
       schema:
         type: string
@@ -1577,6 +2007,13 @@ components:
       description: Authentication failed
       content:
         application/json:
+          examples:
+            default:
+              summary: Standard auth failure
+              value:
+                code: auth_error
+                message: Authentication failed
+                retryable: false
           schema:
             $ref: "#/components/schemas/Error"
     PaymentRequired:
@@ -1610,13 +2047,13 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
     MppExportForbidden:
-      description: Export blocked by a club gate or export-eligibility rule
+      description: Export blocked by a community gate or export-eligibility rule
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
     GateFailed:
-      description: Club gate or membership rule failed
+      description: Community gate or membership rule failed
       content:
         application/json:
           schema:
@@ -1628,7 +2065,7 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
     PostingTrustTierTooLow:
-      description: The requested posting action is not available at the author's current club trust level
+      description: The requested posting action is not available at the author's current community trust level
       content:
         application/json:
           schema:
@@ -1703,6 +2140,7 @@ components:
         - user
         - profile
         - onboarding
+        - wallet_attachments
       properties:
         access_token:
           type: string
@@ -1712,6 +2150,16 @@ components:
           $ref: "#/components/schemas/Profile"
         onboarding:
           $ref: "#/components/schemas/OnboardingStatus"
+        wallet_attachments:
+          type: array
+          description: |
+            Wallet attachments available to the authenticated Pirate user at session bootstrap time.
+            This lets clients render the active execution wallet without relying on provider SDK
+            side channels or an immediate follow-up fetch. This field is always present. In the first
+            executable `jwt_based_auth` slice, newly created JWT-path users return `[]` because that
+            request variant does not create wallet attachments.
+          items:
+            $ref: "#/WalletAttachmentSummary"
     User:
       type: object
       description: |
@@ -1872,63 +2320,6 @@ components:
           type: string
           format: date-time
           nullable: true
-    WalletScoreCapabilityState:
-      type: object
-      required:
-        - state
-      properties:
-        state:
-          type: string
-          enum:
-            - unverified
-            - verified
-            - expired
-        provider:
-          type: string
-          enum:
-            - passport
-          nullable: true
-        proof_type:
-          type: string
-          enum:
-            - wallet_score
-          nullable: true
-        mechanism:
-          type: string
-          enum:
-            - stamps-api-v2
-          nullable: true
-        verified_at:
-          type: string
-          format: date-time
-          nullable: true
-        score:
-          type: number
-          nullable: true
-        score_threshold:
-          type: number
-          nullable: true
-        passing_score:
-          type: boolean
-          nullable: true
-        last_score_timestamp:
-          type: string
-          format: date-time
-          nullable: true
-        expiration_timestamp:
-          type: string
-          format: date-time
-          nullable: true
-        stamps:
-          type: array
-          nullable: true
-          items:
-            type: object
-            properties:
-              stamp_name:
-                type: string
-              stamp_score:
-                type: number
     Profile:
       type: object
       required:
@@ -2049,6 +2440,7 @@ components:
           enum:
             - self
             - very
+            - passport
         wallet_attachment_id:
           type: string
           nullable: true
@@ -2082,6 +2474,235 @@ components:
           type: string
           nullable: true
         created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+    StartNamespaceVerificationSessionRequest:
+      type: object
+      required:
+        - family
+        - root_label
+      properties:
+        family:
+          type: string
+          enum:
+            - hns
+          description: |
+            Public v0 supports HNS only. Future namespace families may extend this surface without changing the session model.
+        root_label:
+          type: string
+          description: Root label as entered by the creator before server normalization.
+    CompleteNamespaceVerificationSessionRequest:
+      type: object
+      description: |
+        Trigger a refresh of TXT challenge observations and assertion derivation after the creator has published the required record. The body is optional because many implementations can treat this as an idempotent recheck.
+      properties:
+        restart_challenge:
+          type: boolean
+          nullable: true
+          description: |
+            Optional hint to invalidate the current TXT challenge and issue a new one if the creator wants to restart the proof flow.
+    NamespaceVerificationAssertions:
+      type: object
+      description: |
+        Accepted or in-flight namespace assertions derived from the current evidence bundle. These facts remain distinct so attach capability, routing capability, and Pirate-managed subdomain capability are not collapsed into one flag.
+      properties:
+        root_exists:
+          type: boolean
+          nullable: true
+        root_control_verified:
+          type: boolean
+          nullable: true
+        expiry_horizon_sufficient:
+          type: boolean
+          nullable: true
+        routing_enabled:
+          type: boolean
+          nullable: true
+        pirate_dns_authority_verified:
+          type: boolean
+          nullable: true
+    NamespaceVerificationCapabilities:
+      type: object
+      description: |
+        Derived capabilities from the current accepted assertions. These are technical capability outputs, not automatic product permission for namespace commerce.
+      properties:
+        club_attach_allowed:
+          type: boolean
+          nullable: true
+        pirate_web_routing_allowed:
+          type: boolean
+          nullable: true
+        pirate_subdomain_issuance_allowed:
+          type: boolean
+          nullable: true
+    NamespaceVerificationSession:
+      type: object
+      required:
+        - namespace_verification_session_id
+        - user_id
+        - family
+        - submitted_root_label
+        - status
+        - created_at
+        - expires_at
+      properties:
+        namespace_verification_session_id:
+          type: string
+        namespace_verification_id:
+          type: string
+          nullable: true
+          description: |
+            Populated only when the session reaches `verified` and Pirate has issued an accepted verification reference.
+        user_id:
+          type: string
+        family:
+          type: string
+          enum:
+            - hns
+        submitted_root_label:
+          type: string
+        normalized_root_label:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum:
+            - draft
+            - inspecting
+            - challenge_required
+            - challenge_pending
+            - verifying
+            - verified
+            - failed
+            - expired
+            - disputed
+        challenge_host:
+          type: string
+          nullable: true
+          description: Exact host where the TXT challenge must be published when required.
+        challenge_txt_value:
+          type: string
+          nullable: true
+          description: TXT value Pirate expects to observe for root-control proof.
+        challenge_expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Expiration time for the currently issued TXT challenge, distinct from the overall namespace verification session expiry.
+        assertions:
+          allOf:
+            - $ref: "#/components/schemas/NamespaceVerificationAssertions"
+          nullable: true
+        capabilities:
+          allOf:
+            - $ref: "#/components/schemas/NamespaceVerificationCapabilities"
+          nullable: true
+        control_class:
+          type: string
+          enum:
+            - single_holder_root
+            - multisig_controlled_root
+            - dao_controlled_root
+            - burned_or_immutable_root
+          nullable: true
+        operation_class:
+          type: string
+          enum:
+            - owner_managed_namespace
+            - routing_only_namespace
+            - pirate_delegated_namespace
+          nullable: true
+        observation_provider:
+          type: string
+          nullable: true
+          description: |
+            Trusted HNS-aware provider used for the most recent accepted observation in public v0, such as Fire HSD.
+        evidence_bundle_ref:
+          type: string
+          nullable: true
+        failure_reason:
+          type: string
+          nullable: true
+        accepted_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+    NamespaceVerification:
+      type: object
+      required:
+        - namespace_verification_id
+        - user_id
+        - family
+        - normalized_root_label
+        - status
+        - assertions
+        - capabilities
+        - accepted_at
+        - expires_at
+        - created_at
+        - updated_at
+      properties:
+        namespace_verification_id:
+          type: string
+        user_id:
+          type: string
+        family:
+          type: string
+          enum:
+            - hns
+        normalized_root_label:
+          type: string
+        status:
+          type: string
+          enum:
+            - verified
+            - stale
+            - expired
+            - disputed
+        assertions:
+          $ref: "#/components/schemas/NamespaceVerificationAssertions"
+        capabilities:
+          $ref: "#/components/schemas/NamespaceVerificationCapabilities"
+        control_class:
+          type: string
+          enum:
+            - single_holder_root
+            - multisig_controlled_root
+            - dao_controlled_root
+            - burned_or_immutable_root
+          nullable: true
+        operation_class:
+          type: string
+          enum:
+            - owner_managed_namespace
+            - routing_only_namespace
+            - pirate_delegated_namespace
+          nullable: true
+        observation_provider:
+          type: string
+          nullable: true
+        evidence_bundle_ref:
+          type: string
+          nullable: true
+        accepted_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
           type: string
           format: date-time
         expires_at:
@@ -2131,12 +2752,14 @@ components:
             - running
             - succeeded
             - failed
-        suggested_club_ids:
+        suggested_community_ids:
           type: array
           items:
             type: string
-    CreateClubRequestBase:
+    CreateCommunityRequestBase:
       type: object
+      description: |
+        Authoritative community-create write model. For namespace-backed communities in public v0, the server must resolve `namespace.namespace_verification_id` to the accepted namespace-verification object at create time and re-check creator binding, freshness, and `community_attach_allowed` before any community state is written.
       required:
         - display_name
         - membership_mode
@@ -2158,23 +2781,31 @@ components:
             - open
             - request
             - gated
+          description: |
+            Public v0 community creation should submit only `open` or `gated`. `request` remains in the model for deferred, internal, or later use and should not be exposed by the public create client.
         allow_anonymous_identity:
           type: boolean
         anonymous_identity_scope:
           type: string
           enum:
-            - club_stable
+            - community_stable
             - thread_stable
             - post_ephemeral
           nullable: true
+          description: |
+            Required when `allow_anonymous_identity = true`. Public v0 should default to `community_stable`. `post_ephemeral` must not be submitted in the public v0 create flow unless all prerequisites from the domain spec (active content safety classification, at least one active moderator) can be verified at create time.
         allowed_disclosed_qualifiers:
           type: array
           items:
             type: string
           nullable: true
+          description: |
+            Array of platform-defined `qualifier_template_id` values. Public v0 create may set this when `allow_anonymous_identity = true`. Qualifier suppression of entries already implied by community gates is a read/composer behavior concern, not a create-time configuration concern.
         allow_qualifiers_on_anonymous_posts:
           type: boolean
           nullable: true
+          description: |
+            Enables anonymous posts in the community to attach disclosed qualifiers from `allowed_disclosed_qualifiers`. Public v0 create may set this only when `allow_anonymous_identity = true`. If `false` or `null`, anonymous posts must not expose optional qualifiers.
         root_post_min_trust_tier:
           type: string
           enum:
@@ -2221,24 +2852,57 @@ components:
             - 18_plus
           default: none
           description: |
-            Club-wide default viewer age gate. Setting this to `18_plus` requires the acting creator or updating owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
+            Community-wide default viewer age gate. Setting this to `18_plus` requires the acting creator or updating owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
         namespace:
-          $ref: "#/components/schemas/NamespaceAttachmentInput"
+          allOf:
+            - $ref: "#/components/schemas/NamespaceAttachmentInput"
+          description: |
+            Namespace attachment input for community creation. In public v0 this must reference an accepted namespace-verification object via `namespace_verification_id`; the server must consume that accepted verification, not treat the field as a blind string.
         handle_policy:
-          $ref: "#/components/schemas/HandlePolicyInput"
+          allOf:
+            - $ref: "#/components/schemas/HandlePolicyInput"
+          description: |
+            Public v0 new communities should normally start with the `standard` handle-policy template. This creates the namespace policy record at community creation time without implying that public community-local handle claims or namespace commerce are already enabled; those remain disabled until server-derived capability flags unlock them.
         donation_policy:
           allOf:
-            - $ref: "#/components/schemas/CreateClubDonationPolicyInput"
+            - $ref: "#/components/schemas/CreateCommunityDonationPolicyInput"
           type: object
           nullable: true
-        community_bootstrap:
-          $ref: "#/components/schemas/CreateClubCommunityBootstrapInput"
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. Remains valid in the API for internal and future use.
+        content_authenticity_policy:
+          allOf:
+            - $ref: "#/components/schemas/CreateCommunityContentAuthenticityPolicyInput"
+          type: object
           nullable: true
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the restrictive default effective policy from the first post onward. Platform-minimum synthetic-likeness bans still override any submitted value.
+        source_policy:
+          allOf:
+            - $ref: "#/components/schemas/CreateCommunitySourcePolicyInput"
+          type: object
+          nullable: true
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the restrictive default effective policy from the first post onward. This policy governs repost and fan-work handling rather than AI authenticity.
+        content_authenticity_detection_policy:
+          allOf:
+            - $ref: "#/components/schemas/CreateCommunityContentAuthenticityDetectionPolicyInput"
+          type: object
+          nullable: true
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must use the platform-default authenticity-detection profile from the first post onward. Platform-required safety and age-gating analysis remain platform-managed and unaffected.
+        community_bootstrap:
+          $ref: "#/components/schemas/CreateCommunityBootstrapInput"
+          nullable: true
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. Remains valid in the API for internal and future use.
         gate_rules:
           type: array
           items:
             $ref: "#/components/schemas/GateRuleInput"
           nullable: true
+          description: |
+            Public v0 create is limited to `membership`-scope `identity_proof` gate rules only. Each submitted gate rule must include explicit `proof_requirements`. Token-holding gate rules, `viewer`-scope gates, and `posting`-scope gates are deferred until post-create settings. The server should reject create requests containing gate rules that fall outside the public v0 scope.
     GateRuleInput:
       type: object
       required:
@@ -2284,7 +2948,7 @@ components:
       type: object
       required:
         - gate_rule_id
-        - club_id
+        - community_id
         - scope
         - gate_family
         - gate_type
@@ -2294,7 +2958,7 @@ components:
       properties:
         gate_rule_id:
           type: string
-        club_id:
+        community_id:
           type: string
         scope:
           type: string
@@ -2341,40 +3005,6 @@ components:
         updated_at:
           type: string
           format: date-time
-    ProofRequirement:
-      type: object
-      required:
-        - proof_type
-      properties:
-        proof_type:
-          type: string
-          enum:
-            - unique_human
-            - biometric_liveness
-            - wallet_score
-            - gov_id
-            - age_over_18
-            - nationality
-            - sanctions_clear
-            - phone
-        accepted_providers:
-          type: array
-          nullable: true
-          items:
-            type: string
-            enum:
-              - self
-              - very
-              - passport
-        accepted_mechanisms:
-          type: array
-          nullable: true
-          items:
-            type: string
-        config:
-          type: object
-          nullable: true
-          additionalProperties: true
     RootPostQuotaRule:
       type: object
       required:
@@ -2429,18 +3059,35 @@ components:
           $ref: "#/components/schemas/ReplyQuotaRule"
         high_trust:
           $ref: "#/components/schemas/ReplyQuotaRule"
-    CreateClubRequest:
+    CreateCommunityRequest:
       oneOf:
-        - $ref: "#/components/schemas/CreateCentralizedClubRequest"
-        - $ref: "#/components/schemas/CreateMultisigClubRequest"
-        - $ref: "#/components/schemas/CreateMajeurClubRequest"
+        - $ref: "#/components/schemas/CreateCentralizedCommunityRequest"
+        - $ref: "#/components/schemas/CreateMultisigCommunityRequest"
+        - $ref: "#/components/schemas/CreateMajeurCommunityRequest"
       discriminator:
         propertyName: governance_mode
         mapping:
-          centralized: "#/components/schemas/CreateCentralizedClubRequest"
-          multisig: "#/components/schemas/CreateMultisigClubRequest"
-          majeur: "#/components/schemas/CreateMajeurClubRequest"
-    UpdateClubRequest:
+          centralized: "#/components/schemas/CreateCentralizedCommunityRequest"
+          multisig: "#/components/schemas/CreateMultisigCommunityRequest"
+          majeur: "#/components/schemas/CreateMajeurCommunityRequest"
+      description: |
+        Public v0 clients must submit only `CreateCentralizedCommunityRequest` (governance_mode = centralized). `CreateMultisigCommunityRequest` and `CreateMajeurCommunityRequest` remain valid in the API for internal, allowlisted, or feature-flagged use only. The public client must not submit them.
+
+        For namespace-backed public v0 create, the server must resolve `namespace.namespace_verification_id` to the accepted `NamespaceVerification` resource, confirm it belongs to the requesting creator, and reject the create if the accepted verification is stale, disputed, expired, or no longer satisfies `community_attach_allowed`.
+    CommunityCreateAcceptedResponse:
+      type: object
+      required:
+        - community
+        - job
+      properties:
+        community:
+          $ref: "#/components/schemas/Community"
+        job:
+          $ref: "#/components/schemas/Job"
+      description: |
+        Async acceptance response for community creation. Returns both the community row and
+        its provisioning job so CLI and SDK clients can continue without secondary lookup.
+    UpdateCommunityRequest:
       type: object
       properties:
         display_name:
@@ -2459,7 +3106,7 @@ components:
         anonymous_identity_scope:
           type: string
           enum:
-            - club_stable
+            - community_stable
             - thread_stable
             - post_ephemeral
           nullable: true
@@ -2471,6 +3118,8 @@ components:
         allow_qualifiers_on_anonymous_posts:
           type: boolean
           nullable: true
+          description: |
+            Enables anonymous posts in the club to attach disclosed qualifiers from `allowed_disclosed_qualifiers`. If `false` or `null`, anonymous posts must not expose optional qualifiers.
         root_post_min_trust_tier:
           type: string
           enum:
@@ -2510,10 +3159,10 @@ components:
             - none
             - 18_plus
           description: |
-            Club-wide default viewer age gate. Updating this field from `none` to `18_plus` requires the acting owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
-    CreateCentralizedClubRequest:
+            Community-wide default viewer age gate. Updating this field from `none` to `18_plus` requires the acting owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
+    CreateCentralizedCommunityRequest:
       allOf:
-        - $ref: "#/components/schemas/CreateClubRequestBase"
+        - $ref: "#/components/schemas/CreateCommunityRequestBase"
         - type: object
           required:
             - governance_mode
@@ -2523,9 +3172,11 @@ components:
               enum:
                 - centralized
               default: centralized
-    CreateMultisigClubRequest:
+      description: |
+        The only create variant accepted from the public v0 client. All public community creation submits this request type.
+    CreateMultisigCommunityRequest:
       allOf:
-        - $ref: "#/components/schemas/CreateClubRequestBase"
+        - $ref: "#/components/schemas/CreateCommunityRequestBase"
         - type: object
           required:
             - governance_mode
@@ -2537,9 +3188,11 @@ components:
                 - multisig
             governance_backend:
               $ref: "#/components/schemas/MultisigGovernanceAttachmentInput"
-    CreateMajeurClubRequest:
+      description: |
+        Internal, allowlisted, or feature-flagged only. The public v0 client must not submit this request type. Public multisig attachment happens after creation via POST /communities/{community_id}/attach-governance.
+    CreateMajeurCommunityRequest:
       allOf:
-        - $ref: "#/components/schemas/CreateClubRequestBase"
+        - $ref: "#/components/schemas/CreateCommunityRequestBase"
         - type: object
           required:
             - governance_mode
@@ -2551,6 +3204,8 @@ components:
                 - majeur
             governance_backend:
               $ref: "#/components/schemas/MajeurGovernanceCreateInput"
+      description: |
+        Internal, allowlisted, or feature-flagged only. The public v0 client must not submit this request type. Public majeur attachment happens after creation via POST /communities/{community_id}/attach-governance.
     AttachGovernanceRequest:
       oneOf:
         - $ref: "#/components/schemas/AttachMultisigGovernanceRequest"
@@ -2588,7 +3243,7 @@ components:
       type: object
       required:
         - governance_action_id
-        - club_id
+        - community_id
         - action_kind
         - governance_mode
         - payload_hash
@@ -2598,7 +3253,7 @@ components:
       properties:
         governance_action_id:
           type: string
-        club_id:
+        community_id:
           type: string
         action_kind:
           type: string
@@ -2648,7 +3303,7 @@ components:
         - pending
         - verified
         - broken
-    ClubGovernanceBackend:
+    CommunityGovernanceBackend:
       oneOf:
         - $ref: "#/components/schemas/CentralizedGovernanceBackend"
         - $ref: "#/components/schemas/MultisigGovernanceBackend"
@@ -2970,17 +3625,31 @@ components:
           type: integer
     NamespaceAttachmentInput:
       type: object
+      required:
+        - namespace_verification_id
       properties:
+        namespace_verification_id:
+          type: string
+          description: |
+            Opaque server-issued identifier for the previously accepted namespace verification session. The server resolves this to the underlying root-control evidence and assertions at create time. Creation must be rejected if the referenced verification is stale, disputed, or does not satisfy `community_attach_allowed` for the relevant protocol family. This field is required for public v0 create. Label and route fields below are derived from the verification session and are used for display and routing, not as proof of root control.
         display_label:
           type: string
+          description: |
+            Optional derived display label for the verified namespace root. Clients may omit this on create and let the server derive it from `namespace_verification_id`. If submitted, it must match the verified namespace session.
         normalized_label:
           type: string
+          description: |
+            Optional derived normalized root label. Clients may omit this on create and let the server derive it from `namespace_verification_id`. If submitted, it must match the verified namespace session.
         resolver_label:
           type: string
           nullable: true
+          description: |
+            Optional derived resolver-facing label for routing or downstream namespace operations. Clients may omit this on create and let the server derive it from `namespace_verification_id`.
         route_family:
           type: string
           nullable: true
+          description: |
+            Optional derived route family such as bare-label or `@`-style routing. Clients may omit this on create and let the server derive it from `namespace_verification_id`. If submitted, it must match the verified namespace session.
     HandlePolicyInput:
       type: object
       required:
@@ -2993,6 +3662,8 @@ components:
             - premium
             - membership_gated
             - custom
+          description: |
+            Namespace handle-policy template. This describes how community-local handles should behave once claims are enabled. Public v0 new communities should normally start with `standard`, while claim and sale availability remain disabled until server-derived capability flags enable them.
         pricing_model:
           type: string
           enum:
@@ -3001,25 +3672,31 @@ components:
             - custom_curve
             - gated_then_flat
           nullable: true
+          description: |
+            Optional pricing model for commerce-enabled templates. This does not by itself enable public claims or sales; launch availability is controlled separately by server-derived capability flags.
         membership_required_for_claim:
           type: boolean
           default: true
-    Club:
+    Community:
       type: object
       required:
-        - club_id
+        - community_id
         - display_name
         - status
+        - provisioning_state
         - membership_mode
         - allow_anonymous_identity
         - governance_mode
         - donation_policy_mode
         - donation_partner_status
+        - content_authenticity_policy
+        - content_authenticity_detection_policy
+        - source_policy
         - created_by_user_id
         - created_at
         - updated_at
       properties:
-        club_id:
+        community_id:
           type: string
         display_name:
           type: string
@@ -3034,14 +3711,25 @@ components:
             - frozen
             - archived
             - deleted
+        provisioning_state:
+          type: string
+          enum:
+            - requested
+            - provisioning
+            - active
+            - rotation_required
+            - error
+          description: |
+            Community infrastructure lifecycle state. This is distinct from domain `status`.
+            A community may be domain-active while infrastructure provisioning is still in progress.
         artist_identity_id:
           type: string
           nullable: true
-        club_agent_user_id:
+        community_agent_user_id:
           type: string
           nullable: true
           description: |
-            App-level system actor for platform-managed club content such as daily questions. In v0, this actor is exempt from ordinary member trust-tier minima and posting quotas when publishing system-tagged content.
+            App-level system actor for platform-managed community content such as daily questions. In v0, this actor is exempt from ordinary member trust-tier minima and posting quotas when publishing system-tagged content.
         membership_mode:
           type: string
           enum:
@@ -3053,7 +3741,7 @@ components:
         anonymous_identity_scope:
           type: string
           enum:
-            - club_stable
+            - community_stable
             - thread_stable
             - post_ephemeral
           nullable: true
@@ -3065,6 +3753,8 @@ components:
         allow_qualifiers_on_anonymous_posts:
           type: boolean
           nullable: true
+          description: |
+            Whether anonymous posts in the community may attach disclosed qualifiers from `allowed_disclosed_qualifiers`.
         root_post_min_trust_tier:
           type: string
           enum:
@@ -3110,7 +3800,17 @@ components:
             - none
             - 18_plus
           description: |
-            Club-wide default viewer age gate.
+            Community-wide default viewer age gate.
+        civic_scale_tier:
+          type: string
+          enum:
+            - club
+            - village
+            - town
+            - city
+            - state
+          description: |
+            Derived scale label for a community. This is a presentation and progression classification, not a different base entity type.
         donation_policy_mode:
           type: string
           enum:
@@ -3129,12 +3829,51 @@ components:
         donation_partner:
           $ref: "#/components/schemas/DonationPartnerSummary"
           nullable: true
+        content_authenticity_policy:
+          $ref: "#/components/schemas/CommunityContentAuthenticityPolicy"
+          description: |
+            Resolved effective authenticity policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the restrictive default from an explicit community configuration.
+        content_authenticity_detection_policy:
+          $ref: "#/components/schemas/CommunityContentAuthenticityDetectionPolicy"
+          description: |
+            Resolved effective authenticity-detection policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the platform-default profile from an explicit community selection.
+        source_policy:
+          $ref: "#/components/schemas/CommunitySourcePolicy"
+          description: |
+            Resolved effective source policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the restrictive default from an explicit community configuration.
         flair_policy:
-          $ref: "#/components/schemas/ClubFlairPolicy"
+          $ref: "#/components/schemas/CommunityFlairPolicy"
           nullable: true
         community_profile:
-          $ref: "#/components/schemas/ClubCommunityProfile"
+          $ref: "#/components/schemas/CommunityProfile"
           nullable: true
+        reference_links:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommunityReferenceLinkPublic"
+          nullable: true
+        community_stage:
+          type: string
+          enum:
+            - initial
+          description: |
+            Derived server-side community maturity state. This is never a create input. `initial` is the only guaranteed cross-implementation value for public v0. Servers may define additional stage values. New communities start at the initial stage, and later stage progression depends on platform-defined `qualified_member_count` thresholds.
+        member_count:
+          type: integer
+          nullable: true
+          description: |
+            Total community membership count used for read surfaces. Raw membership alone should not unlock namespace commerce capabilities.
+        qualified_member_count:
+          type: integer
+          nullable: true
+          description: |
+            Derived count used for community-stage progression and namespace-commerce unlocks. This count is platform-defined and should exclude members that do not satisfy the platform's qualification rules for economic unlocks.
+        stage_entered_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            Timestamp when the community most recently entered its current derived `community_stage`.
         governance_mode:
           type: string
           enum:
@@ -3142,7 +3881,7 @@ components:
             - multisig
             - majeur
         governance_backend:
-          $ref: "#/components/schemas/ClubGovernanceBackend"
+          $ref: "#/components/schemas/CommunityGovernanceBackend"
           nullable: true
         gate_rules:
           type: array
@@ -3238,39 +3977,27 @@ components:
     LiveSetlistItemInput:
       type: object
       description: |
-        Setlist items should resolve against Pirate's canonical track catalog by default. `title_text` and `artist_text` are stored as display snapshots or manual fallback metadata when canonical resolution is not yet available.
+        Setlist items should resolve against Pirate's canonical track catalog by default. `title_text` and `artist_text` are display snapshots populated from the selected canonical track when available, with manual text entry used only as fallback when canonical resolution is not yet available.
+      anyOf:
+        - required:
+            - declared_track_id
+        - required:
+            - title_text
       required:
         - sequence_index
-        - title_text
-        - performance_kind
-        - rights_hint
       properties:
         sequence_index:
           type: integer
           minimum: 0
         title_text:
           type: string
+          nullable: true
         artist_text:
           type: string
           nullable: true
         declared_track_id:
           type: string
           nullable: true
-        performance_kind:
-          type: string
-          enum:
-            - original
-            - cover
-            - remix
-            - dj_playback
-            - unknown
-        rights_hint:
-          type: string
-          enum:
-            - community_catalog
-            - story_catalog
-            - third_party
-            - unknown
         notes:
           type: string
           nullable: true
@@ -3298,7 +4025,7 @@ components:
       type: object
       required:
         - live_room_id
-        - club_id
+        - community_id
         - anchor_post_id
         - host_user_id
         - title
@@ -3313,7 +4040,7 @@ components:
       properties:
         live_room_id:
           type: string
-        club_id:
+        community_id:
           type: string
         anchor_post_id:
           type: string
@@ -3466,6 +4193,7 @@ components:
         - live_room_id
         - access_mode
         - join_state
+        - viewer_entitled
       properties:
         live_room_id:
           type: string
@@ -3489,6 +4217,11 @@ components:
           nullable: true
         replay_listing_id:
           type: string
+          nullable: true
+        viewer_entitled:
+          type: boolean
+        replay_included:
+          type: boolean
           nullable: true
         replay_available:
           type: boolean
@@ -3573,10 +4306,10 @@ components:
     MembershipResult:
       type: object
       required:
-        - club_id
+        - community_id
         - status
       properties:
-        club_id:
+        community_id:
           type: string
         status:
           type: string
@@ -3584,10 +4317,10 @@ components:
             - joined
             - requested
             - left
-    CreateClubDonationPolicyInput:
+    CreateCommunityDonationPolicyInput:
       type: object
       description: |
-        Optional club-level donation configuration supplied at creation time. If omitted, the club defaults to no donation policy. If `donation_policy_mode = optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id` must be non-null. If `donation_policy_mode = none`, `donation_partner_id` must be null.
+        Optional community-level donation configuration supplied at creation time. If omitted, the community defaults to no donation policy. If `donation_policy_mode = optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id` must be non-null. If `donation_policy_mode = none`, `donation_partner_id` must be null.
       required:
         - donation_policy_mode
       properties:
@@ -3600,10 +4333,10 @@ components:
         donation_partner_id:
           type: string
           nullable: true
-    UpdateClubDonationPolicyRequest:
+    UpdateCommunityDonationPolicyRequest:
       type: object
       description: |
-        Update the club donation policy. If `donation_policy_mode = optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id` must be non-null. If `donation_policy_mode = none`, `donation_partner_id` must be null. Donation partner lifecycle management is platform-admin-controlled in v0.
+        Update the community donation policy. If `donation_policy_mode = optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id` must be non-null. If `donation_policy_mode = none`, `donation_partner_id` must be null. Donation partner lifecycle management is platform-admin-controlled in v0.
       required:
         - donation_policy_mode
       properties:
@@ -3657,16 +4390,16 @@ components:
             - active
             - paused
             - retired
-    ClubDonationPolicy:
+    CommunityDonationPolicy:
       type: object
       description: |
-        Resolved donation policy attached to a club. This policy enables or disables listing-level creator donation sidecars for content sold inside the club.
+        Resolved donation policy attached to a community. This policy enables or disables listing-level creator donation sidecars for content sold inside the community.
       required:
-        - club_id
+        - community_id
         - donation_policy_mode
         - donation_partner_status
       properties:
-        club_id:
+        community_id:
           type: string
         donation_policy_mode:
           type: string
@@ -3708,17 +4441,19 @@ components:
         reason:
           type: string
           nullable: true
-    ClubHandle:
+          description: |
+            Optional explanatory text when `eligible = false` or when availability is otherwise constrained. This may describe a claims-disabled launch posture, missing namespace delegation, governance preconditions, or policy-specific eligibility failures.
+    CommunityHandle:
       type: object
       required:
-        - club_handle_id
+        - community_handle_id
         - user_id
         - namespace_id
         - label
         - status
         - issuance_source
       properties:
-        club_handle_id:
+        community_handle_id:
           type: string
         user_id:
           type: string
@@ -3777,11 +4512,18 @@ components:
             required:
               - link_url
       required:
-        - club_id
+        - community_id
+        - idempotency_key
         - post_type
       properties:
-        club_id:
+        community_id:
           type: string
+        idempotency_key:
+          type: string
+          description: |
+            Client-supplied deduplication key for create retries. For the same authenticated author,
+            reusing the same `idempotency_key` on an equivalent create request must return the
+            originally created post rather than creating a duplicate row.
         identity_mode:
           type: string
           enum:
@@ -3791,7 +4533,7 @@ components:
         anonymous_scope:
           type: string
           enum:
-            - club_stable
+            - community_stable
             - thread_stable
             - post_ephemeral
           nullable: true
@@ -3878,7 +4620,7 @@ components:
         Canonical post row. V0 read models do not distinguish human-initiated writes from agent-initiated writes on the base object; if Pirate later supports user-owned agents posting on behalf of a user, a field such as `submission_mode` or `authorship_mode` should be added rather than overloading `author_user_id`.
       required:
         - post_id
-        - club_id
+        - community_id
         - identity_mode
         - post_type
         - status
@@ -3890,7 +4632,7 @@ components:
       properties:
         post_id:
           type: string
-        club_id:
+        community_id:
           type: string
         author_user_id:
           type: string
@@ -3905,7 +4647,7 @@ components:
         anonymous_scope:
           type: string
           enum:
-            - club_stable
+            - community_stable
             - thread_stable
             - post_ephemeral
           nullable: true
@@ -4114,7 +4856,7 @@ components:
       required:
         - question_id
         - post_id
-        - club_id
+        - community_id
         - author_user_id
         - question_kind
         - prompt
@@ -4125,7 +4867,7 @@ components:
           type: string
         post_id:
           type: string
-        club_id:
+        community_id:
           type: string
         author_user_id:
           type: string
@@ -4330,21 +5072,21 @@ components:
             Viewer-facing translated caption text when `translation_state = ready`.
         source_hash:
           type: string
-    CreateClubCommunityBootstrapInput:
+    CreateCommunityBootstrapInput:
       type: object
       properties:
         flair_policy:
-          $ref: "#/components/schemas/CreateClubFlairPolicyInput"
+          $ref: "#/components/schemas/CreateCommunityFlairPolicyInput"
           nullable: true
         rules:
           type: array
           items:
-            $ref: "#/components/schemas/CreateClubRuleInput"
+            $ref: "#/components/schemas/CreateCommunityRuleInput"
         resource_links:
           type: array
           items:
-            $ref: "#/components/schemas/CreateClubResourceLinkInput"
-    CreateClubFlairPolicyInput:
+            $ref: "#/components/schemas/CreateCommunityResourceLinkInput"
+    CreateCommunityFlairPolicyInput:
       type: object
       properties:
         flair_enabled:
@@ -4356,8 +5098,8 @@ components:
         definitions:
           type: array
           items:
-            $ref: "#/components/schemas/CreateClubFlairDefinitionInput"
-    UpdateClubFlairPolicyRequest:
+            $ref: "#/components/schemas/CreateCommunityFlairDefinitionInput"
+    UpdateCommunityFlairPolicyRequest:
       type: object
       properties:
         flair_enabled:
@@ -4367,8 +5109,8 @@ components:
         definitions:
           type: array
           items:
-            $ref: "#/components/schemas/ClubFlairDefinitionMutationInput"
-    CreateClubFlairDefinitionInput:
+            $ref: "#/components/schemas/CommunityFlairDefinitionMutationInput"
+    CreateCommunityFlairDefinitionInput:
       type: object
       required:
         - label
@@ -4396,7 +5138,7 @@ components:
               - video
               - song
           nullable: true
-    UpdateClubFlairDefinitionInput:
+    UpdateCommunityFlairDefinitionInput:
       type: object
       required:
         - flair_id
@@ -4430,11 +5172,11 @@ components:
           enum:
             - active
             - archived
-    ClubFlairDefinitionMutationInput:
+    CommunityFlairDefinitionMutationInput:
       oneOf:
-        - $ref: "#/components/schemas/CreateClubFlairDefinitionInput"
-        - $ref: "#/components/schemas/UpdateClubFlairDefinitionInput"
-    ClubFlairDefinition:
+        - $ref: "#/components/schemas/CreateCommunityFlairDefinitionInput"
+        - $ref: "#/components/schemas/UpdateCommunityFlairDefinitionInput"
+    CommunityFlairDefinition:
       type: object
       required:
         - flair_id
@@ -4470,7 +5212,7 @@ components:
               - video
               - song
           nullable: true
-    ClubFlairPolicy:
+    CommunityFlairPolicy:
       type: object
       required:
         - flair_enabled
@@ -4484,7 +5226,7 @@ components:
         definitions:
           type: array
           items:
-            $ref: "#/components/schemas/ClubFlairDefinition"
+            $ref: "#/components/schemas/CommunityFlairDefinition"
     PostFlair:
       type: object
       description: |
@@ -4506,7 +5248,7 @@ components:
           enum:
             - active
             - archived
-    CreateClubRuleInput:
+    CreateCommunityRuleInput:
       type: object
       required:
         - title
@@ -4521,7 +5263,7 @@ components:
         position:
           type: integer
           minimum: 0
-    UpdateClubRuleInput:
+    UpdateCommunityRuleInput:
       type: object
       required:
         - rule_id
@@ -4541,11 +5283,11 @@ components:
           enum:
             - active
             - archived
-    ClubRuleMutationInput:
+    CommunityRuleMutationInput:
       oneOf:
-        - $ref: "#/components/schemas/CreateClubRuleInput"
-        - $ref: "#/components/schemas/UpdateClubRuleInput"
-    ClubRule:
+        - $ref: "#/components/schemas/CreateCommunityRuleInput"
+        - $ref: "#/components/schemas/UpdateCommunityRuleInput"
+    CommunityRule:
       type: object
       required:
         - rule_id
@@ -4568,7 +5310,7 @@ components:
           enum:
             - active
             - archived
-    CreateClubResourceLinkInput:
+    CreateCommunityResourceLinkInput:
       type: object
       required:
         - label
@@ -4594,7 +5336,7 @@ components:
         position:
           type: integer
           minimum: 0
-    UpdateClubResourceLinkInput:
+    UpdateCommunityResourceLinkInput:
       type: object
       required:
         - resource_link_id
@@ -4624,11 +5366,11 @@ components:
           enum:
             - active
             - archived
-    ClubResourceLinkMutationInput:
+    CommunityResourceLinkMutationInput:
       oneOf:
-        - $ref: "#/components/schemas/CreateClubResourceLinkInput"
-        - $ref: "#/components/schemas/UpdateClubResourceLinkInput"
-    ClubResourceLink:
+        - $ref: "#/components/schemas/CreateCommunityResourceLinkInput"
+        - $ref: "#/components/schemas/UpdateCommunityResourceLinkInput"
+    CommunityResourceLink:
       type: object
       required:
         - resource_link_id
@@ -4662,7 +5404,7 @@ components:
           enum:
             - active
             - archived
-    ClubCommunityProfile:
+    CommunityProfile:
       type: object
       required:
         - rules
@@ -4671,22 +5413,22 @@ components:
         rules:
           type: array
           items:
-            $ref: "#/components/schemas/ClubRule"
+            $ref: "#/components/schemas/CommunityRule"
         resource_links:
           type: array
           items:
-            $ref: "#/components/schemas/ClubResourceLink"
-    UpdateClubCommunityProfileRequest:
+            $ref: "#/components/schemas/CommunityResourceLink"
+    UpdateCommunityProfileRequest:
       type: object
       properties:
         rules:
           type: array
           items:
-            $ref: "#/components/schemas/ClubRuleMutationInput"
+            $ref: "#/components/schemas/CommunityRuleMutationInput"
         resource_links:
           type: array
           items:
-            $ref: "#/components/schemas/ClubResourceLinkMutationInput"
+            $ref: "#/components/schemas/CommunityResourceLinkMutationInput"
     TrackResolveRequest:
       type: object
       description: |
@@ -4714,7 +5456,7 @@ components:
         asset_id:
           type: string
           nullable: true
-        club_id:
+        community_id:
           type: string
           nullable: true
         title:
@@ -4788,7 +5530,7 @@ components:
         asset_id:
           type: string
           nullable: true
-        club_id:
+        community_id:
           type: string
           nullable: true
         publisher_ref:
@@ -4803,9 +5545,6 @@ components:
           nullable: true
         duration_ms:
           type: integer
-          nullable: true
-        audio_fingerprint_ref:
-          type: string
           nullable: true
         cover_ref:
           type: string
@@ -4841,11 +5580,10 @@ components:
         - track_id
         - source_type
         - playback_started_at
-        - submission_mode
       properties:
         track_id:
           type: string
-        club_id:
+        community_id:
           type: string
           nullable: true
         source_type:
@@ -4864,11 +5602,14 @@ components:
         credited_duration_ms:
           type: integer
           nullable: true
-        submission_mode:
+        ingestion_mode:
           type: string
           enum:
-            - direct
-            - delegated
+            - first_party
+            - trusted_import
+          default: first_party
+        idempotency_key:
+          type: string
     Scrobble:
       type: object
       required:
@@ -4877,7 +5618,9 @@ components:
         - user_id
         - source_type
         - playback_started_at
-        - submission_mode
+        - ingestion_mode
+        - anchor_status
+        - accepted_at
         - created_at
       properties:
         scrobble_id:
@@ -4886,7 +5629,7 @@ components:
           type: string
         user_id:
           type: string
-        club_id:
+        community_id:
           type: string
           nullable: true
         source_type:
@@ -4905,13 +5648,33 @@ components:
         credited_duration_ms:
           type: integer
           nullable: true
-        submission_mode:
+        ingestion_mode:
           type: string
           enum:
-            - direct
-            - delegated
-        chain_tx_ref:
+            - first_party
+            - trusted_import
+        anchor_status:
           type: string
+          enum:
+            - queued
+            - awaiting_wallet
+            - awaiting_track
+            - anchoring
+            - anchored
+            - failed
+            - suppressed
+        accepted_at:
+          type: string
+          format: date-time
+        anchored_at:
+          type: string
+          format: date-time
+          nullable: true
+        chain_tx_hash:
+          type: string
+          nullable: true
+        chain_log_index:
+          type: integer
           nullable: true
         created_at:
           type: string
@@ -4945,6 +5708,7 @@ components:
         job_type:
           type: string
           enum:
+            - community_provisioning
             - reddit_snapshot_import
             - club_threads_export
             - media_analysis
@@ -5059,11 +5823,11 @@ components:
     ThreadExportAcceptedResponse:
       type: object
       required:
-        - club_id
+        - community_id
         - job
         - job_status_url
       properties:
-        club_id:
+        community_id:
           type: string
         job:
           $ref: "#/components/schemas/Job"

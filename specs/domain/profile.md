@@ -6,7 +6,7 @@ Related docs:
 
 - [user.md](./user.md)
 - [handles.md](./handles.md)
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [onboarding.md](./onboarding.md)
 - [feed.md](./feed.md)
 - [follow.md](./follow.md)
@@ -24,7 +24,7 @@ It covers:
 - extended profile fields
 - visibility and privacy boundaries
 - relationship to onboarding
-- relationship to club-local handles
+- relationship to community-local handles
 
 ## Non-goals
 
@@ -47,7 +47,7 @@ Pirate should distinguish between:
 
 - core profile
 - extended profile
-- club-local identity
+- community-local identity
 
 ### Core Profile
 
@@ -76,9 +76,10 @@ Notes:
   - `premium`
 - `display_name` is user-facing and editable
 - `preferred_locale` is the user's persisted app-locale preference used by SSR and localized read surfaces
-- `global_handle` is the stable default identity surface before the user joins or claims club-local handles
+- `global_handle` is the stable default identity surface before the user joins or claims community-local handles
 - every user should have exactly one active `global_handle` in v0
 - the initial generated `.pirate` handle should be a safe fallback identity, not a premium allocation
+- in early-stage communities where community-local handles are not yet enabled, the user's global `.pirate` handle remains their default public identity inside those communities
 
 ### Profile Read-Model Extensions
 
@@ -311,21 +312,21 @@ Rules:
 - numeric suffix should be random enough to avoid obvious collisions
 - the generation algorithm should be deterministic only after the final chosen label is committed, not guessable from `user_id`
 
-## Relationship To Club-Local Handles
+## Relationship To Community-Local Handles
 
-The global profile is not the same as club-local identity.
+The global profile is not the same as community-local identity.
 
 Examples:
 
 - global: `suspicious-code-7234.pirate`
-- club-local: `alex.kanye`
-- club-local: `alex@kanye`
+- community-local: `alex.kanye`
+- community-local: `alex@kanye`
 
 Rules:
 
 - every user should have one global Pirate identity surface
-- club-local handles remain namespace-local and optional
-- public profile rendering may show both the global handle and owned club-local handles
+- community-local handles remain namespace-local and optional
+- public profile rendering may show both the global handle and owned community-local handles
 - current club views should prefer the namespace-local handle when one exists
 
 ## Reserved Global `.pirate` Labels
@@ -349,10 +350,10 @@ Additional platform-reserved labels may be added over time.
 
 Recommended v0 rendering rules:
 
-- club-scoped views should show the author's active club-local handle for that club when it exists
-- if no matching club-local handle exists, fall back to the active global `.pirate` handle
-- mixed global feeds such as `Home` and `Your Clubs` should show the active global `.pirate` handle as the primary identity label
-- mixed global feeds may show the post's club-local handle as a secondary badge or metadata line
+- community-scoped views should show the author's active community-local handle for that club when it exists
+- if no matching community-local handle exists, fall back to the active global `.pirate` handle
+- mixed global feeds such as `Home` and `Your Communities` should show the active global `.pirate` handle as the primary identity label
+- mixed global feeds may show the post's community-local handle as a secondary badge or metadata line
 
 ## On-chain vs Off-chain
 

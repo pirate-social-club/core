@@ -1,0 +1,671 @@
+CreateCommunityRequestBase:
+  type: object
+  description: |
+    Authoritative community-create write model. For namespace-backed communities in public v0, the server must resolve `namespace.namespace_verification_id` to the accepted namespace-verification object at create time and re-check creator binding, freshness, and `community_attach_allowed` before any community state is written.
+  required:
+    - display_name
+    - membership_mode
+    - allow_anonymous_identity
+    - namespace
+    - handle_policy
+  properties:
+    display_name:
+      type: string
+    description:
+      type: string
+      nullable: true
+    artist_identity_id:
+      type: string
+      nullable: true
+    membership_mode:
+      type: string
+      enum:
+        - open
+        - request
+        - gated
+      description: |
+        Public v0 community creation should submit only `open` or `gated`. `request` remains in the model for deferred, internal, or later use and should not be exposed by the public create client.
+    allow_anonymous_identity:
+      type: boolean
+    anonymous_identity_scope:
+      type: string
+      enum:
+        - community_stable
+        - thread_stable
+        - post_ephemeral
+      nullable: true
+      description: |
+        Required when `allow_anonymous_identity = true`. Public v0 should default to `community_stable`. `post_ephemeral` must not be submitted in the public v0 create flow unless all prerequisites from the domain spec (active content safety classification, at least one active moderator) can be verified at create time.
+    allowed_disclosed_qualifiers:
+      type: array
+      items:
+        type: string
+      nullable: true
+      description: |
+        Array of platform-defined `qualifier_template_id` values. Public v0 create may set this when `allow_anonymous_identity = true`. Qualifier suppression of entries already implied by community gates is a read/composer behavior concern, not a create-time configuration concern.
+    allow_qualifiers_on_anonymous_posts:
+      type: boolean
+      nullable: true
+      description: |
+        Enables anonymous posts in the community to attach disclosed qualifiers from `allowed_disclosed_qualifiers`. Public v0 create may set this only when `allow_anonymous_identity = true`. If `false` or `null`, anonymous posts must not expose optional qualifiers.
+    root_post_min_trust_tier:
+      type: string
+      enum:
+        - new
+        - established
+        - trusted
+        - high_trust
+      nullable: true
+    reply_min_trust_tier:
+      type: string
+      enum:
+        - new
+        - established
+        - trusted
+        - high_trust
+      nullable: true
+    anonymous_posting_min_trust_tier:
+      type: string
+      enum:
+        - new
+        - established
+        - trusted
+        - high_trust
+      nullable: true
+    root_post_quota_by_trust_tier:
+      $ref: ./communities-core.yaml#/RootPostQuotaByTrustTier
+      nullable: true
+    reply_quota_by_trust_tier:
+      $ref: ./communities-core.yaml#/ReplyQuotaByTrustTier
+      nullable: true
+    probation_window_days:
+      type: integer
+      nullable: true
+    link_post_policy:
+      type: string
+      enum:
+        - allow
+        - require_established
+      nullable: true
+    default_age_gate_policy:
+      type: string
+      enum:
+        - none
+        - 18_plus
+      default: none
+      description: |
+        Community-wide default viewer age gate. Setting this to `18_plus` requires the acting creator or updating owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
+    namespace:
+      allOf:
+        - $ref: ./handles.yaml#/NamespaceAttachmentInput
+      description: |
+        Namespace attachment input for community creation. In public v0 this must reference an accepted namespace-verification object via `namespace_verification_id`; the server must consume that accepted verification, not treat the field as a blind string.
+    handle_policy:
+      allOf:
+        - $ref: ./handles.yaml#/HandlePolicyInput
+      description: |
+        Public v0 new communities should normally start with the `standard` handle-policy template. This creates the namespace policy record at community creation time without implying that public community-local handle claims or namespace commerce are already enabled; those remain disabled until server-derived capability flags unlock them.
+    donation_policy:
+      allOf:
+        - $ref: ./communities-community.yaml#/CreateCommunityDonationPolicyInput
+      type: object
+      nullable: true
+      description: |
+        Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. Remains valid in the API for internal and future use.
+    content_authenticity_policy:
+      allOf:
+        - $ref: ./communities-community.yaml#/CreateCommunityContentAuthenticityPolicyInput
+      type: object
+      nullable: true
+      description: |
+        Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the restrictive default effective policy from the first post onward. Platform-minimum synthetic-likeness bans still override any submitted value.
+    source_policy:
+      allOf:
+        - $ref: ./communities-community.yaml#/CreateCommunitySourcePolicyInput
+      type: object
+      nullable: true
+      description: |
+        Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the restrictive default effective policy from the first post onward. This policy governs repost and fan-work handling rather than AI authenticity.
+    content_authenticity_detection_policy:
+      allOf:
+        - $ref: ./communities-community.yaml#/CreateCommunityContentAuthenticityDetectionPolicyInput
+      type: object
+      nullable: true
+      description: |
+        Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must use the platform-default authenticity-detection profile from the first post onward. Platform-required safety and age-gating analysis remain platform-managed and unaffected.
+    community_bootstrap:
+      $ref: ./communities-community.yaml#/CreateCommunityBootstrapInput
+      nullable: true
+      description: |
+        Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. Remains valid in the API for internal and future use.
+    gate_rules:
+      type: array
+      items:
+        $ref: ./communities-core.yaml#/GateRuleInput
+      nullable: true
+      description: |
+        Public v0 create is limited to `membership`-scope `identity_proof` gate rules only. Each submitted gate rule must include explicit `proof_requirements`. Token-holding gate rules, `viewer`-scope gates, and `posting`-scope gates are deferred until post-create settings. The server should reject create requests containing gate rules that fall outside the public v0 scope.
+GateRuleInput:
+  type: object
+  required:
+    - scope
+    - gate_family
+    - gate_type
+  properties:
+    scope:
+      type: string
+      enum:
+        - membership
+        - viewer
+        - posting
+    gate_family:
+      type: string
+      enum:
+        - token_holding
+        - identity_proof
+    gate_type:
+      type: string
+      enum:
+        - erc721_holding
+        - erc1155_holding
+        - erc20_balance
+        - solana_nft_holding
+        - unique_human
+        - age_over_18
+        - nationality
+        - wallet_score
+    proof_requirements:
+      type: array
+      nullable: true
+      items:
+        $ref: ./communities-core.yaml#/ProofRequirement
+    chain_namespace:
+      type: string
+      nullable: true
+    gate_config:
+      type: object
+      nullable: true
+      additionalProperties: true
+GateRule:
+  type: object
+  required:
+    - gate_rule_id
+    - community_id
+    - scope
+    - gate_family
+    - gate_type
+    - status
+    - created_at
+    - updated_at
+  properties:
+    gate_rule_id:
+      type: string
+    community_id:
+      type: string
+    scope:
+      type: string
+      enum:
+        - membership
+        - viewer
+        - posting
+    gate_family:
+      type: string
+      enum:
+        - token_holding
+        - identity_proof
+    gate_type:
+      type: string
+      enum:
+        - erc721_holding
+        - erc1155_holding
+        - erc20_balance
+        - solana_nft_holding
+        - unique_human
+        - age_over_18
+        - nationality
+        - wallet_score
+    proof_requirements:
+      type: array
+      nullable: true
+      items:
+        $ref: ./communities-core.yaml#/ProofRequirement
+    chain_namespace:
+      type: string
+      nullable: true
+    gate_config:
+      type: object
+      nullable: true
+      additionalProperties: true
+    status:
+      type: string
+      enum:
+        - active
+        - disabled
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+ProofRequirement:
+  type: object
+  required:
+    - proof_type
+  properties:
+    proof_type:
+      type: string
+      enum:
+        - unique_human
+        - biometric_liveness
+        - wallet_score
+        - gov_id
+        - age_over_18
+        - nationality
+        - sanctions_clear
+        - phone
+    accepted_providers:
+      type: array
+      nullable: true
+      items:
+        type: string
+        enum:
+          - self
+          - very
+          - passport
+    accepted_mechanisms:
+      type: array
+      nullable: true
+      items:
+        type: string
+    config:
+      type: object
+      nullable: true
+      additionalProperties: true
+RootPostQuotaRule:
+  type: object
+  required:
+    - window_hours
+    - max_root_posts
+    - max_song_posts
+    - max_video_posts
+  properties:
+    window_hours:
+      type: integer
+    max_root_posts:
+      type: integer
+    max_song_posts:
+      type: integer
+    max_video_posts:
+      type: integer
+RootPostQuotaByTrustTier:
+  type: object
+  properties:
+    new:
+      $ref: ./communities-core.yaml#/RootPostQuotaRule
+    established:
+      $ref: ./communities-core.yaml#/RootPostQuotaRule
+    trusted:
+      $ref: ./communities-core.yaml#/RootPostQuotaRule
+    high_trust:
+      $ref: ./communities-core.yaml#/RootPostQuotaRule
+ReplyQuotaRule:
+  type: object
+  required:
+    - window_hours
+    - max_replies
+    - burst_window_minutes
+    - max_replies_per_burst
+  properties:
+    window_hours:
+      type: integer
+    max_replies:
+      type: integer
+    burst_window_minutes:
+      type: integer
+    max_replies_per_burst:
+      type: integer
+ReplyQuotaByTrustTier:
+  type: object
+  properties:
+    new:
+      $ref: ./communities-core.yaml#/ReplyQuotaRule
+    established:
+      $ref: ./communities-core.yaml#/ReplyQuotaRule
+    trusted:
+      $ref: ./communities-core.yaml#/ReplyQuotaRule
+    high_trust:
+      $ref: ./communities-core.yaml#/ReplyQuotaRule
+CreateCommunityRequest:
+  oneOf:
+    - $ref: ./communities-governance.yaml#/CreateCentralizedCommunityRequest
+    - $ref: ./communities-governance.yaml#/CreateMultisigCommunityRequest
+    - $ref: ./communities-governance.yaml#/CreateMajeurCommunityRequest
+  discriminator:
+    propertyName: governance_mode
+    mapping:
+      centralized: "#/components/schemas/CreateCentralizedCommunityRequest"
+      multisig: "#/components/schemas/CreateMultisigCommunityRequest"
+      majeur: "#/components/schemas/CreateMajeurCommunityRequest"
+  description: |
+    Public v0 clients must submit only `CreateCentralizedCommunityRequest` (governance_mode = centralized). `CreateMultisigCommunityRequest` and `CreateMajeurCommunityRequest` remain valid in the API for internal, allowlisted, or feature-flagged use only. The public client must not submit them.
+
+    For namespace-backed public v0 create, the server must resolve `namespace.namespace_verification_id` to the accepted `NamespaceVerification` resource, confirm it belongs to the requesting creator, and reject the create if the accepted verification is stale, disputed, expired, or no longer satisfies `community_attach_allowed`.
+CommunityCreateAcceptedResponse:
+  type: object
+  required:
+    - community
+    - job
+  properties:
+    community:
+      $ref: ./communities-core.yaml#/Community
+    job:
+      $ref: ./jobs.yaml#/Job
+  description: |
+    Async acceptance response for community creation. Returns both the community row and
+    its provisioning job so CLI and SDK clients can continue without secondary lookup.
+UpdateCommunityRequest:
+  type: object
+  properties:
+    display_name:
+      type: string
+    description:
+      type: string
+      nullable: true
+    membership_mode:
+      type: string
+      enum:
+        - open
+        - request
+        - gated
+    allow_anonymous_identity:
+      type: boolean
+    anonymous_identity_scope:
+      type: string
+      enum:
+        - community_stable
+        - thread_stable
+        - post_ephemeral
+      nullable: true
+    allowed_disclosed_qualifiers:
+      type: array
+      items:
+        type: string
+      nullable: true
+    allow_qualifiers_on_anonymous_posts:
+      type: boolean
+      nullable: true
+      description: |
+        Enables anonymous posts in the club to attach disclosed qualifiers from `allowed_disclosed_qualifiers`. If `false` or `null`, anonymous posts must not expose optional qualifiers.
+    root_post_min_trust_tier:
+      type: string
+      enum:
+        - new
+        - established
+        - trusted
+        - high_trust
+    reply_min_trust_tier:
+      type: string
+      enum:
+        - new
+        - established
+        - trusted
+        - high_trust
+    anonymous_posting_min_trust_tier:
+      type: string
+      enum:
+        - new
+        - established
+        - trusted
+        - high_trust
+    root_post_quota_by_trust_tier:
+      $ref: ./communities-core.yaml#/RootPostQuotaByTrustTier
+    reply_quota_by_trust_tier:
+      $ref: ./communities-core.yaml#/ReplyQuotaByTrustTier
+    probation_window_days:
+      type: integer
+      nullable: true
+    link_post_policy:
+      type: string
+      enum:
+        - allow
+        - require_established
+    default_age_gate_policy:
+      type: string
+      enum:
+        - none
+        - 18_plus
+      description: |
+        Community-wide default viewer age gate. Updating this field from `none` to `18_plus` requires the acting owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
+Community:
+  type: object
+  required:
+    - community_id
+    - display_name
+    - status
+    - provisioning_state
+    - membership_mode
+    - allow_anonymous_identity
+    - governance_mode
+    - donation_policy_mode
+    - donation_partner_status
+    - content_authenticity_policy
+    - content_authenticity_detection_policy
+    - source_policy
+    - created_by_user_id
+    - created_at
+    - updated_at
+  properties:
+    community_id:
+      type: string
+    display_name:
+      type: string
+    description:
+      type: string
+      nullable: true
+    status:
+      type: string
+      enum:
+        - draft
+        - active
+        - frozen
+        - archived
+        - deleted
+    provisioning_state:
+      type: string
+      enum:
+        - requested
+        - provisioning
+        - active
+        - rotation_required
+        - error
+      description: |
+        Community infrastructure lifecycle state. This is distinct from domain `status`.
+        A community may be domain-active while infrastructure provisioning is still in progress.
+    artist_identity_id:
+      type: string
+      nullable: true
+    community_agent_user_id:
+      type: string
+      nullable: true
+      description: |
+        App-level system actor for platform-managed community content such as daily questions. In v0, this actor is exempt from ordinary member trust-tier minima and posting quotas when publishing system-tagged content.
+    membership_mode:
+      type: string
+      enum:
+        - open
+        - request
+        - gated
+    allow_anonymous_identity:
+      type: boolean
+    anonymous_identity_scope:
+      type: string
+      enum:
+        - community_stable
+        - thread_stable
+        - post_ephemeral
+      nullable: true
+    allowed_disclosed_qualifiers:
+      type: array
+      items:
+        type: string
+      nullable: true
+    allow_qualifiers_on_anonymous_posts:
+      type: boolean
+      nullable: true
+      description: |
+        Whether anonymous posts in the community may attach disclosed qualifiers from `allowed_disclosed_qualifiers`.
+    root_post_min_trust_tier:
+      type: string
+      enum:
+        - new
+        - established
+        - trusted
+        - high_trust
+      nullable: true
+    reply_min_trust_tier:
+      type: string
+      enum:
+        - new
+        - established
+        - trusted
+        - high_trust
+      nullable: true
+    anonymous_posting_min_trust_tier:
+      type: string
+      enum:
+        - new
+        - established
+        - trusted
+        - high_trust
+      nullable: true
+    root_post_quota_by_trust_tier:
+      $ref: ./communities-core.yaml#/RootPostQuotaByTrustTier
+      nullable: true
+    reply_quota_by_trust_tier:
+      $ref: ./communities-core.yaml#/ReplyQuotaByTrustTier
+      nullable: true
+    probation_window_days:
+      type: integer
+      nullable: true
+    link_post_policy:
+      type: string
+      enum:
+        - allow
+        - require_established
+      nullable: true
+    default_age_gate_policy:
+      type: string
+      enum:
+        - none
+        - 18_plus
+      description: |
+        Community-wide default viewer age gate.
+    civic_scale_tier:
+      type: string
+      enum:
+        - club
+        - village
+        - town
+        - city
+        - state
+      description: |
+        Derived scale label for a community. This is a presentation and progression classification, not a different base entity type.
+    donation_policy_mode:
+      type: string
+      enum:
+        - none
+        - optional_creator_sidecar
+        - fundraiser_default
+    donation_partner_status:
+      type: string
+      enum:
+        - unconfigured
+        - active
+        - paused
+    donation_partner_id:
+      type: string
+      nullable: true
+    donation_partner:
+      $ref: ./communities-community.yaml#/DonationPartnerSummary
+      nullable: true
+    content_authenticity_policy:
+      $ref: ./communities-community.yaml#/CommunityContentAuthenticityPolicy
+      description: |
+        Resolved effective authenticity policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the restrictive default from an explicit community configuration.
+    content_authenticity_detection_policy:
+      $ref: ./communities-community.yaml#/CommunityContentAuthenticityDetectionPolicy
+      description: |
+        Resolved effective authenticity-detection policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the platform-default profile from an explicit community selection.
+    source_policy:
+      $ref: ./communities-community.yaml#/CommunitySourcePolicy
+      description: |
+        Resolved effective source policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the restrictive default from an explicit community configuration.
+    flair_policy:
+      $ref: ./communities-community.yaml#/CommunityFlairPolicy
+      nullable: true
+    community_profile:
+      $ref: ./communities-community.yaml#/CommunityProfile
+      nullable: true
+    reference_links:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityReferenceLinkPublic
+      nullable: true
+    community_stage:
+      type: string
+      enum:
+        - initial
+      description: |
+        Derived server-side community maturity state. This is never a create input. `initial` is the only guaranteed cross-implementation value for public v0. Servers may define additional stage values. New communities start at the initial stage, and later stage progression depends on platform-defined `qualified_member_count` thresholds.
+    member_count:
+      type: integer
+      nullable: true
+      description: |
+        Total community membership count used for read surfaces. Raw membership alone should not unlock namespace commerce capabilities.
+    qualified_member_count:
+      type: integer
+      nullable: true
+      description: |
+        Derived count used for community-stage progression and namespace-commerce unlocks. This count is platform-defined and should exclude members that do not satisfy the platform's qualification rules for economic unlocks.
+    stage_entered_at:
+      type: string
+      format: date-time
+      nullable: true
+      description: |
+        Timestamp when the community most recently entered its current derived `community_stage`.
+    governance_mode:
+      type: string
+      enum:
+        - centralized
+        - multisig
+        - majeur
+    governance_backend:
+      $ref: ./communities-governance.yaml#/CommunityGovernanceBackend
+      nullable: true
+    gate_rules:
+      type: array
+      items:
+        $ref: ./communities-core.yaml#/GateRule
+      nullable: true
+    created_by_user_id:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+MembershipResult:
+  type: object
+  required:
+    - community_id
+    - status
+  properties:
+    community_id:
+      type: string
+    status:
+      type: string
+      enum:
+        - joined
+        - requested
+        - left

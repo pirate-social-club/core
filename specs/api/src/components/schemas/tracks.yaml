@@ -25,7 +25,7 @@ TrackResolveRequest:
     asset_id:
       type: string
       nullable: true
-    club_id:
+    community_id:
       type: string
       nullable: true
     title:
@@ -99,7 +99,7 @@ Track:
     asset_id:
       type: string
       nullable: true
-    club_id:
+    community_id:
       type: string
       nullable: true
     publisher_ref:
@@ -114,9 +114,6 @@ Track:
       nullable: true
     duration_ms:
       type: integer
-      nullable: true
-    audio_fingerprint_ref:
-      type: string
       nullable: true
     cover_ref:
       type: string

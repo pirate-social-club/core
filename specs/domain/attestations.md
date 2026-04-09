@@ -6,7 +6,7 @@ Related docs:
 
 - [user.md](./user.md)
 - [identity-presentation.md](./identity-presentation.md)
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [post.md](./post.md)
 
 ## Purpose
@@ -63,8 +63,8 @@ Suggested shape:
 
 Rules:
 
-- the registry is platform-owned, not club-owned
-- clubs may allow qualifiers derived from a provider, but clubs do not define providers
+- the registry is platform-owned, not community-owned
+- communities may allow qualifiers derived from a provider, but communities do not define providers
 - adding `zkpass` should be a provider-registry row, not a qualifier-schema rewrite
 
 ## Provider Schemas
@@ -153,7 +153,7 @@ Examples:
 Rules:
 
 - qualifier templates are platform-owned
-- clubs may whitelist qualifier templates, but may not create arbitrary new ones
+- communities may whitelist qualifier templates, but may not create arbitrary new ones
 - users may only attach qualifiers they currently satisfy
 
 ## zkPass Example
@@ -180,7 +180,7 @@ Example:
 The attestation layer must not:
 
 - expose arbitrary wallet-held credentials directly in the composer
-- let clubs invent arbitrary qualifier taxonomies
+- let communities invent arbitrary qualifier taxonomies
 - treat every recognized attestation as automatically displayable
 
 Pirate should curate the small set of qualifier templates it is willing to expose publicly.

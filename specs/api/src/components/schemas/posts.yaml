@@ -27,11 +27,18 @@ CreatePostRequest:
         required:
           - link_url
   required:
-    - club_id
+    - community_id
+    - idempotency_key
     - post_type
   properties:
-    club_id:
+    community_id:
       type: string
+    idempotency_key:
+      type: string
+      description: |
+        Client-supplied deduplication key for create retries. For the same authenticated author,
+        reusing the same `idempotency_key` on an equivalent create request must return the
+        originally created post rather than creating a duplicate row.
     identity_mode:
       type: string
       enum:
@@ -41,7 +48,7 @@ CreatePostRequest:
     anonymous_scope:
       type: string
       enum:
-        - club_stable
+        - community_stable
         - thread_stable
         - post_ephemeral
       nullable: true
@@ -128,7 +135,7 @@ Post:
     Canonical post row. V0 read models do not distinguish human-initiated writes from agent-initiated writes on the base object; if Pirate later supports user-owned agents posting on behalf of a user, a field such as `submission_mode` or `authorship_mode` should be added rather than overloading `author_user_id`.
   required:
     - post_id
-    - club_id
+    - community_id
     - identity_mode
     - post_type
     - status
@@ -140,7 +147,7 @@ Post:
   properties:
     post_id:
       type: string
-    club_id:
+    community_id:
       type: string
     author_user_id:
       type: string
@@ -155,7 +162,7 @@ Post:
     anonymous_scope:
       type: string
       enum:
-        - club_stable
+        - community_stable
         - thread_stable
         - post_ephemeral
       nullable: true
@@ -284,7 +291,7 @@ LocalizedPostResponse:
     post:
       $ref: ./posts.yaml#/Post
     flair:
-      $ref: ./clubs-community.yaml#/PostFlair
+      $ref: ./communities-community.yaml#/PostFlair
       nullable: true
     upvote_count:
       type: integer

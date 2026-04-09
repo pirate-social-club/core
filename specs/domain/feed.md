@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [post.md](./post.md)
 - [identity-presentation.md](./identity-presentation.md)
 - [asset.md](./asset.md)
@@ -41,24 +41,24 @@ Pirate should distinguish between:
 
 - platform-owned global discovery feeds
 - user-scoped membership feeds
-- club-scoped feeds
+- community-scoped feeds
 
 The global front page is a Pirate product surface.
-Club ranking may become club-governed later, but starts simple in v0.
+Community ranking may become club-governed later, but starts simple in v0.
 
 ## Top-Level Feed Surfaces
 
 Recommended v0 primary surfaces:
 
 - `Home`
-- `Your Clubs`
+- `Your Communities`
 
 Interpretation:
 
 - `Home`
-  Global trending or best content across all clubs.
-- `Your Clubs`
-  Feed composed from the clubs the user has joined.
+  Global trending or best content across all communities.
+- `Your Communities`
+  Feed composed from the communities the user has joined.
 
 This avoids the cold-start problem where a new user sees an empty personalized feed.
 
@@ -76,23 +76,23 @@ Rules:
 
 ### User-Scoped
 
-`Your Clubs` is user-scoped but still platform-operated in v0.
+`Your Communities` is user-scoped but still platform-operated in v0.
 
 Rules:
 
-- candidates come from clubs the user belongs to
+- candidates come from communities the user belongs to
 - ranking is initially determined by Pirate's default policy
 - later personalization can be added without changing the surface definition
 
-### Club-Scoped
+### Community-Scoped
 
 Each club has its own feed surface.
 
 Rules:
 
-- club feeds are scoped to one `club_id`
+- community feeds are scoped to one `community_id`
 - v0 uses a simple default ranking policy
-- clubs may gain governance control over ranking policy later
+- communities may gain governance control over ranking policy later
 
 ## Sort Modes
 
@@ -113,15 +113,15 @@ Interpretation:
 
 ## Flair Filtering
 
-Club feeds may optionally expose flair filtering when the club has active flair definitions.
+Community feeds may optionally expose flair filtering when the club has active flair definitions.
 
 Recommended v0 behavior:
 
-- flair filtering is available on club-scoped feeds only
-- flair filtering does not apply to `Home` or `Your Clubs` in v0
+- flair filtering is available on community-scoped feeds only
+- flair filtering does not apply to `Home` or `Your Communities` in v0
 - the filter is single-select to match the one-flair-per-post model
 - the default state is unfiltered
-- selecting a flair narrows the club feed to posts whose `flair_id` matches the selected definition
+- selecting a flair narrows the community feed to posts whose `flair_id` matches the selected definition
 
 Rules:
 
@@ -133,8 +133,8 @@ Rules:
 
 Product boundary:
 
-- flair is a club-local navigation aid, not a platform-wide discovery primitive
-- Pirate should avoid building cross-club flair browse pages until there is clear evidence of stable shared semantics
+- flair is a community-local navigation aid, not a platform-wide discovery primitive
+- Pirate should avoid building cross-community flair browse pages until there is clear evidence of stable shared semantics
 
 ## Top Time Windows
 
@@ -161,9 +161,9 @@ Interpretation:
 - `all_time`
   Historical top content
 
-## Club Feed Defaults
+## Community Feed Defaults
 
-Club feeds should start simple.
+Community feeds should start simple.
 
 Recommended v0 defaults:
 
@@ -174,7 +174,7 @@ Recommended v0 defaults:
 
 Do not attempt club-governed feed formulas in v0.
 
-That can become a later governance feature once clubs have enough activity to justify it.
+That can become a later governance feature once communities have enough activity to justify it.
 
 ## Candidate Eligibility
 
@@ -191,7 +191,7 @@ Eligibility filters include:
 
 Additional surface-specific constraints may apply later.
 
-Replies belong to thread surfaces, not `Home`, `Your Clubs`, or club top-level feeds.
+Replies belong to thread surfaces, not `Home`, `Your Communities`, or club top-level feeds.
 
 ## Ranking Inputs
 
@@ -203,7 +203,7 @@ Suggested v0 ranking inputs:
 - vote score
 - comment count
 - watch or engagement signals where available
-- club membership context for `Your Clubs`
+- club membership context for `Your Communities`
 - moderation penalties
 - safety and age-gate filtering
 
@@ -220,8 +220,8 @@ Rules:
 Recommended v0 behavior:
 
 - new or logged-out users land on `Home`
-- `Your Clubs` becomes useful after the user joins clubs
-- if a user has no joined clubs, `Your Clubs` may render an empty state or redirect prompt rather than pretending to be `Home`
+- `Your Communities` becomes useful after the user joins communities
+- if a user has no joined communities, `Your Communities` may render an empty state or redirect prompt rather than pretending to be `Home`
 
 ## Gate And Moderation Interaction
 
@@ -295,18 +295,18 @@ Feed surfaces should render identity consistently.
 
 Recommended v0 rules:
 
-- club-scoped feeds should render the author's active handle in that club namespace when one exists
+- community-scoped feeds should render the author's active handle in that club namespace when one exists
 - if the author has no active handle in that club namespace, fall back to the active global `.pirate` handle
-- mixed global feeds such as `Home` and `Your Clubs` should render a single display label in v0
+- mixed global feeds such as `Home` and `Your Communities` should render a single display label in v0
 - for mixed global feeds, that display label should be the active global `.pirate` handle
 - richer multi-part identity rendering can be added later when the feed read model grows beyond one display field
 
 Anonymous identity rendering:
 
-- when a post is published under an anonymous identity layer, feeds must render the derived anonymous label as defined in [club.md](./club.md) under Anonymous Subject Derivation
-- anonymous posts must never fall back to the author's `.pirate` handle or club-local handle, regardless of the feed surface
-- this applies to all feed surfaces including `Home`, `Your Clubs`, and club-scoped feeds
-- for clubs with anonymous posting enabled, feeds must reflect the author's chosen identity mode for that post rather than forcing anonymous rendering at the club level
+- when a post is published under an anonymous identity layer, feeds must render the derived anonymous label as defined in [community.md](./community.md)
+- anonymous posts must never fall back to the author's `.pirate` handle or community-local handle, regardless of the feed surface
+- this applies to all feed surfaces including `Home`, `Your Communities`, and community-scoped feeds
+- for communities with anonymous posting enabled, feeds must reflect the author's chosen identity mode for that post rather than forcing anonymous rendering at the club level
 - if the post carries disclosed qualifier snapshots, feeds should render those same normalized qualifier pills adjacent to the author presentation surface rather than recomputing them from current verification state
 
 ## Pagination
@@ -315,7 +315,7 @@ All top-level feed surfaces should support cursor pagination in v0.
 
 Recommended v0 rules:
 
-- `Home`, `Your Clubs`, and club-scoped feeds accept `cursor` and `limit`
+- `Home`, `Your Communities`, and community-scoped feeds accept `cursor` and `limit`
 - feed responses return `next_cursor` when another page exists
 - pagination is for ordinary interactive browsing, not bulk export
 
@@ -333,6 +333,6 @@ Recommended v0 split:
 
 ## Open Questions
 
-- Should `Home` and `Your Clubs` share the same `best` ranking formula, or should they diverge in v0?
+- Should `Home` and `Your Communities` share the same `best` ranking formula, or should they diverge in v0?
 - What minimum engagement signals should count in `best` before enough traffic exists for more advanced ranking?
 - When club governance eventually controls ranking policy, which parameters are configurable versus platform-enforced?

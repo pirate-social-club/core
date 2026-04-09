@@ -34,6 +34,12 @@ It should not become a general-purpose music metadata registry, playlist system,
 - supporting direct user submission
 - supporting trusted operator-assisted submission
 
+In Pirate v2, the normal production path is delegated batch anchoring:
+
+1. the API accepts a scrobble offchain
+2. the anchor worker ensures referenced tracks are registered
+3. an authorized operator publishes `scrobbleBatch(...)` on behalf of the resolved user wallet
+
 `ScrobbleV1` is not responsible for:
 
 - anti-fraud heuristics
@@ -82,6 +88,8 @@ Rules:
 - direct path: `msg.sender == user`
 - delegated path: `msg.sender` is an authorized operator
 - delegated submission must still name the concrete `user` whose listen is being recorded
+- batch publication requires the operator to hold `isOperator(...)` on `ScrobbleV1`
+- `scrobbleBatch(...)` accepts one `user` per call, so the batch publisher must group queued scrobbles by resolved wallet address
 
 ## Event Model
 
@@ -100,6 +108,8 @@ Semantics:
 - `club_id = bytes32(0)` means no club context
 - `credited_duration_ms` is the only listen-duration field carried onchain in v1
 - `playback_position_ms` is intentionally omitted from v1 because it is not required for canonical event identity
+- under Pirate v2 batch anchoring, `submission_mode` reflects the chain submitter path, not the original app-side provenance
+- this means batch-published scrobbles normally emit `submission_mode = delegated`
 
 ## Enums
 
@@ -123,10 +133,22 @@ Recommended v1 behavior:
 - support single and batch registration
 - support single and batch scrobbling
 - cap batch size to a fixed upper bound
+- require tracks to exist before scrobbling
+- keep registration and scrobble publication as separate transactions in v1
 
 Initial v1 constant:
 
 - `MAX_BATCH = 200`
+
+Operational constraints for Pirate v2:
+
+- `registerTracks(...)` and `scrobbleBatch(...)` are separate transactions
+- if a track in `registerTracks(...)` already exists, the entire transaction reverts
+- if a track in `scrobbleBatch(...)` is missing, the entire transaction reverts
+- the batch publisher must verify registration status offchain before submitting either call
+- there is an inherent TOCTOU race: another process may register the same track between the offchain check and the onchain submission
+- the publisher should catch `TrackAlreadyRegistered` and treat it as successful concurrent registration, then retry the scrobble batch
+- registration may succeed before the corresponding scrobbles anchor; backend reconciliation is responsible for retrying scrobble publication safely
 
 ## Non-Goals
 
@@ -139,6 +161,12 @@ Initial v1 constant:
 - lyrics refs
 - cover refs
 - publisher/title/album strings
-- combined register-and-scrobble convenience methods
+- user-facing combined register-and-scrobble methods
 
 Those may exist in application services or later contract versions if they become materially necessary.
+
+Future-contract note:
+
+- an operator-only combined register-and-scrobble helper may be considered as a gas optimization in a future v2 contract
+- it is out of scope for `ScrobbleV1`
+- it should not be exposed as a direct user-submission path

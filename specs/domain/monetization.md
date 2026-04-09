@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [post.md](./post.md)
 - [asset.md](./asset.md)
 - [royalty-graph.md](./royalty-graph.md)
@@ -16,7 +16,7 @@ Related docs:
 
 ## Purpose
 
-This doc defines how sellable Pirate assets route money between creators, clubs, the platform, and upstream royalty participants.
+This doc defines how sellable Pirate assets route money between creators, communities, the platform, and upstream royalty participants.
 
 It covers:
 
@@ -57,7 +57,7 @@ An asset may only be listed for sale when:
 Suggested v0 policy fields:
 
 - `payout_policy_id`
-- `club_id`
+- `community_id`
 - `mode`
 - `creator_share_pct`
 - `club_fee_pct`
@@ -89,17 +89,35 @@ Notes:
 
 ## Default V0 Split
 
-Recommended default for sellable original works with no upstream royalty obligation:
+Launch default for sellable original works with no upstream royalty obligation:
 
-- creator: `85%`
-- club: `5%`
+- creator: `90%`
+- club: `0%`
 - platform: `10%`
 
 Interpretation:
 
-- the creator receives the majority of sale proceeds
-- the club gets a modest treasury contribution
+- the creator receives the large majority of sale proceeds
+- there is no club fee at launch because `platform_default` communities have no real treasury destination yet; `club_treasury_ref` starts as a creator-controlled wallet, which is not a communal treasury
 - the platform fee covers storage, analysis, verification, Story integration, and marketplace infrastructure
+
+### Club Fee Activation
+
+The club fee is deferred until the community has a real governance-controlled treasury.
+
+Rules:
+
+- in `platform_default` mode, `club_fee_pct` is `0%`; there is no club fee
+- the club fee activates when the payout policy mode advances to `club_override` or `governance_controlled`
+- at that point `club_treasury_ref` should point to a multisig or DAO-controlled destination, not a personal wallet
+- the transition from `platform_default` to `club_override` is when club economics become legitimate
+
+Rationale:
+
+- charging a club fee before a communal treasury exists risks appearing as an operator skim at the exact moment growth is the priority
+- the club operator's early incentive is attracting pirates and future handle demand, not skimming content sales
+- Pirate still earns the 10% marketplace platform fee from day one
+- club treasury growth can come later from handle/SLD economics, donation flows, and governance unlocks
 
 ## Regional Pricing Interaction
 
@@ -214,20 +232,24 @@ Rights-review hold:
 - in v0, the Pirate platform operator is the review authority that releases, reroutes, or blocks those held payouts
 - club owners, TLD owners, or performers may provide evidence, but they are not the final release authority for flagged third-party rights cases
 
-## Club Treasury Control
+## Community Treasury Control
 
-The club fee must route to a treasury address controlled by the club's current governance layer.
+When a club fee is active, it must route to a treasury address controlled by the club's current governance layer.
 
 Recommended progression:
 
-1. creator-controlled bootstrap
-   - `club_treasury_ref` defaults to a creator-controlled settlement destination
-2. multisig-controlled club
-   - `club_treasury_ref` moves to the club multisig destination
-3. DAO-controlled club
+1. `platform_default` (launch)
+   - `club_fee_pct` is `0%`; no club fee is charged
+   - `club_treasury_ref` may be null or point to a creator-controlled wallet as a placeholder
+   - club economics are deferred until governance hardens
+2. `club_override` (multisig)
+   - `club_fee_pct` may be set above `0%` by the operator with platform policy bounds
+   - `club_treasury_ref` must point to the club multisig destination
+3. `governance_controlled` (DAO)
+   - `club_fee_pct` is governed by the DAO or governance-managed configuration
    - `club_treasury_ref` moves to the DAO treasury or DAO-controlled settlement backend
 
-This matches the governance progression already defined in [club.md](./club.md).
+This matches the governance progression already defined in [community.md](./community.md).
 
 ## Governance And Policy Control
 
@@ -236,8 +258,9 @@ Recommended v0 progression:
 ### `platform_default`
 
 - Pirate defines the payout policy
+- club fee is `0%`; no club treasury share
 - club operators cannot arbitrarily change splits
-- safest mode for new clubs
+- safest and most attractive mode for new communities
 
 ### `club_override`
 
@@ -248,6 +271,15 @@ Recommended v0 progression:
 
 - the attached governance backend controls payout policy
 - policy may be resolved from DAO or governance-managed configuration
+
+Pricing policy is distinct from payout policy.
+
+Locked-in v0 rule:
+
+- payout splits may remain under platform or governance bounds
+- regional pricing policy is club-controlled in v0
+- Pirate may offer suggested pricing templates, including PPP-style defaults, but the active country-level pricing policy is authored by the club
+- nationality-tiered pricing requires Self-backed nationality proof; buyers without that proof pay the base price
 
 ## Sellability
 
@@ -279,5 +311,5 @@ Recommended v0 split:
 ## Open Questions
 
 - Which asset types are sellable in v0 versus publish-only?
-- Should the default club fee stay fixed at `5%` for all clubs until governance hardens?
 - What policy bounds should Pirate enforce before a club may move from `platform_default` to `club_override`?
+- What should the default club fee be when it activates at `club_override`?

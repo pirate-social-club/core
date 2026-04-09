@@ -4,14 +4,14 @@ Status: draft
 
 Related docs:
 
-- [club.md](./club.md)
+- [community.md](./community.md)
 - [artist-identity.md](./artist-identity.md)
 - [handles.md](./handles.md)
 - [namespace-root-control.md](./namespace-root-control.md)
 
 ## Purpose
 
-This doc defines how Pirate names clubs and club-local user handles.
+This doc defines how Pirate names communities and community-local user handles.
 
 It covers:
 
@@ -25,7 +25,7 @@ It covers:
 This doc does not define:
 
 - the full governance model
-- the full create-club API
+- the full create-community API
 - the full resolver implementation details for HNS or Spaces
 - generalized DNS or wallet record formats
 - the audit-oriented evidence and capability transition model for root attachment; see [namespace-root-control.md](./namespace-root-control.md)
@@ -46,16 +46,16 @@ Examples:
 - `/c/kanye`
 - `/c/@kanye`
 
-Those are distinct sovereign roots unless the owner explicitly binds them to the same `club_id`.
+Those are distinct sovereign roots unless the owner explicitly binds them to the same `community_id`.
 
-Club creation requires control of the corresponding external root:
+Community creation requires control of the corresponding external root:
 
 - `/c/kanye` requires control of HNS `.kanye`
 - `/c/@kanye` requires control of Spaces `@kanye`
 
 One club may later attach additional verified roots as mirrors.
 
-## Canonical Club Routes
+## Canonical Community Routes
 
 Canonical club routes:
 
@@ -68,19 +68,19 @@ Rules:
 - `/c/@kanye` is the Spaces route family
 - users must learn this distinction because HNS `.kanye` and Spaces `@kanye` are different sovereign roots
 - Pirate should not hide this distinction behind extra path segments or internal resolver slugs
-- the corresponding external root must already exist and be controlled by the creator at club creation time
+- the corresponding external root must already exist and be controlled by the creator at community creation time
 - a club has exactly one primary namespace in v0, but may attach additional verified namespace mirrors later
 
-## Club-Local User Handles
+## Community-Local User Handles
 
-Club-local user handles are first-class and not optional.
+Community-local user handles are first-class and not optional.
 
 Handle syntax:
 
 - HNS-style handle inside `/c/kanye`: `name.kanye`
 - Spaces-style handle inside `/c/@kanye`: `name@kanye`
 
-These are club-local user handles, not the core internal app identity.
+These are community-local user handles, not the core internal app identity.
 
 Pirate still keeps an internal stable user identifier, but the handle syntax is part of the user-facing namespace system.
 
@@ -89,7 +89,7 @@ Pirate still keeps an internal stable user identifier, but the handle syntax is 
 V0 fields for `namespaces`:
 
 - `namespace_id`
-- `club_id`
+- `community_id`
 - `display_label`
 - `normalized_label`
 - `resolver_label`
@@ -132,7 +132,7 @@ V0 meanings:
 
 This gives Pirate one clean internal representation while still preserving visible route differences.
 
-`club_id` is the authoritative foreign key direction in v0: namespace rows point to clubs. `clubs` does not point back to namespaces with a `namespace_id` FK.
+`community_id` is the authoritative foreign key direction in v0: namespace rows point to communities. `communities` does not point back to namespaces with a `namespace_id` FK.
 
 State semantics:
 
@@ -145,7 +145,7 @@ Examples:
 - a namespace can be `status = active`, `root_proof_status = verified`, and `delegation_status = owner_managed`
 - a namespace can be `status = active`, `root_proof_status = verified`, and `delegation_status = pirate_managed`
 - a namespace can be `status = frozen` and `root_proof_status = disputed`
-- a club may have one `primary` namespace and multiple `mirror` namespaces that all resolve to the same `club_id`
+- a club may have one `primary` namespace and multiple `mirror` namespaces that all resolve to the same `community_id`
 
 ## Label Rules
 
@@ -187,15 +187,20 @@ Recommended v0 rules:
 - `/c/@kanye` resolves the club with:
   - `normalized_label = "kanye"`
   - `route_family = "at"`
-- `/c/肯伊` may resolve the same `club_id` as `/c/kanye` if both roots are independently proven and explicitly attached to that club
-- `/c/@kanye` may resolve the same `club_id` as `/c/kanye` if both roots are independently proven and explicitly attached to that club
+- `/c/肯伊` may resolve the same `community_id` as `/c/kanye` if both roots are independently proven and explicitly attached to that club
+- `/c/@kanye` may resolve the same `community_id` as `/c/kanye` if both roots are independently proven and explicitly attached to that club
 
-Club-local user handles render consistently with their route family:
+Community-local user handles render consistently with their route family:
 
 - for `route_family = "bare"`: `name.<display_label>`
 - for `route_family = "at"`: `name@<display_label>`
 
 Pirate should not normalize one syntax into the other.
+
+Important:
+
+- a club route may be fully live before Pirate enables public user-handle issuance under that namespace
+- in early-stage communities, members may continue using their global `.pirate` handles as their default public identity even when the club route is rooted in HNS or Spaces
 
 External creation requirements:
 
@@ -210,29 +215,30 @@ Pirate-managed external SLD issuance requires delegation:
 
 ## HNS
 
-Bare-label clubs are the HNS-compatible family.
+Bare-label communities are the HNS-compatible family.
 
 Implications:
 
 - `/c/kanye` is the canonical Pirate route for that family
 - HNS `.kanye` control is required before the club is created
-- club-local handles under that family are `name.kanye`
+- community-local handles under that family are `name.kanye`
 
 Important:
 
 - proof of HNS root control is required for creation
 - Pirate-managed `name.kanye` issuance requires delegation from the HNS root owner
 - owner-managed `name.kanye` issuance remains possible if delegation is not granted
+- a verified HNS club may still have no public `name.kanye` claims until community-stage and governance requirements are satisfied
 
 ## Spaces
 
-`@`-prefixed clubs are the Spaces-compatible family.
+`@`-prefixed communities are the Spaces-compatible family.
 
 Implications:
 
 - `/c/@kanye` is the canonical Pirate route for that family
 - Spaces `@kanye` control is required before the club is created
-- club-local handles under that family are `name@kanye`
+- community-local handles under that family are `name@kanye`
 
 Important:
 
@@ -244,7 +250,7 @@ Important:
 
 ## Identity vs Projection
 
-Club identity is still `club_id`.
+Community identity is still `community_id`.
 
 Namespace route strings are canonical projections, but they are not the durable social object.
 
@@ -252,7 +258,7 @@ This matters because:
 
 - delegation or governance may change later
 - resolver integrations may evolve
-- club settings and post history must survive those changes
+- community settings and post history must survive those changes
 - one club may have multiple route projections rooted in independently owned namespaces
 
 ## Conflict Rules
@@ -262,7 +268,7 @@ Important conflict case:
 - HNS `.kanye`
 - Spaces `@kanye`
 
-These may belong to different parties and therefore may represent different clubs.
+These may belong to different parties and therefore may represent different communities.
 
 Therefore:
 
@@ -312,7 +318,7 @@ Rules:
 
 - one namespace is marked `primary`
 - additional namespaces are marked `mirror`
-- all attached namespaces resolve to the same `club_id`
+- all attached namespaces resolve to the same `community_id`
 - mirrors share the same posts, moderation, governance, membership, and treasury surface
 - mirrors do not collapse root sovereignty; each attached root still requires independent proof and may have its own delegation state
 

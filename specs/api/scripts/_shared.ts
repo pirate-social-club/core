@@ -17,29 +17,29 @@ const SCHEMA_GROUPS: Record<string, readonly string[]> = {
   onboarding: ["RedditVerification", "OnboardingStatus"],
   users: ["User"],
   profiles: ["Profile", "GlobalHandle", "HandleUpgradeQuote"],
-  "clubs-core": [
-    "CreateClubRequestBase",
+  "communities-core": [
+    "CreateCommunityRequestBase",
     "GateRuleInput",
     "GateRule",
     "RootPostQuotaRule",
     "RootPostQuotaByTrustTier",
     "ReplyQuotaRule",
     "ReplyQuotaByTrustTier",
-    "CreateClubRequest",
-    "UpdateClubRequest",
-    "Club",
+    "CreateCommunityRequest",
+    "UpdateCommunityRequest",
+    "Community",
     "MembershipResult",
   ],
-  "clubs-governance": [
-    "CreateCentralizedClubRequest",
-    "CreateMultisigClubRequest",
-    "CreateMajeurClubRequest",
+  "communities-governance": [
+    "CreateCentralizedCommunityRequest",
+    "CreateMultisigCommunityRequest",
+    "CreateMajeurCommunityRequest",
     "AttachGovernanceRequest",
     "AttachMultisigGovernanceRequest",
     "AttachMajeurGovernanceRequest",
     "GovernanceAction",
     "GovernanceVerificationState",
-    "ClubGovernanceBackend",
+    "CommunityGovernanceBackend",
     "CentralizedGovernanceBackend",
     "MultisigGovernanceAttachmentInput",
     "MultisigAttachmentProofInput",
@@ -52,36 +52,36 @@ const SCHEMA_GROUPS: Record<string, readonly string[]> = {
     "MajeurGovernanceBackend",
     "MajeurGovernanceMetadata",
   ],
-  "clubs-community": [
-    "CreateClubDonationPolicyInput",
-    "UpdateClubDonationPolicyRequest",
+  "communities-community": [
+    "CreateCommunityDonationPolicyInput",
+    "UpdateCommunityDonationPolicyRequest",
     "DonationPartnerSummary",
-    "ClubDonationPolicy",
-    "CreateClubCommunityBootstrapInput",
-    "CreateClubFlairPolicyInput",
-    "UpdateClubFlairPolicyRequest",
-    "CreateClubFlairDefinitionInput",
-    "UpdateClubFlairDefinitionInput",
-    "ClubFlairDefinitionMutationInput",
-    "ClubFlairDefinition",
-    "ClubFlairPolicy",
+    "CommunityDonationPolicy",
+    "CreateCommunityBootstrapInput",
+    "CreateCommunityFlairPolicyInput",
+    "UpdateCommunityFlairPolicyRequest",
+    "CreateCommunityFlairDefinitionInput",
+    "UpdateCommunityFlairDefinitionInput",
+    "CommunityFlairDefinitionMutationInput",
+    "CommunityFlairDefinition",
+    "CommunityFlairPolicy",
     "PostFlair",
-    "CreateClubRuleInput",
-    "UpdateClubRuleInput",
-    "ClubRuleMutationInput",
-    "ClubRule",
-    "CreateClubResourceLinkInput",
-    "UpdateClubResourceLinkInput",
-    "ClubResourceLinkMutationInput",
-    "ClubResourceLink",
-    "ClubCommunityProfile",
-    "UpdateClubCommunityProfileRequest",
+    "CreateCommunityRuleInput",
+    "UpdateCommunityRuleInput",
+    "CommunityRuleMutationInput",
+    "CommunityRule",
+    "CreateCommunityResourceLinkInput",
+    "UpdateCommunityResourceLinkInput",
+    "CommunityResourceLinkMutationInput",
+    "CommunityResourceLink",
+    "CommunityProfile",
+    "UpdateCommunityProfileRequest",
   ],
   handles: [
     "NamespaceAttachmentInput",
     "HandlePolicyInput",
     "HandleAvailability",
-    "ClubHandle",
+    "CommunityHandle",
   ],
   livestreams: [
     "CreateLiveRoomRequest",
@@ -121,7 +121,7 @@ export const PATH_GROUP_ORDER = [
   "onboarding",
   "users",
   "profiles",
-  "clubs",
+  "communities",
   "livestreams",
   "questions",
   "handles",
@@ -140,9 +140,9 @@ export const SCHEMA_GROUP_ORDER = [
   "onboarding",
   "users",
   "profiles",
-  "clubs-core",
-  "clubs-governance",
-  "clubs-community",
+  "communities-core",
+  "communities-governance",
+  "communities-community",
   "handles",
   "livestreams",
   "posts",
@@ -173,14 +173,14 @@ export function classifyPath(pathname: string): string {
   if (pathname.startsWith("/profiles/")) {
     return "profiles";
   }
-  if (pathname.startsWith("/clubs/") && pathname.includes("/questions/")) {
+  if (pathname.startsWith("/communities/") && pathname.includes("/questions/")) {
     return "questions";
   }
-  if (pathname.startsWith("/clubs/")) {
-    return "clubs";
+  if (pathname.startsWith("/communities/")) {
+    return "communities";
   }
-  if (pathname === "/clubs") {
-    return "clubs";
+  if (pathname === "/communities") {
+    return "communities";
   }
   if (pathname.startsWith("/live-rooms/")) {
     return "livestreams";

@@ -72,7 +72,7 @@ Follow applies to public profiles only.
 
 Rules:
 
-- follow edges target a user's public identity surface, not anonymous club-local presentation
+- follow edges target a user's public identity surface, not anonymous community-local presentation
 - anonymous labels such as `anon_mercury-17` are never valid follow targets
 - enabling anonymous posting in a club does not change who can be followed; the follow edge still targets the underlying public profile
 - clients should only render follow controls on non-anonymous public profile surfaces

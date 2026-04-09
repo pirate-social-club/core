@@ -34,6 +34,12 @@ Recommended v0 split:
 - `replay_listing_id` points to replay commerce when replay access is sold separately
 - the anchor post remains the social and discovery surface for the replay
 
+Recommended evergreen posture:
+
+- if replay is retained, successfully processed, and clears rights review, it should remain available indefinitely by default rather than expiring automatically
+- replay availability should end only when the creator, club, moderation, rights policy, or storage policy explicitly removes or suppresses it
+- evergreen does not imply free; replay may be free, included with paid live access, or separately monetized
+
 Access-control rule:
 
 - free replay may remain publicly playable without CDR-style locking
@@ -98,6 +104,7 @@ Recommended v0 cases:
 - viewer must satisfy the replay listing entitlement before full playback
 - the replay asset must be `access_mode = locked`
 - full replay delivery should use Pirate's CDR-compatible locked-asset path
+- replay therefore uses the same entitlement and recovery architecture as other locked asset types such as songs or premium videos
 
 ### Reuse Live Entitlement
 
@@ -106,6 +113,11 @@ Recommended v0 cases:
 - `replay_listing_id = null`
 - replay access is granted by the original live-room entitlement according to room policy
 - if replay is entitlement-gated rather than public, the replay asset should still be `access_mode = locked`
+
+Recommended v0 default:
+
+- when a paid live room retains replay, replay should default to reuse of the original live entitlement
+- creators or communities may override that default and either make replay free or attach a separate `replay_listing_id`
 
 Entitlement resolution rule:
 
@@ -120,6 +132,7 @@ Recommended v0 rule:
 - `replay_asset_id` by itself does not imply public availability
 - `replay_listing_id` must not be activated for buyer-facing replay sales until replay clears processing and any rights review
 - paid replay must not be exposed as a plain public media payload; it should only be accessible through the locked-asset entitlement path
+- once published, replay should remain available until an explicit product or policy action changes that state; v0 should not impose automatic replay expiry by default
 
 Auto-clear and review behavior:
 
@@ -162,4 +175,3 @@ Recommended v0 rule:
 ## Open Questions
 
 - Should replay preview snippets exist before full replay publication, or should preview remain hidden until replay is published?
-- Should paid live access default to replay entitlement reuse more often than separate replay listings in v0?
