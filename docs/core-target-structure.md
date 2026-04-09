@@ -21,14 +21,14 @@ These roots belong in `core`:
 - `lit-actions/`
 - `references/`
 
-## Transitional Roots
+## Local Sidecars
 
-These roots are allowed temporarily but should not be treated as permanent:
+These roots may exist locally for convenience, but they are not part of tracked `core` state:
 
 - `pirate-web/`
 - `pirate-contracts/`
 
-They are current implementation surfaces, not pure system-definition material.
+They are sidecar checkouts of the standalone `web` and `contracts` repos.
 
 ## Avoid Adding
 
@@ -56,4 +56,4 @@ core/
   specs/
 ```
 
-At that point, runnable product surfaces should live in their own repos and consume `core` artifacts rather than residing here.
+At that point, runnable product surfaces live in their own repos and consume `core` artifacts rather than residing here.

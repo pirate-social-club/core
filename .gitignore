@@ -2,12 +2,22 @@
 node_modules/
 .pnp
 .pnp.js
+.codex
+references/upstream/majeur/
+references/upstream/multisig/
+pirate-web/
+pirate-contracts/
+
+# Deploy manifests
+deployments/
 
 # Build outputs
 dist/
 build/
 storybook-static/
 *.tsbuildinfo
+out/
+broadcast/
 
 # Environment files
 .env
@@ -39,6 +49,8 @@ coverage/
 
 # Misc
 .cache/
+cache/
 .parcel-cache/
 .temp
 .tmp
+debug-storybook.log

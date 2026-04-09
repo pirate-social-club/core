@@ -32,16 +32,19 @@ These production surfaces should not accumulate here as permanent homes:
 
 Those belong in their own repositories under `pirate-social-club`.
 
-## Transitional Roots In This Repo
+## Local Workspace Sidecars
 
-Two roots currently sit in a transitional state:
+Two runtime repos may still appear inside this working directory:
 
 - `pirate-web/`
 - `pirate-contracts/`
 
-They contain substantial application and protocol code, so they read like real product surfaces rather than lightweight prototypes.
+They are no longer tracked by `core`. They are local sidecar checkouts of the standalone repos:
 
-For now they can remain here while work is still tightly coupled to specs, migrations, and control-plane design. But they should be treated as extraction candidates, not permanent `core` structure.
+- `pirate-social-club/web`
+- `pirate-social-club/contracts`
+
+This keeps the workspace convenient without turning `core` into a shadow monorepo.
 
 ## Target Model
 
@@ -56,9 +59,9 @@ Canonical ownership should eventually look like this:
   - `lit-actions/`
   - `references/`
 - `pirate-social-club/web`
-  - production web app
+  - web UI, Storybook, and future app runtime
 - `pirate-social-club/contracts`
-  - production contract workspaces
+  - contract workspaces and tests
 - `pirate-social-club/api`
   - production backend services
 - `pirate-social-club/android`
@@ -78,18 +81,17 @@ Use these rules to keep the repo clean:
 4. Sensitive operational documents can remain private in `core`.
 5. Public-facing runtime repos should implement against `core` specs instead of duplicating them.
 
-## Extraction Criteria
+## Extraction Status
 
-`pirate-web/` or `pirate-contracts/` should be extracted when most of the following become true:
+The split is complete when all of the following are true:
 
-- the code is clearly a production surface
-- it has its own review and release cadence
-- changes no longer routinely require same-PR edits in `specs/`, `db/`, or `lit-actions/`
-- the repo boundary would reduce confusion rather than create version skew
+- `pirate-social-club/web` is the canonical home of web code
+- `pirate-social-club/contracts` is the canonical home of contract code
+- `core` no longer tracks runtime code under `pirate-web/` or `pirate-contracts/`
+- any local copies at those paths are treated as workspace checkouts only
 
-## Recommended Next Extraction Order
+## Rules Going Forward
 
-1. `pirate-web/` -> `pirate-social-club/web`
-2. `pirate-contracts/` -> `pirate-social-club/contracts`
-
-That order keeps `core` focused fastest, because those two roots are the strongest sources of ambiguity today.
+1. Make runtime changes in the standalone repos, not in `core`.
+2. Keep `core/specs`, `core/docs`, `core/config`, `core/db`, `core/scripts`, and `core/lit-actions` as the shared source of truth.
+3. If local sidecar repos are checked out inside this workspace, keep them ignored by `core`.

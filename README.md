@@ -8,18 +8,21 @@ It is the integration repo for Pirate Social Club system design and shared produ
 - migrations
 - Lit actions and control-plane scripts
 - shared config
-- shared web and contract work that is still present locally in `core` while the standalone repos are brought online
+- docs and references that define how the runtime repos fit together
 
-Current active roots:
+Current tracked roots:
 
-- `pirate-web/` for frontend UI and Storybook work
-- `pirate-contracts/` for active Solidity workspaces
 - `db/` for Turso/libSQL migration roots
 - `specs/` for API, contract, and domain design
 - `references/` for local upstream or discussion-only code that informs v2 but is not part of the active workspace
 - `docs/`, `config/`, and `scripts/` for operational docs and supporting config checks
 
-`pirate-web/` and `pirate-contracts/` are transitional roots here. Fresh standalone repos now exist at `pirate-social-club/web` and `pirate-social-club/contracts`, but the in-tree copies remain in `core` until the local workspace migration is complete.
+Optional local runtime checkouts may still be placed at:
+
+- `pirate-web/` -> `pirate-social-club/web`
+- `pirate-contracts/` -> `pirate-social-club/contracts`
+
+Those directories are no longer part of the tracked `core` repository. They are workspace sidecars only.
 
 Current active contract workspaces live under `pirate-contracts/story/`:
 
@@ -47,10 +50,9 @@ Additional runtime repos can be spun out later when they actually exist in this 
 
 This `core` repo exists to hold shared system definition and integration work across those surfaces.
 
-Boundary and extraction rules live in [docs/repo-boundaries.md](/home/t42/Documents/pirate-v2/docs/repo-boundaries.md).
+Boundary rules live in [docs/repo-boundaries.md](/home/t42/Documents/pirate-v2/docs/repo-boundaries.md).
 Target steady-state structure lives in [docs/core-target-structure.md](/home/t42/Documents/pirate-v2/docs/core-target-structure.md).
-The current web/contracts extraction path lives in [docs/extraction-plan-web-contracts.md](/home/t42/Documents/pirate-v2/docs/extraction-plan-web-contracts.md).
-The executable runbook for the web split lives in [docs/web-extraction-runbook.md](/home/t42/Documents/pirate-v2/docs/web-extraction-runbook.md).
+The split record lives in [docs/extraction-plan-web-contracts.md](/home/t42/Documents/pirate-v2/docs/extraction-plan-web-contracts.md).
 
 ## License
 
