@@ -1766,6 +1766,7 @@ components:
         - age_over_18
         - nationality
         - gender
+        - wallet_score
       properties:
         unique_human:
           $ref: "#/components/schemas/VerificationCapabilityState"
@@ -1792,6 +1793,8 @@ components:
                 - F
               nullable: true
               description: Verified gender value when disclosed by an eligible flow
+        wallet_score:
+          $ref: "#/components/schemas/WalletScoreCapabilityState"
     VerificationCapabilityState:
       type: object
       required:
@@ -1806,17 +1809,28 @@ components:
             - pending
             - verified
             - expired
-        assurance_level:
-          type: string
-          enum:
-            - basic
-            - strong
-          nullable: true
         provider:
           type: string
           enum:
             - self
             - very
+            - passport
+          nullable: true
+        proof_type:
+          type: string
+          enum:
+            - unique_human
+            - biometric_liveness
+            - wallet_score
+            - gov_id
+            - age_over_18
+            - nationality
+            - sanctions_clear
+            - gender
+            - phone
+          nullable: true
+        mechanism:
+          type: string
           nullable: true
         verified_at:
           type: string
@@ -1839,11 +1853,82 @@ components:
           type: string
           enum:
             - self
+            - passport
+          nullable: true
+        proof_type:
+          type: string
+          enum:
+            - age_over_18
+            - nationality
+            - gender
+            - gov_id
+            - sanctions_clear
+            - phone
+          nullable: true
+        mechanism:
+          type: string
           nullable: true
         verified_at:
           type: string
           format: date-time
           nullable: true
+    WalletScoreCapabilityState:
+      type: object
+      required:
+        - state
+      properties:
+        state:
+          type: string
+          enum:
+            - unverified
+            - verified
+            - expired
+        provider:
+          type: string
+          enum:
+            - passport
+          nullable: true
+        proof_type:
+          type: string
+          enum:
+            - wallet_score
+          nullable: true
+        mechanism:
+          type: string
+          enum:
+            - stamps-api-v2
+          nullable: true
+        verified_at:
+          type: string
+          format: date-time
+          nullable: true
+        score:
+          type: number
+          nullable: true
+        score_threshold:
+          type: number
+          nullable: true
+        passing_score:
+          type: boolean
+          nullable: true
+        last_score_timestamp:
+          type: string
+          format: date-time
+          nullable: true
+        expiration_timestamp:
+          type: string
+          format: date-time
+          nullable: true
+        stamps:
+          type: array
+          nullable: true
+          items:
+            type: object
+            properties:
+              stamp_name:
+                type: string
+              stamp_score:
+                type: number
     Profile:
       type: object
       required:
@@ -2136,7 +2221,7 @@ components:
             - 18_plus
           default: none
           description: |
-            Guild-wide default viewer age gate. Setting this to `18_plus` requires the acting creator or updating owner/admin to satisfy `verification_capabilities.age_over_18.state = verified` at `strong` assurance.
+            Guild-wide default viewer age gate. Setting this to `18_plus` requires the acting creator or updating owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
         namespace:
           $ref: "#/components/schemas/NamespaceAttachmentInput"
         handle_policy:
@@ -2182,14 +2267,12 @@ components:
             - unique_human
             - age_over_18
             - nationality
-        minimum_assurance_level:
-          type: string
-          enum:
-            - basic
-            - strong
+            - wallet_score
+        proof_requirements:
+          type: array
           nullable: true
-          description: |
-            Minimum assurance level for identity-proof gates. Null means use the default for the gate type (basic for unique_human, strong for age_over_18 and nationality). Ignored for token_holding gates.
+          items:
+            $ref: "#/components/schemas/ProofRequirement"
         chain_namespace:
           type: string
           nullable: true
@@ -2234,12 +2317,12 @@ components:
             - unique_human
             - age_over_18
             - nationality
-        minimum_assurance_level:
-          type: string
-          enum:
-            - basic
-            - strong
+            - wallet_score
+        proof_requirements:
+          type: array
           nullable: true
+          items:
+            $ref: "#/components/schemas/ProofRequirement"
         chain_namespace:
           type: string
           nullable: true
@@ -2258,6 +2341,40 @@ components:
         updated_at:
           type: string
           format: date-time
+    ProofRequirement:
+      type: object
+      required:
+        - proof_type
+      properties:
+        proof_type:
+          type: string
+          enum:
+            - unique_human
+            - biometric_liveness
+            - wallet_score
+            - gov_id
+            - age_over_18
+            - nationality
+            - sanctions_clear
+            - phone
+        accepted_providers:
+          type: array
+          nullable: true
+          items:
+            type: string
+            enum:
+              - self
+              - very
+              - passport
+        accepted_mechanisms:
+          type: array
+          nullable: true
+          items:
+            type: string
+        config:
+          type: object
+          nullable: true
+          additionalProperties: true
     RootPostQuotaRule:
       type: object
       required:
@@ -2393,7 +2510,7 @@ components:
             - none
             - 18_plus
           description: |
-            Guild-wide default viewer age gate. Updating this field from `none` to `18_plus` requires the acting owner/admin to satisfy `verification_capabilities.age_over_18.state = verified` at `strong` assurance.
+            Guild-wide default viewer age gate. Updating this field from `none` to `18_plus` requires the acting owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
     CreateCentralizedGuildRequest:
       allOf:
         - $ref: "#/components/schemas/CreateGuildRequestBase"

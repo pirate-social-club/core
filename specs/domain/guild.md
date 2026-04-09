@@ -318,7 +318,7 @@ Suggested v0 gate rule shape:
 - `scope`
 - `gate_family`
 - `gate_type`
-- `minimum_assurance_level` nullable
+- `proof_requirements` nullable
 - `chain_namespace` nullable
 - `gate_config`
 - `status`
@@ -334,10 +334,8 @@ Suggested meanings:
 - `gate_family`
   - `token_holding`
   - `identity_proof`
-- `minimum_assurance_level`
-  - `basic`
-  - `strong`
-  - nullable means use the default for the gate type; see Identity-proof gate config guidance
+- `proof_requirements`
+  - nullable means use the gate family's default proof policy; see Identity-proof gate config guidance
 - `status`
   - `active`
   - `disabled`
@@ -380,10 +378,13 @@ Implementation note:
 
 Identity-proof gate config guidance:
 
-- `minimum_assurance_level` is a top-level field on the gate rule, not a value inside `gate_config`
-- `unique_human` defaults to `minimum_assurance_level = basic`; set to `strong` for trust-sensitive gates such as anonymous posting
-- `age_over_18` defaults to `minimum_assurance_level = strong` and should use a boolean-style config such as `{ required: true }`
-- `nationality` defaults to `minimum_assurance_level = strong` and should use an explicit policy payload such as `{ operator: "in", country_codes: ["US"] }`
+- identity-proof gates should define explicit `proof_requirements`, not a generic assurance level
+- `unique_human` gates should name accepted providers or mechanisms directly
+  - example: `{ proof_type: "unique_human", accepted_providers: ["self", "very"] }`
+- `age_over_18` gates should use an explicit requirement object such as `{ proof_type: "age_over_18", accepted_providers: ["self"], config: { required: true } }`
+- `nationality` gates should use an explicit policy payload such as `{ proof_type: "nationality", accepted_providers: ["self"], config: { operator: "in", country_codes: ["US"] } }`
+- `wallet_score` gates should be supported for softer anti-Sybil use cases
+  - example: `{ proof_type: "wallet_score", accepted_providers: ["passport"], config: { minimum_score: 20 } }`
 - nationality gates should compare against `verification_capabilities.nationality.value` from the accepted identity record, not user-entered profile text
 - gate evaluation checks `verification_capabilities` on the user row, not the raw provider session; the capability model is the provider-neutral interface
 
@@ -399,9 +400,9 @@ Suggested v0 field:
 
 Rules:
 
-- if `default_age_gate_policy = 18_plus`, guild viewing requires `age_over_18` capability with `minimum_assurance_level = strong`
-- creating a guild with `default_age_gate_policy = 18_plus` requires the acting creator to satisfy `age_over_18` capability with `minimum_assurance_level = strong`
-- updating an existing guild from `default_age_gate_policy = none` to `default_age_gate_policy = 18_plus` requires the acting owner/admin to satisfy `age_over_18` capability with `minimum_assurance_level = strong`
+- if `default_age_gate_policy = 18_plus`, guild viewing requires an explicit `age_over_18` proof from an accepted provider such as `self`
+- creating a guild with `default_age_gate_policy = 18_plus` requires the acting creator to satisfy the same `age_over_18` proof requirement
+- updating an existing guild from `default_age_gate_policy = none` to `default_age_gate_policy = 18_plus` requires the acting owner/admin to satisfy the same `age_over_18` proof requirement
 - post-level or asset-level age gates may be stricter, but not looser, than the guild default
 - adult guilds should still use post and asset safety classification; the guild default is not a substitute for content scanning
 
@@ -1102,9 +1103,9 @@ Happy-path v0:
 
 1. Authenticated user starts guild creation.
 2. User passes required identity verification policy.
-   - for root-attached guild creation in v0, this means `verification_capabilities.unique_human.state = verified` with `assurance_level = strong`
-   - because only `self` satisfies `unique_human` at `strong` assurance in v0, Self verification is the default creator-verification path
-   - if the new guild sets `default_age_gate_policy = 18_plus`, the creator must also satisfy `verification_capabilities.age_over_18.state = verified` with `assurance_level = strong`
+   - for root-attached guild creation in v0, this means a verified `unique_human` proof from an accepted biometric/nullifier provider such as `self` or `very`
+   - if the new guild sets `default_age_gate_policy = 18_plus`, the creator must also satisfy a verified `age_over_18` proof from an accepted provider such as `self`
+   - wallet-score systems such as Human Passport may be used for softer community-entry or anti-spam gates, but not as the sole proof for high-trust root-backed guild creation
 3. User supplies:
    - `display_name`
    - `description`
@@ -1165,8 +1166,8 @@ Important:
 
 - guild creation must not require a DAO
 - guild creation must require a namespace choice
-- guild creation must require creator verification at `unique_human = strong`
-- guild creation must additionally require creator verification at `age_over_18 = strong` whenever `default_age_gate_policy = 18_plus`
+- guild creation must require creator verification at `unique_human` from an accepted biometric/nullifier provider
+- guild creation must additionally require creator verification at `age_over_18` from an accepted provider whenever `default_age_gate_policy = 18_plus`
 - guild creation must require verified control of the corresponding external root
 - guild creation must produce a namespace handle policy, even if it starts from a platform template
 - guild creation may also capture community bootstrap settings so the guild launches with flair, rules, and resource links already defined

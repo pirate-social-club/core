@@ -58,7 +58,7 @@ export function PostCardEngagementBar({
 
       <span
         className={cn(
-          "min-w-[1.5rem] text-center text-[13px] font-semibold tabular-nums",
+          "min-w-[1.5rem] text-center text-[14px] font-semibold tabular-nums",
           viewerVote === "up" && "text-primary",
           viewerVote === "down" && "text-destructive",
           !viewerVote && "text-muted-foreground",
@@ -89,13 +89,13 @@ export function PostCardEngagementBar({
   const CommentPill = () => (
     <button
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border border-transparent bg-muted/50 px-2.5 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+        "inline-flex items-center gap-1.5 rounded-full border border-transparent bg-muted/50 px-2.5 py-1.5 text-[14px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
       )}
       onClick={onComment}
       type="button"
       aria-label={`Comments (${commentCount})`}
     >
-      <MessageCircle className="size-4" />
+      <MessageCircle className="size-5" />
       <span className="font-medium tabular-nums">{commentCount}</span>
     </button>
   );
@@ -132,7 +132,7 @@ export function PostCardEngagementBar({
       <VotePill />
       <CommentPill />
       <IconPill onClick={onShare} label="Share">
-        <Share2 className="size-4" />
+        <Share2 className="size-5" />
       </IconPill>
       <IconPill 
         onClick={onSave} 
@@ -140,7 +140,7 @@ export function PostCardEngagementBar({
         active={saved}
         activeClass="text-primary"
       >
-        <Bookmark className={cn("size-4", saved && "fill-current")} />
+        <Bookmark className={cn("size-5", saved && "fill-current")} />
       </IconPill>
     </div>
   );

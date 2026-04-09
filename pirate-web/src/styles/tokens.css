@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 @custom-variant dark (&:is(.dark *));
 
 @layer base {
@@ -84,6 +85,10 @@
     --sidebar-ring: oklch(0.7731 0 0);
   }
 
+  .dark {
+    --border-soft: oklch(0.32 0.003 106.6);
+  }
+
   @theme inline {
     --color-background: var(--background);
     --color-foreground: var(--foreground);
@@ -117,6 +122,9 @@
     --font-sans: var(--font-sans);
     --font-serif: var(--font-serif);
     --font-mono: var(--font-mono);
+
+    --color-surface-skeleton: oklch(0.9341 0.0153 90.239);
+    --color-border-soft: oklch(0.8847 0.0069 97.3627);
   }
 
   * {

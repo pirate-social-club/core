@@ -63,7 +63,7 @@ export function ActionMenu({
             )}
             type="button"
           >
-            <MoreHorizontal className="size-4" />
+            <MoreHorizontal className="size-5" />
           </button>
         </SheetTrigger>
         <SheetContent side="bottom" className="rounded-t-[var(--radius-xl)] px-0 pb-6 pt-4">
@@ -76,7 +76,7 @@ export function ActionMenu({
                 {item.separatorBefore ? <div className="my-2 h-px bg-border" /> : null}
                 <button
                   className={cn(
-                    "grid w-full grid-cols-[1rem_1fr] items-center gap-3 px-4 py-3 text-left text-[15px] leading-[1.35] text-foreground",
+                    "grid w-full grid-cols-[1.25rem_1fr] items-center gap-3 px-4 py-3 text-left text-[15px] leading-[1.35] text-foreground",
                     !item.icon && "grid-cols-[1fr]",
                     item.destructive && "text-destructive",
                     item.disabled && "pointer-events-none opacity-50",
@@ -89,7 +89,7 @@ export function ActionMenu({
                   type="button"
                 >
                   {item.icon ? (
-                    <span className="inline-flex size-4 items-center justify-center">
+                    <span className="inline-flex size-5 items-center justify-center">
                       {item.icon}
                     </span>
                   ) : null}
@@ -114,8 +114,8 @@ export function ActionMenu({
           )}
           type="button"
         >
-          <MoreHorizontal className="size-4" />
-        </button>
+            <MoreHorizontal className="size-5" />
+          </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align={align}
@@ -127,14 +127,14 @@ export function ActionMenu({
             <DropdownMenuItem
               className={cn(
                 "w-full rounded-none py-2.5 pl-3 pr-3 text-sm text-popover-foreground hover:text-foreground focus:bg-muted focus:text-foreground",
-                item.icon ? "grid grid-cols-[1rem_1fr] items-center gap-2" : "block",
+                item.icon ? "grid grid-cols-[1.25rem_1fr] items-center gap-2" : "block",
                 item.destructive && "text-destructive focus:text-destructive",
               )}
               disabled={item.disabled}
               onClick={() => onAction?.(item.key)}
             >
               {item.icon ? (
-                <span className="inline-flex size-4 items-center justify-center">
+                <span className="inline-flex size-5 items-center justify-center">
                   {item.icon}
                 </span>
               ) : null}

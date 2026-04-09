@@ -67,7 +67,7 @@ export function PostCardMedia({ content, className }: PostCardMediaProps) {
             </p>
             <div className={cn("mt-1.5 flex items-center gap-1.5 text-muted-foreground", postCardType.meta)}>
               <span className="truncate">{content.linkLabel ?? content.href}</span>
-              <ExternalLink className="size-3.5 shrink-0" />
+              <ExternalLink className="size-4 shrink-0" />
             </div>
           </div>
           <div className="size-20 shrink-0 overflow-hidden rounded-lg bg-muted sm:size-24">

@@ -92,8 +92,8 @@ Only verified users may cast reputation-affecting votes.
 
 Rules:
 
-- voting on posts and comments requires `verification_capabilities.unique_human.state = verified` with `assurance_level = strong`
-- in v0, only the `self` provider satisfies `unique_human` at `strong` assurance; this may be extended to other providers if they prove equivalent uniqueness semantics
+- voting on posts and comments requires `verification_capabilities.unique_human.state = verified` from an accepted biometric/nullifier provider such as `self` or `very`
+- wallet-score systems alone are not sufficient for karma-affecting votes in v0
 - unverified users may view content but their interactions must not produce karma events
 - mock or dev-mode verification must never count toward karma, voting, or trust-sensitive actions outside local development
 
@@ -102,7 +102,7 @@ Rules:
 At the app layer, not only the contract layer:
 
 - one active `identity_nullifier_hash` may map to only one active `user_id`
-- the nullifier model currently depends on the `self` provider; if other providers later offer equivalent uniqueness primitives, the nullifier enforcement layer must be extended
+- the nullifier model depends on providers that expose a stable uniqueness primitive such as a biometric or nullifier-backed proof; in v0 this includes `self` and may include `very` where product policy accepts it
 - if a user rotates wallets, the verified identity follows the `user_id`, not a fresh account
 - reverification updates the same user record
 - a duplicate nullifier attempting to create or attach to another `user_id` must be rejected or flagged for review
@@ -374,8 +374,8 @@ Only verified users may cast karma-affecting votes.
 
 Rules:
 
-- the voter must have `verification_capabilities.unique_human.state = verified` with `assurance_level = strong`
-- the vote must come from a user with a valid nullifier mapping from a provider that satisfies `unique_human` at `strong` assurance
+- the voter must have `verification_capabilities.unique_human.state = verified` from an accepted biometric/nullifier provider such as `self` or `very`
+- the vote must come from a user with a valid nullifier mapping from a provider that offers the accepted uniqueness mechanism
 - duplicate votes from the same nullifier mapping to different `user_id` values must be rejected
 - unverified users may browse and view content but their interactions must not produce karma events
 - downvotes should be subject to at least the same verification requirements as upvotes

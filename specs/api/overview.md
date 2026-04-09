@@ -531,7 +531,7 @@ The API should make enforcement points explicit.
 
 ### Voting
 
-- voter must have `verification_capabilities.unique_human` at `strong` assurance
+- voter must have `verification_capabilities.unique_human.state = verified` from an accepted biometric/nullifier provider such as `self` or `very`
 - nullifier uniqueness must still be valid
 - rate limits and anti-abuse rules still apply
 - CAPTCHA must not be required for normal verified-user voting in v0

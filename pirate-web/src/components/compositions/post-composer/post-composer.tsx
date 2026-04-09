@@ -18,6 +18,7 @@ import {
   Video,
 } from "lucide-react";
 
+import { Badge } from "@/components/primitives/badge";
 import { Button } from "@/components/primitives/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/primitives/card";
 import { Checkbox } from "@/components/primitives/checkbox";
@@ -29,6 +30,7 @@ import {
 } from "@/components/primitives/dropdown-menu";
 import { Input } from "@/components/primitives/input";
 import { Label } from "@/components/primitives/label";
+import { Pill } from "@/components/primitives/pill";
 import { Tabs, TabsList, TabsTrigger } from "@/components/primitives/tabs";
 import { Textarea } from "@/components/primitives/textarea";
 import { cn } from "@/lib/utils";
@@ -48,12 +50,12 @@ import type {
 } from "./post-composer.types";
 
 const tabMeta: Record<ComposerTab, { label: string; icon: React.ReactNode }> = {
-  text: { label: "Text", icon: <SquareDashed className="size-4" /> },
-  image: { label: "Image", icon: <ImageIcon className="size-4" /> },
-  video: { label: "Video", icon: <Video className="size-4" /> },
-  link: { label: "Link", icon: <Link2 className="size-4" /> },
-  song: { label: "Song", icon: <Music2 className="size-4" /> },
-  live: { label: "Live", icon: <Mic className="size-4" /> },
+  text: { label: "Text", icon: <SquareDashed className="size-5" /> },
+  image: { label: "Image", icon: <ImageIcon className="size-5" /> },
+  video: { label: "Video", icon: <Video className="size-5" /> },
+  link: { label: "Link", icon: <Link2 className="size-5" /> },
+  song: { label: "Song", icon: <Music2 className="size-5" /> },
+  live: { label: "Live", icon: <Mic className="size-5" /> },
 };
 
 const defaultTabs: ComposerTab[] = ["text", "image", "video", "link", "song", "live"];
@@ -91,16 +93,16 @@ function ShellPill({
   children: React.ReactNode;
 }) {
   return (
-    <div className="inline-flex items-center gap-3 rounded-full bg-muted px-3 py-2 text-sm font-semibold text-foreground">
+    <div className="inline-flex items-center gap-3 rounded-full bg-muted px-3.5 py-2.5 text-sm font-semibold text-foreground">
       {avatarSrc ? (
-        <img alt="" className="size-7 rounded-full object-cover" src={avatarSrc} />
+        <img alt="" className="size-8 rounded-full object-cover" src={avatarSrc} />
       ) : (
-        <div className="grid size-7 place-items-center rounded-full bg-background text-muted-foreground">
-          <Tag className="size-4" />
+        <div className="grid size-8 place-items-center rounded-full bg-background text-muted-foreground">
+          <Tag className="size-5" />
         </div>
       )}
       <span>{children}</span>
-      <ChevronDown className="size-4 text-muted-foreground" />
+      <ChevronDown className="size-5 text-muted-foreground" />
     </div>
   );
 }
@@ -156,10 +158,10 @@ function EditorChrome({
       <div className="flex flex-wrap items-center gap-3 border-b border-border-soft px-4 py-3 text-muted-foreground">
         {toolbar.map((item) => (
           <span key={item} className="text-sm font-medium">
-            {item === "link" ? <Link2 className="size-4" /> : null}
-            {item === "list" ? <List className="size-4" /> : null}
-            {item === "ordered" ? <List className="size-4" /> : null}
-            {item === "more" ? <MoreHorizontal className="size-4" /> : null}
+            {item === "link" ? <Link2 className="size-5" /> : null}
+            {item === "list" ? <List className="size-5" /> : null}
+            {item === "ordered" ? <List className="size-5" /> : null}
+            {item === "more" ? <MoreHorizontal className="size-5" /> : null}
             {!["link", "list", "ordered", "more"].includes(item) ? item : null}
           </span>
         ))}
@@ -198,9 +200,7 @@ function References({
               <p className="truncate text-sm text-muted-foreground">{item.subtitle}</p>
             ) : null}
           </div>
-          <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-            attached
-          </span>
+          <Pill size="sm">attached</Pill>
         </div>
       ))}
     </div>
@@ -222,7 +222,7 @@ function LinkPreviewCard({
     <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border-soft bg-card">
       <div className="flex min-h-28 flex-col md:flex-row">
         <div className="flex-1 space-y-2 px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Preview
           </p>
           <p className="text-sm font-semibold text-foreground">{title}</p>
@@ -261,19 +261,19 @@ function SetlistItemRow({
   return (
     <div className="space-y-2 rounded-[var(--radius-lg)] border border-border-soft bg-background px-4 py-3">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-xs font-semibold text-muted-foreground">{index + 1}</span>
+        <span className="text-sm font-semibold text-muted-foreground">{index + 1}</span>
         <button
           className="text-muted-foreground hover:text-foreground"
           onClick={() => onRemove(index)}
           type="button"
         >
-          <Trash2 className="size-4" />
+          <Trash2 className="size-5" />
         </button>
       </div>
       <div className="space-y-2">
         <FieldLabel label="Track search" />
         <div className="relative">
-          <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="h-10 rounded-[var(--radius-lg)] pl-10"
             placeholder="Search Pirate songbase"
@@ -281,7 +281,7 @@ function SetlistItemRow({
             onChange={(e) => onUpdate(index, "declaredTrackId", e.target.value)}
           />
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Choose a canonical track first. Manual title and artist are only fallback metadata.
         </p>
       </div>
@@ -304,7 +304,7 @@ function SetlistItemRow({
           <button
             key={opt.value}
             className={cn(
-              "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+              "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
               item.performanceKind === opt.value
                 ? "bg-primary/10 text-primary"
                 : "bg-muted text-muted-foreground hover:text-foreground",
@@ -359,19 +359,13 @@ function LiveTabContent({
           <FieldLabel label="Room kind" />
           <div className="flex flex-wrap gap-2">
             {roomKindOptions.map((opt) => (
-              <button
+              <Pill
                 key={opt.value}
-                className={cn(
-                  "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
-                  live.roomKind === opt.value
-                    ? "bg-primary/10 text-primary"
-                    : "bg-muted text-muted-foreground hover:text-foreground",
-                )}
+                variant={live.roomKind === opt.value ? "selected" : "default"}
                 onClick={() => onLiveChange({ ...live, roomKind: opt.value })}
-                type="button"
               >
                 {opt.label}
-              </button>
+              </Pill>
             ))}
           </div>
         </div>
@@ -379,19 +373,13 @@ function LiveTabContent({
           <FieldLabel label="Access" />
           <div className="flex flex-wrap gap-2">
             {accessModeOptions.map((opt) => (
-              <button
+              <Pill
                 key={opt.value}
-                className={cn(
-                  "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
-                  live.accessMode === opt.value
-                    ? "bg-primary/10 text-primary"
-                    : "bg-muted text-muted-foreground hover:text-foreground",
-                )}
+                variant={live.accessMode === opt.value ? "selected" : "default"}
                 onClick={() => onLiveChange({ ...live, accessMode: opt.value })}
-                type="button"
               >
                 {opt.label}
-              </button>
+              </Pill>
             ))}
           </div>
         </div>
@@ -399,19 +387,13 @@ function LiveTabContent({
           <FieldLabel label="Visibility" />
           <div className="flex flex-wrap gap-2">
             {visibilityOptions.map((opt) => (
-              <button
+              <Pill
                 key={opt.value}
-                className={cn(
-                  "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
-                  live.visibility === opt.value
-                    ? "bg-primary/10 text-primary"
-                    : "bg-muted text-muted-foreground hover:text-foreground",
-                )}
+                variant={live.visibility === opt.value ? "selected" : "default"}
                 onClick={() => onLiveChange({ ...live, visibility: opt.value })}
-                type="button"
               >
                 {opt.label}
-              </button>
+              </Pill>
             ))}
           </div>
         </div>
@@ -425,7 +407,7 @@ function LiveTabContent({
             placeholder="Search for a collaborator"
             defaultValue={live.guestUserId ?? ""}
           />
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             Invite a collaborator for this duet session.
           </p>
         </div>
@@ -447,16 +429,12 @@ function LiveTabContent({
               className="flex items-center justify-between rounded-[var(--radius-lg)] border border-border-soft bg-background px-4 py-3"
             >
               <div className="flex items-center gap-3">
-                <span
-                  className={cn(
-                    "rounded-full px-2.5 py-1 text-xs font-medium",
-                    alloc.role === "host"
-                      ? "bg-primary/10 text-primary"
-                      : "bg-muted text-muted-foreground",
-                  )}
+                <Badge
+                  variant={alloc.role === "host" ? "default" : "secondary"}
+                  className="font-medium"
                 >
                   {alloc.role === "host" ? "Host" : "Guest"}
-                </span>
+                </Badge>
                 <span className="text-sm text-foreground">
                   {alloc.role === "host" ? "You" : live.guestUserId || "Collaborator"}
                 </span>
@@ -482,7 +460,7 @@ function LiveTabContent({
           ))}
         </div>
         {live.performerAllocations.reduce((sum, a) => sum + a.sharePct, 0) !== 100 ? (
-          <p className="text-xs font-medium text-destructive">
+          <p className="text-sm font-medium text-destructive">
             Allocations must sum to 100%
           </p>
         ) : null}
@@ -492,18 +470,16 @@ function LiveTabContent({
         <div className="mb-2 flex items-center justify-between gap-3">
           <div className="space-y-1">
             <h3 className="text-sm font-semibold text-foreground">Setlist</h3>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Search Pirate&apos;s songbase for the songs you plan to perform. Required before going live.
             </p>
           </div>
-          <button
-            className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted/80"
+          <Pill
+            leadingIcon={<Plus className="size-4" />}
             onClick={handleAddSetlistItem}
-            type="button"
           >
-            <Plus className="size-3.5" />
             Add song
-          </button>
+          </Pill>
         </div>
         {live.setlistItems.length === 0 ? (
           <div className="rounded-[var(--radius-lg)] border border-dashed border-border-soft px-4 py-6 text-center text-sm text-muted-foreground">
@@ -598,7 +574,7 @@ function QualifierSection({
                     ? `${activeQualifiers.length} qualifier${activeQualifiers.length === 1 ? "" : "s"} attached`
                     : "Add qualifiers"}
                 </span>
-                <ChevronDown className="size-4 text-muted-foreground" />
+                <ChevronDown className="size-5 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-[320px]">
@@ -616,7 +592,7 @@ function QualifierSection({
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground">{qualifier.label}</p>
                       {qualifier.description ? (
-                        <p className="text-xs text-muted-foreground">{qualifier.description}</p>
+                        <p className="text-sm text-muted-foreground">{qualifier.description}</p>
                       ) : null}
                     </div>
                     <span
@@ -627,7 +603,7 @@ function QualifierSection({
                           : "border-border-soft text-transparent",
                       )}
                     >
-                      <Check className="size-3.5" />
+                      <Check className="size-4" />
                     </span>
                   </DropdownMenuItem>
                 );
@@ -638,14 +614,12 @@ function QualifierSection({
           {activeQualifiers.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {activeQualifiers.map((qualifier) => (
-                <button
+                <Pill
                   key={qualifier.qualifierId}
-                  className="rounded-full bg-muted px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted/80"
                   onClick={() => onToggleQualifier(qualifier.qualifierId)}
-                  type="button"
                 >
                   {qualifier.label}
-                </button>
+                </Pill>
               ))}
             </div>
           ) : null}
@@ -962,7 +936,7 @@ export function PostComposer({
                 <p className="text-sm text-muted-foreground">Attach the source before posting when required.</p>
               </div>
               <div className="relative">
-                <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   className="rounded-[var(--radius-lg)] pl-10"
                   placeholder="Search Pirate / Story assets"
@@ -988,12 +962,12 @@ export function PostComposer({
               </div>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 <div className="rounded-[var(--radius-lg)] border border-border-soft px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Price</p>
+                  <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Price</p>
                   <p className="mt-1 text-sm text-foreground">{monetization.priceLabel ?? "Unset"}</p>
                 </div>
                 {monetization.donationAvailable ? (
                   <div className="rounded-[var(--radius-lg)] border border-border-soft px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Donation</p>
+                    <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Donation</p>
                     <p className="mt-1 text-sm text-foreground">
                       {monetization.donationOptIn
                         ? `Donate ${monetization.donationSharePct}% to ${monetization.donationPartnerName}`

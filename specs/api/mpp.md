@@ -21,7 +21,7 @@ It covers:
 - how Pirate should expose agent-friendly machine surfaces
 - where MPP or x402-style payment challenges belong
 - how human interactive access differs from machine and bulk access
-- how Self verification interacts with quotas and gating
+- how identity verification interacts with quotas and gating
 - which data products are appropriate for paid machine access
 
 ## Non-goals
@@ -109,7 +109,7 @@ Recommended v0 policy:
 - free to view
 - session or app auth may still apply where needed
 - rate limited, but not paywalled by default
-- Self verification should not be required for ordinary browsing
+- identity verification should not be required for ordinary browsing
 
 ### Authenticated Human API
 
@@ -124,7 +124,7 @@ Recommended v0 policy:
 
 - free within normal product use
 - quota-based rather than payment-gated
-- Self verification may unlock higher trust and some higher read quotas
+- identity verification may unlock higher trust and some higher read quotas
 
 ### Delegated User Agent
 
@@ -183,7 +183,7 @@ The valuable control point is the read or export surface, not forcing all social
 - no payment for ordinary use
 - baseline quotas
 
-### Self-Verified Human
+### Verified Human
 
 - higher trust
 - higher free quotas for interactive use
@@ -340,17 +340,17 @@ Important boundary:
 - MPP should use its payment-auth header contract
 - x402 compatibility should be treated as a separate compatibility layer for supported clients and exact-payment flows
 
-## Self Verification Relationship
+## Verification Relationship
 
-Self verification is not the same thing as MPP.
+Identity verification is not the same thing as MPP.
 
 Recommended v0 rules:
 
-- Self verification is for trust, voting, gates, and quota boosts
+- identity verification is for trust, voting, gates, and quota boosts
 - MPP is for paid machine or bulk access
-- Pirate should not require users to either pay or Self-verify just to browse ordinary public pages
+- Pirate should not require users to either pay or verify just to browse ordinary public pages
 
-Good uses of Self here:
+Good uses of verification here:
 
 - higher free quotas for trusted humans
 - stronger export permissions for certain guild roles
@@ -358,8 +358,8 @@ Good uses of Self here:
 
 Bad uses:
 
-- mandatory Self verification for all public reading
-- treating Self as a replacement for machine-payment policy
+- mandatory identity verification for all public reading
+- treating verification as a replacement for machine-payment policy
 
 ## Guild Policy Interaction
 
@@ -499,6 +499,6 @@ Directional implication:
 ## Open Questions
 
 - Which machine-access surfaces should be in v0 versus later, beyond exports and search?
-- Should Self-verified humans receive a larger free machine-style quota before payment is required?
+- Should verified humans receive a larger free machine-style quota before payment is required?
 - Should guilds later define their own downstream treasury redistribution policies?
 - When should Pirate use one-time `charge` versus longer-lived `session` intents for agent consumption?

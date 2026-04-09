@@ -110,9 +110,10 @@ Suggested shape:
   - `verified`
   - `expired`
   - `revoked`
-- `assurance_level`
-  - `basic`
-  - `strong`
+- `proof_type`
+  - example: `unique_human`, `wallet_score`, `gov_id`, `sanctions_clear`
+- `mechanism`
+  - example: `zk-nullifier`, `palm-nullifier`, `stamps-api-v2`
 - `attestation_key`
 - `attestation_value_json`
 - `verified_at`

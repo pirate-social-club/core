@@ -5,6 +5,7 @@ VerificationCapabilities:
     - age_over_18
     - nationality
     - gender
+    - wallet_score
   properties:
     unique_human:
       $ref: ./verification.yaml#/VerificationCapabilityState
@@ -31,6 +32,8 @@ VerificationCapabilities:
             - F
           nullable: true
           description: Verified gender value when disclosed by an eligible flow
+    wallet_score:
+      $ref: ./verification.yaml#/WalletScoreCapabilityState
 VerificationCapabilityState:
   type: object
   required:
@@ -45,17 +48,28 @@ VerificationCapabilityState:
         - pending
         - verified
         - expired
-    assurance_level:
-      type: string
-      enum:
-        - basic
-        - strong
-      nullable: true
     provider:
       type: string
       enum:
         - self
         - very
+        - passport
+      nullable: true
+    proof_type:
+      type: string
+      enum:
+        - unique_human
+        - biometric_liveness
+        - wallet_score
+        - gov_id
+        - age_over_18
+        - nationality
+        - sanctions_clear
+        - gender
+        - phone
+      nullable: true
+    mechanism:
+      type: string
       nullable: true
     verified_at:
       type: string
@@ -78,11 +92,82 @@ VerifiedCapabilityState:
       type: string
       enum:
         - self
+        - passport
+      nullable: true
+    proof_type:
+      type: string
+      enum:
+        - age_over_18
+        - nationality
+        - gender
+        - gov_id
+        - sanctions_clear
+        - phone
+      nullable: true
+    mechanism:
+      type: string
       nullable: true
     verified_at:
       type: string
       format: date-time
       nullable: true
+WalletScoreCapabilityState:
+  type: object
+  required:
+    - state
+  properties:
+    state:
+      type: string
+      enum:
+        - unverified
+        - verified
+        - expired
+    provider:
+      type: string
+      enum:
+        - passport
+      nullable: true
+    proof_type:
+      type: string
+      enum:
+        - wallet_score
+      nullable: true
+    mechanism:
+      type: string
+      enum:
+        - stamps-api-v2
+      nullable: true
+    verified_at:
+      type: string
+      format: date-time
+      nullable: true
+    score:
+      type: number
+      nullable: true
+    score_threshold:
+      type: number
+      nullable: true
+    passing_score:
+      type: boolean
+      nullable: true
+    last_score_timestamp:
+      type: string
+      format: date-time
+      nullable: true
+    expiration_timestamp:
+      type: string
+      format: date-time
+      nullable: true
+    stamps:
+      type: array
+      nullable: true
+      items:
+        type: object
+        properties:
+          stamp_name:
+            type: string
+          stamp_score:
+            type: number
 VerificationSession:
   type: object
   required:
@@ -102,6 +187,7 @@ VerificationSession:
       enum:
         - self
         - very
+        - passport
     wallet_attachment_id:
       type: string
       nullable: true

@@ -142,14 +142,15 @@ Suggested v0 shape:
 - `source_provider` nullable
   - `self`
   - `very`
+  - `passport`
   - `world`
 - `source_field` nullable
   Example: `nationality`, `gender`, `minimumAge`, `palm_scan`
 - `display_label`
   Example: `US National`
-- `minimum_assurance_level`
-  - `basic`
-  - `strong`
+- `proof_requirements`
+  - one or more explicit proof requirement objects
+  - example: `{ proof_type: "unique_human", accepted_providers: ["self", "very"] }`
 - `sensitivity_level`
   - `low`
   - `high`
@@ -170,31 +171,31 @@ This means Pirate can usually render the fact rather than the vendor, while stil
 
 Examples:
 
-- `qlf_unique_human_basic`
+- `qlf_unique_human`
   - `display_label = Unique Human`
   - `qualifier_kind = verification_capability`
   - `capability_key = unique_human`
-  - `minimum_assurance_level = basic`
+  - `proof_requirements = [{ proof_type: unique_human, accepted_providers: [self, very] }]`
   - `sensitivity_level = low`
 - `qlf_age_over_18`
   - `display_label = 18+`
   - `qualifier_kind = verification_capability`
   - `capability_key = age_over_18`
-  - `minimum_assurance_level = strong`
+  - `proof_requirements = [{ proof_type: age_over_18, accepted_providers: [self] }]`
   - `sensitivity_level = low`
 - `qlf_nationality_us`
   - `display_label = US National`
   - `qualifier_kind = verification_capability`
   - `capability_key = nationality`
   - `capability_value = US`
-  - `minimum_assurance_level = strong`
+  - `proof_requirements = [{ proof_type: nationality, accepted_providers: [self] }]`
   - `sensitivity_level = high`
 - `qlf_gender_m`
   - `display_label = Male`
   - `qualifier_kind = verification_capability`
   - `capability_key = gender`
   - `capability_value = M`
-  - `minimum_assurance_level = strong`
+  - `proof_requirements = [{ proof_type: gender, accepted_providers: [self] }]`
   - `sensitivity_level = high`
 - `qlf_very_palm_scan`
   - `display_label = Palm Scan`
@@ -251,7 +252,7 @@ Recommended defaults:
   - `allowed_disclosed_qualifiers = []`
 - anonymous journalism-style guild:
   - `allow_anonymous_identity = true`
-  - `allowed_disclosed_qualifiers = [qlf_age_over_18, qlf_unique_human_basic]`
+- `allowed_disclosed_qualifiers = [qlf_age_over_18, qlf_unique_human]`
   - `allow_qualifiers_on_anonymous_posts = true`
 
 Gate-suppression example:
@@ -301,21 +302,21 @@ Why snapshot:
 - historical posts do not require a complex join path for basic rendering
 - expired qualifiers can be handled by policy without rewriting old posts
 
-## Assurance Rules
+## Proof Rules
 
-Each disclosed qualifier must satisfy the minimum assurance defined by its template.
+Each disclosed qualifier must satisfy the explicit proof requirements defined by its template.
 
 Rules:
 
-- a qualifier may only be selected if the user currently satisfies the underlying capability or provider attestation at or above the template's `minimum_assurance_level`
+- a qualifier may only be selected if the user currently satisfies the underlying capability or provider attestation required by the template's `proof_requirements`
 - qualifier disclosure must not lower the underlying guild gate requirement
-- if a guild already requires a stronger assurance level for posting or anonymous posting, that stronger requirement still applies
+- if a guild already requires a stricter proof for posting or anonymous posting, that stricter requirement still applies
 
 Examples:
 
-- `Unique Human` may be valid at `basic` in a guild that allows anonymous posting
-- anonymous posting should still require the guild's anonymous-posting assurance requirements
-- nationality disclosure should require `strong` assurance in v0
+- `Unique Human` may be disclosed from accepted providers such as `self` or `very`
+- anonymous posting should still require the guild's anonymous-posting proof requirements
+- nationality disclosure should require an accepted nationality proof in v0
 
 ## Content-Type Restrictions
 
@@ -373,7 +374,12 @@ Rules:
 - qualifiers should use normalized labels rather than precise sensitive values when possible
 - `sensitivity_level = high` qualifiers such as nationality or gender should produce guild-admin warnings when enabled
 - `post_ephemeral` anonymous scope must not allow high-sensitivity disclosed qualifiers in v0
-- guilds should be warned that combining anonymous labels with strong identity qualifiers can make re-identification easier in small communities
+- guilds should be warned that combining anonymous labels with high-sensitivity identity qualifiers can make re-identification easier in small communities
+- wallet-score and Passport stamp-backed qualifiers should default to `allow_qualifiers_on_anonymous_posts = false`
+- if a guild explicitly enables Passport-backed qualifiers on anonymous posts, Pirate should offer only a normalized low-sensitivity subset such as `Verified Human`, `Trusted Wallet`, or `Screened`
+- Pirate must not expose exact Passport scores, raw stamp lists, provider-branded stamp names, or score/stamp breakdowns on anonymous posts
+- combinatorial re-identification risk from multiple Passport-backed qualifiers on one anonymous post should be treated as higher than the per-stamp sensitivity might suggest
+- Passport-backed qualifier templates should default to `sensitivity_level = high` for anonymous-posting review unless a later policy explicitly whitelists a safer normalized label
 
 ## Open Questions
 

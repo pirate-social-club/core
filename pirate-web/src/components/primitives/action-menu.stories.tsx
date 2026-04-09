@@ -9,10 +9,10 @@ const meta = {
   args: {
     label: "Post actions",
     items: [
-      { key: "save", label: "Save post", icon: <Bookmark className="size-4" /> },
-      { key: "hide", label: "Hide post", icon: <EyeOff className="size-4" /> },
-      { key: "copy", label: "Copy link", icon: <Link2 className="size-4" />, separatorBefore: true },
-      { key: "report", label: "Report", icon: <Flag className="size-4" />, destructive: true },
+      { key: "save", label: "Save post", icon: <Bookmark className="size-5" /> },
+      { key: "hide", label: "Hide post", icon: <EyeOff className="size-5" /> },
+      { key: "copy", label: "Copy link", icon: <Link2 className="size-5" />, separatorBefore: true },
+      { key: "report", label: "Report", icon: <Flag className="size-5" />, destructive: true },
     ],
   },
 } satisfies Meta<typeof ActionMenu>;

@@ -84,7 +84,7 @@ CreateGuildRequestBase:
         - 18_plus
       default: none
       description: |
-        Guild-wide default viewer age gate. Setting this to `18_plus` requires the acting creator or updating owner/admin to satisfy `verification_capabilities.age_over_18.state = verified` at `strong` assurance.
+        Guild-wide default viewer age gate. Setting this to `18_plus` requires the acting creator or updating owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
     namespace:
       $ref: ./handles.yaml#/NamespaceAttachmentInput
     handle_policy:
@@ -130,14 +130,12 @@ GateRuleInput:
         - unique_human
         - age_over_18
         - nationality
-    minimum_assurance_level:
-      type: string
-      enum:
-        - basic
-        - strong
+        - wallet_score
+    proof_requirements:
+      type: array
       nullable: true
-      description: |
-        Minimum assurance level for identity-proof gates. Null means use the default for the gate type (basic for unique_human, strong for age_over_18 and nationality). Ignored for token_holding gates.
+      items:
+        $ref: ./guilds-core.yaml#/ProofRequirement
     chain_namespace:
       type: string
       nullable: true
@@ -182,12 +180,12 @@ GateRule:
         - unique_human
         - age_over_18
         - nationality
-    minimum_assurance_level:
-      type: string
-      enum:
-        - basic
-        - strong
+        - wallet_score
+    proof_requirements:
+      type: array
       nullable: true
+      items:
+        $ref: ./guilds-core.yaml#/ProofRequirement
     chain_namespace:
       type: string
       nullable: true
@@ -206,6 +204,40 @@ GateRule:
     updated_at:
       type: string
       format: date-time
+ProofRequirement:
+  type: object
+  required:
+    - proof_type
+  properties:
+    proof_type:
+      type: string
+      enum:
+        - unique_human
+        - biometric_liveness
+        - wallet_score
+        - gov_id
+        - age_over_18
+        - nationality
+        - sanctions_clear
+        - phone
+    accepted_providers:
+      type: array
+      nullable: true
+      items:
+        type: string
+        enum:
+          - self
+          - very
+          - passport
+    accepted_mechanisms:
+      type: array
+      nullable: true
+      items:
+        type: string
+    config:
+      type: object
+      nullable: true
+      additionalProperties: true
 RootPostQuotaRule:
   type: object
   required:
@@ -341,7 +373,7 @@ UpdateGuildRequest:
         - none
         - 18_plus
       description: |
-        Guild-wide default viewer age gate. Updating this field from `none` to `18_plus` requires the acting owner/admin to satisfy `verification_capabilities.age_over_18.state = verified` at `strong` assurance.
+        Guild-wide default viewer age gate. Updating this field from `none` to `18_plus` requires the acting owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
 Guild:
   type: object
   required:

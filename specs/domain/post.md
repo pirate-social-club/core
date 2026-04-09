@@ -72,7 +72,7 @@ Posting in Pirate requires identity verification in v0.
 The exact verification policy belongs in a later identity/onboarding spec, but the product rule is:
 
 - users must satisfy the required verification capability checks before they can publish posts
-- the minimum verification for posting is `unique_human` capability at `basic` assurance or higher
+- the minimum verification for posting is a verified `unique_human` capability from an accepted provider
 - passing the identity gate is necessary but not always sufficient; guild posting policy may impose additional trust-tier and pacing requirements. See [guild.md](./guild.md) under Posting Policy.
 
 Examples of why Pirate may require verification:
@@ -87,7 +87,7 @@ Viewing eligibility may be stricter than posting eligibility.
 
 In v0:
 
-- posts classified as `18+` must require verification that the viewer satisfies the `age_over_18` capability at `strong` assurance
+- posts classified as `18+` must require verification that the viewer satisfies the `age_over_18` capability from an accepted provider such as `self`
 - guild or jurisdiction policy may impose stricter viewing rules later, but the minimum v0 gate is age proof for adult content
 - if a derivative post references an upstream asset that is already gated `18+`, the derived post must inherit at least that same viewer gate
 
@@ -852,7 +852,7 @@ Posts may receive votes and lightweight reactions from eligible users.
 
 Rules:
 
-- the voter must have `verification_capabilities.unique_human.state = verified` with `assurance_level = strong`
+- the voter must have `verification_capabilities.unique_human.state = verified` from an accepted biometric/nullifier provider such as `self` or `very`
 - the voter's nullifier must be valid and not duplicated across accounts
 - unverified users may view vote counts but their interactions must not produce karma events
 - CAPTCHA must not be required for normal verified-user voting

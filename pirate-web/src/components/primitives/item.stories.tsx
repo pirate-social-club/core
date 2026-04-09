@@ -56,19 +56,19 @@ export const Sizes: Story = {
   render: () => (
     <ItemGroup className="w-[360px]">
       <Item size="dense">
-        <ItemMedia variant="icon"><MusicNote className="size-4 text-muted-foreground" /></ItemMedia>
+        <ItemMedia variant="icon"><MusicNote className="size-5 text-muted-foreground" /></ItemMedia>
         <ItemContent>
           <ItemTitle>Dense</ItemTitle>
         </ItemContent>
       </Item>
       <Item size="sm">
-        <ItemMedia variant="icon"><MusicNote className="size-4 text-muted-foreground" /></ItemMedia>
+        <ItemMedia variant="icon"><MusicNote className="size-5 text-muted-foreground" /></ItemMedia>
         <ItemContent>
           <ItemTitle>Small</ItemTitle>
         </ItemContent>
       </Item>
       <Item size="default">
-        <ItemMedia variant="icon"><MusicNote className="size-4 text-muted-foreground" /></ItemMedia>
+        <ItemMedia variant="icon"><MusicNote className="size-5 text-muted-foreground" /></ItemMedia>
         <ItemContent>
           <ItemTitle>Default</ItemTitle>
         </ItemContent>
@@ -89,7 +89,7 @@ export const WithActions: Story = {
           <ItemDescription>With action buttons on the right</ItemDescription>
         </ItemContent>
         <ItemActions>
-          <Button variant="ghost" size="sm"><Star className="size-4" /></Button>
+          <Button variant="ghost" size="sm"><Star className="size-5" /></Button>
           <Button variant="ghost" size="sm">Play</Button>
         </ItemActions>
       </Item>

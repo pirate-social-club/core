@@ -119,6 +119,7 @@ Pirate uses a provider-agnostic verification layer. Supported v0 providers:
 
 - `self` — provides `unique_human`, `age_over_18`, `nationality`; may also disclose `gender` and selected document/person fields when a specific flow requests them
 - `very` — provides `unique_human`; may also support a provider-specific `Palm Scan` qualifier layer
+- `passport` — provides `wallet_score` and selected provider-backed proofs such as `gov_id`, `phone`, and `sanctions_clear`
 - `zkpass` — may support schema-backed third-party attestations such as service-usage thresholds through registered provider schemas; see [attestations.md](./attestations.md)
 
 A provider may offer one or more capabilities. A capability is satisfied when the user has a current accepted verification from a provider that offers it.
@@ -132,36 +133,61 @@ Qualifier note:
 - a Pirate flow may request only `minimumAge`, or may additionally request disclosures such as `nationality` or `gender`
 - public qualifier rendering should use a small safe subset such as `18+`, `US National`, `Male`, or `Female`, not raw document fields
 
-### Assurance Level
+### Proof Model
 
-Each capability carries an `assurance_level`:
+Pirate should model verification using explicit provider capabilities and proof mechanisms rather than a generic assurance tier.
 
-- `basic` — suitable for lightweight gating such as community entry and non-anonymous posting in non-sensitive guilds
-- `strong` — suitable for trust-sensitive actions such as voting, anonymous posting, 18+ access, and nationality gates
+Core layers:
 
-Provider assurance matrix in v0:
+- `user_attestations`
+  - raw provider-backed facts and metadata
+  - example: a Self nullifier proof, a Very palm verification, or a Human Passport score response
+- `verification_capabilities`
+  - compact derived read model used by most product gates
+  - example: `unique_human`, `age_over_18`, `nationality`, `wallet_score`
+- policy requirements
+  - action-specific proof requirements
+  - example: "root-attached guild creation requires `unique_human` from `self` or `very`"
 
-| Provider | `unique_human` | `age_over_18` | `nationality` | `gender` |
-|---|---|---|---|---|
-| `self` | `strong` | `strong` | `strong` | `strong` |
-| `very` | `basic` | — | — | — |
+Suggested v0 proof types:
 
-Gates may specify a `minimum_assurance_level`. A gate with `minimum_assurance_level = basic` accepts either provider. A gate with `minimum_assurance_level = strong` accepts only providers that satisfy the capability at `strong` assurance.
+- `unique_human`
+  - one-person-one-account uniqueness proof
+- `biometric_liveness`
+  - live biometric capture was verified
+- `wallet_score`
+  - composite wallet-based anti-Sybil score
+- `gov_id`
+  - government-ID-backed verification
+- `age_over_18`
+  - age verified as 18+
+- `nationality`
+  - nationality disclosed through an accepted proof flow
+- `sanctions_clear`
+  - sanctions-screened or "clean hands" proof
 
-The default `minimum_assurance_level` for each capability:
+Suggested v0 provider mechanisms:
 
-- `unique_human`: `basic`
-- `age_over_18`: `strong`
-- `nationality`: `strong`
+| Provider | Capability | Mechanism |
+|---|---|---|
+| `self` | `unique_human` | `zk-nullifier` |
+| `self` | `biometric_liveness` | `zk-biometric` |
+| `self` | `age_over_18` | `zk-age` |
+| `self` | `nationality` | `zk-nationality` |
+| `self` | `gov_id` | `zk-gov-id` |
+| `very` | `unique_human` | `palm-nullifier` |
+| `very` | `biometric_liveness` | `palm-scan` |
+| `passport` | `wallet_score` | `stamps-api-v2` |
+| `passport` | `gov_id` | `HolonymGovIdProvider` |
+| `passport` | `phone` | `HolonymPhone` |
+| `passport` | `sanctions_clear` | `CleanHands` |
 
-Product features that require `strong` assurance for `unique_human`:
+Recommended v0 product posture:
 
-- root-attached guild creation
-- voting eligibility
-- anonymous posting eligibility
-- karma-affecting actions
-
-This default posture means `very` verification alone is not sufficient for voting or anonymous posting in v0. If `very` later proves equivalent uniqueness semantics, the default `minimum_assurance_level` for specific features may be lowered without changing the domain model.
+- root-attached guild creation should require `unique_human` from biometric/nullifier providers such as `self` or `very`
+- voting eligibility should require `unique_human` from biometric/nullifier providers such as `self` or `very`
+- anonymous posting eligibility should require `unique_human` from biometric/nullifier providers such as `self` or `very`
+- wallet-score systems such as Human Passport should be available for softer anti-Sybil and community-entry gates, not as the sole proof for high-trust actions
 
 ### Capability Shape
 
@@ -169,29 +195,46 @@ Suggested v0 `verification_capabilities` structure:
 
 - `unique_human`
   - `state`: `unverified` | `pending` | `verified` | `expired`
-  - `assurance_level`: `basic` | `strong`
   - `provider`: `self` | `very`
+  - `proof_type`: `unique_human`
+  - `mechanism`: `zk-nullifier` | `palm-nullifier`
   - `verified_at` nullable
 - `age_over_18`
   - `state`: `unverified` | `verified` | `expired`
   - `provider`: `self`
+  - `proof_type`: `age_over_18`
+  - `mechanism`: `zk-age`
   - `verified_at` nullable
 - `nationality`
   - `state`: `unverified` | `verified` | `expired`
   - `value`: nullable ISO country code
   - `provider`: `self`
+  - `proof_type`: `nationality`
+  - `mechanism`: `zk-nationality`
   - `verified_at` nullable
 - `gender`
   - `state`: `unverified` | `verified` | `expired`
   - `value`: nullable `M` | `F`
   - `provider`: `self`
+  - `proof_type`: `gender`
   - `verified_at` nullable
+- `wallet_score`
+  - `state`: `unverified` | `verified` | `expired`
+  - `provider`: `passport`
+  - `proof_type`: `wallet_score`
+  - `mechanism`: `stamps-api-v2`
+  - `score`: nullable decimal
+  - `score_threshold`: nullable decimal
+  - `passing_score`: nullable boolean
+  - `last_score_timestamp`: nullable timestamp
+  - `expiration_timestamp`: nullable timestamp
 
 Additional v0 note:
 
 - `gender` should be treated as an optional, high-sensitivity disclosure capability for qualifier rendering rather than a default gate primitive
 - provider-specific qualifiers such as `Palm Scan` from `very` may be exposed through the qualifier template layer without becoming new provider-neutral gate capabilities
 - schema-backed provider attestations such as `zkpass` proofs should live in `user_attestations`, not as ad hoc new top-level capability fields
+- Human Passport stamp detail should live in `user_attestations` even when the derived `wallet_score` capability is surfaced in `verification_capabilities`
 
 Derived-state interpretation for `unique_human`:
 

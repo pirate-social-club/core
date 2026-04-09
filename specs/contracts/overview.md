@@ -216,7 +216,7 @@ These remain app-level:
 - `user_id`
 - wallet attachments
 - Privy auth-provider links
-- Self verification sessions and identity snapshot
+- verification sessions and identity snapshot
 - Reddit trust snapshots
 
 External attestations and mirrors may exist, but Pirate's canonical user model remains app-level in v0.
@@ -269,7 +269,7 @@ Pricing policy remains app-level in v0.
 This includes:
 
 - USD catalog pricing
-- regional pricing derived from Self-backed nationality or pricing tiers
+- regional pricing derived from verified nationality or pricing tiers
 - final quote resolution before the onchain purchase executes
 
 Contracts should consume the resolved purchase amount, not interpret nationality or cost-of-living rules directly.
@@ -370,7 +370,7 @@ Pirate does not need dedicated v0 contracts for:
 - handle issuance
 - feed ranking formulas
 - artist verification
-- Self verification
+- identity verification
 - guild gate rule storage
 
 ## Royalty Graph Dependency

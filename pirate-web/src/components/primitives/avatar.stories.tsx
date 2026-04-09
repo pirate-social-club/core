@@ -48,7 +48,7 @@ export const WithImage: Story = {
 export const WithFallbackIcon: Story = {
   render: () => (
     <div className="flex items-end gap-3">
-      <Avatar fallback="Music" size="sm" fallbackIcon={<MusicNote className="size-4 text-muted-foreground" />} />
+      <Avatar fallback="Music" size="sm" fallbackIcon={<MusicNote className="size-5 text-muted-foreground" />} />
       <Avatar fallback="Music" size="md" fallbackIcon={<MusicNote className="size-5 text-muted-foreground" />} />
     </div>
   ),

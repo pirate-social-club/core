@@ -190,7 +190,7 @@ export function SongPostContent({ content, className }: SongPostContentProps) {
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {ui.showOwned ? (
             <span className={cn("inline-flex items-center gap-1.5 font-medium text-green-600", postCardType.label)}>
-              <Check className="size-3.5" />
+              <Check className="size-4" />
               <span>Unlocked</span>
             </span>
           ) : ui.showLockedArtwork ? (
@@ -208,7 +208,7 @@ export function SongPostContent({ content, className }: SongPostContentProps) {
               onClick={onBuy}
               disabled={!onBuy}
             >
-              <Unlock className="size-3.5" />
+              <Unlock className="size-4" />
               {effectivePriceLabel ? `Unlock for ${effectivePriceLabel}` : "Unlock"}
             </Button>
           )}
@@ -219,7 +219,7 @@ export function SongPostContent({ content, className }: SongPostContentProps) {
               onClick={onUnlock}
               disabled={!onUnlock}
             >
-              <Unlock className="size-3.5" />
+              <Unlock className="size-4" />
               Unlock
             </Button>
           )}

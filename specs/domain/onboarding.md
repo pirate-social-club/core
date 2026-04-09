@@ -9,6 +9,7 @@ Related docs:
 - [guild.md](./guild.md)
 - [feed.md](./feed.md)
 - [handles.md](./handles.md)
+- [onboarding-reddit-bootstrap-storybook.md](./onboarding-reddit-bootstrap-storybook.md)
 
 ## Purpose
 
@@ -81,6 +82,9 @@ This gives every new user a "sailor without a home" identity before they join an
 
 Reddit import should be optional.
 
+Detailed UI and Storybook handoff for this step lives in
+[onboarding-reddit-bootstrap-storybook.md](./onboarding-reddit-bootstrap-storybook.md).
+
 It is best understood as a bootstrap step for:
 
 - interests
@@ -98,7 +102,7 @@ It should not be treated as:
 Current prototype directions already suggest a clean split:
 
 - one tool verifies control of a Reddit username via profile-code placement
-- another tool snapshots historical subreddit activity and karma breakdowns
+- Pirate's archival Reddit ingestion pipeline snapshots historical subreddit activity and karma breakdowns, with the initial v0 source coming from the Pushpull-backed historical service
 
 This implies a strong v0 model:
 
@@ -183,6 +187,13 @@ Recommended v0 split:
 - Reddit verification and snapshot import are app-level
 - no dedicated onboarding contract is needed
 
-## Open Questions
+## Resolved V0 Direction
 
-- Should Reddit import happen inline during onboarding, or as a skippable post-signup "improve my feed" step?
+Reddit bootstrap should be offered inline during onboarding, but it must remain skippable and non-blocking.
+
+Rules:
+
+- the user may skip Reddit bootstrap entirely
+- the user may continue while Reddit import is queued or running
+- Pirate may surface the same module later as a post-signup "improve my feed" step for users who skipped it
+- the onboarding-first UI structure for this flow is defined in [onboarding-reddit-bootstrap-storybook.md](./onboarding-reddit-bootstrap-storybook.md)
