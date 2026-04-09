@@ -5,7 +5,7 @@ Status: draft
 Related docs:
 
 - [post.md](./post.md)
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [identity-presentation.md](./identity-presentation.md)
 - [donations.md](./donations.md)
 - [asset.md](./asset.md)
@@ -41,7 +41,7 @@ The composer should feel like Reddit's "Create post" flow: pick a type, add a ti
 
 ```
 ┌─────────────────────────────────────────────┐
-│  Create post    [guild selector]  Drafts │
+│  Create post    [club selector]  Drafts │
 ├─────────────────────────────────────────────┤
 │  [Text]  [Image]  [Video]  [Link] [Song] [Live] │
 ├─────────────────────────────────────────────┤
@@ -58,11 +58,11 @@ The composer should feel like Reddit's "Create post" flow: pick a type, add a ti
 └─────────────────────────────────────────────┘
 ```
 
-**Top row**: "Create post" heading, guild selector, and a drafts link.
+**Top row**: "Create post" heading, club selector, and a drafts link.
 
 **Tab row**: Text, Image, Video, Link, Song, Live. One active at a time. Song and Live are the main Pirate-specific additions. Poll is not v0.
 
-**Main body**: Title first, then the content surface that swaps by tab. If the guild has flair enabled, the composer may expose one optional flair picker for top-level posts using the guild's curated definitions. Freeform tags remain out of scope.
+**Main body**: Title first, then the content surface that swaps by tab. If the club has flair enabled, the composer may expose one optional flair picker for top-level posts using the club's curated definitions. Freeform tags remain out of scope.
 
 **Footer**: Save Draft and Post actions.
 
@@ -117,7 +117,7 @@ This should follow the same simple mental model as Reddit link posts: paste a UR
 
 Instrumental and vocal stems are first-class song inputs in the main song flow, but they remain **optional** at post-creation time. Stems and timed lyrics may also be attached later through async enrichment. Karaoke readiness is determined by the asset's `karaoke_package_ref` completeness, not by composer completeness. See karaoke.md for the staged enrichment model.
 
-Song tab is hidden or disabled unless the user has `create_song_post` permission per the guild permissions matrix.
+Song tab is hidden or disabled unless the user has `create_song_post` permission per the club permissions matrix.
 
 ### Live
 
@@ -219,7 +219,7 @@ For post types that allow anonymous identity, the composer should keep identity 
 
 Recommended UI shape:
 
-1. `Post anonymously` toggle when the guild allows anonymous posting
+1. `Post anonymously` toggle when the club allows anonymous posting
 2. qualifier multi-select dropdown, shown only when anonymous posting is active
 3. qualifier chips rendered below the control
 
@@ -229,10 +229,10 @@ Rules:
 - v0 qualifiers should come from [user.md](./user.md) `verification_capabilities` plus explicitly supported provider-specific qualifier templates
 - qualifiers must render as normalized labels such as `18+`, `US National`, or `Palm Scan`, not raw proof payloads
 - the composer must not allow freeform user-authored authority qualifiers
-- qualifiers already implied by guild gates should be hidden from the picker
+- qualifiers already implied by club gates should be hidden from the picker
 - public posts should not expose the qualifier picker in v0
 - `song` and `live` must not expose anonymous identity controls
-- anonymous scope remains part of guild policy in v0; it does not need to be a first-class composer control
+- anonymous scope remains part of club policy in v0; it does not need to be a first-class composer control
 
 ## Secondary Options
 
@@ -250,7 +250,7 @@ Flair is optional community labeling metadata, not canonical post truth.
 Composer rules:
 
 - at most one flair may be selected per post
-- the picker should only show active flair definitions for the selected guild
+- the picker should only show active flair definitions for the selected club
 - if a flair definition has `allowed_post_types`, the picker should only show options valid for the active composer tab
 - flair selection should be visible but lightweight, closer to a subreddit flair chooser than to a tagging surface
 - freeform tag entry does not exist in v0
@@ -264,10 +264,10 @@ Recommended placement:
 
 Behavior:
 
-- if the guild does not have flair enabled, no flair UI appears
-- if the guild requires flair on top-level posts, publishing should be blocked until one active flair is selected
-- if the selected post type has no active applicable flair definitions, the composer must not dead-end the user; the guild settings are invalid and should be treated as an admin configuration problem rather than a user error
-- if a previously selected flair becomes archived before publish, the draft must prompt the user to choose a new active flair or clear it if the guild does not require flair
+- if the club does not have flair enabled, no flair UI appears
+- if the club requires flair on top-level posts, publishing should be blocked until one active flair is selected
+- if the selected post type has no active applicable flair definitions, the composer must not dead-end the user; the club settings are invalid and should be treated as an admin configuration problem rather than a user error
+- if a previously selected flair becomes archived before publish, the draft must prompt the user to choose a new active flair or clear it if the club does not require flair
 
 ## Livestream And Room
 
@@ -287,7 +287,7 @@ Anonymous identity is useful for social or journalistic speech, not for rights-b
 
 Recommended v0 rule:
 
-- `text`, `image`, `video`, and `link` modes may expose guild-allowed anonymous identity controls when guild policy allows it
+- `text`, `image`, `video`, and `link` modes may expose club-allowed anonymous identity controls when club policy allows it
 - `song` and `live` modes must not expose anonymous identity controls
 - the backend should reject anonymous creation attempts for song posts and live anchor posts even if a buggy client submits them
 
@@ -295,27 +295,27 @@ Recommended v0 rule:
 
 Donation is a creator-side opt-in on monetized listings, not a per-post charity picker.
 
-Per donations.md: the guild defines the donation partner and the policy mode. The creator chooses whether to participate and at what percentage. The donation destination does not vary per post — it always routes to the guild's active partner.
+Per donations.md: the club defines the donation partner and the policy mode. The creator chooses whether to participate and at what percentage. The donation destination does not vary per post — it always routes to the club's active partner.
 
 ### When donation appears in the composer
 
 Donation UI only appears when all three conditions are true:
 
-1. The guild has an active donation partner (`donation_partner_status = active`)
-2. The guild's `donation_policy_mode` is `optional_creator_sidecar` (the v0 default) or `fundraiser_default`
+1. The club has an active donation partner (`donation_partner_status = active`)
+2. The club's `donation_policy_mode` is `optional_creator_sidecar` (the v0 default) or `fundraiser_default`
 3. The creator is listing the content for sale (monetized listing flow)
 
 When those conditions are met, the monetization section of the composer shows:
 
 - **Donation opt-in** — a checkbox: "Donate part of your proceeds to [partner name]"
-- **Donation share** — a percentage input, visible only when opt-in is checked, constrained to `0 < share <= 50`, defaulting to a guild-suggested value
-- **Partner name** — read-only, pulled from the guild's `donation_partner_id`
+- **Donation share** — a percentage input, visible only when opt-in is checked, constrained to `0 < share <= 50`, defaulting to a club-suggested value
+- **Partner name** — read-only, pulled from the club's `donation_partner_id`
 
 This is not a general post field. It belongs to the listing/monetization sub-flow inside the composer.
 
 ### Donation display on published posts
 
-Only monetized posts where the creator opted into donation display a donation badge. A guild having an active donation partner does not cause all posts in that guild to show charity labels.
+Only monetized posts where the creator opted into donation display a donation badge. A club having an active donation partner does not cause all posts in that club to show charity labels.
 
 When a monetized post has `donation_opt_in = true`:
 
@@ -325,7 +325,7 @@ When a monetized post has `donation_opt_in = true`:
 
 ### What does NOT appear in the composer
 
-- A charity destination picker — the partner comes from guild policy
+- A charity destination picker — the partner comes from club policy
 - Donation UI on free/social-only posts — it only applies to monetized listings
 
 ## Permission Gates Affecting Composer Visibility
@@ -335,9 +335,9 @@ When a monetized post has `donation_opt_in = true`:
 | `create_post` | Required to see the composer at all. All members have this. |
 | `create_song_post` | Without this, the Song tab is disabled or hidden. |
 | `schedule_livestream` | Affects the "Go Live" CTA visibility, not the composer. |
-| Guild posting policy | May restrict which tab types are available in a given guild. |
+| Club posting policy | May restrict which tab types are available in a given club. |
 
-The `artist_governance_state` of the guild does not gate the composer UI directly; it is a property of the guild that determines whether canonical artist song posts are allowed.
+The `artist_governance_state` of the club does not gate the composer UI directly; it is a property of the club that determines whether canonical artist song posts are allowed.
 
 ## Post-Submission Flow
 
@@ -372,6 +372,6 @@ Key constraints:
 - Derivative step is contextual, triggered by remix mode, user declaration, or analysis detection.
 - Rights basis is derived, never shown as a dropdown.
 - Identity is a presentation-mode choice with optional disclosed verified claim chips on eligible post types.
-- Flair is optional, single-select, guild-scoped, and never freeform.
+- Flair is optional, single-select, club-scoped, and never freeform.
 - Donation: creator-side opt-in on monetized listings only, not in the composer for free posts.
 - Permission gates control tab visibility, not UI surface area.

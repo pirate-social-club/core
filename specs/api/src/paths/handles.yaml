@@ -48,7 +48,7 @@ namespaces_by_namespace_id_handles_claims:
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/handles.yaml#/GuildHandle
+              $ref: ../components/schemas/handles.yaml#/ClubHandle
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "403":

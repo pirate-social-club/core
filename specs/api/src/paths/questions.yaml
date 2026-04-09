@@ -1,10 +1,10 @@
-guilds_by_guild_id_questions_daily:
+clubs_by_club_id_questions_daily:
   get:
     tags:
       - Questions
-    summary: Fetch the current daily question for a guild
+    summary: Fetch the current daily question for a club
     parameters:
-      - $ref: ../components/parameters.yaml#/GuildId
+      - $ref: ../components/parameters.yaml#/ClubId
     responses:
       "200":
         description: Current daily question or null
@@ -23,9 +23,9 @@ guilds_by_guild_id_questions_daily:
   post:
     tags:
       - Questions
-    summary: Publish or schedule a daily question for a guild
+    summary: Publish or schedule a daily question for a club
     parameters:
-      - $ref: ../components/parameters.yaml#/GuildId
+      - $ref: ../components/parameters.yaml#/ClubId
     requestBody:
       required: true
       content:
@@ -43,13 +43,13 @@ guilds_by_guild_id_questions_daily:
         $ref: ../components/responses.yaml#/AuthError
       "429":
         $ref: ../components/responses.yaml#/RateLimited
-guilds_by_guild_id_questions_daily_answers:
+clubs_by_club_id_questions_daily_answers:
   post:
     tags:
       - Questions
     summary: Submit an answer to the current daily question
     parameters:
-      - $ref: ../components/parameters.yaml#/GuildId
+      - $ref: ../components/parameters.yaml#/ClubId
     requestBody:
       required: true
       content:

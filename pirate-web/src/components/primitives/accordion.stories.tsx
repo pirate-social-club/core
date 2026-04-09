@@ -22,19 +22,19 @@ export const Default: Story = {
       <AccordionItem value="item-1">
         <AccordionTrigger>What is Pirate?</AccordionTrigger>
         <AccordionContent>
-          Pirate is a guild-first social product for discovering communities, posts, and shared resources.
+          Pirate is a club-first social product for discovering communities, posts, and shared resources.
         </AccordionContent>
       </AccordionItem>
       <AccordionItem value="item-2">
-        <AccordionTrigger>How do guilds work?</AccordionTrigger>
+        <AccordionTrigger>How do clubs work?</AccordionTrigger>
         <AccordionContent>
-          Guilds organize people around a topic or identity, making discovery and participation easier than flat feeds.
+          Clubs organize people around a topic or identity, making discovery and participation easier than flat feeds.
         </AccordionContent>
       </AccordionItem>
       <AccordionItem value="item-3">
-        <AccordionTrigger>Can I start my own guild?</AccordionTrigger>
+        <AccordionTrigger>Can I start my own club?</AccordionTrigger>
         <AccordionContent>
-          Yes. Starting a guild creates a new space for posts, members, and shared resources around your community.
+          Yes. Starting a club creates a new space for posts, members, and shared resources around your community.
         </AccordionContent>
       </AccordionItem>
     </Accordion>
@@ -47,19 +47,19 @@ export const Multiple: Story = {
       <AccordionItem value="item-1">
         <AccordionTrigger>Recent</AccordionTrigger>
         <AccordionContent>
-          g/guild1
+          g/club1
           <br />
-          g/guild2
+          g/club2
           <br />
-          g/guild3
+          g/club3
         </AccordionContent>
       </AccordionItem>
       <AccordionItem value="item-2">
-        <AccordionTrigger>Guilds</AccordionTrigger>
+        <AccordionTrigger>Clubs</AccordionTrigger>
         <AccordionContent>
-          g/usersjoinedguild1
+          g/usersjoinedclub1
           <br />
-          g/usersjoinedguild2
+          g/usersjoinedclub2
         </AccordionContent>
       </AccordionItem>
       <AccordionItem value="item-3">

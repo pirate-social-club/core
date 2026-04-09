@@ -36,12 +36,12 @@ This doc does not define:
 
 The royalty graph is broader than Story.
 
-Story-native derivative and royalty relationships are one important subset, but Pirate must also support softer guild-defined attribution relationships that do not automatically imply enforceable royalty payment.
+Story-native derivative and royalty relationships are one important subset, but Pirate must also support softer club-defined attribution relationships that do not automatically imply enforceable royalty payment.
 
 So the graph must represent:
 
 - hard legal or protocol-native edges
-- softer guild attribution edges
+- softer club attribution edges
 - payment-relevant versus non-payment-relevant edges
 
 ## Canonical Object
@@ -124,7 +124,7 @@ Suggested meanings:
   - `none`
 - `enforcement_mode`
   - `passthrough`
-  - `guild_optional`
+  - `club_optional`
   - `none`
 - `share_pct`
   Optional edge-specific share when Pirate policy, not Story, defines the upstream share
@@ -172,13 +172,13 @@ Usual effect:
 Use when:
 
 - the creator wants to acknowledge influence or share proceeds socially
-- Pirate should support guild-defined revenue sharing without overclaiming strong legal enforceability
+- Pirate should support club-defined revenue sharing without overclaiming strong legal enforceability
 
 Usual effect:
 
 - may be money-relevant
 - usually `settlement_source = pirate_policy`
-- often `enforcement_mode = guild_optional`
+- often `enforcement_mode = club_optional`
 
 ### `reference_only`
 
@@ -256,8 +256,8 @@ Mapping guidance:
 
 - `protocol_derivative` or `licensed_derivative` with `enforcement_mode = passthrough`
   usually maps to `upstream_royalty_mode = passthrough`
-- `attribution_only` with `enforcement_mode = guild_optional`
-  usually maps to `upstream_royalty_mode = guild_optional`
+- `attribution_only` with `enforcement_mode = club_optional`
+  usually maps to `upstream_royalty_mode = club_optional`
 - `reference_only`
   maps to `upstream_royalty_mode = none`
 
@@ -305,7 +305,7 @@ Recommended v0 split:
 - the royalty-graph record and edge classification live in Pirate's app model
 - Story-native derivative relationships are mirrored into that model when relevant
 - Story handles protocol-native royalty enforcement
-- Pirate handles guild-optional and attribution-only sharing rules
+- Pirate handles club-optional and attribution-only sharing rules
 
 This keeps Pirate flexible without losing protocol-native compatibility where Story already provides it.
 
@@ -313,4 +313,4 @@ This keeps Pirate flexible without losing protocol-native compatibility where St
 
 - Should an asset ever attach to more than one active royalty graph, or is one graph per downstream asset enough in v0?
 - Which payout-relevant edge classes should require explicit moderator or governance review before commerce is enabled?
-- Should Pirate allow `attribution_only` edges to specify an explicit `share_pct` in v0, or keep that guild-optional split listing-level only?
+- Should Pirate allow `attribution_only` edges to specify an explicit `share_pct` in v0, or keep that club-optional split listing-level only?

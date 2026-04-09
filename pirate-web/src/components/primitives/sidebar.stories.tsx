@@ -77,7 +77,7 @@ const topLevelItems: TopLevelItem[] = [
   },
   {
     icon: Users,
-    label: "Your Guilds",
+    label: "Your Clubs",
   },
   {
     icon: Clapperboard,
@@ -85,15 +85,15 @@ const topLevelItems: TopLevelItem[] = [
   },
   {
     icon: Plus,
-    label: "Start a Guild",
+    label: "Start a Club",
   },
 ];
 
-const recentGuilds = ["g/guild1", "g/guild2", "g/guild3"];
+const recentClubs = ["g/club1", "g/club2", "g/club3"];
 
-const joinedGuilds = [
-  "g/usersjoinedguild1",
-  "g/usersjoinedguild2",
+const joinedClubs = [
+  "g/usersjoinedclub1",
+  "g/usersjoinedclub2",
 ];
 
 const resources: ResourceLink[] = [
@@ -195,8 +195,8 @@ function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        <SidebarSection defaultOpen items={recentGuilds} title="Recent" />
-        <SidebarSection items={joinedGuilds} title="Guilds" />
+        <SidebarSection defaultOpen items={recentClubs} title="Recent" />
+        <SidebarSection items={joinedClubs} title="Clubs" />
         <SidebarGroup className="gap-0 px-4 py-0">
           <SidebarGroupLabel className={sectionLabelClassName}>
             Resources

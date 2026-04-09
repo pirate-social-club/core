@@ -5,12 +5,12 @@ Status: draft
 Related docs:
 
 - [governance-backends.md](./governance-backends.md)
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [monetization.md](./monetization.md)
 
 ## Purpose
 
-This doc defines how a guild attaches an external multisig backend, usually a Safe.
+This doc defines how a club attaches an external multisig backend, usually a Safe.
 
 It covers:
 
@@ -29,7 +29,7 @@ It does not cover:
 
 The multisig sits outside Pirate as an on-chain smart account.
 
-Pirate recognizes it as the guild's constitutional authority and, in most cases, the guild treasury wallet.
+Pirate recognizes it as the club's constitutional authority and, in most cases, the club treasury wallet.
 
 ## What The Multisig Is
 
@@ -67,7 +67,7 @@ Recommended v0 rule:
 
 Happy-path v0:
 
-1. Guild owner chooses `Multisig` governance.
+1. Club owner chooses `Multisig` governance.
 2. User chooses chain.
 3. User either:
    - pastes an existing Safe address, or
@@ -77,8 +77,8 @@ Happy-path v0:
    - the contract matches the expected multisig interface
    - the user can prove authorization to attach it through a Safe-compatible signature flow
 5. Pirate snapshots owner and threshold metadata.
-6. Pirate stores the multisig as the guild governance backend.
-7. Guild moves to `governance_mode = multisig`.
+6. Pirate stores the multisig as the club governance backend.
+7. Club moves to `governance_mode = multisig`.
 
 ## Verification
 
@@ -105,27 +105,27 @@ Suggested v0 statuses:
 
 ## Treasury
 
-For multisig-backed guilds, the simplest treasury model is:
+For multisig-backed clubs, the simplest treasury model is:
 
-- the guild treasury lives in the multisig
+- the club treasury lives in the multisig
 - Pirate reads balances and transaction history as an indexed view
 - constitutional payout or treasury actions are executed by the multisig signers
 
 Examples:
 
-- guild donation withdrawals route to the Safe
+- club donation withdrawals route to the Safe
 - namespace or handle-policy fees accumulate to the Safe
 - future grants or treasury disbursements execute from the Safe
 
 ## Constitutional Action Flow
 
-When a guild action requires multisig approval:
+When a club action requires multisig approval:
 
 1. Pirate creates a pending governance action.
 2. Pirate produces a concrete action payload or calldata.
 3. Signers approve and execute it in the multisig.
 4. Pirate observes the successful execution transaction.
-5. Pirate applies the corresponding guild-state change.
+5. Pirate applies the corresponding club-state change.
 
 When multiple constitutional actions are bundled together, Safe-style batching via MultiSend is a natural later optimization, but Pirate does not need to require batching in v0.
 

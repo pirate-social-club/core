@@ -513,7 +513,7 @@ function IdentitySection({
   onIdentityModeChange: (mode: IdentityMode) => void;
 }) {
   const handleLabel = identity.publicHandle ?? "@handle";
-  const anonymousLabel = identity.anonymousLabel ?? "anon_guild";
+  const anonymousLabel = identity.anonymousLabel ?? "anon_club";
 
   return (
     <section className="space-y-3 rounded-[var(--radius-lg)] border border-border-soft bg-card px-4 py-4">
@@ -548,14 +548,14 @@ function QualifierSection({
   onToggleQualifier: (qualifierId: string) => void;
 }) {
   const availableQualifiers = (identity.availableQualifiers ?? []).filter(
-    (qualifier) => !qualifier.suppressedByGuildGate,
+    (qualifier) => !qualifier.suppressedByClubGate,
   );
   const activeQualifiers = availableQualifiers.filter((qualifier) =>
     selectedQualifierIds.includes(qualifier.qualifierId),
   );
   const helpText =
     identity.helpText ??
-    "Attach verified qualifiers to this post. Qualifiers already implied by guild gates are omitted.";
+    "Attach verified qualifiers to this post. Qualifiers already implied by club gates are omitted.";
 
   return (
     <section className="space-y-3 rounded-[var(--radius-lg)] border border-border-soft bg-card px-4 py-4">
@@ -628,7 +628,7 @@ function QualifierSection({
 
       {availableQualifiers.length === 0 ? (
         <div className="rounded-[var(--radius-lg)] border border-dashed border-border-soft px-4 py-4 text-sm text-muted-foreground">
-          No optional qualifiers are available for this guild.
+          No optional qualifiers are available for this club.
         </div>
       ) : null}
     </section>
@@ -636,8 +636,8 @@ function QualifierSection({
 }
 
 export function PostComposer({
-  guildName,
-  guildAvatarSrc,
+  clubName,
+  clubAvatarSrc,
   draftsLabel = "Drafts",
   mode,
   availableTabs = defaultTabs,
@@ -754,7 +754,7 @@ export function PostComposer({
     Boolean(identity?.allowAnonymousIdentity) && anonymousEligibleTabs.includes(activeTab);
   const shouldShowQualifiers =
     Boolean(identity) &&
-    Boolean(identity?.availableQualifiers?.some((qualifier) => !qualifier.suppressedByGuildGate)) &&
+    Boolean(identity?.availableQualifiers?.some((qualifier) => !qualifier.suppressedByClubGate)) &&
     identityMode === "anonymous" &&
     identity?.allowQualifiersOnAnonymousPosts !== false;
 
@@ -868,7 +868,7 @@ export function PostComposer({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <ShellPill avatarSrc={guildAvatarSrc}>{guildName}</ShellPill>
+        <ShellPill avatarSrc={clubAvatarSrc}>{clubName}</ShellPill>
       </div>
 
       <Card className="overflow-hidden bg-background shadow-none">

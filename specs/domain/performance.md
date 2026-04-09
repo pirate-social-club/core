@@ -6,7 +6,7 @@ Related docs:
 
 - [livestream.md](./livestream.md)
 - [live-segments.md](./live-segments.md)
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [marketplace.md](./marketplace.md)
 
 ## Purpose
@@ -48,7 +48,7 @@ Examples:
 - schedule room
 - create anchor post
 - attach listing
-- attach donation/guild policy
+- attach donation/club policy
 - manage replay linkage
 
 ### Performance Plane
@@ -189,7 +189,7 @@ When segments are implemented, they should be:
 
 Until that exists:
 
-- paid room access follows the room listing and guild payout policy
+- paid room access follows the room listing and club payout policy
 - ACRCloud recognition may suggest candidate songs or segments, but it does not by itself create enforceable payout splits
 
 Likely later extension:

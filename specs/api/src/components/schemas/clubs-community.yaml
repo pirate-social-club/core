@@ -1,7 +1,7 @@
-CreateGuildDonationPolicyInput:
+CreateClubDonationPolicyInput:
   type: object
   description: |
-    Optional guild-level donation configuration supplied at creation time. If omitted, the guild defaults to no donation policy. If `donation_policy_mode = optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id` must be non-null. If `donation_policy_mode = none`, `donation_partner_id` must be null.
+    Optional club-level donation configuration supplied at creation time. If omitted, the club defaults to no donation policy. If `donation_policy_mode = optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id` must be non-null. If `donation_policy_mode = none`, `donation_partner_id` must be null.
   required:
     - donation_policy_mode
   properties:
@@ -14,10 +14,10 @@ CreateGuildDonationPolicyInput:
     donation_partner_id:
       type: string
       nullable: true
-UpdateGuildDonationPolicyRequest:
+UpdateClubDonationPolicyRequest:
   type: object
   description: |
-    Update the guild donation policy. If `donation_policy_mode = optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id` must be non-null. If `donation_policy_mode = none`, `donation_partner_id` must be null. Donation partner lifecycle management is platform-admin-controlled in v0.
+    Update the club donation policy. If `donation_policy_mode = optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id` must be non-null. If `donation_policy_mode = none`, `donation_partner_id` must be null. Donation partner lifecycle management is platform-admin-controlled in v0.
   required:
     - donation_policy_mode
   properties:
@@ -71,16 +71,16 @@ DonationPartnerSummary:
         - active
         - paused
         - retired
-GuildDonationPolicy:
+ClubDonationPolicy:
   type: object
   description: |
-    Resolved donation policy attached to a guild. This policy enables or disables listing-level creator donation sidecars for content sold inside the guild.
+    Resolved donation policy attached to a club. This policy enables or disables listing-level creator donation sidecars for content sold inside the club.
   required:
-    - guild_id
+    - club_id
     - donation_policy_mode
     - donation_partner_status
   properties:
-    guild_id:
+    club_id:
       type: string
     donation_policy_mode:
       type: string
@@ -98,26 +98,26 @@ GuildDonationPolicy:
       type: string
       nullable: true
     donation_partner:
-      $ref: ./guilds-community.yaml#/DonationPartnerSummary
+      $ref: ./clubs-community.yaml#/DonationPartnerSummary
       nullable: true
     updated_at:
       type: string
       format: date-time
-CreateGuildCommunityBootstrapInput:
+CreateClubCommunityBootstrapInput:
   type: object
   properties:
     flair_policy:
-      $ref: ./guilds-community.yaml#/CreateGuildFlairPolicyInput
+      $ref: ./clubs-community.yaml#/CreateClubFlairPolicyInput
       nullable: true
     rules:
       type: array
       items:
-        $ref: ./guilds-community.yaml#/CreateGuildRuleInput
+        $ref: ./clubs-community.yaml#/CreateClubRuleInput
     resource_links:
       type: array
       items:
-        $ref: ./guilds-community.yaml#/CreateGuildResourceLinkInput
-CreateGuildFlairPolicyInput:
+        $ref: ./clubs-community.yaml#/CreateClubResourceLinkInput
+CreateClubFlairPolicyInput:
   type: object
   properties:
     flair_enabled:
@@ -129,8 +129,8 @@ CreateGuildFlairPolicyInput:
     definitions:
       type: array
       items:
-        $ref: ./guilds-community.yaml#/CreateGuildFlairDefinitionInput
-UpdateGuildFlairPolicyRequest:
+        $ref: ./clubs-community.yaml#/CreateClubFlairDefinitionInput
+UpdateClubFlairPolicyRequest:
   type: object
   properties:
     flair_enabled:
@@ -140,8 +140,8 @@ UpdateGuildFlairPolicyRequest:
     definitions:
       type: array
       items:
-        $ref: ./guilds-community.yaml#/GuildFlairDefinitionMutationInput
-CreateGuildFlairDefinitionInput:
+        $ref: ./clubs-community.yaml#/ClubFlairDefinitionMutationInput
+CreateClubFlairDefinitionInput:
   type: object
   required:
     - label
@@ -169,7 +169,7 @@ CreateGuildFlairDefinitionInput:
           - video
           - song
       nullable: true
-UpdateGuildFlairDefinitionInput:
+UpdateClubFlairDefinitionInput:
   type: object
   required:
     - flair_id
@@ -203,11 +203,11 @@ UpdateGuildFlairDefinitionInput:
       enum:
         - active
         - archived
-GuildFlairDefinitionMutationInput:
+ClubFlairDefinitionMutationInput:
   oneOf:
-    - $ref: ./guilds-community.yaml#/CreateGuildFlairDefinitionInput
-    - $ref: ./guilds-community.yaml#/UpdateGuildFlairDefinitionInput
-GuildFlairDefinition:
+    - $ref: ./clubs-community.yaml#/CreateClubFlairDefinitionInput
+    - $ref: ./clubs-community.yaml#/UpdateClubFlairDefinitionInput
+ClubFlairDefinition:
   type: object
   required:
     - flair_id
@@ -243,7 +243,7 @@ GuildFlairDefinition:
           - video
           - song
       nullable: true
-GuildFlairPolicy:
+ClubFlairPolicy:
   type: object
   required:
     - flair_enabled
@@ -257,7 +257,7 @@ GuildFlairPolicy:
     definitions:
       type: array
       items:
-        $ref: ./guilds-community.yaml#/GuildFlairDefinition
+        $ref: ./clubs-community.yaml#/ClubFlairDefinition
 PostFlair:
   type: object
   description: |
@@ -279,7 +279,7 @@ PostFlair:
       enum:
         - active
         - archived
-CreateGuildRuleInput:
+CreateClubRuleInput:
   type: object
   required:
     - title
@@ -294,7 +294,7 @@ CreateGuildRuleInput:
     position:
       type: integer
       minimum: 0
-UpdateGuildRuleInput:
+UpdateClubRuleInput:
   type: object
   required:
     - rule_id
@@ -314,11 +314,11 @@ UpdateGuildRuleInput:
       enum:
         - active
         - archived
-GuildRuleMutationInput:
+ClubRuleMutationInput:
   oneOf:
-    - $ref: ./guilds-community.yaml#/CreateGuildRuleInput
-    - $ref: ./guilds-community.yaml#/UpdateGuildRuleInput
-GuildRule:
+    - $ref: ./clubs-community.yaml#/CreateClubRuleInput
+    - $ref: ./clubs-community.yaml#/UpdateClubRuleInput
+ClubRule:
   type: object
   required:
     - rule_id
@@ -341,7 +341,7 @@ GuildRule:
       enum:
         - active
         - archived
-CreateGuildResourceLinkInput:
+CreateClubResourceLinkInput:
   type: object
   required:
     - label
@@ -367,7 +367,7 @@ CreateGuildResourceLinkInput:
     position:
       type: integer
       minimum: 0
-UpdateGuildResourceLinkInput:
+UpdateClubResourceLinkInput:
   type: object
   required:
     - resource_link_id
@@ -397,11 +397,11 @@ UpdateGuildResourceLinkInput:
       enum:
         - active
         - archived
-GuildResourceLinkMutationInput:
+ClubResourceLinkMutationInput:
   oneOf:
-    - $ref: ./guilds-community.yaml#/CreateGuildResourceLinkInput
-    - $ref: ./guilds-community.yaml#/UpdateGuildResourceLinkInput
-GuildResourceLink:
+    - $ref: ./clubs-community.yaml#/CreateClubResourceLinkInput
+    - $ref: ./clubs-community.yaml#/UpdateClubResourceLinkInput
+ClubResourceLink:
   type: object
   required:
     - resource_link_id
@@ -435,7 +435,7 @@ GuildResourceLink:
       enum:
         - active
         - archived
-GuildCommunityProfile:
+ClubCommunityProfile:
   type: object
   required:
     - rules
@@ -444,19 +444,19 @@ GuildCommunityProfile:
     rules:
       type: array
       items:
-        $ref: ./guilds-community.yaml#/GuildRule
+        $ref: ./clubs-community.yaml#/ClubRule
     resource_links:
       type: array
       items:
-        $ref: ./guilds-community.yaml#/GuildResourceLink
-UpdateGuildCommunityProfileRequest:
+        $ref: ./clubs-community.yaml#/ClubResourceLink
+UpdateClubCommunityProfileRequest:
   type: object
   properties:
     rules:
       type: array
       items:
-        $ref: ./guilds-community.yaml#/GuildRuleMutationInput
+        $ref: ./clubs-community.yaml#/ClubRuleMutationInput
     resource_links:
       type: array
       items:
-        $ref: ./guilds-community.yaml#/GuildResourceLinkMutationInput
+        $ref: ./clubs-community.yaml#/ClubResourceLinkMutationInput

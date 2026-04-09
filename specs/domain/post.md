@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [namespace.md](./namespace.md)
 - [artist-identity.md](./artist-identity.md)
 - [handles.md](./handles.md)
@@ -62,7 +62,7 @@ Posts use opaque app-issued IDs.
 Examples:
 
 - `post_id = pst_01...`
-- `guild_id = gld_01...`
+- `club_id = gld_01...`
 - `asset_id = ast_01...`
 
 ## Posting Eligibility
@@ -73,7 +73,7 @@ The exact verification policy belongs in a later identity/onboarding spec, but t
 
 - users must satisfy the required verification capability checks before they can publish posts
 - the minimum verification for posting is a verified `unique_human` capability from an accepted provider
-- passing the identity gate is necessary but not always sufficient; guild posting policy may impose additional trust-tier and pacing requirements. See [guild.md](./guild.md) under Posting Policy.
+- passing the identity gate is necessary but not always sufficient; club posting policy may impose additional trust-tier and pacing requirements. See [club.md](./club.md) under Posting Policy.
 
 Examples of why Pirate may require verification:
 
@@ -88,7 +88,7 @@ Viewing eligibility may be stricter than posting eligibility.
 In v0:
 
 - posts classified as `18+` must require verification that the viewer satisfies the `age_over_18` capability from an accepted provider such as `self`
-- guild or jurisdiction policy may impose stricter viewing rules later, but the minimum v0 gate is age proof for adult content
+- club or jurisdiction policy may impose stricter viewing rules later, but the minimum v0 gate is age proof for adult content
 - if a derivative post references an upstream asset that is already gated `18+`, the derived post must inherit at least that same viewer gate
 
 ## V0 Post Shape
@@ -96,7 +96,7 @@ In v0:
 Suggested v0 fields:
 
 - `post_id`
-- `guild_id`
+- `club_id`
 - `author_user_id`
 - `identity_mode`
 - `anonymous_scope` nullable
@@ -130,7 +130,7 @@ Suggested meanings:
   - `public`
   - `anonymous`
 - `anonymous_scope`
-  - `guild_stable`
+  - `club_stable`
   - `thread_stable`
   - `post_ephemeral`
 - `post_type`
@@ -175,7 +175,7 @@ Suggested meanings:
 
 Notes:
 
-- `flair_id` is an optional pointer to a guild-defined flair definition used for community labeling and filtering; it is not a substitute for canonical post fields such as `post_type`, `song_mode`, `rights_basis`, `analysis_state`, `content_safety_state`, `age_gate_policy`, or monetization state
+- `flair_id` is an optional pointer to a club-defined flair definition used for community labeling and filtering; it is not a substitute for canonical post fields such as `post_type`, `song_mode`, `rights_basis`, `analysis_state`, `content_safety_state`, `age_gate_policy`, or monetization state
 - `identity_mode` is the canonical author-presentation choice for the post
 - `anonymous_scope` is nullable and applies only when `identity_mode = anonymous`
 - `disclosed_qualifiers_json` stores a publish-time snapshot of the verified qualifier labels the author chose to disclose on this post
@@ -196,32 +196,32 @@ Notes:
 - Story publication state is owned by the attached asset when one exists; API read models may derive a post-level Story badge from the asset's `publication_state`
 - `age_gate_policy` is the explicit viewer-access rule stored on the post
 - stricter upstream age gates must propagate downstream to derivative posts
-- charitable donation destination should not be an arbitrary post-level field in v0; when monetized content opts into donation, it should use the guild-level donation partner through the monetization layer
+- charitable donation destination should not be an arbitrary post-level field in v0; when monetized content opts into donation, it should use the club-level donation partner through the monetization layer
 - creator donation participation belongs on the listing, not the post row and not the asset row
 
 ### Flair
 
-Pirate should support one optional guild-scoped flair per post.
+Pirate should support one optional club-scoped flair per post.
 
 Purpose:
 
 - help communities label conversational lanes such as `Question`, `Announcement`, `Trip Report`, `Gear Review`, `WIP`, or `Release`
-- support lightweight filtering inside a guild feed
-- give guilds some self-definition without turning posts into freeform taxonomy objects
+- support lightweight filtering inside a club feed
+- give clubs some self-definition without turning posts into freeform taxonomy objects
 
 Non-goals:
 
 - replacing canonical post facts already modeled elsewhere
 - freeform hashtags or user-created tags
-- cross-guild global flair semantics
+- cross-club global flair semantics
 - ranking boosts tied to flair usage
 
 Rules:
 
 - each post may store `flair_id` or `null`
-- `flair_id` must resolve to an active flair definition owned by the same `guild_id` as the post
+- `flair_id` must resolve to an active flair definition owned by the same `club_id` as the post
 - in v0, `flair_id` must be `null` when `parent_post_id` is non-null; reply flair is future work
-- flair is optional in v0 unless a guild later chooses to require one through guild settings
+- flair is optional in v0 unless a club later chooses to require one through club settings
 - flair is display and filtering metadata, not canonical domain truth
 - system-derived facts must not be modeled as flair when Pirate already has a structured field for them
 
@@ -248,7 +248,7 @@ Examples of good flair:
   - `public`
   - `anonymous`
 - `anonymous_scope`
-  - `guild_stable`
+  - `club_stable`
   - `thread_stable`
   - `post_ephemeral`
   - `null`
@@ -273,7 +273,7 @@ Anonymous-capable presentation is not valid for every post shape.
 
 Recommended v0 rule:
 
-- `text`, `image`, `video`, and `link` posts may use public or anonymous identity according to guild policy
+- `text`, `image`, `video`, and `link` posts may use public or anonymous identity according to club policy
 - `song` posts must use public identity in v0
 - live anchor posts must use public identity in v0
 - disclosed qualifiers are only valid on anonymous posts in v0
@@ -288,12 +288,12 @@ Reasoning:
 `author_user_id` on anonymously presented posts is privileged data. The following rules enforce the access boundary:
 
 - the public API and standard read models must not return `author_user_id` on posts where `identity_mode = anonymous`
-- guild moderators and other users must never see `author_user_id` on anonymously presented posts through any normal product surface
-- only the privileged resolver path defined in [guild.md](./guild.md) may map an anonymous post back to `author_user_id`, and only through the audited break-glass workflow
+- club moderators and other users must never see `author_user_id` on anonymously presented posts through any normal product surface
+- only the privileged resolver path defined in [club.md](./club.md) may map an anonymous post back to `author_user_id`, and only through the audited break-glass workflow
 - internal services and background jobs that need `author_user_id` for operational purposes must operate behind the privileged resolver boundary or receive explicit clearance to access the field
 - `identity_mode`, `anonymous_label`, and `disclosed_qualifiers_json` are public presentation fields; they are visible in normal API responses
 
-Anonymous post lifecycle is defined in [guild.md](./guild.md) under Anonymous Lifecycle Rules, including handling for guild bans, account deletion, policy flips, and re-verification loss.
+Anonymous post lifecycle is defined in [club.md](./club.md) under Anonymous Lifecycle Rules, including handling for club bans, account deletion, policy flips, and re-verification loss.
 
 ## Post Types
 
@@ -338,7 +338,7 @@ Rules:
 - link preview metadata should be derived automatically when available
 - link preview is UI presentation, not a required authoring field
 - `link` posts may not attach assets or publish to Story in v0
-- `link` posts are subject to the same `link_post_policy` enforcement as described in [guild.md](./guild.md) under Posting Policy
+- `link` posts are subject to the same `link_post_policy` enforcement as described in [club.md](./club.md) under Posting Policy
 
 ### Song
 
@@ -348,7 +348,7 @@ Rules:
 
 - a song post must attach an asset
 - a song post must publish that asset to Story in v0
-- canonical song uploads remain subject to the guild's `artist_governance_state`
+- canonical song uploads remain subject to the club's `artist_governance_state`
 
 ## Post Submodes
 
@@ -521,8 +521,8 @@ Decision rules derived from this table:
 Mapping to post fields:
 
 - if no post row exists yet and the outcome is `blocked`, Pirate should not create a publishable post
-- if guild posting policy rejects the write due to trust-tier or pacing rules, Pirate should reject the write directly rather than creating a pending moderation item
-- trust-tier rejection and pacing rejection should remain distinct failure cases even when both come from guild posting policy; clients should be able to tell "not allowed at your current trust level" apart from "quota exhausted for now"
+- if club posting policy rejects the write due to trust-tier or pacing rules, Pirate should reject the write directly rather than creating a pending moderation item
+- trust-tier rejection and pacing rejection should remain distinct failure cases even when both come from club posting policy; clients should be able to tell "not allowed at your current trust level" apart from "quota exhausted for now"
 - when a draft post is created from an allowed upload, `analysis_state` should mirror the final non-blocking upload outcome
 - the full reasoning and provider payload live on the shared `media_analysis_results` row referenced by `analysis_result_ref`
 - `content_safety_state` and `age_gate_policy` should be copied from the final analysis outcome at post creation time and may later be tightened by moderation
@@ -542,7 +542,7 @@ If either axis is in a blocking state, publication is blocked:
 - `content_safety_state = pending` blocks publication
 - `analysis_state = allow_with_required_reference` allows publication only after the user attaches the required upstream references
 - `content_safety_state = sensitive` allows publication but the post should carry any implied labeling or warnings according to product policy
-- `content_safety_state = adult` allows publication only when `age_gate_policy = 18_plus`; the published post must then be gated to adult-eligible viewers according to the guild and post viewing rules
+- `content_safety_state = adult` allows publication only when `age_gate_policy = 18_plus`; the published post must then be gated to adult-eligible viewers according to the club and post viewing rules
 
 This merge rule is the authoritative publishability gate. Individual analysis and safety decisions feed into it but neither axis alone determines publishability.
 
@@ -579,13 +579,13 @@ Suggested meanings:
 - `derivative`
   The author acknowledges one or more upstream works and wants derivative treatment.
 - `attribution_only`
-  The author wants explicit attribution or guild-defined revenue sharing without Pirate assuming a strong legal copyright position.
+  The author wants explicit attribution or club-defined revenue sharing without Pirate assuming a strong legal copyright position.
 
 `attribution_only` is especially useful for edge cases such as:
 
 - memes
 - formats or performance patterns
-- other remix-adjacent content where guilds may want sharing norms even when legal status is less clean
+- other remix-adjacent content where clubs may want sharing norms even when legal status is less clean
 
 Constraints:
 
@@ -616,7 +616,7 @@ Recommended v0 composer rules:
   - link preview metadata should be derived automatically, not authored manually
   - may not attach assets or publish to Story in v0
 - `song`
-  - only available where guild posting policy allows it
+  - only available where club posting policy allows it
   - canonical artist songs additionally require `artist_governance_state = artist_governed` or `org_governed`
   - should require at least one audio-bearing media item
   - should require lyric text at post-creation time
@@ -635,7 +635,7 @@ V0 threading is post-based.
 Rules:
 
 - root feed posts have `parent_post_id = null`
-- replies set `parent_post_id` to another post in the same guild
+- replies set `parent_post_id` to another post in the same club
 - nested replies are allowed in v0
 - exact max depth is implementation-defined in v0 and should be enforced at the API/service layer if needed
 - ranking and notification behavior are read-model concerns and do not change the underlying post identity model
@@ -821,7 +821,7 @@ Suggested v0 moderation record shape:
 
 - `post_moderation_action_id`
 - `post_id`
-- `guild_id`
+- `club_id`
 - `actor_user_id`
 - `action_type`
 - `reason_code` nullable
@@ -841,7 +841,7 @@ Rules:
 
 - `status` on the post stores the current visible lifecycle state
 - moderation records store the action history that led to that state
-- moderators act within guild policy; platform admins retain fallback authority
+- moderators act within club policy; platform admins retain fallback authority
 - moderators may tighten `content_safety_state` or `age_gate_policy` after review, but should not weaken inherited upstream age gates without explicit admin tooling
 
 ## Votes And Reactions

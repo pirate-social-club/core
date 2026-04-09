@@ -35,13 +35,13 @@ VerificationRequired:
       schema:
         $ref: ./schemas/common.yaml#/Error
 MppExportForbidden:
-  description: Export blocked by a guild gate or export-eligibility rule
+  description: Export blocked by a club gate or export-eligibility rule
   content:
     application/json:
       schema:
         $ref: ./schemas/common.yaml#/Error
 GateFailed:
-  description: Guild gate or membership rule failed
+  description: Club gate or membership rule failed
   content:
     application/json:
       schema:
@@ -53,7 +53,7 @@ EligibilityFailed:
       schema:
         $ref: ./schemas/common.yaml#/Error
 PostingTrustTierTooLow:
-  description: The requested posting action is not available at the author's current guild trust level
+  description: The requested posting action is not available at the author's current club trust level
   content:
     application/json:
       schema:

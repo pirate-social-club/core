@@ -5,7 +5,7 @@ Status: draft
 Related docs:
 
 - [artist-identity.md](./artist-identity.md)
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [asset.md](./asset.md)
 - [scrobbles.md](./scrobbles.md)
 - [questions.md](./questions.md)
@@ -16,10 +16,10 @@ This doc defines Pirate's artist and track catalog model.
 
 It covers:
 
-- artist-linked guild bootstrap
+- artist-linked club bootstrap
 - canonical versus enrichment metadata sources
 - track identity
-- guild-creation enrichment jobs
+- club-creation enrichment jobs
 - pre-registration versus lazy registration
 
 ## Non-goals
@@ -37,27 +37,27 @@ Pirate should treat:
 
 - MusicBrainz as canonical identity support
 - Genius as enrichment and question-generation support
-- Pirate as the approval, routing, and guild authority
+- Pirate as the approval, routing, and club authority
 
 The catalog should be good enough to support:
 
 - day-one scrobbling
-- day-one artist guild pages
+- day-one artist club pages
 - day-one question generation
 
-without blocking guild creation on large background imports.
+without blocking club creation on large background imports.
 
-## Artist-Linked Guilds
+## Artist-Linked Clubs
 
-An artist-linked guild is any guild with:
+An artist-linked club is any club with:
 
-- `guild.artist_identity_id != null`
+- `club.artist_identity_id != null`
 
 Examples:
 
-- `/g/kanye`
-- `/g/@kendrick`
-- `/g/肯伊`
+- `/c/kanye`
+- `/c/@kendrick`
+- `/c/肯伊`
 
 This does not imply:
 
@@ -65,7 +65,7 @@ This does not imply:
 - canonical song upload rights
 - official endorsement
 
-Those remain governed by the existing guild and artist-governance specs.
+Those remain governed by the existing club and artist-governance specs.
 
 ## Source Authority
 
@@ -96,7 +96,7 @@ Use Pirate as:
 
 - routing authority
 - moderation authority
-- guild approval authority
+- club approval authority
 - final display and alias policy authority
 
 ## Track Identity
@@ -119,7 +119,7 @@ Suggested v0 track fields:
 - `recording_mbid` nullable
 - `story_ip_id` nullable
 - `asset_id` nullable
-- `guild_id` nullable
+- `club_id` nullable
 - `publisher_ref` nullable
 - `title`
 - `artist_display_name`
@@ -159,13 +159,13 @@ Implementation note:
 
 - `artist_identity_ids_json` is acceptable as a directional v0 spec shortcut, but the eventual implementation should prefer a join table such as `track_artists` rather than a permanent JSON-array dependency
 
-## Guild-Creation Bootstrap
+## Club-Creation Bootstrap
 
-Artist-linked guild creation should enqueue an artist metadata enrichment job.
+Artist-linked club creation should enqueue an artist metadata enrichment job.
 
 Recommended v0 behavior:
 
-1. create the guild and namespace immediately
+1. create the club and namespace immediately
 2. attach `artist_identity_id` if known or resolvable
 3. enqueue `artist_metadata_enrichment`
 4. return success to the creator without waiting for the enrichment job
@@ -174,12 +174,12 @@ The enrichment job may then:
 
 - resolve or confirm the MusicBrainz artist MBID
 - fetch Genius artist ID and aliases when available
-- populate `guild_reference_links`
+- populate `club_reference_links`
 - fetch or cache cover-art and reference metadata
 - fetch a first-pass known track list
 - pre-register known tracks into Pirate's track table
 
-This gives artist guilds better day-one scrobble and question-generation UX without making guild creation fragile.
+This gives artist clubs better day-one scrobble and question-generation UX without making club creation fragile.
 
 ## Pre-Registration vs Lazy Registration
 
@@ -189,7 +189,7 @@ Pirate should support both.
 
 Good for:
 
-- artist-linked guilds
+- artist-linked clubs
 - high-signal top tracks
 - canonical song pages
 - better early question generation
@@ -219,9 +219,9 @@ Good question-generation inputs include:
 - lyrics refs
 - annotation refs
 - known tracks with MBIDs
-- guild-linked reference links
+- club-linked reference links
 
-This is why artist-catalog enrichment is worth running at guild creation time for artist-linked guilds.
+This is why artist-catalog enrichment is worth running at club creation time for artist-linked clubs.
 
 ## API And Job Implications
 
@@ -233,7 +233,7 @@ Likely v0 background job types:
 
 Likely API surfaces:
 
-- read guild-linked artist metadata
+- read club-linked artist metadata
 - inspect enrichment status
 - resolve or create track records
 - fetch track metadata for song/scrobble/question surfaces
@@ -241,5 +241,5 @@ Likely API surfaces:
 ## Open Questions
 
 - What minimum confidence is required before a metadata-hash track is upgraded to an MBID-backed identity?
-- Should Pirate pre-register only top tracks for artist-linked guilds, or a broader catalog slice?
+- Should Pirate pre-register only top tracks for artist-linked clubs, or a broader catalog slice?
 - When MusicBrainz and Genius disagree on naming, which fields become public display defaults versus internal enrichment only?

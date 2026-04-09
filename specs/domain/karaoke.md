@@ -7,7 +7,7 @@ Related docs:
 - [asset.md](./asset.md)
 - [post.md](./post.md)
 - [marketplace.md](./marketplace.md)
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 
 ## Purpose
 
@@ -145,19 +145,19 @@ Recommended v0 rule:
 
 - karaoke does not require a dedicated top-level `post_type`
 
-## Guild Interaction
+## Club Interaction
 
-Guilds may choose how prominently karaoke is surfaced.
+Clubs may choose how prominently karaoke is surfaced.
 
 Examples:
 
-- artist guilds may feature karaoke-ready official songs
-- fan guilds may run karaoke challenges or events later
+- artist clubs may feature karaoke-ready official songs
+- fan clubs may run karaoke challenges or events later
 
-Guild policy may later control:
+Club policy may later control:
 
 - whether karaoke is highlighted in feed or profile views
-- whether karaoke challenges award special guild karma
+- whether karaoke challenges award special club karma
 
 ## Open Questions
 

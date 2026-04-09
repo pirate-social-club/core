@@ -6,7 +6,7 @@ Related docs:
 
 - [user.md](./user.md)
 - [profile.md](./profile.md)
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [feed.md](./feed.md)
 - [handles.md](./handles.md)
 - [onboarding-reddit-bootstrap-storybook.md](./onboarding-reddit-bootstrap-storybook.md)
@@ -50,7 +50,7 @@ Recommended v0 steps:
 2. generate a default global Pirate handle
 3. optionally let the user rename it once during onboarding
 4. optionally import Reddit to seed interests and reputation snapshot
-5. optionally join a few suggested guilds
+5. optionally join a few suggested clubs
 6. land the user in the product
 
 ## Generated Default Identity
@@ -66,7 +66,7 @@ Rules:
 - the generated handle should be stable and unique
 - it should be safe to show immediately even if the user skips customization
 - the user may rename it subject to global-handle policy
-- guild-local handles remain separate and optional
+- club-local handles remain separate and optional
 - the initial generated handle should not require payment
 - the first onboarding cleanup rename should be free in v0
 - later upgrades into better `.pirate` inventory may require payment or stricter eligibility
@@ -76,7 +76,7 @@ Rules:
 - onboarding should not let a user accumulate multiple active global `.pirate` handles
 - if Reddit verification is completed during onboarding, Pirate may suggest the verified Reddit username as the preferred cleanup rename
 
-This gives every new user a "sailor without a home" identity before they join any specific guild.
+This gives every new user a "sailor without a home" identity before they join any specific club.
 
 ## Reddit Bootstrap Import
 
@@ -88,7 +88,7 @@ Detailed UI and Storybook handoff for this step lives in
 It is best understood as a bootstrap step for:
 
 - interests
-- guild suggestions
+- club suggestions
 - immutable external trust snapshot
 
 It should not be treated as:
@@ -116,7 +116,7 @@ Good v0 inferences:
 - top subreddits by participation
 - subreddit-specific karma totals
 - broad interest categories derived from subreddit membership/activity
-- possible guild suggestions
+- possible club suggestions
 - initial handle-eligibility or trust bootstrap
 
 What Pirate should avoid inferring too aggressively:
@@ -149,7 +149,7 @@ Recommended v0 benefits:
 
 - cleaner suggested `.pirate` handle derived from the verified Reddit username, if available
 - better interest seeding
-- better guild suggestions
+- better club suggestions
 - immutable onboarding trust snapshot that can help with early eligibility flows
 
 This is a stronger onboarding reward than asking the user to manually fill out interests.
@@ -161,7 +161,7 @@ If Reddit import is skipped or unavailable, Pirate may still ask for very lightw
 Recommended fallback:
 
 - choose a few broad interests
-- optionally pick a few suggested guilds
+- optionally pick a few suggested clubs
 
 But Pirate should prefer inferred cold-start hints over long questionnaires when trustworthy imported data exists.
 

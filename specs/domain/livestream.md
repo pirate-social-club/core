@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [post.md](./post.md)
 - [marketplace.md](./marketplace.md)
 - [monetization.md](./monetization.md)
@@ -59,7 +59,7 @@ Recommended v0 split:
 
 - web/app composer owns control-plane authoring for the room
 - desktop or host tooling may attach to an existing room as the host client
-- the control plane remains the source of truth for title, schedule, anchor post, listing, and donation/guild policy
+- the control plane remains the source of truth for title, schedule, anchor post, listing, and donation/club policy
 
 This means Pirate should prefer:
 
@@ -69,7 +69,7 @@ This means Pirate should prefer:
 
 Rather than:
 
-- treating the desktop app as the primary author of guild commerce and social objects
+- treating the desktop app as the primary author of club commerce and social objects
 
 ## Audience Plane vs Performance Plane
 
@@ -105,7 +105,7 @@ This means GPUI or other desktop host tooling should be thought of as:
 Suggested v0 `live_rooms` shape:
 
 - `live_room_id`
-- `guild_id`
+- `club_id`
 - `anchor_post_id`
 - `host_user_id`
 - `title`
@@ -179,7 +179,7 @@ Rules:
 - `listing_id` is used only when live access is paid
 - `replay_listing_id` is used only when replay access is separately monetized
 - `replay_status` tracks replay processing and rights-review state without mutating the room lifecycle itself
-- `guild_id` is required at creation. There are no standalone room objects outside a guild context. A live room is a guild object with an anchor post from day one.
+- `club_id` is required at creation. There are no standalone room objects outside a club context. A live room is a club object with an anchor post from day one.
 - room creation should also require an initial setlist payload, even if that setlist begins in `draft`
 - room creation should require explicit performer allocations from day one
 - web/app is the authoritative creation surface for `live_room` in v0; desktop controls host start/stop and performer tooling only
@@ -210,7 +210,7 @@ Interpretation:
 Commerce boundary:
 
 - paid room access sells access to the room first
-- v0 live access revenue should follow the room listing plus the guild payout policy, then apply the room's explicit performer allocations to the performer-side proceeds
+- v0 live access revenue should follow the room listing plus the club payout policy, then apply the room's explicit performer allocations to the performer-side proceeds
 - song-specific or segment-specific rights settlement still comes later through segment resources, replay assets, and royalty-graph-backed settlement rather than raw room-level split fields
 
 ## Anchor Post
@@ -234,7 +234,7 @@ Recommended v0 rule:
 
 - the anchor post should normally be a `video` post with `anchor_live_room_id` in read models or join-layer relations
 - if the client does not provide an existing `anchor_post_id`, Pirate should create the anchor post automatically as part of room creation
-- the anchor post for a live room should not use the guild anonymous identity layer in v0; live-room authority stays tied to the host's verified public identity
+- the anchor post for a live room should not use the club anonymous identity layer in v0; live-room authority stays tied to the host's verified public identity
 
 ## Room Lifecycle
 
@@ -257,14 +257,14 @@ Authority guidance:
 - host start should also require a valid active setlist as defined in [live-segments.md](./live-segments.md)
 - the host may transition `scheduled -> live`
 - the host may transition `live -> ended`
-- the host, `guild_owner`, `moderator`, or `platform_admin` may transition a room to `canceled`
-- `guild_owner`, `moderator`, and `platform_admin` may forcibly end a room for moderation, safety, or operational reasons
+- the host, `club_owner`, `moderator`, or `platform_admin` may transition a room to `canceled`
+- `club_owner`, `moderator`, and `platform_admin` may forcibly end a room for moderation, safety, or operational reasons
 
 Guest termination on cancellation:
 
 - when a room is canceled, any attached guest or collaborator state is revoked
 - guest broadcast credentials (bridge tickets, Agora tokens) should be invalidated
-- this applies whether the cancellation is initiated by the host, a moderator, or the guild owner
+- this applies whether the cancellation is initiated by the host, a moderator, or the club owner
 
 ## Replay Model
 
@@ -311,17 +311,17 @@ Replay-clearance rule:
 
 Review authority:
 
-- in v0, ACRCloud-triggered rights review is a Pirate platform function, not a guild-owner or TLD-owner function
+- in v0, ACRCloud-triggered rights review is a Pirate platform function, not a club-owner or TLD-owner function
 - the Pirate platform operator is the final authority for clearing or blocking replay publication and rights-sensitive payouts on flagged rooms
-- hosts, guests, guild owners, and TLD owners may submit context, claimed licenses, or official-catalog evidence, but they do not have unilateral final-clearance authority for third-party rights cases
-- this avoids self-review by economically interested room operators and keeps rights enforcement consistent across guilds
+- hosts, guests, club owners, and TLD owners may submit context, claimed licenses, or official-catalog evidence, but they do not have unilateral final-clearance authority for third-party rights cases
+- this avoids self-review by economically interested room operators and keeps rights enforcement consistent across clubs
 
 Rights boundary:
 
-- songs performed inside a guild are not automatically royalty-free merely because they are inside that guild
+- songs performed inside a club are not automatically royalty-free merely because they are inside that club
 - Story-published works are not automatically "fair game" for unrestricted live performance or monetization
 - Pirate may parse Story-linked rights metadata and community relationships as evidence that a work is licensable or officially supported, but monetization policy must still check whether the rights path actually permits the use
-- guild-affiliated or officially linked catalog works may be allowlisted by product policy later, but that should be explicit policy, not an inference from guild membership alone
+- club-affiliated or officially linked catalog works may be allowlisted by product policy later, but that should be explicit policy, not an inference from club membership alone
 
 Good v0 uses for live recognition:
 
@@ -358,16 +358,16 @@ Recommended v0 access modes:
 
 ### `free`
 
-- anyone who satisfies normal guild viewer rules may join
+- anyone who satisfies normal club viewer rules may join
 
 ### `gated`
 
-- guild viewer or membership gates must pass before join
+- club viewer or membership gates must pass before join
 - no payment is implied
 
 Recommended v0 boundary:
 
-- v0 should reuse existing guild gate evaluation rather than inventing a separate room-specific gate object
+- v0 should reuse existing club gate evaluation rather than inventing a separate room-specific gate object
 - room-specific audience segmentation may be added later after the base gate model hardens
 
 ### `paid`
@@ -379,7 +379,7 @@ Rules:
 
 - do not invent a separate live-ticket protocol in v0
 - if a livestream costs money, that should be represented through the existing listing/purchase/entitlement model
-- replay access may reuse the same entitlement or use a separate replay listing, depending on guild policy
+- replay access may reuse the same entitlement or use a separate replay listing, depending on club policy
 - if replay access is paid or otherwise entitlement-gated, the replay should be represented by a locked replay asset rather than a publicly readable payload
 - implementations should enforce a maximum room duration and auto-end stale rooms after an operational timeout, but the exact timeout is an implementation detail rather than a product field in v0
 - `participant_capacity`, when present, is enforced by room or broadcast control logic rather than by marketplace settlement
@@ -399,30 +399,30 @@ This avoids a parallel live-commerce surface.
 
 ## Donations During Live
 
-Livestreams must follow the same donation policy as the rest of the guild.
+Livestreams must follow the same donation policy as the rest of the club.
 
 Recommended v0 rule:
 
 - no per-room arbitrary donation beneficiary
-- if the guild has an active donation partner, monetized livestreams may expose the same creator-side donation sidecar model already defined elsewhere
+- if the club has an active donation partner, monetized livestreams may expose the same creator-side donation sidecar model already defined elsewhere
 - fundraiser-first live events are a later extension, not a separate v0 exception
 
-This keeps live donations aligned with the guild's approved charitable partner.
+This keeps live donations aligned with the club's approved charitable partner.
 
 Transition from old Pirate:
 
 - old Pirate had per-room Endaoment configuration (`endaoment_org_id`, `endaoment_org_name`, `endaoment_org_logo_url`, `donation_goal`) directly on the live room object
-- v2 intentionally moves charitable identity to the guild level, not the room level
-- this is a product change, not an omission: per-room donation beneficiaries are replaced by guild-scoped donation policy
-- rooms in guilds with an active donation partner may still display the donation sidecar, but the configuration lives on the guild, not the room
+- v2 intentionally moves charitable identity to the club level, not the room level
+- this is a product change, not an omission: per-room donation beneficiaries are replaced by club-scoped donation policy
+- rooms in clubs with an active donation partner may still display the donation sidecar, but the configuration lives on the club, not the room
 
-## Guild And Moderation Interaction
+## Club And Moderation Interaction
 
-Livestreams are guild-scoped objects.
+Livestreams are club-scoped objects.
 
 Rules:
 
-- `guild_id` controls the room's moderation, visibility, and eligibility context
+- `club_id` controls the room's moderation, visibility, and eligibility context
 - only actors with `schedule_livestream` permission may create rooms
 - room cancellation, hiding the anchor post, and replay removal should remain separately controllable moderation actions
 
@@ -450,5 +450,5 @@ This replaces the old model where desktop owned creation and then opened a brows
 - Should paid live access and paid replay default to one entitlement or two separate listings in v0?
 - Should live-room metadata edits such as title, cover, and scheduled time use a dedicated PATCH endpoint in the first public API pass?
 - Should desktop ever directly author `live_room` objects in production, or should it remain a host/performance client attached to rooms created by web/app?
-- Should guild-gated livestreams support room-specific audience segments in v0, or should that wait until after the base guild-gate model hardens?
-- Should gated access mode gain a subfield like `gate_mode` or `audience_gate_ref` to encode segment types (purchase_entitlement, scrobble_threshold, study_streak, wallet_allowlist) from old Pirate, or should v0 rely on guild-level gate evaluation and defer room-specific audience segmentation?
+- Should club-gated livestreams support room-specific audience segments in v0, or should that wait until after the base club-gate model hardens?
+- Should gated access mode gain a subfield like `gate_mode` or `audience_gate_ref` to encode segment types (purchase_entitlement, scrobble_threshold, study_streak, wallet_allowlist) from old Pirate, or should v0 rely on club-level gate evaluation and defer room-specific audience segmentation?

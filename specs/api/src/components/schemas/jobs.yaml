@@ -15,7 +15,7 @@ Job:
       type: string
       enum:
         - reddit_snapshot_import
-        - guild_threads_export
+        - club_threads_export
         - media_analysis
         - story_publication
         - purchase_settlement_confirmation

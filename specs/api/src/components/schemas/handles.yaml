@@ -53,17 +53,17 @@ HandleAvailability:
     reason:
       type: string
       nullable: true
-GuildHandle:
+ClubHandle:
   type: object
   required:
-    - guild_handle_id
+    - club_handle_id
     - user_id
     - namespace_id
     - label
     - status
     - issuance_source
   properties:
-    guild_handle_id:
+    club_handle_id:
       type: string
     user_id:
       type: string

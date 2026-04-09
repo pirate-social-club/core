@@ -1,6 +1,6 @@
-CreateCentralizedGuildRequest:
+CreateCentralizedClubRequest:
   allOf:
-    - $ref: ./guilds-core.yaml#/CreateGuildRequestBase
+    - $ref: ./clubs-core.yaml#/CreateClubRequestBase
     - type: object
       required:
         - governance_mode
@@ -10,9 +10,9 @@ CreateCentralizedGuildRequest:
           enum:
             - centralized
           default: centralized
-CreateMultisigGuildRequest:
+CreateMultisigClubRequest:
   allOf:
-    - $ref: ./guilds-core.yaml#/CreateGuildRequestBase
+    - $ref: ./clubs-core.yaml#/CreateClubRequestBase
     - type: object
       required:
         - governance_mode
@@ -23,10 +23,10 @@ CreateMultisigGuildRequest:
           enum:
             - multisig
         governance_backend:
-          $ref: ./guilds-governance.yaml#/MultisigGovernanceAttachmentInput
-CreateMajeurGuildRequest:
+          $ref: ./clubs-governance.yaml#/MultisigGovernanceAttachmentInput
+CreateMajeurClubRequest:
   allOf:
-    - $ref: ./guilds-core.yaml#/CreateGuildRequestBase
+    - $ref: ./clubs-core.yaml#/CreateClubRequestBase
     - type: object
       required:
         - governance_mode
@@ -37,11 +37,11 @@ CreateMajeurGuildRequest:
           enum:
             - majeur
         governance_backend:
-          $ref: ./guilds-governance.yaml#/MajeurGovernanceCreateInput
+          $ref: ./clubs-governance.yaml#/MajeurGovernanceCreateInput
 AttachGovernanceRequest:
   oneOf:
-    - $ref: ./guilds-governance.yaml#/AttachMultisigGovernanceRequest
-    - $ref: ./guilds-governance.yaml#/AttachMajeurGovernanceRequest
+    - $ref: ./clubs-governance.yaml#/AttachMultisigGovernanceRequest
+    - $ref: ./clubs-governance.yaml#/AttachMajeurGovernanceRequest
   discriminator:
     propertyName: governance_mode
     mapping:
@@ -58,7 +58,7 @@ AttachMultisigGovernanceRequest:
       enum:
         - multisig
     governance_backend:
-      $ref: ./guilds-governance.yaml#/MultisigGovernanceAttachmentInput
+      $ref: ./clubs-governance.yaml#/MultisigGovernanceAttachmentInput
 AttachMajeurGovernanceRequest:
   type: object
   required:
@@ -70,12 +70,12 @@ AttachMajeurGovernanceRequest:
       enum:
         - majeur
     governance_backend:
-      $ref: ./guilds-governance.yaml#/MajeurGovernanceAttachInput
+      $ref: ./clubs-governance.yaml#/MajeurGovernanceAttachInput
 GovernanceAction:
   type: object
   required:
     - governance_action_id
-    - guild_id
+    - club_id
     - action_kind
     - governance_mode
     - payload_hash
@@ -85,7 +85,7 @@ GovernanceAction:
   properties:
     governance_action_id:
       type: string
-    guild_id:
+    club_id:
       type: string
     action_kind:
       type: string
@@ -135,11 +135,11 @@ GovernanceVerificationState:
     - pending
     - verified
     - broken
-GuildGovernanceBackend:
+ClubGovernanceBackend:
   oneOf:
-    - $ref: ./guilds-governance.yaml#/CentralizedGovernanceBackend
-    - $ref: ./guilds-governance.yaml#/MultisigGovernanceBackend
-    - $ref: ./guilds-governance.yaml#/MajeurGovernanceBackend
+    - $ref: ./clubs-governance.yaml#/CentralizedGovernanceBackend
+    - $ref: ./clubs-governance.yaml#/MultisigGovernanceBackend
+    - $ref: ./clubs-governance.yaml#/MajeurGovernanceBackend
   discriminator:
     propertyName: governance_mode
     mapping:
@@ -157,7 +157,7 @@ CentralizedGovernanceBackend:
       enum:
         - centralized
     governance_verification_state:
-      $ref: ./guilds-governance.yaml#/GovernanceVerificationState
+      $ref: ./clubs-governance.yaml#/GovernanceVerificationState
     governance_display_label:
       type: string
       nullable: true
@@ -176,7 +176,7 @@ MultisigGovernanceAttachmentInput:
       type: string
       nullable: true
     attachment_proof:
-      $ref: ./guilds-governance.yaml#/MultisigAttachmentProofInput
+      $ref: ./clubs-governance.yaml#/MultisigAttachmentProofInput
 MultisigAttachmentProofInput:
   type: object
   required:
@@ -213,7 +213,7 @@ MultisigGovernanceBackend:
       type: string
       nullable: true
     governance_verification_state:
-      $ref: ./guilds-governance.yaml#/GovernanceVerificationState
+      $ref: ./clubs-governance.yaml#/GovernanceVerificationState
     governance_display_label:
       type: string
       nullable: true
@@ -226,7 +226,7 @@ MultisigGovernanceBackend:
       format: date-time
       nullable: true
     governance_metadata:
-      $ref: ./guilds-governance.yaml#/MultisigGovernanceMetadata
+      $ref: ./clubs-governance.yaml#/MultisigGovernanceMetadata
 MultisigGovernanceMetadata:
   type: object
   required:
@@ -257,7 +257,7 @@ MajeurGovernanceCreateInput:
     chain_id:
       type: integer
     summon:
-      $ref: ./guilds-governance.yaml#/MajeurSafeSummonInput
+      $ref: ./clubs-governance.yaml#/MajeurSafeSummonInput
 MajeurGovernanceAttachInput:
   type: object
   required:
@@ -330,7 +330,7 @@ MajeurSafeSummonInput:
         type: string
       nullable: true
     config:
-      $ref: ./guilds-governance.yaml#/MajeurSafeConfigInput
+      $ref: ./clubs-governance.yaml#/MajeurSafeConfigInput
 MajeurSafeConfigInput:
   type: object
   required:
@@ -386,7 +386,7 @@ MajeurGovernanceBackend:
       type: string
       nullable: true
     governance_verification_state:
-      $ref: ./guilds-governance.yaml#/GovernanceVerificationState
+      $ref: ./clubs-governance.yaml#/GovernanceVerificationState
     governance_display_label:
       type: string
       nullable: true
@@ -399,7 +399,7 @@ MajeurGovernanceBackend:
       format: date-time
       nullable: true
     governance_metadata:
-      $ref: ./guilds-governance.yaml#/MajeurGovernanceMetadata
+      $ref: ./clubs-governance.yaml#/MajeurGovernanceMetadata
 MajeurGovernanceMetadata:
   type: object
   required:

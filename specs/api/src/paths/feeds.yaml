@@ -19,11 +19,11 @@ feeds_home:
               $ref: ../components/schemas/feeds.yaml#/FeedResponse
       "429":
         $ref: ../components/responses.yaml#/RateLimited
-feeds_your_guilds:
+feeds_your_clubs:
   get:
     tags:
       - Feeds
-    summary: Read the Your Guilds feed
+    summary: Read the Your Clubs feed
     parameters:
       - $ref: ../components/parameters.yaml#/Locale
       - $ref: ../components/parameters.yaml#/FeedSort
@@ -32,7 +32,7 @@ feeds_your_guilds:
       - $ref: ../components/parameters.yaml#/Limit
     responses:
       "200":
-        description: Personalized guild feed
+        description: Personalized club feed
         content:
           application/json:
             schema:

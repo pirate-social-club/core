@@ -13,9 +13,9 @@ function PostCardBylineContent({
   byline: PostCardByline;
   viewContext: PostCardViewContext;
 }) {
-  const { guild, author, timestampLabel } = byline;
+  const { club, author, timestampLabel } = byline;
   const displayIdentity =
-    viewContext === "home" ? (guild ?? author) : (author ?? guild);
+    viewContext === "home" ? (club ?? author) : (author ?? club);
 
   if (!displayIdentity) return null;
 
@@ -54,7 +54,7 @@ export function PostCardHeader({
   className,
 }: PostCardHeaderProps) {
   const avatarIdentity =
-    viewContext === "home" ? (byline.guild ?? byline.author) : (byline.author ?? byline.guild);
+    viewContext === "home" ? (byline.club ?? byline.author) : (byline.author ?? byline.club);
 
   const AvatarElement = (
     <Avatar

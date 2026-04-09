@@ -1,4 +1,4 @@
-CreateGuildRequestBase:
+CreateClubRequestBase:
   type: object
   required:
     - display_name
@@ -26,7 +26,7 @@ CreateGuildRequestBase:
     anonymous_identity_scope:
       type: string
       enum:
-        - guild_stable
+        - club_stable
         - thread_stable
         - post_ephemeral
       nullable: true
@@ -63,10 +63,10 @@ CreateGuildRequestBase:
         - high_trust
       nullable: true
     root_post_quota_by_trust_tier:
-      $ref: ./guilds-core.yaml#/RootPostQuotaByTrustTier
+      $ref: ./clubs-core.yaml#/RootPostQuotaByTrustTier
       nullable: true
     reply_quota_by_trust_tier:
-      $ref: ./guilds-core.yaml#/ReplyQuotaByTrustTier
+      $ref: ./clubs-core.yaml#/ReplyQuotaByTrustTier
       nullable: true
     probation_window_days:
       type: integer
@@ -84,23 +84,23 @@ CreateGuildRequestBase:
         - 18_plus
       default: none
       description: |
-        Guild-wide default viewer age gate. Setting this to `18_plus` requires the acting creator or updating owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
+        Club-wide default viewer age gate. Setting this to `18_plus` requires the acting creator or updating owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
     namespace:
       $ref: ./handles.yaml#/NamespaceAttachmentInput
     handle_policy:
       $ref: ./handles.yaml#/HandlePolicyInput
     donation_policy:
       allOf:
-        - $ref: ./guilds-community.yaml#/CreateGuildDonationPolicyInput
+        - $ref: ./clubs-community.yaml#/CreateClubDonationPolicyInput
       type: object
       nullable: true
     community_bootstrap:
-      $ref: ./guilds-community.yaml#/CreateGuildCommunityBootstrapInput
+      $ref: ./clubs-community.yaml#/CreateClubCommunityBootstrapInput
       nullable: true
     gate_rules:
       type: array
       items:
-        $ref: ./guilds-core.yaml#/GateRuleInput
+        $ref: ./clubs-core.yaml#/GateRuleInput
       nullable: true
 GateRuleInput:
   type: object
@@ -135,7 +135,7 @@ GateRuleInput:
       type: array
       nullable: true
       items:
-        $ref: ./guilds-core.yaml#/ProofRequirement
+        $ref: ./clubs-core.yaml#/ProofRequirement
     chain_namespace:
       type: string
       nullable: true
@@ -147,7 +147,7 @@ GateRule:
   type: object
   required:
     - gate_rule_id
-    - guild_id
+    - club_id
     - scope
     - gate_family
     - gate_type
@@ -157,7 +157,7 @@ GateRule:
   properties:
     gate_rule_id:
       type: string
-    guild_id:
+    club_id:
       type: string
     scope:
       type: string
@@ -185,7 +185,7 @@ GateRule:
       type: array
       nullable: true
       items:
-        $ref: ./guilds-core.yaml#/ProofRequirement
+        $ref: ./clubs-core.yaml#/ProofRequirement
     chain_namespace:
       type: string
       nullable: true
@@ -258,13 +258,13 @@ RootPostQuotaByTrustTier:
   type: object
   properties:
     new:
-      $ref: ./guilds-core.yaml#/RootPostQuotaRule
+      $ref: ./clubs-core.yaml#/RootPostQuotaRule
     established:
-      $ref: ./guilds-core.yaml#/RootPostQuotaRule
+      $ref: ./clubs-core.yaml#/RootPostQuotaRule
     trusted:
-      $ref: ./guilds-core.yaml#/RootPostQuotaRule
+      $ref: ./clubs-core.yaml#/RootPostQuotaRule
     high_trust:
-      $ref: ./guilds-core.yaml#/RootPostQuotaRule
+      $ref: ./clubs-core.yaml#/RootPostQuotaRule
 ReplyQuotaRule:
   type: object
   required:
@@ -285,25 +285,25 @@ ReplyQuotaByTrustTier:
   type: object
   properties:
     new:
-      $ref: ./guilds-core.yaml#/ReplyQuotaRule
+      $ref: ./clubs-core.yaml#/ReplyQuotaRule
     established:
-      $ref: ./guilds-core.yaml#/ReplyQuotaRule
+      $ref: ./clubs-core.yaml#/ReplyQuotaRule
     trusted:
-      $ref: ./guilds-core.yaml#/ReplyQuotaRule
+      $ref: ./clubs-core.yaml#/ReplyQuotaRule
     high_trust:
-      $ref: ./guilds-core.yaml#/ReplyQuotaRule
-CreateGuildRequest:
+      $ref: ./clubs-core.yaml#/ReplyQuotaRule
+CreateClubRequest:
   oneOf:
-    - $ref: ./guilds-governance.yaml#/CreateCentralizedGuildRequest
-    - $ref: ./guilds-governance.yaml#/CreateMultisigGuildRequest
-    - $ref: ./guilds-governance.yaml#/CreateMajeurGuildRequest
+    - $ref: ./clubs-governance.yaml#/CreateCentralizedClubRequest
+    - $ref: ./clubs-governance.yaml#/CreateMultisigClubRequest
+    - $ref: ./clubs-governance.yaml#/CreateMajeurClubRequest
   discriminator:
     propertyName: governance_mode
     mapping:
-      centralized: "#/components/schemas/CreateCentralizedGuildRequest"
-      multisig: "#/components/schemas/CreateMultisigGuildRequest"
-      majeur: "#/components/schemas/CreateMajeurGuildRequest"
-UpdateGuildRequest:
+      centralized: "#/components/schemas/CreateCentralizedClubRequest"
+      multisig: "#/components/schemas/CreateMultisigClubRequest"
+      majeur: "#/components/schemas/CreateMajeurClubRequest"
+UpdateClubRequest:
   type: object
   properties:
     display_name:
@@ -322,7 +322,7 @@ UpdateGuildRequest:
     anonymous_identity_scope:
       type: string
       enum:
-        - guild_stable
+        - club_stable
         - thread_stable
         - post_ephemeral
       nullable: true
@@ -356,9 +356,9 @@ UpdateGuildRequest:
         - trusted
         - high_trust
     root_post_quota_by_trust_tier:
-      $ref: ./guilds-core.yaml#/RootPostQuotaByTrustTier
+      $ref: ./clubs-core.yaml#/RootPostQuotaByTrustTier
     reply_quota_by_trust_tier:
-      $ref: ./guilds-core.yaml#/ReplyQuotaByTrustTier
+      $ref: ./clubs-core.yaml#/ReplyQuotaByTrustTier
     probation_window_days:
       type: integer
       nullable: true
@@ -373,11 +373,11 @@ UpdateGuildRequest:
         - none
         - 18_plus
       description: |
-        Guild-wide default viewer age gate. Updating this field from `none` to `18_plus` requires the acting owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
-Guild:
+        Club-wide default viewer age gate. Updating this field from `none` to `18_plus` requires the acting owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
+Club:
   type: object
   required:
-    - guild_id
+    - club_id
     - display_name
     - status
     - membership_mode
@@ -389,7 +389,7 @@ Guild:
     - created_at
     - updated_at
   properties:
-    guild_id:
+    club_id:
       type: string
     display_name:
       type: string
@@ -407,11 +407,11 @@ Guild:
     artist_identity_id:
       type: string
       nullable: true
-    guild_agent_user_id:
+    club_agent_user_id:
       type: string
       nullable: true
       description: |
-        App-level system actor for platform-managed guild content such as daily questions. In v0, this actor is exempt from ordinary member trust-tier minima and posting quotas when publishing system-tagged content.
+        App-level system actor for platform-managed club content such as daily questions. In v0, this actor is exempt from ordinary member trust-tier minima and posting quotas when publishing system-tagged content.
     membership_mode:
       type: string
       enum:
@@ -423,7 +423,7 @@ Guild:
     anonymous_identity_scope:
       type: string
       enum:
-        - guild_stable
+        - club_stable
         - thread_stable
         - post_ephemeral
       nullable: true
@@ -460,10 +460,10 @@ Guild:
         - high_trust
       nullable: true
     root_post_quota_by_trust_tier:
-      $ref: ./guilds-core.yaml#/RootPostQuotaByTrustTier
+      $ref: ./clubs-core.yaml#/RootPostQuotaByTrustTier
       nullable: true
     reply_quota_by_trust_tier:
-      $ref: ./guilds-core.yaml#/ReplyQuotaByTrustTier
+      $ref: ./clubs-core.yaml#/ReplyQuotaByTrustTier
       nullable: true
     probation_window_days:
       type: integer
@@ -480,7 +480,7 @@ Guild:
         - none
         - 18_plus
       description: |
-        Guild-wide default viewer age gate.
+        Club-wide default viewer age gate.
     donation_policy_mode:
       type: string
       enum:
@@ -497,13 +497,13 @@ Guild:
       type: string
       nullable: true
     donation_partner:
-      $ref: ./guilds-community.yaml#/DonationPartnerSummary
+      $ref: ./clubs-community.yaml#/DonationPartnerSummary
       nullable: true
     flair_policy:
-      $ref: ./guilds-community.yaml#/GuildFlairPolicy
+      $ref: ./clubs-community.yaml#/ClubFlairPolicy
       nullable: true
     community_profile:
-      $ref: ./guilds-community.yaml#/GuildCommunityProfile
+      $ref: ./clubs-community.yaml#/ClubCommunityProfile
       nullable: true
     governance_mode:
       type: string
@@ -512,12 +512,12 @@ Guild:
         - multisig
         - majeur
     governance_backend:
-      $ref: ./guilds-governance.yaml#/GuildGovernanceBackend
+      $ref: ./clubs-governance.yaml#/ClubGovernanceBackend
       nullable: true
     gate_rules:
       type: array
       items:
-        $ref: ./guilds-core.yaml#/GateRule
+        $ref: ./clubs-core.yaml#/GateRule
       nullable: true
     created_by_user_id:
       type: string
@@ -530,10 +530,10 @@ Guild:
 MembershipResult:
   type: object
   required:
-    - guild_id
+    - club_id
     - status
   properties:
-    guild_id:
+    club_id:
       type: string
     status:
       type: string

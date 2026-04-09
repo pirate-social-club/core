@@ -5,19 +5,19 @@ Status: draft
 Related docs:
 
 - [governance-backends.md](./governance-backends.md)
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [multisig-attachment.md](./multisig-attachment.md)
 
 ## Purpose
 
-This doc defines the advanced guild-creation path where the constitutional authority is a Majeur DAO from the start.
+This doc defines the advanced club-creation path where the constitutional authority is a Majeur DAO from the start.
 
 It covers:
 
 - the minimum creation inputs
 - what roles or allocations must exist at launch
 - what presets Pirate should expose
-- what gets attached back to the guild
+- what gets attached back to the club
 
 It does not cover:
 
@@ -27,7 +27,7 @@ It does not cover:
 
 ## Core Principle
 
-Creating a guild with Majeur means creating a real on-chain governance system, not just choosing a future upgrade path.
+Creating a club with Majeur means creating a real on-chain governance system, not just choosing a future upgrade path.
 
 Pirate should present it as an advanced flow for communities that intentionally want token-governed constitutional control from day one.
 
@@ -218,8 +218,8 @@ Happy-path v0:
 9. Pirate previews the predicted DAO address and derived component addresses.
 10. User signs the deployment transaction through the chosen wallet path rather than manually re-encoding calldata elsewhere.
 11. Pirate records the deployment transaction hash and waits for confirmation.
-12. Pirate verifies the deployed DAO and records it as the guild governance backend.
-13. Guild creation finalizes with `governance_mode = majeur`.
+12. Pirate verifies the deployed DAO and records it as the club governance backend.
+13. Club creation finalizes with `governance_mode = majeur`.
 
 Recommended v0 UX:
 
@@ -271,7 +271,7 @@ Suggested v0 data model:
 Status handoff:
 
 - after the deployment transaction is confirmed and the DAO attachment is verified, `deployment_status = deployed` should transition into `governance_verification_state = verified` on the shared backend record
-- failed deployment leaves the guild attachment unverified and should not create a half-attached backend
+- failed deployment leaves the club attachment unverified and should not create a half-attached backend
 
 ## Prediction Dependencies
 
@@ -301,11 +301,11 @@ Interpretation:
 
 - `governance_contract_address` is the DAO address
 - `shares_address`, `loot_address`, `badges_address`, and `renderer_address` belong in `governance_metadata`
-- these addresses are part of the backend metadata rather than separate guild identity
+- these addresses are part of the backend metadata rather than separate club identity
 
 ## Treasury Interpretation
 
-For a Majeur-backed guild:
+For a Majeur-backed club:
 
 - the DAO contract is normally the constitutional treasury authority
 - Pirate should treat treasury balances as read models
@@ -324,7 +324,7 @@ Pirate should still manage operational roles such as:
 
 - moderator
 - community admin
-- guild agent operator
+- club agent operator
 
 Recommended rule:
 

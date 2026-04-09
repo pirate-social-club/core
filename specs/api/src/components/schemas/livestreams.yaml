@@ -139,7 +139,7 @@ LiveRoom:
   type: object
   required:
     - live_room_id
-    - guild_id
+    - club_id
     - anchor_post_id
     - host_user_id
     - title
@@ -154,7 +154,7 @@ LiveRoom:
   properties:
     live_room_id:
       type: string
-    guild_id:
+    club_id:
       type: string
     anchor_post_id:
       type: string

@@ -1,6 +1,6 @@
-GuildId:
+ClubId:
   in: path
-  name: guild_id
+  name: club_id
   required: true
   schema:
     type: string

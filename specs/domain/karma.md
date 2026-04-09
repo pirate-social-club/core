@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [handles.md](./handles.md)
 - [user.md](./user.md)
 - [profile.md](./profile.md)
@@ -19,7 +19,7 @@ This doc defines Pirate's native reputation and trust model.
 It covers:
 
 - the three-layer reputation architecture
-- guild-local karma as the primary signal
+- club-local karma as the primary signal
 - global reputation as a safety and trust floor
 - how karma events are recorded and aggregated
 - trust tiers and their relationship to handle eligibility
@@ -42,7 +42,7 @@ Pirate karma is earned, not imported.
 
 Three principles follow:
 
-1. Guild-local activity matters most.
+1. Club-local activity matters most.
 2. Global platform trust is a safety signal, not a karma sum.
 3. Imported trust from external platforms is a bootstrap signal that fades in influence over time.
 
@@ -52,21 +52,21 @@ Karma should affect eligibility first, pricing later, and feed ranking never in 
 
 Pirate distinguishes three reputation layers.
 
-### Guild Karma
+### Club Karma
 
-- scoped to one `guild_id`
+- scoped to one `club_id`
 - primary native reputation signal
-- used for handle eligibility, posting trust, and moderation thresholds within that guild
+- used for handle eligibility, posting trust, and moderation thresholds within that club
 - accumulates through verified participation
-- moderated by guild moderators
+- moderated by club moderators
 
 ### Global Reputation
 
-- scoped to the platform, not to any guild
+- scoped to the platform, not to any club
 - weak platform-wide safety and trust signal
 - useful for spam resistance and baseline account quality
-- not the sum of guild karmas
-- should not dominate guild identity
+- not the sum of club karmas
+- should not dominate club identity
 
 ### External Trust Snapshot
 
@@ -78,7 +78,7 @@ Pirate distinguishes three reputation layers.
 
 Directional weighting:
 
-- guild karma matters most for local decisions
+- club karma matters most for local decisions
 - global reputation helps with spam resistance and baseline trust
 - external trust provides initial eligibility boost but fades in influence over time
 
@@ -120,7 +120,7 @@ Karma anti-Sybil is enforced through multiple layers:
 - rate limits on voting, posting, and handle availability probes
 - account age and activity minimums for trust-sensitive actions
 - moderation adjustments and penalties
-- scrobble karma caps per user per guild per day
+- scrobble karma caps per user per club per day
 - append-only event logs that prevent retroactive tampering
 
 ## Data Model
@@ -137,7 +137,7 @@ Suggested v0 shape:
 
 - `reputation_event_id`
 - `user_id`
-- `guild_id` nullable
+- `club_id` nullable
 - `event_type`
 - `source_ref` nullable
 - `delta`
@@ -160,21 +160,21 @@ Suggested `event_type` values:
 
 Suggested meanings:
 
-- `guild_id` is `null` for global reputation events
+- `club_id` is `null` for global reputation events
 - `source_ref` points to the originating entity such as a post ID, comment ID, or moderation action ID
 - `delta` is an integer representing the raw karma change
 - `delta` may be `0` for binary events like tier promotions that carry no score change
 - events are immutable once written
 - corrections are new events, not updates
 
-### Guild Reputation Aggregate
+### Club Reputation Aggregate
 
-Per-guild aggregates store the derived state.
+Per-club aggregates store the derived state.
 
 Suggested v0 shape:
 
 - `user_id`
-- `guild_id`
+- `club_id`
 - `post_karma`
 - `comment_karma`
 - `question_karma`
@@ -195,38 +195,38 @@ Suggested `trust_tier` values:
 Suggested meanings:
 
 - `post_karma`
-  Sum of upvotes received on the user's posts in this guild, minus downvotes.
+  Sum of upvotes received on the user's posts in this club, minus downvotes.
 - `comment_karma`
-  Sum of upvotes received on the user's comments in this guild, minus downvotes.
+  Sum of upvotes received on the user's comments in this club, minus downvotes.
 - `question_karma`
-  Sum of rewardable correct-answer karma granted from guild questions in this guild.
+  Sum of rewardable correct-answer karma granted from club questions in this club.
 - `scrobble_karma`
-  Sum of scrobble-derived karma in this guild, subject to daily caps.
+  Sum of scrobble-derived karma in this club, subject to daily caps.
 - `moderation_adjustment`
   Sum of all moderator adjustments, both positive and negative.
 - `raw_karma`
-  Sum of all guild-scoped event deltas before moderation adjustments.
+  Sum of all club-scoped event deltas before moderation adjustments.
   This is `post_karma + comment_karma + question_karma + scrobble_karma`.
 - `effective_karma`
   The trust-relevant karma after moderation adjustments.
   This is `raw_karma + moderation_adjustment`.
   Trust tiers and eligibility are derived from `effective_karma`, not `raw_karma`.
 - `trust_tier`
-  Derived from `effective_karma` against platform-defined thresholds for the guild.
+  Derived from `effective_karma` against platform-defined thresholds for the club.
 
 Uniqueness:
 
-- unique on `(user_id, guild_id)`
+- unique on `(user_id, club_id)`
 
 ### Global Reputation Aggregate
 
-Platform-level reputation is separate from guild karma.
+Platform-level reputation is separate from club karma.
 
 Suggested v0 shape:
 
 - `user_id`
 - `account_age_days_at_last_update`
-- `guilds_active`
+- `clubs_active`
 - `has_been_site_banned`
 - `safety_score`
 - `platform_reputation`
@@ -236,13 +236,13 @@ Suggested meanings:
 
 - `account_age_days_at_last_update`
   Age of the account in days at the time of the last global reputation recalculation.
-- `guilds_active`
-  Number of guilds where the user has `effective_karma` above a minimum threshold.
+- `clubs_active`
+  Number of clubs where the user has `effective_karma` above a minimum threshold.
 - `has_been_site_banned`
   Whether the user has ever received a site-level ban.
 - `safety_score`
   An internal signal reflecting platform-level trust. Not directly visible to users.
-  Derived from verification status, account age, ban history, and cross-guild behavior.
+  Derived from verification status, account age, ban history, and cross-club behavior.
 - `platform_reputation`
   A low-resolution tier or score used for spam resistance and baseline trust.
 
@@ -251,7 +251,7 @@ Suggested meanings:
   - `normal`
   - `trusted`
 
-This is not the sum of guild karmas.
+This is not the sum of club karmas.
 
 `platform_reputation` is a safety floor, not a karma total.
 
@@ -259,13 +259,13 @@ This is not the sum of guild karmas.
 
 ### Good V0 Inputs
 
-The following are reasonable karma sources because they reflect recognized guild contribution and are moderately resistant to farming:
+The following are reasonable karma sources because they reflect recognized club contribution and are moderately resistant to farming:
 
-- post upvotes received within a guild
-- comment upvotes received within a guild
+- post upvotes received within a club
+- comment upvotes received within a club
 - posts and comments remaining visible and non-removed over time, represented by the upvote and downvote event totals rather than a separate event type
-- correct answers to rewardable guild questions
-- scrobble-derived karma for music guilds
+- correct answers to rewardable club questions
+- scrobble-derived karma for music clubs
 - moderator grants and penalties
 
 ### Inputs To Treat Carefully
@@ -276,7 +276,7 @@ The following signals are easy to game and should not meaningfully contribute to
 - raw comment volume
 - purchases or spending
 - follows received
-- guild joins
+- club joins
 
 These may be visible signals but should not produce karma events.
 
@@ -300,7 +300,7 @@ Recommended v0 rules:
 
 - scrobble karma is a low-weight positive signal
 - only scrobbles that pass minimum listening validity rules contribute
-- scrobble karma is capped per `(user_id, guild_id)` per day
+- scrobble karma is capped per `(user_id, club_id)` per day
 - the daily cap prevents passive-listening farms from inflating handle eligibility
 - scrobble karma is useful for fan status, top-listener recognition, and music-native participation
 - scrobble karma alone should not be enough to dominate handle allocation
@@ -318,11 +318,11 @@ They exist because product policy is easier to express with tiers than raw numer
 Suggested v0 tier values:
 
 - `new`
-  Account exists but has not accumulated meaningful guild karma.
+  Account exists but has not accumulated meaningful club karma.
 - `established`
   The user has demonstrated consistent positive participation.
 - `trusted`
-  The user has substantial guild reputation.
+  The user has substantial club reputation.
 - `high_trust`
   The user has exceptional reputation and possibly moderation standing.
 
@@ -332,8 +332,8 @@ Rules:
 
 - tiers are derived from `effective_karma` thresholds, not raw score comparisons
 - the platform defines minimum thresholds for each tier
-- guilds may use stricter thresholds but not looser ones
-- a guild may not define `trusted` as requiring less karma than the platform minimum for `trusted`
+- clubs may use stricter thresholds but not looser ones
+- a club may not define `trusted` as requiring less karma than the platform minimum for `trusted`
 - the platform may adjust tier thresholds over time, but never retroactively demote a user without a moderation action
 - `trust_tier` is stored on the aggregate row for read performance, but its authority comes from the event log
 
@@ -347,14 +347,14 @@ When a user's `effective_karma` crosses a tier threshold:
 
 ## Relationship To Handle Eligibility
 
-Guild karma and trust tiers are the primary inputs for guild-local handle eligibility.
+Club karma and trust tiers are the primary inputs for club-local handle eligibility.
 
 Directional v0 mapping:
 
 - `8+` character handles
-  Claimable by `established` or higher in the guild, or any verified member if the namespace policy allows open claims at that length
+  Claimable by `established` or higher in the club, or any verified member if the namespace policy allows open claims at that length
 - `7` character handles
-  Claimable only by `trusted` or `high_trust` users in that guild
+  Claimable only by `trusted` or `high_trust` users in that club
 - `6` character handles
   Claimable only by `high_trust` users, or via manual approval
 - `1-5` character handles
@@ -364,7 +364,7 @@ These are directional guidelines.
 
 The authoritative policy lives in the namespace handle policy record defined in [handles.md](./handles.md).
 
-Global `.pirate` handles use the tier policy defined in [profile.md](./profile.md), not guild karma.
+Global `.pirate` handles use the tier policy defined in [profile.md](./profile.md), not club karma.
 
 External trust snapshots may contribute to early eligibility as a bootstrap signal but must not override native karma-based tier requirements.
 
@@ -420,21 +420,21 @@ For karma-specific rules:
 - external trust may appear on the user's profile as contextual information but must not be displayed as native Pirate karma
 - the influence of external trust on eligibility should decrease over time as native karma accumulates
 
-## Relationship To Guild
+## Relationship To Club
 
-Guild karma is scoped to a single `guild_id`.
+Club karma is scoped to a single `club_id`.
 
 Rules:
 
-- karma earned in one guild does not transfer to another
-- a user may be `trusted` in one guild and `new` in another
-- guild owners and moderators are responsible for moderation adjustments within their guild
+- karma earned in one club does not transfer to another
+- a user may be `trusted` in one club and `new` in another
+- club owners and moderators are responsible for moderation adjustments within their club
 - platform admins retain override authority for site-wide violations
-- guild-question rewards are part of guild karma, not a separate product score
+- club-question rewards are part of club karma, not a separate product score
 
-Default karma policy should be created at guild creation time alongside the namespace handle policy.
+Default karma policy should be created at club creation time alongside the namespace handle policy.
 
-See [guild.md](./guild.md) for the Create Guild Flow.
+See [club.md](./club.md) for the Create Club Flow.
 
 ## On-chain vs Off-chain
 
@@ -452,6 +452,6 @@ Recommended v0 split:
 - Should downvotes subtract from karma, or only neutralize an upvote?
 - Should karma decay over time if a user becomes inactive?
 - What is the minimum activity threshold before a new user's votes start producing karma events for others?
-- Should scrobble karma be capped at a fixed daily amount, or should the cap vary by guild size?
-- How should karma handle guild merges or namespace mirrors where the same user may have karma in sibling namespaces?
+- Should scrobble karma be capped at a fixed daily amount, or should the cap vary by club size?
+- How should karma handle club merges or namespace mirrors where the same user may have karma in sibling namespaces?
 - What audit trail is required for admin karma overrides, and who can review it?

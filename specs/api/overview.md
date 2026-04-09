@@ -8,7 +8,7 @@ Related docs:
 - [../domain/user.md](../domain/user.md)
 - [../domain/profile.md](../domain/profile.md)
 - [../domain/onboarding.md](../domain/onboarding.md)
-- [../domain/guild.md](../domain/guild.md)
+- [../domain/club.md](../domain/club.md)
 - [../domain/artist-catalog.md](../domain/artist-catalog.md)
 - [../domain/namespace.md](../domain/namespace.md)
 - [../domain/handles.md](../domain/handles.md)
@@ -60,7 +60,7 @@ Pirate's API should separate:
 - denormalized read surfaces
 
 The write model should stay close to the domain objects.
-The read model should optimize for product surfaces such as feeds, profiles, and guild pages.
+The read model should optimize for product surfaces such as feeds, profiles, and club pages.
 
 ## API Families
 
@@ -71,7 +71,7 @@ Recommended v0 resource families:
 - `onboarding`
 - `users`
 - `profiles`
-- `guilds`
+- `clubs`
 - `namespaces`
 - `handles`
 - `posts`
@@ -91,17 +91,17 @@ Interpretation:
 - `verification`
   Provider-driven verification session flows.
 - `onboarding`
-  Generated `.pirate` handle, Reddit bootstrap, interest seeding, first-guild suggestions, and onboarding status.
+  Generated `.pirate` handle, Reddit bootstrap, interest seeding, first-club suggestions, and onboarding status.
 - `users`
   Canonical user object and account attachments.
 - `profiles`
   Public/editable profile surface, including the active global `.pirate` identity.
-- `guilds`
-  Guild creation, settings, membership, gates, moderation roles, payout-policy selection, and creation-time community bootstrap such as flair, rules, and resource links.
+- `clubs`
+  Club creation, settings, membership, gates, moderation roles, payout-policy selection, and creation-time community bootstrap such as flair, rules, and resource links.
 - `namespaces`
   Root attachment state, mirrors, delegation state, and namespace-level policy surfaces.
 - `handles`
-  Guild-handle search, eligibility, claim, renew, revoke, and availability flows.
+  Club-handle search, eligibility, claim, renew, revoke, and availability flows.
 - `posts`
   Social write model for root posts, replies, nested votes and reactions, and moderation state.
 - `livestreams`
@@ -109,7 +109,7 @@ Interpretation:
 - `assets`
   Upload-backed rights-bearing objects, analysis, Story publication, access mode, and derivative lineage.
 - `feeds`
-  Read-only or read-mostly discovery and guild feed surfaces.
+  Read-only or read-mostly discovery and club feed surfaces.
 - `marketplace`
   Listings, quote generation, purchase initiation, entitlement reads, and purchase history.
 - `tracks`
@@ -124,19 +124,19 @@ Interpretation:
 Important nested surfaces:
 
 - votes and reactions are nested under `posts` in v0
-- moderation is nested under `guilds` and `posts`
-- membership is nested under `guilds`
-- payout policy is nested under `guilds`
-- gate rules are nested under `guilds`
-- questions are nested under `guilds` and `posts`
+- moderation is nested under `clubs` and `posts`
+- membership is nested under `clubs`
+- payout policy is nested under `clubs`
+- gate rules are nested under `clubs`
+- questions are nested under `clubs` and `posts`
 - karaoke remains nested under `assets` and song-post read models rather than becoming a top-level API family
 - royalty-graph reads are nested under `assets`
-- global `.pirate` handle lifecycle belongs under `profiles` or `users`, not guild `handles`
+- global `.pirate` handle lifecycle belongs under `profiles` or `users`, not club `handles`
 
 Important control-plane boundary:
 
 - web/app is the authoritative room-authoring surface in v0
-- desktop/native host clients should attach to existing rooms rather than becoming the canonical creator of guild, post, listing, or donation state
+- desktop/native host clients should attach to existing rooms rather than becoming the canonical creator of club, post, listing, or donation state
 - room creation is a control-plane operation; host-attach and guest-attach are performance-plane operations
 - broadcast credentials are issued at host-attach time, not at room creation time
 
@@ -154,9 +154,9 @@ The API should use opaque canonical IDs, not route-derived labels or wallet addr
 Examples:
 
 - `user_id`
-- `guild_id`
+- `club_id`
 - `namespace_id`
-- `guild_handle_id`
+- `club_handle_id`
 - `post_id`
 - `live_room_id`
 - `question_id`
@@ -171,7 +171,7 @@ Sensitive actions should be checked when the action happens, not only when the p
 
 This includes:
 
-- guild gate checks
+- club gate checks
 - handle eligibility
 - vote eligibility
 - `18+` access checks
@@ -189,7 +189,7 @@ Recommended v0 stance:
 
 ### Read Models Are Allowed
 
-Feeds, public profiles, guild pages, and asset detail pages may use denormalized read models.
+Feeds, public profiles, club pages, and asset detail pages may use denormalized read models.
 
 The existence of those read models does not change the canonical domain object ownership defined in the domain specs.
 
@@ -201,7 +201,7 @@ The write model is the authoritative application state.
 
 Examples:
 
-- create guild
+- create club
 - attach namespace
 - claim handle
 - create post
@@ -219,9 +219,9 @@ The read model is optimized for UI surfaces.
 Examples:
 
 - `Home`
-- `Your Guilds`
+- `Your Clubs`
 - public profile pages
-- guild landing pages
+- club landing pages
 - handle availability/search results
 - asset detail pages
 - live room detail pages
@@ -334,31 +334,31 @@ Recommended API shape:
 3. optionally rename global handle
 4. optionally verify Reddit
 5. optionally trigger Reddit snapshot import job
-6. optionally join suggested guilds
+6. optionally join suggested clubs
 
 Recommended v0 implementation posture:
 
 - auth bootstrap and onboarding do not need a dedicated onboarding-session resource
 - a normal authenticated app session plus onboarding status is sufficient in v0
 
-### Guild Creation
+### Club Creation
 
 Recommended API shape:
 
-1. create guild request
+1. create club request
 2. prove root ownership
 3. choose namespace handle policy template or custom policy
-4. create guild, namespace, handle policy, and default karma policy together
+4. create club, namespace, handle policy, and default karma policy together
 5. optionally include initial community bootstrap such as flair definitions, rules, and resource links
-6. optionally enqueue artist metadata enrichment when the guild is artist-linked
+6. optionally enqueue artist metadata enrichment when the club is artist-linked
 7. optionally attach delegation or governance later
 
 Recommended v0 stance:
 
-- use one final `POST /guilds` write once prerequisites are satisfied
+- use one final `POST /clubs` write once prerequisites are satisfied
 - root-proof and validation steps may happen before that final write
-- v0 does not need a separate guild-creation session resource
-- community bootstrap belongs in that same final guild-creation write so the guild launches with usable defaults rather than an empty shell
+- v0 does not need a separate club-creation session resource
+- community bootstrap belongs in that same final club-creation write so the club launches with usable defaults rather than an empty shell
 
 ### Handle Claim
 
@@ -382,16 +382,16 @@ Global `.pirate` handle changes follow a different surface:
 
 Recommended API shape:
 
-1. inspect current daily question state for the guild
-2. publish or schedule a guild-agent question when enabled
+1. inspect current daily question state for the club
+2. publish or schedule a club-agent question when enabled
 3. submit one answer per user
 4. reveal or close the question
 5. emit any resulting karma event asynchronously
 
 Recommended v0 stance:
 
-- questions stay nested under guild or post surfaces rather than becoming a top-level API family
-- the guild agent is an app-level actor referenced by the guild record
+- questions stay nested under club or post surfaces rather than becoming a top-level API family
+- the club agent is an app-level actor referenced by the club record
 - answer submission and reward state should be inspectable without creating a separate study-product API
 
 ### Livestream Creation And Room Lifecycle
@@ -537,7 +537,7 @@ The API should make enforcement points explicit.
 - CAPTCHA must not be required for normal verified-user voting in v0
 - votes and reactions should be nested under `posts` in v0 rather than exposed as top-level API families
 
-### Guild Gates
+### Club Gates
 
 - membership gates apply at join time
 - viewer gates apply at read time for gated surfaces
@@ -555,8 +555,8 @@ The API should make enforcement points explicit.
 
 ### Moderation And Membership
 
-- moderation write surfaces should stay nested under the relevant guild or post
-- membership actions such as join or leave should stay nested under the relevant guild
+- moderation write surfaces should stay nested under the relevant club or post
+- membership actions such as join or leave should stay nested under the relevant club
 
 ## Error Model
 

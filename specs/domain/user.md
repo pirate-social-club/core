@@ -5,7 +5,7 @@ Status: draft
 Related docs:
 
 - [attestations.md](./attestations.md)
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [handles.md](./handles.md)
 - [profile.md](./profile.md)
 - [follow.md](./follow.md)
@@ -28,7 +28,7 @@ It covers:
 - provider-backed attestation inventory
 - age and jurisdiction handling
 - external trust imports such as Reddit
-- profile identity versus guild-local identity
+- profile identity versus club-local identity
 
 ## Non-goals
 
@@ -45,7 +45,7 @@ Pirate uses an opaque internal `user_id` as the canonical user identity from day
 
 Wallets are attachments.
 Privy identities are attachments.
-Guild-local handles are projections.
+Club-local handles are projections.
 
 This avoids carrying forward the old address-first model where too much behavior is keyed directly by wallet address.
 
@@ -94,7 +94,7 @@ Suggested meanings:
 
 Notes:
 
-- `user_id` is the stable domain identity used by guilds, posts, handles, and monetization
+- `user_id` is the stable domain identity used by clubs, posts, handles, and monetization
 - public profile fields such as `display_name`, `avatar_ref`, `bio`, and `global_handle` live in [profile.md](./profile.md)
 - `primary_wallet_attachment_id` is a convenience pointer only; it does not replace the wallet attachment history
 - `verification_state` is a derived convenience summary, not the source of truth
@@ -106,7 +106,7 @@ Notes:
 - some sensitive verified-identity fields such as `date_of_birth`, `age_at_verification`, `identity_nullifier_hash`, and `verification_session_id` may remain server-side in v0 even when they exist on the canonical user model; public API schemas may expose only the derived or lower-sensitivity subset they need
 - `verification_session_id` points to the session that produced the current accepted verified identity
 - `age_at_verification` is intentionally stored in v0 to preserve the exact age that was proven at verification time, even though current age can later be recomputed from `date_of_birth`
-- `identity_nullifier_hash` is for uniqueness enforcement only; it must never be used as the seed for anonymous label derivation — see [guild.md](./guild.md) under Anonymous Subject Derivation
+- `identity_nullifier_hash` is for uniqueness enforcement only; it must never be used as the seed for anonymous label derivation — see [club.md](./club.md) under Anonymous Subject Derivation
 - `identity_nullifier_hash` is currently produced only by the `self` provider; if other providers later offer equivalent uniqueness primitives, the nullifier model must be extended at that time
 
 ### Verification Capabilities
@@ -124,7 +124,7 @@ Pirate uses a provider-agnostic verification layer. Supported v0 providers:
 
 A provider may offer one or more capabilities. A capability is satisfied when the user has a current accepted verification from a provider that offers it.
 
-Gate evaluation should match on capabilities, not on providers. See [guild.md](./guild.md) under Guild Gates.
+Gate evaluation should match on capabilities, not on providers. See [club.md](./club.md) under Club Gates.
 
 Qualifier note:
 
@@ -147,7 +147,7 @@ Core layers:
   - example: `unique_human`, `age_over_18`, `nationality`, `wallet_score`
 - policy requirements
   - action-specific proof requirements
-  - example: "root-attached guild creation requires `unique_human` from `self` or `very`"
+  - example: "root-attached club creation requires `unique_human` from `self` or `very`"
 
 Suggested v0 proof types:
 
@@ -184,7 +184,7 @@ Suggested v0 provider mechanisms:
 
 Recommended v0 product posture:
 
-- root-attached guild creation should require `unique_human` from biometric/nullifier providers such as `self` or `very`
+- root-attached club creation should require `unique_human` from biometric/nullifier providers such as `self` or `very`
 - voting eligibility should require `unique_human` from biometric/nullifier providers such as `self` or `very`
 - anonymous posting eligibility should require `unique_human` from biometric/nullifier providers such as `self` or `very`
 - wallet-score systems such as Human Passport should be available for softer anti-Sybil and community-entry gates, not as the sole proof for high-trust actions
@@ -256,9 +256,9 @@ Coarse `verification_state` derivation:
 
 If a user's verification becomes stale or is revoked, some capabilities may degrade independently. For example:
 
-- loss of fresh re-verification should not immediately deanonymize existing anonymous posts; see [guild.md](./guild.md) under Anonymous Lifecycle Rules
+- loss of fresh re-verification should not immediately deanonymize existing anonymous posts; see [club.md](./club.md) under Anonymous Lifecycle Rules
 - loss of nationality proof should not revoke posting ability if posting does not require nationality
-- loss of age proof should not revoke posting ability in non-age-gated guilds
+- loss of age proof should not revoke posting ability in non-age-gated clubs
 
 ## Wallet Attachments
 
@@ -290,7 +290,7 @@ Rules:
 - a user may attach multiple wallets over time
 - at most one active wallet attachment should be marked `is_primary = true` in v0
 - wallets may be disconnected or rotated without changing `user_id`
-- posts, guilds, and handles must reference `user_id`, not raw wallet addresses
+- posts, clubs, and handles must reference `user_id`, not raw wallet addresses
 - active wallet attachments must be unique on `(user_id, chain_namespace, wallet_address)`
 - an active wallet address may belong to only one user at a time in v0
 - if wallet ownership is ever transferred between users, the old attachment must be revoked before a new active attachment is created
@@ -440,9 +440,9 @@ Rules:
 - imported trust must not become native Pirate karma
 - imported trust must not produce karma events; see [karma.md](./karma.md)
 
-## Profile Identity vs Guild-Local Identity
+## Profile Identity vs Club-Local Identity
 
-Pirate has both global user identity and guild-local identity.
+Pirate has both global user identity and club-local identity.
 
 Global identity:
 
@@ -453,27 +453,27 @@ Global identity:
 - wallet attachments
 - verification state and capabilities
 
-Guild-local identity:
+Club-local identity:
 
 - handles such as `name.kanye`
-- moderation and reputation inside a specific guild
-- guild-scoped visibility and social context
+- moderation and reputation inside a specific club
+- club-scoped visibility and social context
 
 See [handles.md](./handles.md).
 
 Rules:
 
-- a user may exist without any guild-local handle
-- a user may have different handles in different guilds
-- guild-local handles do not replace the canonical `user_id`
-- guild karma is separate from global reputation; see [karma.md](./karma.md)
+- a user may exist without any club-local handle
+- a user may have different handles in different clubs
+- club-local handles do not replace the canonical `user_id`
+- club karma is separate from global reputation; see [karma.md](./karma.md)
 
-## Relationship To Posts And Guilds
+## Relationship To Posts And Clubs
 
 Rules:
 
 - posts store `author_user_id`
-- guilds store `created_by_user_id`
+- clubs store `created_by_user_id`
 - moderation, monetization, and handles should all anchor on `user_id`
 - wallet address should be treated as an execution/auth detail, not the durable domain identity
 

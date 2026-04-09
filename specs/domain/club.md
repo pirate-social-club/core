@@ -1,4 +1,4 @@
-# Guild
+# Club
 
 Status: draft
 
@@ -25,17 +25,17 @@ Related docs:
 
 ## Purpose
 
-A `guild` is the canonical social container for:
+A `club` is the canonical social container for:
 
 - posting
 - moderation
 - membership
 - ranking
-- karma within that guild
+- karma within that club
 - livestream and karaoke eligibility
 - governance attachment
 
-A guild is not:
+A club is not:
 
 - a route
 - a TLD
@@ -51,24 +51,24 @@ This doc does not define:
 - the full asset / royalty graph model
 - full namespace / routing semantics
 - full governance contract details
-- external reputation import mechanics beyond how they relate to guilds
+- external reputation import mechanics beyond how they relate to clubs
 
 ## Canonical IDs
 
-Guilds use opaque app-issued IDs, not sequential public integers and not route-derived IDs.
+Clubs use opaque app-issued IDs, not sequential public integers and not route-derived IDs.
 
 Examples:
 
-- `guild_id = gld_01...`
+- `club_id = gld_01...`
 - `artist_identity_id = art_01...`
 
 The API and specs should use opaque IDs only. Hidden numeric DB keys are allowed as implementation detail but are not canonical product IDs.
 
 ## Core State
 
-V0 fields for `guilds`:
+V0 fields for `clubs`:
 
-- `guild_id`
+- `club_id`
 - `display_name`
 - `description`
 - `status`
@@ -76,7 +76,7 @@ V0 fields for `guilds`:
 - `artist_governance_state`
 - `membership_mode`
 - `default_age_gate_policy`
-- `guild_agent_user_id` nullable
+- `club_agent_user_id` nullable
 - `donation_partner_id` nullable
 - `donation_policy_mode`
 - `donation_partner_status`
@@ -89,31 +89,31 @@ V0 fields for `guilds`:
 ### Notes
 
 - `artist_identity_id` is an optional internal pointer to a canonical artist record.
-- A generic guild can have `artist_identity_id = null`.
-- The raw MusicBrainz MBID lives on the artist identity record, not directly on the guild row.
-- `guild_agent_user_id` points to the app-level system actor allowed to publish guild-agent content such as daily questions in v0.
-- `donation_partner_id` points to the guild's approved donation beneficiary when donation sidecars are enabled.
-- `donation_partner_status` describes whether the guild's attachment to that partner is currently usable for new donation-enabled listings.
-- Namespace rows point to guilds. See [namespace.md](./namespace.md) for the canonical namespace model.
+- A generic club can have `artist_identity_id = null`.
+- The raw MusicBrainz MBID lives on the artist identity record, not directly on the club row.
+- `club_agent_user_id` points to the app-level system actor allowed to publish club-agent content such as daily questions in v0.
+- `donation_partner_id` points to the club's approved donation beneficiary when donation sidecars are enabled.
+- `donation_partner_status` describes whether the club's attachment to that partner is currently usable for new donation-enabled listings.
+- Namespace rows point to clubs. See [namespace.md](./namespace.md) for the canonical namespace model.
 - `created_by_user_id` assumes Pirate has a stable internal `user_id`; linked wallets or external accounts are separate attachments.
 - `settings` is nullable in v0 and defaults to an empty object when omitted at creation time.
 
 ## Artist Linkage
 
-Some guilds are linked to a known artist. That linkage is optional.
+Some clubs are linked to a known artist. That linkage is optional.
 
 Rules:
 
-- `guild.artist_identity_id` points to `artist_identities.artist_identity_id`
+- `club.artist_identity_id` points to `artist_identities.artist_identity_id`
 - `musicbrainz_artist_mbid` is optional but first-class when known
-- a guild should not store MBID as its primary artist identifier
-- this leaves room for multiple external IDs later without changing guild identity
+- a club should not store MBID as its primary artist identifier
+- this leaves room for multiple external IDs later without changing club identity
 
 See [artist-identity.md](./artist-identity.md).
 
-## Why Guild Is Durable
+## Why Club Is Durable
 
-`guild_id` is the canonical product object because:
+`club_id` is the canonical product object because:
 
 - names can change
 - TLD bindings can change
@@ -121,13 +121,13 @@ See [artist-identity.md](./artist-identity.md).
 - artist governance participation can change
 - route structures can change
 
-If posts and membership attach directly to a route, TLD, or DAO address, those upgrades become migrations. Attaching them to `guild_id` keeps the social object stable while names and governance evolve.
+If posts and membership attach directly to a route, TLD, or DAO address, those upgrades become migrations. Attaching them to `club_id` keeps the social object stable while names and governance evolve.
 
 This does not imply Cloudflare Durable Objects. It means a durable application identity.
 
 ## State Machine
 
-### Guild Lifecycle
+### Club Lifecycle
 
 - `draft`
 - `active`
@@ -152,11 +152,11 @@ Meanings:
 
 Meanings:
 
-- `fan_run`: guild is about an artist, but the artist is not verified as participating in governance
+- `fan_run`: club is about an artist, but the artist is not verified as participating in governance
 - `claim_pending`: a claim exists that the artist or authorized org should participate in governance, but it is unresolved
-- `artist_governed`: the artist is verified and actually participates in guild governance
-- `org_governed`: a verified organization acting on behalf of the artist participates in guild governance
-- non-artist guilds default to `artist_governance_state = fan_run` in v0
+- `artist_governed`: the artist is verified and actually participates in club governance
+- `org_governed`: a verified organization acting on behalf of the artist participates in club governance
+- non-artist clubs default to `artist_governance_state = fan_run` in v0
 
 ### Governance Mode
 
@@ -182,9 +182,9 @@ See [governance-backends.md](./governance-backends.md) for the shared attachment
 
 Recommended meanings:
 
-- `none`: the guild has no active charitable donation policy
-- `optional_creator_sidecar`: monetized creator content may opt to donate some creator-side proceeds to the guild's configured donation partner
-- `fundraiser_default`: later fundraiser-first flows may use the guild donation configuration as a primary default
+- `none`: the club has no active charitable donation policy
+- `optional_creator_sidecar`: monetized creator content may opt to donate some creator-side proceeds to the club's configured donation partner
+- `fundraiser_default`: later fundraiser-first flows may use the club donation configuration as a primary default
 
 See [donations.md](./donations.md).
 
@@ -209,7 +209,7 @@ Recommended meanings:
 
 ### Membership State Read Model
 
-Guild read models should expose the viewer's membership relationship to the guild.
+Club read models should expose the viewer's membership relationship to the club.
 
 Suggested v0 `membership_state` values:
 
@@ -220,18 +220,18 @@ Suggested v0 `membership_state` values:
 
 Rules:
 
-- `membership_state` is a read-model field, not necessarily a canonical guild-row field
-- `membership_state = pending_request` means the viewer has an active unresolved membership request for the guild
-- guild reads should not force clients to infer pending-request state only from the last `join` mutation result
+- `membership_state` is a read-model field, not necessarily a canonical club-row field
+- `membership_state = pending_request` means the viewer has an active unresolved membership request for the club
+- club reads should not force clients to infer pending-request state only from the last `join` mutation result
 
 ### Membership Requests
 
-`request` guilds need an explicit admission workflow object.
+`request` clubs need an explicit admission workflow object.
 
-Suggested v0 `guild_membership_requests` fields:
+Suggested v0 `club_membership_requests` fields:
 
 - `membership_request_id`
-- `guild_id`
+- `club_id`
 - `applicant_user_id`
 - `status`
 - `note` nullable
@@ -252,17 +252,17 @@ Suggested `status` values:
 
 Rules:
 
-- only `membership_mode = request` guilds create membership requests
-- at most one active `pending` membership request may exist per `(guild_id, applicant_user_id)` at a time
-- approving a request creates or activates guild membership and resolves the request to `approved`
+- only `membership_mode = request` clubs create membership requests
+- at most one active `pending` membership request may exist per `(club_id, applicant_user_id)` at a time
+- approving a request creates or activates club membership and resolves the request to `approved`
 - rejecting a request does not create membership
 - `review_reason` is required when rejecting a membership request
 - `review_reason` is optional when approving a membership request
 - applicant cancellation resolves the request to `canceled`
 - automatic timeout resolves the request to `expired`
-- the default request-expiry window should be 30 days unless guild policy later overrides it
+- the default request-expiry window should be 30 days unless club policy later overrides it
 - `/leave` applies only to active members; it must not be reused as a way to cancel a pending membership request
-- applicants need a dedicated self-service read surface such as `GET /guilds/{guild_id}/membership-requests/mine`
+- applicants need a dedicated self-service read surface such as `GET /clubs/{club_id}/membership-requests/mine`
 - auto-expired requests should remain visible in moderator and applicant history views with `status = expired`
 - auto-expiry should not generate moderator-facing notifications by default because it is low-signal operational noise
 
@@ -270,9 +270,9 @@ Rules:
 
 Recommended v0 flow:
 
-1. Viewer invokes the guild join action
+1. Viewer invokes the club join action
 2. If `membership_mode = open`, membership is created immediately
-3. If `membership_mode = request`, a `guild_membership_request` row is created with `status = pending`
+3. If `membership_mode = request`, a `club_membership_request` row is created with `status = pending`
 4. If `membership_mode = gated`, authoritative membership-scope gate rules are evaluated
 5. Moderators or admins review pending requests
 6. Approval creates membership and resolves the request
@@ -282,8 +282,8 @@ Rules:
 
 - the public join action should return enough information for clients to distinguish `joined` from `requested`
 - when the result is `requested`, the response should include `membership_request_id`
-- moderator review actions must target `membership_request_id`, not a loose `(guild_id, user_id)` pair
-- request-mode guilds may still enforce `viewer` and `posting` gates independently of the admission workflow
+- moderator review actions must target `membership_request_id`, not a loose `(club_id, user_id)` pair
+- request-mode clubs may still enforce `viewer` and `posting` gates independently of the admission workflow
 
 ### Admission Notification Hooks
 
@@ -301,9 +301,9 @@ Rules:
 - these notifications are derived from the membership-request source-of-truth object
 - admission notifications must use `membership_request_id` as the target entity reference
 
-## Guild Gates
+## Club Gates
 
-Guild gates are a guild feature and should be modeled on the guild, not in a separate spec.
+Club gates are a club feature and should be modeled on the club, not in a separate spec.
 
 Gates may apply to three scopes:
 
@@ -314,7 +314,7 @@ Gates may apply to three scopes:
 Suggested v0 gate rule shape:
 
 - `gate_rule_id`
-- `guild_id`
+- `club_id`
 - `scope`
 - `gate_family`
 - `gate_type`
@@ -359,7 +359,7 @@ Rules:
 
 - if `membership_mode = open`, `membership`-scope gate rules have no effect
 - if `membership_mode = gated`, active `membership`-scope gate rules become authoritative
-- `request` guilds may still use `viewer` and `posting` gates even when membership itself is moderator-approved
+- `request` clubs may still use `viewer` and `posting` gates even when membership itself is moderator-approved
 - gate evaluation should happen at action time, not only at page load
 - page-load gate checks may be cached for UX only; authoritative checks happen on join, view, and post actions
 - token gates and identity-proof gates have different evaluation backends and should not be treated as interchangeable in implementation
@@ -388,9 +388,9 @@ Identity-proof gate config guidance:
 - nationality gates should compare against `verification_capabilities.nationality.value` from the accepted identity record, not user-entered profile text
 - gate evaluation checks `verification_capabilities` on the user row, not the raw provider session; the capability model is the provider-neutral interface
 
-### Adult Guilds
+### Adult Clubs
 
-Guilds may default to adult-only viewing.
+Clubs may default to adult-only viewing.
 
 Suggested v0 field:
 
@@ -400,15 +400,15 @@ Suggested v0 field:
 
 Rules:
 
-- if `default_age_gate_policy = 18_plus`, guild viewing requires an explicit `age_over_18` proof from an accepted provider such as `self`
-- creating a guild with `default_age_gate_policy = 18_plus` requires the acting creator to satisfy the same `age_over_18` proof requirement
-- updating an existing guild from `default_age_gate_policy = none` to `default_age_gate_policy = 18_plus` requires the acting owner/admin to satisfy the same `age_over_18` proof requirement
-- post-level or asset-level age gates may be stricter, but not looser, than the guild default
-- adult guilds should still use post and asset safety classification; the guild default is not a substitute for content scanning
+- if `default_age_gate_policy = 18_plus`, club viewing requires an explicit `age_over_18` proof from an accepted provider such as `self`
+- creating a club with `default_age_gate_policy = 18_plus` requires the acting creator to satisfy the same `age_over_18` proof requirement
+- updating an existing club from `default_age_gate_policy = none` to `default_age_gate_policy = 18_plus` requires the acting owner/admin to satisfy the same `age_over_18` proof requirement
+- post-level or asset-level age gates may be stricter, but not looser, than the club default
+- adult clubs should still use post and asset safety classification; the club default is not a substitute for content scanning
 
 ### Settings
 
-`settings` is a structured guild configuration object.
+`settings` is a structured club configuration object.
 
 V0 settings should stay structured and namespaced rather than becoming an untyped JSON dump.
 
@@ -423,12 +423,12 @@ Suggested v0 settings areas:
 
 #### Community Profile
 
-Guilds should have a lightweight community bootstrap surface similar to what users expect from subreddit setup.
+Clubs should have a lightweight community bootstrap surface similar to what users expect from subreddit setup.
 
 Purpose:
 
 - establish day-one community identity and norms
-- make the guild understandable to new members without requiring deep browsing
+- make the club understandable to new members without requiring deep browsing
 - seed the same practical affordances that tend to work on Reddit: rules, resource links, and optional flair lanes
 
 Suggested v0 settings shape:
@@ -470,21 +470,21 @@ Suggested meanings:
 
 Recommended defaults:
 
-- new guilds may start with empty `rules` and empty `resource_links`
-- Pirate may offer starter templates for common guild archetypes, but creators should be able to skip them
+- new clubs may start with empty `rules` and empty `resource_links`
+- Pirate may offer starter templates for common club archetypes, but creators should be able to skip them
 
 Rules:
 
-- community profile data is guild-authored presentation and onboarding metadata, not a substitute for enforcement logic stored elsewhere
+- community profile data is club-authored presentation and onboarding metadata, not a substitute for enforcement logic stored elsewhere
 - rules should be short, readable, and appropriate for sidebar, about-page, or join-surface rendering
 - resource links should point to stable, high-signal references such as FAQs, playlists, docs, discords, or external sites
 - archived rules and resource links may remain visible in audit or historical admin views but should not appear in normal public rendering
 - hard deletion may be deferred in v0; archive-first behavior is preferred for admin safety
-- community profile content should usually be defined during guild creation or first-run setup, but must remain editable later by authorized guild admins
+- community profile content should usually be defined during club creation or first-run setup, but must remain editable later by authorized club admins
 
 #### Flair Policy
 
-Guilds may define a constrained flair system for community-specific conversational lanes.
+Clubs may define a constrained flair system for community-specific conversational lanes.
 
 Suggested v0 settings shape:
 
@@ -524,25 +524,25 @@ Suggested meanings:
 
 Recommended defaults:
 
-- `flair_enabled = false` for generic new guilds in v0
+- `flair_enabled = false` for generic new clubs in v0
 - `require_flair_on_top_level_posts = false`
-- Pirate may offer starter flair packs for common guild archetypes such as music, hiking, or general discussion
+- Pirate may offer starter flair packs for common club archetypes such as music, hiking, or general discussion
 
 Rules:
 
 - `flair_enabled = false` and `require_flair_on_top_level_posts = true` is an invalid configuration; settings mutation must reject it, or authoritative reads must coerce `require_flair_on_top_level_posts` to `false`
-- flair definitions are guild-scoped and have no canonical meaning outside that guild
-- guilds should prefer a short, curated list rather than a long taxonomy
+- flair definitions are club-scoped and have no canonical meaning outside that club
+- clubs should prefer a short, curated list rather than a long taxonomy
 - `label` should be human-readable and short enough to render on feed cards and thread headers
-- `label` and `description` are guild-authored single-language strings in v0; Pirate does not provide built-in localization for flair definitions yet
+- `label` and `description` are club-authored single-language strings in v0; Pirate does not provide built-in localization for flair definitions yet
 - archived flair definitions may remain attached to historical posts but must not be assignable to new posts
 - hard deletion of flair definitions is not supported in v0; archival is the only supported removal path so historical posts never lose referential meaning
 - if `require_flair_on_top_level_posts = true`, replies should still default to no flair unless a later thread-specific policy says otherwise
 - `allowed_post_types` is optional in v0; if omitted, the flair may be used on any eligible top-level post
-- if `require_flair_on_top_level_posts = true`, the guild must always have at least one active flair definition
-- if `require_flair_on_top_level_posts = true`, the guild must always have at least one active flair definition applicable to each post type it allows members to publish
-- archiving the last active required flair, or the last active flair applicable to an allowed post type, must be blocked unless the guild first disables required flair or adds a replacement definition
-- guilds must not use flair definitions to duplicate structured product states already modeled elsewhere
+- if `require_flair_on_top_level_posts = true`, the club must always have at least one active flair definition
+- if `require_flair_on_top_level_posts = true`, the club must always have at least one active flair definition applicable to each post type it allows members to publish
+- archiving the last active required flair, or the last active flair applicable to an allowed post type, must be blocked unless the club first disables required flair or adds a replacement definition
+- clubs must not use flair definitions to duplicate structured product states already modeled elsewhere
 
 Recommended default music flair pack:
 
@@ -559,24 +559,24 @@ Recommended default music flair pack:
 
 #### Posting Policy
 
-`posting_policy` is the guild-local anti-spam and pacing layer.
+`posting_policy` is the club-local anti-spam and pacing layer.
 
 It should consume:
 
-- posting eligibility gates from [user.md](./user.md) and guild gate evaluation
+- posting eligibility gates from [user.md](./user.md) and club gate evaluation
 - `platform_reputation` from [karma.md](./karma.md) as a platform trust floor
-- guild-local `trust_tier` from [karma.md](./karma.md) as the main local trust signal
+- club-local `trust_tier` from [karma.md](./karma.md) as the main local trust signal
 
 It should not:
 
 - mint karma
 - change `platform_reputation`
-- allow trust earned in another guild to count as local guild trust
+- allow trust earned in another club to count as local club trust
 
 Suggested v0 fields:
 
 - `anonymous_identity_scope`
-  - `guild_stable`
+  - `club_stable`
   - `thread_stable`
   - `post_ephemeral`
 - `platform_reputation_floor`
@@ -647,7 +647,7 @@ Suggested v0 fields:
 
 Recommended defaults:
 
-- if anonymous posting is enabled, `anonymous_identity_scope = guild_stable`
+- if anonymous posting is enabled, `anonymous_identity_scope = club_stable`
 - `platform_reputation_floor = new`
 - `root_post_min_trust_tier = new`
 - `reply_min_trust_tier = new`
@@ -668,41 +668,41 @@ Recommended defaults:
 Rules:
 
 - `allow_anonymous_identity = false` means posts always render the author's normal public identity according to profile and handle rules
-- `allow_anonymous_identity = true` means the author may choose anonymous identity on eligible post types according to guild policy
-- anonymous posting hides identity from public users and guild moderators
+- `allow_anonymous_identity = true` means the author may choose anonymous identity on eligible post types according to club policy
+- anonymous posting hides identity from public users and club moderators
 - anonymous posting does not remove the canonical backend author link; posts still resolve to `author_user_id`
 - anonymous posts still use `anonymous_identity_scope` for label derivation and moderation continuity
-- `guild_stable` is the recommended moderation-safe mode because repeated behavior from the same hidden person remains recognizable inside that guild
+- `club_stable` is the recommended moderation-safe mode because repeated behavior from the same hidden person remains recognizable inside that club
 - `post_ephemeral` is allowed as a later experiment but is not recommended as the default because it weakens moderation continuity and abuse handling
 - `identity_nullifier_hash` from [user.md](./user.md) must never be used to derive anonymous labels; it exists for uniqueness enforcement only
-- the guild-level posting policy is evaluated only after the user has already satisfied the required posting gate checks
-- `platform_reputation_floor` is a coarse site-wide safety floor; a user below the floor may not publish in the guild even if they are otherwise verified
+- the club-level posting policy is evaluated only after the user has already satisfied the required posting gate checks
+- `platform_reputation_floor` is a coarse site-wide safety floor; a user below the floor may not publish in the club even if they are otherwise verified
 - `root_post_min_trust_tier` applies only to top-level feed posts where `parent_post_id = null`
 - `reply_min_trust_tier` applies only to replies where `parent_post_id` is non-null
 - `anonymous_posting_min_trust_tier` must never be lower than `root_post_min_trust_tier`; `established` is the recommended minimum for anonymous posting in v0
-- `probation_window_days` is scoped to the guild and should be interpreted from guild join time or first successful guild activity, according to implementation choice
-- a user who is high trust elsewhere is still probationary in a new guild until they satisfy that guild's local quota and karma progression
-- a user who is demoted or receives a guild strike re-enters probationary treatment even if their original join-time probation window has elapsed
+- `probation_window_days` is scoped to the club and should be interpreted from club join time or first successful club activity, according to implementation choice
+- a user who is high trust elsewhere is still probationary in a new club until they satisfy that club's local quota and karma progression
+- a user who is demoted or receives a club strike re-enters probationary treatment even if their original join-time probation window has elapsed
 - `root_post_quota_by_trust_tier` is the primary anti-flood control for new threads
 - `max_root_posts` limits all top-level posts regardless of type
 - `max_song_posts` and `max_video_posts` are stricter subcaps inside the same root-post window; they do not grant extra posts beyond `max_root_posts`
 - the recommended defaults intentionally treat songs as scarce; for most users, publishing 3 to 5 songs in one day should be considered excessive in v0
 - `reply_quota_by_trust_tier` should be materially looser than root-post quotas because conversation is healthier than thread flooding, but replies still need a burst cap to suppress spam runs
 - raw posting volume and raw reply volume may influence pacing and rate limits under this policy but must not produce karma events
-- `link_post_policy = require_established` means link-bearing top-level posts require at least `trust_tier = established` in the guild and should be rejected before publication when the author is below that tier
+- `link_post_policy = require_established` means link-bearing top-level posts require at least `trust_tier = established` in the club and should be rejected before publication when the author is below that tier
 - trust and rate-limit failures should reject post creation or publication directly; they should not create a moderation queue item by default in v0
 - trust-tier failures and quota failures should be distinguishable at the API/error layer
-- trust-tier failures should communicate that the requested action is not available at the author's current guild trust level
+- trust-tier failures should communicate that the requested action is not available at the author's current club trust level
 - quota failures should communicate that the requested action is temporarily unavailable until the relevant window resets
-- the platform-managed `guild_agent_user_id` is exempt from ordinary member trust-tier minima and posting quotas in v0 when publishing system-tagged guild content
+- the platform-managed `club_agent_user_id` is exempt from ordinary member trust-tier minima and posting quotas in v0 when publishing system-tagged club content
 - this exemption applies only to platform-managed product actors such as daily-question posting, not to arbitrary third-party agents or ordinary member accounts
-- trust earned in another guild must not satisfy this guild's local `trust_tier` requirements; cross-guild history may inform `platform_reputation`, but not guild-local posting unlocks
+- trust earned in another club must not satisfy this club's local `trust_tier` requirements; cross-club history may inform `platform_reputation`, but not club-local posting unlocks
 
 Recommended enforcement order:
 
-1. Evaluate posting eligibility and guild posting gates.
+1. Evaluate posting eligibility and club posting gates.
 2. Evaluate `platform_reputation_floor`.
-3. Evaluate guild-local `trust_tier` and probation status.
+3. Evaluate club-local `trust_tier` and probation status.
 4. Determine whether the attempted write is a root post or a reply.
 5. Apply the appropriate trust-tier thresholds and quotas for that write type.
 6. Reject the write if trust or pacing rules fail.
@@ -714,13 +714,13 @@ The anonymous identity rendered in the UI is an opaque label derived from a keye
 
 Derivation rules:
 
-- `guild_stable`: `HMAC(k_anon, user_id || guild_id)`
-  - Produces one stable anonymous label per user per guild
-  - Same user in the same guild always renders the same anonymous identity
-  - Different guilds produce different labels for the same user; cross-guild correlation is not possible from the label alone
-- `thread_stable`: `HMAC(k_anon, user_id || guild_id || root_thread_post_id)`
-  - Produces one stable anonymous label per user per thread within a guild
-  - The same user posting in different threads in the same guild gets different anonymous labels
+- `club_stable`: `HMAC(k_anon, user_id || club_id)`
+  - Produces one stable anonymous label per user per club
+  - Same user in the same club always renders the same anonymous identity
+  - Different clubs produce different labels for the same user; cross-club correlation is not possible from the label alone
+- `thread_stable`: `HMAC(k_anon, user_id || club_id || root_thread_post_id)`
+  - Produces one stable anonymous label per user per thread within a club
+  - The same user posting in different threads in the same club gets different anonymous labels
   - Replies within the same thread share the same label, preserving conversation continuity
 - `post_ephemeral`: random opaque label per post
   - Every post receives a fresh unrelated label
@@ -732,7 +732,7 @@ Implementation notes:
 - `k_anon` is a platform-managed secret key stored in a tightly controlled secrets infrastructure, not in the application DB
 - the raw HMAC output before encoding is the `anonymous_subject_id`; it is the stable internal identifier used for moderation, strikes, bans, and the privileged resolver
 - the `anonymous_subject_id` is encoded as a human-readable anonymous label such as `anon_7f3a` for rendering; the rendered label is a presentation artifact, not the resolution target
-- the derivation is deterministic: given the same inputs, the same `anonymous_subject_id` is always produced for `guild_stable` and `thread_stable`
+- the derivation is deterministic: given the same inputs, the same `anonymous_subject_id` is always produced for `club_stable` and `thread_stable`
 - the derivation is not reversible: knowing the `anonymous_subject_id` or rendered label does not reveal `user_id` without access to `k_anon` and a privileged resolver
 - `root_thread_post_id` for `thread_stable` is the top-level post in the thread; all replies in that thread share the same root
 - rendered labels are not guaranteed globally unique; two different `anonymous_subject_id` values may produce the same short rendered label — all moderation and resolution must operate against the `anonymous_subject_id`, never the rendered label alone
@@ -743,11 +743,11 @@ The anonymous derivation is intentionally one-way from the application layer's p
 
 Resolver rules:
 
-- the application API and normal DB query paths must not expose `author_user_id` on anonymous posts to guild moderators, other users, or any non-privileged code path
+- the application API and normal DB query paths must not expose `author_user_id` on anonymous posts to club moderators, other users, or any non-privileged code path
 - `author_user_id` on anonymous posts must be stored in the same post row but access must be gated at the API and read-model layer so that only the privileged resolver path can return it
 - the privileged resolver is an internal service boundary, not a DB query
 - access to the privileged resolver requires operator-level authentication and produces an auditable deanonymization event
-- the privileged resolver may accept an `anonymous_subject_id` plus guild context and return the corresponding `user_id`, but only through the break-glass workflow defined below
+- the privileged resolver may accept an `anonymous_subject_id` plus club context and return the corresponding `user_id`, but only through the break-glass workflow defined below
 - no other service, endpoint, or read model should join anonymous posts back to user identity
 
 This means that even internal services and background jobs must treat anonymous `author_user_id` as privileged data unless they operate behind the resolver boundary.
@@ -760,7 +760,7 @@ Suggested v0 deanonymization audit record shape:
 - `operator_user_id`
 - `target_anonymous_subject_id`
 - `target_scope`
-- `target_guild_id`
+- `target_club_id`
 - `target_thread_root_post_id` nullable
 - `target_post_id` nullable
 - `target_anonymous_label_rendered` nullable
@@ -772,12 +772,12 @@ Suggested v0 deanonymization audit record shape:
 Notes:
 
 - `target_anonymous_subject_id` is the stable internal identifier that uniquely identifies the anonymous subject being resolved; it is the primary audit target
-- `target_scope`, `target_guild_id`, `target_thread_root_post_id`, and `target_post_id` together reconstruct the resolver input and provide context for audit review
+- `target_scope`, `target_club_id`, `target_thread_root_post_id`, and `target_post_id` together reconstruct the resolver input and provide context for audit review
 - `target_anonymous_label_rendered` is secondary metadata showing what the label looked like to moderators and users at the time of resolution; it is not used as a resolution target
 
 Suggested `target_scope` values:
 
-- `guild_stable`
+- `club_stable`
 - `thread_stable`
 - `post_ephemeral`
 
@@ -800,38 +800,38 @@ Rules:
 
 ### Qualifier Exposure Guardrails
 
-When a guild enables disclosed qualifiers on anonymous posts, verified attributes such as nationality or age may materially reduce anonymity.
+When a club enables disclosed qualifiers on anonymous posts, verified attributes such as nationality or age may materially reduce anonymity.
 
 V0 guardrails:
 
-- exposing high-sensitivity qualifiers such as nationality on anonymous posts is a deliberate re-identification tradeoff: in small guilds, the combination of anonymous label plus nationality may point to a single plausible person
-- Pirate should warn guild owners when they enable high-sensitivity disclosed qualifiers on anonymous posts, especially in guilds with few active members
+- exposing high-sensitivity qualifiers such as nationality on anonymous posts is a deliberate re-identification tradeoff: in small clubs, the combination of anonymous label plus nationality may point to a single plausible person
+- Pirate should warn club owners when they enable high-sensitivity disclosed qualifiers on anonymous posts, especially in clubs with few active members
 - low-sensitivity qualifiers such as `18+` are coarser and carry less re-identification risk
-- qualifier sensitivity should come from platform-defined qualifier templates rather than arbitrary guild judgment
+- qualifier sensitivity should come from platform-defined qualifier templates rather than arbitrary club judgment
 - defining a precise active-member threshold and automated enforcement for high-sensitivity anonymous qualifiers is future product work; v0 should document the risk and rely on creator awareness rather than hard gating
 
 ### Post Ephemeral Safeguards
 
-`post_ephemeral` must not be enabled for a guild without the following prerequisites:
+`post_ephemeral` must not be enabled for a club without the following prerequisites:
 
-- automated content safety classification must be active for the guild; posts must reach a terminal classification state (`safe`, `sensitive`, or `adult`) before publication — `pending` classification must block publication
-- the guild must have at least one active moderator
-- the guild must acknowledge in settings that strike accumulation is structurally impossible under this scope and that moderation is limited to per-post removal only
-- `post_ephemeral` guilds must not expose disclosed qualifiers on anonymous posts in v0
+- automated content safety classification must be active for the club; posts must reach a terminal classification state (`safe`, `sensitive`, or `adult`) before publication — `pending` classification must block publication
+- the club must have at least one active moderator
+- the club must acknowledge in settings that strike accumulation is structurally impossible under this scope and that moderation is limited to per-post removal only
+- `post_ephemeral` clubs must not expose disclosed qualifiers on anonymous posts in v0
 
 Rules:
 
-- guilds that enable `post_ephemeral` and later disable it should switch to `guild_stable` or `thread_stable`; existing ephemeral labels are not retroactively unified
+- clubs that enable `post_ephemeral` and later disable it should switch to `club_stable` or `thread_stable`; existing ephemeral labels are not retroactively unified
 - `post_ephemeral` must not be the default `anonymous_identity_scope` for any v0 template
 
 ### Anonymous Lifecycle Rules
 
-Guild ban:
+Club ban:
 
-- when a user is banned from a guild, their `anonymous_subject_id` in that guild should be marked as banned in the same way their real membership is revoked
+- when a user is banned from a club, their `anonymous_subject_id` in that club should be marked as banned in the same way their real membership is revoked
 - the ban attaches to two layers: the `anonymous_subject_id` (the internal resolution target) and `user_id`; both remain hidden from moderators
 - moderators act against the moderator-visible rendered label, which the system maps to the `anonymous_subject_id` for enforcement; the rendered label is for readability only and must not be used as the ban or strike target by itself
-- banned users must not be able to create new anonymous posts in that guild even through re-verification
+- banned users must not be able to create new anonymous posts in that club even through re-verification
 
 Account deletion:
 
@@ -841,7 +841,7 @@ Account deletion:
 
 Policy flip from anonymous to non-anonymous:
 
-- if a guild changes `allow_anonymous_identity` from `true` to `false`, existing anonymous posts must not be retroactively deanonymized
+- if a club changes `allow_anonymous_identity` from `true` to `false`, existing anonymous posts must not be retroactively deanonymized
 - existing anonymous posts should retain their anonymous labels and presentation
 - new posts after the policy change follow the new identity mode
 
@@ -863,17 +863,17 @@ Suggested v0 fields:
 Rules:
 
 - disclosed qualifiers are a presentation policy, not an access-control rule by themselves
-- guilds may whitelist only a subset of platform-defined disclosed qualifiers
+- clubs may whitelist only a subset of platform-defined disclosed qualifiers
 - v0 disclosed qualifiers should come only from [user.md](./user.md) `verification_capabilities` plus explicitly supported provider-specific qualifier templates
 - nationality qualifiers should only be shown from `verification_capabilities.nationality.value`, never from self-declared profile text
 - age qualifiers should be coarse, such as `18+`, not exact age
-- a guild may allow anonymous identity but still choose not to allow disclosed qualifiers on anonymous posts
-- qualifiers already implied by guild gates should be suppressed from the optional picker
+- a club may allow anonymous identity but still choose not to allow disclosed qualifiers on anonymous posts
+- qualifiers already implied by club gates should be suppressed from the optional picker
 - song posts and live anchor posts must still obey the stricter public-identity rules defined in [post.md](./post.md) and [composer.md](./composer.md)
 
 Recommended interpretation:
 
-- a guild such as `/g/american` may gate membership or posting on verified US nationality; in that case `US National` should normally be suppressed from the optional qualifier picker because it is already implied by the gate
+- a club such as `/c/american` may gate membership or posting on verified US nationality; in that case `US National` should normally be suppressed from the optional qualifier picker because it is already implied by the gate
 - anonymous identity and disclosed qualifiers are orthogonal in configuration, but disclosed qualifiers only attach to anonymous posts in v0
 - an anonymous post may also attach qualifiers when `allow_qualifiers_on_anonymous_posts = true`
 
@@ -886,24 +886,24 @@ Suggested v0 fields:
 - `strike_window_days` nullable
 - `auto_ban_on_threshold`
 - `strike_scope`
-  - `guild`
+  - `club`
 - `platform_escalation_enabled`
 
-Recommended defaults for anonymous guilds:
+Recommended defaults for anonymous clubs:
 
 - `strike_policy_enabled = true`
 - `max_strikes = 3`
 - `strike_window_days = null`
 - `auto_ban_on_threshold = true`
-- `strike_scope = guild`
+- `strike_scope = club`
 - `platform_escalation_enabled = true`
 
 Rules:
 
 - strikes should attach to the `anonymous_subject_id` behind the post, not to the rendered anonymous label; the rendered label may collide with other subjects and is a presentation artifact only
-- guild moderators may issue strikes, removals, mutes, and bans against the `anonymous_subject_id` without learning the real account identity; the moderator UI presents the rendered label for readability but targets the internal subject for enforcement
-- a guild-level strike threshold may automatically revoke posting eligibility in that guild
-- repeated serious abuse across guilds may escalate to site-level enforcement by Pirate operators
+- club moderators may issue strikes, removals, mutes, and bans against the `anonymous_subject_id` without learning the real account identity; the moderator UI presents the rendered label for readability but targets the internal subject for enforcement
+- a club-level strike threshold may automatically revoke posting eligibility in that club
+- repeated serious abuse across clubs may escalate to site-level enforcement by Pirate operators
 
 #### Operator Deanonymization Policy
 
@@ -917,7 +917,7 @@ Suggested v0 fields:
 
 Rules:
 
-- guild moderators should not be able to reveal the real account behind an anonymous post
+- club moderators should not be able to reveal the real account behind an anonymous post
 - Pirate site operators may reveal the real account only through the privileged resolver defined in the Privileged Resolver And Access Boundary section above
 - every operator deanonymization event must create a deanonymization audit record before the resolver returns the real identity; see the Deanonymization Audit section for the required record shape
 - operator deanonymization is for abuse, dispute, safety, legal, or recovery handling; it is not routine moderation workflow
@@ -931,7 +931,7 @@ This gives Pirate a strong user-facing anonymous mode while preserving real enfo
 Core actor roles:
 
 - `platform_admin`
-- `guild_owner`
+- `club_owner`
 - `moderator`
 - `verified_artist_delegate`
 - `member`
@@ -939,13 +939,13 @@ Core actor roles:
 
 Core actions:
 
-- `edit_guild_profile`
+- `edit_club_profile`
 - `manage_flair_definitions`
 - `change_namespace_binding`
 - `change_membership_rules`
 - `grant_moderator`
 - `remove_moderator`
-- `freeze_guild`
+- `freeze_club`
 - `create_post`
 - `create_song_post`
 - `create_trivia`
@@ -957,25 +957,25 @@ Core actions:
 
 Recommended default principles:
 
-- the creator becomes the initial `guild_owner` at creation time
-- `guild_owner` is the durable controlling abstraction
-- `moderator` manages operational guild state, not treasury policy
+- the creator becomes the initial `club_owner` at creation time
+- `club_owner` is the durable controlling abstraction
+- `moderator` manages operational club state, not treasury policy
 - `verified_artist_delegate` unlocks artist-specific actions like native song uploads and official AMAs
 - `platform_admin` is fallback / dispute / recovery authority only
 
-For anonymous guilds, `platform_admin` should be understood as Pirate site-operator authority rather than ordinary guild moderation authority.
+For anonymous clubs, `platform_admin` should be understood as Pirate site-operator authority rather than ordinary club moderation authority.
 
 ### V0 Permissions Matrix
 
-| Action | platform_admin | guild_owner | moderator | verified_artist_delegate | member |
+| Action | platform_admin | club_owner | moderator | verified_artist_delegate | member |
 |---|---|---|---|---|---|
-| `edit_guild_profile` | yes | yes | no | no | no |
+| `edit_club_profile` | yes | yes | no | no | no |
 | `manage_flair_definitions` | yes | yes | no | no | no |
 | `change_membership_rules` | yes | yes | no | no | no |
 | `change_namespace_binding` | yes | no | no | no | no |
 | `grant_moderator` | yes | yes | no | no | no |
 | `remove_moderator` | yes | yes | no | no | no |
-| `freeze_guild` | yes | yes | no | no | no |
+| `freeze_club` | yes | yes | no | no | no |
 | `create_post` | yes | yes | yes | yes | yes |
 | `create_song_post` | yes | yes | no | yes | no |
 | `create_trivia` | yes | yes | yes | yes | no |
@@ -988,24 +988,24 @@ For anonymous guilds, `platform_admin` should be understood as Pirate site-opera
 Notes:
 
 - `member` assumes the membership and post policies allow the action.
-- `manage_flair_definitions` may be implemented under the same settings surface as `edit_guild_profile` in v0, but it is called out separately so flair ownership is explicit.
+- `manage_flair_definitions` may be implemented under the same settings surface as `edit_club_profile` in v0, but it is called out separately so flair ownership is explicit.
 - `attach_governance` means binding or upgrading from `centralized` to `multisig` or `majeur`, or updating the concrete governance reference inside the chosen mode.
 - `change_namespace_binding` is an admin-only recovery action in v0. Canonical label changes, aliases, and redirects are out of scope for v0 namespace semantics.
-- admin-only deanonymization for anonymous guilds should be modeled as internal operator tooling and audit policy, not as a normal moderator-visible guild permission.
+- admin-only deanonymization for anonymous clubs should be modeled as internal operator tooling and audit policy, not as a normal moderator-visible club permission.
 - donation policy changes should be audit-logged because they change money-routing behavior.
 
 ## Artist Verification And Governance
 
-For artist-linked guilds, verification means that the artist, or an authorized organization acting on the artist's behalf, is actually involved in guild governance.
+For artist-linked clubs, verification means that the artist, or an authorized organization acting on the artist's behalf, is actually involved in club governance.
 
 This replaces the older vague concept of an "official" stamp.
 
-The source of truth for verification evidence is a separate proof record set, not a single field on the guild row.
+The source of truth for verification evidence is a separate proof record set, not a single field on the club row.
 
 Suggested v0 proof record shape:
 
 - `proof_id`
-- `guild_id`
+- `club_id`
 - `subject_type`
 - `proof_type`
 - `proof_target`
@@ -1036,7 +1036,7 @@ Suggested meanings:
 - `evidence_ref`
   A pointer to stored verification evidence in Pirate-controlled storage, such as a captured payload, screenshot artifact, or review record.
 
-The guild stores the derived current state:
+The club stores the derived current state:
 
 - `artist_governance_state`
 
@@ -1047,16 +1047,16 @@ Canonical song uploads require:
 - `artist_governance_state = artist_governed`
 - or `artist_governance_state = org_governed`
 
-`fan_run` and `claim_pending` guilds cannot upload canonical songs for the artist as native song posts.
+`fan_run` and `claim_pending` clubs cannot upload canonical songs for the artist as native song posts.
 
-## Guild Reference Links
+## Club Reference Links
 
-Guilds may carry external reference links that help users understand, verify, or enrich the guild without making those links part of core identity.
+Clubs may carry external reference links that help users understand, verify, or enrich the club without making those links part of core identity.
 
 Suggested v0 shape:
 
-- `guild_reference_link_id`
-- `guild_id`
+- `club_reference_link_id`
+- `club_id`
 - `platform`
 - `url`
 - `external_id` nullable
@@ -1068,8 +1068,8 @@ Suggested v0 shape:
 
 Uniqueness rules:
 
-- unique on `(guild_id, platform, external_id)` when `external_id` is not null
-- otherwise unique on `(guild_id, platform, url)`
+- unique on `(club_id, platform, external_id)` when `external_id` is not null
+- otherwise unique on `(club_id, platform, url)`
 
 Examples of `platform`:
 
@@ -1097,15 +1097,15 @@ Reference links are supplemental:
 - reference links provide context, discovery, and possible review inputs
 - not every reference link is proof of authority
 
-## Create Guild Flow
+## Create Club Flow
 
 Happy-path v0:
 
-1. Authenticated user starts guild creation.
+1. Authenticated user starts club creation.
 2. User passes required identity verification policy.
-   - for root-attached guild creation in v0, this means a verified `unique_human` proof from an accepted biometric/nullifier provider such as `self` or `very`
-   - if the new guild sets `default_age_gate_policy = 18_plus`, the creator must also satisfy a verified `age_over_18` proof from an accepted provider such as `self`
-   - wallet-score systems such as Human Passport may be used for softer community-entry or anti-spam gates, but not as the sole proof for high-trust root-backed guild creation
+   - for root-attached club creation in v0, this means a verified `unique_human` proof from an accepted biometric/nullifier provider such as `self` or `very`
+   - if the new club sets `default_age_gate_policy = 18_plus`, the creator must also satisfy a verified `age_over_18` proof from an accepted provider such as `self`
+   - wallet-score systems such as Human Passport may be used for softer community-entry or anti-spam gates, but not as the sole proof for high-trust root-backed club creation
 3. User supplies:
    - `display_name`
    - `description`
@@ -1132,7 +1132,7 @@ Happy-path v0:
    - artist identity linkage if provided
    - handle policy validity, including pricing model, reserved labels, and claim-gating rules
 5. System creates:
-    - guild row
+    - club row
     - namespace row
     - namespace handle policy row
     - initial community profile settings
@@ -1160,24 +1160,24 @@ If the creator supplies an approved donation partner at creation time, Pirate ma
    - resolver delegation
    - multisig
    - Majeur DAO
-7. Guild becomes `active`.
+7. Club becomes `active`.
 
 Important:
 
-- guild creation must not require a DAO
-- guild creation must require a namespace choice
-- guild creation must require creator verification at `unique_human` from an accepted biometric/nullifier provider
-- guild creation must additionally require creator verification at `age_over_18` from an accepted provider whenever `default_age_gate_policy = 18_plus`
-- guild creation must require verified control of the corresponding external root
-- guild creation must produce a namespace handle policy, even if it starts from a platform template
-- guild creation may also capture community bootstrap settings so the guild launches with flair, rules, and resource links already defined
+- club creation must not require a DAO
+- club creation must require a namespace choice
+- club creation must require creator verification at `unique_human` from an accepted biometric/nullifier provider
+- club creation must additionally require creator verification at `age_over_18` from an accepted provider whenever `default_age_gate_policy = 18_plus`
+- club creation must require verified control of the corresponding external root
+- club creation must produce a namespace handle policy, even if it starts from a platform template
+- club creation may also capture community bootstrap settings so the club launches with flair, rules, and resource links already defined
 - artist linkage must be optional
 
 ## Namespace Handle Policy At Creation
 
 Namespace-handle economics should be explicit from the start.
 
-At guild creation, the creator should choose one of:
+At club creation, the creator should choose one of:
 
 - a platform-defined handle policy template
 - an explicit custom namespace-handle policy
@@ -1195,27 +1195,27 @@ The chosen policy should define or derive:
 - premium length threshold
 - pricing model
 - reserved labels
-- whether guild membership is required before claim
+- whether club membership is required before claim
 - whether external gates such as NFT/token or identity-proof gates must be satisfied before claim
 - whether generated name suggestions are available and what ontology they use
 
 Examples:
 
-- an artist guild may choose `premium`
+- an artist club may choose `premium`
   - short names expensive
   - labels like `king` individually reserved and listed
-- a token-gated guild such as Pudgy Penguins may choose `membership_gated`
+- a token-gated club such as Pudgy Penguins may choose `membership_gated`
   - NFT gate first
-  - then cheap or free names inside the guild
+  - then cheap or free names inside the club
 
 The detailed namespace-handle model lives in [handles.md](./handles.md).
 
-Artist-linked guilds may also trigger catalog bootstrap and question-generation source enrichment.
+Artist-linked clubs may also trigger catalog bootstrap and question-generation source enrichment.
 See [artist-catalog.md](./artist-catalog.md) and [questions.md](./questions.md).
 
 ## Relationship To Posts
 
-Every post belongs to exactly one guild.
+Every post belongs to exactly one club.
 
 That gives the app one stable boundary for:
 
@@ -1226,18 +1226,18 @@ That gives the app one stable boundary for:
 - feed assembly
 - live and karaoke policy
 
-An asset created from a post may later have wider monetization or discovery, but the originating social context is still the guild.
+An asset created from a post may later have wider monetization or discovery, but the originating social context is still the club.
 
 ## Relationship To Governance
 
-`guild_id` and DAO identity are different layers.
+`club_id` and DAO identity are different layers.
 
-- `guild_id` is the canonical product object
+- `club_id` is the canonical product object
 - a Majeur DAO is one possible governance backend attached later
 
 Recommended progression:
 
-1. creator-controlled guild
+1. creator-controlled club
 2. optional multisig attachment
 3. optional Majeur DAO attachment
 
@@ -1247,25 +1247,25 @@ See [governance-backends.md](./governance-backends.md) for the operational-versu
 
 ## Relationship To Namespace
 
-Namespace owns the canonical route syntax. Guild owns the social object.
+Namespace owns the canonical route syntax. Club owns the social object.
 
 Summary:
 
-- every guild has one namespace row at creation in v0
-- namespace rows point to guilds
+- every club has one namespace row at creation in v0
+- namespace rows point to clubs
 - route families and handle syntax are defined in [namespace.md](./namespace.md)
-- changes to resolver proof or root ownership must not create a new `guild_id`
+- changes to resolver proof or root ownership must not create a new `club_id`
 
 ## External Platforms
 
-Guilds should not be defined by old external guilds like subreddits.
+Clubs should not be defined by old external clubs like subreddits.
 
 For v0:
 
-- do not model a new guild as a pointer to an old subreddit
-- do not make subreddit linkage part of guild identity
+- do not model a new club as a pointer to an old subreddit
+- do not make subreddit linkage part of club identity
 
-External platforms are better handled as optional onboarding/profile trust imports, not as the core identity of the guild itself.
+External platforms are better handled as optional onboarding/profile trust imports, not as the core identity of the club itself.
 
 ## External Reputation And Trust
 
@@ -1290,55 +1290,55 @@ Recommended v0 approach:
 - Pirate captures a one-time reputation snapshot
 - snapshot is displayed on profile as trust context
 
-This is useful for bootstrapping trust, but it should stay on the user/profile side, not the guild identity side, and it should not imply a full ongoing sync system.
+This is useful for bootstrapping trust, but it should stay on the user/profile side, not the club identity side, and it should not imply a full ongoing sync system.
 
 Canonical onboarding flow details for this live in [onboarding.md](./onboarding.md).
 
-Guild-local karma is defined in [karma.md](./karma.md).
+Club-local karma is defined in [karma.md](./karma.md).
 
 ## On-chain vs Off-chain
 
 Recommended v0 split:
 
-- app DB is the initial source of truth for guild existence and settings
+- app DB is the initial source of truth for club existence and settings
 - on-chain attachments are optional and incremental
 
 Possible later contracts:
 
-- `GuildRegistryV1`
-- `GuildFactoryV1`
-- `GuildGovernanceAdapterV1`
+- `ClubRegistryV1`
+- `ClubFactoryV1`
+- `ClubGovernanceAdapterV1`
 
-But guild existence itself should not require immediate on-chain creation unless there is a very strong product reason.
+But club existence itself should not require immediate on-chain creation unless there is a very strong product reason.
 
 ## API Implications
 
 Likely first endpoints:
 
-- `POST /guilds`
-- `GET /guilds/{guild_id}`
-- `PATCH /guilds/{guild_id}`
-- `POST /guilds/{guild_id}/join`
-- `POST /guilds/{guild_id}/leave`
-- `GET /guilds/{guild_id}/membership-requests`
-- `GET /guilds/{guild_id}/membership-requests/mine`
-- `POST /guilds/{guild_id}/membership-requests/{id}/approve`
-- `POST /guilds/{guild_id}/membership-requests/{id}/reject`
-- `POST /guilds/{guild_id}/membership-requests/{id}/cancel`
-- `GET /guilds/{guild_id}/flairs`
-- `PATCH /guilds/{guild_id}/flairs`
-- `GET /guilds/{guild_id}/community-profile`
-- `PATCH /guilds/{guild_id}/community-profile`
-- `POST /guilds/{guild_id}/claim-artist`
-- `POST /guilds/{guild_id}/attach-governance`
-- `POST /guilds/{guild_id}/moderators`
-- `GET /guilds/{guild_id}/posts`
+- `POST /clubs`
+- `GET /clubs/{club_id}`
+- `PATCH /clubs/{club_id}`
+- `POST /clubs/{club_id}/join`
+- `POST /clubs/{club_id}/leave`
+- `GET /clubs/{club_id}/membership-requests`
+- `GET /clubs/{club_id}/membership-requests/mine`
+- `POST /clubs/{club_id}/membership-requests/{id}/approve`
+- `POST /clubs/{club_id}/membership-requests/{id}/reject`
+- `POST /clubs/{club_id}/membership-requests/{id}/cancel`
+- `GET /clubs/{club_id}/flairs`
+- `PATCH /clubs/{club_id}/flairs`
+- `GET /clubs/{club_id}/community-profile`
+- `PATCH /clubs/{club_id}/community-profile`
+- `POST /clubs/{club_id}/claim-artist`
+- `POST /clubs/{club_id}/attach-governance`
+- `POST /clubs/{club_id}/moderators`
+- `GET /clubs/{club_id}/posts`
 
 ## Open Questions
 
-- What exact proof set is sufficient to move a guild from `claim_pending` to `artist_governed` or `org_governed`?
+- What exact proof set is sufficient to move a club from `claim_pending` to `artist_governed` or `org_governed`?
 - Which governance actions must stay operational and never require DAO voting?
-- What is the minimal guild settings surface needed for v0?
-- Should the anonymous badge size threshold (`100`) be configurable per guild within platform bounds, or fixed?
-- Should `thread_stable` anonymous scope also scope moderation strikes to the thread, or should strikes still accumulate guild-wide?
+- What is the minimal club settings surface needed for v0?
+- Should the anonymous badge size threshold (`100`) be configurable per club within platform bounds, or fixed?
+- Should `thread_stable` anonymous scope also scope moderation strikes to the thread, or should strikes still accumulate club-wide?
 - What rendering format should anonymous labels use beyond `anon_` prefix — should they be memorable, numeric, or a mix?

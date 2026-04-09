@@ -4,7 +4,7 @@ info:
   version: 0.1.0
   description: |
     First-pass happy-path API for Pirate v2.
-    This OpenAPI file is intentionally narrow. It encodes the core v0 flows that are already stable in the domain specs: auth bootstrap, verification, onboarding, global profile identity, guilds, namespace handles, posts, daily questions, tracks, scrobbles, feeds, and async jobs.
+    This OpenAPI file is intentionally narrow. It encodes the core v0 flows that are already stable in the domain specs: auth bootstrap, verification, onboarding, global profile identity, clubs, namespace handles, posts, daily questions, tracks, scrobbles, feeds, and async jobs.
 servers:
   - url: https://api.pirate.example
     description: Placeholder production server
@@ -16,7 +16,7 @@ tags:
   - name: Onboarding
   - name: Users
   - name: Profiles
-  - name: Guilds
+  - name: Clubs
   - name: Handles
   - name: Posts
   - name: Livestreams
@@ -343,32 +343,32 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
-  /guilds:
+  /clubs:
     post:
       tags:
-        - Guilds
-      summary: Create a guild
+        - Clubs
+      summary: Create a club
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateGuildRequest"
+              $ref: "#/components/schemas/CreateClubRequest"
       responses:
         "201":
-          description: Guild created
+          description: Club created
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Guild"
+                $ref: "#/components/schemas/Club"
         "401":
           $ref: "#/components/responses/AuthError"
         "429":
           $ref: "#/components/responses/RateLimited"
     get:
       tags:
-        - Guilds
-      summary: List guilds
+        - Clubs
+      summary: List clubs
       parameters:
         - in: query
           name: q
@@ -382,7 +382,7 @@ paths:
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
-          description: Guilds
+          description: Clubs
           content:
             application/json:
               schema:
@@ -393,7 +393,7 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: "#/components/schemas/Guild"
+                      $ref: "#/components/schemas/Club"
                   next_cursor:
                     type: string
                     nullable: true
@@ -401,43 +401,43 @@ paths:
           $ref: "#/components/responses/AuthError"
         "429":
           $ref: "#/components/responses/RateLimited"
-  /guilds/{guild_id}:
+  /clubs/{club_id}:
     get:
       tags:
-        - Guilds
-      summary: Get a guild
+        - Clubs
+      summary: Get a club
       parameters:
-        - $ref: "#/components/parameters/GuildId"
+        - $ref: "#/components/parameters/ClubId"
       responses:
         "200":
-          description: Guild
+          description: Club
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Guild"
+                $ref: "#/components/schemas/Club"
         "401":
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
     patch:
       tags:
-        - Guilds
-      summary: Update mutable guild settings
+        - Clubs
+      summary: Update mutable club settings
       parameters:
-        - $ref: "#/components/parameters/GuildId"
+        - $ref: "#/components/parameters/ClubId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateGuildRequest"
+              $ref: "#/components/schemas/UpdateClubRequest"
       responses:
         "200":
-          description: Guild updated
+          description: Club updated
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Guild"
+                $ref: "#/components/schemas/Club"
         "401":
           $ref: "#/components/responses/AuthError"
         "403":
@@ -446,13 +446,13 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
-  /guilds/{guild_id}/attach-governance:
+  /clubs/{club_id}/attach-governance:
     post:
       tags:
-        - Guilds
-      summary: Attach or replace an external governance backend for a guild
+        - Clubs
+      summary: Attach or replace an external governance backend for a club
       parameters:
-        - $ref: "#/components/parameters/GuildId"
+        - $ref: "#/components/parameters/ClubId"
       requestBody:
         required: true
         content:
@@ -474,43 +474,43 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
-  /guilds/{guild_id}/flairs:
+  /clubs/{club_id}/flairs:
     get:
       tags:
-        - Guilds
-      summary: List flair definitions for a guild
+        - Clubs
+      summary: List flair definitions for a club
       parameters:
-        - $ref: "#/components/parameters/GuildId"
+        - $ref: "#/components/parameters/ClubId"
       responses:
         "200":
-          description: Guild flair policy
+          description: Club flair policy
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GuildFlairPolicy"
+                $ref: "#/components/schemas/ClubFlairPolicy"
         "401":
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
     patch:
       tags:
-        - Guilds
-      summary: Replace or update flair definitions for a guild
+        - Clubs
+      summary: Replace or update flair definitions for a club
       parameters:
-        - $ref: "#/components/parameters/GuildId"
+        - $ref: "#/components/parameters/ClubId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateGuildFlairPolicyRequest"
+              $ref: "#/components/schemas/UpdateClubFlairPolicyRequest"
       responses:
         "200":
-          description: Guild flair policy updated
+          description: Club flair policy updated
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GuildFlairPolicy"
+                $ref: "#/components/schemas/ClubFlairPolicy"
         "401":
           $ref: "#/components/responses/AuthError"
         "403":
@@ -519,86 +519,86 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
-  /guilds/{guild_id}/community-profile:
+  /clubs/{club_id}/community-profile:
     get:
       tags:
-        - Guilds
-      summary: Get the community profile for a guild
+        - Clubs
+      summary: Get the community profile for a club
       parameters:
-        - $ref: "#/components/parameters/GuildId"
+        - $ref: "#/components/parameters/ClubId"
       responses:
         "200":
-          description: Guild community profile
+          description: Club community profile
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GuildCommunityProfile"
+                $ref: "#/components/schemas/ClubCommunityProfile"
         "401":
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
     patch:
       tags:
-        - Guilds
-      summary: Update the community profile for a guild
+        - Clubs
+      summary: Update the community profile for a club
       parameters:
-        - $ref: "#/components/parameters/GuildId"
+        - $ref: "#/components/parameters/ClubId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateGuildCommunityProfileRequest"
+              $ref: "#/components/schemas/UpdateClubCommunityProfileRequest"
       responses:
         "200":
-          description: Guild community profile updated
+          description: Club community profile updated
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GuildCommunityProfile"
+                $ref: "#/components/schemas/ClubCommunityProfile"
         "401":
           $ref: "#/components/responses/AuthError"
         "403":
           $ref: "#/components/responses/EligibilityFailed"
         "404":
           $ref: "#/components/responses/NotFound"
-  /guilds/{guild_id}/donation-policy:
+  /clubs/{club_id}/donation-policy:
     get:
       tags:
-        - Guilds
-      summary: Get the active donation policy for a guild
+        - Clubs
+      summary: Get the active donation policy for a club
       parameters:
-        - $ref: "#/components/parameters/GuildId"
+        - $ref: "#/components/parameters/ClubId"
       responses:
         "200":
-          description: Guild donation policy
+          description: Club donation policy
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GuildDonationPolicy"
+                $ref: "#/components/schemas/ClubDonationPolicy"
         "401":
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
     patch:
       tags:
-        - Guilds
-      summary: Configure or update the donation policy for a guild
+        - Clubs
+      summary: Configure or update the donation policy for a club
       parameters:
-        - $ref: "#/components/parameters/GuildId"
+        - $ref: "#/components/parameters/ClubId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateGuildDonationPolicyRequest"
+              $ref: "#/components/schemas/UpdateClubDonationPolicyRequest"
       responses:
         "200":
-          description: Guild donation policy updated
+          description: Club donation policy updated
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GuildDonationPolicy"
+                $ref: "#/components/schemas/ClubDonationPolicy"
         "401":
           $ref: "#/components/responses/AuthError"
         "403":
@@ -609,13 +609,13 @@ paths:
           $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/RateLimited"
-  /guilds/{guild_id}/join:
+  /clubs/{club_id}/join:
     post:
       tags:
-        - Guilds
-      summary: Join a guild
+        - Clubs
+      summary: Join a club
       parameters:
-        - $ref: "#/components/parameters/GuildId"
+        - $ref: "#/components/parameters/ClubId"
       responses:
         "200":
           description: Membership created or request recorded
@@ -627,13 +627,13 @@ paths:
           $ref: "#/components/responses/AuthError"
         "403":
           $ref: "#/components/responses/GateFailed"
-  /guilds/{guild_id}/live-rooms:
+  /clubs/{club_id}/live-rooms:
     post:
       tags:
         - Livestreams
-      summary: Create a livestream room for a guild
+      summary: Create a livestream room for a club
       parameters:
-        - $ref: "#/components/parameters/GuildId"
+        - $ref: "#/components/parameters/ClubId"
       requestBody:
         required: true
         content:
@@ -653,13 +653,13 @@ paths:
           $ref: "#/components/responses/EligibilityFailed"
         "429":
           $ref: "#/components/responses/RateLimited"
-  /guilds/{guild_id}/leave:
+  /clubs/{club_id}/leave:
     post:
       tags:
-        - Guilds
-      summary: Leave a guild
+        - Clubs
+      summary: Leave a club
       parameters:
-        - $ref: "#/components/parameters/GuildId"
+        - $ref: "#/components/parameters/ClubId"
       responses:
         "200":
           description: Membership removed
@@ -669,13 +669,13 @@ paths:
                 $ref: "#/components/schemas/MembershipResult"
         "401":
           $ref: "#/components/responses/AuthError"
-  /guilds/{guild_id}/posts:
+  /clubs/{club_id}/posts:
     get:
       tags:
         - Posts
-      summary: List posts in a guild
+      summary: List posts in a club
       parameters:
-        - $ref: "#/components/parameters/GuildId"
+        - $ref: "#/components/parameters/ClubId"
         - $ref: "#/components/parameters/Locale"
         - $ref: "#/components/parameters/FeedSort"
         - $ref: "#/components/parameters/TopWindow"
@@ -684,7 +684,7 @@ paths:
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
-          description: Guild posts
+          description: Club posts
           content:
             application/json:
               schema:
@@ -897,13 +897,13 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
-  /guilds/{guild_id}/questions/daily:
+  /clubs/{club_id}/questions/daily:
     get:
       tags:
         - Questions
-      summary: Fetch the current daily question for a guild
+      summary: Fetch the current daily question for a club
       parameters:
-        - $ref: "#/components/parameters/GuildId"
+        - $ref: "#/components/parameters/ClubId"
       responses:
         "200":
           description: Current daily question or null
@@ -922,9 +922,9 @@ paths:
     post:
       tags:
         - Questions
-      summary: Publish or schedule a daily question for a guild
+      summary: Publish or schedule a daily question for a club
       parameters:
-        - $ref: "#/components/parameters/GuildId"
+        - $ref: "#/components/parameters/ClubId"
       requestBody:
         required: true
         content:
@@ -942,13 +942,13 @@ paths:
           $ref: "#/components/responses/AuthError"
         "429":
           $ref: "#/components/responses/RateLimited"
-  /guilds/{guild_id}/questions/daily/answers:
+  /clubs/{club_id}/questions/daily/answers:
     post:
       tags:
         - Questions
       summary: Submit an answer to the current daily question
       parameters:
-        - $ref: "#/components/parameters/GuildId"
+        - $ref: "#/components/parameters/ClubId"
       requestBody:
         required: true
         content:
@@ -1027,7 +1027,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GuildHandle"
+                $ref: "#/components/schemas/ClubHandle"
         "401":
           $ref: "#/components/responses/AuthError"
         "403":
@@ -1201,11 +1201,11 @@ paths:
                 $ref: "#/components/schemas/FeedResponse"
         "429":
           $ref: "#/components/responses/RateLimited"
-  /feeds/your-guilds:
+  /feeds/your-clubs:
     get:
       tags:
         - Feeds
-      summary: Read the Your Guilds feed
+      summary: Read the Your Clubs feed
       parameters:
         - $ref: "#/components/parameters/Locale"
         - $ref: "#/components/parameters/FeedSort"
@@ -1214,7 +1214,7 @@ paths:
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
-          description: Personalized guild feed
+          description: Personalized club feed
           content:
             application/json:
               schema:
@@ -1348,17 +1348,17 @@ paths:
           $ref: "#/components/responses/AuthError"
         "429":
           $ref: "#/components/responses/RateLimited"
-  /mpp/guilds/{guild_id}/threads/export:
+  /mpp/clubs/{club_id}/threads/export:
     post:
       tags:
         - MPP
-      summary: Request a paid guild thread export
+      summary: Request a paid club thread export
       description: |
         This is the v0 machine-access export surface. Initial requests may return `402 Payment Required` with `WWW-Authenticate: Payment`. Successful paid requests return `Payment-Receipt` and a pollable export job. Payment-auth callers complete the async flow through `/mpp/jobs/{job_id}`.
       security:
         - paymentAuth: []
       parameters:
-        - $ref: "#/components/parameters/GuildId"
+        - $ref: "#/components/parameters/ClubId"
       requestBody:
         required: true
         content:
@@ -1391,7 +1391,7 @@ paths:
         - MPP
       summary: Inspect a pollable async MPP job
       description: |
-        Payment-auth callers use this endpoint to poll async jobs returned by paid machine-access endpoints such as guild thread exports.
+        Payment-auth callers use this endpoint to poll async jobs returned by paid machine-access endpoints such as club thread exports.
       security:
         - paymentAuth: []
       parameters:
@@ -1479,9 +1479,9 @@ components:
       description: |
         Payment credential sent as `Authorization: Payment ...` on retry after an MPP `402 Payment Required` challenge.
   parameters:
-    GuildId:
+    ClubId:
       in: path
-      name: guild_id
+      name: club_id
       required: true
       schema:
         type: string
@@ -1610,13 +1610,13 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
     MppExportForbidden:
-      description: Export blocked by a guild gate or export-eligibility rule
+      description: Export blocked by a club gate or export-eligibility rule
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
     GateFailed:
-      description: Guild gate or membership rule failed
+      description: Club gate or membership rule failed
       content:
         application/json:
           schema:
@@ -1628,7 +1628,7 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
     PostingTrustTierTooLow:
-      description: The requested posting action is not available at the author's current guild trust level
+      description: The requested posting action is not available at the author's current club trust level
       content:
         application/json:
           schema:
@@ -2131,11 +2131,11 @@ components:
             - running
             - succeeded
             - failed
-        suggested_guild_ids:
+        suggested_club_ids:
           type: array
           items:
             type: string
-    CreateGuildRequestBase:
+    CreateClubRequestBase:
       type: object
       required:
         - display_name
@@ -2163,7 +2163,7 @@ components:
         anonymous_identity_scope:
           type: string
           enum:
-            - guild_stable
+            - club_stable
             - thread_stable
             - post_ephemeral
           nullable: true
@@ -2221,18 +2221,18 @@ components:
             - 18_plus
           default: none
           description: |
-            Guild-wide default viewer age gate. Setting this to `18_plus` requires the acting creator or updating owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
+            Club-wide default viewer age gate. Setting this to `18_plus` requires the acting creator or updating owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
         namespace:
           $ref: "#/components/schemas/NamespaceAttachmentInput"
         handle_policy:
           $ref: "#/components/schemas/HandlePolicyInput"
         donation_policy:
           allOf:
-            - $ref: "#/components/schemas/CreateGuildDonationPolicyInput"
+            - $ref: "#/components/schemas/CreateClubDonationPolicyInput"
           type: object
           nullable: true
         community_bootstrap:
-          $ref: "#/components/schemas/CreateGuildCommunityBootstrapInput"
+          $ref: "#/components/schemas/CreateClubCommunityBootstrapInput"
           nullable: true
         gate_rules:
           type: array
@@ -2284,7 +2284,7 @@ components:
       type: object
       required:
         - gate_rule_id
-        - guild_id
+        - club_id
         - scope
         - gate_family
         - gate_type
@@ -2294,7 +2294,7 @@ components:
       properties:
         gate_rule_id:
           type: string
-        guild_id:
+        club_id:
           type: string
         scope:
           type: string
@@ -2429,18 +2429,18 @@ components:
           $ref: "#/components/schemas/ReplyQuotaRule"
         high_trust:
           $ref: "#/components/schemas/ReplyQuotaRule"
-    CreateGuildRequest:
+    CreateClubRequest:
       oneOf:
-        - $ref: "#/components/schemas/CreateCentralizedGuildRequest"
-        - $ref: "#/components/schemas/CreateMultisigGuildRequest"
-        - $ref: "#/components/schemas/CreateMajeurGuildRequest"
+        - $ref: "#/components/schemas/CreateCentralizedClubRequest"
+        - $ref: "#/components/schemas/CreateMultisigClubRequest"
+        - $ref: "#/components/schemas/CreateMajeurClubRequest"
       discriminator:
         propertyName: governance_mode
         mapping:
-          centralized: "#/components/schemas/CreateCentralizedGuildRequest"
-          multisig: "#/components/schemas/CreateMultisigGuildRequest"
-          majeur: "#/components/schemas/CreateMajeurGuildRequest"
-    UpdateGuildRequest:
+          centralized: "#/components/schemas/CreateCentralizedClubRequest"
+          multisig: "#/components/schemas/CreateMultisigClubRequest"
+          majeur: "#/components/schemas/CreateMajeurClubRequest"
+    UpdateClubRequest:
       type: object
       properties:
         display_name:
@@ -2459,7 +2459,7 @@ components:
         anonymous_identity_scope:
           type: string
           enum:
-            - guild_stable
+            - club_stable
             - thread_stable
             - post_ephemeral
           nullable: true
@@ -2510,10 +2510,10 @@ components:
             - none
             - 18_plus
           description: |
-            Guild-wide default viewer age gate. Updating this field from `none` to `18_plus` requires the acting owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
-    CreateCentralizedGuildRequest:
+            Club-wide default viewer age gate. Updating this field from `none` to `18_plus` requires the acting owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
+    CreateCentralizedClubRequest:
       allOf:
-        - $ref: "#/components/schemas/CreateGuildRequestBase"
+        - $ref: "#/components/schemas/CreateClubRequestBase"
         - type: object
           required:
             - governance_mode
@@ -2523,9 +2523,9 @@ components:
               enum:
                 - centralized
               default: centralized
-    CreateMultisigGuildRequest:
+    CreateMultisigClubRequest:
       allOf:
-        - $ref: "#/components/schemas/CreateGuildRequestBase"
+        - $ref: "#/components/schemas/CreateClubRequestBase"
         - type: object
           required:
             - governance_mode
@@ -2537,9 +2537,9 @@ components:
                 - multisig
             governance_backend:
               $ref: "#/components/schemas/MultisigGovernanceAttachmentInput"
-    CreateMajeurGuildRequest:
+    CreateMajeurClubRequest:
       allOf:
-        - $ref: "#/components/schemas/CreateGuildRequestBase"
+        - $ref: "#/components/schemas/CreateClubRequestBase"
         - type: object
           required:
             - governance_mode
@@ -2588,7 +2588,7 @@ components:
       type: object
       required:
         - governance_action_id
-        - guild_id
+        - club_id
         - action_kind
         - governance_mode
         - payload_hash
@@ -2598,7 +2598,7 @@ components:
       properties:
         governance_action_id:
           type: string
-        guild_id:
+        club_id:
           type: string
         action_kind:
           type: string
@@ -2648,7 +2648,7 @@ components:
         - pending
         - verified
         - broken
-    GuildGovernanceBackend:
+    ClubGovernanceBackend:
       oneOf:
         - $ref: "#/components/schemas/CentralizedGovernanceBackend"
         - $ref: "#/components/schemas/MultisigGovernanceBackend"
@@ -3004,10 +3004,10 @@ components:
         membership_required_for_claim:
           type: boolean
           default: true
-    Guild:
+    Club:
       type: object
       required:
-        - guild_id
+        - club_id
         - display_name
         - status
         - membership_mode
@@ -3019,7 +3019,7 @@ components:
         - created_at
         - updated_at
       properties:
-        guild_id:
+        club_id:
           type: string
         display_name:
           type: string
@@ -3037,11 +3037,11 @@ components:
         artist_identity_id:
           type: string
           nullable: true
-        guild_agent_user_id:
+        club_agent_user_id:
           type: string
           nullable: true
           description: |
-            App-level system actor for platform-managed guild content such as daily questions. In v0, this actor is exempt from ordinary member trust-tier minima and posting quotas when publishing system-tagged content.
+            App-level system actor for platform-managed club content such as daily questions. In v0, this actor is exempt from ordinary member trust-tier minima and posting quotas when publishing system-tagged content.
         membership_mode:
           type: string
           enum:
@@ -3053,7 +3053,7 @@ components:
         anonymous_identity_scope:
           type: string
           enum:
-            - guild_stable
+            - club_stable
             - thread_stable
             - post_ephemeral
           nullable: true
@@ -3110,7 +3110,7 @@ components:
             - none
             - 18_plus
           description: |
-            Guild-wide default viewer age gate.
+            Club-wide default viewer age gate.
         donation_policy_mode:
           type: string
           enum:
@@ -3130,10 +3130,10 @@ components:
           $ref: "#/components/schemas/DonationPartnerSummary"
           nullable: true
         flair_policy:
-          $ref: "#/components/schemas/GuildFlairPolicy"
+          $ref: "#/components/schemas/ClubFlairPolicy"
           nullable: true
         community_profile:
-          $ref: "#/components/schemas/GuildCommunityProfile"
+          $ref: "#/components/schemas/ClubCommunityProfile"
           nullable: true
         governance_mode:
           type: string
@@ -3142,7 +3142,7 @@ components:
             - multisig
             - majeur
         governance_backend:
-          $ref: "#/components/schemas/GuildGovernanceBackend"
+          $ref: "#/components/schemas/ClubGovernanceBackend"
           nullable: true
         gate_rules:
           type: array
@@ -3298,7 +3298,7 @@ components:
       type: object
       required:
         - live_room_id
-        - guild_id
+        - club_id
         - anchor_post_id
         - host_user_id
         - title
@@ -3313,7 +3313,7 @@ components:
       properties:
         live_room_id:
           type: string
-        guild_id:
+        club_id:
           type: string
         anchor_post_id:
           type: string
@@ -3573,10 +3573,10 @@ components:
     MembershipResult:
       type: object
       required:
-        - guild_id
+        - club_id
         - status
       properties:
-        guild_id:
+        club_id:
           type: string
         status:
           type: string
@@ -3584,10 +3584,10 @@ components:
             - joined
             - requested
             - left
-    CreateGuildDonationPolicyInput:
+    CreateClubDonationPolicyInput:
       type: object
       description: |
-        Optional guild-level donation configuration supplied at creation time. If omitted, the guild defaults to no donation policy. If `donation_policy_mode = optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id` must be non-null. If `donation_policy_mode = none`, `donation_partner_id` must be null.
+        Optional club-level donation configuration supplied at creation time. If omitted, the club defaults to no donation policy. If `donation_policy_mode = optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id` must be non-null. If `donation_policy_mode = none`, `donation_partner_id` must be null.
       required:
         - donation_policy_mode
       properties:
@@ -3600,10 +3600,10 @@ components:
         donation_partner_id:
           type: string
           nullable: true
-    UpdateGuildDonationPolicyRequest:
+    UpdateClubDonationPolicyRequest:
       type: object
       description: |
-        Update the guild donation policy. If `donation_policy_mode = optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id` must be non-null. If `donation_policy_mode = none`, `donation_partner_id` must be null. Donation partner lifecycle management is platform-admin-controlled in v0.
+        Update the club donation policy. If `donation_policy_mode = optional_creator_sidecar` or `fundraiser_default`, `donation_partner_id` must be non-null. If `donation_policy_mode = none`, `donation_partner_id` must be null. Donation partner lifecycle management is platform-admin-controlled in v0.
       required:
         - donation_policy_mode
       properties:
@@ -3657,16 +3657,16 @@ components:
             - active
             - paused
             - retired
-    GuildDonationPolicy:
+    ClubDonationPolicy:
       type: object
       description: |
-        Resolved donation policy attached to a guild. This policy enables or disables listing-level creator donation sidecars for content sold inside the guild.
+        Resolved donation policy attached to a club. This policy enables or disables listing-level creator donation sidecars for content sold inside the club.
       required:
-        - guild_id
+        - club_id
         - donation_policy_mode
         - donation_partner_status
       properties:
-        guild_id:
+        club_id:
           type: string
         donation_policy_mode:
           type: string
@@ -3708,17 +3708,17 @@ components:
         reason:
           type: string
           nullable: true
-    GuildHandle:
+    ClubHandle:
       type: object
       required:
-        - guild_handle_id
+        - club_handle_id
         - user_id
         - namespace_id
         - label
         - status
         - issuance_source
       properties:
-        guild_handle_id:
+        club_handle_id:
           type: string
         user_id:
           type: string
@@ -3777,10 +3777,10 @@ components:
             required:
               - link_url
       required:
-        - guild_id
+        - club_id
         - post_type
       properties:
-        guild_id:
+        club_id:
           type: string
         identity_mode:
           type: string
@@ -3791,7 +3791,7 @@ components:
         anonymous_scope:
           type: string
           enum:
-            - guild_stable
+            - club_stable
             - thread_stable
             - post_ephemeral
           nullable: true
@@ -3878,7 +3878,7 @@ components:
         Canonical post row. V0 read models do not distinguish human-initiated writes from agent-initiated writes on the base object; if Pirate later supports user-owned agents posting on behalf of a user, a field such as `submission_mode` or `authorship_mode` should be added rather than overloading `author_user_id`.
       required:
         - post_id
-        - guild_id
+        - club_id
         - identity_mode
         - post_type
         - status
@@ -3890,7 +3890,7 @@ components:
       properties:
         post_id:
           type: string
-        guild_id:
+        club_id:
           type: string
         author_user_id:
           type: string
@@ -3905,7 +3905,7 @@ components:
         anonymous_scope:
           type: string
           enum:
-            - guild_stable
+            - club_stable
             - thread_stable
             - post_ephemeral
           nullable: true
@@ -4114,7 +4114,7 @@ components:
       required:
         - question_id
         - post_id
-        - guild_id
+        - club_id
         - author_user_id
         - question_kind
         - prompt
@@ -4125,7 +4125,7 @@ components:
           type: string
         post_id:
           type: string
-        guild_id:
+        club_id:
           type: string
         author_user_id:
           type: string
@@ -4157,7 +4157,7 @@ components:
             - lyrics
             - annotation
             - artist_catalog
-            - guild_lore
+            - club_lore
         source_ref:
           type: string
           nullable: true
@@ -4210,7 +4210,7 @@ components:
             - lyrics
             - annotation
             - artist_catalog
-            - guild_lore
+            - club_lore
         source_ref:
           type: string
           nullable: true
@@ -4330,21 +4330,21 @@ components:
             Viewer-facing translated caption text when `translation_state = ready`.
         source_hash:
           type: string
-    CreateGuildCommunityBootstrapInput:
+    CreateClubCommunityBootstrapInput:
       type: object
       properties:
         flair_policy:
-          $ref: "#/components/schemas/CreateGuildFlairPolicyInput"
+          $ref: "#/components/schemas/CreateClubFlairPolicyInput"
           nullable: true
         rules:
           type: array
           items:
-            $ref: "#/components/schemas/CreateGuildRuleInput"
+            $ref: "#/components/schemas/CreateClubRuleInput"
         resource_links:
           type: array
           items:
-            $ref: "#/components/schemas/CreateGuildResourceLinkInput"
-    CreateGuildFlairPolicyInput:
+            $ref: "#/components/schemas/CreateClubResourceLinkInput"
+    CreateClubFlairPolicyInput:
       type: object
       properties:
         flair_enabled:
@@ -4356,8 +4356,8 @@ components:
         definitions:
           type: array
           items:
-            $ref: "#/components/schemas/CreateGuildFlairDefinitionInput"
-    UpdateGuildFlairPolicyRequest:
+            $ref: "#/components/schemas/CreateClubFlairDefinitionInput"
+    UpdateClubFlairPolicyRequest:
       type: object
       properties:
         flair_enabled:
@@ -4367,8 +4367,8 @@ components:
         definitions:
           type: array
           items:
-            $ref: "#/components/schemas/GuildFlairDefinitionMutationInput"
-    CreateGuildFlairDefinitionInput:
+            $ref: "#/components/schemas/ClubFlairDefinitionMutationInput"
+    CreateClubFlairDefinitionInput:
       type: object
       required:
         - label
@@ -4396,7 +4396,7 @@ components:
               - video
               - song
           nullable: true
-    UpdateGuildFlairDefinitionInput:
+    UpdateClubFlairDefinitionInput:
       type: object
       required:
         - flair_id
@@ -4430,11 +4430,11 @@ components:
           enum:
             - active
             - archived
-    GuildFlairDefinitionMutationInput:
+    ClubFlairDefinitionMutationInput:
       oneOf:
-        - $ref: "#/components/schemas/CreateGuildFlairDefinitionInput"
-        - $ref: "#/components/schemas/UpdateGuildFlairDefinitionInput"
-    GuildFlairDefinition:
+        - $ref: "#/components/schemas/CreateClubFlairDefinitionInput"
+        - $ref: "#/components/schemas/UpdateClubFlairDefinitionInput"
+    ClubFlairDefinition:
       type: object
       required:
         - flair_id
@@ -4470,7 +4470,7 @@ components:
               - video
               - song
           nullable: true
-    GuildFlairPolicy:
+    ClubFlairPolicy:
       type: object
       required:
         - flair_enabled
@@ -4484,7 +4484,7 @@ components:
         definitions:
           type: array
           items:
-            $ref: "#/components/schemas/GuildFlairDefinition"
+            $ref: "#/components/schemas/ClubFlairDefinition"
     PostFlair:
       type: object
       description: |
@@ -4506,7 +4506,7 @@ components:
           enum:
             - active
             - archived
-    CreateGuildRuleInput:
+    CreateClubRuleInput:
       type: object
       required:
         - title
@@ -4521,7 +4521,7 @@ components:
         position:
           type: integer
           minimum: 0
-    UpdateGuildRuleInput:
+    UpdateClubRuleInput:
       type: object
       required:
         - rule_id
@@ -4541,11 +4541,11 @@ components:
           enum:
             - active
             - archived
-    GuildRuleMutationInput:
+    ClubRuleMutationInput:
       oneOf:
-        - $ref: "#/components/schemas/CreateGuildRuleInput"
-        - $ref: "#/components/schemas/UpdateGuildRuleInput"
-    GuildRule:
+        - $ref: "#/components/schemas/CreateClubRuleInput"
+        - $ref: "#/components/schemas/UpdateClubRuleInput"
+    ClubRule:
       type: object
       required:
         - rule_id
@@ -4568,7 +4568,7 @@ components:
           enum:
             - active
             - archived
-    CreateGuildResourceLinkInput:
+    CreateClubResourceLinkInput:
       type: object
       required:
         - label
@@ -4594,7 +4594,7 @@ components:
         position:
           type: integer
           minimum: 0
-    UpdateGuildResourceLinkInput:
+    UpdateClubResourceLinkInput:
       type: object
       required:
         - resource_link_id
@@ -4624,11 +4624,11 @@ components:
           enum:
             - active
             - archived
-    GuildResourceLinkMutationInput:
+    ClubResourceLinkMutationInput:
       oneOf:
-        - $ref: "#/components/schemas/CreateGuildResourceLinkInput"
-        - $ref: "#/components/schemas/UpdateGuildResourceLinkInput"
-    GuildResourceLink:
+        - $ref: "#/components/schemas/CreateClubResourceLinkInput"
+        - $ref: "#/components/schemas/UpdateClubResourceLinkInput"
+    ClubResourceLink:
       type: object
       required:
         - resource_link_id
@@ -4662,7 +4662,7 @@ components:
           enum:
             - active
             - archived
-    GuildCommunityProfile:
+    ClubCommunityProfile:
       type: object
       required:
         - rules
@@ -4671,22 +4671,22 @@ components:
         rules:
           type: array
           items:
-            $ref: "#/components/schemas/GuildRule"
+            $ref: "#/components/schemas/ClubRule"
         resource_links:
           type: array
           items:
-            $ref: "#/components/schemas/GuildResourceLink"
-    UpdateGuildCommunityProfileRequest:
+            $ref: "#/components/schemas/ClubResourceLink"
+    UpdateClubCommunityProfileRequest:
       type: object
       properties:
         rules:
           type: array
           items:
-            $ref: "#/components/schemas/GuildRuleMutationInput"
+            $ref: "#/components/schemas/ClubRuleMutationInput"
         resource_links:
           type: array
           items:
-            $ref: "#/components/schemas/GuildResourceLinkMutationInput"
+            $ref: "#/components/schemas/ClubResourceLinkMutationInput"
     TrackResolveRequest:
       type: object
       description: |
@@ -4714,7 +4714,7 @@ components:
         asset_id:
           type: string
           nullable: true
-        guild_id:
+        club_id:
           type: string
           nullable: true
         title:
@@ -4788,7 +4788,7 @@ components:
         asset_id:
           type: string
           nullable: true
-        guild_id:
+        club_id:
           type: string
           nullable: true
         publisher_ref:
@@ -4845,7 +4845,7 @@ components:
       properties:
         track_id:
           type: string
-        guild_id:
+        club_id:
           type: string
           nullable: true
         source_type:
@@ -4886,7 +4886,7 @@ components:
           type: string
         user_id:
           type: string
-        guild_id:
+        club_id:
           type: string
           nullable: true
         source_type:
@@ -4946,7 +4946,7 @@ components:
           type: string
           enum:
             - reddit_snapshot_import
-            - guild_threads_export
+            - club_threads_export
             - media_analysis
             - story_publication
             - purchase_settlement_confirmation
@@ -5059,11 +5059,11 @@ components:
     ThreadExportAcceptedResponse:
       type: object
       required:
-        - guild_id
+        - club_id
         - job
         - job_status_url
       properties:
-        guild_id:
+        club_id:
           type: string
         job:
           $ref: "#/components/schemas/Job"

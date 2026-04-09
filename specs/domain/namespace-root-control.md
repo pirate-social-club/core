@@ -6,11 +6,11 @@ Related docs:
 
 - [namespace.md](./namespace.md)
 - [handles.md](./handles.md)
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 
 ## Purpose
 
-This doc defines the audit-oriented control model for attaching external roots to Pirate guilds.
+This doc defines the audit-oriented control model for attaching external roots to Pirate clubs.
 
 It covers:
 
@@ -36,7 +36,7 @@ Definitions:
 - `assertions`
   Derived claims Pirate accepts from that evidence, such as "the user currently controls this root" or "Pirate currently has DNS authority for subdomain lifecycle."
 - `capabilities`
-  Product permissions unlocked by accepted assertions, such as attaching the guild root or issuing Pirate-managed subhandles.
+  Product permissions unlocked by accepted assertions, such as attaching the club root or issuing Pirate-managed subhandles.
 
 ## Audit Objects
 
@@ -71,10 +71,10 @@ Namespace root attachment is not only a root-proof problem. It also depends on c
 Recommended v0 default:
 
 - `creator_unique_human_verified = true` only when `verification_capabilities.unique_human.state = verified` from an accepted biometric/nullifier provider such as `self` or `very`
-- root-attached guild creation should require `creator_unique_human_verified = true`
-- wallet-score systems such as Human Passport may support softer anti-Sybil gating elsewhere, but should not be the sole creator proof for root-attached guild creation in v0
+- root-attached club creation should require `creator_unique_human_verified = true`
+- wallet-score systems such as Human Passport may support softer anti-Sybil gating elsewhere, but should not be the sole creator proof for root-attached club creation in v0
 
-See [guild.md](./guild.md) for guild-creation policy and [user.md](./user.md) for provider and proof semantics.
+See [club.md](./club.md) for club-creation policy and [user.md](./user.md) for provider and proof semantics.
 
 ## HNS Evidence
 
@@ -103,12 +103,12 @@ Pirate should inspect the HNS root's remaining lifetime during root verification
 
 Recommended v0 rule:
 
-- `expiry_horizon_sufficient = true` only when the root has more than 90 days remaining before expiry at the time Pirate accepts the root for guild creation
+- `expiry_horizon_sufficient = true` only when the root has more than 90 days remaining before expiry at the time Pirate accepts the root for club creation
 
 Recommended product behavior:
 
-- if remaining lifetime is `<= 90 days`, Pirate should block new primary guild creation on that root
-- if the root is already attached and later falls below the horizon, Pirate should not delete the guild, but should mark the namespace riskier and disable new paid namespace sales until the expiry horizon is restored
+- if remaining lifetime is `<= 90 days`, Pirate should block new primary club creation on that root
+- if the root is already attached and later falls below the horizon, Pirate should not delete the club, but should mark the namespace riskier and disable new paid namespace sales until the expiry horizon is restored
 - mirror attachment may follow the same rule in v0 for simplicity rather than introducing a special-case exception
 
 Rationale:
@@ -133,7 +133,7 @@ Recommended v0 posture:
 
 - Pirate may use HNS-aware recursive resolvers, binary DoH endpoints, JSON DNS APIs, or self-hosted HNS infrastructure to inspect roots and verify TXT challenges
 - Pirate should not rely on a single third-party public resolver as its only source of truth for high-trust decisions
-- for high-trust decisions such as guild creation, TXT control verification, delegation verification, and expiry checks, Pirate should cross-check with at least two independent HNS-aware sources or one self-hosted source plus one independent external source
+- for high-trust decisions such as club creation, TXT control verification, delegation verification, and expiry checks, Pirate should cross-check with at least two independent HNS-aware sources or one self-hosted source plus one independent external source
 - the resolver path should be recorded in the `evidence_bundle`
 
 Important:
@@ -146,7 +146,7 @@ Important:
 
 Derived HNS capabilities:
 
-- `guild_attach_allowed = creator_unique_human_verified && root_control_verified && expiry_horizon_sufficient`
+- `club_attach_allowed = creator_unique_human_verified && root_control_verified && expiry_horizon_sufficient`
 - `pirate_web_routing_allowed = root_control_verified && routing_enabled`
 - `pirate_subdomain_issuance_allowed = root_control_verified && expiry_horizon_sufficient && pirate_dns_authority_verified`
 
@@ -181,8 +181,8 @@ Rationale:
 
 Derived Spaces capabilities:
 
-- `guild_attach_allowed = creator_unique_human_verified && root_key_proof_verified && live_signature_verified`
-- `owner_signed_record_updates_allowed = guild_attach_allowed && owner_signed_updates_verified`
+- `club_attach_allowed = creator_unique_human_verified && root_key_proof_verified && live_signature_verified`
+- `owner_signed_record_updates_allowed = club_attach_allowed && owner_signed_updates_verified`
 - `pirate_subspace_issuance_allowed = false`
 
 Pirate should support root attachment first and remain conservative on subordinate issuance until the certificate, revocation, and delegation model is explicitly specified.
@@ -208,7 +208,7 @@ Recommended v0 namespace operation classes:
 Important:
 
 - these trust classes are separate from root proof and separate from handle-issuance capabilities
-- a guild with a valid root proof may still be high-risk if it is attached to a single-holder root
+- a club with a valid root proof may still be high-risk if it is attached to a single-holder root
 - UI should surface the control class and operation class independently from the verification checklist
 
 ## User-Facing State
@@ -238,13 +238,13 @@ Each label should map to one evidence fact or one capability, never both.
 | --- | --- | --- | --- |
 | Root inspection succeeds and name exists | `root_exists = true` | none | root found |
 | Expiry check shows more than 90 days remaining | `expiry_horizon_sufficient = true` | none until root control is also verified | Expiry horizon sufficient |
-| TXT challenge verified | `root_control_verified = true` | `guild_attach_allowed = true` if expiry horizon is also sufficient | Root control verified |
+| TXT challenge verified | `root_control_verified = true` | `club_attach_allowed = true` if expiry horizon is also sufficient | Root control verified |
 | Edge or wildcard routing detected | `routing_enabled = true` | `pirate_web_routing_allowed = true` if root control already verified | Routing enabled |
 | Authoritative NS or equivalent Pirate DNS delegation verified | `pirate_dns_authority_verified = true` | `pirate_subdomain_issuance_allowed = true` if root control and expiry horizon are already verified | Pirate DNS authority verified; Pirate subdomain issuance enabled |
-| Expiry falls to 90 days or less | `expiry_horizon_sufficient = false` | `guild_attach_allowed = false`; `pirate_subdomain_issuance_allowed = false` | near expiry |
+| Expiry falls to 90 days or less | `expiry_horizon_sufficient = false` | `club_attach_allowed = false`; `pirate_subdomain_issuance_allowed = false` | near expiry |
 | Routing removed but control proof still valid | `routing_enabled = false` | `pirate_web_routing_allowed = false` | routing disabled |
 | Delegation removed but control proof still valid | `pirate_dns_authority_verified = false` | `pirate_subdomain_issuance_allowed = false` | Pirate subdomain issuance disabled |
-| Control proof becomes stale without contradiction | no flag forced false; mark assertion stale | no automatic guild detach | Stale |
+| Control proof becomes stale without contradiction | no flag forced false; mark assertion stale | no automatic club detach | Stale |
 | Contradictory proof or hostile takeover evidence appears | `root_control_verified = false` or disputed assertion | disable all HNS capabilities derived from root control | Disputed |
 
 ### Spaces
@@ -252,9 +252,9 @@ Each label should map to one evidence fact or one capability, never both.
 | Event | Evidence Change | Capability Change | User-Facing State |
 | --- | --- | --- | --- |
 | Root proof verified against accepted anchor | `root_key_proof_verified = true` | none until live control also verified | Root key proof verified |
-| Pirate challenge signed by proven key | `live_signature_verified = true` | `guild_attach_allowed = true` if root key proof already verified | Live signature verified |
-| Owner-signed record update path explicitly enabled and verified | `owner_signed_updates_verified = true` | `owner_signed_record_updates_allowed = true` if guild attach already allowed | Owner-signed updates enabled |
-| Anchor freshness window exceeded without contradictory evidence | no flag forced false; mark assertion stale | no automatic guild detach | Stale |
+| Pirate challenge signed by proven key | `live_signature_verified = true` | `club_attach_allowed = true` if root key proof already verified | Live signature verified |
+| Owner-signed record update path explicitly enabled and verified | `owner_signed_updates_verified = true` | `owner_signed_record_updates_allowed = true` if club attach already allowed | Owner-signed updates enabled |
+| Anchor freshness window exceeded without contradictory evidence | no flag forced false; mark assertion stale | no automatic club detach | Stale |
 | Fresh contradictory proof accepted | mark proof assertion disputed | disable attach-derived capabilities that rely on the contradicted proof | Disputed |
 | Owner-signed update path withdrawn | `owner_signed_updates_verified = false` | `owner_signed_record_updates_allowed = false` | owner-signed updates disabled |
 
@@ -262,14 +262,14 @@ Each label should map to one evidence fact or one capability, never both.
 
 Failure handling should be narrow and proportional:
 
-- an HNS root falling below the minimum expiry horizon disables new root-attached monetization and new attach-derived capabilities, but should not auto-delete the guild
+- an HNS root falling below the minimum expiry horizon disables new root-attached monetization and new attach-derived capabilities, but should not auto-delete the club
 - losing HNS delegation disables new Pirate-managed subdomain issuance only
 - losing HNS routing disables Pirate-hosted root routing only
-- losing fresh HNS control proof should mark the root stale or disputed, not auto-delete the guild
+- losing fresh HNS control proof should mark the root stale or disputed, not auto-delete the club
 - stale Spaces anchors or proof freshness should mark the root stale
 - contradictory Spaces proof should mark the root disputed
 
-Guild history and internal identity should survive these degradations unless a later product policy explicitly says otherwise.
+Club history and internal identity should survive these degradations unless a later product policy explicitly says otherwise.
 
 ## Implementation Guidance
 
@@ -291,4 +291,4 @@ This doc does not define:
 - exact HNS record payloads
 - exact Spaces certificate or subordinate issuance formats
 - the full resolver infrastructure topology
-- the full guild create API
+- the full club create API

@@ -1,6 +1,6 @@
-export type GuildMembershipMode = "open" | "request" | "gated";
-export type GuildGovernanceMode = "centralized" | "multisig" | "majeur";
-export type GuildDefaultAgeGatePolicy = "none" | "18_plus";
+export type ClubMembershipMode = "open" | "request" | "gated";
+export type ClubGovernanceMode = "centralized" | "multisig" | "majeur";
+export type ClubDefaultAgeGatePolicy = "none" | "18_plus";
 
 export type NamespaceFamily = "hns" | "spaces";
 
@@ -19,7 +19,7 @@ export type MultisigVerificationState = "not_attached" | "pending" | "verified" 
 
 export type HandlePolicyTemplate = "standard" | "premium" | "membership_gated" | "custom";
 export type HandlePricingModel = "free" | "flat_by_length" | "custom_curve" | "gated_then_flat";
-export type AnonymousIdentityScope = "guild_stable" | "thread_stable" | "post_ephemeral";
+export type AnonymousIdentityScope = "club_stable" | "thread_stable" | "post_ephemeral";
 
 export type GateFamily = "token_holding" | "identity_proof";
 export type GateType =
@@ -72,13 +72,13 @@ export interface MultisigAttachmentState {
   warnings?: string[];
 }
 
-export interface CreateGuildComposerProps {
+export interface CreateClubComposerProps {
   displayName?: string;
   description?: string;
   draftsLabel?: string;
-  membershipMode?: GuildMembershipMode;
-  governanceMode?: GuildGovernanceMode;
-  defaultAgeGatePolicy?: GuildDefaultAgeGatePolicy;
+  membershipMode?: ClubMembershipMode;
+  governanceMode?: ClubGovernanceMode;
+  defaultAgeGatePolicy?: ClubDefaultAgeGatePolicy;
   allowAnonymousIdentity?: boolean;
   anonymousIdentityScope?: AnonymousIdentityScope;
   endaomentUrl?: string;

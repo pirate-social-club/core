@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [namespace.md](./namespace.md)
 - [artist-identity.md](./artist-identity.md)
 - [user.md](./user.md)
@@ -14,17 +14,17 @@ Related docs:
 
 ## Purpose
 
-This doc defines guild-local user handles such as:
+This doc defines club-local user handles such as:
 
 - `name.kanye`
 - `name@kanye`
 
-It also defines how guild-local handles relate to Pirate's global `.pirate` identity layer.
+It also defines how club-local handles relate to Pirate's global `.pirate` identity layer.
 
 It covers:
 
 - what a handle is
-- how handles relate to guilds and namespaces
+- how handles relate to clubs and namespaces
 - issuance mode
 - length tiers and eligibility
 - lease and renewal semantics
@@ -43,7 +43,7 @@ This doc does not define:
 
 ## Core Principle
 
-A handle is a guild-scoped namespace right.
+A handle is a club-scoped namespace right.
 
 Examples:
 
@@ -53,10 +53,10 @@ Examples:
 Handles are:
 
 - scarce
-- transferable only if guild policy allows it
+- transferable only if club policy allows it
 - leasable rather than perpetual in v0
 - offchain by default in v0
-- governed by guild policy and platform ToS
+- governed by club policy and platform ToS
 
 Handles are not absolute property.
 
@@ -66,9 +66,9 @@ Pirate also has a separate global identity layer:
 
 The global `.pirate` layer is app-level and should follow stricter anti-hoarding rules than old Pirate.
 
-In v0, a handle is best understood as a revocable licensed right to use a label within a guild namespace, subject to:
+In v0, a handle is best understood as a revocable licensed right to use a label within a club namespace, subject to:
 
-- guild governance policy
+- club governance policy
 - renewal rules
 - platform ToS and moderation rules
 
@@ -87,7 +87,7 @@ Reasoning:
 - less contract work
 - less attack surface
 - fewer irreversible mistakes during bootstrap
-- guilds can learn policy implications before minting durable onchain rights
+- clubs can learn policy implications before minting durable onchain rights
 
 Onchain issuance is a later upgrade step, not the default bootstrap behavior.
 
@@ -107,12 +107,12 @@ Rules:
 - offchain issuance remains valid even if no onchain token exists
 - in v0, `issuance_mode` is always `offchain`
 - in v0, `issuance_chain`, `issuance_contract`, and `issuance_token_id` are always `null`
-- guild creation already assumes verified control of the corresponding HNS or Spaces root
+- club creation already assumes verified control of the corresponding HNS or Spaces root
 - Pirate-managed externally resolvable handles require namespace delegation to Pirate
 
 ## Governance Threshold For Onchain Issuance
 
-Onchain handle issuance should not be enabled by default for creator-controlled bootstrap guilds.
+Onchain handle issuance should not be enabled by default for creator-controlled bootstrap clubs.
 
 Directional v0 recommendation:
 
@@ -121,48 +121,48 @@ Directional v0 recommendation:
 
 Examples of governance hardening:
 
-- guild controlled by multisig
-- guild governed by DAO
+- club controlled by multisig
+- club governed by DAO
 - explicit policy activation by a stronger governance backend
 
-This reduces the risk that a single root owner prematurely mints durable onchain handle rights without the guild understanding the policy implications.
+This reduces the risk that a single root owner prematurely mints durable onchain handle rights without the club understanding the policy implications.
 
-## Relationship To Guild And Namespace
+## Relationship To Club And Namespace
 
-A handle belongs to exactly one namespace, and a namespace belongs to exactly one guild.
+A handle belongs to exactly one namespace, and a namespace belongs to exactly one club.
 
 So the chain is:
 
-- `guild`
+- `club`
 - `namespace`
 - `handle`
 
 Examples:
 
-- bare-label namespace `/g/kanye` can issue `name.kanye`
-- `@` namespace `/g/@kanye` can issue `name@kanye`
+- bare-label namespace `/c/kanye` can issue `name.kanye`
+- `@` namespace `/c/@kanye` can issue `name@kanye`
 
 Handles are unique per namespace.
 
 In v0:
 
 - `name.kanye` and `name@kanye` are distinct handle rights
-- `name.kanye` and `name.肯伊` are distinct handle rights even if both namespaces point to the same guild
+- `name.kanye` and `name.肯伊` are distinct handle rights even if both namespaces point to the same club
 - claims are not mirrored across route families
 - claims are not mirrored across namespace mirrors more generally
 - if cross-family mirroring ever exists, it must be an explicit future feature
 - the root owner is the effective authority during bootstrap until governance is upgraded
-- one user may hold different handles in different namespaces, including multiple sibling namespaces attached to the same guild
+- one user may hold different handles in different namespaces, including multiple sibling namespaces attached to the same club
 
 ## Relationship To Global `.pirate`
 
-Pirate's global `.pirate` identity is not a guild namespace.
+Pirate's global `.pirate` identity is not a club namespace.
 
 It should be treated as:
 
 - a platform-level identity layer
 - one active global handle per user in v0
-- separate from guild-local handle inventories
+- separate from club-local handle inventories
 
 Recommended v0 behavior:
 
@@ -170,7 +170,7 @@ Recommended v0 behavior:
 - one free cleanup rename is allowed during onboarding or early account setup
 - later upgrades into cleaner or scarcer `.pirate` handles may be paid
 - upgraded `.pirate` handles replace the user's active global handle rather than creating multiple active global identities
-- global `.pirate` handles are platform-level identity records, not guild-handle leases
+- global `.pirate` handles are platform-level identity records, not club-handle leases
 
 Directional v0 `.pirate` policy:
 
@@ -189,7 +189,7 @@ Actor rule:
 
 Suggested v0 fields:
 
-- `guild_handle_id`
+- `club_handle_id`
 - `namespace_id`
 - `user_id`
 - `label`
@@ -233,7 +233,7 @@ Uniqueness:
 
 Derived values:
 
-- `guild_id` is derived through the namespace join
+- `club_id` is derived through the namespace join
 - `display_handle` is derived at read time from `label` plus the namespace label and route family
 - UI may also derive sibling-namespace handle badges for the same `user_id`, but those do not affect namespace-local ownership or claim rights
 
@@ -241,7 +241,7 @@ Operational note:
 
 - a handle may exist in Pirate before Pirate itself is managing external resolver issuance
 - whether Pirate can automatically make that handle externally resolvable depends on namespace delegation state
-- mirrored guild namespaces may expose different available-handle inventories even though they point to the same guild
+- mirrored club namespaces may expose different available-handle inventories even though they point to the same club
 
 ## Label Rules
 
@@ -249,7 +249,7 @@ V0 handle label rules:
 
 - ASCII lowercase only
 - allowed characters: `a-z`, `0-9`, `-`
-- length limits are controlled by guild handle policy
+- length limits are controlled by club handle policy
 - may not begin or end with `-`
 - must not collide with reserved labels in that namespace
 
@@ -274,7 +274,7 @@ Important rule:
 
 ## Handle Policy
 
-Each guild namespace may define handle policy.
+Each club namespace may define handle policy.
 
 Suggested v0 policy fields:
 
@@ -303,7 +303,7 @@ Example interpretation:
 
 - `8+` characters: broadly claimable
 - `6-7` characters: trust-gated
-- `4-5` characters: premium / auction / guild-assigned
+- `4-5` characters: premium / auction / club-assigned
 - `1-3` characters: reserved or premium-only
 
 The exact numbers are policy, not protocol.
@@ -323,9 +323,9 @@ Suggested meanings:
 - `generated_label_policy`
   A policy object for system-suggested available names, including optional ontology/vocabulary sets and numeric suffix format.
 - `membership_required_for_claim`
-  If true, the user must first be a member of the guild before claiming a namespace handle.
+  If true, the user must first be a member of the club before claiming a namespace handle.
 - `gate_required_for_claim`
-  If true, the user must satisfy the guild's viewer/posting/token gate policy before claiming a namespace handle.
+  If true, the user must satisfy the club's viewer/posting/token gate policy before claiming a namespace handle.
 - `trust_discount_policy`
   Optional future discount policy based on trusted native signals. Disabled by default in v0. See [karma.md](./karma.md) for the canonical karma model.
 
@@ -345,23 +345,23 @@ V0 defaults:
 - `auction_policy = null`
   Auctions are disabled by default in v0.
 - `trust_discount_policy = null`
-  Native-karma or trust-based pricing discounts are disabled by default in v0 until guild karma tiers are well-established. See [karma.md](./karma.md).
+  Native-karma or trust-based pricing discounts are disabled by default in v0 until club karma tiers are well-established. See [karma.md](./karma.md).
 
 ## Handle Policy Templates
 
-Guild creation should not leave namespace-handle economics undefined.
+Club creation should not leave namespace-handle economics undefined.
 
 Recommended v0 templates:
 
 - `standard`
   - `8+` broadly available
   - shorter names increasingly restricted
-  - good default for most artist and fan guilds
+  - good default for most artist and fan clubs
 - `premium`
   - short and high-signal names explicitly monetized
   - reserved names like `king`, `vip`, or `official` may be individually priced or auctioned
 - `membership_gated`
-  - guild gate or NFT/token gate comes first
+  - club gate or NFT/token gate comes first
   - names may then be free or cheap once the user is eligible
 - `custom`
   - creator picks explicit values for the policy fields above
@@ -369,11 +369,11 @@ Recommended v0 templates:
 
 Important rule:
 
-- every namespace should have a handle policy record at guild creation time, even if it is just one of the default templates
+- every namespace should have a handle policy record at club creation time, even if it is just one of the default templates
 
 ## Generated Name Ontologies
 
-Guilds may want system-generated name suggestions rather than only raw freeform search.
+Clubs may want system-generated name suggestions rather than only raw freeform search.
 
 Recommended v0 support:
 
@@ -386,11 +386,11 @@ Recommended v0 support:
 Examples:
 
 - `.pirate` global handles may use `adjective-noun-4digits`
-- a guild could later use a custom ontology such as themed word sets for its namespace
+- a club could later use a custom ontology such as themed word sets for its namespace
 
 Directional v0 recommendation:
 
-- generated guild-handle suggestions should usually land at `8+` characters so the system is not accidentally allocating scarce premium inventory by default
+- generated club-handle suggestions should usually land at `8+` characters so the system is not accidentally allocating scarce premium inventory by default
 
 ## Eligibility
 
@@ -398,7 +398,7 @@ Eligibility should be derived, not stored as a permanent score.
 
 Inputs may include:
 
-- native Pirate reputation within that guild
+- native Pirate reputation within that club
 - native global Pirate reputation
 - account age on Pirate
 - imported onboarding trust, such as subreddit-specific Reddit karma
@@ -413,7 +413,7 @@ The system may compute:
 
 - minimum claimable length
 - bid eligibility for premium handles
-- whether a user can bypass guild approval for certain lengths
+- whether a user can bypass club approval for certain lengths
 
 But it should compute those from underlying signals and snapshots, not maintain a long-lived opaque trust score as canonical state.
 
@@ -426,7 +426,7 @@ Pirate karma and imported reputation are not the same thing.
 
 For handles:
 
-- Pirate-native guild reputation should be the primary signal
+- Pirate-native club reputation should be the primary signal
 - imported subreddit-specific Reddit karma may provide an initial bootstrap
 - global Reddit karma should have limited effect
 
@@ -437,7 +437,7 @@ Example:
 
 Pricing note:
 
-- guild creators may eventually want native-karma discounts for handle pricing
+- club creators may eventually want native-karma discounts for handle pricing
 - Pirate should not depend on that in v0 because a canonical native karma/reputation spec does not yet exist
 
 ## One Handle Per Namespace
@@ -472,7 +472,7 @@ When a lease expires:
 After grace ends:
 
 - the handle status becomes `expired`
-- the handle may be reclaimed, reissued, or auctioned under guild policy
+- the handle may be reclaimed, reissued, or auctioned under club policy
 
 ## Renewal Semantics
 
@@ -480,9 +480,9 @@ Renewal behavior is a product-level rule, not contract-specific.
 
 V0 recommendations:
 
-- renewal price is set by guild policy
-- guild policy may be subject to platform minimums or fee rules
-- renewal revenue goes to the guild treasury, the platform, or a configured split
+- renewal price is set by club policy
+- club policy may be subject to platform minimums or fee rules
+- renewal revenue goes to the club treasury, the platform, or a configured split
 
 These three questions must be answered by the eventual monetization/governance specs:
 
@@ -494,7 +494,7 @@ These three questions must be answered by the eventual monetization/governance s
 
 Auction is a product concept for scarce handles, not a protocol requirement for every handle.
 
-Guilds may choose to allocate premium handles via auction in order to:
+Clubs may choose to allocate premium handles via auction in order to:
 
 - raise treasury funds
 - distribute scarce names
@@ -503,14 +503,14 @@ Guilds may choose to allocate premium handles via auction in order to:
 V0 assumptions:
 
 - only some handle lengths or reserved labels are auctionable
-- auction proceeds follow guild treasury policy
+- auction proceeds follow club treasury policy
 - auction does not change the fact that the resulting handle is still a licensed lease right, not absolute property
 
 ## Transfer And Revocation
 
 If transfer is enabled by policy, a handle may be transferred or sold.
 
-However, because handles are licensed rights rather than absolute property, guild and platform policy may still constrain them.
+However, because handles are licensed rights rather than absolute property, club and platform policy may still constrain them.
 
 Revocation should be narrow and policy-bound.
 
@@ -526,7 +526,7 @@ Revocation should not be treated as an arbitrary admin action.
 
 ## Owner-Managed vs Pirate-Managed Issuance
 
-Namespace delegation determines whether Pirate can issue externally resolvable guild handles automatically.
+Namespace delegation determines whether Pirate can issue externally resolvable club handles automatically.
 
 - `owner_managed`
   The root owner controls external resolver issuance directly.
@@ -535,7 +535,7 @@ Namespace delegation determines whether Pirate can issue externally resolvable g
 
 Implications:
 
-- a guild may still exist without Pirate-managed SLD issuance
+- a club may still exist without Pirate-managed SLD issuance
 - Pirate-managed `name.kanye` or `name@kanye` issuance requires `pirate_managed` delegation on the namespace
 - without delegation, the owner remains responsible for actually issuing or publishing the external SLD even if Pirate tracks the handle right internally
 
@@ -544,7 +544,7 @@ Implications:
 Each namespace may reserve labels for:
 
 - moderation roles
-- guild operations
+- club operations
 - governance roles
 - brand or artist protection
 - future auctions
@@ -558,13 +558,13 @@ Examples:
 - `vip`
 - highly sensitive public names
 
-Reserved-label policy is guild-specific, subject to platform safety rules.
+Reserved-label policy is club-specific, subject to platform safety rules.
 
 ## Possible Later Contracts
 
 If Pirate later moves this on-chain, likely contract areas would include:
 
-- guild handle registry
+- club handle registry
 - lease / renewal accounting
 - premium handle auction modules
 - resolver adapters for HNS and Spaces
@@ -573,6 +573,6 @@ Those are implementation concerns and are intentionally out of scope for this do
 
 ## Open Questions
 
-- What is the default renewal revenue split between guild treasury and platform?
+- What is the default renewal revenue split between club treasury and platform?
 - Which labels must be reserved platform-wide across all namespaces?
 - Should some handles be permanently non-transferable even if the namespace generally allows transfers?

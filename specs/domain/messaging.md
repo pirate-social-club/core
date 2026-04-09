@@ -7,7 +7,7 @@ Related docs:
 - [user.md](./user.md)
 - [profile.md](./profile.md)
 - [notifications.md](./notifications.md)
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [blocks.md](./blocks.md)
 
 ## Purpose
@@ -27,7 +27,7 @@ It covers:
 It does not cover:
 
 - push delivery
-- group chats or guild channels
+- group chats or club channels
 - final chat UI copy
 - moderation tooling for message content
 - every possible future transport beyond XMTP
@@ -64,7 +64,7 @@ V0 messaging supports:
 
 V0 messaging does not support:
 
-- guild-wide channels
+- club-wide channels
 - room chat
 - anonymous-identity messaging
 - moderation-side break-glass identity resolution through chat surfaces
@@ -128,13 +128,13 @@ Rules:
 
 ## Messaging Identity Boundary
 
-Direct messages target users, not anonymous guild personas.
+Direct messages target users, not anonymous club personas.
 
 Rules:
 
 - DMs must resolve to a canonical user or the user's messaging transport attachment
-- anonymous guild labels such as `anon_mercury-17` are not valid DM targets
-- enabling anonymous posting in a guild does not create an anonymous DM identity
+- anonymous club labels such as `anon_mercury-17` are not valid DM targets
+- enabling anonymous posting in a club does not create an anonymous DM identity
 - DM affordances should only appear on non-anonymous public profile surfaces
 
 ## Transport Attachment State

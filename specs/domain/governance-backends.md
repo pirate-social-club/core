@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [multisig-attachment.md](./multisig-attachment.md)
 - [majeur-creation.md](./majeur-creation.md)
 - [namespace.md](./namespace.md)
@@ -12,7 +12,7 @@ Related docs:
 
 ## Purpose
 
-This doc defines how a guild binds external governance authority.
+This doc defines how a club binds external governance authority.
 
 It covers:
 
@@ -31,9 +31,9 @@ It does not cover:
 
 ## Core Principle
 
-Pirate remains the source of truth for guild product state.
+Pirate remains the source of truth for club product state.
 
-A governance backend is an approval authority for high-trust guild actions, not a replacement for all app permissions and not a requirement for routine moderation.
+A governance backend is an approval authority for high-trust club actions, not a replacement for all app permissions and not a requirement for routine moderation.
 
 ## Backend Types
 
@@ -52,11 +52,11 @@ Recommended product labels:
 Meanings:
 
 - `centralized`
-  - one Pirate-controlled guild owner path is the constitutional authority
+  - one Pirate-controlled club owner path is the constitutional authority
   - no external contract address is required
 - `multisig`
   - an external smart-account multisig, usually a Safe, is the constitutional authority
-  - the same address may also serve as the guild treasury
+  - the same address may also serve as the club treasury
 - `majeur`
   - a Majeur DAO contract is the constitutional authority
   - treasury assets and major governance decisions live under the DAO's on-chain rules
@@ -92,7 +92,7 @@ Suggested interpretations:
 
 ## Authority Split
 
-Pirate should explicitly separate two classes of guild action.
+Pirate should explicitly separate two classes of club action.
 
 ### Operational Authority
 
@@ -103,7 +103,7 @@ Examples:
 - moderation actions on posts, comments, and members
 - flair definitions
 - community rules and resource links
-- guild profile copy and artwork
+- club profile copy and artwork
 - anonymous presentation defaults
 - routine creator-side content policy edits
 
@@ -126,22 +126,22 @@ These actions may require external approval depending on `governance_mode`.
 
 ## External Action Reconciliation
 
-When an action requires external governance approval, Pirate should model it as a pending app action rather than mutating guild state immediately.
+When an action requires external governance approval, Pirate should model it as a pending app action rather than mutating club state immediately.
 
 Suggested v0 flow:
 
 1. User initiates a constitutional change in Pirate.
-2. Pirate validates the request against current guild policy.
+2. Pirate validates the request against current club policy.
 3. Pirate creates a pending governance action record.
 4. Pirate prepares a backend-specific action payload.
 5. The external backend approves and executes that payload.
 6. Pirate verifies the execution on the specified chain.
-7. Pirate finalizes the guild-state mutation and marks the action as completed.
+7. Pirate finalizes the club-state mutation and marks the action as completed.
 
 Suggested v0 governance action fields:
 
 - `governance_action_id`
-- `guild_id`
+- `club_id`
 - `action_kind`
 - `requested_by_user_id`
 - `governance_mode`
@@ -194,7 +194,7 @@ Recommended v0 interpretation:
 - `majeur`
   - treasury should normally point to the DAO contract unless a later module or wrapper changes that
 
-Pirate should display treasury balances as read models. Pirate should not assume custody just because a guild exists.
+Pirate should display treasury balances as read models. Pirate should not assume custody just because a club exists.
 
 ## Backend-Specific Metadata
 
@@ -234,7 +234,7 @@ Suggested metadata:
 
 Recommended v0 rules:
 
-- changing `governance_mode` must not create a new `guild_id`
+- changing `governance_mode` must not create a new `club_id`
 - `centralized -> multisig` is allowed
 - `centralized -> majeur` is allowed
 - `multisig -> majeur` is allowed
@@ -245,13 +245,13 @@ Important asymmetry:
 
 - `centralized -> multisig` mainly attaches a new constitutional backend
 - `majeur -> multisig` may also require treasury asset migration, proposal approval inside the old DAO, and recognition that dissenting members may ragequit before execution
-- the old DAO persists on-chain even after Pirate points the guild at a different backend
+- the old DAO persists on-chain even after Pirate points the club at a different backend
 
 ## Product Guidance
 
 Recommended v0 product stance:
 
-- default new guilds to `centralized`
+- default new clubs to `centralized`
 - support `multisig` as the first advanced governance backend
 - support `majeur` as a separate advanced creation and attachment flow, not as a generic hidden implementation of `dao_ready`
 - expose clear user-facing language about what each backend governs

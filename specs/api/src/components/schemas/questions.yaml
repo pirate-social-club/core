@@ -3,7 +3,7 @@ Question:
   required:
     - question_id
     - post_id
-    - guild_id
+    - club_id
     - author_user_id
     - question_kind
     - prompt
@@ -14,7 +14,7 @@ Question:
       type: string
     post_id:
       type: string
-    guild_id:
+    club_id:
       type: string
     author_user_id:
       type: string
@@ -46,7 +46,7 @@ Question:
         - lyrics
         - annotation
         - artist_catalog
-        - guild_lore
+        - club_lore
     source_ref:
       type: string
       nullable: true
@@ -99,7 +99,7 @@ CreateQuestionRequest:
         - lyrics
         - annotation
         - artist_catalog
-        - guild_lore
+        - club_lore
     source_ref:
       type: string
       nullable: true

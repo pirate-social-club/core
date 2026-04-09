@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [post.md](./post.md)
 - [asset.md](./asset.md)
 - [royalty-graph.md](./royalty-graph.md)
@@ -16,12 +16,12 @@ Related docs:
 
 ## Purpose
 
-This doc defines how sellable Pirate assets route money between creators, guilds, the platform, and upstream royalty participants.
+This doc defines how sellable Pirate assets route money between creators, clubs, the platform, and upstream royalty participants.
 
 It covers:
 
 - default payout policy
-- guild treasury routing
+- club treasury routing
 - creator-side charitable donation routing
 - regional pricing interaction
 - upstream royalty handling
@@ -57,14 +57,14 @@ An asset may only be listed for sale when:
 Suggested v0 policy fields:
 
 - `payout_policy_id`
-- `guild_id`
+- `club_id`
 - `mode`
 - `creator_share_pct`
-- `guild_fee_pct`
+- `club_fee_pct`
 - `platform_fee_pct`
 - `upstream_royalty_mode`
 - `upstream_optional_pct` nullable
-- `guild_treasury_ref`
+- `club_treasury_ref`
 - `settlement_backend_ref` nullable
 - `created_at`
 - `updated_at`
@@ -73,32 +73,32 @@ Suggested meanings:
 
 - `mode`
   - `platform_default`
-  - `guild_override`
+  - `club_override`
   - `governance_controlled`
 - `upstream_royalty_mode`
   - `none`
   - `passthrough`
-  - `guild_optional`
+  - `club_optional`
 
 Notes:
 
 - percentages are product-level policy values in v0; implementation precision is a later concern
-- `guild_treasury_ref` is the canonical settlement destination reference for guild-fee proceeds
+- `club_treasury_ref` is the canonical settlement destination reference for club-fee proceeds
 - `settlement_backend_ref` may later point to a multisig, DAO treasury, or contract-backed settlement backend
-- creator-side charitable donation eligibility is enabled by guild donation policy, while the actual opt-in and share live on the listing object
+- creator-side charitable donation eligibility is enabled by club donation policy, while the actual opt-in and share live on the listing object
 
 ## Default V0 Split
 
 Recommended default for sellable original works with no upstream royalty obligation:
 
 - creator: `85%`
-- guild: `5%`
+- club: `5%`
 - platform: `10%`
 
 Interpretation:
 
 - the creator receives the majority of sale proceeds
-- the guild gets a modest treasury contribution
+- the club gets a modest treasury contribution
 - the platform fee covers storage, analysis, verification, Story integration, and marketplace infrastructure
 
 ## Regional Pricing Interaction
@@ -119,16 +119,16 @@ Charitable donation in v0 should be a creator-side sidecar, not a post-level des
 
 Rules:
 
-- donation is only available when the guild has an active donation partner
+- donation is only available when the club has an active donation partner
 - donation participation is opt-in on the listing
 - `listing.donation_share_pct`, when set, is taken from creator-side proceeds
 - `listing.donation_partner_id_snapshot` is the destination reference used for settlement
 - donation must not reduce required upstream royalty passthrough
-- donation must not replace the normal guild treasury share
+- donation must not replace the normal club treasury share
 
 Interpretation:
 
-- guild treasury routing and charity routing are separate
+- club treasury routing and charity routing are separate
 - creator donation is a sacrifice by the creator, not a remapping of someone else's owed share
 
 ## Upstream Royalty Handling
@@ -154,19 +154,19 @@ Example:
 - remaining amount: `80%`
 - remainder split by default policy:
   - creator: `68%`
-  - guild: `4%`
+  - club: `4%`
   - platform: `8%`
 
 This is equivalent to:
 
 - upstream: `20%`
 - creator: `68%`
-- guild: `4%`
+- club: `4%`
 - platform: `8%`
 
-### `guild_optional`
+### `club_optional`
 
-The guild may choose to route an optional upstream share even when there is no hard legal or graph-required upstream obligation.
+The club may choose to route an optional upstream share even when there is no hard legal or graph-required upstream obligation.
 
 This is the money-side equivalent of attribution-oriented sharing.
 
@@ -174,7 +174,7 @@ Rules:
 
 - off by default in v0
 - when enabled, `upstream_optional_pct` defines the optional upstream share
-- optional upstream sharing is taken before the remaining amount is split by the guild payout policy
+- optional upstream sharing is taken before the remaining amount is split by the club payout policy
 
 ## Payout Waterfall
 
@@ -183,12 +183,12 @@ Recommended v0 order:
 1. buyer pays
 2. external payment/network fees are removed
 3. if `upstream_royalty_mode = passthrough`, required upstream royalties are paid
-4. if `upstream_royalty_mode = guild_optional`, optional upstream share is paid when enabled
-5. remaining distributable amount is split between creator, guild, and platform according to the active payout policy
+4. if `upstream_royalty_mode = club_optional`, optional upstream share is paid when enabled
+5. remaining distributable amount is split between creator, club, and platform according to the active payout policy
 6. if the listing is donation-enabled, the configured donation share is routed from the creator-side proceeds to the snapped donation partner
 7. remaining creator payout is delivered
 
-This keeps upstream obligations ahead of guild/platform economics.
+This keeps upstream obligations ahead of club/platform economics.
 
 ## Livestream Revenue Boundary
 
@@ -197,37 +197,37 @@ Livestream access sales follow the same payout waterfall, but room access and pe
 Recommended v0 rule:
 
 - a paid `live_room` listing sells access to the room or replay
-- sale proceeds follow the active guild payout policy
+- sale proceeds follow the active club payout policy
 - performer-side proceeds should then be split according to the room's explicit performer allocations
 
 Interpretation:
 
-- `solo` and `duet` rooms still settle through the room listing plus the guild payout policy first
-- performer allocations only divide the performer-side proceeds after upstream, guild, and platform obligations have been resolved
+- `solo` and `duet` rooms still settle through the room listing plus the club payout policy first
+- performer allocations only divide the performer-side proceeds after upstream, club, and platform obligations have been resolved
 - if a creator-side donation sidecar is enabled on a live or replay listing, it should reduce the performer-side pool before the final performer allocation split, unless later policy explicitly chooses a different ordering
 - song-specific live splits still require a later segment or replay-rights model
 - ACRCloud recognition on the live mix or replay may produce evidence for later rights or payout review, but it must not auto-rewrite the live settlement waterfall in real time in v0
 
 Rights-review hold:
 
-- if a room or replay triggers an ACRCloud match that Pirate treats as rights-relevant, creator or guild-side payout distribution should enter a pending rights-review hold
+- if a room or replay triggers an ACRCloud match that Pirate treats as rights-relevant, creator or club-side payout distribution should enter a pending rights-review hold
 - in v0, the Pirate platform operator is the review authority that releases, reroutes, or blocks those held payouts
-- guild owners, TLD owners, or performers may provide evidence, but they are not the final release authority for flagged third-party rights cases
+- club owners, TLD owners, or performers may provide evidence, but they are not the final release authority for flagged third-party rights cases
 
-## Guild Treasury Control
+## Club Treasury Control
 
-The guild fee must route to a treasury address controlled by the guild's current governance layer.
+The club fee must route to a treasury address controlled by the club's current governance layer.
 
 Recommended progression:
 
 1. creator-controlled bootstrap
-   - `guild_treasury_ref` defaults to a creator-controlled settlement destination
-2. multisig-controlled guild
-   - `guild_treasury_ref` moves to the guild multisig destination
-3. DAO-controlled guild
-   - `guild_treasury_ref` moves to the DAO treasury or DAO-controlled settlement backend
+   - `club_treasury_ref` defaults to a creator-controlled settlement destination
+2. multisig-controlled club
+   - `club_treasury_ref` moves to the club multisig destination
+3. DAO-controlled club
+   - `club_treasury_ref` moves to the DAO treasury or DAO-controlled settlement backend
 
-This matches the governance progression already defined in [guild.md](./guild.md).
+This matches the governance progression already defined in [club.md](./club.md).
 
 ## Governance And Policy Control
 
@@ -236,10 +236,10 @@ Recommended v0 progression:
 ### `platform_default`
 
 - Pirate defines the payout policy
-- guild operators cannot arbitrarily change splits
-- safest mode for new guilds
+- club operators cannot arbitrarily change splits
+- safest mode for new clubs
 
-### `guild_override`
+### `club_override`
 
 - a stronger operator setup, typically creator plus multisig, may change approved payout parameters
 - platform should still enforce policy bounds in v0
@@ -261,7 +261,7 @@ Examples:
 
 - original fan art with no upstream obligation
   - sellable under default payout policy
-- official artist song in an artist-governed guild
+- official artist song in an artist-governed club
   - sellable subject to its Story and royalty configuration
 - derivative remix with unsupported upstream rights
   - not sellable
@@ -271,7 +271,7 @@ Examples:
 Recommended v0 split:
 
 - payout policy lives as an app-level record
-- `guild_treasury_ref` may resolve to an EVM wallet, multisig, contract, or later non-EVM settlement destination
+- `club_treasury_ref` may resolve to an EVM wallet, multisig, contract, or later non-EVM settlement destination
 - pricing and policy resolution remain app-level in v0
 - Story-side purchase settlement for royalty-native sales should still execute onchain
 - onchain contracts consume resolved payout inputs rather than deriving pricing policy themselves
@@ -279,5 +279,5 @@ Recommended v0 split:
 ## Open Questions
 
 - Which asset types are sellable in v0 versus publish-only?
-- Should the default guild fee stay fixed at `5%` for all guilds until governance hardens?
-- What policy bounds should Pirate enforce before a guild may move from `platform_default` to `guild_override`?
+- Should the default club fee stay fixed at `5%` for all clubs until governance hardens?
+- What policy bounds should Pirate enforce before a club may move from `platform_default` to `club_override`?

@@ -31,7 +31,7 @@ Recommended v0 rule:
 
 - ACRCloud and related analysis systems produce evidence
 - Pirate platform review decides whether that evidence is cleared, linked to upstream rights, or blocked
-- guild owners, TLD owners, hosts, and performers may submit context, but they do not have unilateral final-clearance authority for flagged third-party rights cases
+- club owners, TLD owners, hosts, and performers may submit context, but they do not have unilateral final-clearance authority for flagged third-party rights cases
 
 ## Review Triggers
 
@@ -49,7 +49,7 @@ Suggested v0 `rights_review_cases` shape:
 - `rights_review_case_id`
 - `subject_type`
 - `subject_id`
-- `guild_id`
+- `club_id`
 - `status`
 - `trigger_source`
 - `analysis_result_ref` nullable
@@ -87,8 +87,8 @@ Recommended v0 authority model:
 
 - Pirate platform review is the final authority
 - in practice, the Pirate platform operator may personally perform this review in v0
-- guild owners, TLD owners, hosts, guests, and other involved parties may submit evidence or context
-- guild-local governance does not override Pirate platform review for flagged third-party rights cases
+- club owners, TLD owners, hosts, guests, and other involved parties may submit evidence or context
+- club-local governance does not override Pirate platform review for flagged third-party rights cases
 
 ## Evidence Submission
 
@@ -104,7 +104,7 @@ Evidence may include:
 Recommended v0 stance:
 
 - evidence submission is an operational workflow first, not a public self-serve API requirement
-- a later API may expose structured evidence submission for hosts or guild owners
+- a later API may expose structured evidence submission for hosts or club owners
 
 ## Outcomes
 

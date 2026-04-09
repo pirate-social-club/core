@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [../domain/guild.md](../domain/guild.md)
+- [../domain/club.md](../domain/club.md)
 - [../domain/namespace.md](../domain/namespace.md)
 - [../domain/artist-identity.md](../domain/artist-identity.md)
 - [../domain/handles.md](../domain/handles.md)
@@ -39,7 +39,7 @@ This doc does not define:
 
 Only put onchain what benefits materially from onchain execution in v0.
 
-Pirate should not force guild, feed, or identity features onchain just because some adjacent parts already are.
+Pirate should not force club, feed, or identity features onchain just because some adjacent parts already are.
 
 Pirate should also prefer Story's existing asset and royalty primitives where they already solve the problem cleanly.
 
@@ -67,7 +67,7 @@ Recommended v0 asset posture:
 
 - use Story's standard NFT-plus-IP registration flow
 - keep Pirate-managed Story collection strategy small and simple
-- do not create one Story collection per guild in v0
+- do not create one Story collection per club in v0
 
 Pirate should rely on Story's existing protocol contracts where possible rather than recreating those primitives.
 
@@ -77,9 +77,9 @@ Music listening activity is meaningful product state for Pirate and should have 
 
 Reasoning:
 
-- scrobbles are valuable music-guild reputation and activity data
+- scrobbles are valuable music-club reputation and activity data
 - track registration and scrobble history benefit from shared onchain visibility
-- scrobble thresholds can later drive audience segments, unlocks, and guild recognition
+- scrobble thresholds can later drive audience segments, unlocks, and club recognition
 - this is already a proven pattern in `pirate/` via `ScrobbleV4`
 
 Recommended v0 shape:
@@ -92,7 +92,7 @@ Recommended v0 shape:
 Important boundary:
 
 - onchain scrobble data is the canonical event layer
-- aggregation, ranking, streaks, badges, and guild views remain offchain read models
+- aggregation, ranking, streaks, badges, and club views remain offchain read models
 
 ### Marketplace Purchase Execution
 
@@ -141,17 +141,17 @@ Pirate should keep the legal/product meaning simple:
 
 - buyer receives a license/access entitlement
 - not copyright transfer
-- not guild ownership
+- not club ownership
 
 ## What Should Stay Offchain In V0
 
-### Guild Identity And Settings
+### Club Identity And Settings
 
 These should remain app-level in v0:
 
-- guild existence
-- guild settings
-- guild gates
+- club existence
+- club settings
+- club gates
 - moderation policy
 - feed policy
 
@@ -167,10 +167,10 @@ Feed generation and ranking stay offchain.
 This includes:
 
 - `Home`
-- `Your Guilds`
-- guild feed ranking
+- `Your Clubs`
+- club feed ranking
 
-Even if guild governance later influences ranking policy, feed execution remains an app-level concern.
+Even if club governance later influences ranking policy, feed execution remains an app-level concern.
 
 This does not conflict with having an onchain scrobble event layer for music activity.
 
@@ -199,7 +199,7 @@ Handles remain offchain-first in v0.
 Reasoning:
 
 - lease, renewal, revocation, and namespace policy are still evolving
-- guilds start creator-controlled
+- clubs start creator-controlled
 - premature onchain issuance creates rug and support risk
 
 Onchain handle issuance is a later upgrade path after governance hardening.
@@ -223,7 +223,7 @@ External attestations and mirrors may exist, but Pirate's canonical user model r
 
 ## External Roots And Proofs
 
-HNS and Spaces root ownership are required for guild creation, but Pirate does not need to own those protocols.
+HNS and Spaces root ownership are required for club creation, but Pirate does not need to own those protocols.
 
 V0 contract implication:
 
@@ -239,13 +239,13 @@ Payout policy starts as an app-level record.
 Recommended progression:
 
 1. `platform_default`
-2. `guild_override`
+2. `club_override`
 3. `governance_controlled`
 
 In early v0:
 
 - policy resolution may still happen offchain
-- guild treasury is a wallet or multisig address
+- club treasury is a wallet or multisig address
 - onchain purchase execution consumes the resolved policy inputs
 
 Later, policy resolution may move closer to governance-managed or contract-managed control.
@@ -289,7 +289,7 @@ Likely areas:
 
 Pirate should avoid building dedicated v0 contracts for:
 
-- guild creation
+- club creation
 - feed ranking
 - gating policy storage
 - user identity
@@ -365,13 +365,13 @@ Notes:
 
 Pirate does not need dedicated v0 contracts for:
 
-- guild records
+- club records
 - namespace binding
 - handle issuance
 - feed ranking formulas
 - artist verification
 - identity verification
-- guild gate rule storage
+- club gate rule storage
 
 ## Royalty Graph Dependency
 
@@ -381,7 +381,7 @@ Contract implication:
 
 - payout-routing and marketplace settlement contracts should treat the royalty graph as the app-level source that classifies upstream obligations
 - Story-native edges remain the source of truth for protocol-enforced royalty passthrough
-- Pirate-native edges may still inform optional or guild-defined sharing behavior without pretending to be Story-enforced
+- Pirate-native edges may still inform optional or club-defined sharing behavior without pretending to be Story-enforced
 
 ## Future Contract Areas
 

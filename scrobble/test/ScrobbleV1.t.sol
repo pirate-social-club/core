@@ -16,14 +16,14 @@ contract ScrobbleActor {
         ScrobbleV1 scrobble,
         address user,
         bytes32 trackId,
-        bytes32 guildId,
+        bytes32 clubId,
         uint64 playbackStartedAt,
         uint32 creditedDurationMs,
         uint8 sourceType,
         uint8 submissionMode
     ) external {
         scrobble.scrobble(
-            user, trackId, guildId, playbackStartedAt, creditedDurationMs, sourceType, submissionMode
+            user, trackId, clubId, playbackStartedAt, creditedDurationMs, sourceType, submissionMode
         );
     }
 
@@ -31,14 +31,14 @@ contract ScrobbleActor {
         ScrobbleV1 scrobble,
         address user,
         bytes32[] calldata trackIds,
-        bytes32[] calldata guildIds,
+        bytes32[] calldata clubIds,
         uint64[] calldata playbackStartedAts,
         uint32[] calldata creditedDurationsMs,
         uint8[] calldata sourceTypes,
         uint8[] calldata submissionModes
     ) external {
         scrobble.scrobbleBatch(
-            user, trackIds, guildIds, playbackStartedAts, creditedDurationsMs, sourceTypes, submissionModes
+            user, trackIds, clubIds, playbackStartedAts, creditedDurationsMs, sourceTypes, submissionModes
         );
     }
 }
@@ -51,7 +51,7 @@ contract ScrobbleV1Test {
 
     bytes32 internal constant TRACK_ID = keccak256("track");
     bytes32 internal constant META_HASH = keccak256("meta");
-    bytes32 internal constant GUILD_ID = keccak256("guild");
+    bytes32 internal constant CLUB_ID = keccak256("club");
 
     function setUp() public {
         scrobble = new ScrobbleV1();
@@ -82,7 +82,7 @@ contract ScrobbleV1Test {
             scrobble,
             address(user),
             TRACK_ID,
-            GUILD_ID,
+            CLUB_ID,
             1,
             30_000,
             scrobble.SOURCE_WEB(),
@@ -107,7 +107,7 @@ contract ScrobbleV1Test {
 
     function testScrobbleBatchWorks() public {
         bytes32[] memory trackIds = new bytes32[](2);
-        bytes32[] memory guildIds = new bytes32[](2);
+        bytes32[] memory clubIds = new bytes32[](2);
         uint64[] memory started = new uint64[](2);
         uint32[] memory durations = new uint32[](2);
         uint8[] memory sources = new uint8[](2);
@@ -115,8 +115,8 @@ contract ScrobbleV1Test {
 
         trackIds[0] = TRACK_ID;
         trackIds[1] = keccak256("track-2");
-        guildIds[0] = GUILD_ID;
-        guildIds[1] = bytes32(0);
+        clubIds[0] = CLUB_ID;
+        clubIds[1] = bytes32(0);
         started[0] = 10;
         started[1] = 20;
         durations[0] = 30_000;
@@ -130,7 +130,7 @@ contract ScrobbleV1Test {
         operator.registerTrack(scrobble, trackIds[1], keccak256("meta-2"));
 
         operator.scrobbleBatch(
-            scrobble, address(user), trackIds, guildIds, started, durations, sources, modes
+            scrobble, address(user), trackIds, clubIds, started, durations, sources, modes
         );
     }
 
@@ -141,7 +141,7 @@ contract ScrobbleV1Test {
                 scrobble,
                 address(user),
                 TRACK_ID,
-                GUILD_ID,
+                CLUB_ID,
                 1,
                 30_000,
                 scrobble.SOURCE_WEB(),
@@ -169,7 +169,7 @@ contract ScrobbleV1Test {
                 scrobble,
                 address(user),
                 TRACK_ID,
-                GUILD_ID,
+                CLUB_ID,
                 1,
                 30_000,
                 scrobble.SOURCE_WEB(),
@@ -189,7 +189,7 @@ contract ScrobbleV1Test {
                 scrobble,
                 address(user),
                 TRACK_ID,
-                GUILD_ID,
+                CLUB_ID,
                 1,
                 30_000,
                 99,
@@ -204,7 +204,7 @@ contract ScrobbleV1Test {
                 scrobble,
                 address(user),
                 TRACK_ID,
-                GUILD_ID,
+                CLUB_ID,
                 1,
                 30_000,
                 scrobble.SOURCE_WEB(),
@@ -249,7 +249,7 @@ contract ScrobbleV1Test {
                 scrobble,
                 address(user),
                 TRACK_ID,
-                GUILD_ID,
+                CLUB_ID,
                 0,
                 30_000,
                 scrobble.SOURCE_WEB(),
@@ -294,7 +294,7 @@ contract ScrobbleV1Test {
                 scrobble,
                 address(user),
                 TRACK_ID,
-                GUILD_ID,
+                CLUB_ID,
                 1,
                 30_000,
                 scrobble.SOURCE_OPERATOR(),

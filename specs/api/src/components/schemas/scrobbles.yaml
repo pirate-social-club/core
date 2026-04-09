@@ -8,7 +8,7 @@ CreateScrobbleRequest:
   properties:
     track_id:
       type: string
-    guild_id:
+    club_id:
       type: string
       nullable: true
     source_type:
@@ -49,7 +49,7 @@ Scrobble:
       type: string
     user_id:
       type: string
-    guild_id:
+    club_id:
       type: string
       nullable: true
     source_type:

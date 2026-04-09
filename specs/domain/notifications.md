@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [messaging.md](./messaging.md)
 - [post.md](./post.md)
 - [profile.md](./profile.md)
@@ -43,7 +43,7 @@ They are not:
 - a direct-message transport
 - a dump of every low-signal event in the system
 
-The source of truth for an action remains the underlying post, guild-membership request, moderation action, or other domain object. Notifications are derived read models created by trusted server-side event handlers.
+The source of truth for an action remains the underlying post, club-membership request, moderation action, or other domain object. Notifications are derived read models created by trusted server-side event handlers.
 
 ## Separation From Messaging
 
@@ -76,7 +76,7 @@ Suggested v0 notification fields:
 - `entity_id`
 - `actor_user_id` nullable
 - `actor_identity_mode`
-- `guild_id` nullable
+- `club_id` nullable
 - `group_key` nullable
 - `dedupe_key`
 - `read_at` nullable
@@ -95,7 +95,7 @@ Suggested meanings:
   - `post_review_required`
   - `post_blocked`
 - `entity_type`
-  - `guild_membership_request`
+  - `club_membership_request`
   - `post`
   - `post_reaction`
   - `moderation_action`
@@ -124,7 +124,7 @@ Notifications must preserve the same privacy boundary as the action that trigger
 Suggested v0 `actor_identity_mode` values:
 
 - `public`
-- `anonymous_guild_stable`
+- `anonymous_club_stable`
 - `anonymous_thread_stable`
 - `anonymous_post_ephemeral`
 
@@ -138,14 +138,14 @@ Interpretation:
 Rules:
 
 - the public read model must not expose `actor_user_id`
-- if the triggering action was authored under anonymous guild presentation, the notification must render the actor as that anonymous label
+- if the triggering action was authored under anonymous club presentation, the notification must render the actor as that anonymous label
 - anonymous actor rendering in notifications must not leak the underlying `user_id`
-- if the actor label is derived from guild-local scope, the notification read model should carry the rendered anonymous label as presentation data
+- if the actor label is derived from club-local scope, the notification read model should carry the rendered anonymous label as presentation data
 - internal services may retain `actor_user_id` for audit, dedupe, and enforcement, but public clients must only receive scrubbed presentation data
 
 Example:
 
-- user A replies anonymously in a guild to user B's post
+- user A replies anonymously in a club to user B's post
 - user B receives a `reply` notification
 - the notification actor renders as something like `anon_mercury-17`
 - the notification must not expose user A's real profile handle or `user_id`
@@ -154,13 +154,13 @@ Example:
 
 ### Membership Request Received
 
-Sent to moderators or admins responsible for admission review when a user submits a request to join a `membership_mode = request` guild.
+Sent to moderators or admins responsible for admission review when a user submits a request to join a `membership_mode = request` club.
 
 Requirements:
 
-- `entity_type = guild_membership_request`
+- `entity_type = club_membership_request`
 - `entity_id = membership_request_id`
-- `guild_id` required
+- `club_id` required
 - `actor_identity_mode = public`
 
 ### Membership Request Approved
@@ -169,9 +169,9 @@ Sent to the applicant when their request is approved.
 
 Requirements:
 
-- `entity_type = guild_membership_request`
+- `entity_type = club_membership_request`
 - `entity_id = membership_request_id`
-- `guild_id` required
+- `club_id` required
 - this is a standalone notification, not grouped
 
 ### Membership Request Rejected
@@ -180,9 +180,9 @@ Sent to the applicant when their request is rejected.
 
 Requirements:
 
-- `entity_type = guild_membership_request`
+- `entity_type = club_membership_request`
 - `entity_id = membership_request_id`
-- `guild_id` required
+- `club_id` required
 - this is a standalone notification, not grouped
 
 ### Reply
@@ -242,7 +242,7 @@ Requirements:
 - `entity_type = moderation_action`
 - `entity_id = post_id`
 - `actor_user_id` may be null because the writer is the system
-- recipients are the guild moderators or equivalent review operators for the post's guild
+- recipients are the club moderators or equivalent review operators for the post's club
 - this notification is for workflow triage, not for the post author
 
 ### Post Blocked
@@ -262,7 +262,7 @@ The following kinds are explicitly reserved for later, but are not part of v0:
 
 - `listing_sold`
 - `followed_you`
-- `guild_invite_received`
+- `club_invite_received`
 
 ## Grouping Rules
 
@@ -271,7 +271,7 @@ Grouped read models need deterministic `group_key` derivation.
 Recommended v0 derivation:
 
 - `membership_request_received`
-  - `group_key = "membership_request_received:guild:{guild_id}:pending"`
+  - `group_key = "membership_request_received:club:{club_id}:pending"`
 - `membership_request_approved`
   - `group_key = null`
 - `membership_request_rejected`
@@ -365,7 +365,7 @@ Rules:
 
 Examples of trusted writers:
 
-- guild-membership request service
+- club-membership request service
 - post/reaction write service
 - moderation workflow service
 - analysis pipeline completion handler

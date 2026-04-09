@@ -1,13 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import * as React from "react";
 
-import { CreateGuildComposer } from "../create-guild-composer";
-import type { CreateGuildComposerProps } from "../create-guild-composer.types";
+import { CreateClubComposer } from "../create-club-composer";
+import type { CreateClubComposerProps } from "../create-club-composer.types";
 
-const baseComposer: CreateGuildComposerProps = {
+const baseComposer: CreateClubComposerProps = {
   displayName: "American Voices",
   description:
-    "A national-interest guild where verified context matters, but moderation still needs a safe anonymous layer.",
+    "A national-interest club where verified context matters, but moderation still needs a safe anonymous layer.",
   membershipMode: "request",
   governanceMode: "centralized",
   defaultAgeGatePolicy: "none",
@@ -43,8 +43,8 @@ const verifiedMultisig = {
 };
 
 const meta = {
-  title: "Compositions/CreateGuildComposer",
-  component: CreateGuildComposer,
+  title: "Compositions/CreateClubComposer",
+  component: CreateClubComposer,
   args: baseComposer,
   decorators: [
     (Story: () => React.ReactNode) => (
@@ -53,7 +53,7 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof CreateGuildComposer>;
+} satisfies Meta<typeof CreateClubComposer>;
 
 export default meta;
 
@@ -61,18 +61,18 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   name: "Flow / Default",
-  render: () => <CreateGuildComposer {...baseComposer} />,
+  render: () => <CreateClubComposer {...baseComposer} />,
 };
 
 export const PublicOnly: Story = {
   name: "Flow / Public Only",
-  render: () => <CreateGuildComposer {...baseComposer} allowAnonymousIdentity={false} />,
+  render: () => <CreateClubComposer {...baseComposer} allowAnonymousIdentity={false} />,
 };
 
 export const SpacesImportPending: Story = {
   name: "Flow / Spaces Import Pending",
   render: () => (
-    <CreateGuildComposer
+    <CreateClubComposer
       {...baseComposer}
       namespace={{
         family: "spaces",
@@ -88,7 +88,7 @@ export const SpacesImportPending: Story = {
 export const HnsInspected: Story = {
   name: "Flow / HNS Inspected",
   render: () => (
-    <CreateGuildComposer
+    <CreateClubComposer
       {...baseComposer}
       namespace={{
         family: "hns",
@@ -106,7 +106,7 @@ export const HnsInspected: Story = {
 export const HnsTxtChallenge: Story = {
   name: "Flow / HNS TXT Challenge",
   render: () => (
-    <CreateGuildComposer
+    <CreateClubComposer
       {...baseComposer}
       namespace={{
         family: "hns",
@@ -125,7 +125,7 @@ export const HnsTxtChallenge: Story = {
 export const HnsNearExpiry: Story = {
   name: "Flow / HNS Near Expiry",
   render: () => (
-    <CreateGuildComposer
+    <CreateClubComposer
       {...baseComposer}
       namespace={{
         family: "hns",
@@ -143,20 +143,20 @@ export const HnsNearExpiry: Story = {
 
 export const AdultOnly: Story = {
   name: "Flow / Adult Only",
-  render: () => <CreateGuildComposer {...baseComposer} defaultAgeGatePolicy="18_plus" initialStep={4} />,
+  render: () => <CreateClubComposer {...baseComposer} defaultAgeGatePolicy="18_plus" initialStep={4} />,
 };
 
 export const MultisigVerified: Story = {
   name: "Flow / Multisig Verified",
   render: () => (
-    <CreateGuildComposer {...baseComposer} governanceMode="multisig" multisig={verifiedMultisig} initialStep={4} />
+    <CreateClubComposer {...baseComposer} governanceMode="multisig" multisig={verifiedMultisig} initialStep={4} />
   ),
 };
 
 export const MultisigPending: Story = {
   name: "Flow / Multisig Pending",
   render: () => (
-    <CreateGuildComposer
+    <CreateClubComposer
       {...baseComposer}
       governanceMode="multisig"
       multisig={{
@@ -174,7 +174,7 @@ export const MultisigPending: Story = {
 export const MultisigNotAttached: Story = {
   name: "Flow / Multisig Not Attached",
   render: () => (
-    <CreateGuildComposer
+    <CreateClubComposer
       {...baseComposer}
       governanceMode="multisig"
       multisig={{
@@ -190,7 +190,7 @@ export const MultisigNotAttached: Story = {
 export const MultisigBroken: Story = {
   name: "Flow / Multisig Broken",
   render: () => (
-    <CreateGuildComposer
+    <CreateClubComposer
       {...baseComposer}
       governanceMode="multisig"
       multisig={{
@@ -199,7 +199,7 @@ export const MultisigBroken: Story = {
         treasurySameAsContract: true,
         displayLabel: "American Voices Treasury",
         verificationState: "broken",
-        warnings: ["Pirate can no longer confirm the Safe backend. Re-run verification before creating the guild."],
+        warnings: ["Pirate can no longer confirm the Safe backend. Re-run verification before creating the club."],
       }}
       initialStep={4}
     />
@@ -208,20 +208,20 @@ export const MultisigBroken: Story = {
 
 export const MajeurPlaceholder: Story = {
   name: "Flow / Majeur Placeholder",
-  render: () => <CreateGuildComposer {...baseComposer} governanceMode="majeur" initialStep={4} />,
+  render: () => <CreateClubComposer {...baseComposer} governanceMode="majeur" initialStep={4} />,
 };
 
 export const HandlePolicyStep: Story = {
   name: "Flow / Handle Policy Step",
-  render: () => <CreateGuildComposer {...baseComposer} handlePolicy={undefined} initialStep={3} />,
+  render: () => <CreateClubComposer {...baseComposer} handlePolicy={undefined} initialStep={3} />,
 };
 
 export const ReviewStep: Story = {
   name: "Flow / Review",
-  render: () => <CreateGuildComposer {...baseComposer} initialStep={5} />,
+  render: () => <CreateClubComposer {...baseComposer} initialStep={5} />,
 };
 
 export const CreatorNotEligible: Story = {
   name: "Flow / Creator Not Eligible",
-  render: () => <CreateGuildComposer {...baseComposer} creatorEligible={false} />,
+  render: () => <CreateClubComposer {...baseComposer} creatorEligible={false} />,
 };

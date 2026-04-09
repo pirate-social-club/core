@@ -6,7 +6,7 @@ Related docs:
 
 - [asset.md](./asset.md)
 - [post.md](./post.md)
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [royalty-graph.md](./royalty-graph.md)
 - [monetization.md](./monetization.md)
 - [donations.md](./donations.md)
@@ -76,7 +76,7 @@ Suggested v0 listing fields:
 - `listing_id`
 - `asset_id` nullable
 - `live_room_id` nullable
-- `guild_id`
+- `club_id`
 - `seller_user_id`
 - `listing_mode`
 - `price_usd`
@@ -111,8 +111,8 @@ Rules:
 - `listing_mode` belongs to the listing object, not the post or asset
 - `regional_pricing_policy`, when present, adjusts the buyer-visible USD quote before settlement
 - donation settings belong to the listing object because creators may choose donation participation per sale surface
-- donation may only be enabled when the guild donation policy allows it and the guild has an active donation partner
-- when donation is enabled, `donation_partner_id_snapshot` captures the current guild donation partner for that listing
+- donation may only be enabled when the club donation policy allows it and the club has an active donation partner
+- when donation is enabled, `donation_partner_id_snapshot` captures the current club donation partner for that listing
 - `donation_opt_in` is a boolean in v0
 - if `donation_opt_in = true`, then `donation_share_pct` and `donation_partner_id_snapshot` must be non-null
 - if `donation_opt_in = false`, then `donation_share_pct = null` and `donation_partner_id_snapshot = null`
@@ -153,7 +153,7 @@ Pirate may support regional pricing in v0.
 Reasoning:
 
 - cost of living differs substantially across markets
-- music guilds are global
+- music clubs are global
 - verified nationality gives Pirate a fairer and more abuse-resistant basis for pricing tiers than self-declared location
 
 Recommended v0 model:
@@ -172,7 +172,7 @@ Good defaults:
 
 - regional pricing is optional, not mandatory, in v0
 - tier derivation should come from current verification-backed pricing policy rather than ad hoc seller rules
-- guilds may later override pricing policy only when governance hardens enough to support it safely
+- clubs may later override pricing policy only when governance hardens enough to support it safely
 
 ## Pricing And Settlement
 
@@ -242,8 +242,8 @@ Rules:
 
 - the purchase transaction routes value directly into the active payout waterfall
 - upstream royalty passthrough, if required, is handled as part of settlement
-- guild and platform fees are routed immediately according to the active payout policy
-- creator-side donation sidecars, when enabled, route to the guild's configured donation partner as part of settlement
+- club and platform fees are routed immediately according to the active payout policy
+- creator-side donation sidecars, when enabled, route to the club's configured donation partner as part of settlement
 - no platform treasury should hold buyer funds pending manual release in v0
 - if a donation-enabled listing points to a paused or retired donation partner, the purchase must fail until the listing is refreshed or donation is disabled
 
@@ -297,15 +297,15 @@ Suggested v0 examples:
 
 Marketplace execution uses the active payout policy defined in [monetization.md](./monetization.md).
 
-Marketplace execution also uses the active guild donation policy defined in [donations.md](./donations.md) to determine whether listing-level donation opt-in is allowed.
+Marketplace execution also uses the active club donation policy defined in [donations.md](./donations.md) to determine whether listing-level donation opt-in is allowed.
 
 That policy determines:
 
 - creator share
-- guild fee
+- club fee
 - platform fee
 - upstream royalty handling
-- whether creator-side donation is enabled against the guild's configured donation partner
+- whether creator-side donation is enabled against the club's configured donation partner
 
 The marketplace spec does not redefine those percentages.
 

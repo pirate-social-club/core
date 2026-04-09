@@ -6,7 +6,7 @@ Related docs:
 
 - [user.md](./user.md)
 - [identity-presentation.md](./identity-presentation.md)
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [post.md](./post.md)
 
 ## Purpose
@@ -36,7 +36,7 @@ Pirate only exposes a proof-backed qualifier when:
 2. Pirate recognizes the provider schema or attestation type
 3. Pirate verifies the result
 4. Pirate maps the verified result to a platform-owned qualifier template
-5. the guild allows that qualifier
+5. the club allows that qualifier
 
 ## Provider Registry
 
@@ -63,8 +63,8 @@ Suggested shape:
 
 Rules:
 
-- the registry is platform-owned, not guild-owned
-- guilds may allow qualifiers derived from a provider, but guilds do not define providers
+- the registry is platform-owned, not club-owned
+- clubs may allow qualifiers derived from a provider, but clubs do not define providers
 - adding `zkpass` should be a provider-registry row, not a qualifier-schema rewrite
 
 ## Provider Schemas
@@ -153,7 +153,7 @@ Examples:
 Rules:
 
 - qualifier templates are platform-owned
-- guilds may whitelist qualifier templates, but may not create arbitrary new ones
+- clubs may whitelist qualifier templates, but may not create arbitrary new ones
 - users may only attach qualifiers they currently satisfy
 
 ## zkPass Example
@@ -165,7 +165,7 @@ Recommended zkPass flow:
 3. user completes the zkPass flow and Pirate verifies the result
 4. Pirate stores a normalized `user_attestation`
 5. Pirate maps that attestation to a platform qualifier template
-6. guild may allow that qualifier
+6. club may allow that qualifier
 7. an eligible user may attach that qualifier to an anonymous post
 
 Example:
@@ -180,7 +180,7 @@ Example:
 The attestation layer must not:
 
 - expose arbitrary wallet-held credentials directly in the composer
-- let guilds invent arbitrary qualifier taxonomies
+- let clubs invent arbitrary qualifier taxonomies
 - treat every recognized attestation as automatically displayable
 
 Pirate should curate the small set of qualifier templates it is willing to expose publicly.

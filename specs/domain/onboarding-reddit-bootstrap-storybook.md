@@ -16,7 +16,7 @@ This doc defines the product and view-model shape for the onboarding step that:
 
 - verifies control of a Reddit username
 - triggers a one-time Reddit history snapshot import
-- uses that snapshot to seed interests, guild suggestions, and external trust context
+- uses that snapshot to seed interests, club suggestions, and external trust context
 - can be handed to a separate model to implement as Storybook compositions
 
 This is a UI spec and Storybook handoff, not a final visual design doc.
@@ -93,7 +93,7 @@ Storybook should assume a result summary that can show:
 - top subreddits
 - moderator communities
 - inferred interests
-- suggested guilds
+- suggested clubs
 - warnings about incomplete coverage
 
 #### 4. Failure states need product meaning
@@ -128,7 +128,7 @@ Recommended v0 structure:
 3. Verify control of a Reddit username using profile-code placement.
 4. After verification, trigger a background historical snapshot import from Pirate's Reddit ingestion service.
 5. Show a compact summary of what Pirate learned.
-6. Offer lightweight guild suggestions and optional handle cleanup suggestion.
+6. Offer lightweight club suggestions and optional handle cleanup suggestion.
 7. Let the user continue regardless of whether import is skipped, running, or complete.
 
 This keeps the current domain intent but makes the step legible.
@@ -162,7 +162,7 @@ This should be a composition-level surface, not a primitive.
 3. Verification instruction card
 4. Import status card
 5. Snapshot summary card
-6. Suggested guilds or interests section
+6. Suggested clubs or interests section
 7. Sticky or persistent onboarding footer
 
 ### Content Hierarchy
@@ -236,7 +236,7 @@ type OnboardingRedditBootstrapProps = {
     }>;
     moderatorOf: string[];
     inferredInterests: string[];
-    suggestedGuilds: Array<{ guildId: string; name: string; reason: string }>;
+    suggestedClubs: Array<{ clubId: string; name: string; reason: string }>;
     coverageNote?: string;
   };
   handleSuggestion?: {
@@ -279,9 +279,9 @@ Storybook-only states that may be derived from richer backend payloads later:
 
 Migration note:
 
-- `suggested_guild_ids` in the current onboarding API is too thin for this composition
-- v0 UI can hydrate those IDs through a separate guild read model if needed
-- preferred future API shape is to augment or replace bare IDs with display-ready suggestion objects such as `{ guild_id, name, reason }`
+- `suggested_club_ids` in the current onboarding API is too thin for this composition
+- v0 UI can hydrate those IDs through a separate club read model if needed
+- preferred future API shape is to augment or replace bare IDs with display-ready suggestion objects such as `{ club_id, name, reason }`
 
 ## Storybook Scenarios
 
@@ -323,7 +323,7 @@ Use realistic examples such as:
 
 - `u/technohippie`
 - top subreddits with recognizable community names
-- guild suggestions tied to those communities
+- club suggestions tied to those communities
 - a clear historical coverage note where relevant
 
 The composition should make these states obvious without needing controls first.

@@ -6,7 +6,7 @@ Related docs:
 
 - [user.md](./user.md)
 - [handles.md](./handles.md)
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [onboarding.md](./onboarding.md)
 - [feed.md](./feed.md)
 - [follow.md](./follow.md)
@@ -24,7 +24,7 @@ It covers:
 - extended profile fields
 - visibility and privacy boundaries
 - relationship to onboarding
-- relationship to guild-local handles
+- relationship to club-local handles
 
 ## Non-goals
 
@@ -47,7 +47,7 @@ Pirate should distinguish between:
 
 - core profile
 - extended profile
-- guild-local identity
+- club-local identity
 
 ### Core Profile
 
@@ -76,7 +76,7 @@ Notes:
   - `premium`
 - `display_name` is user-facing and editable
 - `preferred_locale` is the user's persisted app-locale preference used by SSR and localized read surfaces
-- `global_handle` is the stable default identity surface before the user joins or claims guild-local handles
+- `global_handle` is the stable default identity surface before the user joins or claims club-local handles
 - every user should have exactly one active `global_handle` in v0
 - the initial generated `.pirate` handle should be a safe fallback identity, not a premium allocation
 
@@ -138,8 +138,8 @@ Rules:
 - the active global handle record is the source of truth for lifecycle and paid-upgrade history
 - when a handle record moves to `redirect`, `redirect_target_global_handle_id` should point to the replacement active handle record
 - `price_paid_usd = null` is the expected value for `generated_signup` and `free_cleanup_rename`
-- global `.pirate` handles do not use the guild-handle lease model from [handles.md](./handles.md)
-- `issuance_source` values in this record are specific to global `.pirate` handles and do not reuse the guild-handle `issuance_source` enum
+- global `.pirate` handles do not use the club-handle lease model from [handles.md](./handles.md)
+- `issuance_source` values in this record are specific to global `.pirate` handles and do not reuse the club-handle `issuance_source` enum
 
 ### Extended Profile
 
@@ -154,7 +154,7 @@ Suggested v0 shape:
   - `location_region_text` nullable
   - `skills_text` nullable
   - `interests_json` nullable
-  - `favorite_guilds_json` nullable
+  - `favorite_clubs_json` nullable
   - `website_url` nullable
   - `updated_at`
 
@@ -311,22 +311,22 @@ Rules:
 - numeric suffix should be random enough to avoid obvious collisions
 - the generation algorithm should be deterministic only after the final chosen label is committed, not guessable from `user_id`
 
-## Relationship To Guild-Local Handles
+## Relationship To Club-Local Handles
 
-The global profile is not the same as guild-local identity.
+The global profile is not the same as club-local identity.
 
 Examples:
 
 - global: `suspicious-code-7234.pirate`
-- guild-local: `alex.kanye`
-- guild-local: `alex@kanye`
+- club-local: `alex.kanye`
+- club-local: `alex@kanye`
 
 Rules:
 
 - every user should have one global Pirate identity surface
-- guild-local handles remain namespace-local and optional
-- public profile rendering may show both the global handle and owned guild-local handles
-- current guild views should prefer the namespace-local handle when one exists
+- club-local handles remain namespace-local and optional
+- public profile rendering may show both the global handle and owned club-local handles
+- current club views should prefer the namespace-local handle when one exists
 
 ## Reserved Global `.pirate` Labels
 
@@ -349,10 +349,10 @@ Additional platform-reserved labels may be added over time.
 
 Recommended v0 rendering rules:
 
-- guild-scoped views should show the author's active guild-local handle for that guild when it exists
-- if no matching guild-local handle exists, fall back to the active global `.pirate` handle
-- mixed global feeds such as `Home` and `Your Guilds` should show the active global `.pirate` handle as the primary identity label
-- mixed global feeds may show the post's guild-local handle as a secondary badge or metadata line
+- club-scoped views should show the author's active club-local handle for that club when it exists
+- if no matching club-local handle exists, fall back to the active global `.pirate` handle
+- mixed global feeds such as `Home` and `Your Clubs` should show the active global `.pirate` handle as the primary identity label
+- mixed global feeds may show the post's club-local handle as a secondary badge or metadata line
 
 ## On-chain vs Off-chain
 

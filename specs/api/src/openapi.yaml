@@ -4,7 +4,7 @@ info:
   version: 0.1.0
   description: |
     First-pass happy-path API for Pirate v2.
-    This OpenAPI file is intentionally narrow. It encodes the core v0 flows that are already stable in the domain specs: auth bootstrap, verification, onboarding, global profile identity, guilds, namespace handles, posts, daily questions, tracks, scrobbles, feeds, and async jobs.
+    This OpenAPI file is intentionally narrow. It encodes the core v0 flows that are already stable in the domain specs: auth bootstrap, verification, onboarding, global profile identity, clubs, namespace handles, posts, daily questions, tracks, scrobbles, feeds, and async jobs.
 servers:
   - url: https://api.pirate.example
     description: Placeholder production server
@@ -16,7 +16,7 @@ tags:
   - name: Onboarding
   - name: Users
   - name: Profiles
-  - name: Guilds
+  - name: Clubs
   - name: Handles
   - name: Posts
   - name: Livestreams
@@ -51,26 +51,26 @@ paths:
     $ref: ./paths/profiles.yaml#/profiles_me_global_handle_upgrade_quote
   /profiles/{user_id}:
     $ref: ./paths/profiles.yaml#/profiles_by_user_id
-  /guilds:
-    $ref: ./paths/guilds.yaml#/guilds
-  /guilds/{guild_id}:
-    $ref: ./paths/guilds.yaml#/guilds_by_guild_id
-  /guilds/{guild_id}/attach-governance:
-    $ref: ./paths/guilds.yaml#/guilds_by_guild_id_attach_governance
-  /guilds/{guild_id}/flairs:
-    $ref: ./paths/guilds.yaml#/guilds_by_guild_id_flairs
-  /guilds/{guild_id}/community-profile:
-    $ref: ./paths/guilds.yaml#/guilds_by_guild_id_community_profile
-  /guilds/{guild_id}/donation-policy:
-    $ref: ./paths/guilds.yaml#/guilds_by_guild_id_donation_policy
-  /guilds/{guild_id}/join:
-    $ref: ./paths/guilds.yaml#/guilds_by_guild_id_join
-  /guilds/{guild_id}/live-rooms:
-    $ref: ./paths/guilds.yaml#/guilds_by_guild_id_live_rooms
-  /guilds/{guild_id}/leave:
-    $ref: ./paths/guilds.yaml#/guilds_by_guild_id_leave
-  /guilds/{guild_id}/posts:
-    $ref: ./paths/guilds.yaml#/guilds_by_guild_id_posts
+  /clubs:
+    $ref: ./paths/clubs.yaml#/clubs
+  /clubs/{club_id}:
+    $ref: ./paths/clubs.yaml#/clubs_by_club_id
+  /clubs/{club_id}/attach-governance:
+    $ref: ./paths/clubs.yaml#/clubs_by_club_id_attach_governance
+  /clubs/{club_id}/flairs:
+    $ref: ./paths/clubs.yaml#/clubs_by_club_id_flairs
+  /clubs/{club_id}/community-profile:
+    $ref: ./paths/clubs.yaml#/clubs_by_club_id_community_profile
+  /clubs/{club_id}/donation-policy:
+    $ref: ./paths/clubs.yaml#/clubs_by_club_id_donation_policy
+  /clubs/{club_id}/join:
+    $ref: ./paths/clubs.yaml#/clubs_by_club_id_join
+  /clubs/{club_id}/live-rooms:
+    $ref: ./paths/clubs.yaml#/clubs_by_club_id_live_rooms
+  /clubs/{club_id}/leave:
+    $ref: ./paths/clubs.yaml#/clubs_by_club_id_leave
+  /clubs/{club_id}/posts:
+    $ref: ./paths/clubs.yaml#/clubs_by_club_id_posts
   /live-rooms/{live_room_id}:
     $ref: ./paths/livestreams.yaml#/live_rooms_by_live_room_id
   /live-rooms/{live_room_id}/access:
@@ -89,10 +89,10 @@ paths:
     $ref: ./paths/livestreams.yaml#/live_rooms_by_live_room_id_end
   /live-rooms/{live_room_id}/cancel:
     $ref: ./paths/livestreams.yaml#/live_rooms_by_live_room_id_cancel
-  /guilds/{guild_id}/questions/daily:
-    $ref: ./paths/questions.yaml#/guilds_by_guild_id_questions_daily
-  /guilds/{guild_id}/questions/daily/answers:
-    $ref: ./paths/questions.yaml#/guilds_by_guild_id_questions_daily_answers
+  /clubs/{club_id}/questions/daily:
+    $ref: ./paths/questions.yaml#/clubs_by_club_id_questions_daily
+  /clubs/{club_id}/questions/daily/answers:
+    $ref: ./paths/questions.yaml#/clubs_by_club_id_questions_daily_answers
   /namespaces/{namespace_id}/handles/availability:
     $ref: ./paths/handles.yaml#/namespaces_by_namespace_id_handles_availability
   /namespaces/{namespace_id}/handles/claims:
@@ -107,8 +107,8 @@ paths:
     $ref: ./paths/posts.yaml#/posts_by_post_id_reactions
   /feeds/home:
     $ref: ./paths/feeds.yaml#/feeds_home
-  /feeds/your-guilds:
-    $ref: ./paths/feeds.yaml#/feeds_your_guilds
+  /feeds/your-clubs:
+    $ref: ./paths/feeds.yaml#/feeds_your_clubs
   /tracks:
     $ref: ./paths/tracks.yaml#/tracks
   /tracks/{track_id}:
@@ -119,8 +119,8 @@ paths:
     $ref: ./paths/scrobbles.yaml#/scrobbles
   /users/{user_id}/scrobbles:
     $ref: ./paths/scrobbles.yaml#/users_by_user_id_scrobbles
-  /mpp/guilds/{guild_id}/threads/export:
-    $ref: ./paths/mpp.yaml#/mpp_guilds_by_guild_id_threads_export
+  /mpp/clubs/{club_id}/threads/export:
+    $ref: ./paths/mpp.yaml#/mpp_clubs_by_club_id_threads_export
   /mpp/jobs/{job_id}:
     $ref: ./paths/mpp.yaml#/mpp_jobs_by_job_id
   /jobs:
@@ -140,8 +140,8 @@ components:
       description: |
         Payment credential sent as `Authorization: Payment ...` on retry after an MPP `402 Payment Required` challenge.
   parameters:
-    GuildId:
-      $ref: ./components/parameters.yaml#/GuildId
+    ClubId:
+      $ref: ./components/parameters.yaml#/ClubId
     NamespaceId:
       $ref: ./components/parameters.yaml#/NamespaceId
     UserId:
@@ -220,70 +220,70 @@ components:
       $ref: ./components/schemas/onboarding.yaml#/RedditVerification
     OnboardingStatus:
       $ref: ./components/schemas/onboarding.yaml#/OnboardingStatus
-    CreateGuildRequestBase:
-      $ref: ./components/schemas/guilds-core.yaml#/CreateGuildRequestBase
+    CreateClubRequestBase:
+      $ref: ./components/schemas/clubs-core.yaml#/CreateClubRequestBase
     GateRuleInput:
-      $ref: ./components/schemas/guilds-core.yaml#/GateRuleInput
+      $ref: ./components/schemas/clubs-core.yaml#/GateRuleInput
     GateRule:
-      $ref: ./components/schemas/guilds-core.yaml#/GateRule
+      $ref: ./components/schemas/clubs-core.yaml#/GateRule
     RootPostQuotaRule:
-      $ref: ./components/schemas/guilds-core.yaml#/RootPostQuotaRule
+      $ref: ./components/schemas/clubs-core.yaml#/RootPostQuotaRule
     RootPostQuotaByTrustTier:
-      $ref: ./components/schemas/guilds-core.yaml#/RootPostQuotaByTrustTier
+      $ref: ./components/schemas/clubs-core.yaml#/RootPostQuotaByTrustTier
     ReplyQuotaRule:
-      $ref: ./components/schemas/guilds-core.yaml#/ReplyQuotaRule
+      $ref: ./components/schemas/clubs-core.yaml#/ReplyQuotaRule
     ReplyQuotaByTrustTier:
-      $ref: ./components/schemas/guilds-core.yaml#/ReplyQuotaByTrustTier
-    CreateGuildRequest:
-      $ref: ./components/schemas/guilds-core.yaml#/CreateGuildRequest
-    UpdateGuildRequest:
-      $ref: ./components/schemas/guilds-core.yaml#/UpdateGuildRequest
-    CreateCentralizedGuildRequest:
-      $ref: ./components/schemas/guilds-governance.yaml#/CreateCentralizedGuildRequest
-    CreateMultisigGuildRequest:
-      $ref: ./components/schemas/guilds-governance.yaml#/CreateMultisigGuildRequest
-    CreateMajeurGuildRequest:
-      $ref: ./components/schemas/guilds-governance.yaml#/CreateMajeurGuildRequest
+      $ref: ./components/schemas/clubs-core.yaml#/ReplyQuotaByTrustTier
+    CreateClubRequest:
+      $ref: ./components/schemas/clubs-core.yaml#/CreateClubRequest
+    UpdateClubRequest:
+      $ref: ./components/schemas/clubs-core.yaml#/UpdateClubRequest
+    CreateCentralizedClubRequest:
+      $ref: ./components/schemas/clubs-governance.yaml#/CreateCentralizedClubRequest
+    CreateMultisigClubRequest:
+      $ref: ./components/schemas/clubs-governance.yaml#/CreateMultisigClubRequest
+    CreateMajeurClubRequest:
+      $ref: ./components/schemas/clubs-governance.yaml#/CreateMajeurClubRequest
     AttachGovernanceRequest:
-      $ref: ./components/schemas/guilds-governance.yaml#/AttachGovernanceRequest
+      $ref: ./components/schemas/clubs-governance.yaml#/AttachGovernanceRequest
     AttachMultisigGovernanceRequest:
-      $ref: ./components/schemas/guilds-governance.yaml#/AttachMultisigGovernanceRequest
+      $ref: ./components/schemas/clubs-governance.yaml#/AttachMultisigGovernanceRequest
     AttachMajeurGovernanceRequest:
-      $ref: ./components/schemas/guilds-governance.yaml#/AttachMajeurGovernanceRequest
+      $ref: ./components/schemas/clubs-governance.yaml#/AttachMajeurGovernanceRequest
     GovernanceAction:
-      $ref: ./components/schemas/guilds-governance.yaml#/GovernanceAction
+      $ref: ./components/schemas/clubs-governance.yaml#/GovernanceAction
     GovernanceVerificationState:
-      $ref: ./components/schemas/guilds-governance.yaml#/GovernanceVerificationState
-    GuildGovernanceBackend:
-      $ref: ./components/schemas/guilds-governance.yaml#/GuildGovernanceBackend
+      $ref: ./components/schemas/clubs-governance.yaml#/GovernanceVerificationState
+    ClubGovernanceBackend:
+      $ref: ./components/schemas/clubs-governance.yaml#/ClubGovernanceBackend
     CentralizedGovernanceBackend:
-      $ref: ./components/schemas/guilds-governance.yaml#/CentralizedGovernanceBackend
+      $ref: ./components/schemas/clubs-governance.yaml#/CentralizedGovernanceBackend
     MultisigGovernanceAttachmentInput:
-      $ref: ./components/schemas/guilds-governance.yaml#/MultisigGovernanceAttachmentInput
+      $ref: ./components/schemas/clubs-governance.yaml#/MultisigGovernanceAttachmentInput
     MultisigAttachmentProofInput:
-      $ref: ./components/schemas/guilds-governance.yaml#/MultisigAttachmentProofInput
+      $ref: ./components/schemas/clubs-governance.yaml#/MultisigAttachmentProofInput
     MultisigGovernanceBackend:
-      $ref: ./components/schemas/guilds-governance.yaml#/MultisigGovernanceBackend
+      $ref: ./components/schemas/clubs-governance.yaml#/MultisigGovernanceBackend
     MultisigGovernanceMetadata:
-      $ref: ./components/schemas/guilds-governance.yaml#/MultisigGovernanceMetadata
+      $ref: ./components/schemas/clubs-governance.yaml#/MultisigGovernanceMetadata
     MajeurGovernanceCreateInput:
-      $ref: ./components/schemas/guilds-governance.yaml#/MajeurGovernanceCreateInput
+      $ref: ./components/schemas/clubs-governance.yaml#/MajeurGovernanceCreateInput
     MajeurGovernanceAttachInput:
-      $ref: ./components/schemas/guilds-governance.yaml#/MajeurGovernanceAttachInput
+      $ref: ./components/schemas/clubs-governance.yaml#/MajeurGovernanceAttachInput
     MajeurSafeSummonInput:
-      $ref: ./components/schemas/guilds-governance.yaml#/MajeurSafeSummonInput
+      $ref: ./components/schemas/clubs-governance.yaml#/MajeurSafeSummonInput
     MajeurSafeConfigInput:
-      $ref: ./components/schemas/guilds-governance.yaml#/MajeurSafeConfigInput
+      $ref: ./components/schemas/clubs-governance.yaml#/MajeurSafeConfigInput
     MajeurGovernanceBackend:
-      $ref: ./components/schemas/guilds-governance.yaml#/MajeurGovernanceBackend
+      $ref: ./components/schemas/clubs-governance.yaml#/MajeurGovernanceBackend
     MajeurGovernanceMetadata:
-      $ref: ./components/schemas/guilds-governance.yaml#/MajeurGovernanceMetadata
+      $ref: ./components/schemas/clubs-governance.yaml#/MajeurGovernanceMetadata
     NamespaceAttachmentInput:
       $ref: ./components/schemas/handles.yaml#/NamespaceAttachmentInput
     HandlePolicyInput:
       $ref: ./components/schemas/handles.yaml#/HandlePolicyInput
-    Guild:
-      $ref: ./components/schemas/guilds-core.yaml#/Guild
+    Club:
+      $ref: ./components/schemas/clubs-core.yaml#/Club
     CreateLiveRoomRequest:
       $ref: ./components/schemas/livestreams.yaml#/CreateLiveRoomRequest
     InitialLiveSetlistInput:
@@ -307,19 +307,19 @@ components:
     LiveRoomReplayAccessView:
       $ref: ./components/schemas/livestreams.yaml#/LiveRoomReplayAccessView
     MembershipResult:
-      $ref: ./components/schemas/guilds-core.yaml#/MembershipResult
-    CreateGuildDonationPolicyInput:
-      $ref: ./components/schemas/guilds-community.yaml#/CreateGuildDonationPolicyInput
-    UpdateGuildDonationPolicyRequest:
-      $ref: ./components/schemas/guilds-community.yaml#/UpdateGuildDonationPolicyRequest
+      $ref: ./components/schemas/clubs-core.yaml#/MembershipResult
+    CreateClubDonationPolicyInput:
+      $ref: ./components/schemas/clubs-community.yaml#/CreateClubDonationPolicyInput
+    UpdateClubDonationPolicyRequest:
+      $ref: ./components/schemas/clubs-community.yaml#/UpdateClubDonationPolicyRequest
     DonationPartnerSummary:
-      $ref: ./components/schemas/guilds-community.yaml#/DonationPartnerSummary
-    GuildDonationPolicy:
-      $ref: ./components/schemas/guilds-community.yaml#/GuildDonationPolicy
+      $ref: ./components/schemas/clubs-community.yaml#/DonationPartnerSummary
+    ClubDonationPolicy:
+      $ref: ./components/schemas/clubs-community.yaml#/ClubDonationPolicy
     HandleAvailability:
       $ref: ./components/schemas/handles.yaml#/HandleAvailability
-    GuildHandle:
-      $ref: ./components/schemas/handles.yaml#/GuildHandle
+    ClubHandle:
+      $ref: ./components/schemas/handles.yaml#/ClubHandle
     CreatePostRequest:
       $ref: ./components/schemas/posts.yaml#/CreatePostRequest
     Post:
@@ -338,44 +338,44 @@ components:
       $ref: ./components/schemas/feeds.yaml#/FeedResponse
     FeedItem:
       $ref: ./components/schemas/feeds.yaml#/FeedItem
-    CreateGuildCommunityBootstrapInput:
-      $ref: ./components/schemas/guilds-community.yaml#/CreateGuildCommunityBootstrapInput
-    CreateGuildFlairPolicyInput:
-      $ref: ./components/schemas/guilds-community.yaml#/CreateGuildFlairPolicyInput
-    UpdateGuildFlairPolicyRequest:
-      $ref: ./components/schemas/guilds-community.yaml#/UpdateGuildFlairPolicyRequest
-    CreateGuildFlairDefinitionInput:
-      $ref: ./components/schemas/guilds-community.yaml#/CreateGuildFlairDefinitionInput
-    UpdateGuildFlairDefinitionInput:
-      $ref: ./components/schemas/guilds-community.yaml#/UpdateGuildFlairDefinitionInput
-    GuildFlairDefinitionMutationInput:
-      $ref: ./components/schemas/guilds-community.yaml#/GuildFlairDefinitionMutationInput
-    GuildFlairDefinition:
-      $ref: ./components/schemas/guilds-community.yaml#/GuildFlairDefinition
-    GuildFlairPolicy:
-      $ref: ./components/schemas/guilds-community.yaml#/GuildFlairPolicy
+    CreateClubCommunityBootstrapInput:
+      $ref: ./components/schemas/clubs-community.yaml#/CreateClubCommunityBootstrapInput
+    CreateClubFlairPolicyInput:
+      $ref: ./components/schemas/clubs-community.yaml#/CreateClubFlairPolicyInput
+    UpdateClubFlairPolicyRequest:
+      $ref: ./components/schemas/clubs-community.yaml#/UpdateClubFlairPolicyRequest
+    CreateClubFlairDefinitionInput:
+      $ref: ./components/schemas/clubs-community.yaml#/CreateClubFlairDefinitionInput
+    UpdateClubFlairDefinitionInput:
+      $ref: ./components/schemas/clubs-community.yaml#/UpdateClubFlairDefinitionInput
+    ClubFlairDefinitionMutationInput:
+      $ref: ./components/schemas/clubs-community.yaml#/ClubFlairDefinitionMutationInput
+    ClubFlairDefinition:
+      $ref: ./components/schemas/clubs-community.yaml#/ClubFlairDefinition
+    ClubFlairPolicy:
+      $ref: ./components/schemas/clubs-community.yaml#/ClubFlairPolicy
     PostFlair:
-      $ref: ./components/schemas/guilds-community.yaml#/PostFlair
-    CreateGuildRuleInput:
-      $ref: ./components/schemas/guilds-community.yaml#/CreateGuildRuleInput
-    UpdateGuildRuleInput:
-      $ref: ./components/schemas/guilds-community.yaml#/UpdateGuildRuleInput
-    GuildRuleMutationInput:
-      $ref: ./components/schemas/guilds-community.yaml#/GuildRuleMutationInput
-    GuildRule:
-      $ref: ./components/schemas/guilds-community.yaml#/GuildRule
-    CreateGuildResourceLinkInput:
-      $ref: ./components/schemas/guilds-community.yaml#/CreateGuildResourceLinkInput
-    UpdateGuildResourceLinkInput:
-      $ref: ./components/schemas/guilds-community.yaml#/UpdateGuildResourceLinkInput
-    GuildResourceLinkMutationInput:
-      $ref: ./components/schemas/guilds-community.yaml#/GuildResourceLinkMutationInput
-    GuildResourceLink:
-      $ref: ./components/schemas/guilds-community.yaml#/GuildResourceLink
-    GuildCommunityProfile:
-      $ref: ./components/schemas/guilds-community.yaml#/GuildCommunityProfile
-    UpdateGuildCommunityProfileRequest:
-      $ref: ./components/schemas/guilds-community.yaml#/UpdateGuildCommunityProfileRequest
+      $ref: ./components/schemas/clubs-community.yaml#/PostFlair
+    CreateClubRuleInput:
+      $ref: ./components/schemas/clubs-community.yaml#/CreateClubRuleInput
+    UpdateClubRuleInput:
+      $ref: ./components/schemas/clubs-community.yaml#/UpdateClubRuleInput
+    ClubRuleMutationInput:
+      $ref: ./components/schemas/clubs-community.yaml#/ClubRuleMutationInput
+    ClubRule:
+      $ref: ./components/schemas/clubs-community.yaml#/ClubRule
+    CreateClubResourceLinkInput:
+      $ref: ./components/schemas/clubs-community.yaml#/CreateClubResourceLinkInput
+    UpdateClubResourceLinkInput:
+      $ref: ./components/schemas/clubs-community.yaml#/UpdateClubResourceLinkInput
+    ClubResourceLinkMutationInput:
+      $ref: ./components/schemas/clubs-community.yaml#/ClubResourceLinkMutationInput
+    ClubResourceLink:
+      $ref: ./components/schemas/clubs-community.yaml#/ClubResourceLink
+    ClubCommunityProfile:
+      $ref: ./components/schemas/clubs-community.yaml#/ClubCommunityProfile
+    UpdateClubCommunityProfileRequest:
+      $ref: ./components/schemas/clubs-community.yaml#/UpdateClubCommunityProfileRequest
     TrackResolveRequest:
       $ref: ./components/schemas/tracks.yaml#/TrackResolveRequest
     ListingDonationConfig:

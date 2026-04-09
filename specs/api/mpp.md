@@ -7,7 +7,7 @@ Related docs:
 - [overview.md](./overview.md)
 - [openapi.yaml](./openapi.yaml)
 - [../domain/user.md](../domain/user.md)
-- [../domain/guild.md](../domain/guild.md)
+- [../domain/club.md](../domain/club.md)
 - [../domain/post.md](../domain/post.md)
 - [../domain/feed.md](../domain/feed.md)
 - [../domain/karma.md](../domain/karma.md)
@@ -61,7 +61,7 @@ The key distinction is:
 
 Delegated use means a client, agent, or application is acting on behalf of a specific user through the normal authenticated product surface.
 
-Extraction use means a client is retrieving guild corpus data in bulk or through machine-optimized search, export, archive, or feed surfaces.
+Extraction use means a client is retrieving club corpus data in bulk or through machine-optimized search, export, archive, or feed surfaces.
 
 Recommended v0 rule:
 
@@ -70,13 +70,13 @@ Recommended v0 rule:
 
 ## Why MPP Matters
 
-Pirate's guild corpus is valuable.
+Pirate's club corpus is valuable.
 
 Examples:
 
 - threads and replies
-- guild-specific language and slang
-- artist-guild context
+- club-specific language and slang
+- artist-club context
 - question-answer history
 - scrobble-derived audience signals
 - high-quality human interaction data
@@ -99,7 +99,7 @@ This includes:
 
 - normal web pages
 - app views
-- guild pages
+- club pages
 - thread views
 - feed reads
 - profile reads
@@ -202,10 +202,10 @@ Recommended v0 rules:
 
 Examples:
 
-- `GET /guilds`
-- `GET /guilds/{guild_id}/posts`
+- `GET /clubs`
+- `GET /clubs/{club_id}/posts`
 - `GET /feeds/home`
-- `GET /feeds/your-guilds`
+- `GET /feeds/your-clubs`
 
 These remain normal product endpoints, not bulk data pipes.
 
@@ -215,26 +215,26 @@ Good v0 candidates:
 
 - bulk thread export
 - high-volume reply retrieval
-- full guild corpus export
+- full club corpus export
 - structured search across thread archives
-- machine-readable guild history
+- machine-readable club history
 - paid firehose or changefeed later
 
 Bad v0 candidates:
 
 - normal thread page views
-- ordinary guild browsing
+- ordinary club browsing
 - profile viewing in the web app
 - normal feed reads in the consumer product
 
 Recommended v0 in-scope endpoint:
 
-- `POST /mpp/guilds/{guild_id}/threads/export`
+- `POST /mpp/clubs/{club_id}/threads/export`
 - `GET /mpp/jobs/{job_id}` for polling async MPP export jobs
 
 Directional later candidates:
 
-- `POST /mpp/guilds/{guild_id}/corpus/search`
+- `POST /mpp/clubs/{club_id}/corpus/search`
 - `GET /mpp/posts/{post_id}/replies/full`
 - `GET /mpp/users/{user_id}/activity/export`
 
@@ -250,9 +250,9 @@ Recommended shape:
 
 Possible URL posture:
 
-- `/mpp/guilds/{guild_id}/threads/export`
+- `/mpp/clubs/{club_id}/threads/export`
 - `/mpp/jobs/{job_id}`
-- `/mpp/guilds/{guild_id}/corpus/search`
+- `/mpp/clubs/{club_id}/corpus/search`
 - `/mpp/posts/{post_id}/replies/full`
 - `/mpp/users/{user_id}/activity/export`
 
@@ -276,7 +276,7 @@ Recommended v0 behavior:
 
 Recommended v0 export behavior:
 
-- guild thread export is modeled as an async job rather than a sync download
+- club thread export is modeled as an async job rather than a sync download
 - payment-auth callers should be able to poll that job without requiring app bearer auth
 - export endpoints should surface policy and eligibility failures explicitly, not only payment challenges
 
@@ -301,7 +301,7 @@ Directional challenge body shape:
 {
   "code": "payment_required",
   "message": "This endpoint requires MPP payment",
-  "resource_type": "guild_threads_export",
+  "resource_type": "club_threads_export",
   "payment_intent": "charge",
   "payment_methods": ["tempo", "stripe"],
   "challenge_ref": "mpp_chl_01..."
@@ -353,7 +353,7 @@ Recommended v0 rules:
 Good uses of verification here:
 
 - higher free quotas for trusted humans
-- stronger export permissions for certain guild roles
+- stronger export permissions for certain club roles
 - better anti-abuse posture on search and read APIs
 
 Bad uses:
@@ -361,21 +361,21 @@ Bad uses:
 - mandatory identity verification for all public reading
 - treating verification as a replacement for machine-payment policy
 
-## Guild Policy Interaction
+## Club Policy Interaction
 
-Guilds may later influence how their data is exposed to machine clients.
+Clubs may later influence how their data is exposed to machine clients.
 
 Possible later controls:
 
 - machine export allowed or disabled
 - default machine-access price tier
 - public summary access versus full archive access
-- guild-specific commercial licensing
+- club-specific commercial licensing
 
 Recommended v0 stance:
 
 - Pirate sets the default machine-access policy platform-wide
-- guild-level overrides are a later policy layer
+- club-level overrides are a later policy layer
 
 ## Revenue Attribution And Settlement
 
@@ -385,7 +385,7 @@ Recommended v0 rule:
 
 - human participation is free
 - machine extraction is metered
-- guild corpus value is licensed on behalf of the guild
+- club corpus value is licensed on behalf of the club
 
 Definition:
 
@@ -394,31 +394,31 @@ Definition:
 
 ### Revenue Classes
 
-#### Direct Single-Guild Corpus Product
+#### Direct Single-Club Corpus Product
 
 Examples:
 
-- guild thread export
-- guild corpus search
-- guild archive retrieval
+- club thread export
+- club corpus search
+- club archive retrieval
 
 Recommended v0 split:
 
-- 90% to guild treasury
+- 90% to club treasury
 - 10% to platform
 
-#### Cross-Guild Corpus Product
+#### Cross-Club Corpus Product
 
 Examples:
 
-- cross-guild search
-- cross-guild export bundles
-- multi-guild archive products
+- cross-club search
+- cross-club export bundles
+- multi-club archive products
 
 Recommended v0 split:
 
 - platform takes 10% of net distributable revenue
-- the remaining guild pool is allocated pro rata by explicit weighting across included guilds
+- the remaining club pool is allocated pro rata by explicit weighting across included clubs
 
 Recommended weighting inputs may include:
 
@@ -447,15 +447,15 @@ Recommended v0 rule:
 
 Recommended v0 rule:
 
-- machine extraction revenue settles to guild treasury
+- machine extraction revenue settles to club treasury
 - not directly to moderators, owners, or individual posters or commenters
 - downstream redistribution is a later governance policy
 
 Reasoning:
 
-- treasury-first avoids rent extraction by guild controllers
+- treasury-first avoids rent extraction by club controllers
 - treasury-first avoids per-author accounting complexity in v0
-- treasury-first keeps guild governance separate from access metering
+- treasury-first keeps club governance separate from access metering
 
 ### Eligibility And Exclusions
 
@@ -483,7 +483,7 @@ Recommended v0 split:
 
 This keeps:
 
-- normal music-guild UX simple
+- normal music-club UX simple
 - fan recognition features available in the app
 - extractive analytics and bulk audience harvesting on the paid machine surface
 
@@ -500,5 +500,5 @@ Directional implication:
 
 - Which machine-access surfaces should be in v0 versus later, beyond exports and search?
 - Should verified humans receive a larger free machine-style quota before payment is required?
-- Should guilds later define their own downstream treasury redistribution policies?
+- Should clubs later define their own downstream treasury redistribution policies?
 - When should Pirate use one-time `charge` versus longer-lived `session` intents for agent consumption?

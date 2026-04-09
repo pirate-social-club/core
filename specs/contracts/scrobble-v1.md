@@ -89,7 +89,7 @@ Recommended v1 event:
 
 - `user`
 - `track_id`
-- `guild_id`
+- `club_id`
 - `playback_started_at`
 - `credited_duration_ms`
 - `source_type`
@@ -97,7 +97,7 @@ Recommended v1 event:
 
 Semantics:
 
-- `guild_id = bytes32(0)` means no guild context
+- `club_id = bytes32(0)` means no club context
 - `credited_duration_ms` is the only listen-duration field carried onchain in v1
 - `playback_position_ms` is intentionally omitted from v1 because it is not required for canonical event identity
 

@@ -83,6 +83,7 @@
     --sidebar-accent-foreground: oklch(0.8074 0.0142 93.0137);
     --sidebar-border: oklch(0.9401 0 0);
     --sidebar-ring: oklch(0.7731 0 0);
+    --border-soft: oklch(0.8847 0.0069 97.3627);
   }
 
   .dark {
@@ -124,7 +125,7 @@
     --font-mono: var(--font-mono);
 
     --color-surface-skeleton: oklch(0.9341 0.0153 90.239);
-    --color-border-soft: oklch(0.8847 0.0069 97.3627);
+    --color-border-soft: var(--border-soft);
   }
 
   * {

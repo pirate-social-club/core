@@ -4,28 +4,28 @@ Status: draft
 
 Related docs:
 
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [artist-identity.md](./artist-identity.md)
 - [handles.md](./handles.md)
 - [namespace-root-control.md](./namespace-root-control.md)
 
 ## Purpose
 
-This doc defines how Pirate names guilds and guild-local user handles.
+This doc defines how Pirate names clubs and club-local user handles.
 
 It covers:
 
 - canonical Pirate route syntax
 - differentiation between HNS-compatible and Spaces-compatible roots
 - user handle syntax under each root family
-- how external root ownership and delegation relate to guild identity
+- how external root ownership and delegation relate to club identity
 
 ## Non-goals
 
 This doc does not define:
 
 - the full governance model
-- the full create-guild API
+- the full create-club API
 - the full resolver implementation details for HNS or Spaces
 - generalized DNS or wallet record formats
 - the audit-oriented evidence and capability transition model for root attachment; see [namespace-root-control.md](./namespace-root-control.md)
@@ -43,44 +43,44 @@ These are not aliases of each other by default.
 
 Examples:
 
-- `/g/kanye`
-- `/g/@kanye`
+- `/c/kanye`
+- `/c/@kanye`
 
-Those are distinct sovereign roots unless the owner explicitly binds them to the same `guild_id`.
+Those are distinct sovereign roots unless the owner explicitly binds them to the same `club_id`.
 
-Guild creation requires control of the corresponding external root:
+Club creation requires control of the corresponding external root:
 
-- `/g/kanye` requires control of HNS `.kanye`
-- `/g/@kanye` requires control of Spaces `@kanye`
+- `/c/kanye` requires control of HNS `.kanye`
+- `/c/@kanye` requires control of Spaces `@kanye`
 
-One guild may later attach additional verified roots as mirrors.
+One club may later attach additional verified roots as mirrors.
 
-## Canonical Guild Routes
+## Canonical Club Routes
 
-Canonical guild routes:
+Canonical club routes:
 
-- bare-label namespace: `pirate.sc/g/kanye`
-- Spaces namespace: `pirate.sc/g/@kanye`
+- bare-label namespace: `pirate.sc/c/kanye`
+- Spaces namespace: `pirate.sc/c/@kanye`
 
 Rules:
 
-- `/g/kanye` is the HNS-compatible route family
-- `/g/@kanye` is the Spaces route family
+- `/c/kanye` is the HNS-compatible route family
+- `/c/@kanye` is the Spaces route family
 - users must learn this distinction because HNS `.kanye` and Spaces `@kanye` are different sovereign roots
 - Pirate should not hide this distinction behind extra path segments or internal resolver slugs
-- the corresponding external root must already exist and be controlled by the creator at guild creation time
-- a guild has exactly one primary namespace in v0, but may attach additional verified namespace mirrors later
+- the corresponding external root must already exist and be controlled by the creator at club creation time
+- a club has exactly one primary namespace in v0, but may attach additional verified namespace mirrors later
 
-## Guild-Local User Handles
+## Club-Local User Handles
 
-Guild-local user handles are first-class and not optional.
+Club-local user handles are first-class and not optional.
 
 Handle syntax:
 
-- HNS-style handle inside `/g/kanye`: `name.kanye`
-- Spaces-style handle inside `/g/@kanye`: `name@kanye`
+- HNS-style handle inside `/c/kanye`: `name.kanye`
+- Spaces-style handle inside `/c/@kanye`: `name@kanye`
 
-These are guild-local user handles, not the core internal app identity.
+These are club-local user handles, not the core internal app identity.
 
 Pirate still keeps an internal stable user identifier, but the handle syntax is part of the user-facing namespace system.
 
@@ -89,7 +89,7 @@ Pirate still keeps an internal stable user identifier, but the handle syntax is 
 V0 fields for `namespaces`:
 
 - `namespace_id`
-- `guild_id`
+- `club_id`
 - `display_label`
 - `normalized_label`
 - `resolver_label`
@@ -132,7 +132,7 @@ V0 meanings:
 
 This gives Pirate one clean internal representation while still preserving visible route differences.
 
-`guild_id` is the authoritative foreign key direction in v0: namespace rows point to guilds. `guilds` does not point back to namespaces with a `namespace_id` FK.
+`club_id` is the authoritative foreign key direction in v0: namespace rows point to clubs. `clubs` does not point back to namespaces with a `namespace_id` FK.
 
 State semantics:
 
@@ -145,7 +145,7 @@ Examples:
 - a namespace can be `status = active`, `root_proof_status = verified`, and `delegation_status = owner_managed`
 - a namespace can be `status = active`, `root_proof_status = verified`, and `delegation_status = pirate_managed`
 - a namespace can be `status = frozen` and `root_proof_status = disputed`
-- a guild may have one `primary` namespace and multiple `mirror` namespaces that all resolve to the same `guild_id`
+- a club may have one `primary` namespace and multiple `mirror` namespaces that all resolve to the same `club_id`
 
 ## Label Rules
 
@@ -181,16 +181,16 @@ The reserved label list is maintained by the implementation. The list above is t
 
 Recommended v0 rules:
 
-- `/g/kanye` resolves the guild with:
+- `/c/kanye` resolves the club with:
   - `normalized_label = "kanye"`
   - `route_family = "bare"`
-- `/g/@kanye` resolves the guild with:
+- `/c/@kanye` resolves the club with:
   - `normalized_label = "kanye"`
   - `route_family = "at"`
-- `/g/肯伊` may resolve the same `guild_id` as `/g/kanye` if both roots are independently proven and explicitly attached to that guild
-- `/g/@kanye` may resolve the same `guild_id` as `/g/kanye` if both roots are independently proven and explicitly attached to that guild
+- `/c/肯伊` may resolve the same `club_id` as `/c/kanye` if both roots are independently proven and explicitly attached to that club
+- `/c/@kanye` may resolve the same `club_id` as `/c/kanye` if both roots are independently proven and explicitly attached to that club
 
-Guild-local user handles render consistently with their route family:
+Club-local user handles render consistently with their route family:
 
 - for `route_family = "bare"`: `name.<display_label>`
 - for `route_family = "at"`: `name@<display_label>`
@@ -199,8 +199,8 @@ Pirate should not normalize one syntax into the other.
 
 External creation requirements:
 
-- `/g/kanye` can only be created after HNS `.kanye` control is proven
-- `/g/@kanye` can only be created after Spaces `@kanye` control is proven
+- `/c/kanye` can only be created after HNS `.kanye` control is proven
+- `/c/@kanye` can only be created after Spaces `@kanye` control is proven
 - additional namespace mirrors can only be attached after their own corresponding root control is proven
 
 Pirate-managed external SLD issuance requires delegation:
@@ -210,13 +210,13 @@ Pirate-managed external SLD issuance requires delegation:
 
 ## HNS
 
-Bare-label guilds are the HNS-compatible family.
+Bare-label clubs are the HNS-compatible family.
 
 Implications:
 
-- `/g/kanye` is the canonical Pirate route for that family
-- HNS `.kanye` control is required before the guild is created
-- guild-local handles under that family are `name.kanye`
+- `/c/kanye` is the canonical Pirate route for that family
+- HNS `.kanye` control is required before the club is created
+- club-local handles under that family are `name.kanye`
 
 Important:
 
@@ -226,13 +226,13 @@ Important:
 
 ## Spaces
 
-`@`-prefixed guilds are the Spaces-compatible family.
+`@`-prefixed clubs are the Spaces-compatible family.
 
 Implications:
 
-- `/g/@kanye` is the canonical Pirate route for that family
-- Spaces `@kanye` control is required before the guild is created
-- guild-local handles under that family are `name@kanye`
+- `/c/@kanye` is the canonical Pirate route for that family
+- Spaces `@kanye` control is required before the club is created
+- club-local handles under that family are `name@kanye`
 
 Important:
 
@@ -244,7 +244,7 @@ Important:
 
 ## Identity vs Projection
 
-Guild identity is still `guild_id`.
+Club identity is still `club_id`.
 
 Namespace route strings are canonical projections, but they are not the durable social object.
 
@@ -252,8 +252,8 @@ This matters because:
 
 - delegation or governance may change later
 - resolver integrations may evolve
-- guild settings and post history must survive those changes
-- one guild may have multiple route projections rooted in independently owned namespaces
+- club settings and post history must survive those changes
+- one club may have multiple route projections rooted in independently owned namespaces
 
 ## Conflict Rules
 
@@ -262,14 +262,14 @@ Important conflict case:
 - HNS `.kanye`
 - Spaces `@kanye`
 
-These may belong to different parties and therefore may represent different guilds.
+These may belong to different parties and therefore may represent different clubs.
 
 Therefore:
 
 - Pirate must not assume bare-label and `@` namespaces are equivalent
 - route syntax is the disambiguator
-- even identical-looking display labels across HNS, Spaces, and IDN roots remain separate sovereign roots until explicitly bound to the same guild
-- binding multiple roots to one guild requires accepted proof for each root individually
+- even identical-looking display labels across HNS, Spaces, and IDN roots remain separate sovereign roots until explicitly bound to the same club
+- binding multiple roots to one club requires accepted proof for each root individually
 
 Within one route family:
 
@@ -289,8 +289,8 @@ V0 assumes a greenfield route system.
 
 Direct routing is exact:
 
-- `/g/kanye` does not silently normalize to `/g/@kanye`
-- `/g/@kanye` does not silently normalize to `/g/kanye`
+- `/c/kanye` does not silently normalize to `/c/@kanye`
+- `/c/@kanye` does not silently normalize to `/c/kanye`
 
 Search and autocomplete may still surface both route families when the user searches for `kanye`.
 
@@ -300,7 +300,7 @@ The exact v0 search and autocomplete UX is intentionally unresolved here. If bot
 
 ## Mirror Namespaces
 
-One guild may attach multiple verified namespace roots.
+One club may attach multiple verified namespace roots.
 
 Examples:
 
@@ -312,7 +312,7 @@ Rules:
 
 - one namespace is marked `primary`
 - additional namespaces are marked `mirror`
-- all attached namespaces resolve to the same `guild_id`
+- all attached namespaces resolve to the same `club_id`
 - mirrors share the same posts, moderation, governance, membership, and treasury surface
 - mirrors do not collapse root sovereignty; each attached root still requires independent proof and may have its own delegation state
 
@@ -322,7 +322,7 @@ Pirate must never auto-merge two roots simply because their labels look related.
 
 ## Handle Relationship To Mirrors
 
-Mirrored namespaces share one guild, but they do not share one handle inventory.
+Mirrored namespaces share one club, but they do not share one handle inventory.
 
 Examples:
 
@@ -335,10 +335,10 @@ Rules:
 - handle uniqueness remains namespace-local
 - owning `alex.kanye` does not automatically grant `alex@kanye`
 - owning `alex.kanye` does not automatically grant `alex.肯伊`
-- UI may show that one `user_id` owns handles in multiple sibling namespaces of the same guild
+- UI may show that one `user_id` owns handles in multiple sibling namespaces of the same club
 - current-route rendering should prefer the handle for the active namespace when one exists
 
 ## Open Questions
 
-- Can a guild ever change which attached namespace is marked `primary` without changing canonical guild identity?
-- How should reserved labels be coordinated across sibling namespace mirrors of the same guild?
+- Can a club ever change which attached namespace is marked `primary` without changing canonical club identity?
+- How should reserved labels be coordinated across sibling namespace mirrors of the same club?

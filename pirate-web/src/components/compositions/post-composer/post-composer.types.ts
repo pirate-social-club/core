@@ -18,7 +18,7 @@ export interface LivePerformerAllocation {
 
 export type DerivativeTrigger = "remix" | "declaration" | "analysis";
 
-export type AnonymousIdentityScope = "guild_stable" | "thread_stable" | "post_ephemeral";
+export type AnonymousIdentityScope = "club_stable" | "thread_stable" | "post_ephemeral";
 
 export type IdentityMode = "public" | "anonymous";
 
@@ -30,7 +30,7 @@ export interface QualifierOption {
   sourceProvider?: "self" | "very" | "world";
   sourceField?: string;
   redundancyKey?: string;
-  suppressedByGuildGate?: boolean;
+  suppressedByClubGate?: boolean;
   suppressionReason?: string;
 }
 
@@ -102,8 +102,8 @@ export interface ComposerIdentityState {
 }
 
 export interface PostComposerProps {
-  guildName: string;
-  guildAvatarSrc?: string;
+  clubName: string;
+  clubAvatarSrc?: string;
   draftsLabel?: string;
   mode: ComposerTab;
   availableTabs?: ComposerTab[];

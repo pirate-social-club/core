@@ -258,7 +258,7 @@ Segments are foundational for rights, but not yet for real-time money routing.
 
 Recommended v0 rule:
 
-- live-room access revenue still follows the room listing plus the guild payout policy
+- live-room access revenue still follows the room listing plus the club payout policy
 - segments provide the structure for rights review, replay clearance, and future detailed payout logic
 - ACRCloud matches or segment detections must not auto-rewrite payout splits in real time
 

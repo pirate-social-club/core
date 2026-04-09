@@ -87,7 +87,7 @@ Recommended v0 cases:
 - `replay_status = published`
 - `replay_asset_id` is non-null
 - `replay_listing_id = null`
-- any viewer who satisfies normal room and guild viewing rules may watch
+- any viewer who satisfies normal room and club viewing rules may watch
 - replay may be served as a public asset or public media payload
 
 ### Paid Replay

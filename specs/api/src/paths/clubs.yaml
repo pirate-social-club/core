@@ -1,29 +1,29 @@
-guilds:
+clubs:
   post:
     tags:
-      - Guilds
-    summary: Create a guild
+      - Clubs
+    summary: Create a club
     requestBody:
       required: true
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/guilds-core.yaml#/CreateGuildRequest
+            $ref: ../components/schemas/clubs-core.yaml#/CreateClubRequest
     responses:
       "201":
-        description: Guild created
+        description: Club created
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/guilds-core.yaml#/Guild
+              $ref: ../components/schemas/clubs-core.yaml#/Club
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "429":
         $ref: ../components/responses.yaml#/RateLimited
   get:
     tags:
-      - Guilds
-    summary: List guilds
+      - Clubs
+    summary: List clubs
     parameters:
       - in: query
         name: q
@@ -37,7 +37,7 @@ guilds:
       - $ref: ../components/parameters.yaml#/Limit
     responses:
       "200":
-        description: Guilds
+        description: Clubs
         content:
           application/json:
             schema:
@@ -48,7 +48,7 @@ guilds:
                 items:
                   type: array
                   items:
-                    $ref: ../components/schemas/guilds-core.yaml#/Guild
+                    $ref: ../components/schemas/clubs-core.yaml#/Club
                 next_cursor:
                   type: string
                   nullable: true
@@ -56,43 +56,43 @@ guilds:
         $ref: ../components/responses.yaml#/AuthError
       "429":
         $ref: ../components/responses.yaml#/RateLimited
-guilds_by_guild_id:
+clubs_by_club_id:
   get:
     tags:
-      - Guilds
-    summary: Get a guild
+      - Clubs
+    summary: Get a club
     parameters:
-      - $ref: ../components/parameters.yaml#/GuildId
+      - $ref: ../components/parameters.yaml#/ClubId
     responses:
       "200":
-        description: Guild
+        description: Club
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/guilds-core.yaml#/Guild
+              $ref: ../components/schemas/clubs-core.yaml#/Club
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
   patch:
     tags:
-      - Guilds
-    summary: Update mutable guild settings
+      - Clubs
+    summary: Update mutable club settings
     parameters:
-      - $ref: ../components/parameters.yaml#/GuildId
+      - $ref: ../components/parameters.yaml#/ClubId
     requestBody:
       required: true
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/guilds-core.yaml#/UpdateGuildRequest
+            $ref: ../components/schemas/clubs-core.yaml#/UpdateClubRequest
     responses:
       "200":
-        description: Guild updated
+        description: Club updated
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/guilds-core.yaml#/Guild
+              $ref: ../components/schemas/clubs-core.yaml#/Club
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "403":
@@ -101,26 +101,26 @@ guilds_by_guild_id:
         $ref: ../components/responses.yaml#/NotFound
       "409":
         $ref: ../components/responses.yaml#/Conflict
-guilds_by_guild_id_attach_governance:
+clubs_by_club_id_attach_governance:
   post:
     tags:
-      - Guilds
-    summary: Attach or replace an external governance backend for a guild
+      - Clubs
+    summary: Attach or replace an external governance backend for a club
     parameters:
-      - $ref: ../components/parameters.yaml#/GuildId
+      - $ref: ../components/parameters.yaml#/ClubId
     requestBody:
       required: true
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/guilds-governance.yaml#/AttachGovernanceRequest
+            $ref: ../components/schemas/clubs-governance.yaml#/AttachGovernanceRequest
     responses:
       "202":
         description: Governance attachment action accepted
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/guilds-governance.yaml#/GovernanceAction
+              $ref: ../components/schemas/clubs-governance.yaml#/GovernanceAction
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "403":
@@ -129,43 +129,43 @@ guilds_by_guild_id_attach_governance:
         $ref: ../components/responses.yaml#/NotFound
       "409":
         $ref: ../components/responses.yaml#/Conflict
-guilds_by_guild_id_flairs:
+clubs_by_club_id_flairs:
   get:
     tags:
-      - Guilds
-    summary: List flair definitions for a guild
+      - Clubs
+    summary: List flair definitions for a club
     parameters:
-      - $ref: ../components/parameters.yaml#/GuildId
+      - $ref: ../components/parameters.yaml#/ClubId
     responses:
       "200":
-        description: Guild flair policy
+        description: Club flair policy
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/guilds-community.yaml#/GuildFlairPolicy
+              $ref: ../components/schemas/clubs-community.yaml#/ClubFlairPolicy
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
   patch:
     tags:
-      - Guilds
-    summary: Replace or update flair definitions for a guild
+      - Clubs
+    summary: Replace or update flair definitions for a club
     parameters:
-      - $ref: ../components/parameters.yaml#/GuildId
+      - $ref: ../components/parameters.yaml#/ClubId
     requestBody:
       required: true
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/guilds-community.yaml#/UpdateGuildFlairPolicyRequest
+            $ref: ../components/schemas/clubs-community.yaml#/UpdateClubFlairPolicyRequest
     responses:
       "200":
-        description: Guild flair policy updated
+        description: Club flair policy updated
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/guilds-community.yaml#/GuildFlairPolicy
+              $ref: ../components/schemas/clubs-community.yaml#/ClubFlairPolicy
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "403":
@@ -174,86 +174,86 @@ guilds_by_guild_id_flairs:
         $ref: ../components/responses.yaml#/NotFound
       "409":
         $ref: ../components/responses.yaml#/Conflict
-guilds_by_guild_id_community_profile:
+clubs_by_club_id_community_profile:
   get:
     tags:
-      - Guilds
-    summary: Get the community profile for a guild
+      - Clubs
+    summary: Get the community profile for a club
     parameters:
-      - $ref: ../components/parameters.yaml#/GuildId
+      - $ref: ../components/parameters.yaml#/ClubId
     responses:
       "200":
-        description: Guild community profile
+        description: Club community profile
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/guilds-community.yaml#/GuildCommunityProfile
+              $ref: ../components/schemas/clubs-community.yaml#/ClubCommunityProfile
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
   patch:
     tags:
-      - Guilds
-    summary: Update the community profile for a guild
+      - Clubs
+    summary: Update the community profile for a club
     parameters:
-      - $ref: ../components/parameters.yaml#/GuildId
+      - $ref: ../components/parameters.yaml#/ClubId
     requestBody:
       required: true
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/guilds-community.yaml#/UpdateGuildCommunityProfileRequest
+            $ref: ../components/schemas/clubs-community.yaml#/UpdateClubCommunityProfileRequest
     responses:
       "200":
-        description: Guild community profile updated
+        description: Club community profile updated
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/guilds-community.yaml#/GuildCommunityProfile
+              $ref: ../components/schemas/clubs-community.yaml#/ClubCommunityProfile
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "403":
         $ref: ../components/responses.yaml#/EligibilityFailed
       "404":
         $ref: ../components/responses.yaml#/NotFound
-guilds_by_guild_id_donation_policy:
+clubs_by_club_id_donation_policy:
   get:
     tags:
-      - Guilds
-    summary: Get the active donation policy for a guild
+      - Clubs
+    summary: Get the active donation policy for a club
     parameters:
-      - $ref: ../components/parameters.yaml#/GuildId
+      - $ref: ../components/parameters.yaml#/ClubId
     responses:
       "200":
-        description: Guild donation policy
+        description: Club donation policy
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/guilds-community.yaml#/GuildDonationPolicy
+              $ref: ../components/schemas/clubs-community.yaml#/ClubDonationPolicy
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
   patch:
     tags:
-      - Guilds
-    summary: Configure or update the donation policy for a guild
+      - Clubs
+    summary: Configure or update the donation policy for a club
     parameters:
-      - $ref: ../components/parameters.yaml#/GuildId
+      - $ref: ../components/parameters.yaml#/ClubId
     requestBody:
       required: true
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/guilds-community.yaml#/UpdateGuildDonationPolicyRequest
+            $ref: ../components/schemas/clubs-community.yaml#/UpdateClubDonationPolicyRequest
     responses:
       "200":
-        description: Guild donation policy updated
+        description: Club donation policy updated
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/guilds-community.yaml#/GuildDonationPolicy
+              $ref: ../components/schemas/clubs-community.yaml#/ClubDonationPolicy
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "403":
@@ -264,31 +264,31 @@ guilds_by_guild_id_donation_policy:
         $ref: ../components/responses.yaml#/Conflict
       "429":
         $ref: ../components/responses.yaml#/RateLimited
-guilds_by_guild_id_join:
+clubs_by_club_id_join:
   post:
     tags:
-      - Guilds
-    summary: Join a guild
+      - Clubs
+    summary: Join a club
     parameters:
-      - $ref: ../components/parameters.yaml#/GuildId
+      - $ref: ../components/parameters.yaml#/ClubId
     responses:
       "200":
         description: Membership created or request recorded
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/guilds-core.yaml#/MembershipResult
+              $ref: ../components/schemas/clubs-core.yaml#/MembershipResult
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "403":
         $ref: ../components/responses.yaml#/GateFailed
-guilds_by_guild_id_live_rooms:
+clubs_by_club_id_live_rooms:
   post:
     tags:
       - Livestreams
-    summary: Create a livestream room for a guild
+    summary: Create a livestream room for a club
     parameters:
-      - $ref: ../components/parameters.yaml#/GuildId
+      - $ref: ../components/parameters.yaml#/ClubId
     requestBody:
       required: true
       content:
@@ -308,29 +308,29 @@ guilds_by_guild_id_live_rooms:
         $ref: ../components/responses.yaml#/EligibilityFailed
       "429":
         $ref: ../components/responses.yaml#/RateLimited
-guilds_by_guild_id_leave:
+clubs_by_club_id_leave:
   post:
     tags:
-      - Guilds
-    summary: Leave a guild
+      - Clubs
+    summary: Leave a club
     parameters:
-      - $ref: ../components/parameters.yaml#/GuildId
+      - $ref: ../components/parameters.yaml#/ClubId
     responses:
       "200":
         description: Membership removed
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/guilds-core.yaml#/MembershipResult
+              $ref: ../components/schemas/clubs-core.yaml#/MembershipResult
       "401":
         $ref: ../components/responses.yaml#/AuthError
-guilds_by_guild_id_posts:
+clubs_by_club_id_posts:
   get:
     tags:
       - Posts
-    summary: List posts in a guild
+    summary: List posts in a club
     parameters:
-      - $ref: ../components/parameters.yaml#/GuildId
+      - $ref: ../components/parameters.yaml#/ClubId
       - $ref: ../components/parameters.yaml#/Locale
       - $ref: ../components/parameters.yaml#/FeedSort
       - $ref: ../components/parameters.yaml#/TopWindow
@@ -339,7 +339,7 @@ guilds_by_guild_id_posts:
       - $ref: ../components/parameters.yaml#/Limit
     responses:
       "200":
-        description: Guild posts
+        description: Club posts
         content:
           application/json:
             schema:

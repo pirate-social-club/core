@@ -20,11 +20,11 @@ contract ScrobbleV1 {
     /// @notice Minimal onchain track registry keyed by Pirate's canonical track id.
     event TrackRegistered(bytes32 indexed trackId, bytes32 indexed metadataHash, uint64 registeredAt);
 
-    /// @notice Canonical listen event. `guildId = bytes32(0)` means no guild context.
+    /// @notice Canonical listen event. `clubId = bytes32(0)` means no club context.
     event Scrobbled(
         address indexed user,
         bytes32 indexed trackId,
-        bytes32 indexed guildId,
+        bytes32 indexed clubId,
         uint64 playbackStartedAt,
         uint32 creditedDurationMs,
         uint8 sourceType,
@@ -104,19 +104,19 @@ contract ScrobbleV1 {
     function scrobble(
         address user,
         bytes32 trackId,
-        bytes32 guildId,
+        bytes32 clubId,
         uint64 playbackStartedAt,
         uint32 creditedDurationMs,
         uint8 sourceType,
         uint8 submissionMode
     ) external onlyUserOrOperator(user) {
-        _scrobble(user, trackId, guildId, playbackStartedAt, creditedDurationMs, sourceType, submissionMode);
+        _scrobble(user, trackId, clubId, playbackStartedAt, creditedDurationMs, sourceType, submissionMode);
     }
 
     function scrobbleBatch(
         address user,
         bytes32[] calldata trackIds,
-        bytes32[] calldata guildIds,
+        bytes32[] calldata clubIds,
         uint64[] calldata playbackStartedAts,
         uint32[] calldata creditedDurationsMs,
         uint8[] calldata sourceTypes,
@@ -124,7 +124,7 @@ contract ScrobbleV1 {
     ) external onlyUserOrOperator(user) {
         uint256 len = trackIds.length;
         if (
-            len != guildIds.length || len != playbackStartedAts.length || len != creditedDurationsMs.length
+            len != clubIds.length || len != playbackStartedAts.length || len != creditedDurationsMs.length
                 || len != sourceTypes.length || len != submissionModes.length
         ) revert LengthMismatch();
         if (len > MAX_BATCH) revert BatchTooLarge();
@@ -133,7 +133,7 @@ contract ScrobbleV1 {
             _scrobble(
                 user,
                 trackIds[i],
-                guildIds[i],
+                clubIds[i],
                 playbackStartedAts[i],
                 creditedDurationsMs[i],
                 sourceTypes[i],
@@ -157,7 +157,7 @@ contract ScrobbleV1 {
     function _scrobble(
         address user,
         bytes32 trackId,
-        bytes32 guildId,
+        bytes32 clubId,
         uint64 playbackStartedAt,
         uint32 creditedDurationMs,
         uint8 sourceType,
@@ -172,7 +172,7 @@ contract ScrobbleV1 {
         emit Scrobbled(
             user,
             trackId,
-            guildId,
+            clubId,
             playbackStartedAt,
             creditedDurationMs,
             sourceType,

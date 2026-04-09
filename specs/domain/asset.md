@@ -5,7 +5,7 @@ Status: draft
 Related docs:
 
 - [post.md](./post.md)
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [artist-identity.md](./artist-identity.md)
 - [royalty-graph.md](./royalty-graph.md)
 - [monetization.md](./monetization.md)
@@ -59,7 +59,7 @@ Suggested v0 fields:
 
 - `asset_id`
 - `source_post_id`
-- `guild_id`
+- `club_id`
 - `creator_user_id`
 - `asset_type`
 - `content_ref`
@@ -103,7 +103,7 @@ Suggested meanings:
 Notes:
 
 - `source_post_id` is required because every asset originates from exactly one post
-- `guild_id` is intentionally denormalized for read performance in v0 because asset queries will commonly be guild-scoped; the source of truth remains `source_post_id -> posts.guild_id`, and the stored value must match it
+- `club_id` is intentionally denormalized for read performance in v0 because asset queries will commonly be club-scoped; the source of truth remains `source_post_id -> posts.club_id`, and the stored value must match it
 - `analysis_result_ref` may point to the same shared media-analysis record referenced by the source post
 - `analysis_result_ref` is a foreign key to a shared `media_analysis_results` record that stores the full ACRCloud response, match metadata, and the final upload-outcome decision
 - `rights_basis` is copied from the source post at asset creation time, becomes immutable on the asset row, and must match the source post's declared basis
@@ -197,13 +197,13 @@ Recommended v0 posture:
 
 - Pirate uses Story's existing protocol and periphery flows rather than inventing a custom asset protocol
 - Pirate should manage one small number of Pirate-controlled NFT collections for published assets
-- Pirate should not create one Story NFT collection per guild in v0
+- Pirate should not create one Story NFT collection per club in v0
 
 Implications:
 
-- guild identity remains an app-level concept
-- Story collection layout is an implementation concern, not the source of guild identity
-- guild affiliation is carried in Pirate metadata, app records, and Story metadata references rather than by minting a separate collection for every guild
+- club identity remains an app-level concept
+- Story collection layout is an implementation concern, not the source of club identity
+- club affiliation is carried in Pirate metadata, app records, and Story metadata references rather than by minting a separate collection for every club
 
 This keeps the Story-side asset model simple while still allowing:
 
@@ -271,7 +271,7 @@ This matters because:
 
 - not every asset needs revenue sharing
 - some edges are legally strong
-- some edges are guild-defined attribution or sharing norms
+- some edges are club-defined attribution or sharing norms
 
 Recommended v0 rule:
 

@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [post.md](./post.md)
 - [asset.md](./asset.md)
 - [artist-catalog.md](./artist-catalog.md)
@@ -21,7 +21,7 @@ It covers:
 - track identity
 - scrobble submission
 - trusted delegated ingestion
-- relationship to guilds and assets
+- relationship to clubs and assets
 - relationship to karma
 - onchain versus offchain boundaries
 
@@ -42,7 +42,7 @@ They should be:
 
 - attributable to a user
 - attributable to a track
-- attributable to a guild context when one exists
+- attributable to a club context when one exists
 - cheap to publish
 - harder to fake than ordinary app telemetry
 
@@ -63,7 +63,7 @@ Important v0 track properties for scrobbling are:
 - `recording_mbid` nullable
 - `story_ip_id` nullable
 - `asset_id` nullable
-- `guild_id` nullable
+- `club_id` nullable
 - `title`
 - `artist_display_name`
 - `duration_ms` nullable
@@ -75,7 +75,7 @@ Rules:
 - `track_id` is Pirate's stable canonical track identifier for scrobbling
 - a track may point to an `asset_id` when it corresponds to a Pirate asset
 - a track may exist without a Pirate asset when Pirate needs to scrobble external or imported music references
-- `guild_id` is nullable because a track may be globally known before it is strongly attached to one guild
+- `club_id` is nullable because a track may be globally known before it is strongly attached to one club
 - `artist_display_name` is a denormalized read convenience, not the canonical artist-identity linkage
 - `audio_fingerprint_ref` is an optional enrichment or reconciliation aid, not the primary track identity
 
@@ -96,7 +96,7 @@ Suggested v0 scrobble shape:
 - `scrobble_id`
 - `track_id`
 - `user_id`
-- `guild_id` nullable
+- `club_id` nullable
 - `source_type`
 - `playback_started_at`
 - `playback_position_ms` nullable
@@ -121,7 +121,7 @@ Rules:
 - a scrobble records a listen event, not a vote
 - a scrobble belongs to exactly one `track_id`
 - a scrobble belongs to exactly one `user_id`
-- `guild_id` is nullable because some listens may happen outside an explicit guild surface
+- `club_id` is nullable because some listens may happen outside an explicit club surface
 - `credited_duration_ms` is the listen amount Pirate accepts for validity and karma purposes
 
 ## Listen Validity
@@ -162,15 +162,15 @@ Rules:
 - delegated ingestion must be auditable
 - delegated ingestion should not weaken anti-Sybil or anti-fraud requirements
 
-## Relationship To Guilds
+## Relationship To Clubs
 
-Scrobbles may have guild context.
+Scrobbles may have club context.
 
 Recommended v0 behavior:
 
-- if a listen happens from within a guild-owned song or guild playback surface, the scrobble may carry that `guild_id`
-- the same user may scrobble the same track in different guild contexts over time
-- guild-scoped scrobbles are useful for local listener recognition and guild karma derivation
+- if a listen happens from within a club-owned song or club playback surface, the scrobble may carry that `club_id`
+- the same user may scrobble the same track in different club contexts over time
+- club-scoped scrobbles are useful for local listener recognition and club karma derivation
 
 ## Relationship To Karma
 
@@ -181,7 +181,7 @@ Canonical rules live in [karma.md](./karma.md).
 Directional v0 rules:
 
 - scrobbles may generate `scrobble_karma_grant` events
-- scrobble karma is capped per `(user_id, guild_id)` per day
+- scrobble karma is capped per `(user_id, club_id)` per day
 - scrobble karma alone must not dominate handle eligibility
 
 ## Read Views
@@ -191,10 +191,10 @@ Scrobble read views are product read models built on top of canonical scrobble e
 Examples:
 
 - top listeners for a track
-- recent listeners in a guild
+- recent listeners in a club
 - user listening history
-- guild charts
-- artist/guild fan recognition
+- club charts
+- artist/club fan recognition
 
 These are read models, not new canonical event types.
 
@@ -205,7 +205,7 @@ Recommended v0 split:
 - canonical scrobble publication should use the Story-side scrobble contract
 - track registration should have a Story-side contract surface
 - app-level services may still keep mirrored offchain references for read performance, recovery, and product indexing
-- ranking, charts, streaks, and guild summaries remain offchain read models
+- ranking, charts, streaks, and club summaries remain offchain read models
 
 ## API Implications
 
@@ -230,4 +230,4 @@ The exact OpenAPI paths can stay flexible, but the separation between track iden
 
 - What exact listen-validity threshold should convert playback into a canonical scrobble?
 - Should desktop scrobbles always be delegated submissions, or can some clients submit directly?
-- Should `guild_id` be required for guild-owned song surfaces, or may some listens remain globally scoped even there?
+- Should `club_id` be required for club-owned song surfaces, or may some listens remain globally scoped even there?

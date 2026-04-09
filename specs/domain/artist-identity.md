@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [guild.md](./guild.md)
+- [club.md](./club.md)
 - [namespace.md](./namespace.md)
 - [artist-catalog.md](./artist-catalog.md)
 
@@ -12,7 +12,7 @@ Related docs:
 
 An artist identity is Pirate's canonical internal record for a known artist.
 
-It exists so guilds can optionally link to a stable artist object without treating route text or external platform IDs as the canonical identity.
+It exists so clubs can optionally link to a stable artist object without treating route text or external platform IDs as the canonical identity.
 
 ## Core Principle
 
@@ -55,8 +55,8 @@ MusicBrainz is first-class but optional in v0.
 Rules:
 
 - if known, store `musicbrainz_artist_mbid` on the artist identity record
-- guilds link to `artist_identity_id`, not directly to MBID
-- the absence of an MBID does not prevent a guild from existing
+- clubs link to `artist_identity_id`, not directly to MBID
+- the absence of an MBID does not prevent a club from existing
 
 ## Metadata
 
@@ -66,21 +66,21 @@ It is a JSON object reserved for low-risk descriptive fields that do not deserve
 
 V0 does not require any specific keys inside `metadata`.
 
-## Guild Linkage
+## Club Linkage
 
-An artist-linked guild stores:
+An artist-linked club stores:
 
-- `guild.artist_identity_id = artist_identities.artist_identity_id`
+- `club.artist_identity_id = artist_identities.artist_identity_id`
 
 This allows:
 
-- one guild to link to a known artist
-- future multiple guilds to link to the same artist identity
-- later addition of more external IDs without changing guild identity
+- one club to link to a known artist
+- future multiple clubs to link to the same artist identity
+- later addition of more external IDs without changing club identity
 
 Artist identity linkage does not by itself mean the artist participates in governance.
 
-Guild-side governance participation and proof evidence are defined in [guild.md](./guild.md).
+Club-side governance participation and proof evidence are defined in [club.md](./club.md).
 
 ## Open Questions
 

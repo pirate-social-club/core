@@ -34,12 +34,12 @@ import { cn } from "@/lib/utils";
 import type {
   AnonymousIdentityScope,
   ComposerStep,
-  CreateGuildComposerProps,
+  CreateClubComposerProps,
   GateFamily,
   GateType,
-  GuildDefaultAgeGatePolicy,
-  GuildGovernanceMode,
-  GuildMembershipMode,
+  ClubDefaultAgeGatePolicy,
+  ClubGovernanceMode,
+  ClubMembershipMode,
   HandlePolicyState,
   HandlePolicyTemplate,
   HandlePricingModel,
@@ -48,16 +48,16 @@ import type {
   NamespaceFamily,
   NamespaceImportState,
   SpacesHandleMode,
-} from "./create-guild-composer.types";
+} from "./create-club-composer.types";
 
-const membershipMeta: Record<GuildMembershipMode, { label: string; icon: React.ReactNode }> = {
+const membershipMeta: Record<ClubMembershipMode, { label: string; icon: React.ReactNode }> = {
   open: { label: "Open", icon: <Globe2 className="size-5" /> },
   request: { label: "Request", icon: <ShieldCheck className="size-5" /> },
   gated: { label: "Gated", icon: <Lock className="size-5" /> },
 };
 
 const governanceMeta: Record<
-  GuildGovernanceMode,
+  ClubGovernanceMode,
   { label: string; icon: React.ReactNode; disabledHint?: string }
 > = {
   centralized: { label: "Creator-led", icon: <Tag className="size-5" /> },
@@ -65,14 +65,14 @@ const governanceMeta: Record<
   majeur: {
     label: "Majeur DAO",
     icon: <Users className="size-5" />,
-    disabledHint: "Majeur creation stays out of scope for the v0 guild flow.",
+    disabledHint: "Majeur creation stays out of scope for the v0 club flow.",
   },
 };
 
-const ageGateMeta: Record<GuildDefaultAgeGatePolicy, { detail: string }> = {
-  none: { detail: "Normal guild viewing. Posts are still safety-scanned." },
+const ageGateMeta: Record<ClubDefaultAgeGatePolicy, { detail: string }> = {
+  none: { detail: "Normal club viewing. Posts are still safety-scanned." },
   "18_plus": {
-    detail: "Guild viewing requires age verification. Scanning still applies to posts and assets.",
+    detail: "Club viewing requires age verification. Scanning still applies to posts and assets.",
   },
 };
 
@@ -93,13 +93,13 @@ const namespaceFamilyMeta: Record<
   hns: {
     label: "Handshake",
     externalExample: ".kanye",
-    detail: "Use a Handshake root like `.kanye` for bare `/g/kanye` guild routes.",
+    detail: "Use a Handshake root like `.kanye` for bare `/c/kanye` club routes.",
     icon: <Handshake className="size-5" />,
   },
   spaces: {
     label: "Spaces",
     externalExample: "@kanye",
-    detail: "Use a Spaces root like `@kanye` for `/g/@kanye` guild routes.",
+    detail: "Use a Spaces root like `@kanye` for `/c/@kanye` club routes.",
     icon: <AtSign className="size-5" />,
   },
 };
@@ -134,7 +134,7 @@ const spacesHandleMeta: Record<SpacesHandleMode, { label: string; detail: string
 const handlePolicyTemplateMeta: Record<HandlePolicyTemplate, { label: string; detail: string; pricingModel: HandlePricingModel; disabledHint?: string }> = {
   standard: {
     label: "Standard",
-    detail: "Free handles at 8+ characters. Shorter names increasingly restricted. Good default for most guilds.",
+    detail: "Free handles at 8+ characters. Shorter names increasingly restricted. Good default for most clubs.",
     pricingModel: "free",
   },
   premium: {
@@ -156,9 +156,9 @@ const handlePolicyTemplateMeta: Record<HandlePolicyTemplate, { label: string; de
 };
 
 const anonymousScopeMeta: Record<AnonymousIdentityScope, { label: string; detail: string }> = {
-  guild_stable: {
-    label: "Guild-stable",
-    detail: "One persistent anonymous label per user across the entire guild. Best for moderation continuity.",
+  club_stable: {
+    label: "Club-stable",
+    detail: "One persistent anonymous label per user across the entire club. Best for moderation continuity.",
   },
   thread_stable: {
     label: "Thread-stable",
@@ -186,10 +186,10 @@ const identityGateTypes: GateType[] = ["unique_human", "age_over_18", "nationali
 
 const stepMeta: Record<ComposerStep, { label: string; hint: string }> = {
   1: { label: "Namespace", hint: "Choose the root family, verify control, then set issuance posture." },
-  2: { label: "Identity", hint: "Name your guild and describe what it is for." },
+  2: { label: "Identity", hint: "Name your club and describe what it is for." },
   3: { label: "Handle policy", hint: "Choose how handles under this namespace are governed and priced." },
   4: { label: "Policy & governance", hint: "Set membership, identity, and governance rules." },
-  5: { label: "Review", hint: "Confirm your guild configuration before creation." },
+  5: { label: "Review", hint: "Confirm your club configuration before creation." },
 };
 
 const supportedGovernanceChains = [
@@ -518,7 +518,7 @@ function HnsNamespaceStatus({
   const challengeReady = importStatus === "txt_challenge_ready";
   const expired = namespace.expiryDaysRemaining != null && namespace.expiryDaysRemaining < 90;
   const rootLabel = (namespace.externalRoot ?? "").replace(/^\./, "");
-  const route = `/g/${rootLabel}`;
+  const route = `/c/${rootLabel}`;
   const handleFormat = `name.${rootLabel}`;
 
   return (
@@ -546,7 +546,7 @@ function HnsNamespaceStatus({
         {namespace.expiryDaysRemaining != null ? (
           <p className={cn("text-sm", expired ? "text-amber-700" : "text-muted-foreground")}>
             Expiry horizon: {namespace.expiryDaysRemaining} days remaining
-            {expired ? " \u2014 below 90-day minimum for guild creation" : null}
+            {expired ? " \u2014 below 90-day minimum for club creation" : null}
           </p>
         ) : null}
         <p className="text-sm text-muted-foreground">
@@ -580,7 +580,7 @@ function SpacesNamespaceStatus({
 
   const verified = importStatus === "verified";
   const rootLabel = (namespace.externalRoot ?? "").replace(/^@/, "");
-  const route = `/g/@${rootLabel}`;
+  const route = `/c/@${rootLabel}`;
   const handleFormat = `name@${rootLabel}`;
 
   return (
@@ -741,7 +741,7 @@ function MultisigAttachmentStatus({
   );
 }
 
-export function CreateGuildComposer({
+export function CreateClubComposer({
   displayName = "American Voices",
   description = "National discourse, local moderation, verified context when it matters.",
   draftsLabel = "Templates",
@@ -756,7 +756,7 @@ export function CreateGuildComposer({
   handlePolicy,
   creatorEligible = true,
   initialStep,
-}: CreateGuildComposerProps) {
+}: CreateClubComposerProps) {
   const initialNamespace = namespace ?? {
     family: "hns",
     externalRoot: ".american",
@@ -769,15 +769,15 @@ export function CreateGuildComposer({
 
   const [activeStep, setActiveStep] = React.useState<ComposerStep>(initialStep ?? 1);
   const [activeMembershipMode, setActiveMembershipMode] =
-    React.useState<GuildMembershipMode>(membershipMode);
+    React.useState<ClubMembershipMode>(membershipMode);
   const [activeGovernanceMode, setActiveGovernanceMode] =
-    React.useState<GuildGovernanceMode>(governanceMode);
+    React.useState<ClubGovernanceMode>(governanceMode);
   const [activeDefaultAgeGatePolicy, setActiveDefaultAgeGatePolicy] =
-    React.useState<GuildDefaultAgeGatePolicy>(defaultAgeGatePolicy);
+    React.useState<ClubDefaultAgeGatePolicy>(defaultAgeGatePolicy);
   const [activeAllowAnonymousIdentity, setActiveAllowAnonymousIdentity] =
     React.useState<boolean>(allowAnonymousIdentity);
   const [activeAnonymousScope, setActiveAnonymousScope] =
-    React.useState<AnonymousIdentityScope>(anonymousIdentityScopeProp ?? "guild_stable");
+    React.useState<AnonymousIdentityScope>(anonymousIdentityScopeProp ?? "club_stable");
   const [activeNamespaceFamily, setActiveNamespaceFamily] = React.useState<NamespaceFamily>(
     initialNamespace.family ?? "hns",
   );
@@ -854,8 +854,8 @@ export function CreateGuildComposer({
   const derivedRoot = activeNamespaceFamily === "hns" ? ".american" : "@american";
   const displayRoot = rootInput || derivedRoot;
   const rootLabel = displayRoot.replace(/^[@.]/, "");
-  const guildRoute =
-    activeNamespaceFamily === "hns" ? `/g/${rootLabel}` : `/g/@${rootLabel}`;
+  const clubRoute =
+    activeNamespaceFamily === "hns" ? `/c/${rootLabel}` : `/c/@${rootLabel}`;
   const handleFormat =
     activeNamespaceFamily === "hns" ? `name.${rootLabel}` : `name@${rootLabel}`;
 
@@ -963,7 +963,7 @@ export function CreateGuildComposer({
         if (activeMembershipMode === "gated") return activeGateTypes.size > 0;
         return true;
       case 5:
-        return canCreateGuild;
+        return canCreateClub;
       default:
         return false;
     }
@@ -980,7 +980,7 @@ export function CreateGuildComposer({
     activeGateTypes,
   ]);
 
-  const canCreateGuild = React.useMemo(
+  const canCreateClub = React.useMemo(
     () =>
       creatorEligible &&
       namespaceImportStatus === "verified" &&
@@ -1039,26 +1039,26 @@ export function CreateGuildComposer({
   return (
     <div className="mx-auto w-full max-w-4xl space-y-4">
       <div className="flex items-start justify-between gap-4">
-        <h2 className="text-3xl font-semibold tracking-tight">Create guild</h2>
+        <h2 className="text-3xl font-semibold tracking-tight">Create club</h2>
         <button className="text-sm font-semibold text-foreground" type="button">
           {draftsLabel}
         </button>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <ShellPill>Namespace-backed guild</ShellPill>
+        <ShellPill>Namespace-backed club</ShellPill>
       </div>
 
       {!creatorEligible ? (
         <div className="rounded-[var(--radius-lg)] border border-amber-500/20 bg-amber-500/5 px-4 py-3">
           <p className="text-sm font-semibold text-foreground">Identity verification required</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Complete unique human verification before creating a namespace-backed guild.
+            Complete unique human verification before creating a namespace-backed club.
           </p>
         </div>
       ) : null}
 
-      <Card className="overflow-hidden bg-background shadow-none">
+      <Card className="overflow-hidden border-border bg-background shadow-none">
         <CardHeader className="space-y-4 border-b border-border-soft px-5 py-4">
           <StepIndicator current={activeStep} onStepClick={handleStepClick} />
           <div className="space-y-1">
@@ -1173,14 +1173,14 @@ export function CreateGuildComposer({
           ) : null}
 
           {activeStep === 2 ? (
-            <Section title="Guild basics">
+            <Section title="Club basics">
               <div className="grid gap-4">
                 <div>
                   <FieldLabel label="Display name" />
                   <Input
                     className="h-12 rounded-[var(--radius-lg)]"
                     onChange={(e) => setActiveDisplayName(e.target.value)}
-                    placeholder="Guild name"
+                    placeholder="Club name"
                     value={activeDisplayName}
                   />
                 </div>
@@ -1190,7 +1190,7 @@ export function CreateGuildComposer({
                   <Textarea
                     className="min-h-24"
                     onChange={(e) => setActiveDescription(e.target.value)}
-                    placeholder="What is this guild for?"
+                    placeholder="What is this club for?"
                     value={activeDescription}
                   />
                 </div>
@@ -1253,7 +1253,7 @@ export function CreateGuildComposer({
                         <div className="space-y-2">
                           <p className="text-sm font-medium text-muted-foreground">Token holding</p>
                           <p className="text-sm text-muted-foreground">
-                            Token gates require chain, contract, and threshold configuration. Add them after guild creation in settings.
+                            Token gates require chain, contract, and threshold configuration. Add them after club creation in settings.
                           </p>
                         </div>
 
@@ -1292,11 +1292,11 @@ export function CreateGuildComposer({
                       <Checkbox
                         checked={activeAllowAnonymousIdentity}
                         className="mt-0.5"
-                        id="guild-allow-anonymous-posting"
+                        id="club-allow-anonymous-posting"
                         onCheckedChange={(next) => setActiveAllowAnonymousIdentity(next === true)}
                       />
                       <div className="space-y-1">
-                        <Label htmlFor="guild-allow-anonymous-posting">Allow anonymous posting</Label>
+                        <Label htmlFor="club-allow-anonymous-posting">Allow anonymous posting</Label>
                         <p className="text-sm text-muted-foreground">
                           {activeAllowAnonymousIdentity
                             ? anonymousIdentityMeta.enabled.detail
@@ -1331,13 +1331,13 @@ export function CreateGuildComposer({
                       <Checkbox
                         checked={activeDefaultAgeGatePolicy === "18_plus"}
                         className="mt-0.5"
-                        id="guild-18-plus-community"
+                        id="club-18-plus-community"
                         onCheckedChange={(next) =>
                           setActiveDefaultAgeGatePolicy(next === true ? "18_plus" : "none")
                         }
                       />
                       <div className="space-y-1">
-                        <Label htmlFor="guild-18-plus-community">18+ community</Label>
+                        <Label htmlFor="club-18-plus-community">18+ community</Label>
                         <p className="text-sm text-muted-foreground">
                           {ageGateMeta[activeDefaultAgeGatePolicy].detail}
                         </p>
@@ -1354,7 +1354,7 @@ export function CreateGuildComposer({
                 >
                   <Segmented
                     columns={3}
-                    disabledKeys={new Set<GuildGovernanceMode>(["majeur"])}
+                    disabledKeys={new Set<ClubGovernanceMode>(["majeur"])}
                     onChange={setActiveGovernanceMode}
                     options={governanceMeta}
                     value={activeGovernanceMode}
@@ -1457,10 +1457,10 @@ export function CreateGuildComposer({
                           checked={multisigState.treasurySameAsContract !== false}
                           className="mt-0.5"
                           disabled
-                          id="guild-safe-is-treasury"
+                          id="club-safe-is-treasury"
                         />
                         <div className="space-y-1">
-                          <Label htmlFor="guild-safe-is-treasury">This Safe is the treasury</Label>
+                          <Label htmlFor="club-safe-is-treasury">This Safe is the treasury</Label>
                           <p className="text-sm text-muted-foreground">
                             Split treasury stays out of scope in v0. Pirate reads balances from the
                             same Safe used for governance.
@@ -1484,7 +1484,7 @@ export function CreateGuildComposer({
                       value={activeEndaomentUrl}
                     />
                     <p className="text-sm text-muted-foreground">
-                      Optional. Used when the guild routes creator donations through an approved Endaoment beneficiary.
+                      Optional. Used when the club routes creator donations through an approved Endaoment beneficiary.
                     </p>
                   </div>
                 </Section>
@@ -1497,7 +1497,7 @@ export function CreateGuildComposer({
               <ReviewSection title="Namespace">
                 <ReviewField label="Family" value={namespaceFamilyMeta[activeNamespaceFamily].label} />
                 <ReviewField label="Root" value={displayRoot} />
-                <ReviewField label="Route" value={<span className="font-mono">{guildRoute}</span>} />
+                <ReviewField label="Route" value={<span className="font-mono">{clubRoute}</span>} />
                 <ReviewField label="Handle format" value={<span className="font-mono">{handleFormat}</span>} />
                 <ReviewField
                   label="Verification"
@@ -1517,7 +1517,7 @@ export function CreateGuildComposer({
                 />
               </ReviewSection>
 
-              <ReviewSection title="Guild identity">
+              <ReviewSection title="Club identity">
                 <ReviewField label="Display name" value={activeDisplayName} />
                 <div className="md:col-span-2">
                   <ReviewField label="Description" value={activeDescription || "\u2014"} />
@@ -1579,7 +1579,7 @@ export function CreateGuildComposer({
               {!creatorEligible ? (
                 <div className="rounded-[var(--radius-lg)] border border-destructive/20 bg-destructive/5 px-4 py-3">
                   <p className="text-sm font-semibold text-foreground">
-                    Creator identity verification is incomplete. Guild creation is blocked until unique human verification passes.
+                    Creator identity verification is incomplete. Club creation is blocked until unique human verification passes.
                   </p>
                 </div>
               ) : null}
@@ -1602,7 +1602,7 @@ export function CreateGuildComposer({
                 Next
               </Button>
             ) : (
-              <Button disabled={!canCreateGuild}>Create Guild</Button>
+              <Button disabled={!canCreateClub}>Create Club</Button>
             )}
           </div>
         </CardFooter>

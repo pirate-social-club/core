@@ -5,8 +5,8 @@ import { PostComposer } from "../post-composer";
 import type { PostComposerProps } from "../post-composer.types";
 
 const baseComposer: PostComposerProps = {
-  guildName: "g/yeezy",
-  guildAvatarSrc: "https://picsum.photos/seed/yeezy/80/80",
+  clubName: "g/yeezy",
+  clubAvatarSrc: "https://picsum.photos/seed/yeezy/80/80",
   draftsLabel: "Drafts",
   mode: "text",
   availableTabs: ["text", "image", "video", "link", "song", "live"],
@@ -48,13 +48,13 @@ const baseComposer: PostComposerProps = {
         sourceProvider: "self",
         sourceField: "nationality",
         redundancyKey: "nationality:US",
-        suppressedByGuildGate: true,
-        suppressionReason: "Already required for posting in this guild.",
+        suppressedByClubGate: true,
+        suppressionReason: "Already required for posting in this club.",
       },
     ],
     selectedQualifierIds: [],
     helpText:
-      "Attach optional qualifiers to add authority. Anything already required by this guild stays hidden.",
+      "Attach optional qualifiers to add authority. Anything already required by this club stays hidden.",
   },
 };
 
@@ -80,13 +80,13 @@ export const DefaultText: Story = {
   render: () => <PostComposer {...baseComposer} />,
 };
 
-export const DefaultGuildAllTypes: Story = {
-  name: "Guild / Default All Post Types",
+export const DefaultClubAllTypes: Story = {
+  name: "Club / Default All Post Types",
   render: () => <PostComposer {...baseComposer} />,
 };
 
 export const PublicHandleOnly: Story = {
-  name: "Guild / No Optional Qualifiers",
+  name: "Club / No Optional Qualifiers",
   render: () => (
     <PostComposer
       {...baseComposer}
@@ -102,7 +102,7 @@ export const PublicHandleOnly: Story = {
 };
 
 export const QualifiersDropdown: Story = {
-  name: "Guild / Qualifiers Dropdown",
+  name: "Club / Qualifiers Dropdown",
   render: () => (
     <PostComposer
       {...baseComposer}
@@ -139,7 +139,7 @@ export const QualifiersDropdown: Story = {
             sourceProvider: "self",
             sourceField: "nationality",
             redundancyKey: "nationality:US",
-            suppressedByGuildGate: true,
+            suppressedByClubGate: true,
           },
           {
             qualifierId: "qlf_very_palm_scan",
@@ -152,18 +152,18 @@ export const QualifiersDropdown: Story = {
         ],
         selectedQualifierIds: ["qlf_unique_human", "qlf_age_over_18", "qlf_very_palm_scan"],
         helpText:
-          "Select any qualifiers that add authority to this post. Guild-required ones are omitted.",
+          "Select any qualifiers that add authority to this post. Club-required ones are omitted.",
       }}
     />
   ),
 };
 
-export const GuildGateSuppressesQualifier: Story = {
-  name: "Guild / Gate Suppresses Qualifier",
+export const ClubGateSuppressesQualifier: Story = {
+  name: "Club / Gate Suppresses Qualifier",
   render: () => (
     <PostComposer
       {...baseComposer}
-      guildName="g/america"
+      clubName="g/america"
       identity={{
         allowAnonymousIdentity: true,
         identityMode: "anonymous",
@@ -185,20 +185,20 @@ export const GuildGateSuppressesQualifier: Story = {
             sourceProvider: "self",
             sourceField: "nationality",
             redundancyKey: "nationality:US",
-            suppressedByGuildGate: true,
-            suppressionReason: "US nationality is already required to post in this guild.",
+            suppressedByClubGate: true,
+            suppressionReason: "US nationality is already required to post in this club.",
           },
         ],
         selectedQualifierIds: ["qlf_unique_human"],
         helpText:
-          "US nationality is already enforced by the guild gate, so it does not appear as an optional qualifier.",
+          "US nationality is already enforced by the club gate, so it does not appear as an optional qualifier.",
       }}
     />
   ),
 };
 
 export const AnonymousWithoutQualifierDisclosure: Story = {
-  name: "Guild / Anonymous Without Qualifier Disclosure",
+  name: "Club / Anonymous Without Qualifier Disclosure",
   render: () => (
     <PostComposer
       {...baseComposer}
@@ -230,7 +230,7 @@ export const AnonymousWithoutQualifierDisclosure: Story = {
         ],
         selectedQualifierIds: [],
         helpText:
-          "This guild allows anonymous posting but does not allow qualifier disclosure on anonymous posts.",
+          "This club allows anonymous posting but does not allow qualifier disclosure on anonymous posts.",
       }}
     />
   ),
@@ -321,7 +321,7 @@ export const MonetizedDonationFlow: Story = {
       {...baseComposer}
       mode="song"
       canCreateSongPost
-      titleValue="Benefit single for the guild drop"
+      titleValue="Benefit single for the club drop"
       titleCountLabel="36/300"
       captionValue="Sale listing with optional creator-side donation."
       lyricsValue="Raise the room up / hold the line / send the chorus over..."
