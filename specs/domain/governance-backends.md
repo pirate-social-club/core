@@ -252,6 +252,8 @@ Important asymmetry:
 Recommended v0 product stance:
 
 - default new clubs to `centralized`
-- support `multisig` as the first advanced governance backend
+- keep `multisig` in the domain model and API as the first advanced governance backend
+- public v1 may defer user-facing `multisig` launch until Safe verification, indexing, and reconciliation are production-ready
+- if deferred, `multisig` should remain available as a planned or internal capability rather than being removed from the model
 - support `majeur` as a separate advanced creation and attachment flow, not as a generic hidden implementation of `dao_ready`
 - expose clear user-facing language about what each backend governs

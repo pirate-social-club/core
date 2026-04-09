@@ -154,3 +154,10 @@ Recommended v0 UX:
 - make chain choice explicit
 - show current owners and threshold after verification
 - explain clearly that the multisig is both the constitutional admin and usually the treasury wallet
+
+Recommended launch posture:
+
+- Pirate may keep multisig attachment modeled in the domain and API while deferring public v1 exposure
+- if deferred, clubs should still launch under `governance_mode = centralized` and later migrate to `multisig`
+- public launch should wait until Safe verification, backend indexing, and execution reconciliation are reliable enough for security-sensitive use
+- feature-flagged, allowlisted, or internal-only multisig support is acceptable before broad public launch

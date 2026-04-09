@@ -1241,6 +1241,8 @@ Recommended progression:
 2. optional multisig attachment
 3. optional Majeur DAO attachment
 
+For public v1, Pirate may stop at step 1 while keeping steps 2 and 3 as planned upgrade paths.
+
 Do not require DAO execution for routine moderation actions.
 
 See [governance-backends.md](./governance-backends.md) for the operational-versus-constitutional authority split.
