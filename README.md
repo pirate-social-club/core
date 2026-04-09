@@ -50,6 +50,8 @@ Long-term production repos now live under the `pirate-social-club` GitHub organi
 This `core` repo exists to hold shared system definition and integration work across those surfaces.
 
 Boundary and extraction rules live in [docs/repo-boundaries.md](/home/t42/Documents/pirate-v2/docs/repo-boundaries.md).
+Target steady-state structure lives in [docs/core-target-structure.md](/home/t42/Documents/pirate-v2/docs/core-target-structure.md).
+The current web/contracts extraction path lives in [docs/extraction-plan-web-contracts.md](/home/t42/Documents/pirate-v2/docs/extraction-plan-web-contracts.md).
 
 ## License
 
