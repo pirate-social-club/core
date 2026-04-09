@@ -8,7 +8,7 @@ It is the integration repo for Pirate Social Club system design and shared produ
 - migrations
 - Lit actions and control-plane scripts
 - shared config
-- active exploratory web and contract work that has not been split into its long-term repo yet
+- shared web and contract work that is still present locally in `core` while the standalone repos are brought online
 
 Current active roots:
 
@@ -19,7 +19,7 @@ Current active roots:
 - `references/` for local upstream or discussion-only code that informs v2 but is not part of the active workspace
 - `docs/`, `config/`, and `scripts/` for operational docs and supporting config checks
 
-`pirate-web/` and `pirate-contracts/` are transitional roots here. They are active surfaces today, but they should be treated as extraction candidates rather than permanent `core` structure.
+`pirate-web/` and `pirate-contracts/` are transitional roots here. Fresh standalone repos now exist at `pirate-social-club/web` and `pirate-social-club/contracts`, but the in-tree copies remain in `core` until the local workspace migration is complete.
 
 Current active contract workspaces live under `pirate-contracts/story/`:
 
@@ -37,15 +37,13 @@ Those directories are local upstream sidecars, ignored by the root repo, and not
 
 This repo is not the forever-home of every production surface.
 
-Long-term production repos now live under the `pirate-social-club` GitHub organization:
+Current standalone repos under the `pirate-social-club` GitHub organization:
 
-- `android`
-- `ios`
 - `web`
-- `api`
 - `contracts`
-- `desktop`
 - `core`
+
+Additional runtime repos can be spun out later when they actually exist in this project.
 
 This `core` repo exists to hold shared system definition and integration work across those surfaces.
 
