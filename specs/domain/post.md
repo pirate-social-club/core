@@ -72,7 +72,9 @@ Posting in Pirate requires identity verification in v0.
 The exact verification policy belongs in a later identity/onboarding spec, but the product rule is:
 
 - users must satisfy the required verification capability checks before they can publish posts
-- the minimum verification for posting is a verified `unique_human` capability from an accepted provider
+- posting requires a verified `unique_human` capability from an accepted provider such as `self` or `very`
+- anonymous posting also requires a verified `unique_human` capability from an accepted provider such as `self` or `very`
+- there is no public-v0 exception path that allows unverified users to publish posts
 - passing the identity gate is necessary but not always sufficient; community posting policy may impose additional trust-tier and pacing requirements. See [community.md](./community.md).
 
 Examples of why Pirate may require verification:
@@ -111,6 +113,8 @@ Suggested v0 fields:
 - `caption` nullable
 - `link_url` nullable
 - `media_refs`
+- `creator_relation` nullable
+- `promotion_disclosure` nullable
 - `source_language`
 - `translation_policy`
 - `rights_basis`
@@ -139,6 +143,13 @@ Suggested meanings:
   - `video`
   - `link`
   - `song`
+- `creator_relation`
+  - `captured`
+  - `created`
+  - `subject`
+  - `authorized_repost`
+  - `fan_work`
+  - `found`
 - `status`
   - `draft`
   - `published`
@@ -187,6 +198,8 @@ Notes:
 - `asset_id` is nullable because not every post becomes a rights-bearing asset
 - `media_refs` points to uploaded content blobs stored separately from the post row
 - `media_refs` in v0 should be treated as a JSON array of media descriptor objects such as `{ storage_ref, mime_type, size_bytes, content_hash, duration_ms, width, height }`
+- `creator_relation` is a structured author claim used by provenance and false-claim-of-ownership enforcement; it is not equivalent to a loose `[OC]` tag
+- `promotion_disclosure` is a structured author declaration used when a post is promotional or affiliated and a community requires that disclosure
 - song posts require audio and lyrics at post-creation time; instrumental and vocal stems are optional advanced inputs that may also be attached or derived later through async enrichment (see karaoke.md for the staged enrichment model)
 - `title` is optional on all v0 post types
 - `caption` is primarily for media posts and is optional in v0
@@ -270,6 +283,51 @@ Suggested v0 `disclosed_qualifiers_json` item shape:
   Example: `verification_capabilities` or `content_authenticity_policy`
 - `sensitivity_level`
 - `redundancy_key`
+
+### Creator Relation
+
+`creator_relation` is the canonical structured claim about the author's relationship to the submitted content.
+
+Recommended v0 values:
+
+- `captured`
+  - the author captured the photo or video
+- `created`
+  - the author created the work such as an illustration, design, or song
+- `subject`
+  - the author is the subject depicted in the media
+- `authorized_repost`
+  - the author has permission to repost the work
+- `fan_work`
+  - the author created fan content about another subject or work
+- `found`
+  - the author is sharing the content without claiming ownership or authorship
+
+Rules:
+
+- communities may require `creator_relation` through `provenance_policy`
+- `creator_relation` should be evaluated alongside `rights_basis`, `source_policy`, and `content_authenticity_policy`; none of those fields alone is a substitute for the others
+- false-claim-of-ownership enforcement should compare structured claims against available provenance and authenticity evidence rather than relying on freeform title tags such as `[OC]`
+
+### Promotion Disclosure
+
+Some communities require promotional and affiliation disclosure as part of the post write model rather than burying it in prose rules.
+
+Suggested v0 `promotion_disclosure` shape:
+
+- `is_promotional`
+- `affiliation_kind`
+  - `self`
+  - `brand`
+  - `client`
+  - `partner`
+  - `employer`
+  - `other`
+
+Rules:
+
+- `promotion_disclosure` is optional by default but may become required by community `promotion_policy`
+- promotion-policy eligibility such as membership-age or participation-ratio checks should reject the write directly when they fail; they should not create a moderation hold item unless another content rule also requires review
 
 ### Presentation Eligibility
 
@@ -481,6 +539,9 @@ Recommended v0 concerns:
 - AI-generated or manipulated media detection where supported
 - lyrics and transcript safety classification
 - nudity or sexual-content detection for images and video where supported
+- finer adult-content subcategory detection such as artistic nudity, explicit nudity, explicit sexual content, or fetish content where supported
+- finer graphic-content subcategory detection such as injury-medical, gore, extreme gore, body-horror/disturbing content, or animal harm where supported
+- provenance contradictions between declared `creator_relation` and available authenticity or source evidence
 - profanity, sexual-content, and other adult-content classification for text and lyrics
 
 ### Copyright And Audio Analysis
@@ -549,6 +610,36 @@ Interpretation:
 - `signal_type` is Pirate's normalized semantic layer used for policy lookup
 - the full raw provider payload should remain stored as provider evidence referenced by `analysis_result_ref`, not leaked directly into community policy semantics
 
+Suggested v0 normalized `content_safety_signals_json` item shape:
+
+- `signal_type`
+  - `suggestive`
+  - `artistic_nudity`
+  - `explicit_nudity`
+  - `explicit_sexual_content`
+  - `fetish_content`
+  - `injury_medical`
+  - `gore`
+  - `extreme_gore`
+  - `body_horror_disturbing`
+  - `animal_harm`
+  - `profanity`
+  - `slurs`
+- `confidence`
+- `provider_label`
+- `provider_class`
+- `media_scope`
+  - `text`
+  - `image`
+  - `video`
+  - `audio`
+
+Interpretation:
+
+- the coarse `content_safety_state` and `age_gate_policy` remain the platform-owned safety floor
+- these finer safety signals enable community adult-content, graphic-content, and language policy decisions without forcing communities to tune raw provider thresholds
+- `content_safety_signals_json` includes `text` in `media_scope` because profanity and slur categories may arise from text or lyrics analysis, whereas `authenticity_signals_json` remains limited to media scopes relevant to authenticity detection
+
 ### Authenticity And Source Policy Interpretation
 
 Community authenticity and source policies should feed into the existing `analysis_state` decision, not create a parallel state machine.
@@ -565,6 +656,25 @@ Recommended v0 policy interpretation:
 - if the community policy allows the category, `analysis_state` should remain `allow` unless another rights, safety, or compliance rule blocks publication
 - if the community policy allows the category only with disclosure, disclosure should be handled as a publish-time validation requirement and post snapshot concern rather than a new `analysis_state` value
 - prospective policy changes should affect only future posts by default; Pirate should not automatically re-evaluate already published posts solely because the community later changed its authenticity or source settings
+
+### Taste, Provenance, And Promotion Policy Interpretation
+
+Community taste and provenance policies should also feed into the existing publish decision rather than introducing a second moderation state machine.
+
+Recommended v0 policy interpretation:
+
+- `capture_edit_policy` should evaluate non-generative edit categories independently from AI/generative policy
+- if the same upload triggers both a non-generative edit category and a generative authenticity signal, the generative authenticity decision takes precedence for allow/block purposes
+- if a detected edit category is configured as `require_disclosure`, Pirate should require the disclosure before publication completes
+- if `adult_content_policy`, `graphic_content_policy`, or `language_policy` sets the detected category to `review`, Pirate should set `analysis_state = review_required`
+- if one of those policies sets the detected category to `disallow` with strong evidence, Pirate should set `analysis_state = blocked`
+- if `provenance_policy.require_creator_relation = true` and the post omits `creator_relation`, the create request should be rejected as invalid before publication
+- if the declared `creator_relation` is disallowed by community `provenance_policy`, Pirate should block the write
+- if the declared `creator_relation` materially contradicts authenticity or source evidence with high confidence, Pirate may apply the configured false-claim consequence and set `analysis_state = blocked`
+- if the contradiction is plausible but not definitive, Pirate should prefer `review_required`
+- motion-media policy should not create a new canonical `gif` post type; it should evaluate media descriptors inside existing `image` and `video` posts
+- promotion-policy membership-age or participation-ratio failures should reject the write directly as a posting-policy failure rather than a moderation hold
+- if a post is promotional and `promotion_policy.require_affiliation_disclosure = true`, Pirate should reject the write when `promotion_disclosure` is absent
 
 Recommended v0 upload outcomes:
 
@@ -594,7 +704,7 @@ Recommended v0 policy interpretation:
 
 #### Content Safety Policy Table
 
-The following table defines the recommended v0 threshold policy mapping analysis signals to `content_safety_state` and `age_gate_policy` decisions by media type.
+The following table defines the recommended v0 threshold policy mapping analysis signals to `content_safety_state` and `age_gate_policy` decisions by media type. These platform-owned outcomes are the safety floor; finer community policy may still review or disallow subcategories inside the resulting `sensitive` or `adult` classes.
 
 | Media type | Signal | `content_safety_state` | `age_gate_policy` | Notes |
 |---|---|---|---|---|

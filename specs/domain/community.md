@@ -110,6 +110,13 @@ V0 fields for `communities`:
 - `content_authenticity_policy`
 - `content_authenticity_detection_policy`
 - `source_policy`
+- `capture_edit_policy`
+- `adult_content_policy`
+- `graphic_content_policy`
+- `motion_media_policy`
+- `language_policy`
+- `provenance_policy`
+- `promotion_policy`
 - `community_agent_user_id` nullable
 - `civic_scale_tier`
 - `donation_partner_id` nullable
@@ -130,6 +137,13 @@ V0 fields for `communities`:
 - `content_authenticity_policy` is a structured community setting that defines which AI-assisted and AI-generated post categories are allowed.
 - `content_authenticity_detection_policy` is a structured community setting that selects which platform-approved authenticity-detection profile Pirate should use for community-optional AI/deepfake analysis.
 - `source_policy` is a structured community setting that defines how reposts, source attribution, and human-made fan works about identified people are handled.
+- `capture_edit_policy` is a structured community setting that defines which non-generative photo/video editing categories are acceptable.
+- `adult_content_policy` is a structured community setting that defines which adult-content subcategories are allowed, review-only, or disallowed.
+- `graphic_content_policy` is a structured community setting that defines which graphic-violence and disturbing-content subcategories are allowed, review-only, or disallowed.
+- `motion_media_policy` is a structured community setting that governs animated images, looping clips, and ordinary audio-bearing video without creating a separate `gif` post type.
+- `language_policy` is a structured community setting that distinguishes ordinary profanity from slur categories while leaving targeted harassment and hate speech at the platform layer.
+- `provenance_policy` is a structured community setting that governs required creator-relation claims and the consequence posture for false ownership claims.
+- `promotion_policy` is a structured community setting that governs whether communities allow self-promotional posts and what disclosure or participation rules apply.
 - `donation_partner_id` points to the community's approved donation beneficiary when donation sidecars are enabled.
 - `donation_partner_status` describes whether the community's attachment to that partner is currently usable for new donation-enabled listings.
 - Namespace rows point to communities. See [namespace.md](./namespace.md) for the canonical namespace model.
@@ -306,6 +320,26 @@ Rules:
 - community settings may be stricter than platform minimums but never looser
 - UI should not render disabled toggles for platform-banned categories because that implies community choice where none exists
 
+## Structured Community Moderation Levels
+
+Several structured community policies below use shared decision levels instead of bespoke booleans.
+
+Recommended v0 levels:
+
+- `allow`
+  - the detected category may publish if every other platform or community gate also passes
+- `review`
+  - the detected category is not automatically allowed; Pirate should route it into `analysis_state = review_required`
+- `disallow`
+  - the detected category should be blocked when evidence is strong enough for an automatic denial
+  - ambiguous evidence may still fall back to `review_required` rather than a hard block
+
+Some editing policies use a slightly different tri-state because the question is disclosure rather than moderation hold:
+
+- `allow`
+- `require_disclosure`
+- `disallow`
+
 ## Content Authenticity Policy
 
 Communities should define AI-content policy as structured settings, not prose-only rules.
@@ -459,6 +493,317 @@ Default when unset:
 - this default applies from the first post onward, including communities that become `active` before the owner configures an explicit policy
 - post-create onboarding may offer the owner a chance to relax this default, but it is not a prerequisite for `draft -> active`
 
+## Capture Edit Policy
+
+AI policy does not answer whether a community accepts ordinary non-generative editing such as retouching or compositing.
+
+Suggested v0 field:
+
+- `capture_edit_policy`
+
+Storage note:
+
+- the stored community setting may be `null` at create time in public v0
+- `null` does not mean editing is unrestricted
+- the server must resolve an effective default policy whenever no explicit capture-edit policy has been configured yet
+- community activation must not be blocked on setting an explicit capture-edit policy
+
+Suggested v0 shape:
+
+- `basic_adjustments`
+  - `allow`
+  - `require_disclosure`
+  - `disallow`
+- `retouching`
+  - `allow`
+  - `require_disclosure`
+  - `disallow`
+- `compositing`
+  - `allow`
+  - `require_disclosure`
+  - `disallow`
+- `documentary_editing`
+  - `allow`
+  - `require_disclosure`
+  - `disallow`
+- `require_edit_disclosure`
+
+Interpretation:
+
+- this policy governs non-generative edits such as cropping, tonal correction, healing, clone-stamp retouching, HDR merge, focus stacking, or composite assembly
+- this policy is orthogonal to `content_authenticity_policy`; a community may allow basic non-generative edits while still disallowing generative fill or fully AI-generated images
+- if an edit crosses Pirate's generative threshold, `content_authenticity_policy` wins even when the parallel non-generative edit category would otherwise be allowed
+- `retouching` should cover non-generative pixel manipulation such as blemish removal or object cleanup
+- `compositing` should cover multi-source assembly such as sky replacement, HDR merge, panorama stitch, or layered scene construction
+- `documentary_editing` should cover edits whose acceptability depends on the community's truthfulness norm rather than purely on visual taste
+
+Default when unset:
+
+- if `capture_edit_policy` is `null`, the effective policy must resolve to:
+  - `basic_adjustments = allow`
+  - `retouching = disallow`
+  - `compositing = disallow`
+  - `documentary_editing = disallow`
+  - `require_edit_disclosure = false`
+- this default applies from the first post onward
+
+## Adult Content Policy
+
+Community adult-content taste should be configurable separately from the platform's age-gating and safety floor.
+
+Suggested v0 field:
+
+- `adult_content_policy`
+
+Storage note:
+
+- the stored community setting may be `null` at create time in public v0
+- `null` does not mean adult-content taste is undefined
+- the server must resolve an effective default policy whenever no explicit adult-content policy has been configured yet
+- community activation must not be blocked on setting an explicit adult-content policy
+
+Suggested v0 shape:
+
+- `suggestive`
+- `artistic_nudity`
+- `explicit_nudity`
+- `explicit_sexual_content`
+- `fetish_content`
+
+Each field uses:
+
+- `allow`
+- `review`
+- `disallow`
+
+Interpretation:
+
+- the platform safety pipeline still classifies content and determines whether `age_gate_policy = 18_plus` is required
+- this community policy then decides whether the detected adult-content subcategory may pass automatically, must be reviewed, or is disallowed entirely
+- `artistic_nudity` is intentionally separate from `explicit_sexual_content`; many communities want to allow one but not the other
+- `fetish_content` is intentionally separate from generic explicit sexual content because communities often moderate that category more strictly
+
+Default when unset:
+
+- if `adult_content_policy` is `null` and `default_age_gate_policy = none`, the effective policy must resolve to:
+  - `suggestive = review`
+  - `artistic_nudity = disallow`
+  - `explicit_nudity = disallow`
+  - `explicit_sexual_content = disallow`
+  - `fetish_content = disallow`
+- if `adult_content_policy` is `null` and `default_age_gate_policy = 18_plus`, the effective policy must resolve to:
+  - `suggestive = allow`
+  - `artistic_nudity = review`
+  - `explicit_nudity = disallow`
+  - `explicit_sexual_content = disallow`
+  - `fetish_content = disallow`
+
+## Graphic Content Policy
+
+Community taste for violence and disturbing imagery should be configurable separately from adult-content policy.
+
+Suggested v0 field:
+
+- `graphic_content_policy`
+
+Storage note:
+
+- the stored community setting may be `null` at create time in public v0
+- the server must resolve an effective default policy whenever no explicit graphic-content policy has been configured yet
+- community activation must not be blocked on setting an explicit graphic-content policy
+
+Suggested v0 shape:
+
+- `injury_medical`
+- `gore`
+- `extreme_gore`
+- `body_horror_disturbing`
+- `animal_harm`
+
+Each field uses:
+
+- `allow`
+- `review`
+- `disallow`
+
+Interpretation:
+
+- `injury_medical` is intentionally separate from `gore`; an educational or first-aid community may allow one while rejecting the other
+- `body_horror_disturbing` covers shock, parasites, deformity, or similar disturbing imagery that is not well-described by plain gore
+- `animal_harm` is separate because many communities moderate it more strictly than ordinary violence
+
+Default when unset:
+
+- if `graphic_content_policy` is `null`, the effective policy must resolve to:
+  - `injury_medical = review`
+  - `gore = disallow`
+  - `extreme_gore = disallow`
+  - `body_horror_disturbing = disallow`
+  - `animal_harm = disallow`
+
+## Motion Media Policy
+
+Communities should be able to distinguish animated images, silent loops, and ordinary audio-bearing video without adding a separate `gif` post type.
+
+Suggested v0 field:
+
+- `motion_media_policy`
+
+Storage note:
+
+- the stored community setting may be `null` at create time in public v0
+- the server must resolve an effective default policy whenever no explicit motion-media policy has been configured yet
+
+Suggested v0 shape:
+
+- `allow_animated_images`
+- `allow_silent_looping_video`
+- `allow_audio_video`
+- `max_video_duration_seconds` nullable
+- `require_video_transcription`
+
+Interpretation:
+
+- `gif` should remain an asset/media-format concern rather than a canonical `post_type`
+- animated GIF, animated WebP, APNG, or similar uploads should map to the same animated-image policy question
+- short MP4/WebM loops that function as GIF replacements should map to `allow_silent_looping_video`
+- longer or audio-bearing uploads should map to `allow_audio_video`
+- unlike the surrounding taste and safety policies, this default is intentionally permissive because motion media is primarily a format-capability question rather than an abuse category; communities that want stricter video norms should configure this policy explicitly
+
+Default when unset:
+
+- if `motion_media_policy` is `null`, the effective policy must resolve to:
+  - `allow_animated_images = true`
+  - `allow_silent_looping_video = true`
+  - `allow_audio_video = true`
+  - `max_video_duration_seconds = null`
+  - `require_video_transcription = false`
+
+## Language Policy
+
+Communities should be able to distinguish ordinary profanity from more severe language categories without weakening platform bans on harassment or hate.
+
+Suggested v0 field:
+
+- `language_policy`
+
+Storage note:
+
+- the stored community setting may be `null` at create time in public v0
+- the server must resolve an effective default policy whenever no explicit language policy has been configured yet
+
+Suggested v0 shape:
+
+- `profanity`
+  - `allow`
+  - `review`
+  - `disallow`
+- `slurs`
+  - `review`
+  - `disallow`
+
+Rules:
+
+- targeted harassment and hate speech remain platform-level constraints and are intentionally not represented as community choices
+- communities may be stricter than the platform floor but never looser
+
+Default when unset:
+
+- if `language_policy` is `null`, the effective policy must resolve to:
+  - `profanity = allow`
+  - `slurs = disallow`
+
+## Provenance Policy
+
+Communities should be able to require structured creator-relation claims instead of relying on loose conventions such as `[OC]`.
+
+Suggested v0 field:
+
+- `provenance_policy`
+
+Storage note:
+
+- the stored community setting may be `null` at create time in public v0
+- the server must resolve an effective default policy whenever no explicit provenance policy has been configured yet
+
+Suggested v0 shape:
+
+- `allowed_creator_relations`
+  - `captured`
+  - `created`
+  - `subject`
+  - `authorized_repost`
+  - `fan_work`
+  - `found`
+- `require_creator_relation`
+- `false_claim_consequence`
+  - `warning`
+  - `post_removed`
+  - `temporary_ban`
+  - `permanent_ban`
+- `allow_oc_claim`
+- `require_proof_for_original`
+
+Interpretation:
+
+- `creator_relation` is a structured post-level claim about the author's relationship to the content
+- this policy does not replace `source_policy`; both must pass independently
+- `allow_oc_claim = false` is recommended because the loose `OC` convention is ambiguous compared to explicit creator-relation values
+- false-claim enforcement should use structured contradictions when available, for example a post claiming `captured` while strong analysis indicates the asset is fully AI-generated
+- `false_claim_consequence` is the minimum automatic enforcement action; moderators or product policy may still warn in addition to that action
+- `post_removed` should be interpreted as removing the post and may also be accompanied by a warning under product policy
+
+Default when unset:
+
+- if `provenance_policy` is `null`, the effective policy must resolve to:
+  - `allowed_creator_relations = [captured, created, subject, authorized_repost, fan_work, found]`
+  - `require_creator_relation = false`
+  - `false_claim_consequence = post_removed`
+  - `allow_oc_claim = false`
+  - `require_proof_for_original = false`
+- this default is intentionally non-blocking so communities do not suddenly require new author declarations before they are ready to moderate them; onboarding should still nudge communities that care about FCoO to enable `require_creator_relation` early
+
+## Promotion Policy
+
+Self-promotion should be a structured community rule rather than prose-only etiquette.
+
+Suggested v0 field:
+
+- `promotion_policy`
+
+Storage note:
+
+- the stored community setting may be `null` at create time in public v0
+- the server must resolve an effective default policy whenever no explicit promotion policy has been configured yet
+
+Suggested v0 shape:
+
+- `self_promotion_mode`
+  - `disallow`
+  - `limited_with_disclosure`
+  - `allowed_with_participation`
+  - `creator_friendly`
+- `require_affiliation_disclosure`
+- `max_promotional_posts_per_week` nullable
+- `promotional_participation_ratio` nullable
+- `require_minimum_membership_days` nullable
+
+Interpretation:
+
+- `limited_with_disclosure` is the recommended replacement for vague "10% rule" prose; the community can explicitly require disclosure and a participation ratio
+- `creator_friendly` means the community is intentionally oriented toward creators sharing their own work, not merely tolerating it
+- participation-ratio and membership-age checks are posting-policy decisions rather than content-safety classifications
+- this default is intentionally more active than the provenance default because promotion abuse does not require new post-side semantic claims in order to enforce a baseline rule
+
+Default when unset:
+
+- if `promotion_policy` is `null`, the effective policy must resolve to:
+  - `self_promotion_mode = limited_with_disclosure`
+  - `require_affiliation_disclosure = true`
+  - `max_promotional_posts_per_week = 1`
+  - `promotional_participation_ratio = null`
+  - `require_minimum_membership_days = 7`
+
 ## Content Authenticity Detection Policy
 
 Authenticity detection provider choice should remain provider-agnostic and platform-governed.
@@ -525,11 +870,11 @@ Default when unset:
 
 ## Creation-Time And Read-Time Resolution
 
-Authenticity and source policy should be deferred from the public v0 create client without becoming undefined at runtime.
+Structured community content policy should be deferred from the public v0 create client without becoming undefined at runtime.
 
 Rules:
 
-- public `POST /communities` may omit `content_authenticity_policy` and `source_policy`
+- public `POST /communities` may omit `content_authenticity_policy`, `source_policy`, `capture_edit_policy`, `adult_content_policy`, `graphic_content_policy`, `motion_media_policy`, `language_policy`, `provenance_policy`, and `promotion_policy`
 - public `POST /communities` may also omit `content_authenticity_detection_policy`
 - if omitted, the community may still transition to or remain `active` according to the normal lifecycle rules
 - upload enforcement must always evaluate the effective resolved policy, not the raw nullable stored field
@@ -540,11 +885,11 @@ Rules:
 
 ## Policy Change Semantics
 
-Authenticity and source-policy changes should be prospective by default.
+Structured community content-policy changes should be prospective by default.
 
 Rules:
 
-- updating `content_authenticity_policy` or `source_policy` applies to new posts and new moderation decisions after the change
+- updating `content_authenticity_policy`, `source_policy`, `capture_edit_policy`, `adult_content_policy`, `graphic_content_policy`, `motion_media_policy`, `language_policy`, `provenance_policy`, or `promotion_policy` applies to new posts and new moderation decisions after the change
 - existing posts keep the `analysis_state`, `content_safety_state`, age-gate result, and disclosure snapshot they had when published unless moderators take a new explicit action
 - communities should not automatically reclassify all historical posts when policy flips from `human_first` to `ai_allowed` or vice versa
 - if Pirate later adds a bulk review tool for policy migrations, that should be modeled as a moderator workflow rather than an implicit side effect of settings updates

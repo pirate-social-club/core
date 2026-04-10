@@ -126,6 +126,55 @@ CreateCommunityRequestBase:
       nullable: true
       description: |
         Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the restrictive default effective policy from the first post onward. This policy governs repost and fan-work handling rather than AI authenticity.
+    capture_edit_policy:
+      allOf:
+        - $ref: ./communities-community.yaml#/CreateCommunityCaptureEditPolicyInput
+      type: object
+      nullable: true
+      description: |
+        Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the effective default non-generative edit policy from the first post onward.
+    adult_content_policy:
+      allOf:
+        - $ref: ./communities-community.yaml#/CreateCommunityAdultContentPolicyInput
+      type: object
+      nullable: true
+      description: |
+        Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the effective default adult-content subcategory policy from the first post onward.
+    graphic_content_policy:
+      allOf:
+        - $ref: ./communities-community.yaml#/CreateCommunityGraphicContentPolicyInput
+      type: object
+      nullable: true
+      description: |
+        Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the effective default graphic-content subcategory policy from the first post onward.
+    motion_media_policy:
+      allOf:
+        - $ref: ./communities-community.yaml#/CreateCommunityMotionMediaPolicyInput
+      type: object
+      nullable: true
+      description: |
+        Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must resolve the effective default motion-media policy from the first post onward.
+    language_policy:
+      allOf:
+        - $ref: ./communities-community.yaml#/CreateCommunityLanguagePolicyInput
+      type: object
+      nullable: true
+      description: |
+        Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the effective default language policy from the first post onward.
+    provenance_policy:
+      allOf:
+        - $ref: ./communities-community.yaml#/CreateCommunityProvenancePolicyInput
+      type: object
+      nullable: true
+      description: |
+        Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the effective default provenance policy from the first post onward.
+    promotion_policy:
+      allOf:
+        - $ref: ./communities-community.yaml#/CreateCommunityPromotionPolicyInput
+      type: object
+      nullable: true
+      description: |
+        Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the effective default promotion policy from the first post onward.
     content_authenticity_detection_policy:
       allOf:
         - $ref: ./communities-community.yaml#/CreateCommunityContentAuthenticityDetectionPolicyInput
@@ -451,6 +500,13 @@ Community:
     - content_authenticity_policy
     - content_authenticity_detection_policy
     - source_policy
+    - capture_edit_policy
+    - adult_content_policy
+    - graphic_content_policy
+    - motion_media_policy
+    - language_policy
+    - provenance_policy
+    - promotion_policy
     - created_by_user_id
     - created_at
     - updated_at
@@ -600,6 +656,34 @@ Community:
       $ref: ./communities-community.yaml#/CommunitySourcePolicy
       description: |
         Resolved effective source policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the restrictive default from an explicit community configuration.
+    capture_edit_policy:
+      $ref: ./communities-community.yaml#/CommunityCaptureEditPolicy
+      description: |
+        Resolved effective capture-edit policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the default from an explicit community configuration.
+    adult_content_policy:
+      $ref: ./communities-community.yaml#/CommunityAdultContentPolicy
+      description: |
+        Resolved effective adult-content policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the default from an explicit community configuration.
+    graphic_content_policy:
+      $ref: ./communities-community.yaml#/CommunityGraphicContentPolicy
+      description: |
+        Resolved effective graphic-content policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the default from an explicit community configuration.
+    motion_media_policy:
+      $ref: ./communities-community.yaml#/CommunityMotionMediaPolicy
+      description: |
+        Resolved effective motion-media policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the default from an explicit community configuration.
+    language_policy:
+      $ref: ./communities-community.yaml#/CommunityLanguagePolicy
+      description: |
+        Resolved effective language policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the default from an explicit community configuration.
+    provenance_policy:
+      $ref: ./communities-community.yaml#/CommunityProvenancePolicy
+      description: |
+        Resolved effective provenance policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the default from an explicit community configuration.
+    promotion_policy:
+      $ref: ./communities-community.yaml#/CommunityPromotionPolicy
+      description: |
+        Resolved effective promotion policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the default from an explicit community configuration.
     flair_policy:
       $ref: ./communities-community.yaml#/CommunityFlairPolicy
       nullable: true

@@ -1,3 +1,43 @@
+PostCreatorRelation:
+  type: string
+  enum:
+    - captured
+    - created
+    - subject
+    - authorized_repost
+    - fan_work
+    - found
+PromotionAffiliationKind:
+  type: string
+  enum:
+    - self
+    - brand
+    - client
+    - partner
+    - employer
+    - other
+PromotionDisclosureInput:
+  type: object
+  additionalProperties: false
+  required:
+    - is_promotional
+    - affiliation_kind
+  properties:
+    is_promotional:
+      type: boolean
+    affiliation_kind:
+      $ref: ./posts.yaml#/PromotionAffiliationKind
+PromotionDisclosure:
+  type: object
+  additionalProperties: false
+  required:
+    - is_promotional
+    - affiliation_kind
+  properties:
+    is_promotional:
+      type: boolean
+    affiliation_kind:
+      $ref: ./posts.yaml#/PromotionAffiliationKind
 CreatePostRequest:
   type: object
   description: |
@@ -93,6 +133,16 @@ CreatePostRequest:
       type: array
       items:
         $ref: ./posts.yaml#/MediaDescriptor
+    creator_relation:
+      $ref: ./posts.yaml#/PostCreatorRelation
+      nullable: true
+      description: |
+        Structured claim about the author's relationship to the submitted content. Communities may require this through `provenance_policy`.
+    promotion_disclosure:
+      $ref: ./posts.yaml#/PromotionDisclosureInput
+      nullable: true
+      description: |
+        Structured disclosure for promotional or affiliated posts. Communities may require this through `promotion_policy`.
     translation_policy:
       type: string
       enum:
@@ -210,6 +260,12 @@ Post:
       type: array
       items:
         $ref: ./posts.yaml#/MediaDescriptor
+    creator_relation:
+      $ref: ./posts.yaml#/PostCreatorRelation
+      nullable: true
+    promotion_disclosure:
+      $ref: ./posts.yaml#/PromotionDisclosure
+      nullable: true
     source_language:
       type: string
       nullable: true
@@ -290,6 +346,9 @@ LocalizedPostResponse:
   properties:
     post:
       $ref: ./posts.yaml#/Post
+    market_context:
+      $ref: ./market-context.yaml#/MarketContextSummary
+      nullable: true
     flair:
       $ref: ./communities-community.yaml#/PostFlair
       nullable: true

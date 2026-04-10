@@ -115,6 +115,43 @@ CommunityPolicyOrigin:
   enum:
     - default
     - explicit
+CommunityModerationDecisionLevel:
+  type: string
+  enum:
+    - allow
+    - review
+    - disallow
+CommunityDisclosureDecisionLevel:
+  type: string
+  enum:
+    - allow
+    - require_disclosure
+    - disallow
+CommunitySelfPromotionMode:
+  type: string
+  enum:
+    - disallow
+    - limited_with_disclosure
+    - allowed_with_participation
+    - creator_friendly
+CommunityFalseClaimConsequence:
+  type: string
+  enum:
+    - warning
+    - post_removed
+    - temporary_ban
+    - permanent_ban
+CommunityCreatorRelation:
+  type: string
+  description: |
+    Community-local copy of the canonical creator-relation enum used by provenance policy. This should remain semantically aligned with `posts.yaml#/PostCreatorRelation` without creating a schema-level dependency from the community schema onto the post schema.
+  enum:
+    - captured
+    - created
+    - subject
+    - authorized_repost
+    - fan_work
+    - found
 CommunityContentAuthenticityDetectionSelectionMode:
   type: string
   enum:
@@ -367,6 +404,520 @@ CommunitySourcePolicy:
       type: boolean
     require_fan_art_disclosure:
       type: boolean
+    updated_at:
+      type: string
+      format: date-time
+CreateCommunityCaptureEditPolicyInput:
+  type: object
+  description: |
+    Structured community policy for non-generative photo and video editing such as retouching or compositing. Generative and AI-specific rules remain part of `content_authenticity_policy`.
+  required:
+    - basic_adjustments
+    - retouching
+    - compositing
+    - documentary_editing
+    - require_edit_disclosure
+  additionalProperties: false
+  properties:
+    basic_adjustments:
+      $ref: ./communities-community.yaml#/CommunityDisclosureDecisionLevel
+    retouching:
+      $ref: ./communities-community.yaml#/CommunityDisclosureDecisionLevel
+    compositing:
+      $ref: ./communities-community.yaml#/CommunityDisclosureDecisionLevel
+    documentary_editing:
+      $ref: ./communities-community.yaml#/CommunityDisclosureDecisionLevel
+    require_edit_disclosure:
+      type: boolean
+UpdateCommunityCaptureEditPolicyRequest:
+  type: object
+  description: |
+    Replace or update the community's structured non-generative edit policy. Changes apply prospectively to future posts and moderation decisions; existing posts are not automatically reclassified.
+  required:
+    - basic_adjustments
+    - retouching
+    - compositing
+    - documentary_editing
+    - require_edit_disclosure
+  additionalProperties: false
+  properties:
+    basic_adjustments:
+      $ref: ./communities-community.yaml#/CommunityDisclosureDecisionLevel
+    retouching:
+      $ref: ./communities-community.yaml#/CommunityDisclosureDecisionLevel
+    compositing:
+      $ref: ./communities-community.yaml#/CommunityDisclosureDecisionLevel
+    documentary_editing:
+      $ref: ./communities-community.yaml#/CommunityDisclosureDecisionLevel
+    require_edit_disclosure:
+      type: boolean
+CommunityCaptureEditPolicy:
+  type: object
+  description: |
+    Resolved community capture-edit policy for non-generative media adjustments. When no explicit policy has been configured, the server must still return the effective default policy with `policy_origin = default`.
+  required:
+    - community_id
+    - policy_origin
+    - basic_adjustments
+    - retouching
+    - compositing
+    - documentary_editing
+    - require_edit_disclosure
+    - updated_at
+  properties:
+    community_id:
+      type: string
+    policy_origin:
+      $ref: ./communities-community.yaml#/CommunityPolicyOrigin
+    basic_adjustments:
+      $ref: ./communities-community.yaml#/CommunityDisclosureDecisionLevel
+    retouching:
+      $ref: ./communities-community.yaml#/CommunityDisclosureDecisionLevel
+    compositing:
+      $ref: ./communities-community.yaml#/CommunityDisclosureDecisionLevel
+    documentary_editing:
+      $ref: ./communities-community.yaml#/CommunityDisclosureDecisionLevel
+    require_edit_disclosure:
+      type: boolean
+    updated_at:
+      type: string
+      format: date-time
+CreateCommunityAdultContentPolicyInput:
+  type: object
+  description: |
+    Structured community policy for adult-content subcategories. Platform age-gating and safety scanning remain mandatory regardless of this policy.
+  required:
+    - suggestive
+    - artistic_nudity
+    - explicit_nudity
+    - explicit_sexual_content
+    - fetish_content
+  additionalProperties: false
+  properties:
+    suggestive:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    artistic_nudity:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    explicit_nudity:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    explicit_sexual_content:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    fetish_content:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+UpdateCommunityAdultContentPolicyRequest:
+  type: object
+  description: |
+    Replace or update the community's structured adult-content policy. Changes apply prospectively to future posts and moderation decisions; existing posts are not automatically reclassified.
+  required:
+    - suggestive
+    - artistic_nudity
+    - explicit_nudity
+    - explicit_sexual_content
+    - fetish_content
+  additionalProperties: false
+  properties:
+    suggestive:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    artistic_nudity:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    explicit_nudity:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    explicit_sexual_content:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    fetish_content:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+CommunityAdultContentPolicy:
+  type: object
+  description: |
+    Resolved community adult-content policy. When no explicit policy has been configured, the server must still return the effective default policy with `policy_origin = default`.
+  required:
+    - community_id
+    - policy_origin
+    - suggestive
+    - artistic_nudity
+    - explicit_nudity
+    - explicit_sexual_content
+    - fetish_content
+    - updated_at
+  properties:
+    community_id:
+      type: string
+    policy_origin:
+      $ref: ./communities-community.yaml#/CommunityPolicyOrigin
+    suggestive:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    artistic_nudity:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    explicit_nudity:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    explicit_sexual_content:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    fetish_content:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    updated_at:
+      type: string
+      format: date-time
+CreateCommunityGraphicContentPolicyInput:
+  type: object
+  description: |
+    Structured community policy for graphic and disturbing content subcategories.
+  required:
+    - injury_medical
+    - gore
+    - extreme_gore
+    - body_horror_disturbing
+    - animal_harm
+  additionalProperties: false
+  properties:
+    injury_medical:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    gore:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    extreme_gore:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    body_horror_disturbing:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    animal_harm:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+UpdateCommunityGraphicContentPolicyRequest:
+  type: object
+  description: |
+    Replace or update the community's structured graphic-content policy. Changes apply prospectively to future posts and moderation decisions; existing posts are not automatically reclassified.
+  required:
+    - injury_medical
+    - gore
+    - extreme_gore
+    - body_horror_disturbing
+    - animal_harm
+  additionalProperties: false
+  properties:
+    injury_medical:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    gore:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    extreme_gore:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    body_horror_disturbing:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    animal_harm:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+CommunityGraphicContentPolicy:
+  type: object
+  description: |
+    Resolved community graphic-content policy. When no explicit policy has been configured, the server must still return the effective default policy with `policy_origin = default`.
+  required:
+    - community_id
+    - policy_origin
+    - injury_medical
+    - gore
+    - extreme_gore
+    - body_horror_disturbing
+    - animal_harm
+    - updated_at
+  properties:
+    community_id:
+      type: string
+    policy_origin:
+      $ref: ./communities-community.yaml#/CommunityPolicyOrigin
+    injury_medical:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    gore:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    extreme_gore:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    body_horror_disturbing:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    animal_harm:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    updated_at:
+      type: string
+      format: date-time
+CreateCommunityMotionMediaPolicyInput:
+  type: object
+  description: |
+    Structured community policy for animated images, looping clips, and ordinary audio-bearing video. This policy intentionally does not create a separate `gif` post type.
+  required:
+    - allow_animated_images
+    - allow_silent_looping_video
+    - allow_audio_video
+  additionalProperties: false
+  properties:
+    allow_animated_images:
+      type: boolean
+    allow_silent_looping_video:
+      type: boolean
+    allow_audio_video:
+      type: boolean
+    max_video_duration_seconds:
+      type: integer
+      nullable: true
+    require_video_transcription:
+      type: boolean
+UpdateCommunityMotionMediaPolicyRequest:
+  type: object
+  description: |
+    Replace or update the community's motion-media policy. Changes apply prospectively to future posts and moderation decisions; existing posts are not automatically reclassified.
+  required:
+    - allow_animated_images
+    - allow_silent_looping_video
+    - allow_audio_video
+  additionalProperties: false
+  properties:
+    allow_animated_images:
+      type: boolean
+    allow_silent_looping_video:
+      type: boolean
+    allow_audio_video:
+      type: boolean
+    max_video_duration_seconds:
+      type: integer
+      nullable: true
+    require_video_transcription:
+      type: boolean
+CommunityMotionMediaPolicy:
+  type: object
+  description: |
+    Resolved community motion-media policy. When no explicit policy has been configured, the server must still return the effective default policy with `policy_origin = default`.
+  required:
+    - community_id
+    - policy_origin
+    - allow_animated_images
+    - allow_silent_looping_video
+    - allow_audio_video
+    - require_video_transcription
+    - updated_at
+  properties:
+    community_id:
+      type: string
+    policy_origin:
+      $ref: ./communities-community.yaml#/CommunityPolicyOrigin
+    allow_animated_images:
+      type: boolean
+    allow_silent_looping_video:
+      type: boolean
+    allow_audio_video:
+      type: boolean
+    max_video_duration_seconds:
+      type: integer
+      nullable: true
+    require_video_transcription:
+      type: boolean
+    updated_at:
+      type: string
+      format: date-time
+CreateCommunityLanguagePolicyInput:
+  type: object
+  description: |
+    Structured community policy for ordinary profanity and slur handling. Targeted harassment and hate speech remain platform-level constraints and are intentionally not configurable here.
+  required:
+    - profanity
+    - slurs
+  additionalProperties: false
+  properties:
+    profanity:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    slurs:
+      type: string
+      enum:
+        - review
+        - disallow
+UpdateCommunityLanguagePolicyRequest:
+  type: object
+  description: |
+    Replace or update the community's language policy. Changes apply prospectively to future posts and moderation decisions; existing posts are not automatically reclassified.
+  required:
+    - profanity
+    - slurs
+  additionalProperties: false
+  properties:
+    profanity:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    slurs:
+      type: string
+      enum:
+        - review
+        - disallow
+CommunityLanguagePolicy:
+  type: object
+  description: |
+    Resolved community language policy. When no explicit policy has been configured, the server must still return the effective default policy with `policy_origin = default`.
+  required:
+    - community_id
+    - policy_origin
+    - profanity
+    - slurs
+    - updated_at
+  properties:
+    community_id:
+      type: string
+    policy_origin:
+      $ref: ./communities-community.yaml#/CommunityPolicyOrigin
+    profanity:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    slurs:
+      type: string
+      enum:
+        - review
+        - disallow
+    updated_at:
+      type: string
+      format: date-time
+CreateCommunityProvenancePolicyInput:
+  type: object
+  description: |
+    Structured community policy for creator-relation claims and false-claim-of-ownership enforcement. This policy complements `source_policy` rather than replacing it.
+  required:
+    - allowed_creator_relations
+    - require_creator_relation
+    - false_claim_consequence
+    - allow_oc_claim
+    - require_proof_for_original
+  additionalProperties: false
+  properties:
+    allowed_creator_relations:
+      type: array
+      minItems: 1
+      items:
+        $ref: ./communities-community.yaml#/CommunityCreatorRelation
+    require_creator_relation:
+      type: boolean
+    false_claim_consequence:
+      $ref: ./communities-community.yaml#/CommunityFalseClaimConsequence
+    allow_oc_claim:
+      type: boolean
+    require_proof_for_original:
+      type: boolean
+UpdateCommunityProvenancePolicyRequest:
+  type: object
+  description: |
+    Replace or update the community's provenance policy. Changes apply prospectively to future posts and moderation decisions; existing posts are not automatically reclassified.
+  required:
+    - allowed_creator_relations
+    - require_creator_relation
+    - false_claim_consequence
+    - allow_oc_claim
+    - require_proof_for_original
+  additionalProperties: false
+  properties:
+    allowed_creator_relations:
+      type: array
+      minItems: 1
+      items:
+        $ref: ./communities-community.yaml#/CommunityCreatorRelation
+    require_creator_relation:
+      type: boolean
+    false_claim_consequence:
+      $ref: ./communities-community.yaml#/CommunityFalseClaimConsequence
+    allow_oc_claim:
+      type: boolean
+    require_proof_for_original:
+      type: boolean
+CommunityProvenancePolicy:
+  type: object
+  description: |
+    Resolved community provenance policy. When no explicit policy has been configured, the server must still return the effective default policy with `policy_origin = default`.
+  required:
+    - community_id
+    - policy_origin
+    - allowed_creator_relations
+    - require_creator_relation
+    - false_claim_consequence
+    - allow_oc_claim
+    - require_proof_for_original
+    - updated_at
+  properties:
+    community_id:
+      type: string
+    policy_origin:
+      $ref: ./communities-community.yaml#/CommunityPolicyOrigin
+    allowed_creator_relations:
+      type: array
+      minItems: 1
+      items:
+        $ref: ./communities-community.yaml#/CommunityCreatorRelation
+    require_creator_relation:
+      type: boolean
+    false_claim_consequence:
+      $ref: ./communities-community.yaml#/CommunityFalseClaimConsequence
+    allow_oc_claim:
+      type: boolean
+    require_proof_for_original:
+      type: boolean
+    updated_at:
+      type: string
+      format: date-time
+CreateCommunityPromotionPolicyInput:
+  type: object
+  description: |
+    Structured community policy for self-promotion, affiliation disclosure, and participation-ratio enforcement.
+  required:
+    - self_promotion_mode
+    - require_affiliation_disclosure
+  additionalProperties: false
+  properties:
+    self_promotion_mode:
+      $ref: ./communities-community.yaml#/CommunitySelfPromotionMode
+    require_affiliation_disclosure:
+      type: boolean
+    max_promotional_posts_per_week:
+      type: integer
+      nullable: true
+    promotional_participation_ratio:
+      type: number
+      nullable: true
+    require_minimum_membership_days:
+      type: integer
+      nullable: true
+UpdateCommunityPromotionPolicyRequest:
+  type: object
+  description: |
+    Replace or update the community's promotion policy. Changes apply prospectively to future posts and moderation decisions; existing posts are not automatically reclassified.
+  required:
+    - self_promotion_mode
+    - require_affiliation_disclosure
+  additionalProperties: false
+  properties:
+    self_promotion_mode:
+      $ref: ./communities-community.yaml#/CommunitySelfPromotionMode
+    require_affiliation_disclosure:
+      type: boolean
+    max_promotional_posts_per_week:
+      type: integer
+      nullable: true
+    promotional_participation_ratio:
+      type: number
+      nullable: true
+    require_minimum_membership_days:
+      type: integer
+      nullable: true
+CommunityPromotionPolicy:
+  type: object
+  description: |
+    Resolved community promotion policy. When no explicit policy has been configured, the server must still return the effective default policy with `policy_origin = default`.
+  required:
+    - community_id
+    - policy_origin
+    - self_promotion_mode
+    - require_affiliation_disclosure
+    - updated_at
+  properties:
+    community_id:
+      type: string
+    policy_origin:
+      $ref: ./communities-community.yaml#/CommunityPolicyOrigin
+    self_promotion_mode:
+      $ref: ./communities-community.yaml#/CommunitySelfPromotionMode
+    require_affiliation_disclosure:
+      type: boolean
+    max_promotional_posts_per_week:
+      type: integer
+      nullable: true
+    promotional_participation_ratio:
+      type: number
+      nullable: true
+    require_minimum_membership_days:
+      type: integer
+      nullable: true
     updated_at:
       type: string
       format: date-time
