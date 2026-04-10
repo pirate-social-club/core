@@ -1,0 +1,57 @@
+name: core-ci
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/core-ci.yml"
+      - "db/control-plane/migrations/**"
+      - "references/templates/api-worker-auth-first-slice/**"
+      - "scripts/apply-sqlite-migrations.sh"
+      - "specs/api/**"
+  push:
+    paths:
+      - ".github/workflows/core-ci.yml"
+      - "db/control-plane/migrations/**"
+      - "references/templates/api-worker-auth-first-slice/**"
+      - "scripts/apply-sqlite-migrations.sh"
+      - "specs/api/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  openapi:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.21
+
+      - name: Install spec dependencies
+        working-directory: specs/api
+        run: bun install --frozen-lockfile
+
+      # Full `bun run verify` is intentionally excluded here because it currently
+      # writes generated contracts into the standalone `pirate-api` sidecar.
+      - name: Rebuild core-owned spec artifacts
+        run: |
+          cd specs/api
+          bun run bundle
+          bun run bundle:implemented
+          bun run generate-reference-template-types
+          bun run typecheck-reference-template
+          bun run validate-provider-matrix
+          bun run validate-examples
+
+      - name: Fail on uncommitted generated changes
+        run: |
+          git diff --exit-code -- \
+            specs/api/openapi.yaml \
+            specs/api/openapi-implemented.yaml \
+            references/templates/api-worker-auth-first-slice/src/types/api.ts
