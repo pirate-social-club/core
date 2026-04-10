@@ -2,6 +2,7 @@ auth_session_exchange:
   post:
     tags:
       - Auth
+    x-implemented: true
     summary: Exchange an upstream auth proof for a Pirate app session
     security: []
     requestBody:
@@ -35,6 +36,15 @@ auth_session_exchange:
                           - privy_access_token
                       privy_access_token:
                         type: string
+                      privy_identity_token:
+                        type: string
+                        nullable: true
+                        description: |
+                          Optional Privy identity token for the same authenticated subject.
+                          When present, Pirate may extract linked wallets directly from the
+                          token and create wallet attachments during session bootstrap. In the
+                          first Privy slice, omitting this field still authenticates the user
+                          but may return an empty `wallet_attachments` array.
                       wallet_address:
                         type: string
                         nullable: true
@@ -43,6 +53,7 @@ auth_session_exchange:
                           When present, Pirate must resolve it against the wallet set linked to
                           the authenticated upstream identity and use that wallet attachment for
                           session bootstrap rather than discovering the default wallet implicitly.
+                          The first executable Privy slice may ignore this hint.
                   - type: object
                     required:
                       - type

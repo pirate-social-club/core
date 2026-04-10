@@ -7,6 +7,7 @@ Error:
     code:
       type: string
       enum:
+        - bad_request
         - auth_error
         - payment_required
         - verification_required
@@ -16,9 +17,9 @@ Error:
         - posting_quota_exhausted
         - analysis_blocked
         - analysis_review_required
-        - flair_required
-        - invalid_flair_selection
-        - flair_required_but_none_applicable
+        - label_required
+        - invalid_label_selection
+        - label_required_but_none_applicable
         - conflict
         - not_found
         - rate_limited

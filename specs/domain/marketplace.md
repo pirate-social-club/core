@@ -7,6 +7,8 @@ Related docs:
 - [asset.md](./asset.md)
 - [post.md](./post.md)
 - [community.md](./community.md)
+- [community-money-policy.md](./community-money-policy.md)
+- [community-pricing-policy.md](./community-pricing-policy.md)
 - [publish-matrix.md](./publish-matrix.md)
 - [purchase-quote-flow.md](./purchase-quote-flow.md)
 - [royalty-graph.md](./royalty-graph.md)
@@ -169,7 +171,7 @@ Reasoning:
 Recommended v0 model:
 
 - list prices are authored as a base USD price
-- a listing may optionally attach a club-authored `regional_pricing_policy`
+- a listing may optionally opt in to the community's active regional pricing policy
 - the buyer's effective USD quote is derived before settlement using the buyer's currently valid verified pricing tier
 - quote resolution should use the club's currently active pricing policy at quote time, not a stale listing-era snapshot
 
@@ -187,6 +189,7 @@ Policy control:
 - suggested defaults are advisory only; communities may fully edit country-level pricing outcomes
 - the active pricing policy for a listing should be treated as club commercial policy, not global Pirate commercial policy
 - payout-policy governance and pricing-policy governance are distinct; `payout_policy_mode` does not imply pricing control
+- the structured community pricing-policy object, not freeform community rules text, is the only surface that may affect quote pricing
 
 Verification requirements for tiered pricing:
 
@@ -260,11 +263,31 @@ Interpretation:
 - the app routes that value into the Story-side settlement token needed for execution
 - the purchase contract then executes on Story
 
+Recommended policy boundary:
+
+- funding preferences and route constraints should live on an attached community money policy, not on the core community identity object
+- a community may prefer one money identity socially while Pirate supports only a narrower executable funding asset set for purchases
+- Pirate should not describe a broad funding preference as a broad executable route claim when the actual supported lane is narrower
+
 Implementation note:
 
 - routed funding provider choice is not a protocol dependency in this spec
 - Stargate, deBridge, and Orbiter are examples of possible implementation choices
 - the spec does not require any single provider and should remain valid if routing providers change later
+
+Recommended v0 route rule:
+
+- if a community money policy requires routed funding, Pirate must not issue a purchase quote unless at least one approved route from an accepted funding asset to the destination settlement token is viable at quote time
+- route viability should check source-asset support, source-chain support, expected destination amount, slippage tolerance, and route complexity before quote issuance
+- if no route is viable, the purchase lane should fail closed or follow the community policy's explicit fallback rule
+
+Example honest funding posture:
+
+- a community may set `funding_preference = BTC`
+- Pirate may still only support `cBTC` on Citrea as the executable purchase-funding asset
+- purchase execution and locked-asset unlock may still happen on Story
+
+Pirate should not imply that the funding asset itself performs the unlock.
 
 ## Direct Payout Execution
 

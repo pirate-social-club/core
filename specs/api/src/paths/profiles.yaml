@@ -2,6 +2,7 @@ profiles_me:
   get:
     tags:
       - Profiles
+    x-implemented: true
     summary: Get the current user's public/editable profile
     responses:
       "200":
@@ -15,6 +16,7 @@ profiles_me:
   patch:
     tags:
       - Profiles
+    x-implemented: true
     summary: Update editable profile fields
     requestBody:
       required: true
@@ -107,6 +109,7 @@ profiles_by_user_id:
   get:
     tags:
       - Profiles
+    x-implemented: true
     summary: Get a public profile
     parameters:
       - $ref: ../components/parameters.yaml#/UserId

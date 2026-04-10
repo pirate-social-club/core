@@ -1,3 +1,9 @@
+BadRequest:
+  description: Request payload or parameters are invalid
+  content:
+    application/json:
+      schema:
+        $ref: ./schemas/common.yaml#/Error
 AuthError:
   description: Authentication failed
   content:

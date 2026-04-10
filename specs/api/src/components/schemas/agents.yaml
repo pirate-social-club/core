@@ -1,0 +1,329 @@
+AgentOwnershipProvider:
+  type: string
+  enum:
+    - self_agent_id
+    - clawkey
+    - very_kya
+AgentOwnershipSessionKind:
+  type: string
+  enum:
+    - register
+    - refresh
+    - transfer
+    - deregister
+AgentOwnershipSessionStatus:
+  type: string
+  enum:
+    - pending
+    - awaiting_owner
+    - proof_submitted
+    - verified
+    - failed
+    - expired
+    - cancelled
+UserAgentStatus:
+  type: string
+  enum:
+    - pending
+    - active
+    - suspended
+    - revoked
+    - transferred
+    - deregistered
+AgentOwnershipState:
+  type: string
+  enum:
+    - pending
+    - verified
+    - expired
+    - revoked
+    - transferred
+AgentChallenge:
+  type: object
+  additionalProperties: false
+  required:
+    - message
+    - signature
+    - signed_at
+  description: |
+    Agent-signed proof of key control used to start a KYA ownership session.
+  properties:
+    device_id:
+      type: string
+      nullable: true
+    public_key:
+      type: string
+      nullable: true
+    message:
+      type: string
+    signature:
+      type: string
+    signed_at:
+      type: string
+      format: date-time
+AgentActionProof:
+  type: object
+  additionalProperties: false
+  required:
+    - nonce
+    - signed_at
+    - canonical_request_hash
+    - signature
+  description: |
+    Agent-signed request proof bound to the current write. The server must recompute
+    `canonical_request_hash` from the route plus request body, verify the signature against the
+    active agent key material, and reject replays of the same `(agent_id, nonce)` pair.
+  properties:
+    nonce:
+      type: string
+    signed_at:
+      type: string
+      format: date-time
+    canonical_request_hash:
+      type: string
+    signature:
+      type: string
+SelfAgentOwnershipLaunch:
+  type: object
+  additionalProperties: false
+  properties:
+    deep_link:
+      type: string
+      nullable: true
+    qr_ref:
+      type: string
+      nullable: true
+    session_token_ref:
+      type: string
+      nullable: true
+ClawkeyRegistrationLaunch:
+  type: object
+  additionalProperties: false
+  required:
+    - registration_url
+  properties:
+    session_id:
+      type: string
+      nullable: true
+    registration_url:
+      type: string
+AgentOwnershipSessionLaunch:
+  type: object
+  additionalProperties: false
+  required:
+    - mode
+  properties:
+    mode:
+      type: string
+      enum:
+        - qr_deeplink
+        - registration_url
+        - widget
+        - none
+    self_agent:
+      $ref: ./agents.yaml#/SelfAgentOwnershipLaunch
+    clawkey_registration:
+      $ref: ./agents.yaml#/ClawkeyRegistrationLaunch
+    very_widget:
+      $ref: ./verification.yaml#/VeryWidgetLaunch
+StartAgentOwnershipSessionRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - session_kind
+    - ownership_provider
+    - agent_challenge
+  description: |
+    Start a KYA-backed agent ownership session. `register` may omit `agent_id` when creating a
+    new user-owned agent. `refresh`, `transfer`, and `deregister` require an existing `agent_id`.
+  properties:
+    session_kind:
+      $ref: ./agents.yaml#/AgentOwnershipSessionKind
+    ownership_provider:
+      $ref: ./agents.yaml#/AgentOwnershipProvider
+    agent_id:
+      type: string
+      nullable: true
+    display_name:
+      type: string
+      nullable: true
+    policy_id:
+      type: string
+      nullable: true
+    agent_challenge:
+      $ref: ./agents.yaml#/AgentChallenge
+CompleteAgentOwnershipSessionRequest:
+  type: object
+  additionalProperties: false
+  properties:
+    attestation_id:
+      type: string
+      nullable: true
+    proof_hash:
+      type: string
+      nullable: true
+    provider_payload_ref:
+      type: string
+      nullable: true
+ProviderAgentOwnershipCallbackRequest:
+  type: object
+  additionalProperties: false
+  properties:
+    provider:
+      $ref: ./agents.yaml#/AgentOwnershipProvider
+    event_type:
+      type: string
+      nullable: true
+    attestation_id:
+      type: string
+      nullable: true
+    proof_hash:
+      type: string
+      nullable: true
+    payload:
+      type: object
+      nullable: true
+      additionalProperties: true
+AgentOwnershipRecord:
+  type: object
+  additionalProperties: false
+  required:
+    - agent_ownership_record_id
+    - agent_id
+    - owner_user_id
+    - ownership_provider
+    - ownership_state
+    - created_at
+    - updated_at
+  properties:
+    agent_ownership_record_id:
+      type: string
+    agent_id:
+      type: string
+    owner_user_id:
+      type: string
+    ownership_provider:
+      $ref: ./agents.yaml#/AgentOwnershipProvider
+    provider_subject_id:
+      type: string
+      nullable: true
+    device_id:
+      type: string
+      nullable: true
+    public_key:
+      type: string
+      nullable: true
+    ownership_state:
+      $ref: ./agents.yaml#/AgentOwnershipState
+    verified_at:
+      type: string
+      format: date-time
+      nullable: true
+    expires_at:
+      type: string
+      format: date-time
+      nullable: true
+    ended_at:
+      type: string
+      format: date-time
+      nullable: true
+    evidence_ref:
+      type: string
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+AgentOwnershipSession:
+  type: object
+  additionalProperties: false
+  required:
+    - agent_ownership_session_id
+    - session_kind
+    - ownership_provider
+    - status
+    - launch
+    - created_at
+    - expires_at
+    - updated_at
+  properties:
+    agent_ownership_session_id:
+      type: string
+    session_kind:
+      $ref: ./agents.yaml#/AgentOwnershipSessionKind
+    owner_user_id:
+      type: string
+      nullable: true
+    agent_id:
+      type: string
+      nullable: true
+    ownership_provider:
+      $ref: ./agents.yaml#/AgentOwnershipProvider
+    status:
+      $ref: ./agents.yaml#/AgentOwnershipSessionStatus
+    agent_challenge_ref:
+      type: string
+    provider_session_ref:
+      type: string
+      nullable: true
+    launch:
+      $ref: ./agents.yaml#/AgentOwnershipSessionLaunch
+    callback_path:
+      type: string
+      nullable: true
+    resolved_agent_ownership_record_id:
+      type: string
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+    expires_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+UserAgent:
+  type: object
+  additionalProperties: false
+  required:
+    - agent_id
+    - owner_user_id
+    - display_name
+    - status
+    - created_at
+    - updated_at
+  properties:
+    agent_id:
+      type: string
+    owner_user_id:
+      type: string
+    display_name:
+      type: string
+    status:
+      $ref: ./agents.yaml#/UserAgentStatus
+    current_ownership_record_id:
+      type: string
+      nullable: true
+    current_ownership:
+      $ref: ./agents.yaml#/AgentOwnershipRecord
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+UserAgentListResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: ./agents.yaml#/UserAgent
+

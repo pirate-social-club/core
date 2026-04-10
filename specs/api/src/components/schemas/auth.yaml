@@ -24,7 +24,7 @@ SessionExchangeResponse:
         executable `jwt_based_auth` slice, newly created JWT-path users return `[]` because that
         request variant does not create wallet attachments.
       items:
-        $ref: '#/WalletAttachmentSummary'
+        $ref: ./auth.yaml#/WalletAttachmentSummary
 
 WalletAttachmentSummary:
   type: object

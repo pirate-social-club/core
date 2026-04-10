@@ -1,0 +1,17 @@
+$ORIGIN infinity.
+$TTL 300
+
+@   IN SOA ns1.pirate.sc. dns.pirate.sc. (
+        2026041002
+        3600
+        900
+        1209600
+        300
+)
+
+    IN NS ns1.pirate.sc.
+
+@       IN A 173.199.93.117
+_pirate IN TXT "pirate-verification=nvs_1c0b039d8461438e932074917ad986ce"
+profile IN A 173.199.93.117
+*       IN A 173.199.93.117

@@ -26,8 +26,11 @@ FeedItem:
   properties:
     post:
       $ref: ./posts.yaml#/Post
-    flair:
-      $ref: ./communities-community.yaml#/PostFlair
+    market_context:
+      $ref: ./market-context.yaml#/MarketContextSummary
+      nullable: true
+    label:
+      $ref: ./communities-community.yaml#/PostLabel
       nullable: true
     upvote_count:
       type: integer

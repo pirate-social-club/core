@@ -1,60 +1,13 @@
-posts:
-  post:
-    tags:
-      - Posts
-    summary: Create a post
-    description: |
-      Post creation is a pre-publish gate for native media in the common v0 path.
-
-      The server should run required analysis before making the post publicly visible:
-
-      - platform-required safety analysis
-      - rights/reference analysis where applicable
-      - community authenticity/source policy evaluation where applicable
-
-      Recommended outcome mapping:
-
-      - `201` when the post is created and publishable in the current state
-      - `202` when the post is created or retained in a non-published review-held state because analysis resolved to `review_required`
-      - `422` when analysis resolved to `blocked`
-
-      Required analysis timeout or provider failure should normally resolve to a non-published hold/review outcome rather than publish-first behavior.
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: ../components/schemas/posts.yaml#/CreatePostRequest
-    responses:
-      "201":
-        description: |
-          Post created. Returns the canonical post row; localized read projections are returned by `GET /posts/{post_id}`.
-        content:
-          application/json:
-            schema:
-              $ref: ../components/schemas/posts.yaml#/Post
-      "202":
-        description: |
-          Post accepted into a non-published review state. The canonical post row exists, but publication is held pending moderation or compliance review.
-        content:
-          application/json:
-            schema:
-              $ref: ../components/schemas/posts.yaml#/Post
-      "401":
-        $ref: ../components/responses.yaml#/AuthError
-      "403":
-        $ref: ../components/responses.yaml#/PostingTrustTierTooLow
-      "409":
-        $ref: ../components/responses.yaml#/Conflict
-      "422":
-        $ref: ../components/responses.yaml#/AnalysisBlocked
-      "429":
-        $ref: ../components/responses.yaml#/PostingQuotaExhausted
 posts_by_post_id:
   get:
     tags:
       - Posts
+    x-implemented: true
     summary: Get a post
+    description: |
+      Returns a localized canonical post read.
+
+      Published posts are readable to callers with community access. Non-published posts such as review-held drafts are only readable to the post author or the community owner in the current v0 implemented surface.
     parameters:
       - $ref: ../components/parameters.yaml#/PostId
       - $ref: ../components/parameters.yaml#/Locale
@@ -74,6 +27,10 @@ posts_by_post_id_vote:
     tags:
       - Posts
     summary: Cast or update a vote on a post
+    description: |
+      Public v0 voting requires community membership plus `verification_capabilities.unique_human.state = verified`
+      from an accepted human-verification provider such as `self` or `very`.
+      User-owned agents must not cast votes through this surface in v0.
     parameters:
       - $ref: ../components/parameters.yaml#/PostId
     requestBody:

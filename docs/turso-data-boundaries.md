@@ -5,7 +5,7 @@ Explains what belongs in the central Pirate control-plane database, what belongs
 Related:
 
 - [turso-sovereignty-adr.md](/home/t42/Documents/pirate-v2/docs/turso-sovereignty-adr.md)
-- [turso-control-plane-schema.md](/home/t42/Documents/pirate-v2/docs/turso-control-plane-schema.md)
+- [control-plane-schema.md](/home/t42/Documents/pirate-v2/docs/control-plane-schema.md)
 - [turso-provisioning-contract.md](/home/t42/Documents/pirate-v2/docs/turso-provisioning-contract.md)
 - [signer-families.md](/home/t42/Documents/pirate-v2/docs/signer-families.md)
 - [secrets-inventory.md](/home/t42/Documents/pirate-v2/docs/secrets-inventory.md)
@@ -71,7 +71,7 @@ The community database is the canonical home for durable community-owned state:
 - post rows
 - replies and thread state
 - moderation actions and review queues
-- flair and community labeling state
+- label and community labeling state
 - community-specific commerce metadata
 - community-specific purchase records and entitlement records where those purchases are owned by the community surface
 - community-local read models and counters

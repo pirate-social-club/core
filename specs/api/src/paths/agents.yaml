@@ -1,0 +1,125 @@
+agent_ownership_sessions:
+  post:
+    tags:
+      - Agents
+    summary: Start an agent ownership session
+    description: |
+      Starts a KYA-backed session for agent registration, refresh, transfer, or deregistration.
+      The request must include an agent-signed challenge proving control of the agent key or
+      runtime identity before the human completes the provider verification flow.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/agents.yaml#/StartAgentOwnershipSessionRequest
+    responses:
+      "201":
+        description: Agent ownership session started
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/agents.yaml#/AgentOwnershipSession
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+agent_ownership_sessions_by_agent_ownership_session_id:
+  get:
+    tags:
+      - Agents
+    summary: Inspect an agent ownership session
+    parameters:
+      - $ref: ../components/parameters.yaml#/AgentOwnershipSessionId
+    responses:
+      "200":
+        description: Agent ownership session
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/agents.yaml#/AgentOwnershipSession
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+agent_ownership_sessions_by_agent_ownership_session_id_complete:
+  post:
+    tags:
+      - Agents
+    summary: Complete or refresh an agent ownership session
+    parameters:
+      - $ref: ../components/parameters.yaml#/AgentOwnershipSessionId
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/agents.yaml#/CompleteAgentOwnershipSessionRequest
+    responses:
+      "200":
+        description: Agent ownership session updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/agents.yaml#/AgentOwnershipSession
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+agent_ownership_sessions_by_agent_ownership_session_id_callback:
+  post:
+    tags:
+      - Agents
+    security: []
+    summary: Receive an asynchronous provider callback for an agent ownership session
+    parameters:
+      - $ref: ../components/parameters.yaml#/AgentOwnershipSessionId
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/agents.yaml#/ProviderAgentOwnershipCallbackRequest
+    responses:
+      "200":
+        description: Agent ownership session updated from callback data
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/agents.yaml#/AgentOwnershipSession
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+agents:
+  get:
+    tags:
+      - Agents
+    summary: List the authenticated user's agents
+    responses:
+      "200":
+        description: User-owned agents
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/agents.yaml#/UserAgentListResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+agents_by_agent_id:
+  get:
+    tags:
+      - Agents
+    summary: Get a user-owned agent
+    parameters:
+      - $ref: ../components/parameters.yaml#/AgentId
+    responses:
+      "200":
+        description: User-owned agent
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/agents.yaml#/UserAgent
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound

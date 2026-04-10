@@ -107,6 +107,8 @@ V0 fields for `communities`:
 - `artist_governance_state`
 - `membership_mode`
 - `default_age_gate_policy`
+- `agent_posting_policy`
+- `agent_posting_scope`
 - `content_authenticity_policy`
 - `content_authenticity_detection_policy`
 - `source_policy`
@@ -134,6 +136,8 @@ V0 fields for `communities`:
 - A generic community can have `artist_identity_id = null`.
 - The raw MusicBrainz MBID lives on the artist identity record, not directly on the community row.
 - `community_agent_user_id` points to the app-level system actor allowed to publish community-agent content such as daily questions in v0.
+- `agent_posting_policy` is a structured community setting that governs whether verified human-owned user agents may post in the community at all.
+- `agent_posting_scope` is a structured community setting that constrains where allowed user agents may post, such as replies only versus top-level posts and replies.
 - `content_authenticity_policy` is a structured community setting that defines which AI-assisted and AI-generated post categories are allowed.
 - `content_authenticity_detection_policy` is a structured community setting that selects which platform-approved authenticity-detection profile Pirate should use for community-optional AI/deepfake analysis.
 - `source_policy` is a structured community setting that defines how reposts, source attribution, and human-made fan works about identified people are handled.
@@ -266,12 +270,20 @@ Suggested v0 `membership_state` values:
 Recommended v0 flow:
 
 1. Viewer invokes the community join action.
-2. If `membership_mode = open`, membership is created immediately.
-3. If `membership_mode = request`, a membership-request row is created with `status = pending`.
-4. If `membership_mode = gated`, authoritative membership-scope gate rules are evaluated.
-5. Moderators or admins review pending requests.
-6. Approval creates membership and resolves the request.
-7. Rejection resolves the request without creating membership.
+2. The platform baseline join gate is evaluated for every community, including `open` communities.
+3. If the viewer fails the platform baseline join gate, membership is not created.
+4. If `membership_mode = open`, membership is created immediately after the baseline gate passes.
+5. If `membership_mode = request`, a membership-request row is created with `status = pending`.
+6. If `membership_mode = gated`, authoritative membership-scope gate rules are evaluated after the baseline gate passes.
+7. Moderators or admins review pending requests.
+8. Approval creates membership and resolves the request.
+9. Rejection resolves the request without creating membership.
+
+Interpretation:
+
+- `open` means there are no extra community-specific admission gates beyond the platform baseline join gate
+- `open` does not mean anyone can join without qualification
+- every join requires at least one approved platform trust credential
 
 ## Community Gates
 
@@ -290,6 +302,40 @@ Suggested v0 gate rule shape:
 - `status`
 - `created_at`
 - `updated_at`
+
+Identity-proof note:
+
+- public v0 identity-proof community gates should be able to target:
+  - `unique_human`
+  - `age_over_18`
+  - `nationality`
+  - `gender`
+  - `sanctions_clear`
+  - `wallet_score`
+- `nationality` gates should support either:
+  - an allowlist-style `required_value` such as `US`
+  - an exclusion list such as `["IRN", "PRK"]`
+- `gender` gates should support a `required_value` such as `M`
+- OFAC-style restrictions should be modeled as `sanctions_clear` rather than as a provider-specific UI flag in community policy
+- provider-specific verification knobs such as Self `excludedCountries` and `ofac` should be resolved by the backend when it maps a community gate requirement to a concrete verification-session policy
+
+Platform baseline join gate:
+
+- every community join must satisfy at least one approved platform trust credential
+- acceptable v0 trust credentials are:
+  - `unique_human` from `self`
+  - `unique_human` from `very`
+  - `wallet_score` from Human Passport above the platform threshold
+  - an operator-whitelisted token-holding gate when Pirate explicitly enables that exception
+- community-specific gate rules are additive and do not replace the platform baseline
+- token-holding gates are operator-whitelisted exceptions only and are not configurable through public community creation or public community settings in v0
+- token-holding gates should use typed config shapes keyed by `gate_type` rather than freeform provider-specific JSON
+- EVM token-holding gates should require CAIP-2 `chain_namespace` values such as `eip155:1` or `eip155:8453`
+- ERC-721 gates should support at least:
+  - `contract_any`
+  - `token_id_allowlist`
+  - `metadata_match`
+- ownership discovery may use an indexer such as Alchemy, but the stored gate contract should remain provider-neutral
 
 ## Adult Communities
 
@@ -340,6 +386,65 @@ Some editing policies use a slightly different tri-state because the question is
 - `require_disclosure`
 - `disallow`
 
+## Pacing Window Semantics
+
+Community pacing limits should use explicit rolling windows rather than ambiguous calendar buckets.
+
+Recommended v0 rule:
+
+- any community limit described as `daily` should evaluate over the previous rolling 24 hours from the attempted action timestamp
+- any community limit described as `weekly` should evaluate over the previous rolling 7 * 24 hours from the attempted action timestamp
+- these limits should not depend on the viewer timezone, owner timezone, or a community-local calendar-day boundary unless a later field explicitly says so
+
+Examples:
+
+- `agent_daily_post_cap`
+- `agent_daily_reply_cap`
+- `max_promotional_posts_per_week`
+
+This keeps pacing enforcement consistent across services and avoids UTC-midnight loopholes.
+
+## Agent Posting Policy
+
+Communities should define user-owned agent participation as an explicit structured policy, not as an implication of AI-content settings.
+
+Suggested v0 fields:
+
+- `agent_posting_policy`
+  - `disallow`
+  - `review`
+  - `allow_with_disclosure`
+  - `allow`
+- `agent_posting_scope`
+  - `replies_only`
+  - `top_level_and_replies`
+
+Suggested optional v0 pacing and eligibility controls:
+
+- `agent_daily_post_cap` nullable
+- `agent_daily_reply_cap` nullable
+- `agent_min_owner_trust_tier` nullable
+- `agent_owner_active_limit` nullable
+
+Interpretation:
+
+- `agent_posting_policy` governs whether user-owned agents may act on behalf of verified humans in the community
+- this policy does not govern the platform-managed `community_agent_user_id`
+- `agent_posting_scope` limits where user-owned agents may act even when posting is otherwise allowed
+- pacing and trust controls should evaluate against the owning human's standing plus the agent-specific write source
+
+Default when unset:
+
+- if `agent_posting_policy` is `null`, the effective policy must resolve to `disallow`
+- if `agent_posting_scope` is `null` in a context where user-owned agents are enabled, the effective scope should resolve to `replies_only`
+
+Recommended v0 rules:
+
+- `allow_with_disclosure` means the community explicitly requires visible user-agent ownership disclosure in addition to the platform baseline byline
+- `review` means eligible user-agent posts should enter the ordinary review path rather than bypassing moderation
+- `agent_owner_active_limit` may be stricter than the platform-wide limit, but never looser
+- user-owned agents must still satisfy Pirate's agent-ownership validity checks from [agent-ownership.md](./agent-ownership.md)
+
 ## Content Authenticity Policy
 
 Communities should define AI-content policy as structured settings, not prose-only rules.
@@ -388,6 +493,7 @@ Interpretation:
 - `authenticity_stance` is the coarse community posture and the per-type policies are the authoritative allowlist
 - per-type policy is required because `image`, `video`, and `song` have materially different authenticity questions
 - authenticity policy is separate from copyright, safety, and source authorization
+- authenticity policy is also separate from `agent_posting_policy`; user-owned agent posting and AI-generated media are different decisions
 - a `song_mode = remix` post is not inherently AI-generated; remix status and authenticity status remain separate axes
 - community policy may allow AI-generated vocals in the abstract, but platform-level bans on deceptive impersonation or unauthorized synthetic likeness of a real singer still override that community choice
 
@@ -443,6 +549,18 @@ Recommended v0 examples:
 - music-remix club
   - `song_mode = remix` remains allowed per normal posting policy
   - `song_policy` separately decides whether AI-generated vocals, lyrics, or instrumentals are acceptable
+
+## Agent And Authenticity Policy Composition
+
+User-owned agent posting policy and AI-content authenticity policy should compose rather than override one another.
+
+Recommended v0 rules:
+
+- a user-owned agent post must satisfy both `agent_posting_policy` and `content_authenticity_policy`
+- neither policy subsumes the other
+- if either policy blocks the post, the post is blocked
+- if either policy requires review, the post should enter the ordinary review path
+- if both policies require disclosure, both disclosures apply
 
 ## Source Policy
 
@@ -874,7 +992,7 @@ Structured community content policy should be deferred from the public v0 create
 
 Rules:
 
-- public `POST /communities` may omit `content_authenticity_policy`, `source_policy`, `capture_edit_policy`, `adult_content_policy`, `graphic_content_policy`, `motion_media_policy`, `language_policy`, `provenance_policy`, and `promotion_policy`
+- public `POST /communities` may omit `agent_posting_policy`, `agent_posting_scope`, `content_authenticity_policy`, `source_policy`, `capture_edit_policy`, `adult_content_policy`, `graphic_content_policy`, `motion_media_policy`, `language_policy`, `provenance_policy`, and `promotion_policy`
 - public `POST /communities` may also omit `content_authenticity_detection_policy`
 - if omitted, the community may still transition to or remain `active` according to the normal lifecycle rules
 - upload enforcement must always evaluate the effective resolved policy, not the raw nullable stored field
@@ -889,7 +1007,7 @@ Structured community content-policy changes should be prospective by default.
 
 Rules:
 
-- updating `content_authenticity_policy`, `source_policy`, `capture_edit_policy`, `adult_content_policy`, `graphic_content_policy`, `motion_media_policy`, `language_policy`, `provenance_policy`, or `promotion_policy` applies to new posts and new moderation decisions after the change
+- updating `agent_posting_policy`, `agent_posting_scope`, `content_authenticity_policy`, `source_policy`, `capture_edit_policy`, `adult_content_policy`, `graphic_content_policy`, `motion_media_policy`, `language_policy`, `provenance_policy`, or `promotion_policy` applies to new posts and new moderation decisions after the change
 - existing posts keep the `analysis_state`, `content_safety_state`, age-gate result, and disclosure snapshot they had when published unless moderators take a new explicit action
 - communities should not automatically reclassify all historical posts when policy flips from `human_first` to `ai_allowed` or vice versa
 - if Pirate later adds a bulk review tool for policy migrations, that should be modeled as a moderator workflow rather than an implicit side effect of settings updates

@@ -12,7 +12,98 @@ RedditVerification:
         - pending
         - verified
         - failed
+        - expired
     verification_hint:
+      type: string
+      nullable: true
+      description: |
+        Human-readable code placement instruction or verification code handoff for the current pending session.
+    code_placement_surface:
+      type: string
+      nullable: true
+      enum:
+        - profile
+        - bio
+        - about
+    last_checked_at:
+      type: string
+      format: date-time
+      nullable: true
+    failure_code:
+      type: string
+      nullable: true
+      enum:
+        - code_not_found
+        - username_not_found
+        - rate_limited
+        - source_error
+RedditImportSummary:
+  type: object
+  required:
+    - reddit_username
+    - imported_at
+    - top_subreddits
+    - moderator_of
+    - inferred_interests
+    - suggested_communities
+  properties:
+    reddit_username:
+      type: string
+    imported_at:
+      type: string
+      format: date-time
+    account_age_days:
+      type: integer
+      nullable: true
+    global_karma:
+      type: integer
+      nullable: true
+    top_subreddits:
+      type: array
+      items:
+        type: object
+        required:
+          - subreddit
+        properties:
+          subreddit:
+            type: string
+          karma:
+            type: integer
+            nullable: true
+          posts:
+            type: integer
+            nullable: true
+          rank_source:
+            type: string
+            nullable: true
+            enum:
+              - karma
+              - posts
+              - source_order
+    moderator_of:
+      type: array
+      items:
+        type: string
+    inferred_interests:
+      type: array
+      items:
+        type: string
+    suggested_communities:
+      type: array
+      items:
+        type: object
+        required:
+          - community_id
+          - name
+          - reason
+        properties:
+          community_id:
+            type: string
+          name:
+            type: string
+          reason:
+            type: string
+    coverage_note:
       type: string
       nullable: true
 OnboardingStatus:
@@ -20,6 +111,10 @@ OnboardingStatus:
   required:
     - generated_handle_assigned
     - cleanup_rename_available
+    - unique_human_verification_status
+    - namespace_verification_status
+    - community_creation_ready
+    - missing_requirements
     - reddit_verification_status
     - reddit_import_status
   properties:
@@ -27,6 +122,30 @@ OnboardingStatus:
       type: boolean
     cleanup_rename_available:
       type: boolean
+    unique_human_verification_status:
+      type: string
+      enum:
+        - not_started
+        - pending
+        - verified
+        - expired
+        - failed
+    namespace_verification_status:
+      type: string
+      enum:
+        - not_started
+        - pending
+        - verified
+        - stale
+        - expired
+        - disputed
+        - failed
+    community_creation_ready:
+      type: boolean
+    missing_requirements:
+      type: array
+      items:
+        type: string
     reddit_verification_status:
       type: string
       enum:

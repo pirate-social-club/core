@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "network",
+    "deployment",
+    "contracts",
+    "grants"
+  ],
+  "properties": {
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "chainId", "deployRpcUrl"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "const": "story-aeneid"
+        },
+        "chainId": {
+          "type": "integer",
+          "const": 1315
+        },
+        "deployRpcUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "RPC endpoint that was used successfully for the recorded deployment. This is deploy-time operational metadata, not a canonical runtime RPC source."
+        }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tag", "deployerAddress", "ownerAddress", "completedAt"],
+      "properties": {
+        "tag": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "deployerAddress": {
+          "$ref": "#/$defs/address"
+        },
+        "ownerAddress": {
+          "$ref": "#/$defs/address"
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "purchaseEntitlementToken",
+        "pirateSignerRegistry",
+        "tokenGateCondition",
+        "signedAccessConditionV1",
+        "assetPublishCoordinatorV1",
+        "marketplaceSettlementV1"
+      ],
+      "properties": {
+        "purchaseEntitlementToken": {
+          "$ref": "#/$defs/address"
+        },
+        "pirateSignerRegistry": {
+          "$ref": "#/$defs/address"
+        },
+        "tokenGateCondition": {
+          "$ref": "#/$defs/address"
+        },
+        "signedAccessConditionV1": {
+          "$ref": "#/$defs/address"
+        },
+        "assetPublishCoordinatorV1": {
+          "$ref": "#/$defs/address"
+        },
+        "marketplaceSettlementV1": {
+          "$ref": "#/$defs/address"
+        }
+      }
+    },
+    "grants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["publishOperator", "settlementOperator", "accessProofSigner"],
+      "properties": {
+        "publishOperator": {
+          "$ref": "#/$defs/address"
+        },
+        "settlementOperator": {
+          "$ref": "#/$defs/address"
+        },
+        "accessProofSigner": {
+          "$ref": "#/$defs/address"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "address": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{40}$"
+    }
+  }
+}

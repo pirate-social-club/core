@@ -25,10 +25,11 @@ These roots belong in `core`:
 
 These roots may exist locally for convenience, but they are not part of tracked `core` state:
 
+- `pirate-api/`
 - `pirate-web/`
 - `pirate-contracts/`
 
-They are sidecar checkouts of the standalone `web` and `contracts` repos.
+They are sidecar checkouts of the standalone `api`, `web`, and `contracts` repos.
 
 ## Avoid Adding
 

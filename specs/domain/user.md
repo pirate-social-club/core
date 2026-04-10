@@ -184,12 +184,18 @@ Suggested v0 provider mechanisms:
 
 Recommended v0 product posture:
 
-- root-attached community creation should require `unique_human` from biometric/nullifier providers such as `self` or `very`
-- voting eligibility should require `unique_human` from biometric/nullifier providers such as `self` or `very`
-- anonymous posting eligibility should require `unique_human` from biometric/nullifier providers such as `self` or `very`
+- root-attached community creation must require `unique_human` from biometric/nullifier providers such as `self` or `very`
+- posting eligibility must require `unique_human` from biometric/nullifier providers such as `self` or `very`
+- voting eligibility must require `unique_human` from biometric/nullifier providers such as `self` or `very`
+- anonymous posting eligibility must require `unique_human` from biometric/nullifier providers such as `self` or `very`
+- community join eligibility must require at least one approved platform trust credential:
+  - `unique_human` from `self` or `very`
+  - `wallet_score` from Human Passport above the platform threshold
+  - an operator-whitelisted token-holding gate
 - nationality-backed regional pricing should require `nationality` from `self`
 - a club or commerce surface that relies only on `very` for identity can still satisfy `unique_human`, but it cannot use nationality-tiered pricing until it also accepts `self` nationality proofs
 - wallet-score systems such as Human Passport should be available for softer anti-Sybil and community-entry gates, not as the sole proof for high-trust actions
+- token-holding gates are operator-controlled exceptions, not public-v0 write or join policy; they may not substitute for `unique_human` requirements on posting, voting, community creation, or anonymous posting
 
 ### Capability Shape
 
@@ -219,6 +225,12 @@ Suggested v0 `verification_capabilities` structure:
   - `value`: nullable `M` | `F`
   - `provider`: `self`
   - `proof_type`: `gender`
+  - `verified_at` nullable
+- `sanctions_clear`
+  - `state`: `unverified` | `verified` | `expired`
+  - `provider`: `passport`
+  - `proof_type`: `sanctions_clear`
+  - `mechanism`: `CleanHands`
   - `verified_at` nullable
 - `wallet_score`
   - `state`: `unverified` | `verified` | `expired`
@@ -347,6 +359,7 @@ The API persists:
 
 - verification sessions in `verification_sessions`
 - a current accepted identity snapshot for the user
+- a current Human Passport-derived `wallet_score` capability through server-side refresh and read flows, not through interactive verification sessions
 
 Pirate v2 should preserve the session shape conceptually while moving the canonical subject from wallet address to `user_id` and adding `provider` as a first-class field.
 
@@ -359,13 +372,19 @@ Suggested v0 session shape:
 - `verification_session_id`
 - `user_id`
 - `provider`
+- `provider_mode` nullable
+- `requested_capabilities`
 - `wallet_attachment_id` nullable
+- `verification_intent` nullable
+- `policy_id` nullable
 - `status`
 - `date_of_birth` nullable
 - `age_at_verification` nullable
 - `nationality` nullable
 - `attestation_id` nullable
 - `proof_hash` nullable
+- `launch` nullable
+- `callback_path` nullable
 - `verified_at` nullable
 - `created_at`
 - `expires_at`
@@ -377,11 +396,33 @@ Suggested meanings:
 - `provider`
   - `self`
   - `very`
+- `provider_mode`
+  - `qr_deeplink`
+  - `widget`
+- `requested_capabilities`
+  - one or more of:
+    - `unique_human`
+    - `age_over_18`
+    - `nationality`
+    - `gender`
+- `verification_intent`
+  - `profile_verification`
+  - `community_creation`
+  - `post_access_18_plus`
+  - `commerce_pricing`
+  - `qualifier_disclosure`
 - `status`
   - `pending`
   - `verified`
   - `failed`
   - `expired`
+
+Important v0 boundary:
+
+- interactive verification sessions are for `self` and `very` only
+- `self` uses `provider_mode = qr_deeplink`
+- `very` public-v0 verification uses `provider_mode = widget`
+- Human Passport `wallet_score` is refreshed server-side and read through dedicated capability endpoints rather than through `verification_sessions`
 
 Notes:
 

@@ -2,6 +2,7 @@ users_me:
   get:
     tags:
       - Users
+    x-implemented: true
     summary: Get the current user
     responses:
       "200":

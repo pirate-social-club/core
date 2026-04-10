@@ -1,0 +1,200 @@
+CommunityMarketContextMode:
+  type: string
+  enum:
+    - off
+    - on
+CommunityMarketContextProviderSet:
+  type: string
+  enum:
+    - platform_default
+    - approved_profile
+MarketContextProfileStatus:
+  type: string
+  enum:
+    - active
+    - archived
+MarketContextProfileSummary:
+  type: object
+  description: |
+    Public/admin-safe summary of a platform-approved market-context profile. Communities select from Pirate-managed provider sets rather than configuring raw provider hostnames, thresholds, or search logic directly.
+  required:
+    - market_context_profile_id
+    - profile_key
+    - provider_keys
+    - status
+  properties:
+    market_context_profile_id:
+      type: string
+    profile_key:
+      type: string
+    provider_keys:
+      type: array
+      items:
+        type: string
+      description: |
+        Provider implementation keys included in the resolved profile, such as `kalshi` and `polymarket`.
+    status:
+      $ref: ./market-context.yaml#/MarketContextProfileStatus
+CreateCommunityMarketContextPolicyInput:
+  type: object
+  description: |
+    Structured community setting for enabling related market context on eligible posts. V1 exposes only a small community tuning surface; Pirate keeps match-confidence thresholds, provider-specific logic, and rate-limit behavior platform-managed.
+  required:
+    - mode
+  additionalProperties: false
+  properties:
+    mode:
+      $ref: ./market-context.yaml#/CommunityMarketContextMode
+    enabled_post_types:
+      type: array
+      nullable: true
+      description: |
+        Eligible post types for market-context attachment. V1 should accept only `link`; later versions may widen this to `image` and `video`.
+      items:
+        type: string
+        enum:
+          - link
+          - image
+          - video
+    max_markets_per_post:
+      type: integer
+      minimum: 1
+      maximum: 3
+      nullable: true
+      description: |
+        Maximum number of attached market rows returned on read surfaces. When omitted, the server should resolve the platform default.
+    provider_set:
+      allOf:
+        - $ref: ./market-context.yaml#/CommunityMarketContextProviderSet
+      nullable: true
+    market_context_profile_id:
+      type: string
+      nullable: true
+      description: |
+        Required when `provider_set = approved_profile`. Must reference an active platform-approved market-context profile.
+UpdateCommunityMarketContextPolicyRequest:
+  type: object
+  description: |
+    Replace or update the community's market-context policy. Changes apply prospectively for new and newly refreshed attachments. Flipping `mode` from `on` to `off` prevents new attachments but does not retroactively detach already attached rows.
+  required:
+    - mode
+  additionalProperties: false
+  properties:
+    mode:
+      $ref: ./market-context.yaml#/CommunityMarketContextMode
+    enabled_post_types:
+      type: array
+      nullable: true
+      description: |
+        Eligible post types for market-context attachment. V1 should accept only `link`; later versions may widen this to `image` and `video`.
+      items:
+        type: string
+        enum:
+          - link
+          - image
+          - video
+    max_markets_per_post:
+      type: integer
+      minimum: 1
+      maximum: 3
+      nullable: true
+    provider_set:
+      allOf:
+        - $ref: ./market-context.yaml#/CommunityMarketContextProviderSet
+      nullable: true
+    market_context_profile_id:
+      type: string
+      nullable: true
+      description: |
+        Required when `provider_set = approved_profile`. Must reference an active platform-approved market-context profile.
+CommunityMarketContextPolicy:
+  type: object
+  description: |
+    Resolved community market-context policy. When no explicit policy has been configured, the server must still return the platform-default policy with `policy_origin = default`. In v1, communities do not configure a match-confidence threshold directly; Pirate applies one platform-managed minimum uniformly across communities.
+  required:
+    - community_id
+    - policy_origin
+    - mode
+    - enabled_post_types
+    - max_markets_per_post
+    - provider_set
+    - resolved_profile
+    - updated_at
+  properties:
+    community_id:
+      type: string
+    policy_origin:
+      $ref: ./communities-community.yaml#/CommunityPolicyOrigin
+    mode:
+      $ref: ./market-context.yaml#/CommunityMarketContextMode
+    enabled_post_types:
+      type: array
+      items:
+        type: string
+        enum:
+          - link
+          - image
+          - video
+    max_markets_per_post:
+      type: integer
+      minimum: 1
+      maximum: 3
+    provider_set:
+      $ref: ./market-context.yaml#/CommunityMarketContextProviderSet
+    resolved_profile:
+      $ref: ./market-context.yaml#/MarketContextProfileSummary
+    updated_at:
+      type: string
+      format: date-time
+MarketContextSummary:
+  type: object
+  description: |
+    Public-safe market-context sidecar for a post read surface. `no_match` is a successful abstention outcome and should normally render as no visible UI module.
+  required:
+    - status
+  properties:
+    status:
+      type: string
+      enum:
+        - attached
+        - no_match
+    claim_summary:
+      type: string
+      nullable: true
+    markets:
+      type: array
+      nullable: true
+      description: |
+        Attached market rows. Present only when `status = attached`.
+      items:
+        $ref: ./market-context.yaml#/MarketContextMarket
+MarketContextMarket:
+  type: object
+  required:
+    - provider_key
+    - question
+    - outcome_yes_price
+    - market_url
+    - snapshot_at
+  properties:
+    provider_key:
+      type: string
+    question:
+      type: string
+    outcome_yes_price:
+      type: string
+      description: |
+        Provider-reported Yes-side price snapshot used for read-only contextual rendering. Expressed as a decimal between 0 and 1 inclusive, where 0.64 represents a 64% implied probability. The pipeline must normalize provider-native units (e.g. Kalshi cents, Polymarket cents) to this format before storage.
+    liquidity_score:
+      type: string
+      nullable: true
+    resolve_date:
+      type: string
+      format: date-time
+      nullable: true
+    market_url:
+      type: string
+      format: uri
+    snapshot_at:
+      type: string
+      format: date-time

@@ -2,6 +2,7 @@ onboarding_status:
   get:
     tags:
       - Onboarding
+    x-implemented: true
     summary: Fetch onboarding status for the current user
     responses:
       "200":
@@ -16,7 +17,24 @@ onboarding_reddit_verification:
   post:
     tags:
       - Onboarding
+    x-implemented: true
     summary: Start or refresh Reddit ownership verification
+    description: |
+      Idempotent Reddit ownership verification entrypoint.
+
+      Repeated `POST` requests are the intended polling/check mechanism in v0.
+
+      Server behavior:
+
+      - when no active verification session exists, create a new pending session, issue a verification code, and return `status = pending`
+      - when an unexpired pending session exists, re-check the user's Reddit profile/about surface for the issued code and return the updated verification state
+      - when the prior session expired, create a fresh pending session with a new code
+      - when verification already succeeded for the same user and username, return the verified state
+
+      Recommended v0 policy:
+
+      - pending verification sessions expire after `15 minutes`
+      - the server should track repeated checks and may surface `failure_code = rate_limited` when the caller exceeds the per-session check budget
     requestBody:
       required: true
       content:
@@ -43,7 +61,13 @@ onboarding_reddit_imports:
   post:
     tags:
       - Onboarding
+    x-implemented: true
     summary: Trigger a Reddit snapshot import job
+    description: |
+      Queues or starts a one-time onboarding Reddit snapshot import for a previously verified Reddit username.
+
+      The server must reuse the canonical async jobs model with `job_type = reddit_snapshot_import`.
+      On success, `job.result_ref` should point at the immutable onboarding snapshot captured from the import.
     requestBody:
       required: true
       content:
@@ -66,3 +90,25 @@ onboarding_reddit_imports:
         $ref: ../components/responses.yaml#/AuthError
       "429":
         $ref: ../components/responses.yaml#/RateLimited
+onboarding_reddit_imports_latest:
+  get:
+    tags:
+      - Onboarding
+    x-implemented: true
+    summary: Fetch the latest completed Reddit onboarding import summary
+    description: |
+      Returns the most recent successfully imported Reddit onboarding snapshot summary for the current user.
+
+      This is the lightweight read model intended to power onboarding UI after the async import completes.
+      It should not expose raw historical post/comment archives or imply ongoing sync.
+    responses:
+      "200":
+        description: Latest Reddit onboarding import summary
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/onboarding.yaml#/RedditImportSummary
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound

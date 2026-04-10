@@ -111,30 +111,30 @@ Interpretation:
 - `new`
   Most recent posts first
 
-## Flair Filtering
+## Label Filtering
 
-Community feeds may optionally expose flair filtering when the club has active flair definitions.
+Community feeds may optionally expose label filtering when the club has active label definitions.
 
 Recommended v0 behavior:
 
-- flair filtering is available on community-scoped feeds only
-- flair filtering does not apply to `Home` or `Your Communities` in v0
-- the filter is single-select to match the one-flair-per-post model
+- label filtering is available on community-scoped feeds only
+- label filtering does not apply to `Home` or `Your Communities` in v0
+- the filter is single-select to match the one-label-per-post model
 - the default state is unfiltered
-- selecting a flair narrows the community feed to posts whose `flair_id` matches the selected definition
+- selecting a label narrows the community feed to posts whose `label_id` matches the selected definition
 
 Rules:
 
-- flair filtering happens during candidate eligibility or query construction before ranking, not as a client-only cosmetic filter after ranking
-- flair filters must ignore archived definitions for new selection UI unless the current route is explicitly resolving a historical archived flair page
-- replies should not participate in top-level club flair filters unless Pirate later defines reply flair behavior
-- flair filtering must not change ranking formulas beyond narrowing the candidate set
-- flair labels in filter UI are rendered as the club-authored canonical strings in v0; Pirate does not translate flair definitions as part of localized feed reads
+- label filtering happens during candidate eligibility or query construction before ranking, not as a client-only cosmetic filter after ranking
+- label filters must ignore archived definitions for new selection UI unless the current route is explicitly resolving a historical archived label page
+- replies should not participate in top-level club label filters unless Pirate later defines reply label behavior
+- label filtering must not change ranking formulas beyond narrowing the candidate set
+- labels in filter UI are rendered as the club-authored canonical strings in v0; Pirate does not translate label definitions as part of localized feed reads
 
 Product boundary:
 
-- flair is a community-local navigation aid, not a platform-wide discovery primitive
-- Pirate should avoid building cross-community flair browse pages until there is clear evidence of stable shared semantics
+- labels are a community-local navigation aid, not a platform-wide discovery primitive
+- Pirate should avoid building cross-community label browse pages until there is clear evidence of stable shared semantics
 
 ## Top Time Windows
 
@@ -214,6 +214,9 @@ Rules:
 - ranking should happen only after eligibility filtering
 - ineligible posts should never be boosted by ranking logic
 - club-governed ranking later should still respect platform safety and gate constraints
+- platform-owned discovery feeds must not use raw join counts or raw membership counts as ranking inputs
+- if join velocity or membership growth signals are used for platform discovery, only joins from accounts with verified `unique_human` state should count
+- platform-owned discovery should prefer strong-human-qualified membership signals over weaker anti-Sybil credentials when using membership context at all
 
 ## Cold Start Behavior
 
@@ -300,6 +303,11 @@ Recommended v0 rules:
 - mixed global feeds such as `Home` and `Your Communities` should render a single display label in v0
 - for mixed global feeds, that display label should be the active global `.pirate` handle
 - richer multi-part identity rendering can be added later when the feed read model grows beyond one display field
+- for `authorship_mode = user_agent` posts, the two-part agent byline replaces the single-display-label rule on every feed surface including mixed global feeds
+- when `authorship_mode = user_agent`, feeds should render from the post-row snapshots rather than resolving owner identity through a deep read-time join
+- user-agent bylines should use `agent_display_name_snapshot` plus `agent_owner_handle_snapshot`
+- recommended v0 rendering is plain text such as `C3PO AI · owned by luke.tld`
+- `agent_ownership_record_id` remains an audit or moderation join key, not a required feed-time lookup
 
 Anonymous identity rendering:
 
@@ -308,6 +316,7 @@ Anonymous identity rendering:
 - this applies to all feed surfaces including `Home`, `Your Communities`, and community-scoped feeds
 - for communities with anonymous posting enabled, feeds must reflect the author's chosen identity mode for that post rather than forcing anonymous rendering at the club level
 - if the post carries disclosed qualifier snapshots, feeds should render those same normalized qualifier pills adjacent to the author presentation surface rather than recomputing them from current verification state
+- because user-owned agent posts must use `identity_mode = public` in v0, feeds must not render anonymous user-agent bylines
 
 ## Pagination
 

@@ -142,7 +142,7 @@ Pirate should not require multisig approval for:
 - deleting a spam post
 - banning a user
 - changing a community rule sentence
-- editing flair labels
+- editing community labels
 
 Those remain operational product actions unless Pirate later decides specific categories need constitutional approval.
 

@@ -2,24 +2,14 @@ verification_sessions:
   post:
     tags:
       - Verification
-    summary: Start a verification session
+    x-implemented: true
+    summary: Start an interactive verification session
     requestBody:
       required: true
       content:
         application/json:
           schema:
-            type: object
-            required:
-              - provider
-            properties:
-              provider:
-                type: string
-                enum:
-                  - self
-                  - very
-              wallet_attachment_id:
-                type: string
-                nullable: true
+            $ref: ../components/schemas/verification.yaml#/StartVerificationSessionRequest
     responses:
       "201":
         description: Verification session started
@@ -27,6 +17,123 @@ verification_sessions:
           application/json:
             schema:
               $ref: ../components/schemas/verification.yaml#/VerificationSession
+            examples:
+              self_qr_launch:
+                summary: Self verification session launch
+                value:
+                  verification_session_id: ver_sess_01HSELFQREXAMPLE
+                  user_id: usr_01HUSEREXAMPLE
+                  provider: self
+                  provider_mode: qr_deeplink
+                  requested_capabilities:
+                    - unique_human
+                    - age_over_18
+                    - nationality
+                  verification_intent: profile_verification
+                  policy_id: verify_policy_self_profile_v0
+                  status: pending
+                  launch:
+                    mode: qr_deeplink
+                    self_app:
+                      app_name: Pirate
+                      endpoint: https://api.pirate.example/verification-sessions/ver_sess_01HSELFQREXAMPLE/callback
+                      endpoint_type: https
+                      scope: pirate-verification-v0
+                      session_id: ver_sess_01HSELFQREXAMPLE
+                      user_id: usr_01HUSEREXAMPLE
+                      user_id_type: uuid
+                      disclosures:
+                        nationality: true
+                        minimum_age: 18
+                  callback_path: /verification-sessions/ver_sess_01HSELFQREXAMPLE/callback
+                  created_at: "2026-04-10T12:00:00Z"
+                  expires_at: "2026-04-10T12:15:00Z"
+              very_widget_launch:
+                summary: Very widget verification session launch
+                value:
+                  verification_session_id: ver_sess_01HVERYWIDGETEXAMPLE
+                  user_id: usr_01HUSEREXAMPLE
+                  provider: very
+                  provider_mode: widget
+                  requested_capabilities:
+                    - unique_human
+                  verification_intent: community_creation
+                  policy_id: verify_policy_very_unique_human_v0
+                  status: pending
+                  launch:
+                    mode: widget
+                    very_widget:
+                      app_id: pirate-app
+                      context: ver_sess_01HVERYWIDGETEXAMPLE
+                      type_id: palm-scan-v0
+                      query:
+                        conditions:
+                          - identifier: palm
+                            operation: IN
+                            value:
+                              from: "2026-01-01T00:00:00Z"
+                              to: "2026-12-31T23:59:59Z"
+                        options:
+                          expiredAtLowerBound: "2026-04-10T12:15:00Z"
+                          externalNullifier: pirate-community-creation
+                          equalCheckId: "0"
+                          pseudonym: "0"
+                      verify_url: https://verify.very.example/widget
+                  callback_path: /verification-sessions/ver_sess_01HVERYWIDGETEXAMPLE/callback
+                  created_at: "2026-04-10T12:00:00Z"
+                  expires_at: "2026-04-10T12:15:00Z"
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+verification_wallet_score:
+  get:
+    tags:
+      - Verification
+    summary: Get the current wallet score capability
+    description: |
+      Read the current Human Passport-derived wallet-score capability for the authenticated user.
+      This is a server-owned score read, not an interactive verification session.
+    responses:
+      "200":
+        description: Current wallet score capability
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/verification.yaml#/WalletScoreCapabilityState
+            example:
+              state: verified
+              provider: passport
+              proof_type: wallet_score
+              mechanism: stamps-api-v2
+              verified_at: "2026-04-10T12:00:00Z"
+              score: 28.4
+              score_threshold: 20
+              passing_score: true
+              last_score_timestamp: "2026-04-10T11:59:30Z"
+              expiration_timestamp: "2026-05-10T12:00:00Z"
+              stamps:
+                - stamp_name: Gitcoin Passport
+                  stamp_score: 18.4
+                - stamp_name: ENS
+                  stamp_score: 10
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+verification_wallet_score_refresh:
+  post:
+    tags:
+      - Verification
+    summary: Refresh the current wallet score capability
+    description: |
+      Trigger a server-side refresh of the authenticated user's Human Passport wallet score and
+      return the resulting derived capability state.
+    responses:
+      "200":
+        description: Wallet score capability refreshed
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/verification.yaml#/WalletScoreCapabilityState
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "429":
@@ -35,6 +142,7 @@ namespace_verification_sessions:
   post:
     tags:
       - Verification
+    x-implemented: true
     summary: Start a namespace verification session
     requestBody:
       required: true
@@ -57,6 +165,7 @@ verification_sessions_by_verification_session_id:
   get:
     tags:
       - Verification
+    x-implemented: true
     summary: Inspect a verification session
     parameters:
       - $ref: ../components/parameters.yaml#/VerificationSessionId
@@ -75,6 +184,7 @@ namespace_verification_sessions_by_namespace_verification_session_id:
   get:
     tags:
       - Verification
+    x-implemented: true
     summary: Inspect a namespace verification session
     parameters:
       - $ref: ../components/parameters.yaml#/NamespaceVerificationSessionId
@@ -93,6 +203,7 @@ verification_sessions_by_verification_session_id_complete:
   post:
     tags:
       - Verification
+    x-implemented: true
     summary: Complete or refresh a verification session
     parameters:
       - $ref: ../components/parameters.yaml#/VerificationSessionId
@@ -101,14 +212,7 @@ verification_sessions_by_verification_session_id_complete:
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              attestation_id:
-                type: string
-                nullable: true
-              proof_hash:
-                type: string
-                nullable: true
+            $ref: ../components/schemas/verification.yaml#/CompleteVerificationSessionRequest
     responses:
       "200":
         description: Verification session updated
@@ -120,10 +224,40 @@ verification_sessions_by_verification_session_id_complete:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
+verification_sessions_by_verification_session_id_callback:
+  post:
+    tags:
+      - Verification
+    security: []
+    summary: Receive an asynchronous provider callback for a verification session
+    description: |
+      Server-owned callback entrypoint used for provider-driven verification completion.
+      Examples include Self relayer callbacks and future provider-managed completion hooks.
+      Interactive clients should normally use the session `launch` payload plus
+      `POST /verification-sessions/{verification_session_id}/complete` rather than
+      calling this endpoint directly.
+    parameters:
+      - $ref: ../components/parameters.yaml#/VerificationSessionId
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/verification.yaml#/ProviderVerificationCallbackRequest
+    responses:
+      "200":
+        description: Verification session updated from callback data
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/verification.yaml#/VerificationSession
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
 namespace_verification_sessions_by_namespace_verification_session_id_complete:
   post:
     tags:
       - Verification
+    x-implemented: true
     summary: Complete or refresh a namespace verification session
     parameters:
       - $ref: ../components/parameters.yaml#/NamespaceVerificationSessionId
@@ -148,6 +282,7 @@ namespace_verifications_by_namespace_verification_id:
   get:
     tags:
       - Verification
+    x-implemented: true
     summary: Inspect an accepted namespace verification
     parameters:
       - $ref: ../components/parameters.yaml#/NamespaceVerificationId

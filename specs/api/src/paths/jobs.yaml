@@ -41,6 +41,7 @@ jobs_by_job_id:
   get:
     tags:
       - Jobs
+    x-implemented: true
     summary: Inspect a pollable async job
     parameters:
       - $ref: ../components/parameters.yaml#/JobId

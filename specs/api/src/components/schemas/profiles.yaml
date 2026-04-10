@@ -20,6 +20,15 @@ Profile:
     preferred_locale:
       type: string
       nullable: true
+    primary_wallet_address:
+      type: string
+      nullable: true
+      description: Public primary wallet address when Pirate product policy exposes wallet-linked identity on profile.
+    verification_capabilities:
+      allOf:
+        - $ref: ./verification.yaml#/VerificationCapabilities
+      nullable: true
+      description: Public normalized trust projection shown on profile when Pirate enables public trust fields.
     global_handle:
       $ref: ./profiles.yaml#/GlobalHandle
     created_at:

@@ -7,6 +7,7 @@ Related docs:
 - [namespace.md](./namespace.md)
 - [handles.md](./handles.md)
 - [community.md](./community.md)
+- [hns-authoritative-dns.md](./hns-authoritative-dns.md)
 
 ## Purpose
 
@@ -243,6 +244,7 @@ Each label should map to one evidence fact or one capability, never both.
 | Event | Evidence Change | Capability Change | User-Facing State |
 | --- | --- | --- | --- |
 | Root inspection succeeds and name exists | `root_exists = true` | none | root found |
+| Root exists but `_pirate.<root>` TXT proof cannot proceed because authoritative DNS is absent | no proof assertion changes yet; session remains blocked on DNS setup | none | DNS setup required |
 | Expiry check shows more than 90 days remaining | `expiry_horizon_sufficient = true` | none until root control is also verified | Expiry horizon sufficient |
 | TXT challenge verified | `root_control_verified = true` | `community_attach_allowed = true` if expiry horizon is also sufficient | Root control verified |
 | Edge or wildcard routing detected | `routing_enabled = true` | `pirate_web_routing_allowed = true` if root control already verified | Routing enabled |

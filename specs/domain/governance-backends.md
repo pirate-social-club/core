@@ -101,7 +101,7 @@ Operational authority is product-native.
 Examples:
 
 - moderation actions on posts, comments, and members
-- flair definitions
+- label definitions
 - community rules and resource links
 - club profile copy and artwork
 - anonymous presentation defaults

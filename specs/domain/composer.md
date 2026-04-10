@@ -62,7 +62,7 @@ The composer should feel like Reddit's "Create post" flow: pick a type, add a ti
 
 **Tab row**: Text, Image, Video, Link, Song, Live. One active at a time. Song and Live are the main Pirate-specific additions. Poll is not v0.
 
-**Main body**: Title first, then the content surface that swaps by tab. If the community has flair enabled, the composer may expose one optional flair picker for top-level posts using the community's curated definitions. Freeform tags remain out of scope.
+**Main body**: Title first, then the content surface that swaps by tab. If the community has labels enabled, the composer may expose one optional label picker for top-level posts using the community's curated definitions. Freeform tags remain out of scope.
 
 **Footer**: Post action.
 
@@ -115,6 +115,12 @@ This should follow the same simple mental model as Reddit link posts: paste a UR
 - **Original / Remix toggle** — small inline toggle inside the song tab. Default is Original. Selecting Remix reveals the derivative reference section inline (see below).
 
 Instrumental and vocal stems are first-class song inputs in the main song flow, but they remain **optional** at post-creation time. Stems and timed lyrics may also be attached later through async enrichment. Karaoke readiness is determined by the asset's `karaoke_package_ref` completeness, not by composer completeness. See karaoke.md for the staged enrichment model.
+
+Mainline first-pass boundary:
+
+- the mainline v0 song composer is audio + lyrics first
+- cover art, preview clips, and canvas video may exist later as secondary artifact flows, but they should not block the first mainline song-create path unless a later spec explicitly promotes them to required inputs
+- the mainline v0 song path should use the same primary storage family as the rest of the upload pipeline; it should not introduce Arweave-specific branches
 
 Song tab is hidden or disabled unless the user has `create_song_post` permission per the club permissions matrix.
 
@@ -201,6 +207,7 @@ When triggered, the derivative step shows:
 - **Short requirement message** if attribution is mandatory: "Attach the original track before posting"
 
 This is a contextual section, not a separate composer mode and not a multi-step wizard. For Song > Remix, at least one upstream reference is required before the post can be published.
+For Song > Remix in v0, the resulting post must use `rights_basis = derivative`.
 
 ## Rights Basis
 
@@ -249,31 +256,31 @@ Less common controls may still live under a lightweight secondary section when i
 - **Poster / thumbnail** — for video posts, secondary to the video upload
 - **Derivative / upstream reference search** — for video posts that want to attribute or claim derivative status (appears here if not already triggered by analysis or remix mode)
 
-## Flair
+## Label
 
-Flair is optional community labeling metadata, not canonical post truth.
+Label is optional community labeling metadata, not canonical post truth.
 
 Composer rules:
 
-- at most one flair may be selected per post
-- the picker should only show active flair definitions for the selected community
-- if a flair definition has `allowed_post_types`, the picker should only show options valid for the active composer tab
-- flair selection should be visible but lightweight, closer to a subreddit flair chooser than to a tagging surface
+- at most one label may be selected per post
+- the picker should only show active label definitions for the selected community
+- if a label definition has `allowed_post_types`, the picker should only show options valid for the active composer tab
+- label selection should be visible but lightweight, closer to a lightweight community label chooser than to a tagging surface
 - freeform tag entry does not exist in v0
-- replies should not expose flair selection in v0 unless Pirate later decides thread replies need their own conversational labeling
+- replies should not expose label selection in v0 unless Pirate later decides thread replies need their own conversational labeling
 
 Recommended placement:
 
 - below the title and above the primary content surface for top-level posts
-- collapsed behind a lightweight trigger such as `Add flair` when no flair is selected
+- collapsed behind a lightweight trigger such as `Add label` when no label is selected
 - rendered as a pill selector or modal list, not a tokenizing multi-select input
 
 Behavior:
 
-- if the community does not have flair enabled, no flair UI appears
-- if the community requires flair on top-level posts, publishing should be blocked until one active flair is selected
-- if the selected post type has no active applicable flair definitions, the composer must not dead-end the user; the community settings are invalid and should be treated as an admin configuration problem rather than a user error
-- if a previously selected flair becomes archived before publish, the draft must prompt the user to choose a new active flair or clear it if the community does not require flair
+- if the community does not have labels enabled, no label UI appears
+- if the community requires labels on top-level posts, publishing should be blocked until one active label is selected
+- if the selected post type has no active applicable label definitions, the composer must not dead-end the user; the community settings are invalid and should be treated as an admin configuration problem rather than a user error
+- if a previously selected label becomes archived before publish, the draft must prompt the user to choose a new active label or clear it if the community does not require labels
 
 ## Livestream And Room
 
@@ -384,6 +391,6 @@ Key constraints:
 - Derivative step is contextual, triggered by remix mode, user declaration, or analysis detection.
 - Rights basis is derived, never shown as a dropdown.
 - Identity is a presentation-mode choice with optional disclosed verified claim chips on eligible post types.
-- Flair is optional, single-select, community-scoped, and never freeform.
+- Labels are optional, single-select, community-scoped, and never freeform.
 - Donation: creator-side opt-in on monetized listings only, not in the composer for free posts.
 - Permission gates control tab visibility, not UI surface area.

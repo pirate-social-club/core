@@ -1,12 +1,15 @@
 import path from "node:path";
+import { stringify } from "yaml";
 import {
   BUNDLE_FILE,
   SOURCE_DIR,
   internalRefForSourceRef,
   parseRef,
   readYaml,
-  writeYaml,
 } from "./_shared";
+
+const GENERATED_BUNDLE_BANNER =
+  "# GENERATED FILE. Edit specs/api/src/** and run `rtk bun specs/api/scripts/bundle-openapi.ts`.\n";
 
 function rewriteSourceRefs(node: unknown, currentFileRel: string): unknown {
   if (Array.isArray(node)) {
@@ -79,7 +82,7 @@ async function main() {
     },
   };
 
-  await writeYaml(BUNDLE_FILE, bundledSpec);
+  await Bun.write(BUNDLE_FILE, `${GENERATED_BUNDLE_BANNER}${stringify(bundledSpec, { lineWidth: 0 })}`);
   console.log(`Wrote bundled spec to ${BUNDLE_FILE}`);
 }
 

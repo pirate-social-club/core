@@ -8,7 +8,7 @@ This document freezes the first executable community slice for Pirate:
 
 - auth exchange
 - namespace verification
-- community create plus provisioning
+- community create plus provisioning and registry publication
 - post create and read
 
 This repo remains contract-first, but this slice must be executable end to end. Everything outside this slice remains draft unless explicitly promoted later.
@@ -30,7 +30,8 @@ The following contracts are stable for this slice:
 - namespace verification session start, inspect, complete, and accepted verification inspect
 - `POST /communities`
 - `Community`
-- `POST /posts`
+- `Job`
+- `POST /communities/{community_id}/posts`
 - `GET /posts/{post_id}`
 - `Post`
 
@@ -43,8 +44,9 @@ The first slice is exercised in this order:
 3. complete or refresh namespace verification until an accepted `namespace_verification_id` exists
 4. create the foundational community unit through `POST /communities`
 5. wait until infrastructure provisioning completes
-6. create a post
-7. read the post back
+6. wait until registry publication reaches a usable state
+7. create a post
+8. read the post back
 
 ## Locked Behavior
 
@@ -61,21 +63,54 @@ The first slice is exercised in this order:
 - `POST /communities` is idempotent on accepted `namespace_verification_id`
 - one accepted namespace verification may create at most one foundational community unit
 - the server must re-check the accepted namespace verification at write time
+- the server must write a public create-attempt audit row before creating any operational community row
+- if the public create-attempt audit write fails, `POST /communities` fails and no operational community is created
 - community infrastructure provisioning is a distinct lifecycle from domain `Community.status`
 - a `Community` may be domain-active while `provisioning_state` is still `provisioning`
 - clients must not assume the community is usable until `provisioning_state = active`
+- registry publication is a distinct lifecycle from both `Community.status` and `Community.provisioning_state`
+- clients must not assume the community is publicly canonical or publicly discoverable until `registry_publication_state = published`
+- `Community` must expose:
+  - `registry_publication_state`
+  - `registry_attempt_id`
+  - `registry_published_at`
+  - `registry_error_code`
+- if a retried create finds an existing community whose latest provisioning job is `queued`, `running`, or `succeeded`, the server must return that existing `community` and `job`
+- if a retried create finds an existing community whose latest provisioning job is `failed` and `provisioning_state != active`, the server may create a new provisioning job for the same community and return that new job
+
+### Registry Publication
+
+- registry publication is modeled as async work distinct from infrastructure provisioning
+- the job type `community_registry_publication` is part of the locked public contract
+- the initial registry publication flow must support these states:
+  - `not_started`
+  - `pending_create`
+  - `pending_seed`
+  - `published`
+  - `stale`
+  - `publication_error`
+- `stale` means the community was previously published, but Tableland is behind accepted Turso-side registry-bearing mutations
+- `publication_error` means current publication work failed and requires retry or operator intervention
+- public discovery must exclude communities whose `registry_publication_state != published`
+- an operationally usable community may exist while `registry_publication_state` is `pending_create`, `pending_seed`, or `publication_error`
+- operational reads and operational-only writes may proceed before publication succeeds
+- mutations whose effect must be reflected in the canonical public registry require `registry_publication_state = published`
 
 ### Async Provisioning
 
 - community provisioning is modeled as async work
 - the exposed poll shape is `/jobs/{job_id}`
 - the provisioning job type is `community_provisioning`
+- registry publication also uses the pollable `/jobs/{job_id}` shape
+- `CommunityCreateAcceptedResponse.job` is the provisioning job
+- `Community.registry_publication_job_id` points at the distinct registry-publication job when one exists
 - local development may use a synchronous stub that immediately marks the community active, but the public contract still assumes the pollable async shape
 
 ### Post Create
 
 - post creation in this slice assumes an already-usable foundational community unit
 - retries must not require clients to guess whether the community is still provisioning
+- post creation is an operational write and does not require `registry_publication_state = published`
 - `CreatePostRequest` requires `idempotency_key`
 - for the same authenticated author, retrying the same create with the same `idempotency_key` must return the originally created post rather than creating a duplicate
 
@@ -104,6 +139,7 @@ The reference Bruno collection layout for this slice is:
 - `03-communities/create-foundational-community`
 - `03-communities/get-community`
 - `03-communities/get-job`
+- `03-communities/get-registry-publication-job`
 - `04-posts/create-post`
 - `04-posts/get-post`
 
@@ -117,6 +153,7 @@ Suggested environment values:
 - `namespace_verification_id`
 - `community_id`
 - `community_provisioning_job_id`
+- `community_registry_publication_job_id`
 - `post_idempotency_key`
 - `post_id`
 
@@ -129,6 +166,9 @@ This slice is complete only when all of the following are true:
 - Bruno can run the happy path without a browser
 - Bruno can exercise at least one failure case for each step
 - community create works with both a synchronous local stub and the pollable async shape
+- community create writes a public create-attempt audit row before any operational community row
+- the create path exposes registry publication state and pollable registry-publication jobs
+- public discovery semantics do not treat unpublished communities as canonical
 - post create retry behavior is deterministic through `idempotency_key`
 
 ## Out Of Scope

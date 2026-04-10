@@ -41,9 +41,91 @@ PromotionDisclosure:
 CreatePostRequest:
   type: object
   description: |
-    V0 write requests do not distinguish human-initiated writes from agent-initiated writes on the canonical post object. If Pirate later supports user-owned agents posting on behalf of a user, a field such as `submission_mode` or `authorship_mode` should be added as the auditability extension point.
+    Canonical post-create write model. User-owned agent posting uses the same route as ordinary
+    posting but must send `authorship_mode = user_agent`, `agent_id`, and `agent_action_proof`.
+    In v0, user-owned agent posts must also use `identity_mode = public`.
+
+    Subtype validation rules enforced by this schema:
+    - text: requires at least one of `title` or `body`; must not send `link_url`, `media_refs`, `song_artifact_bundle_id`, or `lyrics`
+    - image: requires at least one item in `media_refs` (all items must be `image/*`); must not send `link_url`, `song_artifact_bundle_id`, or `lyrics`
+    - video: requires at least one item in `media_refs` (at least one item must be `video/*`); must not send `link_url`, `song_artifact_bundle_id`, or `lyrics`
+    - link: requires `link_url`; must not send `media_refs`, `song_artifact_bundle_id`, or `lyrics`
+    - song: requires either `song_artifact_bundle_id` or both `media_refs` (at least one `audio/*`) and `lyrics`; must not send `link_url`; `identity_mode` must be `public`
   oneOf:
-    - description: Link posts must include `link_url`.
+    - description: Text posts require at least one of `title` or `body`.
+      required:
+        - post_type
+      anyOf:
+        - required:
+            - title
+        - required:
+            - body
+      properties:
+        post_type:
+          type: string
+          enum:
+            - text
+        title:
+          type: string
+          nullable: false
+        body:
+          type: string
+          nullable: false
+      not:
+        anyOf:
+          - required:
+              - link_url
+          - required:
+              - media_refs
+          - required:
+              - song_artifact_bundle_id
+          - required:
+              - lyrics
+    - description: Image posts require at least one image in `media_refs`.
+      required:
+        - post_type
+        - media_refs
+      properties:
+        post_type:
+          type: string
+          enum:
+            - image
+        media_refs:
+          type: array
+          minItems: 1
+          items:
+            $ref: ./posts.yaml#/ImageMediaDescriptor
+      not:
+        anyOf:
+          - required:
+              - link_url
+          - required:
+              - song_artifact_bundle_id
+          - required:
+              - lyrics
+    - description: Video posts require at least one video in `media_refs`.
+      required:
+        - post_type
+        - media_refs
+      properties:
+        post_type:
+          type: string
+          enum:
+            - video
+        media_refs:
+          type: array
+          minItems: 1
+          items:
+            $ref: ./posts.yaml#/VideoMediaDescriptor
+      not:
+        anyOf:
+          - required:
+              - link_url
+          - required:
+              - song_artifact_bundle_id
+          - required:
+              - lyrics
+    - description: Link posts require `link_url`.
       required:
         - post_type
         - link_url
@@ -52,33 +134,91 @@ CreatePostRequest:
           type: string
           enum:
             - link
-    - description: Non-link posts must not send `link_url`.
+      not:
+        anyOf:
+          - required:
+              - media_refs
+          - required:
+              - song_artifact_bundle_id
+          - required:
+              - lyrics
+    - description: |
+        Song posts require either `song_artifact_bundle_id` or both `media_refs` (at least one `audio/*`) and `lyrics`. Identity must be public.
+        `access_mode = locked` is only supported for bundle-backed song posts so the post can expose preview-safe media while the asset keeps the full payload gated.
+        When `rights_basis = derivative` or `song_mode = remix`, `upstream_asset_refs` must contain at least one entry; this is enforced server-side.
       required:
         - post_type
+        - identity_mode
+      anyOf:
+        - required:
+            - song_artifact_bundle_id
+        - allOf:
+            - required:
+                - media_refs
+            - required:
+                - lyrics
       properties:
         post_type:
           type: string
           enum:
-            - text
-            - image
-            - video
             - song
+        identity_mode:
+          type: string
+          enum:
+            - public
+        access_mode:
+          type: string
+          enum:
+            - public
+            - locked
+        media_refs:
+          type: array
+          minItems: 1
+          items:
+            $ref: ./posts.yaml#/AudioMediaDescriptor
       not:
-        required:
-          - link_url
+        anyOf:
+          - required:
+              - link_url
+          - allOf:
+              - required:
+                  - song_artifact_bundle_id
+              - required:
+                  - media_refs
+          - allOf:
+              - required:
+                  - song_artifact_bundle_id
+              - required:
+                  - lyrics
   required:
-    - community_id
     - idempotency_key
     - post_type
   properties:
-    community_id:
-      type: string
     idempotency_key:
       type: string
       description: |
         Client-supplied deduplication key for create retries. For the same authenticated author,
         reusing the same `idempotency_key` on an equivalent create request must return the
         originally created post rather than creating a duplicate row.
+    authorship_mode:
+      type: string
+      enum:
+        - human_direct
+        - user_agent
+      default: human_direct
+      description: |
+        Audit field for distinguishing human-direct writes from user-owned agent writes.
+    agent_id:
+      type: string
+      nullable: true
+      description: |
+        Required when `authorship_mode = user_agent`. Must be null when `authorship_mode = human_direct`.
+    agent_action_proof:
+      $ref: ./agents.yaml#/AgentActionProof
+      nullable: true
+      description: |
+        Required when `authorship_mode = user_agent`. The server must verify this proof against the
+        active agent ownership record before accepting the post.
     identity_mode:
       type: string
       enum:
@@ -104,7 +244,7 @@ CreatePostRequest:
     parent_post_id:
       type: string
       nullable: true
-    flair_id:
+    label_id:
       type: string
       nullable: true
     post_type:
@@ -150,10 +290,23 @@ CreatePostRequest:
         - machine_allowed
         - human_only
         - hybrid
+    access_mode:
+      type: string
+      description: |
+        Song-only asset access mode. `public` keeps the source audio public. `locked` creates a locked asset and requires `song_artifact_bundle_id`.
+      enum:
+        - public
+        - locked
       nullable: true
     asset_id:
       type: string
       nullable: true
+    song_artifact_bundle_id:
+      type: string
+      nullable: true
+      description: |
+        Canonical song artifact bundle reference for bundle-backed song posts. When provided for `post_type = song`,
+        clients must not also send `lyrics` or `media_refs`; the server derives those from the bundle.
     song_mode:
       type: string
       enum:
@@ -168,12 +321,16 @@ CreatePostRequest:
         - derivative
         - attribution_only
       nullable: true
-    age_gate_policy:
-      type: string
-      enum:
-        - none
-        - 18_plus
+    upstream_asset_refs:
+      type: array
+      items:
+        type: string
       nullable: true
+      description: |
+        Upstream asset IDs for derivative or remix attribution.
+        Server-side validation requires at least one entry when `rights_basis = derivative` or `song_mode = remix`.
+        The server must verify these assets exist and belong to the same community or a public-accessible scope.
+        This conditional requirement is enforced server-side because OpenAPI cannot express cross-field dependencies.
     lyrics:
       type: string
       nullable: true
@@ -182,10 +339,12 @@ CreatePostRequest:
 Post:
   type: object
   description: |
-    Canonical post row. V0 read models do not distinguish human-initiated writes from agent-initiated writes on the base object; if Pirate later supports user-owned agents posting on behalf of a user, a field such as `submission_mode` or `authorship_mode` should be added rather than overloading `author_user_id`.
+    Canonical post row. User-owned agent posts keep the owning human in `author_user_id` while
+    exposing explicit authorship and byline snapshot fields for auditability and rendering.
   required:
     - post_id
     - community_id
+    - authorship_mode
     - identity_mode
     - post_type
     - status
@@ -204,6 +363,21 @@ Post:
       nullable: true
       description: |
         Public read models omit this field for anonymous posts. It remains present for non-anonymous posts and privileged internal reads.
+    authorship_mode:
+      type: string
+      enum:
+        - human_direct
+        - user_agent
+    agent_id:
+      type: string
+      nullable: true
+      description: |
+        Present when `authorship_mode = user_agent`.
+    agent_ownership_record_id:
+      type: string
+      nullable: true
+      description: |
+        Audit anchor for the ownership interval that applied when the post was published.
     identity_mode:
       type: string
       enum:
@@ -219,12 +393,28 @@ Post:
     anonymous_label:
       type: string
       nullable: true
+    agent_display_name_snapshot:
+      type: string
+      nullable: true
+      description: |
+        Required on `user_agent` posts. Snapshot used for feed and thread rendering.
+    agent_owner_handle_snapshot:
+      type: string
+      nullable: true
+      description: |
+        Required on `user_agent` posts. Stores the owner's global `.pirate` handle snapshot used
+        for cross-surface byline rendering.
+    agent_ownership_provider_snapshot:
+      type: string
+      nullable: true
+      description: |
+        Optional provider snapshot for user-agent bylines or moderation context.
     disclosed_qualifiers_json:
       type: array
       items:
         $ref: ./posts.yaml#/DisclosedQualifierSnapshot
       nullable: true
-    flair_id:
+    label_id:
       type: string
       nullable: true
     post_type:
@@ -282,6 +472,9 @@ Post:
     asset_id:
       type: string
       nullable: true
+    song_artifact_bundle_id:
+      type: string
+      nullable: true
     parent_post_id:
       type: string
       nullable: true
@@ -299,6 +492,14 @@ Post:
         - derivative
         - attribution_only
       nullable: true
+    upstream_asset_refs:
+      type: array
+      items:
+        type: string
+      nullable: true
+      description: |
+        Upstream asset IDs referenced for derivative or remix attribution. Populated when `rights_basis = derivative`
+        or when analysis detected a required upstream reference.
     analysis_state:
       type: string
       enum:
@@ -349,8 +550,8 @@ LocalizedPostResponse:
     market_context:
       $ref: ./market-context.yaml#/MarketContextSummary
       nullable: true
-    flair:
-      $ref: ./communities-community.yaml#/PostFlair
+    label:
+      $ref: ./communities-community.yaml#/PostLabel
       nullable: true
     upvote_count:
       type: integer
@@ -416,6 +617,84 @@ MediaDescriptor:
     mime_type:
       type: string
       nullable: true
+    size_bytes:
+      type: integer
+      nullable: true
+    content_hash:
+      type: string
+      nullable: true
+    duration_ms:
+      type: integer
+      nullable: true
+ImageMediaDescriptor:
+  type: object
+  description: |
+    Media descriptor constrained to image MIME types for image posts. The server should reject
+    any item whose `mime_type` does not start with `image/`.
+  required:
+    - storage_ref
+    - mime_type
+  properties:
+    storage_ref:
+      type: string
+    mime_type:
+      type: string
+      pattern: "^image/"
+    size_bytes:
+      type: integer
+      nullable: true
+    content_hash:
+      type: string
+      nullable: true
+    width:
+      type: integer
+      nullable: true
+    height:
+      type: integer
+      nullable: true
+VideoMediaDescriptor:
+  type: object
+  description: |
+    Media descriptor constrained to video MIME types for video posts. The server should reject
+    any item whose `mime_type` does not start with `video/`.
+  required:
+    - storage_ref
+    - mime_type
+  properties:
+    storage_ref:
+      type: string
+    mime_type:
+      type: string
+      pattern: "^video/"
+    size_bytes:
+      type: integer
+      nullable: true
+    content_hash:
+      type: string
+      nullable: true
+    duration_ms:
+      type: integer
+      nullable: true
+    width:
+      type: integer
+      nullable: true
+    height:
+      type: integer
+      nullable: true
+AudioMediaDescriptor:
+  type: object
+  description: |
+    Media descriptor constrained to audio MIME types for song posts. The server should reject
+    any item whose `mime_type` does not start with `audio/`.
+  required:
+    - storage_ref
+    - mime_type
+  properties:
+    storage_ref:
+      type: string
+    mime_type:
+      type: string
+      pattern: "^audio/"
     size_bytes:
       type: integer
       nullable: true

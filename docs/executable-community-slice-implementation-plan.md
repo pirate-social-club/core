@@ -17,7 +17,8 @@ Define the concrete implementation order for Pirate's first executable API-only 
 This plan assumes:
 
 - this repo is the contract and migration source of truth
-- runtime implementation may live elsewhere
+- the first executable runtime lives in `pirate-api/services/api/` inside this repo
+- the first CLI lives in `pirate-api/services/cli/` inside this repo
 - Bruno is the primary no-UI execution harness
 - local development should prefer the smallest dependency set that still proves the real contract
 
@@ -44,7 +45,7 @@ Out of scope for this plan:
 
 Keep the documented split:
 
-- central Turso control-plane database for identity, verification, community routing, credentials, jobs, and audit
+- central Neon control-plane database for identity, verification, community routing, credentials, jobs, and audit
 - per-community database for community-owned durable state
 
 Do not collapse community-owned posts, memberships, roles, or local handle policy into the control-plane DB for speed.
@@ -90,10 +91,11 @@ Preferred outcome:
 Current repo-local command:
 
 ```bash
-rtk bash scripts/apply-sqlite-migrations.sh \
-  --db /tmp/pirate-control-plane.db \
-  --migrations db/control-plane/migrations \
-  --label control-plane
+rtk infisical run --env dev --path /services/control-plane -- \
+  bun scripts/apply-postgres-migrations.ts \
+    --database-url-env CONTROL_PLANE_MIGRATOR_DATABASE_URL \
+    --migrations db/control-plane/migrations \
+    --label control-plane
 ```
 
 ### 2. JWT Contract
@@ -137,25 +139,43 @@ rtk bun scripts/mint-test-jwt.mjs \
 Current repo-local control-plane fixture seed helper:
 
 ```bash
-rtk bash scripts/seed-control-plane-fixtures.sh \
-  --db /tmp/pirate-control-plane.db \
-  --user-id usr_demo_01 \
-  --subject demo-subject-01 \
-  --handle demo \
-  --namespace-label demo
+rtk infisical run --env dev --path /services/api -- \
+  bun scripts/seed-control-plane-fixtures.ts \
+    --database-url-env CONTROL_PLANE_DATABASE_URL \
+    --user-id usr_demo_01 \
+    --subject demo-subject-01 \
+    --handle demo \
+    --namespace-label demo
 ```
 
 Current repo-local community bootstrap helper:
 
 ```bash
-rtk bash scripts/bootstrap-community-db.sh \
-  --db /tmp/pirate-community-demo.db \
-  --community-id cmt_demo_01 \
-  --user-id usr_demo_01 \
-  --display-name "Demo Community" \
-  --namespace-verification-id nv_demo_usr_demo_01 \
-  --namespace-label demo
+rtk infisical run --env dev --path /services/api -- \
+  bun scripts/bootstrap-community-slice.ts \
+    --database-url-env CONTROL_PLANE_DATABASE_URL \
+    --community-db /tmp/pirate-community-demo.db \
+    --community-id cmt_demo_01 \
+    --user-id usr_demo_01 \
+    --display-name "Demo Community" \
+    --namespace-verification-id nv_demo_usr_demo_01 \
+    --namespace-label demo
 ```
+
+### 4. CLI Token Storage
+
+The CLI persists the Pirate bearer token in:
+
+- `~/.config/pirate/auth.json`
+
+Minimum fields:
+
+- `base_url`
+- `access_token`
+- `user_id`
+- `issued_at`
+- `expires_at`
+- `token_type`
 
 ## Runtime Design Decisions
 
@@ -178,7 +198,7 @@ For local stub provisioning, use a separate local libSQL database per community.
 Reason:
 
 - keeps the central/community boundary real
-- allows `POST /posts` and `GET /posts/{post_id}` to run end to end
+- allows `POST /communities/{community_id}/posts` and `GET /posts/{post_id}` to run end to end
 - avoids blocking on the Turso Platform API
 
 Do not use a fake "provisioning succeeded but no DB exists" stub if the goal is end-to-end proof of post write/read.
@@ -194,6 +214,15 @@ Public-v0 create requires server-derived fields such as:
 - derived capability flags
 
 These should be treated as read-model derivations, not as required writes into the current community-template schema unless and until a later schema explicitly stores them.
+
+### CLI Auth Phasing
+
+CLI auth is explicitly two-phase:
+
+- Phase 1 uses `jwt_based_auth` for the first executable terminal path
+- Phase 2 adds a device-code or browser-handoff flow after the base API and CLI paths are stable
+
+Device-code auth is not a blocker for the first runtime milestone.
 
 ## Milestones
 
@@ -232,6 +261,7 @@ Exit criteria:
 
 - a Bruno-friendly path exists to obtain a valid `namespace_verification_id`
 - fixture data is inspectable in the control-plane DB
+- Bruno can inspect the seeded verification artifacts that unblock the next milestone
 
 ### Milestone 3: Community Create + Inspection + Job Polling
 
@@ -259,8 +289,30 @@ Required server behavior:
 - provision local per-community libSQL database in stub mode
 - apply community-template schema
 - seed bootstrap rows
+- append a control-plane `audit_log` event for provisioning completion or failure
 - mark job succeeded in stub mode
 - return `202` with `{ community, job }`
+
+Stub binding values:
+
+- `organization_slug = local-dev`
+- `group_name = club-{community_id}`
+- `database_name = main`
+- `database_url = file:///.../community-{community_id}.db`
+- `binding_role = primary`
+- `status = active`
+- `location = local`
+
+Stub insert order:
+
+1. insert central `communities` row with `primary_database_binding_id = NULL`
+2. insert `community_database_bindings` row
+3. update central `communities.primary_database_binding_id`
+4. insert active provisioning job
+5. create and migrate the community DB
+6. seed bootstrap rows
+7. append `audit_log`
+8. mark job and community active
 
 Required bootstrap rows:
 
@@ -270,13 +322,19 @@ Required bootstrap rows:
 - namespace binding
 - namespace handle policy
 
-Required seeded value:
+Required seeded community row values:
 
-- `artist_governance_state = fan_run` for centralized public-v0 communities
+- `artist_governance_state = fan_run`
+- `donation_policy_mode = none`
+- `donation_partner_status = unconfigured`
+- `governance_mode = centralized`
+- `default_age_gate_policy = none`
+- `donation_partner_id = NULL`
 
 Idempotency rule:
 
-- re-POST with the same accepted `namespace_verification_id` must return the existing `community` and the existing `job`
+- re-POST with the same accepted `namespace_verification_id` returns the existing `community` and existing `job` unless the latest job is `failed` and the community is still not active
+- in that failed-job case, the runtime creates a fresh provisioning job for the existing community and returns that new job
 
 Exit criteria:
 
@@ -289,7 +347,7 @@ Exit criteria:
 
 Implement:
 
-- `POST /posts`
+- `POST /communities/{community_id}/posts`
 - `GET /posts/{post_id}`
 
 Behavior:
@@ -297,6 +355,8 @@ Behavior:
 - writes target the provisioned per-community DB
 - posts are only accepted after the community is usable
 - retries use `idempotency_key`
+- each successful create writes a control-plane `community_post_projections` row
+- post reads resolve the correct community DB through `community_post_projections`, `community_database_bindings`, and active credential metadata
 
 Exit criteria:
 
@@ -399,9 +459,17 @@ Each milestone should produce auditable artifacts:
 4. fixture strategy for upstream JWT, `unique_human`, and namespace verification shortcut
 5. community create + inspection + job polling using seeded accepted verification
 6. post create + read
-7. Bruno failure coverage pass for all implemented steps
-8. full HNS verification runtime
-9. replace stub provisioning with private Turso control-plane automation
+7. full HNS verification runtime
+8. replace stub provisioning with private Turso control-plane automation
+9. build the CLI in one pass on top of the stabilized API
+
+Milestone-level Bruno gates:
+
+- after step 3: Bruno proves exchange, `GET /users/me`, and `GET /onboarding/status`
+- after step 4: Bruno proves verification shortcut inspection
+- after step 5: Bruno proves community create, community inspect, and job polling
+- after step 6: Bruno proves post create/read with `idempotency_key`
+- after step 7: Bruno proves the real HNS session flow
 
 ## Final Exit Condition
 

@@ -22,6 +22,24 @@ PostId:
   required: true
   schema:
     type: string
+AssetId:
+  in: path
+  name: asset_id
+  required: true
+  schema:
+    type: string
+SongArtifactBundleId:
+  in: path
+  name: song_artifact_bundle_id
+  required: true
+  schema:
+    type: string
+SongArtifactUploadId:
+  in: path
+  name: song_artifact_upload_id
+  required: true
+  schema:
+    type: string
 LiveRoomId:
   in: path
   name: live_room_id
@@ -43,6 +61,18 @@ JobId:
 VerificationSessionId:
   in: path
   name: verification_session_id
+  required: true
+  schema:
+    type: string
+AgentOwnershipSessionId:
+  in: path
+  name: agent_ownership_session_id
+  required: true
+  schema:
+    type: string
+AgentId:
+  in: path
+  name: agent_id
   required: true
   schema:
     type: string
@@ -109,9 +139,9 @@ TopWindow:
       - this_week
       - this_month
       - all_time
-FlairId:
+LabelId:
   in: query
-  name: flair_id
+  name: label_id
   schema:
     type: string
     nullable: true

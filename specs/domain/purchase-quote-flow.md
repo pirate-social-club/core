@@ -5,6 +5,7 @@ Status: draft
 Related docs:
 
 - [marketplace.md](./marketplace.md)
+- [community-money-policy.md](./community-money-policy.md)
 - [publish-matrix.md](./publish-matrix.md)
 - [user.md](./user.md)
 - [asset.md](./asset.md)
@@ -48,6 +49,7 @@ Recommended v0 quote inputs:
 - current payout policy version
 - requested settlement chain
 - requested funding route, if routed funding is used
+- current community money policy, when routed funding is enabled
 
 Relevant buyer capabilities may include:
 
@@ -87,6 +89,10 @@ Recommended v0 app-level quote fields:
 - `base_price_usd`
 - `pricing_tier` nullable
 - `final_price_usd`
+- `funding_asset` nullable
+- `funding_chain` nullable
+- `route_provider` nullable
+- `route_available`
 - `settlement_chain`
 - `settlement_token`
 - `settlement_amount`
@@ -121,15 +127,18 @@ Recommended v0 flow:
 3. Pirate loads the buyer's current verification-backed pricing inputs.
 4. Pirate derives the applicable pricing tier, if any, from the club's active pricing policy.
 5. Pirate computes `final_price_usd`.
-6. Pirate resolves the Story-side settlement token and exact settlement amount.
-7. Pirate resolves payout destinations and donation snapshot data.
-8. Pirate resolves the locked asset delivery binding:
+6. Pirate loads the active community money policy when routed funding is required or requested.
+7. Pirate resolves the Story-side settlement token and exact settlement amount.
+8. Pirate checks whether at least one approved route from an accepted funding asset to the destination settlement token is viable within the current money-policy constraints.
+9. If no approved route is viable, Pirate must not issue an executable quote for that funding lane.
+10. Pirate resolves payout destinations and donation snapshot data.
+11. Pirate resolves the locked asset delivery binding:
    - `asset_version_id`
    - `entitlement_token_id`
-9. Pirate creates a short-lived quote record.
-10. Buyer executes purchase using that quote.
-11. Pirate or the settlement operator calls `MarketplaceSettlementV1.settlePurchase(...)` with the resolved purchase reference and amount.
-12. Pirate records the canonical app-level `purchase` row from the successful settlement.
+12. Pirate creates a short-lived quote record.
+13. Buyer executes purchase using that quote.
+14. Pirate or the settlement operator calls `MarketplaceSettlementV1.settlePurchase(...)` with the resolved purchase reference and amount.
+15. Pirate records the canonical app-level `purchase` row from the successful settlement.
 
 ## Verification-Backed Pricing
 
@@ -174,6 +183,12 @@ Reasoning:
 
 The settlement contract does not need to enforce quote expiry itself in v0 if the settlement operator only submits live quotes, but the app-level purchase flow must.
 
+Recommended routed-funding rule:
+
+- route viability is a quote precondition, not a post-condition
+- if the route estimate exceeds the active money-policy slippage tolerance, Pirate must not issue the quote
+- if the route requires more intermediate complexity than the active money policy allows, Pirate must not issue the quote
+
 ## Mapping To `MarketplaceSettlementV1`
 
 Current contract boundary:
@@ -213,9 +228,11 @@ This keeps the app DB as the canonical analytical and support surface even when 
 Recommended v0 rules:
 
 - if quote generation fails, no onchain purchase should start
+- if a routed-funding community has no viable approved route at quote time, no executable quote should be issued
 - if settlement fails, no purchase row should become final
 - if settlement reverts, entitlement minting should not persist
 - if quote expires before submission, the buyer must request a new quote
+- if routed funding completes but settlement does not finalize, the purchase must remain non-final and recovery handling must be explicit at the operator layer
 
 ## Contract Boundary Summary
 

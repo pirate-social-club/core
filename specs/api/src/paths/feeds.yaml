@@ -19,7 +19,7 @@ feeds_home:
               $ref: ../components/schemas/feeds.yaml#/FeedResponse
       "429":
         $ref: ../components/responses.yaml#/RateLimited
-feeds_your_clubs:
+feeds_your_communities:
   get:
     tags:
       - Feeds

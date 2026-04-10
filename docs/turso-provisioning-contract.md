@@ -5,7 +5,7 @@ Defines the control-plane contract for creating, rotating, and transferring comm
 Related:
 
 - [turso-sovereignty-adr.md](/home/t42/Documents/pirate-v2/docs/turso-sovereignty-adr.md)
-- [turso-control-plane-schema.md](/home/t42/Documents/pirate-v2/docs/turso-control-plane-schema.md)
+- [control-plane-schema.md](/home/t42/Documents/pirate-v2/docs/control-plane-schema.md)
 - [turso-secret-contract.md](/home/t42/Documents/pirate-v2/docs/turso-secret-contract.md)
 - [turso-data-boundaries.md](/home/t42/Documents/pirate-v2/docs/turso-data-boundaries.md)
 
@@ -99,7 +99,7 @@ Bootstrap payload should include the durable rows that must exist in the communi
 - initial handle policy
 - creator membership
 - initial moderator role
-- optional bootstrap flair/community profile blocks
+- optional bootstrap label/community profile blocks
 
 Steps:
 

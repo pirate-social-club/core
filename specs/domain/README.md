@@ -12,6 +12,8 @@ Product and system design docs grouped by domain surface.
   Post model and authoring surface.
 - `feed.md`
   Feed assembly and read models.
+- `market-context.md`
+  Related market-context sidecars for claim-bearing posts.
 - `messaging.md`
   Direct or threaded messaging model.
 - `notifications.md`
@@ -23,6 +25,10 @@ Product and system design docs grouped by domain surface.
 
 - `community.md`
   Community creation, settings, and policy surface.
+- `community-money-policy.md`
+  Community funding preference, route constraints, and settlement-lane policy.
+- `community-pricing-policy.md`
+  Community-controlled regional pricing, nationality-tier mapping, and quote-pricing audit policy.
 - `public-v0-club-enforcement.md`
   Backend enforcement checklist for the locked public v0 club contract.
 - `governance-backends.md`
@@ -71,6 +77,8 @@ Product and system design docs grouped by domain surface.
 
 ## Identity And Namespace
 
+- `agent-ownership.md`
+  User-owned AI agent ownership, posting, and KYA model.
 - `handles.md`
   Handle issuance and namespace policy.
 - `namespace.md`
@@ -79,6 +87,8 @@ Product and system design docs grouped by domain surface.
   Root authority and delegation for namespaces.
 - `hns-verification-flow.md`
   HNS verification session lifecycle and `namespace_verification_id` handoff.
+- `hns-authoritative-dns.md`
+  HNS-native routing, authoritative DNS, and deployment posture for resolvable roots and subdomains.
 - `identity-presentation.md`
   Public presentation of identity claims.
 - `attestations.md`
@@ -112,8 +122,9 @@ If you are starting fresh, read in this order:
 2. `public-v0-club-enforcement.md`
 3. `namespace-root-control.md`
 4. `hns-verification-flow.md`
-5. `governance-backends.md`
-6. `asset.md`
-7. `marketplace.md`
-8. `scrobbles.md`
-9. `onboarding.md`
+5. `hns-authoritative-dns.md`
+6. `governance-backends.md`
+7. `asset.md`
+8. `marketplace.md`
+9. `scrobbles.md`
+10. `onboarding.md`

@@ -74,6 +74,7 @@ The exact verification policy belongs in a later identity/onboarding spec, but t
 - users must satisfy the required verification capability checks before they can publish posts
 - posting requires a verified `unique_human` capability from an accepted provider such as `self` or `very`
 - anonymous posting also requires a verified `unique_human` capability from an accepted provider such as `self` or `very`
+- user-owned agent posting additionally requires a currently valid agent ownership record as defined in [agent-ownership.md](./agent-ownership.md)
 - there is no public-v0 exception path that allows unverified users to publish posts
 - passing the identity gate is necessary but not always sufficient; community posting policy may impose additional trust-tier and pacing requirements. See [community.md](./community.md).
 
@@ -100,11 +101,17 @@ Suggested v0 fields:
 - `post_id`
 - `community_id`
 - `author_user_id`
+- `authorship_mode`
+- `agent_id` nullable
+- `agent_ownership_record_id` nullable
 - `identity_mode`
 - `anonymous_scope` nullable
 - `anonymous_label` nullable
+- `agent_display_name_snapshot` nullable
+- `agent_owner_handle_snapshot` nullable
+- `agent_ownership_provider_snapshot` nullable
 - `disclosed_qualifiers_json`
-- `flair_id` nullable
+- `label_id` nullable
 - `post_type`
 - `status`
 - `song_mode` nullable
@@ -130,6 +137,9 @@ Suggested v0 fields:
 
 Suggested meanings:
 
+- `authorship_mode`
+  - `human_direct`
+  - `user_agent`
 - `identity_mode`
   - `public`
   - `anonymous`
@@ -186,21 +196,28 @@ Suggested meanings:
 
 Notes:
 
-- `flair_id` is an optional pointer to a club-defined flair definition used for community labeling and filtering; it is not a substitute for canonical post fields such as `post_type`, `song_mode`, `rights_basis`, `analysis_state`, `content_safety_state`, `age_gate_policy`, or monetization state
+- `label_id` is an optional pointer to a club-defined label definition used for community labeling and filtering; it is not a substitute for canonical post fields such as `post_type`, `song_mode`, `rights_basis`, `analysis_state`, `content_safety_state`, `age_gate_policy`, or monetization state
+- `authorship_mode` is the canonical audit field for distinguishing human-direct writes from user-owned agent writes in v0
+- `author_user_id` remains the accountable human principal even when `authorship_mode = user_agent`
+- `agent_id` and `agent_ownership_record_id` are nullable and apply only when `authorship_mode = user_agent`
 - `identity_mode` is the canonical author-presentation choice for the post
 - `anonymous_scope` is nullable and applies only when `identity_mode = anonymous`
+- `agent_display_name_snapshot`, `agent_owner_handle_snapshot`, and `agent_ownership_provider_snapshot` are lightweight publish-time rendering snapshots for user-agent posts
+- when `authorship_mode = user_agent`, `agent_id`, `agent_ownership_record_id`, `agent_display_name_snapshot`, and `agent_owner_handle_snapshot` are required
 - `disclosed_qualifiers_json` stores a publish-time snapshot of the verified qualifier labels the author chose to disclose on this post
 - `disclosed_qualifiers_json` may also store platform-authored content-authenticity disclosures required by community policy
 - `analysis_state = review_required` is reserved for content, safety, rights, or compliance review signals from analysis
 - identity-derived disclosed qualifiers should come from [user.md](./user.md) `verification_capabilities` plus explicitly supported provider-specific qualifier templates
 - content-authenticity disclosure entries may be platform-authored from upload analysis plus community policy without becoming freeform user-authored fields
-- v0 canonical posts do not distinguish human-initiated writes from agent-initiated writes on the base row; if Pirate later supports user-owned agents posting on behalf of a user, a field such as `submission_mode` or `authorship_mode` should be added as the auditability extension point rather than overloading `author_user_id`
+- user-owned agent posting should use `authorship_mode` rather than overloading `author_user_id` or creating a second human principal on the post row
 - `asset_id` is nullable because not every post becomes a rights-bearing asset
 - `media_refs` points to uploaded content blobs stored separately from the post row
 - `media_refs` in v0 should be treated as a JSON array of media descriptor objects such as `{ storage_ref, mime_type, size_bytes, content_hash, duration_ms, width, height }`
 - `creator_relation` is a structured author claim used by provenance and false-claim-of-ownership enforcement; it is not equivalent to a loose `[OC]` tag
 - `promotion_disclosure` is a structured author declaration used when a post is promotional or affiliated and a community requires that disclosure
-- song posts require audio and lyrics at post-creation time; instrumental and vocal stems are optional advanced inputs that may also be attached or derived later through async enrichment (see karaoke.md for the staged enrichment model)
+- song posts require public identity plus audio and lyrics at post-creation time; anonymous song posting is out of scope in v0
+- instrumental and vocal stems are optional advanced inputs that may be attached later through async enrichment rather than blocking initial song publication (see karaoke.md for the staged enrichment model)
+- cover art, preview clips, and canvas video are not required mainline inputs for the first v2 song-publish slice unless a later spec explicitly promotes them to publish invariants
 - `title` is optional on all v0 post types
 - `caption` is primarily for media posts and is optional in v0
 - `link_url` is the external URL for `link` type posts; it must be non-null when `post_type = link` and null otherwise
@@ -214,9 +231,9 @@ Notes:
 - charitable donation destination should not be an arbitrary post-level field in v0; when monetized content opts into donation, it should use the community-level donation partner through the monetization layer
 - creator donation participation belongs on the listing, not the post row and not the asset row
 
-### Flair
+### Label
 
-Pirate should support one optional community-scoped flair per post.
+Pirate should support one optional community-scoped label per post.
 
 Purpose:
 
@@ -228,26 +245,26 @@ Non-goals:
 
 - replacing canonical post facts already modeled elsewhere
 - freeform hashtags or user-created tags
-- cross-community global flair semantics
-- ranking boosts tied to flair usage
+- cross-community global label semantics
+- ranking boosts tied to label usage
 
 Rules:
 
-- each post may store `flair_id` or `null`
-- `flair_id` must resolve to an active flair definition owned by the same `community_id` as the post
-- in v0, `flair_id` must be `null` when `parent_post_id` is non-null; reply flair is future work
-- flair is optional in v0 unless a community later chooses to require one through community settings
-- flair is display and filtering metadata, not canonical domain truth
-- system-derived facts must not be modeled as flair when Pirate already has a structured field for them
+- each post may store `label_id` or `null`
+- `label_id` must resolve to an active label definition owned by the same `community_id` as the post
+- in v0, `label_id` must be `null` when `parent_post_id` is non-null; reply labels are future work
+- labels are optional in v0 unless a community later chooses to require one through community settings
+- labels are display and filtering metadata, not canonical domain truth
+- system-derived facts must not be modeled as labels when Pirate already has a structured field for them
 
-Examples of what should not be flair:
+Examples of what should not be labels:
 
 - `Remix` when `song_mode = remix`
 - `18+` when `age_gate_policy = 18_plus`
 - `Paid` when monetization or listing state already expresses that
 - `Original` when `rights_basis = original`
 
-Examples of good flair:
+Examples of good labels:
 
 - `Question`
 - `Announcement`
@@ -259,6 +276,9 @@ Examples of good flair:
 
 ### Presentation Fields
 
+- `authorship_mode`
+  - `human_direct`
+  - `user_agent`
 - `identity_mode`
   - `public`
   - `anonymous`
@@ -267,6 +287,9 @@ Examples of good flair:
   - `thread_stable`
   - `post_ephemeral`
   - `null`
+- `agent_display_name_snapshot` stores the rendered user-agent display name used by feed and thread bylines; it is `null` when `authorship_mode = human_direct`
+- `agent_owner_handle_snapshot` stores the rendered global `.pirate` owner handle used by feed and thread bylines; it is `null` when `authorship_mode = human_direct`
+- `agent_ownership_provider_snapshot` stores the ownership provider label when Pirate chooses to expose provider-specific agent ownership context; it is `null` when `authorship_mode = human_direct`
 - `anonymous_label` stores the derived anonymous label rendered to other users; it is `null` when `identity_mode = public`
 - `disclosed_qualifiers_json` stores a snapshot of the disclosed verified qualifiers rendered with the post
 - `author_user_id` is always stored on the post row regardless of identity mode
@@ -338,6 +361,7 @@ Recommended v0 rule:
 - `text`, `image`, `video`, and `link` posts may use public or anonymous identity according to community policy
 - `song` posts must use public identity in v0
 - live anchor posts must use public identity in v0
+- user-owned agent posts must use `identity_mode = public` in v0
 - identity-derived disclosed qualifiers are only valid on anonymous posts in v0
 - platform-authored `content_authenticity` disclosure entries may appear on eligible public or anonymous posts when community policy requires disclosure
 
@@ -444,13 +468,18 @@ Uploaded media should be stored and analyzed before a publishable post exists.
 Recommended v0 flow:
 
 1. user uploads media
-2. Pirate stores the blob in Filebase/IPFS or equivalent object storage
+2. Pirate stores the blob in a single Filebase/IPFS-style object storage path
 3. Pirate records media metadata
 4. Pirate runs automated analysis where relevant
 5. Pirate produces an upload decision
 6. user chooses whether to continue as a social-only post or an asset-bearing post when policy allows it
 7. Pirate creates or updates the post draft
 8. Pirate decides whether the post can publish, needs user changes, or requires moderation review
+
+Mainline storage rule for v0:
+
+- Pirate should use one mainline storage abstraction for media blobs and related song artifacts in the first pass
+- Pirate should not introduce a second persistence rail such as Arweave for the v0 song-publish path
 
 Suggested media metadata captured during ingestion:
 
@@ -833,12 +862,14 @@ Recommended v0 composer rules:
 - `song`
   - only available where club posting policy allows it
   - canonical artist songs additionally require `artist_governance_state = artist_governed` or `org_governed`
+  - must use `identity_mode = public`
   - should require at least one audio-bearing media item
   - should require lyric text at post-creation time
   - instrumental and vocal stems are optional at post-creation time; they may be attached later or derived through async enrichment
   - the song asset's `karaoke_ready` flag depends on `karaoke_package_ref` completeness, not on composer completeness (see karaoke.md)
   - lyrics should run through LLM-assisted safety classification in addition to any audio analysis
   - may include optional `title` and optional `caption`
+  - cover art, preview clips, and canvas are secondary artifact concerns and should not block the mainline first v2 song-create path unless later specs say otherwise
 - `song_mode = remix`
   - requires one or more upstream asset references
   - requires `rights_basis = derivative`

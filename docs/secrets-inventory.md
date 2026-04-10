@@ -31,6 +31,7 @@ This file is the single source of truth for "what secrets exist." It does not co
 | `subgraph-url` | No | Version control | Goldsky/TheGraph query endpoints |
 | `feature-flag` | No | Version control | Optional behavior toggles |
 | `encrypted-tenant-credential` | Yes | Central control-plane DB | Encrypted per-community Turso DB auth token |
+| `database-credential` | Yes | Infisical | Password-bearing Postgres connection strings for the control plane |
 
 ## Inventory
 
@@ -77,17 +78,27 @@ Secrets consumed by the API worker at runtime.
 | `STORY_SCROBBLE_OPERATOR_PRIVATE_KEY` | `private-key` | dev | human operator | Direct-key `ScrobbleV1` batch publisher for delegated scrobble anchoring | API worker | On compromise or planned PKP migration | Yes | No |
 | `MISTRAL_API_KEY` | `api-key` | dev | human operator | Say-it-back transcription/scoring | API worker | Quarterly or on compromise | No | No |
 | `ELEVENLABS_API_KEY` | `api-key` | dev | human operator | Timed lyrics forced alignment | API worker | Quarterly or on compromise | No | No |
-| `OPENROUTER_API_KEY` | `api-key` | dev | human operator | Study-set generation + caption translation | API worker | Quarterly or on compromise | No | No |
+| `OPENROUTER_API_KEY` | `api-key` | dev | human operator | Structured-output extraction for market context, study-set generation, and caption translation | API worker | Quarterly or on compromise | No | No |
+| `JINA_API_KEY` | `api-key` | dev | human operator | Authenticated Jina Reader access for higher market-context crawl limits | API worker | Quarterly or on compromise | No | No |
+| `PREDICT_FUN_API_KEY` | `api-key` | dev | human operator | Optional Predict.fun mainnet API access for approved-provider market-context search | API worker | Quarterly or on compromise | No | No |
+| `FIRECRAWL_API_KEY` | `api-key` | dev | human operator | Optional crawler fallback for market-context page fetches | API worker | Quarterly or on compromise | No | No |
+| `ALCHEMY_EVM_RPC_URLS_JSON` | `api-key` | dev | human operator | Optional CAIP-2 keyed map of Alchemy RPC URLs for NFT ownership discovery across EVM chains | API worker | On compromise or provider rotation | No | No |
+| `ALCHEMY_ETH_MAINNET_RPC_URL` | `api-key` | dev | human operator | Ethereum mainnet Alchemy RPC URL used for NFT ownership discovery | API worker | On compromise or provider rotation | No | No |
+| `ALCHEMY_BASE_MAINNET_RPC_URL` | `api-key` | dev | human operator | Base mainnet Alchemy RPC URL used for NFT ownership discovery | API worker | On compromise or provider rotation | No | No |
+| `ALCHEMY_BASE_SEPOLIA_RPC_URL` | `api-key` | dev | human operator | Base Sepolia Alchemy RPC URL used for NFT ownership discovery | API worker | On compromise or provider rotation | No | No |
+| `COMMUNITY_GATE_OPERATOR_AUTH_TOKEN` | `worker-secret` | dev | human operator | Shared-secret bearer token for operator-managed community gate-rule provisioning routes | API worker | On compromise | No | No |
 | `GENIUS_API_KEY` | `api-key` | dev | human operator | Server-side referent resolution | API worker | Quarterly or on compromise | No | No |
 | `DNS_SHARED_SECRET` | `worker-secret` | dev | human operator | DNS management auth | API worker | On compromise | No | No |
 | `ENDAOMENT_API_BEARER_TOKEN` | `api-key` | dev | human operator | Authenticated Endaoment API calls | API worker | On compromise | No | No |
 | `MUSIC_TAGGED_ITEMS_RESOLVER_AUTH_TOKEN` | `worker-secret` | dev | human operator | Bearer token for tagged-item resolver | API worker | On compromise | No | No |
-| `TURSO_CONTROL_PLANE_AUTH_TOKEN` | `api-key` | dev | human operator | Runtime auth token for the central Pirate Turso control-plane database | API worker | On compromise or planned rotation | No | No |
+| `CONTROL_PLANE_DATABASE_URL` | `database-credential` | dev | human operator | Least-privilege runtime connection string for the central Pirate Neon control-plane database | API worker | On compromise, role rotation, or planned password rotation | No | No |
 | `TURSO_COMMUNITY_DB_WRAP_KEY` | `worker-secret` | dev | human operator | Envelope-encryption key for stored per-community Turso database credentials | API worker | On compromise, with controlled rewrap | No | No |
 
 Note:
 
-- `TURSO_CONTROL_PLANE_DATABASE_URL` is not a secret when the auth token is separate. Keep it in version-controlled config or ordinary worker env, not Infisical.
+- `CONTROL_PLANE_DATABASE_URL` is a secret because the Postgres connection string carries credentials.
+- Alchemy "RPC URLs" are modeled here as `api-key` secrets because the URLs embed the project key. If the project later splits public base URLs from a standalone Alchemy key, the base URLs can move back to version-controlled config.
+- if hostnames or project identifiers are needed separately, keep those in version-controlled config or ordinary worker env.
 
 ### dev:/services/control-plane
 
@@ -95,12 +106,27 @@ Secrets consumed by private provisioning tooling or a private control-plane work
 
 | Name | Type | Environment | Owner | Purpose | Runtime Consumer | Rotation Policy | Funded? | Legacy? |
 |---|---|---|---|---|---|---|---|---|
+| `CONTROL_PLANE_MIGRATOR_DATABASE_URL` | `database-credential` | dev | human operator | Private migration and maintenance connection string for the central Pirate Neon control-plane database | private control-plane worker, CI migrations, or human-run tooling only | On compromise, role rotation, or planned password rotation | No | No |
 | `TURSO_PLATFORM_API_TOKEN` | `api-key` | dev | human operator | Turso Platform API root capability for creating groups, creating databases, minting tokens, and transferring groups | private control-plane worker or human-run provisioning tooling | On compromise and after initial setup handoff | No | No |
 
 Policy:
 
+- `CONTROL_PLANE_MIGRATOR_DATABASE_URL` must not be present in the public API worker runtime.
 - `TURSO_PLATFORM_API_TOKEN` must not be present in the public API worker runtime.
 - Per-community Turso database auth tokens must not be modeled as one Infisical secret per community. They are generated from the control plane and stored encrypted in the central control-plane database.
+
+### dev:/local/control-plane
+
+Break-glass control-plane credentials kept outside normal service paths.
+
+| Name | Type | Environment | Owner | Purpose | Runtime Consumer | Rotation Policy | Funded? | Legacy? |
+|---|---|---|---|---|---|---|---|---|
+| `CONTROL_PLANE_OWNER_DATABASE_URL` | `database-credential` | dev | human operator | Break-glass owner connection string for the central Pirate Neon control-plane database | human operator only | On compromise, role rotation, or planned password rotation | No | No |
+
+Policy:
+
+- `CONTROL_PLANE_OWNER_DATABASE_URL` must not be present in `/services/api` or `/services/control-plane`.
+- break-glass access is for exceptional recovery or role maintenance only.
 
 ### dev:/services/api (Lit usage keys)
 

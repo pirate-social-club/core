@@ -34,8 +34,9 @@ Those belong in their own repositories under `pirate-social-club`.
 
 ## Local Workspace Sidecars
 
-Two runtime repos may still appear inside this working directory:
+Three runtime repos may still appear inside this working directory:
 
+- `pirate-api/`
 - `pirate-web/`
 - `pirate-contracts/`
 
@@ -43,6 +44,7 @@ They are no longer tracked by `core`. They are local sidecar checkouts of the st
 
 - `pirate-social-club/web`
 - `pirate-social-club/contracts`
+- `pirate-social-club/api`
 
 This keeps the workspace convenient without turning `core` into a shadow monorepo.
 
@@ -88,6 +90,7 @@ The split is complete when all of the following are true:
 - `pirate-social-club/web` is the canonical home of web code
 - `pirate-social-club/contracts` is the canonical home of contract code
 - `core` no longer tracks runtime code under `pirate-web/` or `pirate-contracts/`
+- `core` no longer tracks runtime code under `pirate-api/`
 - any local copies at those paths are treated as workspace checkouts only
 
 ## Rules Going Forward

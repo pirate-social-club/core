@@ -1,0 +1,242 @@
+{
+  "$schema": "lit-families.schema.json",
+  "version": 1,
+  "description": "Machine-readable Lit control-plane inventory. This is the single source of truth for PKP addresses, execute groups, action CIDs, and usage key bindings. Runtime config and doctor scripts must read from this file, not from scattered env vars.",
+  "environments": {
+    "dev": {
+      "litApiBaseUrl": "https://api.dev.litprotocol.com",
+      "families": [
+        {
+          "family": "story-operator",
+          "chain": "story-aeneid",
+          "chainId": 1315,
+          "executeGroup": "story-operator-aeneid-v1",
+          "pkpAddress": "0x7f969455cFe240927F1ACe4E23000685Ad224dA7",
+          "pkpPublicKey": "0x04ff36485e133ca9e0d005372533b0a46474487743d210b7840ed534e6b9dad1232d326b9f063e34d6e28eab2b663a3e195b9a6ec9205e1086079fe7648204dba3",
+          "usageKeyEnvVar": "LIT_CHIPOTLE_OPERATOR_API_KEY",
+          "signerFamilyRef": "docs/signer-families.md#story-operator",
+          "fundsLedgerPlaceholder": "STORY_OPERATOR_ADDRESS",
+          "actions": [
+            {
+              "name": "presentation",
+              "cid": "TBD",
+              "contractMethod": "setPublishPresentationAsDelegate",
+              "contract": "TrackPresentationRegistryV1"
+            },
+            {
+              "name": "karaoke",
+              "cid": "TBD",
+              "contractMethod": "setPublishKaraokeAsDelegate",
+              "contract": "TrackPresentationRegistryV1"
+            },
+            {
+              "name": "canonical-publish",
+              "cid": "TBD",
+              "contractMethod": "setCanonicalPublish",
+              "contract": "TrackPresentationRegistryV1"
+            },
+            {
+              "name": "lyrics-set",
+              "cid": "TBD",
+              "contractMethod": "setLyrics",
+              "contract": "CanonicalLyricsRegistryV1"
+            },
+            {
+              "name": "lyrics-overwrite",
+              "cid": "TBD",
+              "contractMethod": "overwriteLyrics",
+              "contract": "CanonicalLyricsRegistryV1"
+            },
+            {
+              "name": "study-set-fulfill",
+              "cid": "TBD",
+              "contractMethod": "fulfill",
+              "contract": "StudySetRegistryV1"
+            },
+            {
+              "name": "publish-asset-version",
+              "cid": "ipfs://QmQVwzMx7xxuqcU6NXZmQfsV6P6k8jjSBVnMEQhuTpLAvU",
+              "contractMethod": "publishAssetVersion",
+              "contract": "AssetPublishCoordinatorV1"
+            }
+          ]
+        },
+        {
+          "family": "story-access-controller",
+          "chain": "story-aeneid",
+          "chainId": 1315,
+          "executeGroup": "story-access-controller-aeneid-v1",
+          "pkpAddress": "0x2125952f22Ad971df5645E31a613fe42DCC42c48",
+          "pkpPublicKey": "TBD",
+          "usageKeyEnvVar": "LIT_CHIPOTLE_ACCESS_CONTROLLER_API_KEY",
+          "signerFamilyRef": "docs/signer-families.md#story-access-controller",
+          "fundsLedgerPlaceholder": null,
+          "actions": [
+            {
+              "name": "sign-access-proof",
+              "cid": "TBD",
+              "contractMethod": "sign AccessProof (EIP-712)",
+              "contract": "SignedAccessConditionV1"
+            }
+          ]
+        },
+        {
+          "family": "story-feed-registrar",
+          "chain": "story-aeneid",
+          "chainId": 1315,
+          "executeGroup": "story-feed-registrar-aeneid-v1",
+          "pkpAddress": "TBD",
+          "pkpPublicKey": "TBD",
+          "usageKeyEnvVar": "LIT_CHIPOTLE_FEED_REGISTRAR_API_KEY",
+          "signerFamilyRef": "docs/signer-families.md#story-feed-registrar",
+          "fundsLedgerPlaceholder": "STORY_FEED_REGISTRAR_ADDRESS",
+          "actions": [
+            {
+              "name": "set-post-story-ip-id",
+              "cid": "TBD",
+              "contractMethod": "setPostStoryIpId(bytes32,address)",
+              "contract": "FeedV2"
+            },
+            {
+              "name": "set-post-translation-ref",
+              "cid": "TBD",
+              "contractMethod": "setPostTranslationRef(bytes32,string)",
+              "contract": "FeedV2"
+            }
+          ]
+        },
+        {
+          "family": "story-settlement",
+          "chain": "story-aeneid",
+          "chainId": 1315,
+          "executeGroup": "story-settlement-aeneid-v1",
+          "pkpAddress": "0xfB1E0bbE209C1B75f8E365F3055bfF4b0a24702B",
+          "pkpPublicKey": "TBD",
+          "usageKeyEnvVar": "LIT_CHIPOTLE_STORY_SETTLEMENT_API_KEY",
+          "signerFamilyRef": "docs/signer-families.md#story-settlement",
+          "fundsLedgerPlaceholder": "STORY_SETTLEMENT_ADDRESS",
+          "actions": [
+            {
+              "name": "purchase-settlement",
+              "cid": "TBD",
+              "contractMethod": "settlePurchase",
+              "contract": "MarketplaceSettlementV1"
+            },
+            {
+              "name": "royalty-sync",
+              "cid": "TBD",
+              "contractMethod": "claimRevenueOnBehalf + transferToVault",
+              "contract": "RoyaltyModule"
+            }
+          ]
+        },
+        {
+          "family": "story-sponsor",
+          "chain": "story-aeneid",
+          "chainId": 1315,
+          "executeGroup": "story-register-aeneid-v1",
+          "pkpAddress": "TBD",
+          "pkpPublicKey": "TBD",
+          "usageKeyEnvVar": "LIT_CHIPOTLE_STORY_SPONSOR_API_KEY",
+          "signerFamilyRef": "docs/signer-families.md#story-sponsor",
+          "fundsLedgerPlaceholder": "STORY_SPONSOR_ADDRESS",
+          "actions": [
+            {
+              "name": "register-original",
+              "cid": "TBD",
+              "contractMethod": "registerOriginal (via router)",
+              "contract": "StorySponsorRouterV1"
+            },
+            {
+              "name": "register-derivative",
+              "cid": "TBD",
+              "contractMethod": "registerDerivative (via router)",
+              "contract": "StorySponsorRouterV1"
+            },
+            {
+              "name": "vault-bootstrap",
+              "cid": "TBD",
+              "contractMethod": "vaultBootstrap (via router)",
+              "contract": "StorySponsorRouterV1"
+            }
+          ]
+        },
+        {
+          "family": "story-backend-signer",
+          "chain": "story-aeneid",
+          "chainId": 1315,
+          "executeGroup": "story-backend-aeneid-v1",
+          "pkpAddress": "TBD",
+          "pkpPublicKey": "TBD",
+          "usageKeyEnvVar": "LIT_CHIPOTLE_STORY_BACKEND_API_KEY",
+          "signerFamilyRef": "docs/signer-families.md#story-backend-signer",
+          "fundsLedgerPlaceholder": "STORY_BACKEND_SIGNER_ADDRESS",
+          "actions": [
+            {
+              "name": "register-original",
+              "cid": "TBD",
+              "contractMethod": "registerOriginal backend approval (via router)",
+              "contract": "StorySponsorRouterV1"
+            },
+            {
+              "name": "register-derivative",
+              "cid": "TBD",
+              "contractMethod": "registerDerivative backend approval (via router)",
+              "contract": "StorySponsorRouterV1"
+            },
+            {
+              "name": "vault-bootstrap",
+              "cid": "TBD",
+              "contractMethod": "vaultBootstrap backend approval (via router)",
+              "contract": "StorySponsorRouterV1"
+            }
+          ]
+        },
+        {
+          "family": "base-treasury",
+          "chain": "base-sepolia",
+          "chainId": 84532,
+          "executeGroup": "base-treasury-sepolia-v1",
+          "pkpAddress": "TBD",
+          "pkpPublicKey": "TBD",
+          "usageKeyEnvVar": "LIT_CHIPOTLE_BASE_TREASURY_API_KEY",
+          "signerFamilyRef": "docs/signer-families.md#base-treasury",
+          "fundsLedgerPlaceholder": "BASE_TREASURY_ADDRESS",
+          "actions": [
+            {
+              "name": "donate",
+              "cid": "TBD",
+              "contractMethod": "approve + donate",
+              "contract": "USDC + donation target"
+            },
+            {
+              "name": "refund",
+              "cid": "TBD",
+              "contractMethod": "transfer",
+              "contract": "USDC"
+            }
+          ]
+        },
+        {
+          "family": "base-sponsor",
+          "chain": "base-sepolia",
+          "chainId": 84532,
+          "executeGroup": "base-verify-sepolia-v2",
+          "pkpAddress": "TBD",
+          "pkpPublicKey": "TBD",
+          "usageKeyEnvVar": "LIT_CHIPOTLE_BASE_SPONSOR_API_KEY",
+          "signerFamilyRef": "docs/signer-families.md#base-sponsor",
+          "fundsLedgerPlaceholder": "BASE_SPONSOR_ADDRESS",
+          "actions": [
+            {
+              "name": "verification-mirror",
+              "cid": "TBD",
+              "contractMethod": "mirror",
+              "contract": "VerificationMirrorV1"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

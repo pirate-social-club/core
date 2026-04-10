@@ -19,6 +19,7 @@ Current tracked roots:
 
 Optional local runtime checkouts may still be placed at:
 
+- `pirate-api/` -> `pirate-social-club/api`
 - `pirate-web/` -> `pirate-social-club/web`
 - `pirate-contracts/` -> `pirate-social-club/contracts`
 
@@ -42,6 +43,7 @@ This repo is not the forever-home of every production surface.
 
 Current standalone repos under the `pirate-social-club` GitHub organization:
 
+- `api`
 - `web`
 - `contracts`
 - `core`

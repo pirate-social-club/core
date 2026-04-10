@@ -5,6 +5,7 @@ Status: draft
 Related docs:
 
 - [namespace-root-control.md](./namespace-root-control.md)
+- [hns-authoritative-dns.md](./hns-authoritative-dns.md)
 - [namespace.md](./namespace.md)
 - [community.md](./community.md)
 - [public-v0-club-enforcement.md](./public-v0-club-enforcement.md)
@@ -37,6 +38,8 @@ Public v0 namespace verification does not itself:
 - enable subdomain sales
 - imply that Pirate has subdomain authority
 - replace later namespace revalidation
+
+See [hns-authoritative-dns.md](./hns-authoritative-dns.md) for the DNS prerequisite and deployment model behind the public v0 TXT proof path.
 
 ## Core Outputs
 
@@ -73,6 +76,7 @@ Suggested session states:
 
 - `draft`
 - `inspecting`
+- `dns_setup_required`
 - `challenge_required`
 - `challenge_pending`
 - `verifying`
@@ -86,9 +90,11 @@ Meaning:
 - `draft`
   Session created but root inspection not yet started.
 - `inspecting`
-  Pirate is normalizing the root and checking existence and expiry.
+  Pirate is normalizing the root and checking existence, expiry, and whether TXT proof prerequisites are present.
+- `dns_setup_required`
+  The root passed basic inspection, but the selected TXT proof path cannot continue until the creator sets up working authoritative DNS for the root.
 - `challenge_required`
-  The root exists and Pirate has generated a TXT challenge the creator must publish.
+  The TXT proof path is available and Pirate is ready to issue, or has just issued, a TXT challenge for the creator to publish.
 - `challenge_pending`
   Pirate is waiting for the TXT challenge to become visible.
 - `verifying`
@@ -105,7 +111,7 @@ Meaning:
 Important:
 
 - `verifying` is primarily a backend session state
-- clients do not need to render `challenge_pending` and `verifying` as distinct UX states
+- clients do not need to render `dns_setup_required`, `challenge_pending`, and `verifying` as fully distinct polished UX phases if a simpler "continue setup" experience is sufficient
 - if cross-checking is effectively immediate, an implementation may transition directly from `challenge_pending` to `verified` or `failed` without exposing `verifying` as a visible client state
 
 ## Session Fields
@@ -138,6 +144,15 @@ Suggested HNS verification-session fields:
 
 `namespace_verification_id` is only populated when the session reaches `verified`.
 
+## Recommended Public V0 Order
+
+1. inspect the root
+2. if `_pirate.<root>` TXT proof is the selected method and the root lacks working authoritative DNS, move to `dns_setup_required`
+3. once the owner has working authoritative DNS, issue a session-bound `_pirate.<root>` TXT challenge
+4. verify creator-bound TXT control
+5. allow community creation if the remaining checks pass
+6. optionally let the owner move the root to Pirate-managed nameservers later if Pirate-operated subordinate lifecycle is desired
+
 ## Flow
 
 ### 1. Start Session
@@ -163,6 +178,7 @@ Inspection must determine:
 
 - root exists or not
 - current expiry or remaining lifetime
+- whether the root already has working authoritative DNS
 - whether the root already routes traffic to Pirate
 - whether authoritative delegation to Pirate is present
 
@@ -170,6 +186,7 @@ Outcomes:
 
 - if the root does not exist, fail the session
 - if expiry horizon is insufficient, continue recording the fact but do not allow club attachment later
+- if the root lacks working authoritative DNS, move the session to `dns_setup_required` and do not issue a subdomain TXT challenge yet
 - if existing Pirate routing or delegation is detected, record it as evidence during inspection but do not treat it as fresh creator-bound control proof
 - if inspection succeeds, generate a TXT challenge
 
@@ -183,9 +200,25 @@ The challenge should include:
 - exact TXT value
 - challenge expiration time
 
+Recommended public v0 host:
+
+- `_pirate.<root>`
+
+Prerequisite:
+
+- `_pirate.<root>` can only exist if the root already has working authoritative DNS
+- therefore, if the current proof method is TXT at `_pirate.<root>`, the creator must first set up authoritative DNS for the root before this step can succeed
+- Pirate-managed nameserver delegation is not required for this step and should normally not happen before creator-bound TXT proof completes
+
 That challenge expiry should be modeled separately from the overall session expiry so clients and operators can distinguish "publish a new TXT challenge" from "start a new verification session."
 
 Pirate should treat the challenge as single-use or tightly scoped to the current session.
+
+Recommended public v0 value shape:
+
+- a session-bound nonce such as `pirate-verify=<session-or-nonce>`
+
+Do not use a static root-only value such as `pirate-verify=<root>` because it is replayable and does not prove fresh creator-bound control for the current session.
 
 ### 4. Observe TXT Control
 
@@ -241,6 +274,8 @@ Important:
 
 - `pirate_subdomain_issuance_allowed` is technical capability only
 - public `name.root` claim or sale flows still require product permission from club stage and policy
+- owner-managed authoritative DNS plus owner-managed routing may be enough for `routing_enabled = true` without granting Pirate DNS authority
+- Pirate-managed nameserver delegation is a later optional step that may upgrade `pirate_dns_authority_verified`
 
 ### 7. Accept Verification
 

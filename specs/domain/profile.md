@@ -171,10 +171,38 @@ Not every verified or collected user field belongs on the public profile.
 
 Rules:
 
-- verification-derived age and nationality are product-policy inputs, not default public profile fields
-- wallet attachments are not default public profile fields
-- external reputation imports are not default public profile fields
+- raw provider payloads, document fields, nullifiers, and verification-session evidence must not appear on the public profile
+- Pirate may expose a selected public trust projection on the profile when product policy intentionally chooses public disclosure
+- public trust rendering should use normalized labels and compact derived values rather than raw provider responses
 - privacy-sensitive demographic fields from old Pirate should not be part of default v0 onboarding
+
+### Public Trust Projection
+
+Pirate may treat profile as a public trust surface rather than a profile-only biography surface.
+
+Recommended v0 public trust fields:
+
+- `primary_wallet_address` nullable
+- `verification_capabilities.unique_human`
+- `verification_capabilities.age_over_18`
+- `verification_capabilities.nationality`
+- `verification_capabilities.wallet_score`
+
+Recommended interpretation:
+
+- the primary wallet address may be shown publicly when Pirate chooses to make wallet-linked social and trust state legible on profile
+- `age_over_18` should render as a compact fact such as `18+`, not as date-of-birth or exact age
+- nationality should render as a normalized public qualifier such as `AR National`, not raw document metadata
+- wallet score should render as a compact trust input such as score and pass/fail state, not a full stamp dump by default
+- `unique_human` may render as a normalized provider-neutral state such as `Verified Human`
+- public trust projection is a read-model decision; the canonical verification and wallet tables remain the source of truth
+
+Boundaries:
+
+- public trust projection should expose only the current accepted derived state, not historical verification rows
+- if Pirate makes trust public, profile reads should return the same normalized trust projection on both self and public profile endpoints
+- product may still choose to hide specific public trust fields behind user settings later, but the default product contract may treat them as public
+- wallet attachments beyond the chosen public primary wallet should remain out of the public profile by default
 
 ## Relationship To Onboarding
 

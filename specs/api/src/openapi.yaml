@@ -3,8 +3,9 @@ info:
   title: Pirate API
   version: 0.1.0
   description: |
-    First-pass happy-path API for Pirate v2.
-    This OpenAPI file is intentionally narrow. It encodes the core v0 flows that are already stable in the domain specs: auth bootstrap, verification, onboarding, global profile identity, communities, namespace handles, posts, daily questions, tracks, scrobbles, feeds, and async jobs.
+    Contract-first API surface for Pirate v2.
+    This modular source carries the broader planned v0 design surface alongside the first executable slice.
+    Operations marked `x-implemented: true` are filtered into `specs/api/openapi-implemented.yaml`, which is the strict generated surface for SDKs and other implementation-bound tooling.
 servers:
   - url: https://api.pirate.example
     description: Placeholder production server
@@ -13,6 +14,7 @@ security:
 tags:
   - name: Auth
   - name: Verification
+  - name: Agents
   - name: Onboarding
   - name: Users
   - name: Profiles
@@ -29,19 +31,37 @@ tags:
 paths:
   /auth/session/exchange:
     $ref: ./paths/auth.yaml#/auth_session_exchange
-  /verification/sessions:
+  /verification-sessions:
     $ref: ./paths/verification.yaml#/verification_sessions
-  /verification/sessions/{verification_session_id}:
+  /verification/wallet-score:
+    $ref: ./paths/verification.yaml#/verification_wallet_score
+  /verification/wallet-score/refresh:
+    $ref: ./paths/verification.yaml#/verification_wallet_score_refresh
+  /verification-sessions/{verification_session_id}:
     $ref: ./paths/verification.yaml#/verification_sessions_by_verification_session_id
-  /verification/sessions/{verification_session_id}/complete:
+  /verification-sessions/{verification_session_id}/complete:
     $ref: ./paths/verification.yaml#/verification_sessions_by_verification_session_id_complete
-  /verification/namespace-sessions:
+  /verification-sessions/{verification_session_id}/callback:
+    $ref: ./paths/verification.yaml#/verification_sessions_by_verification_session_id_callback
+  /agent-ownership-sessions:
+    $ref: ./paths/agents.yaml#/agent_ownership_sessions
+  /agent-ownership-sessions/{agent_ownership_session_id}:
+    $ref: ./paths/agents.yaml#/agent_ownership_sessions_by_agent_ownership_session_id
+  /agent-ownership-sessions/{agent_ownership_session_id}/complete:
+    $ref: ./paths/agents.yaml#/agent_ownership_sessions_by_agent_ownership_session_id_complete
+  /agent-ownership-sessions/{agent_ownership_session_id}/callback:
+    $ref: ./paths/agents.yaml#/agent_ownership_sessions_by_agent_ownership_session_id_callback
+  /agents:
+    $ref: ./paths/agents.yaml#/agents
+  /agents/{agent_id}:
+    $ref: ./paths/agents.yaml#/agents_by_agent_id
+  /namespace-verification-sessions:
     $ref: ./paths/verification.yaml#/namespace_verification_sessions
-  /verification/namespace-sessions/{namespace_verification_session_id}:
+  /namespace-verification-sessions/{namespace_verification_session_id}:
     $ref: ./paths/verification.yaml#/namespace_verification_sessions_by_namespace_verification_session_id
-  /verification/namespace-sessions/{namespace_verification_session_id}/complete:
+  /namespace-verification-sessions/{namespace_verification_session_id}/complete:
     $ref: ./paths/verification.yaml#/namespace_verification_sessions_by_namespace_verification_session_id_complete
-  /verification/namespaces/{namespace_verification_id}:
+  /namespace-verifications/{namespace_verification_id}:
     $ref: ./paths/verification.yaml#/namespace_verifications_by_namespace_verification_id
   /onboarding/status:
     $ref: ./paths/onboarding.yaml#/onboarding_status
@@ -49,6 +69,8 @@ paths:
     $ref: ./paths/onboarding.yaml#/onboarding_reddit_verification
   /onboarding/reddit-imports:
     $ref: ./paths/onboarding.yaml#/onboarding_reddit_imports
+  /onboarding/reddit-imports/latest:
+    $ref: ./paths/onboarding.yaml#/onboarding_reddit_imports_latest
   /users/me:
     $ref: ./paths/users.yaml#/users_me
   /profiles/me:
@@ -65,8 +87,8 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id
   /communities/{community_id}/attach-governance:
     $ref: ./paths/communities.yaml#/communities_by_community_id_attach_governance
-  /communities/{community_id}/flairs:
-    $ref: ./paths/communities.yaml#/communities_by_community_id_flairs
+  /communities/{community_id}/labels:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_labels
   /communities/{community_id}/community-profile:
     $ref: ./paths/communities.yaml#/communities_by_community_id_community_profile
   /communities/{community_id}/reference-links:
@@ -85,14 +107,44 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_reference_links_by_community_reference_link_id_proofs_by_proof_id_review
   /communities/{community_id}/donation-policy:
     $ref: ./paths/communities.yaml#/communities_by_community_id_donation_policy
+  /communities/{community_id}/money-policy:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_money_policy
+  /communities/{community_id}/pricing-policy:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_pricing_policy
+  /communities/{community_id}/listings:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_listings
+  /communities/{community_id}/listings/{listing_id}:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_listings_by_listing_id
+  /communities/{community_id}/purchases:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_purchases
+  /communities/{community_id}/purchases/{purchase_id}:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_purchases_by_purchase_id
+  /communities/{community_id}/purchase-quote-preflight:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_purchase_quote_preflight
+  /communities/{community_id}/purchase-quotes:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_purchase_quotes
+  /communities/{community_id}/purchase-settlements:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_purchase_settlements
+  /communities/{community_id}/purchase-settlements/fail:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_purchase_settlement_failures
   /communities/{community_id}/join:
     $ref: ./paths/communities.yaml#/communities_by_community_id_join
   /communities/{community_id}/live-rooms:
     $ref: ./paths/communities.yaml#/communities_by_community_id_live_rooms
   /communities/{community_id}/leave:
     $ref: ./paths/communities.yaml#/communities_by_community_id_leave
+  /communities/{community_id}/market-context-policy:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_market_context_policy
   /communities/{community_id}/posts:
     $ref: ./paths/communities.yaml#/communities_by_community_id_posts
+  /communities/{community_id}/song-artifact-uploads:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_song_artifact_uploads
+  /communities/{community_id}/song-artifact-uploads/{song_artifact_upload_id}/content:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_song_artifact_uploads_by_song_artifact_upload_id_content
+  /communities/{community_id}/song-artifacts:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_song_artifacts
+  /communities/{community_id}/song-artifacts/{song_artifact_bundle_id}:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_song_artifacts_by_song_artifact_bundle_id
   /live-rooms/{live_room_id}:
     $ref: ./paths/livestreams.yaml#/live_rooms_by_live_room_id
   /live-rooms/{live_room_id}/access:
@@ -119,8 +171,6 @@ paths:
     $ref: ./paths/handles.yaml#/namespaces_by_namespace_id_handles_availability
   /namespaces/{namespace_id}/handles/claims:
     $ref: ./paths/handles.yaml#/namespaces_by_namespace_id_handles_claims
-  /posts:
-    $ref: ./paths/posts.yaml#/posts
   /posts/{post_id}:
     $ref: ./paths/posts.yaml#/posts_by_post_id
   /posts/{post_id}/vote:
@@ -130,7 +180,7 @@ paths:
   /feeds/home:
     $ref: ./paths/feeds.yaml#/feeds_home
   /feeds/your-communities:
-    $ref: ./paths/feeds.yaml#/feeds_your_clubs
+    $ref: ./paths/feeds.yaml#/feeds_your_communities
   /tracks:
     $ref: ./paths/tracks.yaml#/tracks
   /tracks/{track_id}:
@@ -170,6 +220,10 @@ components:
       $ref: ./components/parameters.yaml#/UserId
     PostId:
       $ref: ./components/parameters.yaml#/PostId
+    SongArtifactBundleId:
+      $ref: ./components/parameters.yaml#/SongArtifactBundleId
+    SongArtifactUploadId:
+      $ref: ./components/parameters.yaml#/SongArtifactUploadId
     LiveRoomId:
       $ref: ./components/parameters.yaml#/LiveRoomId
     TrackId:
@@ -178,6 +232,10 @@ components:
       $ref: ./components/parameters.yaml#/JobId
     VerificationSessionId:
       $ref: ./components/parameters.yaml#/VerificationSessionId
+    AgentOwnershipSessionId:
+      $ref: ./components/parameters.yaml#/AgentOwnershipSessionId
+    AgentId:
+      $ref: ./components/parameters.yaml#/AgentId
     NamespaceVerificationSessionId:
       $ref: ./components/parameters.yaml#/NamespaceVerificationSessionId
     NamespaceVerificationId:
@@ -196,8 +254,8 @@ components:
       $ref: ./components/parameters.yaml#/Limit
     TopWindow:
       $ref: ./components/parameters.yaml#/TopWindow
-    FlairId:
-      $ref: ./components/parameters.yaml#/FlairId
+    LabelId:
+      $ref: ./components/parameters.yaml#/LabelId
   responses:
     AuthError:
       $ref: ./components/responses.yaml#/AuthError
@@ -234,10 +292,66 @@ components:
       $ref: ./components/schemas/users.yaml#/User
     VerificationCapabilities:
       $ref: ./components/schemas/verification.yaml#/VerificationCapabilities
+    RequestedVerificationCapability:
+      $ref: ./components/schemas/verification.yaml#/RequestedVerificationCapability
+    VerificationIntent:
+      $ref: ./components/schemas/verification.yaml#/VerificationIntent
     VerificationCapabilityState:
       $ref: ./components/schemas/verification.yaml#/VerificationCapabilityState
     VerifiedCapabilityState:
       $ref: ./components/schemas/verification.yaml#/VerifiedCapabilityState
+    SanctionsClearCapabilityState:
+      $ref: ./components/schemas/verification.yaml#/SanctionsClearCapabilityState
+    WalletScoreCapabilityState:
+      $ref: ./components/schemas/verification.yaml#/WalletScoreCapabilityState
+    StartVerificationSessionRequest:
+      $ref: ./components/schemas/verification.yaml#/StartVerificationSessionRequest
+    CompleteVerificationSessionRequest:
+      $ref: ./components/schemas/verification.yaml#/CompleteVerificationSessionRequest
+    ProviderVerificationCallbackRequest:
+      $ref: ./components/schemas/verification.yaml#/ProviderVerificationCallbackRequest
+    SelfVerificationDisclosures:
+      $ref: ./components/schemas/verification.yaml#/SelfVerificationDisclosures
+    SelfVerificationLaunch:
+      $ref: ./components/schemas/verification.yaml#/SelfVerificationLaunch
+    VeryWidgetLaunch:
+      $ref: ./components/schemas/verification.yaml#/VeryWidgetLaunch
+    VerificationSessionLaunch:
+      $ref: ./components/schemas/verification.yaml#/VerificationSessionLaunch
+    AgentOwnershipProvider:
+      $ref: ./components/schemas/agents.yaml#/AgentOwnershipProvider
+    AgentOwnershipSessionKind:
+      $ref: ./components/schemas/agents.yaml#/AgentOwnershipSessionKind
+    AgentOwnershipSessionStatus:
+      $ref: ./components/schemas/agents.yaml#/AgentOwnershipSessionStatus
+    UserAgentStatus:
+      $ref: ./components/schemas/agents.yaml#/UserAgentStatus
+    AgentOwnershipState:
+      $ref: ./components/schemas/agents.yaml#/AgentOwnershipState
+    AgentChallenge:
+      $ref: ./components/schemas/agents.yaml#/AgentChallenge
+    AgentActionProof:
+      $ref: ./components/schemas/agents.yaml#/AgentActionProof
+    SelfAgentOwnershipLaunch:
+      $ref: ./components/schemas/agents.yaml#/SelfAgentOwnershipLaunch
+    ClawkeyRegistrationLaunch:
+      $ref: ./components/schemas/agents.yaml#/ClawkeyRegistrationLaunch
+    AgentOwnershipSessionLaunch:
+      $ref: ./components/schemas/agents.yaml#/AgentOwnershipSessionLaunch
+    StartAgentOwnershipSessionRequest:
+      $ref: ./components/schemas/agents.yaml#/StartAgentOwnershipSessionRequest
+    CompleteAgentOwnershipSessionRequest:
+      $ref: ./components/schemas/agents.yaml#/CompleteAgentOwnershipSessionRequest
+    ProviderAgentOwnershipCallbackRequest:
+      $ref: ./components/schemas/agents.yaml#/ProviderAgentOwnershipCallbackRequest
+    AgentOwnershipRecord:
+      $ref: ./components/schemas/agents.yaml#/AgentOwnershipRecord
+    AgentOwnershipSession:
+      $ref: ./components/schemas/agents.yaml#/AgentOwnershipSession
+    UserAgent:
+      $ref: ./components/schemas/agents.yaml#/UserAgent
+    UserAgentListResponse:
+      $ref: ./components/schemas/agents.yaml#/UserAgentListResponse
     Profile:
       $ref: ./components/schemas/profiles.yaml#/Profile
     GlobalHandle:
@@ -260,14 +374,20 @@ components:
       $ref: ./components/schemas/verification.yaml#/NamespaceVerification
     RedditVerification:
       $ref: ./components/schemas/onboarding.yaml#/RedditVerification
+    RedditImportSummary:
+      $ref: ./components/schemas/onboarding.yaml#/RedditImportSummary
     OnboardingStatus:
       $ref: ./components/schemas/onboarding.yaml#/OnboardingStatus
+    WalletAttachmentSummary:
+      $ref: ./components/schemas/auth.yaml#/WalletAttachmentSummary
     CreateCommunityRequestBase:
       $ref: ./components/schemas/communities-core.yaml#/CreateCommunityRequestBase
     GateRuleInput:
       $ref: ./components/schemas/communities-core.yaml#/GateRuleInput
     GateRule:
       $ref: ./components/schemas/communities-core.yaml#/GateRule
+    ProofRequirement:
+      $ref: ./components/schemas/communities-core.yaml#/ProofRequirement
     RootPostQuotaRule:
       $ref: ./components/schemas/communities-core.yaml#/RootPostQuotaRule
     RootPostQuotaByTrustTier:
@@ -282,6 +402,28 @@ components:
       $ref: ./components/schemas/communities-core.yaml#/CommunityCreateAcceptedResponse
     UpdateCommunityRequest:
       $ref: ./components/schemas/communities-core.yaml#/UpdateCommunityRequest
+    CommunityFundingRouteStatusPolicy:
+      $ref: ./components/schemas/communities-community.yaml#/CommunityFundingRouteStatusPolicy
+    CommunityMoneyAssetRef:
+      $ref: ./components/schemas/communities-community.yaml#/CommunityMoneyAssetRef
+    CommunityMoneyChainRef:
+      $ref: ./components/schemas/communities-community.yaml#/CommunityMoneyChainRef
+    CreateCommunityMoneyPolicyInput:
+      $ref: ./components/schemas/communities-community.yaml#/CreateCommunityMoneyPolicyInput
+    UpdateCommunityMoneyPolicyRequest:
+      $ref: ./components/schemas/communities-community.yaml#/UpdateCommunityMoneyPolicyRequest
+    CommunityMoneyPolicy:
+      $ref: ./components/schemas/communities-community.yaml#/CommunityMoneyPolicy
+    CommunityPurchaseFundingMode:
+      $ref: ./components/schemas/communities-community.yaml#/CommunityPurchaseFundingMode
+    CommunityPurchaseQuotePreflightRequest:
+      $ref: ./components/schemas/communities-community.yaml#/CommunityPurchaseQuotePreflightRequest
+    CommunityPurchaseQuotePreflight:
+      $ref: ./components/schemas/communities-community.yaml#/CommunityPurchaseQuotePreflight
+    CommunityPurchaseQuoteRequest:
+      $ref: ./components/schemas/communities-community.yaml#/CommunityPurchaseQuoteRequest
+    CommunityPurchaseQuote:
+      $ref: ./components/schemas/communities-community.yaml#/CommunityPurchaseQuote
     CreateCentralizedCommunityRequest:
       $ref: ./components/schemas/communities-governance.yaml#/CreateCentralizedCommunityRequest
     CreateMultisigCommunityRequest:
@@ -360,10 +502,38 @@ components:
       $ref: ./components/schemas/communities-community.yaml#/DonationPartnerSummary
     CommunityDonationPolicy:
       $ref: ./components/schemas/communities-community.yaml#/CommunityDonationPolicy
+    CreateCommunityMarketContextPolicyInput:
+      $ref: ./components/schemas/market-context.yaml#/CreateCommunityMarketContextPolicyInput
+    UpdateCommunityMarketContextPolicyRequest:
+      $ref: ./components/schemas/market-context.yaml#/UpdateCommunityMarketContextPolicyRequest
+    MarketContextProfileSummary:
+      $ref: ./components/schemas/market-context.yaml#/MarketContextProfileSummary
+    CommunityMarketContextPolicy:
+      $ref: ./components/schemas/market-context.yaml#/CommunityMarketContextPolicy
+    MarketContextSummary:
+      $ref: ./components/schemas/market-context.yaml#/MarketContextSummary
+    MarketContextMarket:
+      $ref: ./components/schemas/market-context.yaml#/MarketContextMarket
     HandleAvailability:
       $ref: ./components/schemas/handles.yaml#/HandleAvailability
     CommunityHandle:
       $ref: ./components/schemas/handles.yaml#/CommunityHandle
+    SongAudioArtifactDescriptor:
+      $ref: ./components/schemas/song-artifacts.yaml#/SongAudioArtifactDescriptor
+    SongImageArtifactDescriptor:
+      $ref: ./components/schemas/song-artifacts.yaml#/SongImageArtifactDescriptor
+    SongVideoArtifactDescriptor:
+      $ref: ./components/schemas/song-artifacts.yaml#/SongVideoArtifactDescriptor
+    CreateSongArtifactBundleRequest:
+      $ref: ./components/schemas/song-artifacts.yaml#/CreateSongArtifactBundleRequest
+    CreateSongArtifactUploadRequest:
+      $ref: ./components/schemas/song-artifacts.yaml#/CreateSongArtifactUploadRequest
+    SongArtifactUploadContentRequest:
+      $ref: ./components/schemas/song-artifacts.yaml#/SongArtifactUploadContentRequest
+    SongArtifactUpload:
+      $ref: ./components/schemas/song-artifacts.yaml#/SongArtifactUpload
+    SongArtifactBundle:
+      $ref: ./components/schemas/song-artifacts.yaml#/SongArtifactBundle
     CreatePostRequest:
       $ref: ./components/schemas/posts.yaml#/CreatePostRequest
     Post:
@@ -384,22 +554,22 @@ components:
       $ref: ./components/schemas/feeds.yaml#/FeedItem
     CreateCommunityBootstrapInput:
       $ref: ./components/schemas/communities-community.yaml#/CreateCommunityBootstrapInput
-    CreateCommunityFlairPolicyInput:
-      $ref: ./components/schemas/communities-community.yaml#/CreateCommunityFlairPolicyInput
-    UpdateCommunityFlairPolicyRequest:
-      $ref: ./components/schemas/communities-community.yaml#/UpdateCommunityFlairPolicyRequest
-    CreateCommunityFlairDefinitionInput:
-      $ref: ./components/schemas/communities-community.yaml#/CreateCommunityFlairDefinitionInput
-    UpdateCommunityFlairDefinitionInput:
-      $ref: ./components/schemas/communities-community.yaml#/UpdateCommunityFlairDefinitionInput
-    CommunityFlairDefinitionMutationInput:
-      $ref: ./components/schemas/communities-community.yaml#/CommunityFlairDefinitionMutationInput
-    CommunityFlairDefinition:
-      $ref: ./components/schemas/communities-community.yaml#/CommunityFlairDefinition
-    CommunityFlairPolicy:
-      $ref: ./components/schemas/communities-community.yaml#/CommunityFlairPolicy
-    PostFlair:
-      $ref: ./components/schemas/communities-community.yaml#/PostFlair
+    CreateCommunityLabelPolicyInput:
+      $ref: ./components/schemas/communities-community.yaml#/CreateCommunityLabelPolicyInput
+    UpdateCommunityLabelPolicyRequest:
+      $ref: ./components/schemas/communities-community.yaml#/UpdateCommunityLabelPolicyRequest
+    CreateCommunityLabelDefinitionInput:
+      $ref: ./components/schemas/communities-community.yaml#/CreateCommunityLabelDefinitionInput
+    UpdateCommunityLabelDefinitionInput:
+      $ref: ./components/schemas/communities-community.yaml#/UpdateCommunityLabelDefinitionInput
+    CommunityLabelDefinitionMutationInput:
+      $ref: ./components/schemas/communities-community.yaml#/CommunityLabelDefinitionMutationInput
+    CommunityLabelDefinition:
+      $ref: ./components/schemas/communities-community.yaml#/CommunityLabelDefinition
+    CommunityLabelPolicy:
+      $ref: ./components/schemas/communities-community.yaml#/CommunityLabelPolicy
+    PostLabel:
+      $ref: ./components/schemas/communities-community.yaml#/PostLabel
     CreateCommunityRuleInput:
       $ref: ./components/schemas/communities-community.yaml#/CreateCommunityRuleInput
     UpdateCommunityRuleInput:

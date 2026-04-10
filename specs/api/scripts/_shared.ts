@@ -4,23 +4,55 @@ import { parse, stringify } from "yaml";
 export const API_DIR = "specs/api";
 export const SOURCE_DIR = path.posix.join(API_DIR, "src");
 export const BUNDLE_FILE = path.posix.join(API_DIR, "openapi.yaml");
+export const IMPLEMENTED_BUNDLE_FILE = path.posix.join(API_DIR, "openapi-implemented.yaml");
 
 const SCHEMA_GROUPS: Record<string, readonly string[]> = {
   common: ["Error"],
   auth: ["SessionExchangeResponse"],
   verification: [
     "VerificationCapabilities",
+    "RequestedVerificationCapability",
+    "VerificationIntent",
     "VerificationCapabilityState",
     "VerifiedCapabilityState",
+    "SanctionsClearCapabilityState",
+    "WalletScoreCapabilityState",
+    "StartVerificationSessionRequest",
+    "CompleteVerificationSessionRequest",
+    "ProviderVerificationCallbackRequest",
+    "SelfVerificationDisclosures",
+    "SelfVerificationLaunch",
+    "VeryWidgetLaunch",
+    "VerificationSessionLaunch",
     "VerificationSession",
   ],
-  onboarding: ["RedditVerification", "OnboardingStatus"],
+  agents: [
+    "AgentOwnershipProvider",
+    "AgentOwnershipSessionKind",
+    "AgentOwnershipSessionStatus",
+    "UserAgentStatus",
+    "AgentOwnershipState",
+    "AgentChallenge",
+    "AgentActionProof",
+    "SelfAgentOwnershipLaunch",
+    "ClawkeyRegistrationLaunch",
+    "AgentOwnershipSessionLaunch",
+    "StartAgentOwnershipSessionRequest",
+    "CompleteAgentOwnershipSessionRequest",
+    "ProviderAgentOwnershipCallbackRequest",
+    "AgentOwnershipRecord",
+    "AgentOwnershipSession",
+    "UserAgent",
+    "UserAgentListResponse",
+  ],
+  onboarding: ["RedditVerification", "RedditImportSummary", "OnboardingStatus"],
   users: ["User"],
   profiles: ["Profile", "GlobalHandle", "HandleUpgradeQuote"],
   "communities-core": [
     "CreateCommunityRequestBase",
     "GateRuleInput",
     "GateRule",
+    "ProofRequirement",
     "RootPostQuotaRule",
     "RootPostQuotaByTrustTier",
     "ReplyQuotaRule",
@@ -57,15 +89,36 @@ const SCHEMA_GROUPS: Record<string, readonly string[]> = {
     "UpdateCommunityDonationPolicyRequest",
     "DonationPartnerSummary",
     "CommunityDonationPolicy",
+    "CommunityFundingRouteStatusPolicy",
+    "CommunityPolicyOrigin",
+    "CommunityMoneyAssetRef",
+    "CommunityMoneyChainRef",
+    "CreateCommunityMoneyPolicyInput",
+    "UpdateCommunityMoneyPolicyRequest",
+    "CommunityMoneyPolicy",
+    "CreateCommunityPricingPolicyInput",
+    "UpdateCommunityPricingPolicyRequest",
+    "CommunityPricingPolicy",
+    "CommunityListing",
+    "CreateCommunityListingRequest",
+    "UpdateCommunityListingRequest",
+    "CommunityListingListResponse",
+    "CommunityPurchase",
+    "CommunityPurchaseListResponse",
+    "CommunityPurchaseFundingMode",
+    "CommunityPurchaseQuotePreflightRequest",
+    "CommunityPurchaseQuotePreflight",
+    "CommunityPurchaseQuoteRequest",
+    "CommunityPurchaseQuote",
     "CreateCommunityBootstrapInput",
-    "CreateCommunityFlairPolicyInput",
-    "UpdateCommunityFlairPolicyRequest",
-    "CreateCommunityFlairDefinitionInput",
-    "UpdateCommunityFlairDefinitionInput",
-    "CommunityFlairDefinitionMutationInput",
-    "CommunityFlairDefinition",
-    "CommunityFlairPolicy",
-    "PostFlair",
+    "CreateCommunityLabelPolicyInput",
+    "UpdateCommunityLabelPolicyRequest",
+    "CreateCommunityLabelDefinitionInput",
+    "UpdateCommunityLabelDefinitionInput",
+    "CommunityLabelDefinitionMutationInput",
+    "CommunityLabelDefinition",
+    "CommunityLabelPolicy",
+    "PostLabel",
     "CreateCommunityRuleInput",
     "UpdateCommunityRuleInput",
     "CommunityRuleMutationInput",
@@ -76,6 +129,14 @@ const SCHEMA_GROUPS: Record<string, readonly string[]> = {
     "CommunityResourceLink",
     "CommunityProfile",
     "UpdateCommunityProfileRequest",
+  ],
+  "market-context": [
+    "CreateCommunityMarketContextPolicyInput",
+    "UpdateCommunityMarketContextPolicyRequest",
+    "MarketContextProfileSummary",
+    "CommunityMarketContextPolicy",
+    "MarketContextSummary",
+    "MarketContextMarket",
   ],
   handles: [
     "NamespaceAttachmentInput",
@@ -95,6 +156,16 @@ const SCHEMA_GROUPS: Record<string, readonly string[]> = {
     "LiveRoomAccessView",
     "LiveRoomReplayView",
     "LiveRoomReplayAccessView",
+  ],
+  "song-artifacts": [
+    "SongAudioArtifactDescriptor",
+    "SongImageArtifactDescriptor",
+    "SongVideoArtifactDescriptor",
+    "CreateSongArtifactBundleRequest",
+    "CreateSongArtifactUploadRequest",
+    "SongArtifactUploadContentRequest",
+    "SongArtifactUpload",
+    "SongArtifactBundle",
   ],
   posts: ["CreatePostRequest", "Post", "LocalizedPostResponse", "MediaDescriptor"],
   questions: ["Question", "CreateQuestionRequest", "QuestionAnswer"],
@@ -118,6 +189,7 @@ const SCHEMA_GROUPS: Record<string, readonly string[]> = {
 export const PATH_GROUP_ORDER = [
   "auth",
   "verification",
+  "agents",
   "onboarding",
   "users",
   "profiles",
@@ -137,14 +209,17 @@ export const SCHEMA_GROUP_ORDER = [
   "common",
   "auth",
   "verification",
+  "agents",
   "onboarding",
   "users",
   "profiles",
   "communities-core",
   "communities-governance",
   "communities-community",
+  "market-context",
   "handles",
   "livestreams",
+  "song-artifacts",
   "posts",
   "questions",
   "feeds",
@@ -158,8 +233,16 @@ export function classifyPath(pathname: string): string {
   if (pathname.startsWith("/auth/")) {
     return "auth";
   }
-  if (pathname.startsWith("/verification/")) {
+  if (
+    pathname.startsWith("/verification/") ||
+    pathname.startsWith("/verification-sessions") ||
+    pathname.startsWith("/namespace-verification-sessions") ||
+    pathname.startsWith("/namespace-verifications/")
+  ) {
     return "verification";
+  }
+  if (pathname.startsWith("/agent-ownership-sessions") || pathname.startsWith("/agents")) {
+    return "agents";
   }
   if (pathname.startsWith("/onboarding/")) {
     return "onboarding";

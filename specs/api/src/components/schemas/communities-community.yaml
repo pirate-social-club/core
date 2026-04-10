@@ -115,6 +115,888 @@ CommunityPolicyOrigin:
   enum:
     - default
     - explicit
+CommunityFundingRouteStatusPolicy:
+  type: string
+  enum:
+    - fail
+    - fallback_display
+    - queue
+CommunityMoneyAssetRef:
+  type: object
+  description: |
+    Executable funding asset reference for community purchase funding. This may be narrower than the community's user-facing funding preference. For example, `funding_preference = BTC` may still only permit `cBTC` on Citrea as an executable purchase-funding asset.
+  required:
+    - asset_symbol
+  additionalProperties: false
+  properties:
+    asset_symbol:
+      type: string
+    chain_namespace:
+      type: string
+      nullable: true
+    chain_id:
+      type: integer
+      nullable: true
+    display_name:
+      type: string
+      nullable: true
+CommunityMoneyChainRef:
+  type: object
+  description: |
+    Source-chain reference for a community funding lane. This is an attached commerce-policy concept, not a mutation of the community's core identity.
+  required:
+    - chain_namespace
+  additionalProperties: false
+  properties:
+    chain_namespace:
+      type: string
+    chain_id:
+      type: integer
+      nullable: true
+    display_name:
+      type: string
+      nullable: true
+CreateCommunityMoneyPolicyInput:
+  type: object
+  description: |
+    Optional community funding policy supplied at creation time. When omitted, the server must resolve the platform-default community money policy for the community. This policy defines allowed funding lanes for purchases and must not be interpreted as the community's execution or unlock chain.
+  required:
+    - funding_preference
+    - accepted_funding_assets
+    - accepted_source_chains
+    - destination_settlement_chain
+    - destination_settlement_token
+    - max_slippage_bps
+    - quote_ttl_seconds
+    - route_required
+    - route_status_policy
+    - route_hop_tolerance
+  additionalProperties: false
+  properties:
+    funding_preference:
+      type: string
+      description: |
+        User-facing funding identity for the community such as `BTC`, `ETH`, `SOL`, or `TEMPO`. This may be broader than the executable funding asset list.
+    accepted_funding_assets:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityMoneyAssetRef
+    accepted_source_chains:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityMoneyChainRef
+    approved_route_providers:
+      type: array
+      items:
+        type: string
+      nullable: true
+      description: |
+        External route venues Pirate is willing to support for this community. When `route_required = true`, the server should require this list to be non-empty after validation, even if clients omit it on create.
+    destination_settlement_chain:
+      $ref: ./communities-community.yaml#/CommunityMoneyChainRef
+    destination_settlement_token:
+      type: string
+      description: |
+        Destination settlement token required by the purchase execution path, such as `WIP` on Story.
+    treasury_denomination:
+      type: string
+      nullable: true
+      description: |
+        Treasury denomination preference for reporting and later treasury policy. This does not imply that settlement proceeds are automatically converted into that denomination.
+    max_slippage_bps:
+      type: integer
+      minimum: 0
+    quote_ttl_seconds:
+      type: integer
+      minimum: 1
+    route_required:
+      type: boolean
+    route_status_policy:
+      $ref: ./communities-community.yaml#/CommunityFundingRouteStatusPolicy
+    route_hop_tolerance:
+      type: integer
+      minimum: 0
+UpdateCommunityMoneyPolicyRequest:
+  type: object
+  description: |
+    Replace or update the community funding policy. Changes apply prospectively to future quotes and purchases. Existing purchases remain pinned to the quote and settlement snapshots used at execution time.
+  required:
+    - funding_preference
+    - accepted_funding_assets
+    - accepted_source_chains
+    - destination_settlement_chain
+    - destination_settlement_token
+    - max_slippage_bps
+    - quote_ttl_seconds
+    - route_required
+    - route_status_policy
+    - route_hop_tolerance
+  additionalProperties: false
+  properties:
+    funding_preference:
+      type: string
+    accepted_funding_assets:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityMoneyAssetRef
+    accepted_source_chains:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityMoneyChainRef
+    approved_route_providers:
+      type: array
+      items:
+        type: string
+      nullable: true
+    destination_settlement_chain:
+      $ref: ./communities-community.yaml#/CommunityMoneyChainRef
+    destination_settlement_token:
+      type: string
+    treasury_denomination:
+      type: string
+      nullable: true
+    max_slippage_bps:
+      type: integer
+      minimum: 0
+    quote_ttl_seconds:
+      type: integer
+      minimum: 1
+    route_required:
+      type: boolean
+    route_status_policy:
+      $ref: ./communities-community.yaml#/CommunityFundingRouteStatusPolicy
+    route_hop_tolerance:
+      type: integer
+      minimum: 0
+CommunityMoneyPolicy:
+  type: object
+  description: |
+    Resolved community funding policy for commerce. This policy controls allowed buyer funding lanes and route constraints. It does not redefine the community object as a chain object, and it does not imply that the funding asset itself performs settlement or locked-asset unlocks. When no explicit money policy has been configured, the server must still return the effective default policy with `policy_origin = default`.
+  required:
+    - community_id
+    - policy_origin
+    - funding_preference
+    - accepted_funding_assets
+    - accepted_source_chains
+    - destination_settlement_chain
+    - destination_settlement_token
+    - max_slippage_bps
+    - quote_ttl_seconds
+    - route_required
+    - route_status_policy
+    - route_hop_tolerance
+    - updated_at
+  properties:
+    community_id:
+      type: string
+    policy_origin:
+      $ref: ./communities-community.yaml#/CommunityPolicyOrigin
+    funding_preference:
+      type: string
+    accepted_funding_assets:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityMoneyAssetRef
+    accepted_source_chains:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityMoneyChainRef
+    approved_route_providers:
+      type: array
+      items:
+        type: string
+      nullable: true
+    destination_settlement_chain:
+      $ref: ./communities-community.yaml#/CommunityMoneyChainRef
+    destination_settlement_token:
+      type: string
+    treasury_denomination:
+      type: string
+      nullable: true
+    max_slippage_bps:
+      type: integer
+      minimum: 0
+    quote_ttl_seconds:
+      type: integer
+      minimum: 1
+    route_required:
+      type: boolean
+    route_status_policy:
+      $ref: ./communities-community.yaml#/CommunityFundingRouteStatusPolicy
+    route_hop_tolerance:
+      type: integer
+      minimum: 0
+    updated_at:
+      type: string
+      format: date-time
+CommunityPricingVerificationProvider:
+  type: string
+  enum:
+    - self
+CommunityPricingAdjustmentType:
+  type: string
+  enum:
+    - multiplier
+    - fixed_price_usd
+CommunityPricingTier:
+  type: object
+  required:
+    - tier_key
+    - adjustment_type
+    - adjustment_value
+  additionalProperties: false
+  properties:
+    tier_key:
+      type: string
+    display_name:
+      type: string
+      nullable: true
+    adjustment_type:
+      $ref: ./communities-community.yaml#/CommunityPricingAdjustmentType
+    adjustment_value:
+      type: number
+      minimum: 0
+CommunityPricingCountryAssignment:
+  type: object
+  required:
+    - country_code
+    - tier_key
+  additionalProperties: false
+  properties:
+    country_code:
+      type: string
+      minLength: 2
+      maxLength: 2
+      description: |
+        ISO 3166-1 alpha-2 country code used for nationality-backed pricing.
+    tier_key:
+      type: string
+CreateCommunityPricingPolicyInput:
+  type: object
+  description: |
+    Optional community pricing policy supplied at creation time. This policy is distinct from the money policy: it controls buyer-visible USD quote adjustments, not allowed funding lanes or settlement rails. If omitted, the server must resolve the default non-tiered pricing posture with `policy_origin = default`.
+  required:
+    - regional_pricing_enabled
+    - tiers
+    - country_assignments
+  additionalProperties: false
+  properties:
+    regional_pricing_enabled:
+      type: boolean
+    verification_provider_requirement:
+      $ref: ./communities-community.yaml#/CommunityPricingVerificationProvider
+      nullable: true
+    default_tier_key:
+      type: string
+      nullable: true
+    tiers:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityPricingTier
+    country_assignments:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityPricingCountryAssignment
+    source_template_id:
+      type: string
+      nullable: true
+    source_template_version:
+      type: string
+      nullable: true
+UpdateCommunityPricingPolicyRequest:
+  type: object
+  description: |
+    Replace or update the community pricing policy. Changes apply prospectively to future quote generation only. Existing purchases remain pinned to the pricing tier and pricing-policy version captured in their quote and settlement snapshots.
+  required:
+    - regional_pricing_enabled
+    - tiers
+    - country_assignments
+  additionalProperties: false
+  properties:
+    regional_pricing_enabled:
+      type: boolean
+    verification_provider_requirement:
+      $ref: ./communities-community.yaml#/CommunityPricingVerificationProvider
+      nullable: true
+    default_tier_key:
+      type: string
+      nullable: true
+    tiers:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityPricingTier
+    country_assignments:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityPricingCountryAssignment
+    source_template_id:
+      type: string
+      nullable: true
+    source_template_version:
+      type: string
+      nullable: true
+CommunityPricingPolicy:
+  type: object
+  description: |
+    Resolved community pricing policy for commerce. This policy controls whether a listing that opts in may adjust the authored USD base price using buyer verification-backed tiering. It is separate from money policy, which controls allowed funding lanes and settlement constraints. When no explicit pricing policy has been configured, the server must still return the default non-tiered policy with `policy_origin = default`.
+  required:
+    - community_id
+    - policy_origin
+    - pricing_policy_version
+    - regional_pricing_enabled
+    - tiers
+    - country_assignments
+    - updated_at
+  additionalProperties: false
+  properties:
+    community_id:
+      type: string
+    policy_origin:
+      $ref: ./communities-community.yaml#/CommunityPolicyOrigin
+    pricing_policy_version:
+      type: string
+      description: |
+        Version identifier that the quote layer must snapshot whenever this policy affects price resolution.
+    regional_pricing_enabled:
+      type: boolean
+    verification_provider_requirement:
+      $ref: ./communities-community.yaml#/CommunityPricingVerificationProvider
+      nullable: true
+    default_tier_key:
+      type: string
+      nullable: true
+    tiers:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityPricingTier
+    country_assignments:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityPricingCountryAssignment
+    source_template_id:
+      type: string
+      nullable: true
+    source_template_version:
+      type: string
+      nullable: true
+    updated_at:
+      type: string
+      format: date-time
+CommunityListing:
+  type: object
+  required:
+    - listing_id
+    - community_id
+    - listing_mode
+    - status
+    - price_usd
+    - regional_pricing_enabled
+    - created_by_user_id
+    - created_at
+    - updated_at
+  additionalProperties: false
+  properties:
+    listing_id:
+      type: string
+    community_id:
+      type: string
+    asset_id:
+      type: string
+      nullable: true
+    live_room_id:
+      type: string
+      nullable: true
+    listing_mode:
+      type: string
+      enum:
+        - fixed_price
+    status:
+      type: string
+      enum:
+        - draft
+        - active
+        - paused
+        - archived
+    price_usd:
+      type: number
+      minimum: 0
+    regional_pricing_enabled:
+      type: boolean
+    created_by_user_id:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+CreateCommunityListingRequest:
+  type: object
+  required:
+    - price_usd
+    - regional_pricing_enabled
+    - status
+  additionalProperties: false
+  properties:
+    asset_id:
+      type: string
+      nullable: true
+    live_room_id:
+      type: string
+      nullable: true
+    price_usd:
+      type: number
+      minimum: 0
+    regional_pricing_enabled:
+      type: boolean
+    status:
+      type: string
+      enum:
+        - draft
+        - active
+        - paused
+        - archived
+UpdateCommunityListingRequest:
+  type: object
+  additionalProperties: false
+  properties:
+    price_usd:
+      type: number
+      minimum: 0
+    regional_pricing_enabled:
+      type: boolean
+    status:
+      type: string
+      enum:
+        - draft
+        - active
+        - paused
+        - archived
+CommunityListingListResponse:
+  type: object
+  required:
+    - items
+  additionalProperties: false
+  properties:
+    items:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityListing
+CommunityPurchase:
+  type: object
+  required:
+    - purchase_id
+    - community_id
+    - listing_id
+    - buyer_user_id
+    - settlement_wallet_attachment_id
+    - purchase_price_usd
+    - settlement_chain
+    - settlement_token
+    - settlement_tx_ref
+    - purchase_entitlement_id
+    - entitlement_kind
+    - entitlement_target_ref
+    - created_at
+  additionalProperties: false
+  properties:
+    purchase_id:
+      type: string
+    community_id:
+      type: string
+    listing_id:
+      type: string
+    asset_id:
+      type: string
+      nullable: true
+    live_room_id:
+      type: string
+      nullable: true
+    buyer_user_id:
+      type: string
+    settlement_wallet_attachment_id:
+      type: string
+    purchase_price_usd:
+      type: number
+      minimum: 0
+    pricing_tier:
+      type: string
+      nullable: true
+    settlement_chain:
+      $ref: ./communities-community.yaml#/CommunityMoneyChainRef
+    settlement_token:
+      type: string
+    settlement_tx_ref:
+      type: string
+    purchase_entitlement_id:
+      type: string
+    entitlement_kind:
+      type: string
+      enum:
+        - asset_access
+        - live_room_access
+        - replay_access
+        - license
+    entitlement_target_ref:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+CommunityPurchaseListResponse:
+  type: object
+  required:
+    - items
+  additionalProperties: false
+  properties:
+    items:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityPurchase
+CommunityPurchaseFundingMode:
+  type: string
+  enum:
+    - direct
+    - routed
+CommunityPurchaseQuotePreflightRequest:
+  type: object
+  description: |
+    Funding-lane preflight input for a future community purchase quote. This validates the proposed buyer funding lane against the community's effective money policy and returns a quote snapshot for the settlement lane Pirate would require. This does not price a listing, reserve liquidity, or execute settlement. Route estimate fields are client-estimated in this implementation slice and must not be interpreted as server-verified route telemetry.
+  required:
+    - client_estimated_slippage_bps
+    - client_estimated_hop_count
+  additionalProperties: false
+  properties:
+    funding_asset:
+      $ref: ./communities-community.yaml#/CommunityMoneyAssetRef
+      nullable: true
+    source_chain:
+      $ref: ./communities-community.yaml#/CommunityMoneyChainRef
+      nullable: true
+    route_provider:
+      type: string
+      nullable: true
+    client_estimated_slippage_bps:
+      type: integer
+      minimum: 0
+    client_estimated_hop_count:
+      type: integer
+      minimum: 0
+    client_route_valid_for_seconds:
+      type: integer
+      minimum: 0
+      nullable: true
+CommunityPurchaseQuotePreflight:
+  type: object
+  description: |
+    Effective community purchase quote preflight snapshot. A successful response means the requested funding lane satisfies the community's current money policy. The response surfaces the required settlement lane and policy-derived quote expiry, but does not include listing pricing or a reserved route.
+  required:
+    - community_id
+    - eligible
+    - funding_mode
+    - policy_origin
+    - funding_preference
+    - destination_settlement_chain
+    - destination_settlement_token
+    - max_slippage_bps
+    - quote_ttl_seconds
+    - route_required
+    - route_status_policy
+    - route_hop_tolerance
+    - quoted_at
+    - expires_at
+  additionalProperties: false
+  properties:
+    community_id:
+      type: string
+    eligible:
+      type: boolean
+    funding_mode:
+      $ref: ./communities-community.yaml#/CommunityPurchaseFundingMode
+    policy_origin:
+      $ref: ./communities-community.yaml#/CommunityPolicyOrigin
+    funding_preference:
+      type: string
+    funding_asset:
+      $ref: ./communities-community.yaml#/CommunityMoneyAssetRef
+      nullable: true
+    source_chain:
+      $ref: ./communities-community.yaml#/CommunityMoneyChainRef
+      nullable: true
+    route_provider:
+      type: string
+      nullable: true
+    destination_settlement_chain:
+      $ref: ./communities-community.yaml#/CommunityMoneyChainRef
+    destination_settlement_token:
+      type: string
+    treasury_denomination:
+      type: string
+      nullable: true
+    max_slippage_bps:
+      type: integer
+      minimum: 0
+    quote_ttl_seconds:
+      type: integer
+      minimum: 1
+    route_required:
+      type: boolean
+    route_status_policy:
+      $ref: ./communities-community.yaml#/CommunityFundingRouteStatusPolicy
+    route_hop_tolerance:
+      type: integer
+      minimum: 0
+    quoted_at:
+      type: string
+      format: date-time
+    expires_at:
+      type: string
+      format: date-time
+CommunityPurchaseQuoteRequest:
+  type: object
+  description: |
+    Request a short-lived priced purchase quote for a persisted community listing. The server must load the listing by `listing_id`, verify it belongs to the community and is currently sellable, and derive the quote from the authoritative stored listing price rather than trusting a client-supplied amount. Route estimate fields are client-estimated in this implementation slice and must not be interpreted as server-verified route telemetry.
+  required:
+    - listing_id
+    - client_estimated_slippage_bps
+    - client_estimated_hop_count
+  additionalProperties: false
+  properties:
+    listing_id:
+      type: string
+    funding_asset:
+      $ref: ./communities-community.yaml#/CommunityMoneyAssetRef
+      nullable: true
+    source_chain:
+      $ref: ./communities-community.yaml#/CommunityMoneyChainRef
+      nullable: true
+    route_provider:
+      type: string
+      nullable: true
+    client_estimated_slippage_bps:
+      type: integer
+      minimum: 0
+    client_estimated_hop_count:
+      type: integer
+      minimum: 0
+    client_route_valid_for_seconds:
+      type: integer
+      minimum: 0
+      nullable: true
+CommunityPurchaseQuote:
+  type: object
+  description: |
+    Short-lived purchase quote snapshot for a community commerce object. This response is priced in USD using the persisted authored listing price and the community's current money policy. It is a quote record, not a completed purchase or settlement. In this implementation slice, route-policy compliance is checked server-side, but live bridge/swap liquidity is not yet verified.
+  required:
+    - quote_id
+    - community_id
+    - listing_id
+    - buyer_user_id
+    - base_price_usd
+    - final_price_usd
+    - funding_mode
+    - route_policy_compliant
+    - policy_origin
+    - destination_settlement_chain
+    - destination_settlement_token
+    - quote_ttl_seconds
+    - route_required
+    - route_status_policy
+    - route_hop_tolerance
+    - quoted_at
+    - expires_at
+  additionalProperties: false
+  properties:
+    quote_id:
+      type: string
+    community_id:
+      type: string
+    listing_id:
+      type: string
+    buyer_user_id:
+      type: string
+    asset_id:
+      type: string
+      nullable: true
+    live_room_id:
+      type: string
+      nullable: true
+    base_price_usd:
+      type: number
+      minimum: 0
+    pricing_tier:
+      type: string
+      nullable: true
+    final_price_usd:
+      type: number
+      minimum: 0
+    funding_mode:
+      $ref: ./communities-community.yaml#/CommunityPurchaseFundingMode
+    funding_asset:
+      $ref: ./communities-community.yaml#/CommunityMoneyAssetRef
+      nullable: true
+    source_chain:
+      $ref: ./communities-community.yaml#/CommunityMoneyChainRef
+      nullable: true
+    route_provider:
+      type: string
+      nullable: true
+    route_policy_compliant:
+      type: boolean
+      description: |
+        `true` means the requested funding lane passed community money-policy validation.
+    route_live_available:
+      type: boolean
+      nullable: true
+      description: |
+        Live route availability from an external venue. This implementation slice does not yet verify live liquidity or bridge uptime, so this field currently remains `null`.
+    policy_origin:
+      $ref: ./communities-community.yaml#/CommunityPolicyOrigin
+    destination_settlement_chain:
+      $ref: ./communities-community.yaml#/CommunityMoneyChainRef
+    destination_settlement_token:
+      type: string
+    treasury_denomination:
+      type: string
+      nullable: true
+    quote_ttl_seconds:
+      type: integer
+      minimum: 1
+    route_required:
+      type: boolean
+    route_status_policy:
+      $ref: ./communities-community.yaml#/CommunityFundingRouteStatusPolicy
+    route_hop_tolerance:
+      type: integer
+      minimum: 0
+    verification_snapshot_ref:
+      type: string
+      nullable: true
+    pricing_policy_version:
+      type: string
+      nullable: true
+    quoted_at:
+      type: string
+      format: date-time
+    expires_at:
+      type: string
+      format: date-time
+CommunityPurchaseSettlementRequest:
+  type: object
+  description: |
+    Confirm successful settlement for an already-issued community purchase quote. The server must reload the stored quote by `community_id` and `quote_id`, verify the quote belongs to the authenticated buyer, ensure it is still active and unexpired, then create the canonical purchase row and entitlement snapshot before marking the quote consumed.
+  required:
+    - quote_id
+    - settlement_wallet_attachment_id
+    - settlement_tx_ref
+  additionalProperties: false
+  properties:
+    quote_id:
+      type: string
+    settlement_wallet_attachment_id:
+      type: string
+    settlement_tx_ref:
+      type: string
+CommunityPurchaseSettlement:
+  type: object
+  description: |
+    Canonical app-level record returned after successful purchase settlement finalization. This response snapshots the consumed quote, settlement reference, and granted entitlement surface.
+  required:
+    - purchase_id
+    - quote_id
+    - community_id
+    - listing_id
+    - buyer_user_id
+    - settlement_wallet_attachment_id
+    - purchase_price_usd
+    - settlement_chain
+    - settlement_chain_ref
+    - settlement_token
+    - settlement_tx_ref
+    - entitlement_kind
+    - entitlement_target_ref
+    - purchase_entitlement_id
+    - settled_at
+  additionalProperties: false
+  properties:
+    purchase_id:
+      type: string
+    quote_id:
+      type: string
+    community_id:
+      type: string
+    listing_id:
+      type: string
+    buyer_user_id:
+      type: string
+    asset_id:
+      type: string
+      nullable: true
+    live_room_id:
+      type: string
+      nullable: true
+    settlement_wallet_attachment_id:
+      type: string
+    purchase_price_usd:
+      type: number
+      minimum: 0
+    pricing_tier:
+      type: string
+      nullable: true
+    settlement_chain:
+      $ref: ./communities-community.yaml#/CommunityMoneyChainRef
+    settlement_chain_ref:
+      type: string
+    settlement_token:
+      type: string
+    settlement_tx_ref:
+      type: string
+    entitlement_kind:
+      type: string
+      enum:
+        - asset_access
+        - live_room_access
+    entitlement_target_ref:
+      type: string
+    purchase_entitlement_id:
+      type: string
+    settled_at:
+      type: string
+      format: date-time
+CommunityPurchaseSettlementFailureRequest:
+  type: object
+  description: |
+    Mark an active purchase quote as failed without finalizing a purchase. This is the operator-facing failure path for routed or direct settlement attempts that did not finalize successfully.
+  required:
+    - quote_id
+  additionalProperties: false
+  properties:
+    quote_id:
+      type: string
+CommunityPurchaseSettlementFailure:
+  type: object
+  required:
+    - quote_id
+    - community_id
+    - status
+    - expires_at
+  additionalProperties: false
+  properties:
+    quote_id:
+      type: string
+    community_id:
+      type: string
+    status:
+      type: string
+      enum:
+        - failed
+        - expired
+    failed_at:
+      type: string
+      format: date-time
+      nullable: true
+    expires_at:
+      type: string
+      format: date-time
 CommunityModerationDecisionLevel:
   type: string
   enum:
@@ -862,6 +1744,8 @@ CreateCommunityPromotionPolicyInput:
     max_promotional_posts_per_week:
       type: integer
       nullable: true
+      description: |
+        Rolling 7 * 24-hour cap for promotional posts.
     promotional_participation_ratio:
       type: number
       nullable: true
@@ -884,6 +1768,8 @@ UpdateCommunityPromotionPolicyRequest:
     max_promotional_posts_per_week:
       type: integer
       nullable: true
+      description: |
+        Rolling 7 * 24-hour cap for promotional posts.
     promotional_participation_ratio:
       type: number
       nullable: true
@@ -912,6 +1798,8 @@ CommunityPromotionPolicy:
     max_promotional_posts_per_week:
       type: integer
       nullable: true
+      description: |
+        Effective rolling 7 * 24-hour cap for promotional posts.
     promotional_participation_ratio:
       type: number
       nullable: true
@@ -976,8 +1864,8 @@ CommunityContentAuthenticityDetectionPolicy:
 CreateCommunityBootstrapInput:
   type: object
   properties:
-    flair_policy:
-      $ref: ./communities-community.yaml#/CreateCommunityFlairPolicyInput
+    label_policy:
+      $ref: ./communities-community.yaml#/CreateCommunityLabelPolicyInput
       nullable: true
     rules:
       type: array
@@ -987,31 +1875,31 @@ CreateCommunityBootstrapInput:
       type: array
       items:
         $ref: ./communities-community.yaml#/CreateCommunityResourceLinkInput
-CreateCommunityFlairPolicyInput:
+CreateCommunityLabelPolicyInput:
   type: object
   properties:
-    flair_enabled:
+    label_enabled:
       type: boolean
       default: false
-    require_flair_on_top_level_posts:
+    require_label_on_top_level_posts:
       type: boolean
       default: false
     definitions:
       type: array
       items:
-        $ref: ./communities-community.yaml#/CreateCommunityFlairDefinitionInput
-UpdateCommunityFlairPolicyRequest:
+        $ref: ./communities-community.yaml#/CreateCommunityLabelDefinitionInput
+UpdateCommunityLabelPolicyRequest:
   type: object
   properties:
-    flair_enabled:
+    label_enabled:
       type: boolean
-    require_flair_on_top_level_posts:
+    require_label_on_top_level_posts:
       type: boolean
     definitions:
       type: array
       items:
-        $ref: ./communities-community.yaml#/CommunityFlairDefinitionMutationInput
-CreateCommunityFlairDefinitionInput:
+        $ref: ./communities-community.yaml#/CommunityLabelDefinitionMutationInput
+CreateCommunityLabelDefinitionInput:
   type: object
   required:
     - label
@@ -1039,13 +1927,13 @@ CreateCommunityFlairDefinitionInput:
           - video
           - song
       nullable: true
-UpdateCommunityFlairDefinitionInput:
+UpdateCommunityLabelDefinitionInput:
   type: object
   required:
-    - flair_id
+    - label_id
   additionalProperties: false
   properties:
-    flair_id:
+    label_id:
       type: string
     label:
       type: string
@@ -1073,19 +1961,19 @@ UpdateCommunityFlairDefinitionInput:
       enum:
         - active
         - archived
-CommunityFlairDefinitionMutationInput:
+CommunityLabelDefinitionMutationInput:
   oneOf:
-    - $ref: ./communities-community.yaml#/CreateCommunityFlairDefinitionInput
-    - $ref: ./communities-community.yaml#/UpdateCommunityFlairDefinitionInput
-CommunityFlairDefinition:
+    - $ref: ./communities-community.yaml#/CreateCommunityLabelDefinitionInput
+    - $ref: ./communities-community.yaml#/UpdateCommunityLabelDefinitionInput
+CommunityLabelDefinition:
   type: object
   required:
-    - flair_id
+    - label_id
     - label
     - status
     - position
   properties:
-    flair_id:
+    label_id:
       type: string
     label:
       type: string
@@ -1113,31 +2001,31 @@ CommunityFlairDefinition:
           - video
           - song
       nullable: true
-CommunityFlairPolicy:
+CommunityLabelPolicy:
   type: object
   required:
-    - flair_enabled
-    - require_flair_on_top_level_posts
+    - label_enabled
+    - require_label_on_top_level_posts
     - definitions
   properties:
-    flair_enabled:
+    label_enabled:
       type: boolean
-    require_flair_on_top_level_posts:
+    require_label_on_top_level_posts:
       type: boolean
     definitions:
       type: array
       items:
-        $ref: ./communities-community.yaml#/CommunityFlairDefinition
-PostFlair:
+        $ref: ./communities-community.yaml#/CommunityLabelDefinition
+PostLabel:
   type: object
   description: |
-    Resolved flair summary for a post read surface. Historical posts may continue to return flair definitions whose current `status` is `archived`; clients should still render the flair pill normally in that case rather than treating it as hidden or as a special archived badge.
+    Resolved label summary for a post read surface. Historical posts may continue to return label definitions whose current `status` is `archived`; clients should still render the label normally in that case rather than treating it as hidden or as a special archived badge.
   required:
-    - flair_id
+    - label_id
     - label
     - status
   properties:
-    flair_id:
+    label_id:
       type: string
     label:
       type: string

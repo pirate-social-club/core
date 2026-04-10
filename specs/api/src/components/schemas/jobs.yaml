@@ -15,6 +15,7 @@ Job:
       type: string
       enum:
         - community_provisioning
+        - community_registry_publication
         - reddit_snapshot_import
         - club_threads_export
         - media_analysis

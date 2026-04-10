@@ -2,16 +2,18 @@
 
 Status: accepted
 
+Partially superseded by [control-plane-neon-adr.md](/home/t42/Documents/pirate-v2/docs/control-plane-neon-adr.md) for the central control-plane database.
+
 ## Decision
 
-Pirate v2 will use Turso/libSQL for relational application storage instead of D1.
+Pirate v2 will use Turso/libSQL for community relational storage instead of D1.
 
 The multitenant unit is:
 
 - one Turso group per community
 - one primary database per community group in v0
 
-Pirate also keeps one central control-plane database under the Pirate-owned Turso organization.
+Pirate keeps the central control-plane database on Neon Postgres.
 
 Cloudflare Workers remain the compute platform. Durable Objects remain the live-state primitive for transient real-time workloads such as livestream room session state.
 
@@ -78,7 +80,7 @@ The community database stores community-owned durable state such as:
 - community settings and policies
 - memberships and moderator state
 - posts, replies, and local moderation records
-- community-scoped handles, flair, and community-specific metadata
+- community-scoped handles, labels, and community-specific metadata
 - community-owned commerce metadata and purchase records where applicable
 - community-local read models and counters
 

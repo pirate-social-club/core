@@ -97,7 +97,7 @@ Interpretation:
 - `profiles`
   Public/editable profile surface, including the active global `.pirate` identity.
 - `communities`
-  Community creation, settings, membership, gates, moderation roles, payout-policy selection, and creation-time community bootstrap such as flair, rules, and resource links.
+  Community creation, settings, membership, gates, moderation roles, payout-policy selection, and creation-time community bootstrap such as labels, rules, and resource links.
 - `namespaces`
   Root attachment state, mirrors, delegation state, and namespace-level policy surfaces.
 - `handles`
@@ -262,6 +262,8 @@ Key v0 flows:
 - start verification session
 - inspect verification session
 - complete or refresh verification state
+- get current wallet-score capability
+- refresh wallet-score capability
 - start HNS namespace verification session
 - inspect HNS namespace verification session
 - complete or refresh HNS namespace verification after TXT publication
@@ -278,7 +280,8 @@ Verification outcomes should be visible to the client as:
 
 Recommended v0 boundary:
 
-- verification sessions stay under the verification or user model
+- interactive verification sessions stay under the verification or user model and are used for providers such as `self` and `very`
+- Human Passport `wallet_score` remains under the verification surface, but as a server-side read/refresh capability flow rather than an interactive session
 - namespace verification sessions may live under verification or a dedicated namespace-verification surface, but they must remain explicit session workflows rather than hidden preflights
 - Reddit bootstrap stays under onboarding, even if some endpoints are also grouped under verification in the API
 
@@ -357,7 +360,7 @@ Recommended API shape:
 3. submit one final create request referencing the accepted namespace verification
 4. server re-checks creator binding, freshness, and `club_attach_allowed` on the accepted verification object
 5. create club, namespace, handle policy, and default karma policy together
-6. optionally include initial community bootstrap such as flair definitions, rules, and resource links for internal or later clients
+6. optionally include initial community bootstrap such as label definitions, rules, and resource links for internal or later clients
 7. optionally enqueue artist metadata enrichment when the club is artist-linked
 8. optionally attach delegation or governance later
 9. optionally configure authenticity policy, authenticity-detection profile selection, and source policy during post-create onboarding or later community settings; if omitted, the server enforces restrictive defaults and the platform-default detection profile from the first post onward

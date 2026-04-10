@@ -148,6 +148,10 @@ Recommended v0 default:
 - communities may choose to disable daily questions entirely
 - later versions may support more frequent prompts, but v0 should stay simple
 
+Interpretation:
+
+- for cadence enforcement, `per day` should evaluate over the previous rolling 24 hours from publish time rather than a calendar-day bucket
+
 This keeps the loop legible and reduces spam in smaller communities.
 
 ## Answer Model

@@ -7,7 +7,7 @@ Related:
 - [community-api-first-slice-freeze.md](/home/t42/Documents/pirate-v2/docs/community-api-first-slice-freeze.md)
 - [turso-secret-contract.md](/home/t42/Documents/pirate-v2/docs/turso-secret-contract.md)
 - [turso-provisioning-contract.md](/home/t42/Documents/pirate-v2/docs/turso-provisioning-contract.md)
-- [turso-control-plane-schema.md](/home/t42/Documents/pirate-v2/docs/turso-control-plane-schema.md)
+- [control-plane-schema.md](/home/t42/Documents/pirate-v2/docs/control-plane-schema.md)
 - [specs/api/src/paths/auth.yaml](/home/t42/Documents/pirate-v2/specs/api/src/paths/auth.yaml)
 
 ## Goal
@@ -126,8 +126,6 @@ The runtime repo should split config into ordinary Worker vars versus secrets.
 
 These belong in version-controlled Worker config such as `wrangler.toml`:
 
-- `TURSO_CONTROL_PLANE_DATABASE_URL`
-- `TURSO_CONTROL_PLANE_DATABASE_NAME`
 - `AUTH_UPSTREAM_JWT_ISSUER`
 - `AUTH_UPSTREAM_JWT_AUDIENCE`
 - `PIRATE_APP_JWT_ISSUER`
@@ -137,11 +135,11 @@ These belong in version-controlled Worker config such as `wrangler.toml`:
 
 These should be injected as Worker secrets:
 
-- `TURSO_CONTROL_PLANE_AUTH_TOKEN`
+- `CONTROL_PLANE_DATABASE_URL`
 - `PIRATE_APP_JWT_PRIVATE_KEY`
 - `AUTH_UPSTREAM_JWT_SHARED_SECRET`
 
-Do not add `TURSO_PLATFORM_API_TOKEN` to the public API worker.
+Do not add `CONTROL_PLANE_MIGRATOR_DATABASE_URL` or `TURSO_PLATFORM_API_TOKEN` to the public API worker.
 
 ### Pirate App Session Token
 
@@ -158,13 +156,14 @@ For this first account-creation slice, the minimum Infisical surface is:
 
 ### `dev:/services/api`
 
-- `TURSO_CONTROL_PLANE_AUTH_TOKEN`
+- `CONTROL_PLANE_DATABASE_URL`
 - `PIRATE_APP_JWT_PRIVATE_KEY`
 - `AUTH_UPSTREAM_JWT_SHARED_SECRET`
 
 ### Not needed yet
 
 - `TURSO_PLATFORM_API_TOKEN`
+- `CONTROL_PLANE_MIGRATOR_DATABASE_URL`
 - `TURSO_COMMUNITY_DB_WRAP_KEY`
 - any per-community Turso credential
 - any Privy secret material

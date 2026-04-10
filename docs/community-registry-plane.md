@@ -1,12 +1,12 @@
 # Community Registry Plane
 
-Status: draft
+Status: proposed v0 decision for registry-backed community creation
 
 Related docs:
 
 - [turso-sovereignty-adr.md](/home/t42/Documents/pirate-v2/docs/turso-sovereignty-adr.md)
 - [turso-data-boundaries.md](/home/t42/Documents/pirate-v2/docs/turso-data-boundaries.md)
-- [turso-control-plane-schema.md](/home/t42/Documents/pirate-v2/docs/turso-control-plane-schema.md)
+- [control-plane-schema.md](/home/t42/Documents/pirate-v2/docs/control-plane-schema.md)
 - [../specs/api/mpp.md](/home/t42/Documents/pirate-v2/specs/api/mpp.md)
 - [../specs/domain/community.md](/home/t42/Documents/pirate-v2/specs/domain/community.md)
 - [../specs/domain/governance-backends.md](/home/t42/Documents/pirate-v2/specs/domain/governance-backends.md)
@@ -367,51 +367,159 @@ Recommended v0 sequence:
 
 1. User submits `POST /communities` through Pirate.
 2. Pirate validates creator verification, namespace evidence, and creation policy.
-3. Pirate creates the operational club row in Turso immediately.
-4. Pirate marks the club's registry publication state as pending.
+3. Pirate writes a public Tableland create-attempt row with `attempt_status = in_progress`.
+4. Pirate creates the operational community row and provisioning job in Turso.
 5. Pirate calls `ClubTableManagerV1.createClubTables(community_id, ...)` on the Tableland chain.
 6. Tableland emits table-creation events and validators materialize the per-community canonical tables.
-7. Pirate inserts the initial public registry rows through `ClubTableManagerV1`.
+7. Pirate inserts the initial canonical public registry rows through `ClubTableManagerV1`.
 8. Pirate updates shared discovery index tables.
-9. Turso cache and projection rows catch up from the finalized Tableland writes.
-10. Pirate marks registry publication as published.
+9. Pirate updates the Tableland create-attempt row to `succeeded`.
+10. Pirate marks registry publication as `published`.
 
 Important:
 
-- the club exists in Turso before the public registry is fully materialized
-- there is an expected temporary divergence window where operational truth exists but public registry truth is still pending
-- public discovery should treat `pending` communities as not yet published
+- the public create-attempt row is written before any Turso community row exists
+- if the create-attempt row cannot be written, `POST /communities` fails loud and no operational community is created
+- if the create-attempt row exists and the Turso write fails later, the attempt row must be updated to `failed`
+- there may still be a temporary divergence window where the community is operationally real in Turso but the canonical registry tables are not yet fully materialized
+- public discovery must treat non-`published` communities as unpublished
+
+## Runtime Placement Decision
+
+Recommended v0 runtime split:
+
+- the public Pirate API remains a Cloudflare Worker
+- Tableland publication runs in a standard-runtime internal publisher service
+- the Worker calls that publisher service over a private internal boundary
+
+This is now a measured runtime decision, not a theoretical preference.
+
+Observed prototype results:
+
+- direct Worker reads against the Tableland gateway work
+- direct Worker imports of `@tableland/sdk` work
+- direct Worker mutation through the current Tableland SDK write path fails at runtime because `@tableland/sqlparser` performs dynamic `WebAssembly.instantiate(...)`, which Cloudflare Workers reject
+- the same mutation path works in a normal runtime and successfully created a Base Sepolia testnet table, inserted a row, and read the row back through the Tableland gateway
+
+Observed prototype latency:
+
+- end-to-end normal-runtime `CREATE TABLE` + insert + readback on Base Sepolia testnet completed in about `12.7s`
+
+Operational consequence:
+
+- the Worker must not own the current Tableland SDK mutation lifecycle directly
+- publication should be delegated to a standard-runtime publisher process such as a Cloudflare Container or other Node/Bun service
+- the Worker remains the public orchestrator and mirror-state writer
+
+Timeout posture:
+
+- the publisher should use an explicit create timeout budget
+- the Worker should use an HTTP timeout shorter than its own request lifetime budget when calling the publisher
+- if publication work times out after the public create-attempt already exists, the community should transition to `publication_error` rather than treating the whole create as if no audit record existed
+
+## Public Create-Attempt Audit
+
+Community creation must be publicly auditable from the first create attempt, not only after successful registry publication.
+
+Recommended v0 shape:
+
+- shared public Tableland table such as `community_create_attempts_current`
+- one row per create attempt
+- append-or-update lifecycle visible to external readers
+
+Recommended public fields:
+
+- `registry_attempt_id`
+- `actor_user_id`
+- `actor_primary_wallet_snapshot`
+- `actor_governance_address_snapshot`
+- `namespace_verification_id`
+- `normalized_root_label`
+- `community_id`
+- `attempt_status`
+- `failure_code`
+- `created_at`
+- `updated_at`
+
+Important:
+
+- this audit surface is platform-owned public audit state, not community-owned canonical registry state
+- it exists to make repeated attempts, retries, failures, and abuse patterns externally auditable
+- wallet or contract identity should be prominent on this surface, but not the only actor key
 
 ## Registry Publication State
 
-Pirate should track publication state separately from club operational lifecycle.
+Pirate should track publication state separately from community operational lifecycle.
 
 Recommended central states:
 
-- `pending_tableland_create`
-- `pending_tableland_seed`
+- `not_started`
+- `pending_create`
+- `pending_seed`
 - `published`
+- `stale`
 - `publication_error`
 
 Recommended behavior:
 
-- community creation should not fail solely because Tableland publication is delayed after the Turso write succeeds
-- instead, the club remains operationally created but publicly unpublished until reconciliation succeeds
-- retry should happen through jobs or a control-plane reconciler
+- `not_started`
+  No publication work has begun.
+- `pending_create`
+  The create-attempt is public and the canonical Tableland tables are not yet created.
+- `pending_seed`
+  Canonical tables exist or are being finalized, but initial canonical rows and discovery indexes are not yet current.
+- `published`
+  The canonical Tableland registry is present and current enough to be treated as public truth.
+- `stale`
+  The community was previously published, but a subsequent mutation has been accepted in Turso and has not yet been reflected in Tableland.
+- `publication_error`
+  Publication work failed and requires retry or operator intervention.
+
+Important:
+
+- `stale` is distinct from initial publication failure
+- `stale` means the community has a published canonical registry history, but Tableland is temporarily behind Turso
+- `publication_error` means the current publication job failed and the public registry is not yet current
+
+## Publication-Gated Mutation Rule
+
+Operational reads and operational-only writes do not require published registry state.
+
+Public-canonical mutations do.
+
+Recommended v0 rule:
+
+| Action | Operational-only OK? | `published` required? |
+|---|---|---|
+| creator reads community | yes | no |
+| creator creates posts | yes | no |
+| public discovery listing | no | yes |
+| governance mode change | no | yes |
+| handle policy mutation | no | yes |
+| public reference-link publish | no | yes |
+| community transfer | no | yes |
+
+Interpretation:
+
+- operational usage may continue while publication is pending or failed
+- public discovery and any mutation whose effect must be reflected in the canonical public registry require `registry_publication_state = published`
+- after a community is already `published`, an allowed registry-bearing mutation may transition the community to `stale` until Tableland catches up
 
 ## Tableland Failure And Reconciliation
 
 Recommended v0 posture:
 
-- Tableland unavailability does not erase the Turso club create
-- Pirate records the failed publication state and retries asynchronously
-- shared discovery indexes must never publish a club whose canonical per-community tables were not successfully seeded
+- failure to write the public create-attempt row blocks community creation
+- failure after the public create-attempt row but before the Turso create must update the attempt row to `failed`
+- failure after the Turso create does not erase the operational community
+- Pirate records `publication_error` or `stale` and retries asynchronously
+- shared discovery indexes must never publish a community whose canonical per-community tables were not successfully seeded and current
 
 Recommended recovery mechanisms:
 
 - background retry jobs
 - operator-facing doctor or reconcile tooling
-- periodic verification that each active club has seeded canonical tables and fresh shared-index rows
+- periodic verification that each active published community has seeded canonical tables and fresh shared-index rows
 
 ## What Stays Out Of Tableland
 

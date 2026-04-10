@@ -1,3 +1,262 @@
+RequestedVerificationCapability:
+  type: string
+  enum:
+    - unique_human
+    - age_over_18
+    - nationality
+    - gender
+VerificationIntent:
+  type: string
+  enum:
+    - profile_verification
+    - community_creation
+    - post_access_18_plus
+    - commerce_pricing
+    - qualifier_disclosure
+StartVerificationSessionRequest:
+  type: object
+  required:
+    - provider
+    - requested_capabilities
+  description: |
+    Start an interactive verification session for a provider that requires a frontend launch flow.
+    This surface is intentionally limited to interactive providers such as `self` and `very`.
+    Human Passport wallet-score refresh is not modeled as a verification session because it is
+    a server-side score lookup by address rather than a QR, widget, or redirect ceremony.
+  properties:
+    provider:
+      type: string
+      enum:
+        - self
+        - very
+    provider_mode:
+      type: string
+      enum:
+        - qr_deeplink
+        - widget
+      nullable: true
+      description: |
+        Optional requested launch mode. `self` sessions resolve to `qr_deeplink`.
+        `very` sessions resolve to `widget` in public v0.
+    requested_capabilities:
+      type: array
+      minItems: 1
+      items:
+        $ref: ./verification.yaml#/RequestedVerificationCapability
+      description: |
+        Capability set the session is intended to satisfy. The server owns the provider-specific
+        verifier configuration and maps this request to an approved launch payload.
+    wallet_attachment_id:
+      type: string
+      nullable: true
+    verification_intent:
+      $ref: ./verification.yaml#/VerificationIntent
+      nullable: true
+      description: |
+        Product-flow identifier such as `profile_verification`, `community_creation`,
+        `commerce_pricing`, or `qualifier_disclosure`.
+    policy_id:
+      type: string
+      nullable: true
+      description: |
+        Optional server-defined verification policy identifier. When supplied, the server should
+        use this policy as the source of truth for provider-specific verifier settings rather than
+        trusting client-authored disclosure or widget configuration.
+CompleteVerificationSessionRequest:
+  type: object
+  description: |
+    Provider-agnostic completion or refresh payload for an interactive verification session.
+    Fields are optional because some providers complete asynchronously through the callback path
+    while others return proof material to the frontend first.
+  properties:
+    attestation_id:
+      type: string
+      nullable: true
+    proof_hash:
+      type: string
+      nullable: true
+    provider_payload_ref:
+      type: string
+      nullable: true
+      description: |
+        Opaque server-side reference to provider callback payload or proof material already stored
+        by the backend.
+ProviderVerificationCallbackRequest:
+  type: object
+  description: |
+    Generic callback envelope used by server-owned verification callback handlers.
+    Providers may send raw proof material, redirect parameters, or opaque event data.
+  properties:
+    provider:
+      type: string
+      enum:
+        - self
+        - very
+    event_type:
+      type: string
+      nullable: true
+    attestation_id:
+      type: string
+      nullable: true
+    proof_hash:
+      type: string
+      nullable: true
+    payload:
+      type: object
+      nullable: true
+      additionalProperties: true
+      description: |
+        Opaque provider callback body as received or normalized by Pirate. Clients should not
+        infer a shared schema across providers.
+        Examples:
+        - `self`: relayer payloads may include fields such as `attestationId`, `proof`,
+          `publicSignals`, and `userContextData`
+        - `very`: widget success payloads may include proof or result fields returned from the
+          provider-managed widget flow
+SelfVerificationDisclosures:
+  type: object
+  description: |
+    Server-resolved disclosure and policy config for a Self launch payload.
+  properties:
+    issuing_state:
+      type: boolean
+      nullable: true
+    name:
+      type: boolean
+      nullable: true
+    passport_number:
+      type: boolean
+      nullable: true
+    nationality:
+      type: boolean
+      nullable: true
+    date_of_birth:
+      type: boolean
+      nullable: true
+    gender:
+      type: boolean
+      nullable: true
+    expiry_date:
+      type: boolean
+      nullable: true
+    ofac:
+      type: boolean
+      nullable: true
+    excluded_countries:
+      type: array
+      nullable: true
+      items:
+        type: string
+    minimum_age:
+      type: integer
+      nullable: true
+SelfVerificationLaunch:
+  type: object
+  description: |
+    Pirate's server-resolved Self launch payload. This is not a direct one-to-one mapping of the
+    Self SDK constructor; clients must map these fields to the SDK's expected parameters rather
+    than spreading this object directly into `SelfAppBuilder`.
+  required:
+    - app_name
+    - endpoint
+    - endpoint_type
+    - scope
+    - session_id
+    - user_id
+    - user_id_type
+    - disclosures
+  properties:
+    app_name:
+      type: string
+    logo_base64:
+      type: string
+      nullable: true
+    header:
+      type: string
+      nullable: true
+    endpoint:
+      type: string
+    endpoint_type:
+      type: string
+      enum:
+        - https
+        - staging_https
+        - celo
+        - staging_celo
+    scope:
+      type: string
+    session_id:
+      type: string
+    user_id:
+      type: string
+    user_id_type:
+      type: string
+      enum:
+        - uuid
+        - hex
+    disclosures:
+      $ref: ./verification.yaml#/SelfVerificationDisclosures
+    deeplink_callback:
+      type: string
+      nullable: true
+    version:
+      type: integer
+      enum:
+        - 1
+        - 2
+      nullable: true
+    user_defined_data:
+      type: string
+      nullable: true
+    chain_id:
+      type: integer
+      nullable: true
+    dev_mode:
+      type: boolean
+      nullable: true
+VeryWidgetLaunch:
+  type: object
+  required:
+    - app_id
+    - context
+    - type_id
+    - query
+    - verify_url
+  properties:
+    app_id:
+      type: string
+    context:
+      type: string
+    type_id:
+      type: string
+    query:
+      type: object
+      additionalProperties: true
+      description: |
+        Opaque server-authored Very widget query payload for the current session. Clients should
+        pass this through to the provider widget rather than constructing or mutating it.
+        Example shape may include `conditions` plus `options` such as
+        `expiredAtLowerBound`, `externalNullifier`, `equalCheckId`, and `pseudonym`.
+    verify_url:
+      type: string
+VerificationSessionLaunch:
+  type: object
+  required:
+    - mode
+  description: |
+    Frontend launch payload for an interactive verification session.
+    Exactly one provider-specific launch object should be present for a non-`none` mode.
+  properties:
+    mode:
+      type: string
+      enum:
+        - qr_deeplink
+        - widget
+        - none
+    self_app:
+      $ref: ./verification.yaml#/SelfVerificationLaunch
+    very_widget:
+      $ref: ./verification.yaml#/VeryWidgetLaunch
 VerificationCapabilities:
   type: object
   required:
@@ -5,17 +264,31 @@ VerificationCapabilities:
     - age_over_18
     - nationality
     - gender
+    - sanctions_clear
     - wallet_score
   properties:
     unique_human:
       $ref: ./verification.yaml#/VerificationCapabilityState
     age_over_18:
-      $ref: ./verification.yaml#/VerifiedCapabilityState
+      allOf:
+        - $ref: ./verification.yaml#/VerifiedCapabilityState
+      type: object
+      properties:
+        proof_type:
+          type: string
+          enum:
+            - age_over_18
+          nullable: true
     nationality:
       allOf:
         - $ref: ./verification.yaml#/VerifiedCapabilityState
       type: object
       properties:
+        proof_type:
+          type: string
+          enum:
+            - nationality
+          nullable: true
         value:
           type: string
           nullable: true
@@ -32,6 +305,13 @@ VerificationCapabilities:
             - F
           nullable: true
           description: Verified gender value when disclosed by an eligible flow
+        proof_type:
+          type: string
+          enum:
+            - gender
+          nullable: true
+    sanctions_clear:
+      $ref: ./verification.yaml#/SanctionsClearCapabilityState
     wallet_score:
       $ref: ./verification.yaml#/WalletScoreCapabilityState
 VerificationCapabilityState:
@@ -53,20 +333,11 @@ VerificationCapabilityState:
       enum:
         - self
         - very
-        - passport
       nullable: true
     proof_type:
       type: string
       enum:
         - unique_human
-        - biometric_liveness
-        - wallet_score
-        - gov_id
-        - age_over_18
-        - nationality
-        - sanctions_clear
-        - gender
-        - phone
       nullable: true
     mechanism:
       type: string
@@ -80,7 +351,9 @@ VerifiedCapabilityState:
   required:
     - state
   description: |
-    Capability state for age_over_18 and nationality, which have no pending state — they are either unverified, verified from an accepted record, or expired after a re-verification requirement.
+    Capability state for Self-backed disclosure capabilities in v0. These capabilities have no
+    pending state — they are either unverified, verified from an accepted record, or expired after
+    a re-verification requirement.
   properties:
     state:
       type: string
@@ -92,7 +365,6 @@ VerifiedCapabilityState:
       type: string
       enum:
         - self
-        - passport
       nullable: true
     proof_type:
       type: string
@@ -100,12 +372,41 @@ VerifiedCapabilityState:
         - age_over_18
         - nationality
         - gender
-        - gov_id
-        - sanctions_clear
-        - phone
       nullable: true
     mechanism:
       type: string
+      nullable: true
+    verified_at:
+      type: string
+      format: date-time
+      nullable: true
+SanctionsClearCapabilityState:
+  type: object
+  required:
+    - state
+  description: |
+    Capability state for Human Passport-backed sanctions screening in v0.
+  properties:
+    state:
+      type: string
+      enum:
+        - unverified
+        - verified
+        - expired
+    provider:
+      type: string
+      enum:
+        - passport
+      nullable: true
+    proof_type:
+      type: string
+      enum:
+        - sanctions_clear
+      nullable: true
+    mechanism:
+      type: string
+      enum:
+        - CleanHands
       nullable: true
     verified_at:
       type: string
@@ -174,6 +475,7 @@ VerificationSession:
     - verification_session_id
     - user_id
     - provider
+    - requested_capabilities
     - status
     - created_at
     - expires_at
@@ -187,8 +489,26 @@ VerificationSession:
       enum:
         - self
         - very
-        - passport
+      description: |
+        Interactive provider family for this session. Human Passport wallet-score lookups are
+        intentionally excluded because they do not require a session ceremony.
+    provider_mode:
+      type: string
+      enum:
+        - qr_deeplink
+        - widget
+      nullable: true
     wallet_attachment_id:
+      type: string
+      nullable: true
+    requested_capabilities:
+      type: array
+      items:
+        $ref: ./verification.yaml#/RequestedVerificationCapability
+    verification_intent:
+      $ref: ./verification.yaml#/VerificationIntent
+      nullable: true
+    policy_id:
       type: string
       nullable: true
     status:
@@ -198,6 +518,14 @@ VerificationSession:
         - verified
         - failed
         - expired
+    launch:
+      $ref: ./verification.yaml#/VerificationSessionLaunch
+    callback_path:
+      type: string
+      nullable: true
+      description: |
+        Server-owned callback path reserved for provider redirects, relayers, or webhook-style
+        completion. Clients should treat this as informational.
     nationality:
       type: string
       nullable: true
@@ -319,6 +647,7 @@ NamespaceVerificationSession:
       enum:
         - draft
         - inspecting
+        - dns_setup_required
         - challenge_required
         - challenge_pending
         - verifying

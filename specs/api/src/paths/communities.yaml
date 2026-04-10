@@ -2,6 +2,7 @@ communities:
   post:
     tags:
       - Communities
+    x-implemented: true
     summary: Create a community
     description: |
       Creates a community once all create-time prerequisites are already satisfied.
@@ -77,6 +78,7 @@ communities_by_community_id:
   get:
     tags:
       - Communities
+    x-implemented: true
     summary: Get a community
     parameters:
       - $ref: ../components/parameters.yaml#/CommunityId
@@ -146,20 +148,20 @@ communities_by_community_id_attach_governance:
         $ref: ../components/responses.yaml#/NotFound
       "409":
         $ref: ../components/responses.yaml#/Conflict
-communities_by_community_id_flairs:
+communities_by_community_id_labels:
   get:
     tags:
       - Communities
-    summary: List flair definitions for a community
+    summary: List label definitions for a community
     parameters:
       - $ref: ../components/parameters.yaml#/CommunityId
     responses:
       "200":
-        description: Community flair policy
+        description: Community label policy
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/communities-community.yaml#/CommunityFlairPolicy
+              $ref: ../components/schemas/communities-community.yaml#/CommunityLabelPolicy
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "404":
@@ -167,7 +169,7 @@ communities_by_community_id_flairs:
   patch:
     tags:
       - Communities
-    summary: Replace or update flair definitions for a community
+    summary: Replace or update label definitions for a community
     parameters:
       - $ref: ../components/parameters.yaml#/CommunityId
     requestBody:
@@ -175,14 +177,14 @@ communities_by_community_id_flairs:
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityFlairPolicyRequest
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityLabelPolicyRequest
     responses:
       "200":
-        description: Community flair policy updated
+        description: Community label policy updated
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/communities-community.yaml#/CommunityFlairPolicy
+              $ref: ../components/schemas/communities-community.yaml#/CommunityLabelPolicy
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "403":
@@ -505,6 +507,369 @@ communities_by_community_id_donation_policy:
         $ref: ../components/responses.yaml#/Conflict
       "429":
         $ref: ../components/responses.yaml#/RateLimited
+communities_by_community_id_money_policy:
+  get:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Get the active money policy for a community
+    description: |
+      Returns the resolved effective community funding policy. When the community has not explicitly configured a money policy yet, the server must return the platform-default policy with `policy_origin = default`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community money policy
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityMoneyPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  patch:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Configure or update the money policy for a community
+    description: |
+      Stores an explicit community funding policy. Changes apply prospectively to future quote generation and routed funding eligibility only; existing purchases remain pinned to their already-issued quote and settlement snapshots.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityMoneyPolicyRequest
+    responses:
+      "200":
+        description: Community money policy updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityMoneyPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+communities_by_community_id_pricing_policy:
+  get:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Get the active pricing policy for a community
+    description: |
+      Returns the resolved effective community pricing policy. When the community has not explicitly configured a pricing policy yet, the server must return the default non-tiered policy with `policy_origin = default`. This policy controls buyer-visible quote adjustments and is separate from the community money policy used for routing and settlement constraints.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community pricing policy
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityPricingPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  patch:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Configure or update the pricing policy for a community
+    description: |
+      Stores an explicit community pricing policy. Changes apply prospectively to future quote generation only; existing purchases remain pinned to the pricing tier and pricing-policy version captured in their quote and settlement snapshots. This policy does not control funding-lane eligibility or settlement routing.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityPricingPolicyRequest
+    responses:
+      "200":
+        description: Community pricing policy updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityPricingPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+communities_by_community_id_listings:
+  get:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: List community listings
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community listings
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityListingListResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  post:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Create a community listing
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/CreateCommunityListingRequest
+    responses:
+      "201":
+        description: Community listing created
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityListing
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_listings_by_listing_id:
+  get:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Get a community listing
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - name: listing_id
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Community listing
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityListing
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  patch:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Update a community listing
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - name: listing_id
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityListingRequest
+    responses:
+      "200":
+        description: Community listing updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityListing
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_purchases:
+  get:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: List the authenticated buyer's purchases in a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community purchases
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityPurchaseListResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_purchases_by_purchase_id:
+  get:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Get an authenticated buyer's purchase in a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - name: purchase_id
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Community purchase
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityPurchase
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_purchase_quote_preflight:
+  post:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Preflight a community purchase funding lane
+    description: |
+      Validates a proposed buyer funding lane against the community's active money policy and returns the effective settlement lane snapshot Pirate would require for a future purchase quote. This does not price a listing, reserve a route, or execute settlement.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/CommunityPurchaseQuotePreflightRequest
+    responses:
+      "200":
+        description: Community purchase quote preflight
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityPurchaseQuotePreflight
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_purchase_quotes:
+  post:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Issue a short-lived community purchase quote
+    description: |
+      Prices a purchase quote from a persisted listing and validates the requested buyer funding lane against the community's active money policy. When nationality-backed regional pricing is enabled, quote resolution must also consult the community's active pricing policy and snapshot the resulting `pricing_policy_version` and `pricing_tier`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/CommunityPurchaseQuoteRequest
+    responses:
+      "200":
+        description: Community purchase quote
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityPurchaseQuote
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+communities_by_community_id_purchase_settlements:
+  post:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Confirm settlement for an issued community purchase quote
+    description: |
+      Consumes an existing active purchase quote, verifies it belongs to the authenticated buyer and has not expired, then writes the canonical purchase row and entitlement snapshot before marking the quote consumed.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/CommunityPurchaseSettlementRequest
+    responses:
+      "200":
+        description: Community purchase settled
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityPurchaseSettlement
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+communities_by_community_id_purchase_settlement_failures:
+  post:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Mark a community purchase quote as failed
+    description: |
+      Marks an active purchase quote as failed when settlement did not finalize successfully. If the quote has already expired, the server should mark it expired instead of failed.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/CommunityPurchaseSettlementFailureRequest
+    responses:
+      "200":
+        description: Community purchase quote failure recorded
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityPurchaseSettlementFailure
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
 communities_by_community_id_content_authenticity_policy:
   get:
     tags:
@@ -607,6 +972,57 @@ communities_by_community_id_content_authenticity_detection_policy:
         $ref: ../components/responses.yaml#/Conflict
       "429":
         $ref: ../components/responses.yaml#/RateLimited
+communities_by_community_id_market_context_policy:
+  get:
+    tags:
+      - Communities
+    summary: Get the active market-context policy for a community
+    description: |
+      Returns the resolved effective market-context policy. When the community has not explicitly configured a policy yet, the server must return the platform-default policy with `policy_origin = default`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community market-context policy
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/market-context.yaml#/CommunityMarketContextPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  patch:
+    tags:
+      - Communities
+    summary: Configure or update the market-context policy for a community
+    description: |
+      Stores an explicit community market-context policy. This replaces the resolved default policy for future and newly refreshed attachments, but does not retroactively detach already attached market-context rows when the mode is switched off.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/market-context.yaml#/UpdateCommunityMarketContextPolicyRequest
+    responses:
+      "200":
+        description: Community market-context policy updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/market-context.yaml#/CommunityMarketContextPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
 communities_by_community_id_source_policy:
   get:
     tags:
@@ -663,6 +1079,16 @@ communities_by_community_id_join:
     tags:
       - Communities
     summary: Join a community
+    description: |
+      The server must always evaluate the platform baseline join gate before considering the community's membership mode.
+
+      Public v0 baseline join eligibility requires at least one approved platform trust credential:
+
+      - `unique_human` verified through an accepted provider such as `self` or `very`
+      - `wallet_score` verified through `passport` with a passing score
+      - operator-approved token-gated exceptions may exist later, but are not configurable through public v0 community creation or public community settings
+
+      `open` means no extra community-specific gate beyond that platform baseline. `gated` communities must satisfy the platform baseline and then all active membership-scope community gate rules.
     parameters:
       - $ref: ../components/parameters.yaml#/CommunityId
     responses:
@@ -719,16 +1145,158 @@ communities_by_community_id_leave:
       "401":
         $ref: ../components/responses.yaml#/AuthError
 communities_by_community_id_posts:
+  post:
+    tags:
+      - Posts
+    x-implemented: true
+    summary: Create a post in a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    description: |
+      Post creation is scoped to a community. The caller names the target community in the route,
+      and the request body must not repeat `community_id`.
+
+      Public v0 posting requires community membership plus `verification_capabilities.unique_human.state = verified`
+      from an accepted human-verification provider. There is no public v0 exception path for unverified posting or anonymous posting.
+
+      When `authorship_mode = user_agent`, the caller must additionally provide `agent_id` plus a
+      valid `agent_action_proof`, and the server must verify:
+
+      - the agent ownership record is currently valid
+      - the owning human remains in good standing
+      - the community's effective agent-posting policy allows the attempted write
+
+      The server should run required analysis before making the post publicly visible:
+
+      - platform-required safety analysis
+      - rights/reference analysis where applicable
+      - community authenticity/source policy evaluation where applicable
+
+      Recommended outcome mapping:
+
+      - `201` when the post is created and publishable in the current state
+      - `202` when the post is created or retained in a non-published review-held state because analysis resolved to `review_required`
+      - `422` when analysis resolved to `blocked`
+
+      Required analysis timeout or provider failure should normally resolve to a non-published hold/review outcome rather than publish-first behavior.
+
+      Song post bundle gating: when `post_type = song` and `song_artifact_bundle_id` is provided, the server must reject the request if the referenced bundle is not in `ready` state. Consumed bundles must not be reused for a second song post.
+
+      Market-context enrichment is explicitly async and read-side only. It does not run at post-create time and does not gate publication. Market-context attachment happens after a post is published, for eligible link posts only, based on the community's resolved market-context policy.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/posts.yaml#/CreatePostRequest
+          examples:
+            text_basic:
+              summary: Minimal text post with body only
+              value:
+                idempotency_key: post_create_text_001
+                post_type: text
+                body: Looking for feedback on tonight's set.
+            image_basic:
+              summary: Image post with one uploaded image ref
+              value:
+                idempotency_key: post_create_image_001
+                post_type: image
+                caption: Poster draft for next week.
+                media_refs:
+                  - storage_ref: ipfs://bafybeiposterimage001
+                    mime_type: image/png
+                    size_bytes: 482193
+                    content_hash: 0ximgposter001
+            video_basic:
+              summary: Video post with one uploaded video ref
+              value:
+                idempotency_key: post_create_video_001
+                post_type: video
+                title: Rehearsal clip
+                media_refs:
+                  - storage_ref: ipfs://bafybeivideoclip001
+                    mime_type: video/mp4
+                    size_bytes: 18421933
+                    content_hash: 0xvideoclip001
+                    duration_ms: 27400
+            link_basic:
+              summary: Link post with optional title and commentary
+              value:
+                idempotency_key: post_create_link_001
+                post_type: link
+                title: Fed meeting recap
+                body: This is the cleanest summary I have seen so far.
+                link_url: https://news.example.com/fed-meeting-recap
+            song_bundle_original:
+              summary: Song post backed by a registered artifact bundle
+              value:
+                idempotency_key: post_create_song_bundle_001
+                post_type: song
+                identity_mode: public
+                title: Harbor Lights
+                song_mode: original
+                rights_basis: original
+                song_artifact_bundle_id: sab_01HSONGBUNDLE001
+            song_inline_remix:
+              summary: Inline remix song post with audio, lyrics, and upstream attribution
+              value:
+                idempotency_key: post_create_song_inline_001
+                post_type: song
+                identity_mode: public
+                title: Harbor Lights (Night Edit)
+                song_mode: remix
+                rights_basis: derivative
+                upstream_asset_refs:
+                  - ast_01HUPSTREAM001
+                media_refs:
+                  - storage_ref: ipfs://bafybeiaudioedit001
+                    mime_type: audio/mpeg
+                    size_bytes: 9234411
+                    content_hash: 0xaudioedit001
+                    duration_ms: 201000
+                lyrics: |
+                  Streetlights on the water, echoes in the bay.
+                  Cut the drums lower, let the old hook stay.
+    responses:
+      "201":
+        description: |
+          Post created. Returns the canonical post row; localized read projections are returned by `GET /posts/{post_id}`.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/posts.yaml#/Post
+      "202":
+        description: |
+          Post accepted into a non-published review state. The canonical post row exists, but publication is held pending moderation or compliance review.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/posts.yaml#/Post
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/VerificationRequired
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "422":
+        $ref: ../components/responses.yaml#/AnalysisBlocked
+      "429":
+        $ref: ../components/responses.yaml#/PostingQuotaExhausted
   get:
     tags:
       - Posts
+    x-implemented: true
     summary: List posts in a community
+    description: |
+      Returns community feed items for published posts only. Non-published posts such as review-held drafts are not visible in this list.
+
+      The current v0 implemented surface returns newest-first results and may ignore ranking parameters such as `sort` and `top_window`.
     parameters:
       - $ref: ../components/parameters.yaml#/CommunityId
       - $ref: ../components/parameters.yaml#/Locale
       - $ref: ../components/parameters.yaml#/FeedSort
       - $ref: ../components/parameters.yaml#/TopWindow
-      - $ref: ../components/parameters.yaml#/FlairId
+      - $ref: ../components/parameters.yaml#/LabelId
       - $ref: ../components/parameters.yaml#/Cursor
       - $ref: ../components/parameters.yaml#/Limit
     responses:
@@ -742,3 +1310,546 @@ communities_by_community_id_posts:
         $ref: ../components/responses.yaml#/AuthError
       "429":
         $ref: ../components/responses.yaml#/RateLimited
+communities_by_community_id_assets_by_asset_id:
+  get:
+    tags:
+      - Posts
+    x-implemented: true
+    summary: Read a community asset
+    description: |
+      Returns the stored asset row. Locked assets redact the raw primary payload ref on this route and
+      replace it with a delivery placeholder or prepared locked-delivery ref.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/AssetId
+    responses:
+      "200":
+        description: Community asset
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/song-artifacts.yaml#/Asset
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_assets_by_asset_id_access:
+  get:
+    tags:
+      - Posts
+    x-implemented: true
+    summary: Resolve buyer or creator access to a community asset
+    description: |
+      Returns the effective access decision for an asset. Public assets return the direct content ref.
+      Locked assets return a purchase or privileged-access decision plus the prepared locked-delivery
+      ref when access is currently granted.
+
+      For hidden or non-published source posts, only the author or community owner/admin/moderator may
+      resolve access. Ordinary members and entitled buyers fail closed.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/AssetId
+    responses:
+      "200":
+        description: Asset access decision
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/song-artifacts.yaml#/AssetAccessResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_song_artifacts:
+  post:
+    tags:
+      - Posts
+    x-implemented: true
+    summary: Register a mainline song artifact bundle for a community
+    description: |
+      Registers song artifact upload references into a bundle for later post creation. This endpoint does not upload binaries and does not publish a post.
+
+      All artifact inputs must reference previously created upload intents whose `status` is `uploaded`. The server resolves each `song_artifact_upload_id` into the corresponding storage ref and metadata. Callers must not submit freeform `storage_ref` descriptors directly.
+
+      After registration, the bundle transitions through validation (`draft` -> `validating` -> `ready` or `failed`). Only a bundle in `ready` state may be used for song post creation. The server validates mime types, required fields, and package completeness during the `validating` transition.
+
+      Public v0 mainline rules for this first slice:
+
+      - caller must be an authenticated community member
+      - caller must satisfy `verification_capabilities.unique_human.state = verified`
+      - `primary_audio` upload reference and non-empty `lyrics` are required
+      - optional `cover_art`, `preview_audio`, `canvas_video`, `instrumental_audio`, and `vocal_audio` are accepted as upload references only
+      - no cover-art or canvas geometry enforcement is performed in this first implemented slice
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/song-artifacts.yaml#/CreateSongArtifactBundleRequest
+    responses:
+      "201":
+        description: Song artifact bundle registered
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/song-artifacts.yaml#/SongArtifactBundle
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/VerificationRequired
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "429":
+        $ref: ../components/responses.yaml#/PostingQuotaExhausted
+communities_by_community_id_song_artifact_uploads:
+  post:
+    tags:
+      - Posts
+    x-implemented: true
+    summary: Create a song artifact upload intent
+    description: |
+      Creates a local upload intent for a song artifact. The returned `upload_url` is the route the client should use to upload bytes in the first implemented slice.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/song-artifacts.yaml#/CreateSongArtifactUploadRequest
+    responses:
+      "201":
+        description: Song artifact upload intent
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/song-artifacts.yaml#/SongArtifactUpload
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/VerificationRequired
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "429":
+        $ref: ../components/responses.yaml#/PostingQuotaExhausted
+communities_by_community_id_song_artifact_uploads_by_song_artifact_upload_id_content:
+  put:
+    tags:
+      - Posts
+    x-implemented: true
+    summary: Upload song artifact content
+    description: |
+      Uploads bytes for a previously created song artifact upload intent. The first implemented slice accepts either raw bytes or JSON `content_base64`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/SongArtifactUploadId
+    requestBody:
+      required: true
+      content:
+        application/octet-stream:
+          schema:
+            type: string
+            format: binary
+        application/json:
+          schema:
+            $ref: ../components/schemas/song-artifacts.yaml#/SongArtifactUploadContentRequest
+    responses:
+      "200":
+        description: Song artifact upload completed
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/song-artifacts.yaml#/SongArtifactUpload
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/VerificationRequired
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_song_artifacts_by_song_artifact_bundle_id:
+  get:
+    tags:
+      - Posts
+    x-implemented: true
+    summary: Read a registered song artifact bundle
+    description: |
+      Returns a previously registered mainline song artifact bundle. In the current implemented slice, direct reads are limited to the bundle creator.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/SongArtifactBundleId
+    responses:
+      "200":
+        description: Song artifact bundle
+        content:
+          application/json:
+              schema:
+                $ref: ../components/schemas/song-artifacts.yaml#/SongArtifactBundle
+        "401":
+          $ref: ../components/responses.yaml#/AuthError
+        "404":
+          $ref: ../components/responses.yaml#/NotFound
+  communities_by_community_id_provenance_policy:
+    get:
+      tags:
+        - Communities
+      summary: Get the active provenance policy for a community
+      description: |
+        Returns the resolved effective provenance policy. When the community has not explicitly configured a provenance policy yet, the server must return the restrictive default policy with `policy_origin = default`.
+      parameters:
+        - $ref: ../components/parameters.yaml#/CommunityId
+      responses:
+        "200":
+          description: Community provenance policy
+          content:
+            application/json:
+              schema:
+                $ref: ../components/schemas/communities-community.yaml#/CommunityProvenancePolicy
+        "401":
+          $ref: ../components/responses.yaml#/AuthError
+        "404":
+          $ref: ../components/responses.yaml#/NotFound
+    patch:
+      tags:
+        - Communities
+      summary: Configure or update the provenance policy for a community
+      description: |
+        Stores an explicit community provenance policy for creator-relation claims and false-claim-of-ownership enforcement. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
+      parameters:
+        - $ref: ../components/parameters.yaml#/CommunityId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityProvenancePolicyRequest
+      responses:
+        "200":
+          description: Community provenance policy updated
+          content:
+            application/json:
+              schema:
+                $ref: ../components/schemas/communities-community.yaml#/CommunityProvenancePolicy
+        "401":
+          $ref: ../components/responses.yaml#/AuthError
+        "403":
+          $ref: ../components/responses.yaml#/EligibilityFailed
+        "404":
+          $ref: ../components/responses.yaml#/NotFound
+        "409":
+          $ref: ../components/responses.yaml#/Conflict
+        "429":
+          $ref: ../components/responses.yaml#/RateLimited
+  communities_by_community_id_promotion_policy:
+    get:
+      tags:
+        - Communities
+      summary: Get the active promotion policy for a community
+      description: |
+        Returns the resolved effective promotion policy. When the community has not explicitly configured a promotion policy yet, the server must return the default policy with `policy_origin = default`.
+      parameters:
+        - $ref: ../components/parameters.yaml#/CommunityId
+      responses:
+        "200":
+          description: Community promotion policy
+          content:
+            application/json:
+              schema:
+                $ref: ../components/schemas/communities-community.yaml#/CommunityPromotionPolicy
+        "401":
+          $ref: ../components/responses.yaml#/AuthError
+        "404":
+          $ref: ../components/responses.yaml#/NotFound
+    patch:
+      tags:
+        - Communities
+      summary: Configure or update the promotion policy for a community
+      description: |
+        Stores an explicit community promotion policy for self-promotion, affiliation disclosure, and participation-ratio enforcement. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
+      parameters:
+        - $ref: ../components/parameters.yaml#/CommunityId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityPromotionPolicyRequest
+      responses:
+        "200":
+          description: Community promotion policy updated
+          content:
+            application/json:
+              schema:
+                $ref: ../components/schemas/communities-community.yaml#/CommunityPromotionPolicy
+        "401":
+          $ref: ../components/responses.yaml#/AuthError
+        "403":
+          $ref: ../components/responses.yaml#/EligibilityFailed
+        "404":
+          $ref: ../components/responses.yaml#/NotFound
+        "409":
+          $ref: ../components/responses.yaml#/Conflict
+        "429":
+          $ref: ../components/responses.yaml#/RateLimited
+  communities_by_community_id_adult_content_policy:
+    get:
+      tags:
+        - Communities
+      summary: Get the active adult-content policy for a community
+      description: |
+        Returns the resolved effective adult-content policy. When the community has not explicitly configured an adult-content policy yet, the server must return the default policy with `policy_origin = default`. Platform age-gating and safety scanning remain mandatory regardless of this policy.
+      parameters:
+        - $ref: ../components/parameters.yaml#/CommunityId
+      responses:
+        "200":
+          description: Community adult-content policy
+          content:
+            application/json:
+              schema:
+                $ref: ../components/schemas/communities-community.yaml#/CommunityAdultContentPolicy
+        "401":
+          $ref: ../components/responses.yaml#/AuthError
+        "404":
+          $ref: ../components/responses.yaml#/NotFound
+    patch:
+      tags:
+        - Communities
+      summary: Configure or update the adult-content policy for a community
+      description: |
+        Stores an explicit community adult-content policy. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
+      parameters:
+        - $ref: ../components/parameters.yaml#/CommunityId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityAdultContentPolicyRequest
+      responses:
+        "200":
+          description: Community adult-content policy updated
+          content:
+            application/json:
+              schema:
+                $ref: ../components/schemas/communities-community.yaml#/CommunityAdultContentPolicy
+        "401":
+          $ref: ../components/responses.yaml#/AuthError
+        "403":
+          $ref: ../components/responses.yaml#/EligibilityFailed
+        "404":
+          $ref: ../components/responses.yaml#/NotFound
+        "409":
+          $ref: ../components/responses.yaml#/Conflict
+        "429":
+          $ref: ../components/responses.yaml#/RateLimited
+  communities_by_community_id_graphic_content_policy:
+    get:
+      tags:
+        - Communities
+      summary: Get the active graphic-content policy for a community
+      description: |
+        Returns the resolved effective graphic-content policy. When the community has not explicitly configured a graphic-content policy yet, the server must return the default policy with `policy_origin = default`.
+      parameters:
+        - $ref: ../components/parameters.yaml#/CommunityId
+      responses:
+        "200":
+          description: Community graphic-content policy
+          content:
+            application/json:
+              schema:
+                $ref: ../components/schemas/communities-community.yaml#/CommunityGraphicContentPolicy
+        "401":
+          $ref: ../components/responses.yaml#/AuthError
+        "404":
+          $ref: ../components/responses.yaml#/NotFound
+    patch:
+      tags:
+        - Communities
+      summary: Configure or update the graphic-content policy for a community
+      description: |
+        Stores an explicit community graphic-content policy. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
+      parameters:
+        - $ref: ../components/parameters.yaml#/CommunityId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityGraphicContentPolicyRequest
+      responses:
+        "200":
+          description: Community graphic-content policy updated
+          content:
+            application/json:
+              schema:
+                $ref: ../components/schemas/communities-community.yaml#/CommunityGraphicContentPolicy
+        "401":
+          $ref: ../components/responses.yaml#/AuthError
+        "403":
+          $ref: ../components/responses.yaml#/EligibilityFailed
+        "404":
+          $ref: ../components/responses.yaml#/NotFound
+        "409":
+          $ref: ../components/responses.yaml#/Conflict
+        "429":
+          $ref: ../components/responses.yaml#/RateLimited
+  communities_by_community_id_language_policy:
+    get:
+      tags:
+        - Communities
+      summary: Get the active language policy for a community
+      description: |
+        Returns the resolved effective language policy. When the community has not explicitly configured a language policy yet, the server must return the default policy with `policy_origin = default`.
+      parameters:
+        - $ref: ../components/parameters.yaml#/CommunityId
+      responses:
+        "200":
+          description: Community language policy
+          content:
+            application/json:
+              schema:
+                $ref: ../components/schemas/communities-community.yaml#/CommunityLanguagePolicy
+        "401":
+          $ref: ../components/responses.yaml#/AuthError
+        "404":
+          $ref: ../components/responses.yaml#/NotFound
+    patch:
+      tags:
+        - Communities
+      summary: Configure or update the language policy for a community
+      description: |
+        Stores an explicit community language policy for profanity and slur handling. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts. Targeted harassment and hate speech remain platform-level constraints.
+      parameters:
+        - $ref: ../components/parameters.yaml#/CommunityId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityLanguagePolicyRequest
+      responses:
+        "200":
+          description: Community language policy updated
+          content:
+            application/json:
+              schema:
+                $ref: ../components/schemas/communities-community.yaml#/CommunityLanguagePolicy
+        "401":
+          $ref: ../components/responses.yaml#/AuthError
+        "403":
+          $ref: ../components/responses.yaml#/EligibilityFailed
+        "404":
+          $ref: ../components/responses.yaml#/NotFound
+        "409":
+          $ref: ../components/responses.yaml#/Conflict
+        "429":
+          $ref: ../components/responses.yaml#/RateLimited
+  communities_by_community_id_capture_edit_policy:
+    get:
+      tags:
+        - Communities
+      summary: Get the active capture-edit policy for a community
+      description: |
+        Returns the resolved effective capture-edit policy for non-generative media adjustments. When the community has not explicitly configured a capture-edit policy yet, the server must return the default policy with `policy_origin = default`.
+      parameters:
+        - $ref: ../components/parameters.yaml#/CommunityId
+      responses:
+        "200":
+          description: Community capture-edit policy
+          content:
+            application/json:
+              schema:
+                $ref: ../components/schemas/communities-community.yaml#/CommunityCaptureEditPolicy
+        "401":
+          $ref: ../components/responses.yaml#/AuthError
+        "404":
+          $ref: ../components/responses.yaml#/NotFound
+    patch:
+      tags:
+        - Communities
+      summary: Configure or update the capture-edit policy for a community
+      description: |
+        Stores an explicit community capture-edit policy for non-generative photo and video editing. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts. Generative and AI-specific rules remain part of `content_authenticity_policy`.
+      parameters:
+        - $ref: ../components/parameters.yaml#/CommunityId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityCaptureEditPolicyRequest
+      responses:
+        "200":
+          description: Community capture-edit policy updated
+          content:
+            application/json:
+              schema:
+                $ref: ../components/schemas/communities-community.yaml#/CommunityCaptureEditPolicy
+        "401":
+          $ref: ../components/responses.yaml#/AuthError
+        "403":
+          $ref: ../components/responses.yaml#/EligibilityFailed
+        "404":
+          $ref: ../components/responses.yaml#/NotFound
+        "409":
+          $ref: ../components/responses.yaml#/Conflict
+        "429":
+          $ref: ../components/responses.yaml#/RateLimited
+  communities_by_community_id_motion_media_policy:
+    get:
+      tags:
+        - Communities
+      summary: Get the active motion-media policy for a community
+      description: |
+        Returns the resolved effective motion-media policy for animated images, looping clips, and audio-bearing video. When the community has not explicitly configured a motion-media policy yet, the server must return the default policy with `policy_origin = default`.
+      parameters:
+        - $ref: ../components/parameters.yaml#/CommunityId
+      responses:
+        "200":
+          description: Community motion-media policy
+          content:
+            application/json:
+              schema:
+                $ref: ../components/schemas/communities-community.yaml#/CommunityMotionMediaPolicy
+        "401":
+          $ref: ../components/responses.yaml#/AuthError
+        "404":
+          $ref: ../components/responses.yaml#/NotFound
+    patch:
+      tags:
+        - Communities
+      summary: Configure or update the motion-media policy for a community
+      description: |
+        Stores an explicit community motion-media policy. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts. This policy intentionally does not create a separate `gif` post type.
+      parameters:
+        - $ref: ../components/parameters.yaml#/CommunityId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityMotionMediaPolicyRequest
+      responses:
+        "200":
+          description: Community motion-media policy updated
+          content:
+            application/json:
+              schema:
+                $ref: ../components/schemas/communities-community.yaml#/CommunityMotionMediaPolicy
+        "401":
+          $ref: ../components/responses.yaml#/AuthError
+        "403":
+          $ref: ../components/responses.yaml#/EligibilityFailed
+        "404":
+          $ref: ../components/responses.yaml#/NotFound
+        "409":
+          $ref: ../components/responses.yaml#/Conflict
+        "429":
+          $ref: ../components/responses.yaml#/RateLimited

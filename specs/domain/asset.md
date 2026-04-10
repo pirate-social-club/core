@@ -122,13 +122,18 @@ Asset content should be stored separately from the app row.
 
 Recommended v0 pattern:
 
-- content blob stored in Filebase/IPFS or equivalent
+- content blob stored through one Filebase/IPFS-style storage abstraction
 - app row stores references and hashes
 - Story publication, if requested, uses the stored content package as input
 - song assets may also carry supplementary package references for lyrics, instrumental tracks, and vocal tracks needed by karaoke and analysis flows
 - karaoke readiness belongs on the song asset/package layer rather than on the social post row
 - `karaoke_ready` is determined by `karaoke_package_ref` completeness and may be achieved asynchronously after the asset is created; stems and timed lyrics do not need to be present at asset creation time
 - `karaoke_package_ref` is the recommended v0 home for karaoke-specific refs rather than scattering those refs directly across the top-level asset row
+
+Mainline storage boundary:
+
+- v0 should use one mainline storage family for song blobs and related package refs
+- v0 should not depend on Arweave or any second persistence rail for lyrics, manifests, or delivery artifacts
 
 Explicit storage rule:
 
@@ -329,7 +334,7 @@ ACRCloud should be the primary v0 audio-identification provider for audio-bearin
 Recommended v0 split:
 
 - asset rows live in the app DB
-- content blobs live in Filebase/IPFS or equivalent
+- content blobs live in the same Filebase/IPFS-style storage family used by the ingestion path
 - Story publication is optional except where required by post type policy
 - Story identifiers are attached after publication succeeds
 - Story registration should use standard Story-compatible NFT collection flows

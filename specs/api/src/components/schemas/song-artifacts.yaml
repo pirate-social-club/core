@@ -1,0 +1,550 @@
+SongAudioArtifactDescriptor:
+  type: object
+  required:
+    - storage_ref
+    - mime_type
+  properties:
+    storage_ref:
+      type: string
+    mime_type:
+      type: string
+    size_bytes:
+      type: integer
+      nullable: true
+    content_hash:
+      type: string
+      nullable: true
+    duration_ms:
+      type: integer
+      nullable: true
+    clip_start_ms:
+      type: integer
+      nullable: true
+    clip_duration_ms:
+      type: integer
+      nullable: true
+SongImageArtifactDescriptor:
+  type: object
+  required:
+    - storage_ref
+    - mime_type
+  properties:
+    storage_ref:
+      type: string
+    mime_type:
+      type: string
+    size_bytes:
+      type: integer
+      nullable: true
+    content_hash:
+      type: string
+      nullable: true
+    width:
+      type: integer
+      nullable: true
+    height:
+      type: integer
+      nullable: true
+SongVideoArtifactDescriptor:
+  type: object
+  required:
+    - storage_ref
+    - mime_type
+  properties:
+    storage_ref:
+      type: string
+    mime_type:
+      type: string
+    size_bytes:
+      type: integer
+      nullable: true
+    content_hash:
+      type: string
+      nullable: true
+    duration_ms:
+      type: integer
+      nullable: true
+    clip_start_ms:
+      type: integer
+      nullable: true
+    clip_duration_ms:
+      type: integer
+      nullable: true
+    width:
+      type: integer
+      nullable: true
+    height:
+      type: integer
+      nullable: true
+SongArtifactUploadRef:
+  type: object
+  description: |
+    Reference to a previously created and uploaded song artifact. The server resolves the
+    `song_artifact_upload_id` into the corresponding `storage_ref`, `mime_type`, and other
+    metadata from the completed upload. The referenced upload must belong to the same community
+    and uploader, and its `status` must be `uploaded`.
+  required:
+    - song_artifact_upload_id
+  additionalProperties: false
+  properties:
+    song_artifact_upload_id:
+      type: string
+SongPreviewWindow:
+  type: object
+  additionalProperties: false
+  required:
+    - start_ms
+    - duration_ms
+  properties:
+    start_ms:
+      type: integer
+      minimum: 0
+    duration_ms:
+      type: integer
+      minimum: 1
+CreateSongArtifactBundleRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - primary_audio
+    - lyrics
+  properties:
+    primary_audio:
+      $ref: ./song-artifacts.yaml#/SongArtifactUploadRef
+    lyrics:
+      type: string
+      description: Plain-text lyrics used for the mainline v0 song post.
+    cover_art:
+      $ref: ./song-artifacts.yaml#/SongArtifactUploadRef
+      nullable: true
+    preview_audio:
+      $ref: ./song-artifacts.yaml#/SongArtifactUploadRef
+      nullable: true
+    preview_window:
+      $ref: ./song-artifacts.yaml#/SongPreviewWindow
+      nullable: true
+    canvas_video:
+      $ref: ./song-artifacts.yaml#/SongArtifactUploadRef
+      nullable: true
+    instrumental_audio:
+      $ref: ./song-artifacts.yaml#/SongArtifactUploadRef
+      nullable: true
+    vocal_audio:
+      $ref: ./song-artifacts.yaml#/SongArtifactUploadRef
+      nullable: true
+CreateSongArtifactUploadRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - artifact_kind
+    - mime_type
+  properties:
+    artifact_kind:
+      type: string
+      enum:
+        - primary_audio
+        - cover_art
+        - preview_audio
+        - canvas_video
+        - instrumental_audio
+        - vocal_audio
+    mime_type:
+      type: string
+    filename:
+      type: string
+      nullable: true
+    size_bytes:
+      type: integer
+      nullable: true
+    content_hash:
+      type: string
+      nullable: true
+SongArtifactUploadContentRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - content_base64
+  properties:
+    content_base64:
+      type: string
+SongArtifactUpload:
+  type: object
+  required:
+    - song_artifact_upload_id
+    - community_id
+    - uploader_user_id
+    - artifact_kind
+    - status
+    - storage_ref
+    - mime_type
+    - upload_url
+    - created_at
+    - updated_at
+  properties:
+    song_artifact_upload_id:
+      type: string
+    community_id:
+      type: string
+    uploader_user_id:
+      type: string
+    artifact_kind:
+      type: string
+      enum:
+        - primary_audio
+        - cover_art
+        - preview_audio
+        - canvas_video
+        - instrumental_audio
+        - vocal_audio
+    status:
+      type: string
+      enum:
+        - pending_upload
+        - uploaded
+        - failed
+    storage_ref:
+      type: string
+    mime_type:
+      type: string
+    filename:
+      type: string
+      nullable: true
+    size_bytes:
+      type: integer
+      nullable: true
+    content_hash:
+      type: string
+      nullable: true
+    storage_provider:
+      type: string
+      nullable: true
+      enum:
+        - filebase
+        - local_stub
+    storage_bucket:
+      type: string
+      nullable: true
+    storage_object_key:
+      type: string
+      nullable: true
+    storage_endpoint:
+      type: string
+      nullable: true
+    gateway_url:
+      type: string
+      nullable: true
+    upload_url:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+SongArtifactBundle:
+  type: object
+  required:
+    - song_artifact_bundle_id
+    - community_id
+    - creator_user_id
+    - status
+    - primary_audio
+    - media_refs
+    - lyrics
+    - lyrics_sha256
+    - preview_status
+    - translation_status
+    - alignment_status
+    - moderation_status
+    - created_at
+    - updated_at
+  properties:
+    song_artifact_bundle_id:
+      type: string
+    community_id:
+      type: string
+    creator_user_id:
+      type: string
+    status:
+      type: string
+      enum:
+        - draft
+        - validating
+        - ready
+        - consuming
+        - consumed
+        - failed
+    primary_audio:
+      $ref: ./song-artifacts.yaml#/SongAudioArtifactDescriptor
+    media_refs:
+      type: array
+      description: |
+        Mainline post-create media refs derived from the bundle. In the first v0 slice this contains only the primary audio descriptor.
+      items:
+        $ref: ./posts.yaml#/MediaDescriptor
+    lyrics:
+      type: string
+    lyrics_sha256:
+      type: string
+      description: SHA-256 digest of `lyrics`, prefixed with `0x`.
+    cover_art:
+      $ref: ./song-artifacts.yaml#/SongImageArtifactDescriptor
+      nullable: true
+    preview_audio:
+      $ref: ./song-artifacts.yaml#/SongAudioArtifactDescriptor
+      nullable: true
+    preview_window:
+      $ref: ./song-artifacts.yaml#/SongPreviewWindow
+      nullable: true
+    preview_status:
+      type: string
+      enum:
+        - pending
+        - processing
+        - completed
+        - failed
+    preview_error:
+      type: string
+      nullable: true
+    canvas_video:
+      $ref: ./song-artifacts.yaml#/SongVideoArtifactDescriptor
+      nullable: true
+    instrumental_audio:
+      $ref: ./song-artifacts.yaml#/SongAudioArtifactDescriptor
+      nullable: true
+    vocal_audio:
+      $ref: ./song-artifacts.yaml#/SongAudioArtifactDescriptor
+      nullable: true
+    translation_status:
+      type: string
+      enum:
+        - pending
+        - processing
+        - completed
+        - failed
+    translation_error:
+      type: string
+      nullable: true
+    translated_lyrics_ref:
+      type: string
+      nullable: true
+    translated_lyrics:
+      type: object
+      nullable: true
+      additionalProperties: true
+    alignment_status:
+      type: string
+      enum:
+        - pending
+        - processing
+        - completed
+        - failed
+    alignment_error:
+      type: string
+      nullable: true
+    timed_lyrics_ref:
+      type: string
+      nullable: true
+    timed_lyrics:
+      type: object
+      nullable: true
+      additionalProperties: true
+    moderation_status:
+      type: string
+      enum:
+        - pending
+        - processing
+        - completed
+        - failed
+    moderation_error:
+      type: string
+      nullable: true
+    moderation_result_ref:
+      type: string
+      nullable: true
+    moderation_result:
+      type: object
+      nullable: true
+      additionalProperties: true
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+Asset:
+  type: object
+  required:
+    - asset_id
+    - community_id
+    - source_post_id
+    - creator_user_id
+    - asset_kind
+    - rights_basis
+    - access_mode
+    - primary_content_ref
+    - publication_status
+    - story_status
+    - locked_delivery_status
+    - created_at
+    - updated_at
+  properties:
+    asset_id:
+      type: string
+    community_id:
+      type: string
+    source_post_id:
+      type: string
+    song_artifact_bundle_id:
+      type: string
+      nullable: true
+    creator_user_id:
+      type: string
+    asset_kind:
+      type: string
+      enum:
+        - song_audio
+    rights_basis:
+      type: string
+      enum:
+        - none
+        - original
+        - derivative
+        - attribution_only
+    access_mode:
+      type: string
+      enum:
+        - public
+        - locked
+    primary_content_ref:
+      type: string
+    primary_content_hash:
+      type: string
+      nullable: true
+    publication_status:
+      type: string
+      enum:
+        - draft
+        - story_requested
+        - story_published
+        - story_failed
+        - withdrawn
+    story_status:
+      type: string
+      enum:
+        - none
+        - requested
+        - published
+        - failed
+    story_error:
+      type: string
+      nullable: true
+    story_ip_id:
+      type: string
+      nullable: true
+    story_publish_tx_ref:
+      type: string
+      nullable: true
+    story_asset_version_id:
+      type: string
+      nullable: true
+    story_cdr_vault_uuid:
+      type: integer
+      nullable: true
+    story_namespace:
+      type: string
+      nullable: true
+    story_entitlement_token_id:
+      type: string
+      nullable: true
+    story_read_condition:
+      type: string
+      nullable: true
+    story_write_condition:
+      type: string
+      nullable: true
+    locked_delivery_status:
+      type: string
+      enum:
+        - none
+        - requested
+        - ready
+        - failed
+    locked_delivery_ref:
+      type: string
+      nullable: true
+    locked_delivery_error:
+      type: string
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+AssetAccessResponse:
+  type: object
+  required:
+    - asset_id
+    - community_id
+    - source_post_id
+    - access_mode
+    - source_post_status
+    - story_status
+    - locked_delivery_status
+    - access_granted
+    - decision_reason
+    - delivery_kind
+    - delivery_ref
+  properties:
+    asset_id:
+      type: string
+    community_id:
+      type: string
+    source_post_id:
+      type: string
+    access_mode:
+      type: string
+      enum:
+        - public
+        - locked
+    source_post_status:
+      type: string
+      enum:
+        - draft
+        - published
+        - hidden
+    story_status:
+      type: string
+      enum:
+        - none
+        - requested
+        - published
+        - failed
+    locked_delivery_status:
+      type: string
+      enum:
+        - none
+        - requested
+        - ready
+        - failed
+    access_granted:
+      type: boolean
+    decision_reason:
+      type: string
+      enum:
+        - public
+        - creator
+        - moderator
+        - purchase_entitlement
+        - purchase_required
+        - delivery_pending
+    delivery_kind:
+      type: string
+      nullable: true
+      enum:
+        - primary_content_ref
+        - locked_delivery_ref
+    delivery_ref:
+      type: string
+      nullable: true

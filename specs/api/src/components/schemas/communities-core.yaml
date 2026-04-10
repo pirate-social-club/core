@@ -95,6 +95,52 @@ CreateCommunityRequestBase:
       default: none
       description: |
         Community-wide default viewer age gate. Setting this to `18_plus` requires the acting creator or updating owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
+    agent_posting_policy:
+      type: string
+      enum:
+        - disallow
+        - review
+        - allow_with_disclosure
+        - allow
+      nullable: true
+      description: |
+        Optional create-time user-agent posting policy. When omitted, reads must resolve the
+        restrictive default `disallow`.
+    agent_posting_scope:
+      type: string
+      enum:
+        - replies_only
+        - top_level_and_replies
+      nullable: true
+      description: |
+        Optional create-time scope for user-owned agent posting. When omitted in a context where
+        user-owned agents are enabled, reads should resolve `replies_only`.
+    agent_daily_post_cap:
+      type: integer
+      nullable: true
+      description: |
+        Optional rolling 24-hour cap for user-agent top-level posts in this community.
+    agent_daily_reply_cap:
+      type: integer
+      nullable: true
+      description: |
+        Optional rolling 24-hour cap for user-agent replies in this community.
+    agent_min_owner_trust_tier:
+      type: string
+      enum:
+        - new
+        - established
+        - trusted
+        - high_trust
+      nullable: true
+      description: |
+        Optional minimum trust tier the owning human must satisfy before their user-owned agent may post.
+    agent_owner_active_limit:
+      type: integer
+      nullable: true
+      description: |
+        Optional community-local cap on active user-owned agents per human owner. Must not exceed
+        the platform-wide maximum.
     namespace:
       allOf:
         - $ref: ./handles.yaml#/NamespaceAttachmentInput
@@ -182,6 +228,20 @@ CreateCommunityRequestBase:
       nullable: true
       description: |
         Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must use the platform-default authenticity-detection profile from the first post onward. Platform-required safety and age-gating analysis remain platform-managed and unaffected.
+    market_context_policy:
+      allOf:
+        - $ref: ./market-context.yaml#/CreateCommunityMarketContextPolicyInput
+      type: object
+      nullable: true
+      description: |
+        Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must resolve the platform-default market-context policy from the first eligible post onward.
+    money_policy:
+      allOf:
+        - $ref: ./communities-community.yaml#/CreateCommunityMoneyPolicyInput
+      type: object
+      nullable: true
+      description: |
+        Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must resolve the effective default community money policy. This attached policy defines purchase funding lanes and route constraints without turning the community object into a chain or route object.
     community_bootstrap:
       $ref: ./communities-community.yaml#/CreateCommunityBootstrapInput
       nullable: true
@@ -194,6 +254,7 @@ CreateCommunityRequestBase:
       nullable: true
       description: |
         Public v0 create is limited to `membership`-scope `identity_proof` gate rules only. Each submitted gate rule must include explicit `proof_requirements`. Token-holding gate rules, `viewer`-scope gates, and `posting`-scope gates are deferred until post-create settings. The server should reject create requests containing gate rules that fall outside the public v0 scope.
+        Token-holding gate rules are operator-controlled exceptions when enabled later; they are not public-v0 self-serve configuration.
 GateRuleInput:
   type: object
   required:
@@ -222,6 +283,8 @@ GateRuleInput:
         - unique_human
         - age_over_18
         - nationality
+        - gender
+        - sanctions_clear
         - wallet_score
     proof_requirements:
       type: array
@@ -235,6 +298,23 @@ GateRuleInput:
       type: object
       nullable: true
       additionalProperties: true
+      description: |
+        Provider-neutral rule config for the selected gate. For identity-proof gates, public v0
+        should normalize on a small shared shape rather than arbitrary provider knobs:
+        - `nationality`: `required_value` (single ISO code) or `excluded_values` (array of ISO codes)
+        - `gender`: `required_value` (`M` or `F`)
+        - `wallet_score`: `minimum_score` (number)
+        - `sanctions_clear`: no extra config required
+
+        Token-holding gate configs are reserved for operator-approved exceptions and are not accepted through public v0 community creation.
+        They should still use typed, provider-neutral shapes keyed by `gate_type` rather than arbitrary adapter JSON.
+        EVM token gates should require CAIP-2 `chain_namespace` values such as `eip155:1` or `eip155:8453`.
+        For `erc721_holding`, the normalized rule shape should support:
+        - `standard = erc721`
+        - `mode = contract_any | token_id_allowlist | metadata_match`
+        - `contract_address`
+        - `token_ids` for `token_id_allowlist`
+        - `text_terms` and/or `attributes` for `metadata_match`
 GateRule:
   type: object
   required:
@@ -272,6 +352,8 @@ GateRule:
         - unique_human
         - age_over_18
         - nationality
+        - gender
+        - sanctions_clear
         - wallet_score
     proof_requirements:
       type: array
@@ -285,6 +367,16 @@ GateRule:
       type: object
       nullable: true
       additionalProperties: true
+      description: |
+        Stored provider-neutral rule config. For identity-proof gates, public v0 should normalize
+        on:
+        - `nationality`: `required_value` or `excluded_values`
+        - `gender`: `required_value`
+        - `wallet_score`: `minimum_score`
+        - `sanctions_clear`: no extra config
+        Token-holding configs should be typed by `gate_type` and use CAIP-2 `chain_namespace`.
+        `erc721_holding` should support `contract_any`, `token_id_allowlist`, and `metadata_match`
+        modes so the same gate model can handle generic collection gates and item-level NFT gates.
     status:
       type: string
       enum:
@@ -300,6 +392,24 @@ ProofRequirement:
   type: object
   required:
     - proof_type
+  x-valid-providers-by-proof-type:
+    unique_human:
+      - self
+      - very
+    age_over_18:
+      - self
+    nationality:
+      - self
+    gender:
+      - self
+    wallet_score:
+      - passport
+    sanctions_clear:
+      - passport
+  x-unvalidated-proof-types:
+    - biometric_liveness
+    - gov_id
+    - phone
   properties:
     proof_type:
       type: string
@@ -310,11 +420,24 @@ ProofRequirement:
         - gov_id
         - age_over_18
         - nationality
+        - gender
         - sanctions_clear
         - phone
     accepted_providers:
       type: array
       nullable: true
+      description: |
+        Optional provider allowlist for the selected `proof_type`.
+        Valid public-v0 combinations are:
+        - `unique_human`: `self` or `very`
+        - `age_over_18`: `self`
+        - `nationality`: `self`
+        - `gender`: `self`
+        - `wallet_score`: `passport`
+        - `sanctions_clear`: `passport`
+        Other modeled proof types such as `biometric_liveness`, `gov_id`, and `phone` remain
+        intentionally unvalidated at the public-v0 provider-matrix layer until the product locks
+        their accepted-provider rules.
       items:
         type: string
         enum:
@@ -330,6 +453,12 @@ ProofRequirement:
       type: object
       nullable: true
       additionalProperties: true
+      description: |
+        Optional proof-level constraints. For public v0, identity-proof community gates should
+        prefer provider-neutral semantics here or in `gate_config`:
+        - `required_value` for `nationality` or `gender`
+        - `excluded_values` for `nationality`
+        - `minimum_score` for `wallet_score`
 RootPostQuotaRule:
   type: object
   required:
@@ -409,9 +538,16 @@ CommunityCreateAcceptedResponse:
       $ref: ./communities-core.yaml#/Community
     job:
       $ref: ./jobs.yaml#/Job
+      description: |
+        The operational community-provisioning job returned by `POST /communities`. Registry
+        publication is tracked separately; clients should read
+        `community.registry_publication_job_id` and poll `/jobs/{job_id}` for that distinct
+        lifecycle.
   description: |
     Async acceptance response for community creation. Returns both the community row and
-    its provisioning job so CLI and SDK clients can continue without secondary lookup.
+    its operational provisioning job so CLI and SDK clients can continue without secondary
+    lookup. This top-level `job` field is the infrastructure/bootstrap job, not the
+    registry-publication job.
 UpdateCommunityRequest:
   type: object
   properties:
@@ -485,6 +621,41 @@ UpdateCommunityRequest:
         - 18_plus
       description: |
         Community-wide default viewer age gate. Updating this field from `none` to `18_plus` requires the acting owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
+    agent_posting_policy:
+      type: string
+      enum:
+        - disallow
+        - review
+        - allow_with_disclosure
+        - allow
+      nullable: true
+    agent_posting_scope:
+      type: string
+      enum:
+        - replies_only
+        - top_level_and_replies
+      nullable: true
+    agent_daily_post_cap:
+      type: integer
+      nullable: true
+      description: |
+        Rolling 24-hour cap for user-agent top-level posts. Null clears the explicit setting.
+    agent_daily_reply_cap:
+      type: integer
+      nullable: true
+      description: |
+        Rolling 24-hour cap for user-agent replies. Null clears the explicit setting.
+    agent_min_owner_trust_tier:
+      type: string
+      enum:
+        - new
+        - established
+        - trusted
+        - high_trust
+      nullable: true
+    agent_owner_active_limit:
+      type: integer
+      nullable: true
 Community:
   type: object
   required:
@@ -492,13 +663,18 @@ Community:
     - display_name
     - status
     - provisioning_state
+    - registry_publication_state
     - membership_mode
     - allow_anonymous_identity
+    - agent_posting_policy
+    - agent_posting_scope
     - governance_mode
     - donation_policy_mode
     - donation_partner_status
+    - money_policy
     - content_authenticity_policy
     - content_authenticity_detection_policy
+    - market_context_policy
     - source_policy
     - capture_edit_policy
     - adult_content_policy
@@ -518,6 +694,11 @@ Community:
     description:
       type: string
       nullable: true
+    namespace_verification_id:
+      type: string
+      nullable: true
+      description: |
+        Attached accepted namespace-verification resource when the community is namespace-backed.
     status:
       type: string
       enum:
@@ -537,6 +718,44 @@ Community:
       description: |
         Community infrastructure lifecycle state. This is distinct from domain `status`.
         A community may be domain-active while infrastructure provisioning is still in progress.
+    registry_publication_state:
+      type: string
+      enum:
+        - not_started
+        - pending_create
+        - pending_seed
+        - published
+        - stale
+        - publication_error
+      description: |
+        Public registry publication lifecycle state. This is distinct from both domain `status`
+        and infrastructure `provisioning_state`. A community may be operationally usable while
+        registry publication remains pending or failed. Public discovery and public-canonical
+        mutation flows must treat only `published` as canonical.
+    registry_attempt_id:
+      type: string
+      nullable: true
+      description: |
+        Opaque identifier for the public create-attempt audit row associated with the current
+        community publication lifecycle.
+    registry_published_at:
+      type: string
+      format: date-time
+      nullable: true
+      description: |
+        Timestamp when the current canonical public registry publication most recently reached the
+        `published` state.
+    registry_publication_job_id:
+      type: string
+      nullable: true
+      description: |
+        Latest registry-publication job for this community, when one exists. Clients may poll this
+        job through `/jobs/{job_id}`.
+    registry_error_code:
+      type: string
+      nullable: true
+      description: |
+        Machine-readable publication failure code for the current registry lifecycle, when present.
     artist_identity_id:
       type: string
       nullable: true
@@ -616,6 +835,47 @@ Community:
         - 18_plus
       description: |
         Community-wide default viewer age gate.
+    agent_posting_policy:
+      type: string
+      enum:
+        - disallow
+        - review
+        - allow_with_disclosure
+        - allow
+      description: |
+        Resolved effective user-agent posting policy for this community.
+    agent_posting_scope:
+      type: string
+      enum:
+        - replies_only
+        - top_level_and_replies
+      description: |
+        Resolved effective user-agent posting scope for this community.
+    agent_daily_post_cap:
+      type: integer
+      nullable: true
+      description: |
+        Effective rolling 24-hour cap for user-agent top-level posts.
+    agent_daily_reply_cap:
+      type: integer
+      nullable: true
+      description: |
+        Effective rolling 24-hour cap for user-agent replies.
+    agent_min_owner_trust_tier:
+      type: string
+      enum:
+        - new
+        - established
+        - trusted
+        - high_trust
+      nullable: true
+      description: |
+        Effective minimum trust tier the owning human must satisfy before their user-owned agent may post.
+    agent_owner_active_limit:
+      type: integer
+      nullable: true
+      description: |
+        Effective community-local cap on active user-owned agents per human owner.
     civic_scale_tier:
       type: string
       enum:
@@ -644,6 +904,10 @@ Community:
     donation_partner:
       $ref: ./communities-community.yaml#/DonationPartnerSummary
       nullable: true
+    money_policy:
+      $ref: ./communities-community.yaml#/CommunityMoneyPolicy
+      description: |
+        Resolved effective community funding policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the default policy from an explicit community configuration.
     content_authenticity_policy:
       $ref: ./communities-community.yaml#/CommunityContentAuthenticityPolicy
       description: |
@@ -652,6 +916,10 @@ Community:
       $ref: ./communities-community.yaml#/CommunityContentAuthenticityDetectionPolicy
       description: |
         Resolved effective authenticity-detection policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the platform-default profile from an explicit community selection.
+    market_context_policy:
+      $ref: ./market-context.yaml#/CommunityMarketContextPolicy
+      description: |
+        Resolved effective market-context policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the platform-default policy from an explicit community configuration.
     source_policy:
       $ref: ./communities-community.yaml#/CommunitySourcePolicy
       description: |
@@ -684,8 +952,8 @@ Community:
       $ref: ./communities-community.yaml#/CommunityPromotionPolicy
       description: |
         Resolved effective promotion policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the default from an explicit community configuration.
-    flair_policy:
-      $ref: ./communities-community.yaml#/CommunityFlairPolicy
+    label_policy:
+      $ref: ./communities-community.yaml#/CommunityLabelPolicy
       nullable: true
     community_profile:
       $ref: ./communities-community.yaml#/CommunityProfile

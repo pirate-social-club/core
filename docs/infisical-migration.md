@@ -55,6 +55,27 @@ Populate the runtime Lit usage-key path when API-side publish and access flows a
 
 Add the remaining Story usage keys only when the corresponding families are in active use.
 
+## Phase 2.5: Market Context Runtime Keys
+
+Populate `dev:/services/api` with market-context runtime secrets only when the feature is active:
+
+- `OPENROUTER_API_KEY`
+- `JINA_API_KEY` when using authenticated Jina Reader access
+- `PREDICT_FUN_API_KEY` when enabling Predict.fun as an approved provider
+- `FIRECRAWL_API_KEY` only if Firecrawl is enabled as a crawler fallback
+
+Jina Reader base URLs, OpenRouter model names, provider base URLs, score thresholds, and TTLs are not secrets. Keep them in version-controlled config or ordinary worker env.
+
+Bootstrap helper:
+
+```bash
+export OPENROUTER_API_KEY=...
+export JINA_API_KEY=... # optional but recommended for higher Reader limits
+export PREDICT_FUN_API_KEY=... # optional, only for approved-provider integration
+export FIRECRAWL_API_KEY=... # optional
+rtk ./scripts/bootstrap-infisical-api.sh
+```
+
 ## Explicitly Deferred
 
 Do not pre-populate these paths during the initial Story delivery migration:
@@ -77,7 +98,7 @@ That secret surface should be introduced deliberately.
 
 Populate `dev:/services/api` only with:
 
-- `TURSO_CONTROL_PLANE_AUTH_TOKEN`
+- `CONTROL_PLANE_DATABASE_URL`
 - `TURSO_COMMUNITY_DB_WRAP_KEY`
 
 Do not store one Turso auth token per community in Infisical.
@@ -88,6 +109,7 @@ Per-community database tokens are high-cardinality generated credentials. They s
 
 Populate `dev:/services/control-plane` with:
 
+- `CONTROL_PLANE_MIGRATOR_DATABASE_URL`
 - `TURSO_PLATFORM_API_TOKEN`
 
 This key is for provisioning:
@@ -102,19 +124,25 @@ It must not be present in the public API worker runtime.
 Non-secret Turso config stays outside Infisical:
 
 - `TURSO_ORGANIZATION_SLUG`
-- `TURSO_CONTROL_PLANE_DATABASE_URL`
 - naming conventions for groups and databases
 
 Bootstrap helper:
 
 ```bash
 export TURSO_PLATFORM_API_TOKEN=...
-export TURSO_CONTROL_PLANE_AUTH_TOKEN=...
+export CONTROL_PLANE_DATABASE_URL=...
+export CONTROL_PLANE_MIGRATOR_DATABASE_URL=...
 export TURSO_COMMUNITY_DB_WRAP_KEY=...
+rtk ./scripts/bootstrap-infisical-control-plane.sh
 rtk ./scripts/bootstrap-infisical-turso.sh
 ```
 
-You may omit any variable you do not want to write yet. The helper writes only the Turso env vars that are present.
+You may omit any variable you do not want to write yet. Each helper writes only the env vars that are present.
+For the intended secret split, bootstrap both `CONTROL_PLANE_DATABASE_URL` and `CONTROL_PLANE_MIGRATOR_DATABASE_URL`.
+
+Keep the break-glass owner URL outside service paths, for example:
+
+- `dev:/local/control-plane` -> `CONTROL_PLANE_OWNER_DATABASE_URL`
 
 ## Control Plane
 
