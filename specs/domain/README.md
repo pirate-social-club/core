@@ -98,12 +98,21 @@ Product and system design docs grouped by domain surface.
 
 - `onboarding.md`
   General onboarding flow.
-- `onboarding-reddit-bootstrap-storybook.md`
-  Storybook-specific onboarding component notes.
 - `composer.md`
   Composer flows and creation UX.
 - `purchase-quote-flow.md`
   Purchase quote and buyer confirmation flow.
+- `search.md`
+  Search product behavior and result-surface expectations.
+
+UI handoff and runtime-specific docs live outside this index:
+
+- [docs/ux/onboarding-reddit-bootstrap-storybook.md](/home/t42/Documents/pirate-v2/docs/ux/onboarding-reddit-bootstrap-storybook.md)
+  Storybook-specific onboarding component notes.
+- [docs/tui/tui-auth-home.md](/home/t42/Documents/pirate-v2/docs/tui/tui-auth-home.md)
+  TUI auth and home-shell contract for the standalone terminal client.
+- [docs/tui/tui-refactor-checklist.md](/home/t42/Documents/pirate-v2/docs/tui/tui-refactor-checklist.md)
+  Active implementation checklist for the current TUI refactor.
 
 ## System And Policy
 

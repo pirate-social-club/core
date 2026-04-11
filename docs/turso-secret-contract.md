@@ -2,13 +2,13 @@
 
 Defines the Turso secret surface and env contract for Pirate's community database plane.
 
-The central control-plane database no longer uses Turso. See [control-plane-neon-adr.md](/home/t42/Documents/pirate-v2/docs/control-plane-neon-adr.md) for the Neon control-plane decision and role model.
+The central control-plane database no longer uses Turso. See [control-plane-neon-adr.md](/home/t42/Documents/pirate-v2/docs/adr/control-plane-neon-adr.md) for the Neon control-plane decision and role model.
 
 This file does not contain secret values.
 
 Related:
 
-- [turso-sovereignty-adr.md](/home/t42/Documents/pirate-v2/docs/turso-sovereignty-adr.md)
+- [turso-sovereignty-adr.md](/home/t42/Documents/pirate-v2/docs/adr/turso-sovereignty-adr.md)
 - [turso-data-boundaries.md](/home/t42/Documents/pirate-v2/docs/turso-data-boundaries.md)
 - [control-plane-schema.md](/home/t42/Documents/pirate-v2/docs/control-plane-schema.md)
 - [turso-provisioning-contract.md](/home/t42/Documents/pirate-v2/docs/turso-provisioning-contract.md)

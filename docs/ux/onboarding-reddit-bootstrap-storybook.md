@@ -4,11 +4,11 @@ Status: draft
 
 Related docs:
 
-- [onboarding.md](./onboarding.md)
-- [profile.md](./profile.md)
-- [user.md](./user.md)
-- [../api/src/components/schemas/onboarding.yaml](../api/src/components/schemas/onboarding.yaml)
-- [../api/src/paths/onboarding.yaml](../api/src/paths/onboarding.yaml)
+- [onboarding.md](/home/t42/Documents/pirate-v2/specs/domain/onboarding.md)
+- [profile.md](/home/t42/Documents/pirate-v2/specs/domain/profile.md)
+- [user.md](/home/t42/Documents/pirate-v2/specs/domain/user.md)
+- [onboarding.yaml](/home/t42/Documents/pirate-v2/specs/api/src/components/schemas/onboarding.yaml)
+- [onboarding-paths.yaml](/home/t42/Documents/pirate-v2/specs/api/src/paths/onboarding.yaml)
 
 ## Purpose
 
@@ -143,27 +143,52 @@ This keeps the current domain intent but makes the step legible.
 - Make the reward concrete: better suggestions, better cold start, possible handle cleanup suggestion.
 - Explain archival uncertainty without sounding broken or apologetic.
 
+## Component Boundaries
+
+The onboarding surface is split into three compositions with clean boundaries:
+
+- `OnboardingRedditOptional`: verify/import/summary/skip/continue only. No username or handle state.
+- `OnboardingChoosePirateUsername`: single visible name decision only. Receives an optional Reddit-derived `handleSuggestion` for prefill, but never receives `generatedHandle` or `cleanupRenameAvailable`. The generated handle is kept in outer flow/session state only.
+- `OnboardingCommunitySuggestions`: post-name destination choice.
+
+`generatedHandle` and `cleanupRenameAvailable` are removed from the Reddit composition. They remain in backend and domain state but are not first-run UI concerns.
+
+`handleSuggestion` is kept but moves to the username composition as the prefill source. When Reddit verification succeeds, the suggestion flows from the Reddit step into the username step. When Reddit is skipped, no suggestion is provided and the username input starts empty.
+
+The regenerate button is removed in v0. The user either types their own name or accepts the Reddit-derived suggestion.
+
 ## Recommended Composition
 
-Suggested Storybook target:
+Suggested Storybook targets:
 
-- `Compositions/OnboardingRedditBootstrap`
+- `Compositions/OnboardingRedditOptional`
+- `Compositions/OnboardingChoosePirateUsername`
+- `Compositions/OnboardingCommunitySuggestions`
 
-Suggested component name:
-
-- `OnboardingRedditBootstrap`
-
-This should be a composition-level surface, not a primitive.
+The existing `Compositions/OnboardingRedditBootstrap` is deprecated in favor of these three.
 
 ### Layout Anatomy
+
+**OnboardingRedditOptional:**
 
 1. Intro/value section
 2. Reddit username capture row
 3. Verification instruction card
 4. Import status card
 5. Snapshot summary card
-6. Suggested communities or interests section
-7. Sticky or persistent onboarding footer
+6. Continue/skip footer
+
+**OnboardingChoosePirateUsername:**
+
+1. Username input with `.pirate` suffix
+2. Optional handle suggestion prefill (from prior Reddit step)
+3. Inline availability feedback via global `.pirate` availability read-model
+4. Continue footer
+
+**OnboardingCommunitySuggestions:**
+
+1. Suggested communities or interests section
+2. Continue/skip footer
 
 ### Content Hierarchy
 
@@ -183,15 +208,12 @@ Supporting points:
 The canonical API can stay small.
 The Storybook surface should use a richer UI model derived from onboarding status, verification responses, job status, and result payloads.
 
-Suggested Storybook prop shape:
+### OnboardingRedditOptional Props
 
 ```ts
-type OnboardingRedditBootstrapProps = {
-  generatedHandle: string;
-  cleanupRenameAvailable: boolean;
+type OnboardingRedditOptionalProps = {
   canSkip: boolean;
   canContinue: boolean;
-  phase: "intro" | "verify" | "import" | "summary";
   reddit: {
     usernameValue: string;
     verifiedUsername?: string;
@@ -239,15 +261,65 @@ type OnboardingRedditBootstrapProps = {
     suggestedCommunities: Array<{ communityId: string; name: string; reason: string }>;
     coverageNote?: string;
   };
-  handleSuggestion?: {
-    suggestedLabel: string;
-    source: "verified_reddit_username";
-    availability: "available" | "taken" | "manual_review";
-    reason?: string;
-  };
   actions: {
     primaryLabel: string;
     secondaryLabel?: string;
+    tertiaryLabel?: string;
+  };
+};
+```
+
+### OnboardingChoosePirateUsername Props
+
+```ts
+type OnboardingChoosePirateUsernameProps = {
+  inputValue: string;
+  handleSuggestion?: {
+    suggestedLabel: string;
+    source: "verified_reddit_username";
+    reason?: string;
+  };
+  availability:
+    | "unknown"
+    | "checking"
+    | "available"
+    | "taken"
+    | "reserved"
+    | "invalid";
+  errorText?: string;
+  canContinue: boolean;
+  actions: {
+    primaryLabel: string;
+    secondaryLabel?: string;
+  };
+};
+```
+
+`generatedHandle` and `cleanupRenameAvailable` are intentionally absent. The generated handle exists only in outer flow/session state for backend continuity. The username composition receives an optional `handleSuggestion` for prefill; when absent, the input starts empty.
+
+`handleSuggestion.source` is intentionally limited to `"verified_reddit_username"`. In the Reddit-skip path, no suggestion is provided and the input starts empty.
+
+Inline availability validation should use the dedicated global `.pirate` availability read-model, not the profile rename route.
+
+`inputValue` is the current visible field value. It starts from `handleSuggestion.suggestedLabel` when a suggestion is present, otherwise `""`.
+
+`availability` is the live validation state for the current `inputValue`, not the suggestion. This is what powers states like custom input available, taken, reserved, or invalid while the user types.
+
+The username step is the required visible Pirate-name decision in the normal signup flow. `canContinue` should be `true` only when `inputValue` is non-empty and the current `availability` state allows the requested label to be claimed.
+
+Confirming the `.pirate` handle in this step consumes the free cleanup rename.
+
+### OnboardingCommunitySuggestions Props
+
+```ts
+type OnboardingCommunitySuggestionsProps = {
+  communities: Array<{
+    communityId: string;
+    name: string;
+    reason: string;
+  }>;
+  actions: {
+    primaryLabel: string;
     tertiaryLabel?: string;
   };
 };
@@ -287,33 +359,55 @@ Migration note:
 
 These are the minimum stories the design/implementation model should build.
 
-### Core Flow
+### OnboardingRedditOptional
 
-- `Flow / Intro`
-- `Flow / Username Entered`
-- `Flow / Verification Code Ready`
-- `Flow / Verification Checking`
-- `Flow / Verified Ready To Import`
-- `Flow / Import Queued`
-- `Flow / Import Running`
-- `Flow / Import Success`
-- `Flow / Continue Without Reddit`
-- `Recovery / Return To Running Import`
+#### Core Flow
 
-### Edge And Recovery
+- `Reddit / Intro`
+- `Reddit / Username Entered`
+- `Reddit / Verification Code Ready`
+- `Reddit / Verification Checking`
+- `Reddit / Verified Ready To Import`
+- `Reddit / Import Queued`
+- `Reddit / Import Running`
+- `Reddit / Import Success`
+- `Reddit / Continue Without Reddit`
+- `Reddit / Recovery / Return To Running Import`
 
-- `Error / Verification Failed`
-- `Error / Username Not Found`
-- `Error / Rate Limited`
-- `Error / Pushpull Unavailable`
-- `Result / Sparse History`
-- `Result / Partial Coverage`
-- `Result / Suggested Handle Taken`
+#### Edge And Recovery
 
-### Responsive
+- `Reddit / Error / Verification Failed`
+- `Reddit / Error / Username Not Found`
+- `Reddit / Error / Rate Limited`
+- `Reddit / Error / Pushpull Unavailable`
+- `Reddit / Result / Sparse History`
+- `Reddit / Result / Partial Coverage`
 
-- `Mobile / Verification Code Ready`
-- `Mobile / Import Success`
+#### Responsive
+
+- `Reddit / Mobile / Verification Code Ready`
+- `Reddit / Mobile / Import Success`
+
+### OnboardingChoosePirateUsername
+
+- `Username / Empty (Reddit skipped)`
+- `Username / Prefilled From Reddit`
+- `Username / Prefilled Reddit Suggestion Taken`
+- `Username / Custom Input Available`
+- `Username / Custom Input Taken`
+- `Username / Custom Input Reserved`
+- `Username / Custom Input Invalid`
+- `Username / Mobile`
+
+### OnboardingCommunitySuggestions
+
+- `Communities / With Suggestions`
+- `Communities / Empty (skip)`
+
+### Cross-Composition Integration
+
+- `Integration / Full Flow With Reddit`
+- `Integration / Full Flow Without Reddit`
 
 ## Story Expectations
 
@@ -376,19 +470,19 @@ These are not required to start Storybook, but they would reduce future redesign
 - add an import result summary payload for completed onboarding imports
 - add machine-readable import warnings such as `partial_coverage` or `source_unavailable`
 - add a more specific verification error code surface
-- expose a handle-suggestion result once verification succeeds
+- add a dedicated global `.pirate` availability endpoint or read-model for inline username validation during onboarding. The existing profile rename route is not sufficient for a good typing experience. This endpoint should support debounced label-checking as the user types, returning availability status and optionally a suggested alternative when the label is taken.
+- expose a handle-suggestion result once verification succeeds, to be passed as prefill into the username composition
 - prefer structured progress fields over a freeform `progressLabel` if backend job progress becomes meaningful
 - parameterize import-source metadata if Pirate later supports more than one archival ingestion backend
 
 ## Handoff Notes For The Design Model
 
-The design model should treat this as:
+The design model should treat this as three compositions:
 
-- one onboarding module
-- two distinct states of trust: verify, then ingest
-- one major reward moment: summary and suggestions
+- `OnboardingRedditOptional`: verify/import/summary/skip/continue
+- `OnboardingChoosePirateUsername`: single visible name decision
+- `OnboardingCommunitySuggestions`: post-name destination choice
 
 The design model should not redesign the information architecture away from that sequence unless there is a strong product argument.
 
-`manual_review` in `handleSuggestion.availability` is a UI-level suggestion state for the onboarding rename recommendation.
-It is not a handle-record lifecycle status from [handles.md](./handles.md).
+`generatedHandle` and `cleanupRenameAvailable` must not appear in any onboarding composition. The generated handle is outer flow/session state only.

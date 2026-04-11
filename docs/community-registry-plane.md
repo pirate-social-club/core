@@ -4,7 +4,7 @@ Status: proposed v0 decision for registry-backed community creation
 
 Related docs:
 
-- [turso-sovereignty-adr.md](/home/t42/Documents/pirate-v2/docs/turso-sovereignty-adr.md)
+- [turso-sovereignty-adr.md](/home/t42/Documents/pirate-v2/docs/adr/turso-sovereignty-adr.md)
 - [turso-data-boundaries.md](/home/t42/Documents/pirate-v2/docs/turso-data-boundaries.md)
 - [control-plane-schema.md](/home/t42/Documents/pirate-v2/docs/control-plane-schema.md)
 - [../specs/api/mpp.md](/home/t42/Documents/pirate-v2/specs/api/mpp.md)

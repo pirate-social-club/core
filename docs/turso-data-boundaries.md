@@ -4,7 +4,7 @@ Explains what belongs in the central Pirate control-plane database, what belongs
 
 Related:
 
-- [turso-sovereignty-adr.md](/home/t42/Documents/pirate-v2/docs/turso-sovereignty-adr.md)
+- [turso-sovereignty-adr.md](/home/t42/Documents/pirate-v2/docs/adr/turso-sovereignty-adr.md)
 - [control-plane-schema.md](/home/t42/Documents/pirate-v2/docs/control-plane-schema.md)
 - [turso-provisioning-contract.md](/home/t42/Documents/pirate-v2/docs/turso-provisioning-contract.md)
 - [signer-families.md](/home/t42/Documents/pirate-v2/docs/signer-families.md)

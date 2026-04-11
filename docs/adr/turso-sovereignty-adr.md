@@ -2,7 +2,7 @@
 
 Status: accepted
 
-Partially superseded by [control-plane-neon-adr.md](/home/t42/Documents/pirate-v2/docs/control-plane-neon-adr.md) for the central control-plane database.
+Partially superseded by [control-plane-neon-adr.md](/home/t42/Documents/pirate-v2/docs/adr/control-plane-neon-adr.md) for the central control-plane database.
 
 ## Decision
 

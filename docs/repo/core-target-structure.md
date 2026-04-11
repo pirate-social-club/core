@@ -19,6 +19,7 @@ These roots belong in `core`:
 - `docs/`
 - `scripts/`
 - `lit-actions/`
+- `ops/`
 - `references/`
 
 ## Local Sidecars
@@ -54,6 +55,7 @@ core/
   db/
   docs/
   lit-actions/
+  ops/
   references/
   scripts/
   specs/

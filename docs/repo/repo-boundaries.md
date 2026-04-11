@@ -17,15 +17,10 @@ These roots fit the `core` role and should remain here:
 - `docs/`
 - `scripts/`
 - `lit-actions/`
+- `ops/`
 - `references/`
 
-These directories define system behavior, migrations, control-plane operations, shared config, and upstream reference material.
-
-Current tracked exception:
-
-- `pirate-tui/`
-
-`pirate-tui/` is committed here today, but it should be treated as a temporary runtime root pending extraction to its own standalone repo.
+These directories define system behavior, migrations, control-plane operations, shared config, deployment assets, and non-canonical reference material.
 
 ## What Does Not Belong In `core` Long-Term
 
@@ -40,17 +35,19 @@ Those belong in their own repositories under `pirate-social-club`.
 
 ## Local Workspace Sidecars
 
-Three runtime repos may still appear inside this working directory:
+Runtime repos may still appear inside this working directory:
 
 - `pirate-api/`
 - `pirate-web/`
 - `pirate-contracts/`
+- `pirate-tui/`
 
-They are no longer tracked by `core`. They are local sidecar checkouts of the standalone repos:
+They are not tracked by `core`. They are local sidecar checkouts of the standalone repos:
 
 - `pirate-social-club/web`
 - `pirate-social-club/contracts`
 - `pirate-social-club/api`
+- `pirate-social-club/tui`
 
 This keeps the workspace convenient without turning `core` into a shadow monorepo.
 
@@ -65,6 +62,7 @@ Canonical ownership should eventually look like this:
   - `docs/`
   - `scripts/`
   - `lit-actions/`
+  - `ops/`
   - `references/`
 - `pirate-social-club/web`
   - web UI, Storybook, and future app runtime
@@ -87,14 +85,15 @@ Use these rules to keep the repo clean:
 
 1. `core` owns system definition, not every runtime.
 2. New production app surfaces should not be added as new top-level roots here.
-3. `pirate-tui/` should be extracted instead of growing into a permanent `core` runtime.
+3. `pirate-tui/` should remain a sidecar checkout and should not be reintroduced as tracked `core` runtime code.
 4. Specs live in Git and GitHub. They are first-class source material, not throwaway notes.
 5. Sensitive operational documents can remain private in `core`.
 6. Public-facing runtime repos should implement against `core` specs instead of duplicating them.
+7. Operational deployment assets that are part of shared infrastructure belong under `ops/`.
 
 ## Extraction Status
 
-The split is complete when all of the following are true:
+The repo boundary is healthy when all of the following are true:
 
 - `pirate-social-club/web` is the canonical home of web code
 - `pirate-social-club/contracts` is the canonical home of contract code
@@ -106,5 +105,5 @@ The split is complete when all of the following are true:
 ## Rules Going Forward
 
 1. Make runtime changes in the standalone repos, not in `core`.
-2. Keep `core/specs`, `core/docs`, `core/config`, `core/db`, `core/scripts`, and `core/lit-actions` as the shared source of truth.
+2. Keep `core/specs`, `core/docs`, `core/config`, `core/db`, `core/scripts`, `core/lit-actions`, and `core/ops` as the shared source of truth.
 3. If local sidecar repos are checked out inside this workspace, keep them ignored by `core`.
