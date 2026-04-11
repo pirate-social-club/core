@@ -7,7 +7,7 @@ require (
 	charm.land/bubbletea/v2 v2.0.2
 	charm.land/lipgloss/v2 v2.0.2
 	github.com/buffrr/letsdane v0.6.1
-	github.com/spacesprotocol/fabric-go v0.0.0
+	github.com/spacesprotocol/fabric-go v0.0.0-dev.20260408061635
 	github.com/spacesprotocol/libveritas-go v0.0.0-dev.20260407170108
 )
 
@@ -37,5 +37,3 @@ require (
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
 )
-
-replace github.com/spacesprotocol/fabric-go => ./reference-repos/fabric-go

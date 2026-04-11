@@ -53,6 +53,8 @@ github.com/muesli/cancelreader v0.2.2 h1:3I4Kt4BQjOR54NavqnDogx/MIoWBFa0StPA8ELU
 github.com/muesli/cancelreader v0.2.2/go.mod h1:3XuTXfFS2VjM+HTLZY9Ak0l6eUKfijIfMUZ4EgX0QYo=
 github.com/rivo/uniseg v0.4.7 h1:WUdvkW8uEhrYfLC4ZzdpI2ztxP1I582+49Oc5Mq64VQ=
 github.com/rivo/uniseg v0.4.7/go.mod h1:FN3SvrM+Zdj16jyLfmOkMNblXMcoc8DfTHruCPUcx88=
+github.com/spacesprotocol/fabric-go v0.0.0-dev.20260408061635 h1:JW5sK5r4DC2u5VSicClCfuOHEz7DvpJc8DgyzWBL1p4=
+github.com/spacesprotocol/fabric-go v0.0.0-dev.20260408061635/go.mod h1:cLWCc9KIFOXu/lg8LY1BN8mdAn6Od4tExJdRX2/ELaU=
 github.com/spacesprotocol/libveritas-go v0.0.0-dev.20260407170108 h1:tpFQOIBRJpM0dYYc4VpAh/OayA8ZPvqr1taTuSZdQ98=
 github.com/spacesprotocol/libveritas-go v0.0.0-dev.20260407170108/go.mod h1:HXnX2FNL43ueJuedsQwX9GF5jRHYZLqXYfFLWz900H8=
 github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e h1:JVG44RsyaB9T2KIHavMF/ppJZNG9ZpyihvCd0w101no=
