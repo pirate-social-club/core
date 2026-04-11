@@ -21,6 +21,12 @@ These roots fit the `core` role and should remain here:
 
 These directories define system behavior, migrations, control-plane operations, shared config, and upstream reference material.
 
+Current tracked exception:
+
+- `pirate-tui/`
+
+`pirate-tui/` is committed here today, but it should be treated as a temporary runtime root pending extraction to its own standalone repo.
+
 ## What Does Not Belong In `core` Long-Term
 
 These production surfaces should not accumulate here as permanent homes:
@@ -66,6 +72,8 @@ Canonical ownership should eventually look like this:
   - contract workspaces and tests
 - `pirate-social-club/api`
   - production backend services
+- `pirate-social-club/tui`
+  - terminal client
 - `pirate-social-club/android`
   - production Android app
 - `pirate-social-club/ios`
@@ -79,9 +87,10 @@ Use these rules to keep the repo clean:
 
 1. `core` owns system definition, not every runtime.
 2. New production app surfaces should not be added as new top-level roots here.
-3. Specs live in Git and GitHub. They are first-class source material, not throwaway notes.
-4. Sensitive operational documents can remain private in `core`.
-5. Public-facing runtime repos should implement against `core` specs instead of duplicating them.
+3. `pirate-tui/` should be extracted instead of growing into a permanent `core` runtime.
+4. Specs live in Git and GitHub. They are first-class source material, not throwaway notes.
+5. Sensitive operational documents can remain private in `core`.
+6. Public-facing runtime repos should implement against `core` specs instead of duplicating them.
 
 ## Extraction Status
 
@@ -91,6 +100,7 @@ The split is complete when all of the following are true:
 - `pirate-social-club/contracts` is the canonical home of contract code
 - `core` no longer tracks runtime code under `pirate-web/` or `pirate-contracts/`
 - `core` no longer tracks runtime code under `pirate-api/`
+- `core` no longer tracks runtime code under `pirate-tui/`
 - any local copies at those paths are treated as workspace checkouts only
 
 ## Rules Going Forward

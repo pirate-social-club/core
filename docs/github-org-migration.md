@@ -12,11 +12,12 @@ Use short repo names inside the org:
 - `api` from local `/home/t42/Documents/pirate/pirate-api`
 - `contracts` from local `/home/t42/Documents/pirate/pirate-contracts`
 - `desktop` from local `/home/t42/Documents/pirate/pirate-desktop`
+- `tui` from local `/home/t42/Documents/pirate-v2/pirate-tui`
 - `core` from local `/home/t42/Documents/pirate-v2`
 
 Recommended visibility:
 
-- `public`: `android`, `ios`, `web`, `contracts`, `desktop`
+- `public`: `android`, `ios`, `web`, `contracts`, `desktop`, `tui`
 - `private`: `api`, `core`
 
 ## Current state
@@ -29,6 +30,7 @@ Verified locally after migration:
 - org repos now exist:
   - public: `android`, `ios`, `web`, `contracts`, `desktop`
   - private: `api`, `core`
+- `tui` is still tracked inside `core` and should be split into its own public repo
 - `api` was moved to private after transfer
 - `android` was created directly in the org and pushed from the local repo because the old GitHub source repo no longer resolved cleanly during transfer lookup
 
@@ -68,6 +70,7 @@ rtk gh repo view pirate-social-club/web
 rtk gh repo view pirate-social-club/api
 rtk gh repo view pirate-social-club/contracts
 rtk gh repo view pirate-social-club/desktop
+rtk gh repo view pirate-social-club/tui
 rtk gh repo view pirate-social-club/core
 ```
 
@@ -111,6 +114,12 @@ Create the repo:
 
 ```bash
 rtk gh repo create pirate-social-club/core --private --description "Specs, control-plane, migrations, and system integration for Pirate Social Club"
+```
+
+Create the TUI repo:
+
+```bash
+rtk gh repo create pirate-social-club/tui --public --description "Terminal client for Pirate Social Club"
 ```
 
 Attach the remote locally:
@@ -172,6 +181,13 @@ rtk git -C /home/t42/Documents/pirate/pirate-desktop remote -v
 rtk git -C /home/t42/Documents/pirate-v2 remote -v
 ```
 
+### TUI
+
+```bash
+rtk git -C /home/t42/Documents/pirate-v2/pirate-tui remote add origin https://github.com/pirate-social-club/tui.git
+rtk git -C /home/t42/Documents/pirate-v2/pirate-tui remote -v
+```
+
 ## Step 6: Verify branch tracking after remote changes
 
 ```bash
@@ -181,6 +197,7 @@ rtk git -C /home/t42/Documents/pirate/pirate-web remote show origin
 rtk git -C /home/t42/Documents/pirate/pirate-api remote show origin
 rtk git -C /home/t42/Documents/pirate/pirate-contracts remote show origin
 rtk git -C /home/t42/Documents/pirate/pirate-desktop remote show origin
+rtk git -C /home/t42/Documents/pirate-v2/pirate-tui remote show origin
 rtk git -C /home/t42/Documents/pirate-v2 remote show origin
 ```
 
@@ -194,6 +211,7 @@ Recommended descriptions:
 - `api`: `Backend services for Pirate Social Club`
 - `contracts`: `Smart contracts for Pirate Social Club`
 - `desktop`: `Desktop client for Pirate Social Club`
+- `tui`: `Terminal client for Pirate Social Club`
 - `core`: `Specs, control-plane, migrations, and system integration for Pirate Social Club`
 
 ## Step 8: Decide canonical upstream policy
@@ -209,5 +227,6 @@ Do not leave mixed wording across repos.
 
 - `api` should stay private for now unless you want backend internals public.
 - `core` should stay private until the structure stabilizes.
-- do not merge Android, iOS, web, backend, contracts, and desktop into one GitHub repo
+- `tui` should be public once split unless it starts carrying secrets or private operator tooling
+- do not merge Android, iOS, web, backend, contracts, desktop, and tui into one GitHub repo
 - use the org as the unifying layer, not a mega-monorepo

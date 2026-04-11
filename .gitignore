@@ -8,6 +8,7 @@ references/upstream/multisig/
 pirate-web/
 pirate-contracts/
 pirate-api/
+pirate-tui/
 
 # Deploy manifests
 deployments/
