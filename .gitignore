@@ -20,6 +20,7 @@ storybook-static/
 *.tsbuildinfo
 out/
 broadcast/
+target/
 
 # Environment files
 .env
