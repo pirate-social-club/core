@@ -56,15 +56,20 @@ Preferred language:
 - one-time import
 - archival Reddit activity
 
-#### 2. API state is too coarse for Storybook
+#### 2. API state is too coarse for Storybook alone
 
-Current API shapes give:
+Current onboarding summary API shapes give:
 
 - `reddit_verification_status`
 - `reddit_import_status`
-- optional `verification_hint`
 
-That is enough for transport, but not enough for a convincing composition spec.
+That is enough for route-level transport, but not enough by itself for a convincing composition spec.
+
+The current web implementation now supplements this with:
+
+- `POST /onboarding/reddit-verification` responses for live verification detail
+- `GET /onboarding/reddit-imports/latest` for completed import summary
+- `GET /onboarding/global-handle-availability` for inline handle checks
 
 Storybook needs richer derived states such as:
 
@@ -470,7 +475,7 @@ These are not required to start Storybook, but they would reduce future redesign
 - add an import result summary payload for completed onboarding imports
 - add machine-readable import warnings such as `partial_coverage` or `source_unavailable`
 - add a more specific verification error code surface
-- add a dedicated global `.pirate` availability endpoint or read-model for inline username validation during onboarding. The existing profile rename route is not sufficient for a good typing experience. This endpoint should support debounced label-checking as the user types, returning availability status and optionally a suggested alternative when the label is taken.
+- the dedicated global `.pirate` availability endpoint now exists and is the correct read-model for inline username validation during onboarding
 - expose a handle-suggestion result once verification succeeds, to be passed as prefill into the username composition
 - prefer structured progress fields over a freeform `progressLabel` if backend job progress becomes meaningful
 - parameterize import-source metadata if Pirate later supports more than one archival ingestion backend

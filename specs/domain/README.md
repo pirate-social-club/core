@@ -87,6 +87,8 @@ Product and system design docs grouped by domain surface.
   Root authority and delegation for namespaces.
 - `hns-verification-flow.md`
   HNS verification session lifecycle and `namespace_verification_id` handoff.
+- `spaces-verification-flow.md`
+  Spaces root verification session lifecycle for `@space` community attachment.
 - `hns-authoritative-dns.md`
   HNS-native routing, authoritative DNS, and deployment posture for resolvable roots and subdomains.
 - `identity-presentation.md`
@@ -100,6 +102,8 @@ Product and system design docs grouped by domain surface.
   General onboarding flow.
 - `composer.md`
   Composer flows and creation UX.
+- `dvpn.md`
+  Paid dVPN activation, lazy Sentinel wallet creation, and TUI gating rules.
 - `purchase-quote-flow.md`
   Purchase quote and buyer confirmation flow.
 - `search.md`
@@ -116,6 +120,10 @@ UI handoff and runtime-specific docs live outside this index:
 
 ## System And Policy
 
+- `moderation.md`
+  Platform-floor moderation, community-governed policy, and moderator workflow model.
+- `moderation-workflow.md`
+  Minimal v0 moderation objects, case creation rules, queues, and action semantics.
 - `blocks.md`
   Blocking semantics and user safety boundaries.
 - `karma.md`
@@ -131,9 +139,10 @@ If you are starting fresh, read in this order:
 2. `public-v0-club-enforcement.md`
 3. `namespace-root-control.md`
 4. `hns-verification-flow.md`
-5. `hns-authoritative-dns.md`
-6. `governance-backends.md`
-7. `asset.md`
-8. `marketplace.md`
-9. `scrobbles.md`
-10. `onboarding.md`
+5. `spaces-verification-flow.md`
+6. `hns-authoritative-dns.md`
+7. `governance-backends.md`
+8. `asset.md`
+9. `marketplace.md`
+10. `scrobbles.md`
+11. `onboarding.md`

@@ -11,6 +11,16 @@ User:
   properties:
     user_id:
       type: string
+    community_posting_state:
+      type: object
+      nullable: true
+      properties:
+        community_ref:
+          type: string
+        community_id:
+          type: string
+        has_created_text_post:
+          type: boolean
     primary_wallet_attachment_id:
       type: string
       nullable: true

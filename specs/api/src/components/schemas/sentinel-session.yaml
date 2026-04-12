@@ -1,0 +1,87 @@
+SentinelSessionStartResponse:
+  type: object
+  required:
+    - sentinel_session_id
+    - sentinel_subscription_id
+    - wallet_attachment_id
+    - wallet_address
+    - chain_session_id
+    - node_address
+    - transport_kind
+    - wireguard_config
+    - status
+    - created_now
+  properties:
+    sentinel_session_id:
+      type: string
+    sentinel_subscription_id:
+      type: string
+    wallet_attachment_id:
+      type: string
+    wallet_address:
+      type: string
+    chain_session_id:
+      type: string
+    node_address:
+      type: string
+    transport_kind:
+      type: string
+      enum:
+        - wireguard
+    wireguard_config:
+      type: object
+      required:
+        - server_endpoint
+        - server_public_key
+        - client_private_key
+        - client_address
+        - dns_servers
+        - allowed_ips
+      properties:
+        server_endpoint:
+          type: string
+        server_public_key:
+          type: string
+        client_private_key:
+          type: string
+          nullable: true
+          description: |
+            Returned only on first session creation. Reused active-session responses may return `null`
+            instead of replaying the private key.
+        client_address:
+          type: string
+        dns_servers:
+          type: array
+          items:
+            type: string
+        allowed_ips:
+          type: array
+          items:
+            type: string
+    expires_at:
+      type: string
+      format: date-time
+      nullable: true
+    status:
+      type: string
+      enum:
+        - active
+    created_now:
+      type: boolean
+
+SentinelSessionEndResponse:
+  type: object
+  required:
+    - sentinel_session_id
+    - status
+    - ended_at
+  properties:
+    sentinel_session_id:
+      type: string
+    status:
+      type: string
+      enum:
+        - ended
+    ended_at:
+      type: string
+      format: date-time

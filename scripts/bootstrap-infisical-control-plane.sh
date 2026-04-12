@@ -19,12 +19,16 @@ set_secret_if_present() {
   local path="$1"
   local name="$2"
   local value="${!name:-}"
+  local temp_file
 
   if [[ -z "$value" ]]; then
     return 0
   fi
 
-  rtk infisical secrets set --env "$INFISICAL_ENV" --path "$path" "$name=$value" >/dev/null
+  temp_file="$(mktemp)"
+  printf '%s' "$value" >"$temp_file"
+  rtk infisical secrets set --env "$INFISICAL_ENV" --path "$path" "${name}=@${temp_file}" >/dev/null
+  rm -f "$temp_file"
 }
 
 if [[ -z "${CONTROL_PLANE_DATABASE_URL:-}" && -z "${CONTROL_PLANE_MIGRATOR_DATABASE_URL:-}" ]]; then

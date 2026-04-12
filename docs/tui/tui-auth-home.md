@@ -9,7 +9,8 @@ Related docs:
 - [search.md](/home/t42/Documents/pirate-v2/specs/domain/search.md)
 - [namespace.md](/home/t42/Documents/pirate-v2/specs/domain/namespace.md)
 - [community.md](/home/t42/Documents/pirate-v2/specs/domain/community.md)
-- [account-creation-first-slice.md](/home/t42/Documents/pirate-v2/docs/account-creation-first-slice.md)
+- [account-creation-first-slice.md](/home/t42/Documents/pirate-v2/docs/product/account-creation-first-slice.md)
+- [dvpn.md](/home/t42/Documents/pirate-v2/specs/domain/dvpn.md)
 - [auth.yaml](/home/t42/Documents/pirate-v2/specs/api/src/paths/auth.yaml)
 - [onboarding.yaml](/home/t42/Documents/pirate-v2/specs/api/src/paths/onboarding.yaml)
 
@@ -140,6 +141,22 @@ Account item rule:
 - when signed in, the item label is the user's current `.pirate` handle
 
 This gives immediate identity feedback without adding a separate sign-in/sign-up decision surface.
+
+## dVPN Activation
+
+dVPN is not part of the `Connect` action.
+
+Recommended v0 behavior:
+
+- the user must already be `signed_in`
+- the user must have an active paid dVPN entitlement before Pirate provisions a Sentinel wallet
+- if the user has not paid, the TUI should surface a payment-required state and browser handoff rather than provisioning chain state
+- if the user has paid, the backend may lazily create or reuse the user's Sentinel wallet attachment transparently
+
+Important:
+
+- the TUI should not expose "create Sentinel wallet" as a separate manual step
+- the first visible dVPN gate is payment, not wallet setup
 
 ## Home Before Search
 

@@ -7,7 +7,6 @@ type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
 const HAS_RTK = Bun.which("rtk") !== null;
 const BUN_COMMAND = HAS_RTK ? "rtk bun" : "bun";
-const BUNX_COMMAND = HAS_RTK ? "rtk bunx" : "bunx";
 
 function sortJson(value: unknown): Json {
   if (value === null) {
@@ -101,11 +100,7 @@ async function main() {
     exported_count: number;
   }>(
     `${BUN_COMMAND} specs/api/scripts/generate-reference-template-types.ts`,
-    "Reference template type generation",
-  );
-  runStep(
-    `${BUNX_COMMAND} tsc -p references/templates/api-worker-auth-first-slice/tsconfig.json`,
-    "Reference template typecheck",
+    "Reference compatibility type generation",
   );
   const apiContractsSummary = runJsonStep<{
     output: string;
@@ -164,10 +159,9 @@ async function main() {
       JSON.stringify(sortJson(currentImplemented)) === JSON.stringify(sortJson(rebuiltImplemented)),
     bundledExternalRefs: countExternalRefs(rebuilt),
     implementedBundledExternalRefs: countExternalRefs(rebuiltImplemented),
-    referenceTemplateTypesGenerated: true,
-    referenceTemplateTypecheckPassed: true,
-    generatedReferenceTemplateTypeCount: referenceTemplateTypesSummary.exported_count,
-    generatedReferenceTemplateTypes: referenceTemplateTypesSummary.exported_types,
+    referenceCompatibilityTypesGenerated: true,
+    generatedReferenceCompatibilityTypeCount: referenceTemplateTypesSummary.exported_count,
+    generatedReferenceCompatibilityTypes: referenceTemplateTypesSummary.exported_types,
     apiContractsGenerated: true,
     apiContractsTypecheckPassed: true,
     generatedApiContractTypeCount: apiContractsSummary.exported_type_count,

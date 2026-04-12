@@ -1,0 +1,11 @@
+{
+  "name": "pirate-v2",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "dependencies": {
+    "@libsql/client": "^0.17.2",
+    "@tableland/sdk": "^7.2.1",
+    "ethers": "^6.16.0"
+  }
+}

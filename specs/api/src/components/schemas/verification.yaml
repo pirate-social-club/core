@@ -10,6 +10,7 @@ VerificationIntent:
   enum:
     - profile_verification
     - community_creation
+    - ucommunity_join
     - post_access_18_plus
     - commerce_pricing
     - qualifier_disclosure
@@ -17,7 +18,6 @@ StartVerificationSessionRequest:
   type: object
   required:
     - provider
-    - requested_capabilities
   description: |
     Start an interactive verification session for a provider that requires a frontend launch flow.
     This surface is intentionally limited to interactive providers such as `self` and `very`.
@@ -66,12 +66,18 @@ CompleteVerificationSessionRequest:
   type: object
   description: |
     Provider-agnostic completion or refresh payload for an interactive verification session.
-    Fields are optional because some providers complete asynchronously through the callback path
-    while others return proof material to the frontend first.
+    Fields are optional because some providers complete asynchronously while others return proof
+    material to the frontend first.
   properties:
     attestation_id:
       type: string
       nullable: true
+    proof:
+      type: string
+      nullable: true
+      description: |
+        Provider proof material returned to the browser and forwarded to Pirate for final
+        verification. This is currently required for the working Very bridge flow.
     proof_hash:
       type: string
       nullable: true
@@ -524,8 +530,7 @@ VerificationSession:
       type: string
       nullable: true
       description: |
-        Server-owned callback path reserved for provider redirects, relayers, or webhook-style
-        completion. Clients should treat this as informational.
+        Server-owned completion path for the session. Clients may treat this as informational.
     nationality:
       type: string
       nullable: true
@@ -564,25 +569,34 @@ StartNamespaceVerificationSessionRequest:
       type: string
       enum:
         - hns
+        - spaces
       description: |
-        Public v0 supports HNS only. Future namespace families may extend this surface without changing the session model.
+        Public v0 supports HNS and Spaces. Future namespace families may extend this surface without changing the session model.
     root_label:
       type: string
       description: Root label as entered by the creator before server normalization.
 CompleteNamespaceVerificationSessionRequest:
   type: object
   description: |
-    Trigger a refresh of TXT challenge observations and assertion derivation after the creator has published the required record. The body is optional because many implementations can treat this as an idempotent recheck.
+    Trigger a refresh of challenge observations and assertion derivation after the creator has completed the required proof step. The body is optional because many implementations can treat this as an idempotent recheck.
   properties:
     restart_challenge:
       type: boolean
       nullable: true
       description: |
-        Optional hint to invalidate the current TXT challenge and issue a new one if the creator wants to restart the proof flow.
+        Optional hint to invalidate the current challenge and issue a new one if the creator wants to restart the proof flow.
+    signature_payload:
+      type: object
+      nullable: true
+      additionalProperties: true
+      description: |
+        Optional family-specific completion payload supplied by the client.
+        Spaces flows may use this to submit a Schnorr signature plus related signer metadata.
+        HNS flows normally leave this unset because completion is resolver-driven rather than signature-submission driven.
 NamespaceVerificationAssertions:
   type: object
   description: |
-    Accepted or in-flight namespace assertions derived from the current evidence bundle. These facts remain distinct so attach capability, routing capability, and Pirate-managed subdomain capability are not collapsed into one flag.
+    Accepted or in-flight namespace assertions derived from the current evidence bundle. These facts remain distinct so attach capability, routing capability, live root-key control, and protocol-specific managed-issuance capability are not collapsed into one flag.
   properties:
     root_exists:
       type: boolean
@@ -599,6 +613,18 @@ NamespaceVerificationAssertions:
     pirate_dns_authority_verified:
       type: boolean
       nullable: true
+    root_key_proof_verified:
+      type: boolean
+      nullable: true
+    live_signature_verified:
+      type: boolean
+      nullable: true
+    anchor_fresh_enough:
+      type: boolean
+      nullable: true
+    owner_signed_updates_verified:
+      type: boolean
+      nullable: true
 NamespaceVerificationCapabilities:
   type: object
   description: |
@@ -611,6 +637,12 @@ NamespaceVerificationCapabilities:
       type: boolean
       nullable: true
     pirate_subdomain_issuance_allowed:
+      type: boolean
+      nullable: true
+    owner_signed_record_updates_allowed:
+      type: boolean
+      nullable: true
+    pirate_subspace_issuance_allowed:
       type: boolean
       nullable: true
 NamespaceVerificationSession:
@@ -637,6 +669,7 @@ NamespaceVerificationSession:
       type: string
       enum:
         - hns
+        - spaces
     submitted_root_label:
       type: string
     normalized_root_label:
@@ -655,19 +688,32 @@ NamespaceVerificationSession:
         - failed
         - expired
         - disputed
-    challenge_host:
+      description: |
+        Shared namespace-verification session status.
+        `dns_setup_required` is HNS-only and should not be used for Spaces sessions.
+    challenge_kind:
       type: string
+      enum:
+        - dns_txt
+        - schnorr_sign
       nullable: true
-      description: Exact host where the TXT challenge must be published when required.
-    challenge_txt_value:
-      type: string
+      description: |
+        Family-specific challenge type for the current session.
+        `dns_txt` is used by HNS-style TXT proof flows.
+        `schnorr_sign` is used by Spaces root-signature proof flows.
+    challenge_payload:
+      type: object
       nullable: true
-      description: TXT value Pirate expects to observe for root-control proof.
+      additionalProperties: true
+      description: |
+        Family-specific challenge payload.
+        Example HNS payload fields may include `host` and `txt_value`.
+        Example Spaces payload fields may include `message`, `digest`, and signer metadata.
     challenge_expires_at:
       type: string
       format: date-time
       nullable: true
-      description: Expiration time for the currently issued TXT challenge, distinct from the overall namespace verification session expiry.
+      description: Expiration time for the currently issued challenge, distinct from the overall namespace verification session expiry.
     assertions:
       allOf:
         - $ref: ./verification.yaml#/NamespaceVerificationAssertions
@@ -690,12 +736,13 @@ NamespaceVerificationSession:
         - owner_managed_namespace
         - routing_only_namespace
         - pirate_delegated_namespace
+        - owner_signed_updates_namespace
       nullable: true
     observation_provider:
       type: string
       nullable: true
       description: |
-        Trusted HNS-aware provider used for the most recent accepted observation in public v0, such as Fire HSD.
+        Trusted provider used for the most recent accepted namespace-verification observation in public v0.
     evidence_bundle_ref:
       type: string
       nullable: true
@@ -738,6 +785,7 @@ NamespaceVerification:
       type: string
       enum:
         - hns
+        - spaces
     normalized_root_label:
       type: string
     status:
@@ -765,6 +813,7 @@ NamespaceVerification:
         - owner_managed_namespace
         - routing_only_namespace
         - pirate_delegated_namespace
+        - owner_signed_updates_namespace
       nullable: true
     observation_provider:
       type: string

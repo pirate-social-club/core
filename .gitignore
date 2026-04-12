@@ -63,4 +63,5 @@ cache/
 .parcel-cache/
 .temp
 .tmp
+.scratch-api-ci-head/
 debug-storybook.log

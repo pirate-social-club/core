@@ -12,7 +12,7 @@ communities:
       - the accepted namespace verification exists
       - it belongs to the requesting creator
       - it is still accepted and not stale, disputed, or expired
-      - its current capabilities still satisfy `community_attach_allowed`
+      - its current capabilities still satisfy `club_attach_allowed`
 
       Public v0 create must fail closed when those checks do not pass.
     requestBody:
@@ -193,24 +193,7 @@ communities_by_community_id_labels:
         $ref: ../components/responses.yaml#/NotFound
       "409":
         $ref: ../components/responses.yaml#/Conflict
-communities_by_community_id_community_profile:
-  get:
-    tags:
-      - Communities
-    summary: Get the community profile for a community
-    parameters:
-      - $ref: ../components/parameters.yaml#/CommunityId
-    responses:
-      "200":
-        description: Community profile
-        content:
-          application/json:
-            schema:
-              $ref: ../components/schemas/communities-community.yaml#/CommunityProfile
-      "401":
-        $ref: ../components/responses.yaml#/AuthError
-      "404":
-        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_profile:
   patch:
     tags:
       - Communities
@@ -225,17 +208,131 @@ communities_by_community_id_community_profile:
             $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityProfileRequest
     responses:
       "200":
-        description: Community profile updated
+        description: Community profile mutation published
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/communities-community.yaml#/CommunityProfile
+              $ref: ../components/schemas/communities-community.yaml#/CommunityProfileMutationResponse
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "403":
         $ref: ../components/responses.yaml#/EligibilityFailed
       "404":
         $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+communities_by_community_id_governance:
+  patch:
+    tags:
+      - Communities
+    summary: Update the public governance pointer for a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-governance.yaml#/UpdateCommunityGovernanceRequest
+    responses:
+      "200":
+        description: Community governance mutation published
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-governance.yaml#/CommunityGovernanceMutationResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+communities_by_community_id_donation_policy_public:
+  patch:
+    tags:
+      - Communities
+    summary: Update the public donation policy summary for a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityDonationPolicyPublicRequest
+    responses:
+      "200":
+        description: Community donation-policy mutation published
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityDonationPolicyPublicMutationResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+communities_by_community_id_rules:
+  put:
+    tags:
+      - Communities
+    summary: Update the public community rules for a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityRulesRequest
+    responses:
+      "200":
+        description: Community rules mutation published
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityRulesMutationResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+communities_by_community_id_resource_links:
+  put:
+    tags:
+      - Communities
+    summary: Update the public community resource links for a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityResourceLinksRequest
+    responses:
+      "200":
+        description: Community resource-links mutation published
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityResourceLinksMutationResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
 communities_by_community_id_reference_links:
   get:
     tags:
@@ -1310,6 +1407,116 @@ communities_by_community_id_posts:
         $ref: ../components/responses.yaml#/AuthError
       "429":
         $ref: ../components/responses.yaml#/RateLimited
+communities_by_community_id_posts_by_post_id_reports:
+  post:
+    tags:
+      - Moderation
+    summary: Report a post in a community
+    description: |
+      Creates a user report for the target post. If an open moderation case already exists for the
+      post, the report should attach to that case rather than creating a duplicate. Otherwise the
+      server may open a new community-scoped moderation case.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/PostId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/moderation.yaml#/CreateUserReportRequest
+    responses:
+      "201":
+        description: User report created
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/moderation.yaml#/UserReport
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/VerificationRequired
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+communities_by_community_id_moderation_cases:
+  get:
+    tags:
+      - Moderation
+    summary: List moderation cases for a community
+    description: |
+      Returns moderation cases for the community. V0 is expected to focus on open cases used by
+      single creators or moderators through a simple `Needs Review` surface.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Moderation cases
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/moderation.yaml#/ModerationCaseListResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_moderation_cases_by_moderation_case_id:
+  get:
+    tags:
+      - Moderation
+    summary: Read a moderation case
+    description: |
+      Returns the case, target post, attached moderation signals, attached user reports, and any
+      prior moderation actions for a single moderation case.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/ModerationCaseId
+    responses:
+      "200":
+        description: Moderation case detail
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/moderation.yaml#/ModerationCaseDetail
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_moderation_cases_by_moderation_case_id_actions:
+  post:
+    tags:
+      - Moderation
+    summary: Resolve a moderation case with an action
+    description: |
+      Appends a moderation action to the case and updates the target post when the selected action
+      implies a post-state change such as `hide`, `remove`, `restore`, or `age_gate`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/ModerationCaseId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/moderation.yaml#/CreateModerationActionRequest
+    responses:
+      "200":
+        description: Moderation case detail after action
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/moderation.yaml#/ModerationCaseDetail
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
 communities_by_community_id_assets_by_asset_id:
   get:
     tags:
@@ -1598,7 +1805,7 @@ communities_by_community_id_song_artifacts_by_song_artifact_bundle_id:
           $ref: ../components/responses.yaml#/Conflict
         "429":
           $ref: ../components/responses.yaml#/RateLimited
-  communities_by_community_id_adult_content_policy:
+communities_by_community_id_adult_content_policy:
     get:
       tags:
         - Communities
@@ -1649,7 +1856,7 @@ communities_by_community_id_song_artifacts_by_song_artifact_bundle_id:
           $ref: ../components/responses.yaml#/Conflict
         "429":
           $ref: ../components/responses.yaml#/RateLimited
-  communities_by_community_id_graphic_content_policy:
+communities_by_community_id_graphic_content_policy:
     get:
       tags:
         - Communities
@@ -1700,7 +1907,7 @@ communities_by_community_id_song_artifacts_by_song_artifact_bundle_id:
           $ref: ../components/responses.yaml#/Conflict
         "429":
           $ref: ../components/responses.yaml#/RateLimited
-  communities_by_community_id_language_policy:
+communities_by_community_id_language_policy:
     get:
       tags:
         - Communities
@@ -1725,7 +1932,7 @@ communities_by_community_id_song_artifacts_by_song_artifact_bundle_id:
         - Communities
       summary: Configure or update the language policy for a community
       description: |
-        Stores an explicit community language policy for profanity and slur handling. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts. Targeted harassment and hate speech remain platform-level constraints.
+        Stores an explicit community language policy for profanity, slur, and related language handling. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
       parameters:
         - $ref: ../components/parameters.yaml#/CommunityId
       requestBody:
@@ -1751,7 +1958,58 @@ communities_by_community_id_song_artifacts_by_song_artifact_bundle_id:
           $ref: ../components/responses.yaml#/Conflict
         "429":
           $ref: ../components/responses.yaml#/RateLimited
-  communities_by_community_id_capture_edit_policy:
+communities_by_community_id_civility_policy:
+    get:
+      tags:
+        - Communities
+      summary: Get the active civility policy for a community
+      description: |
+        Returns the resolved effective civility policy. When the community has not explicitly configured a civility policy yet, the server must return the default policy with `policy_origin = default`.
+      parameters:
+        - $ref: ../components/parameters.yaml#/CommunityId
+      responses:
+        "200":
+          description: Community civility policy
+          content:
+            application/json:
+              schema:
+                $ref: ../components/schemas/communities-community.yaml#/CommunityCivilityPolicy
+        "401":
+          $ref: ../components/responses.yaml#/AuthError
+        "404":
+          $ref: ../components/responses.yaml#/NotFound
+    patch:
+      tags:
+        - Communities
+      summary: Configure or update the civility policy for a community
+      description: |
+        Stores an explicit community civility policy for group-directed demeaning language, targeted insults, harassment, and related legal-but-disputed conduct categories above the platform floor. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
+      parameters:
+        - $ref: ../components/parameters.yaml#/CommunityId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityCivilityPolicyRequest
+      responses:
+        "200":
+          description: Community civility policy updated
+          content:
+            application/json:
+              schema:
+                $ref: ../components/schemas/communities-community.yaml#/CommunityCivilityPolicy
+        "401":
+          $ref: ../components/responses.yaml#/AuthError
+        "403":
+          $ref: ../components/responses.yaml#/EligibilityFailed
+        "404":
+          $ref: ../components/responses.yaml#/NotFound
+        "409":
+          $ref: ../components/responses.yaml#/Conflict
+        "429":
+          $ref: ../components/responses.yaml#/RateLimited
+communities_by_community_id_capture_edit_policy:
     get:
       tags:
         - Communities
@@ -1802,7 +2060,7 @@ communities_by_community_id_song_artifacts_by_song_artifact_bundle_id:
           $ref: ../components/responses.yaml#/Conflict
         "429":
           $ref: ../components/responses.yaml#/RateLimited
-  communities_by_community_id_motion_media_policy:
+communities_by_community_id_motion_media_policy:
     get:
       tags:
         - Communities

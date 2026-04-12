@@ -8,6 +8,8 @@ Related docs:
 - [handles.md](./handles.md)
 - [community.md](./community.md)
 - [hns-authoritative-dns.md](./hns-authoritative-dns.md)
+- [hns-verification-flow.md](./hns-verification-flow.md)
+- [spaces-verification-flow.md](./spaces-verification-flow.md)
 
 ## Purpose
 
@@ -246,10 +248,10 @@ Each label should map to one evidence fact or one capability, never both.
 | Root inspection succeeds and name exists | `root_exists = true` | none | root found |
 | Root exists but `_pirate.<root>` TXT proof cannot proceed because authoritative DNS is absent | no proof assertion changes yet; session remains blocked on DNS setup | none | DNS setup required |
 | Expiry check shows more than 90 days remaining | `expiry_horizon_sufficient = true` | none until root control is also verified | Expiry horizon sufficient |
-| TXT challenge verified | `root_control_verified = true` | `community_attach_allowed = true` if expiry horizon is also sufficient | Root control verified |
+| TXT challenge verified | `root_control_verified = true` | `club_attach_allowed = true` if expiry horizon is also sufficient | Root control verified |
 | Edge or wildcard routing detected | `routing_enabled = true` | `pirate_web_routing_allowed = true` if root control already verified | Routing enabled |
 | Authoritative NS or equivalent Pirate DNS delegation verified | `pirate_dns_authority_verified = true` | `pirate_subdomain_issuance_allowed = true` if root control and expiry horizon are already verified | Pirate DNS authority verified; Pirate subdomain issuance enabled |
-| Expiry falls to 90 days or less | `expiry_horizon_sufficient = false` | `community_attach_allowed = false`; `pirate_subdomain_issuance_allowed = false` | near expiry |
+| Expiry falls to 90 days or less | `expiry_horizon_sufficient = false` | `club_attach_allowed = false`; `pirate_subdomain_issuance_allowed = false` | near expiry |
 | Routing removed but control proof still valid | `routing_enabled = false` | `pirate_web_routing_allowed = false` | routing disabled |
 | Delegation removed but control proof still valid | `pirate_dns_authority_verified = false` | `pirate_subdomain_issuance_allowed = false` | Pirate subdomain issuance disabled |
 | Control proof becomes stale without contradiction | no flag forced false; mark assertion stale | no automatic club detach | Stale |
@@ -260,7 +262,7 @@ Each label should map to one evidence fact or one capability, never both.
 | Event | Evidence Change | Capability Change | User-Facing State |
 | --- | --- | --- | --- |
 | Root proof verified against accepted anchor | `root_key_proof_verified = true` | none until live control also verified | Root key proof verified |
-| Pirate challenge signed by proven key | `live_signature_verified = true` | `community_attach_allowed = true` if root key proof already verified | Live signature verified |
+| Pirate challenge signed by proven key | `live_signature_verified = true` | `club_attach_allowed = true` if root key proof already verified | Live signature verified |
 | Owner-signed record update path explicitly enabled and verified | `owner_signed_updates_verified = true` | `owner_signed_record_updates_allowed = true` if community attach already allowed | Owner-signed updates enabled |
 | Anchor freshness window exceeded without contradictory evidence | no flag forced false; mark assertion stale | no automatic club detach | Stale |
 | Fresh contradictory proof accepted | mark proof assertion disputed | disable attach-derived capabilities that rely on the contradicted proof | Disputed |
@@ -301,7 +303,7 @@ Recommended v0 handoff model:
 - before a user can create a club on a given root, Pirate must have accepted a namespace verification session for that root
 - the verification session produces an `evidence_bundle` and derived `assertion_record` set as defined in the Audit Objects section above
 - the create-community request references this accepted verification by a server-trusted identifier, not by raw label fields
-- the server must reject creation if the referenced verification session is stale, disputed, or does not satisfy `community_attach_allowed` for the relevant protocol family at the time the create request is processed
+- the server must reject creation if the referenced verification session is stale, disputed, or does not satisfy `club_attach_allowed` for the relevant protocol family at the time the create request is processed
 
 Suggested v0 reference mechanism:
 
@@ -315,7 +317,7 @@ This ensures that `POST /communities` never relies on unverified client-submitte
 Rules:
 
 - `namespace_verification_id` must be required on `POST /communities` in v0
-- the referenced verification must satisfy `community_attach_allowed` for the relevant protocol family at create time
+- the referenced verification must satisfy `club_attach_allowed` for the relevant protocol family at create time
 - the referenced verification must belong to the requesting creator
 - if no valid verification session exists, the create request must be rejected before any club state is created
 - label fields on `NamespaceAttachmentInput` remain for display and routing purposes, but they are not evidence

@@ -82,3 +82,14 @@ Rules:
 - translated text is a derived projection for the resolved locale
 - reads should include the resolved locale and whether machine translation is being shown
 - clients should always keep original text accessible inline when translated text is displayed
+
+## Future Public Registry Reads
+
+If Pirate later reintroduces a public onchain registry, localization should
+still stay in the app read layer rather than the registry row itself.
+
+Rules:
+
+- Redwood SSR should consume an API-served localized read model
+- locale resolution, translation policy, translation cache lookup, and translated projections are API responsibilities
+- localized app reads must preserve a stable canonical source independent of viewer locale

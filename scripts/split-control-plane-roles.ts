@@ -1,14 +1,17 @@
 #!/usr/bin/env bun
 
 import { randomBytes } from "node:crypto";
+import { applyControlPlaneSecurityHardening } from "./lib/control-plane-postgres-hardening";
 
 type Options = {
   infisicalEnv: string;
+  skipInfisical: boolean;
+  allowMissingPgAudit: boolean;
 };
 
 function usage(): never {
   console.error(`Usage:
-  bun scripts/split-control-plane-roles.ts [--infisical-env ENV]
+  bun scripts/split-control-plane-roles.ts [--infisical-env ENV] [--skip-infisical] [--allow-missing-pgaudit]
 
 Creates or rotates distinct Neon control-plane roles, transfers table ownership
 to the migrator role, and updates Infisical secret paths to the intended split:
@@ -21,6 +24,10 @@ The script requires an owner-capable connection URL in either:
 
 - CONTROL_PLANE_OWNER_DATABASE_URL, or
 - CONTROL_PLANE_DATABASE_URL
+
+Options:
+  --skip-infisical             Skip writing generated URLs to Infisical.
+  --allow-missing-pgaudit      Continue with grants and RLS if pgAudit cannot be configured.
 `);
   process.exit(1);
 }
@@ -28,6 +35,8 @@ The script requires an owner-capable connection URL in either:
 function parseArgs(argv: string[]): Options {
   const options: Options = {
     infisicalEnv: "dev",
+    skipInfisical: false,
+    allowMissingPgAudit: false,
   };
 
   for (let index = 0; index < argv.length; ) {
@@ -38,6 +47,14 @@ function parseArgs(argv: string[]): Options {
       case "--infisical-env":
         options.infisicalEnv = value ?? options.infisicalEnv;
         index += 2;
+        break;
+      case "--skip-infisical":
+        options.skipInfisical = true;
+        index += 1;
+        break;
+      case "--allow-missing-pgaudit":
+        options.allowMissingPgAudit = true;
+        index += 1;
         break;
       case "-h":
       case "--help":
@@ -185,7 +202,7 @@ const roleStatements = [
   },
 ].map(({ name, password }) =>
   existingRoles.has(name)
-    ? `ALTER ROLE ${name} WITH LOGIN PASSWORD ${sqlLiteral(password)} NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;`
+    ? `ALTER ROLE ${name} WITH LOGIN PASSWORD ${sqlLiteral(password)} NOCREATEDB NOCREATEROLE NOINHERIT;`
     : `CREATE ROLE ${name} LOGIN PASSWORD ${sqlLiteral(password)} NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;`,
 );
 
@@ -203,7 +220,6 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO control_p
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO control_plane_api_ro, control_plane_ops_ro;
 GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO control_plane_api_rw;
 GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO control_plane_api_ro, control_plane_ops_ro;
-REVOKE ALL ON TABLE schema_migrations FROM control_plane_api_rw, control_plane_api_ro, control_plane_ops_ro;
 
 DO $$
 DECLARE r record;
@@ -223,22 +239,28 @@ RESET ROLE;
 `;
 
 await sql.unsafe(ddl);
+await applyControlPlaneSecurityHardening({
+  sql,
+  databaseName: dbName,
+  allowMissingPgAudit: options.allowMissingPgAudit,
+});
 await sql.end();
-
-ensureFolder("/", "local", options.infisicalEnv);
-ensureFolder("/local", "control-plane", options.infisicalEnv);
 
 const runtimeUrl = buildConnectionUrl(ownerUrl, "control_plane_api_rw", passwords.apiRw);
 const migratorUrl = buildConnectionUrl(ownerUrl, "control_plane_migrator", passwords.migrator);
+if (!options.skipInfisical) {
+  ensureFolder("/", "local", options.infisicalEnv);
+  ensureFolder("/local", "control-plane", options.infisicalEnv);
 
-setSecret("/local/control-plane", "CONTROL_PLANE_OWNER_DATABASE_URL", ownerUrl, options.infisicalEnv);
-setSecret(
-  "/services/control-plane",
-  "CONTROL_PLANE_MIGRATOR_DATABASE_URL",
-  migratorUrl,
-  options.infisicalEnv,
-);
-setSecret("/services/api", "CONTROL_PLANE_DATABASE_URL", runtimeUrl, options.infisicalEnv);
+  setSecret("/local/control-plane", "CONTROL_PLANE_OWNER_DATABASE_URL", ownerUrl, options.infisicalEnv);
+  setSecret(
+    "/services/control-plane",
+    "CONTROL_PLANE_MIGRATOR_DATABASE_URL",
+    migratorUrl,
+    options.infisicalEnv,
+  );
+  setSecret("/services/api", "CONTROL_PLANE_DATABASE_URL", runtimeUrl, options.infisicalEnv);
+}
 
 console.log(`control-plane role split complete
 env: ${options.infisicalEnv}
@@ -246,6 +268,10 @@ database: ${dbName}
 runtime_role: control_plane_api_rw
 migrator_role: control_plane_migrator
 readonly_roles: control_plane_api_ro, control_plane_ops_ro
-runtime_secret_path: /services/api
-migrator_secret_path: /services/control-plane
-owner_secret_path: /local/control-plane`);
+runtime_url: ${runtimeUrl}
+migrator_url: ${migratorUrl}
+owner_url: ${ownerUrl}
+infisical_updated: ${options.skipInfisical ? "no" : "yes"}
+runtime_secret_path: ${options.skipInfisical ? "skipped" : "/services/api"}
+migrator_secret_path: ${options.skipInfisical ? "skipped" : "/services/control-plane"}
+owner_secret_path: ${options.skipInfisical ? "skipped" : "/local/control-plane"}`);

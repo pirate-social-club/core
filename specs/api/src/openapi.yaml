@@ -16,6 +16,7 @@ tags:
   - name: Verification
   - name: Agents
   - name: Onboarding
+  - name: Wallets
   - name: Users
   - name: Profiles
   - name: Communities
@@ -26,6 +27,7 @@ tags:
   - name: Feeds
   - name: Tracks
   - name: Scrobbles
+  - name: Moderation
   - name: MPP
   - name: Jobs
 paths:
@@ -39,10 +41,10 @@ paths:
     $ref: ./paths/verification.yaml#/verification_wallet_score_refresh
   /verification-sessions/{verification_session_id}:
     $ref: ./paths/verification.yaml#/verification_sessions_by_verification_session_id
-  /verification-sessions/{verification_session_id}/complete:
-    $ref: ./paths/verification.yaml#/verification_sessions_by_verification_session_id_complete
   /verification-sessions/{verification_session_id}/callback:
     $ref: ./paths/verification.yaml#/verification_sessions_by_verification_session_id_callback
+  /verification-sessions/{verification_session_id}/complete:
+    $ref: ./paths/verification.yaml#/verification_sessions_by_verification_session_id_complete
   /agent-ownership-sessions:
     $ref: ./paths/agents.yaml#/agent_ownership_sessions
   /agent-ownership-sessions/{agent_ownership_session_id}:
@@ -73,6 +75,14 @@ paths:
     $ref: ./paths/onboarding.yaml#/onboarding_reddit_imports_latest
   /users/me:
     $ref: ./paths/users.yaml#/users_me
+  /wallets/sentinel/ensure:
+    $ref: ./paths/wallets.yaml#/wallets_sentinel_ensure
+  /sentinel/subscribe:
+    $ref: ./paths/sentinel.yaml#/sentinel_subscribe
+  /sentinel/session/start:
+    $ref: ./paths/sentinel.yaml#/sentinel_session_start
+  /sentinel/session/{sentinel_session_id}:
+    $ref: ./paths/sentinel.yaml#/sentinel_session_by_id
   /profiles/me:
     $ref: ./paths/profiles.yaml#/profiles_me
   /profiles/me/global-handle/rename:
@@ -89,8 +99,16 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_attach_governance
   /communities/{community_id}/labels:
     $ref: ./paths/communities.yaml#/communities_by_community_id_labels
-  /communities/{community_id}/community-profile:
-    $ref: ./paths/communities.yaml#/communities_by_community_id_community_profile
+  /communities/{community_id}/profile:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_profile
+  /communities/{community_id}/governance:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_governance
+  /communities/{community_id}/donation-policy-public:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_donation_policy_public
+  /communities/{community_id}/rules:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_rules
+  /communities/{community_id}/resource-links:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_resource_links
   /communities/{community_id}/reference-links:
     $ref: ./paths/communities.yaml#/communities_by_community_id_reference_links
   /communities/{community_id}/reference-links/{community_reference_link_id}:
@@ -137,6 +155,14 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_market_context_policy
   /communities/{community_id}/posts:
     $ref: ./paths/communities.yaml#/communities_by_community_id_posts
+  /communities/{community_id}/posts/{post_id}/reports:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_posts_by_post_id_reports
+  /communities/{community_id}/moderation/cases:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_moderation_cases
+  /communities/{community_id}/moderation/cases/{moderation_case_id}:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_moderation_cases_by_moderation_case_id
+  /communities/{community_id}/moderation/cases/{moderation_case_id}/actions:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_moderation_cases_by_moderation_case_id_actions
   /communities/{community_id}/song-artifact-uploads:
     $ref: ./paths/communities.yaml#/communities_by_community_id_song_artifact_uploads
   /communities/{community_id}/song-artifact-uploads/{song_artifact_upload_id}/content:
@@ -145,6 +171,8 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_song_artifacts
   /communities/{community_id}/song-artifacts/{song_artifact_bundle_id}:
     $ref: ./paths/communities.yaml#/communities_by_community_id_song_artifacts_by_song_artifact_bundle_id
+  /communities/{community_id}/civility-policy:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_civility_policy
   /live-rooms/{live_room_id}:
     $ref: ./paths/livestreams.yaml#/live_rooms_by_live_room_id
   /live-rooms/{live_room_id}/access:
@@ -230,6 +258,8 @@ components:
       $ref: ./components/parameters.yaml#/TrackId
     JobId:
       $ref: ./components/parameters.yaml#/JobId
+    ModerationCaseId:
+      $ref: ./components/parameters.yaml#/ModerationCaseId
     VerificationSessionId:
       $ref: ./components/parameters.yaml#/VerificationSessionId
     AgentOwnershipSessionId:
@@ -348,6 +378,26 @@ components:
       $ref: ./components/schemas/agents.yaml#/AgentOwnershipRecord
     AgentOwnershipSession:
       $ref: ./components/schemas/agents.yaml#/AgentOwnershipSession
+    UserReportReasonCode:
+      $ref: ./components/schemas/moderation.yaml#/UserReportReasonCode
+    ModerationActionType:
+      $ref: ./components/schemas/moderation.yaml#/ModerationActionType
+    ModerationSignal:
+      $ref: ./components/schemas/moderation.yaml#/ModerationSignal
+    UserReport:
+      $ref: ./components/schemas/moderation.yaml#/UserReport
+    ModerationAction:
+      $ref: ./components/schemas/moderation.yaml#/ModerationAction
+    ModerationCase:
+      $ref: ./components/schemas/moderation.yaml#/ModerationCase
+    ModerationCaseDetail:
+      $ref: ./components/schemas/moderation.yaml#/ModerationCaseDetail
+    ModerationCaseListResponse:
+      $ref: ./components/schemas/moderation.yaml#/ModerationCaseListResponse
+    CreateUserReportRequest:
+      $ref: ./components/schemas/moderation.yaml#/CreateUserReportRequest
+    CreateModerationActionRequest:
+      $ref: ./components/schemas/moderation.yaml#/CreateModerationActionRequest
     UserAgent:
       $ref: ./components/schemas/agents.yaml#/UserAgent
     UserAgentListResponse:
@@ -438,6 +488,10 @@ components:
       $ref: ./components/schemas/communities-governance.yaml#/AttachMajeurGovernanceRequest
     GovernanceAction:
       $ref: ./components/schemas/communities-governance.yaml#/GovernanceAction
+    UpdateCommunityGovernanceRequest:
+      $ref: ./components/schemas/communities-governance.yaml#/UpdateCommunityGovernanceRequest
+    CommunityGovernanceMutationResponse:
+      $ref: ./components/schemas/communities-governance.yaml#/CommunityGovernanceMutationResponse
     GovernanceVerificationState:
       $ref: ./components/schemas/communities-governance.yaml#/GovernanceVerificationState
     CommunityGovernanceBackend:
@@ -590,6 +644,16 @@ components:
       $ref: ./components/schemas/communities-community.yaml#/CommunityProfile
     UpdateCommunityProfileRequest:
       $ref: ./components/schemas/communities-community.yaml#/UpdateCommunityProfileRequest
+    CommunityProfileMutationResponse:
+      $ref: ./components/schemas/communities-community.yaml#/CommunityProfileMutationResponse
+    UpdateCommunityRulesRequest:
+      $ref: ./components/schemas/communities-community.yaml#/UpdateCommunityRulesRequest
+    CommunityRulesMutationResponse:
+      $ref: ./components/schemas/communities-community.yaml#/CommunityRulesMutationResponse
+    UpdateCommunityResourceLinksRequest:
+      $ref: ./components/schemas/communities-community.yaml#/UpdateCommunityResourceLinksRequest
+    CommunityResourceLinksMutationResponse:
+      $ref: ./components/schemas/communities-community.yaml#/CommunityResourceLinksMutationResponse
     TrackResolveRequest:
       $ref: ./components/schemas/tracks.yaml#/TrackResolveRequest
     ListingDonationConfig:

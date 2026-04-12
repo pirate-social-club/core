@@ -141,7 +141,7 @@ function validateFamily(family, envName, signerAnchors, fundsPlaceholders, usage
   const signerAnchor = family.signerFamilyRef.split("#")[1];
   assert(
     signerAnchors.has(signerAnchor),
-    `${envName}/${family.family}: signerFamilyRef anchor not found in docs/signer-families.md: ${signerAnchor}`
+    `${envName}/${family.family}: signerFamilyRef anchor not found in docs/operators/signer-families.md: ${signerAnchor}`
   );
 
   if (family.fundsLedgerPlaceholder !== null) {
@@ -273,7 +273,7 @@ function validateCoverage(familyKeysByEnv, signerAnchors) {
   const devFamilies = familyKeysByEnv.get("dev") ?? new Set();
 
   for (const familyName of devFamilies) {
-    assert(signerAnchors.has(familyName), `docs/signer-families.md: missing family heading for ${familyName}`);
+    assert(signerAnchors.has(familyName), `docs/operators/signer-families.md: missing family heading for ${familyName}`);
   }
 }
 

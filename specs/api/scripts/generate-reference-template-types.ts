@@ -3,7 +3,7 @@ import { IMPLEMENTED_BUNDLE_FILE } from "./_shared";
 import { loadSourceSchemas, type BundleSpec, TypeGenerator } from "./_typegen";
 
 const SOURCE_SCHEMA_DIR = "specs/api/src/components/schemas";
-const OUTPUT_FILE = "references/templates/api-worker-auth-first-slice/src/types/api.ts";
+const OUTPUT_FILE = "specs/api/compatibility/reference-template-api.ts";
 
 const EXPORTS = [
   { name: "VerificationCapabilityState", ref: "#/components/schemas/VerificationCapabilityState" },
@@ -45,6 +45,14 @@ const EXPORTS = [
   { name: "JobAcceptedResponse", ref: "#/components/schemas/JobAcceptedResponse" },
   { name: "CommunityCreateAcceptedResponse", ref: "#/components/schemas/CommunityCreateAcceptedResponse" },
   { name: "ErrorShape", ref: "#/components/schemas/Error" },
+  { name: "ModerationCase", ref: "#/components/schemas/ModerationCase" },
+  { name: "ModerationCaseDetail", ref: "#/components/schemas/ModerationCaseDetail" },
+  { name: "ModerationCaseListResponse", ref: "#/components/schemas/ModerationCaseListResponse" },
+  { name: "ModerationSignal", ref: "#/components/schemas/ModerationSignal" },
+  { name: "UserReport", ref: "#/components/schemas/UserReport" },
+  { name: "ModerationAction", ref: "#/components/schemas/ModerationAction" },
+  { name: "CreateUserReportRequest", ref: "#/components/schemas/CreateUserReportRequest" },
+  { name: "CreateModerationActionRequest", ref: "#/components/schemas/CreateModerationActionRequest" },
 ] as const;
 
 const GENERATED_FILE_BANNER = `// GENERATED FILE. Edit specs/api/src/** and run \`rtk bun specs/api/scripts/generate-reference-template-types.ts\`.\n`;

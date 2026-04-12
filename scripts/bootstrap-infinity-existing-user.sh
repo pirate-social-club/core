@@ -10,10 +10,8 @@ Seeds a deterministic existing-user fixture and bootstraps a local operational I
 
 Important:
 - this creates an operational local-stub community
-- it does not publish the community registry to Tableland
 - expected resulting control-plane state:
   - provisioning_state = active
-  - registry_publication_state = not_started
 
 Options:
   --database-url-env ENV_NAME   Environment variable containing the control-plane DB URL. Required.
@@ -124,6 +122,8 @@ infisical run --env dev --path /services/api -- \
     --user-id "$user_id" \
     --display-name "$display_name" \
     --namespace-verification-id "$namespace_verification_id" \
+    --membership-mode gated \
+    --membership-unique-human-provider very \
     --namespace-label "$namespace_label"
 
 cat <<EOF
@@ -136,7 +136,4 @@ community_db: $community_db
 
 Expected control-plane posture:
 - provisioning_state = active
-- registry_publication_state = not_started
-
-This local stub does not mean the community exists in Tableland yet.
 EOF
