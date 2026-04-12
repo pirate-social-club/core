@@ -5,9 +5,9 @@ node_modules/
 .codex
 references/upstream/majeur/
 references/upstream/multisig/
+pirate-api/
 pirate-web/
 pirate-contracts/
-pirate-api/
 pirate-tui/
 
 # Deploy manifests
@@ -26,6 +26,13 @@ target/
 .env
 .env.local
 .env.*.local
+.env.local-sqlite
+.env.staging
+.env.production
+.dev.vars
+!.env.*.example
+scripts/.env.operator-*
+!scripts/.env.operator-*.example
 
 # IDE
 .idea/
