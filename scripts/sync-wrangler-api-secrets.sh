@@ -4,21 +4,16 @@ set -euo pipefail
 usage() {
   cat >&2 <<'EOF'
 Usage:
-  ./scripts/sync-wrangler-api-secrets.sh --wrangler-env staging|production [--env-file PATH]
+  ./scripts/sync-wrangler-api-secrets.sh [--env-file PATH]
 
 If --env-file is omitted, the script reads from the current exported environment.
 
 Examples:
   ./scripts/sync-wrangler-api-secrets.sh \
-    --env-file pirate-api/services/api/.env.staging \
-    --wrangler-env staging
-
-  ./scripts/sync-wrangler-api-secrets.sh \
-    --env-file pirate-api/services/api/.env.production \
-    --wrangler-env production
+    --env-file pirate-api/services/api/.env.remote
 
   rtk infisical run --env staging --path /services/api -- \
-    ./scripts/sync-wrangler-api-secrets.sh --wrangler-env staging
+    ./scripts/sync-wrangler-api-secrets.sh
 EOF
   exit 1
 }
@@ -27,16 +22,11 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 API_DIR="$ROOT_DIR/pirate-api/services/api"
 WRANGLER="$API_DIR/node_modules/.bin/wrangler"
 ENV_FILE=""
-WRANGLER_ENV=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --env-file)
       ENV_FILE="${2:-}"
-      shift 2
-      ;;
-    --wrangler-env)
-      WRANGLER_ENV="${2:-}"
       shift 2
       ;;
     -h|--help)
@@ -48,15 +38,6 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
-
-if [[ -z "$WRANGLER_ENV" ]]; then
-  usage
-fi
-
-if [[ "$WRANGLER_ENV" != "staging" && "$WRANGLER_ENV" != "production" ]]; then
-  echo "unsupported wrangler env: $WRANGLER_ENV" >&2
-  usage
-fi
 
 if [[ ! -x "$WRANGLER" ]]; then
   echo "wrangler executable not found: $WRANGLER" >&2
@@ -102,21 +83,13 @@ put_secret() {
   if [[ -z "$value" ]]; then
     return 0
   fi
-  if [[ "$WRANGLER_ENV" == "production" ]]; then
-    printf '%s' "$value" | (
-      cd "$API_DIR"
-      "$WRANGLER" secret put "$name" --env="" >/dev/null
-    )
-    return 0
-  fi
-
   printf '%s' "$value" | (
     cd "$API_DIR"
-    "$WRANGLER" secret put "$name" --env "$WRANGLER_ENV" >/dev/null
+    "$WRANGLER" secret put "$name" >/dev/null
   )
 }
 
-echo "syncing API worker secrets to Cloudflare env: $WRANGLER_ENV" >&2
+echo "syncing API worker secrets to Cloudflare worker from wrangler.jsonc" >&2
 
 for name in "${required_names[@]}"; do
   put_secret "$name"
@@ -128,7 +101,7 @@ done
 
 cat <<EOF
 wrangler API secret sync complete
-worker_env: $WRANGLER_ENV
+worker_name: pirate-api-core
 required:
 $(printf '%s\n' "${required_names[@]}" | sed 's/^/- /')
 optional when present:

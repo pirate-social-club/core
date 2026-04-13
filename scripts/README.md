@@ -35,7 +35,7 @@ Top-level `scripts/` should stay limited to human-facing entrypoints. Shared hel
 - `operator-env-run.sh`
   Sources an operator env file, validates the required env contract for a named profile, and executes the target command. Use this instead of repeating `set -a; source ...; set +a` in runbooks.
 - `sync-wrangler-api-secrets.sh`
-  Pushes the current API runtime secret surface into a Wrangler worker env such as `staging`. Use this after sourcing a local env file or inside `rtk infisical run`.
+  Pushes the current API runtime secret surface into the default Wrangler worker from `pirate-api/services/api/wrangler.jsonc`. Use this after sourcing a local env file or inside `rtk infisical run`.
 - `bootstrap-infinity-existing-user.sh`
   Seeds a deterministic existing-user fixture plus a local Infinity community.
 - `seed-control-plane-fixtures.ts`
@@ -78,10 +78,9 @@ rtk ./scripts/operator-env-run.sh --env-file scripts/.env.operator-staging --pro
   rtk bun scripts/turso-control-plane-operator.ts
 ```
 
-Sync the staging API worker secrets from the local staging env file:
+Sync the remote API worker secrets from Infisical:
 
 ```bash
-rtk ./scripts/sync-wrangler-api-secrets.sh \
-  --env-file pirate-api/services/api/.env.staging \
-  --wrangler-env staging
+rtk infisical run --env staging --path /services/api -- \
+  rtk ./scripts/sync-wrangler-api-secrets.sh
 ```

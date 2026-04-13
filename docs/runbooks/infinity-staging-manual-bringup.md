@@ -104,13 +104,12 @@ INFISICAL_ENV=staging rtk ./scripts/bootstrap-infisical-turso.sh
 INFISICAL_ENV=staging rtk ./scripts/bootstrap-infisical-api-runtime.sh
 ```
 
-Sync the current API runtime secret surface into the Cloudflare staging worker:
+Sync the current API runtime secret surface into the single remote Cloudflare worker:
 
 ```bash
 cd /home/t42/Documents/pirate-v2
-rtk ./scripts/sync-wrangler-api-secrets.sh \
-  --env-file pirate-api/services/api/.env.staging \
-  --wrangler-env staging
+rtk infisical run --env staging --path /services/api -- \
+  rtk ./scripts/sync-wrangler-api-secrets.sh
 ```
 
 ### 3. Seed or confirm the Infinity actor and namespace state in Neon

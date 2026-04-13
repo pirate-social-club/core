@@ -162,11 +162,11 @@ Dev is local-only. The API worker is run via `bun run dev:local` with secrets fr
 
 ### Production status
 
-The Infisical environment slug is `prod`, not `production`. `prod:/services/api` currently contains only `CONTROL_PLANE_DATABASE_URL`, and `prod:/services/control-plane` currently contains only `CONTROL_PLANE_MIGRATOR_DATABASE_URL`. That is consistent with an undeployed production worker, but the Cloudflare worker could not be fully audited from this shell because `wrangler` lacked a `CLOUDFLARE_API_TOKEN`.
+The Infisical environment slug is `prod`, not `production`. `prod:/services/api` currently contains only `CONTROL_PLANE_DATABASE_URL`, and `prod:/services/control-plane` currently contains only `CONTROL_PLANE_MIGRATOR_DATABASE_URL`. No production Cloudflare worker is deployed yet.
 
-### Staging Cloudflare worker secrets
+### Remote Cloudflare worker status
 
-`wrangler secret list --env staging` reached Cloudflare and returned `Worker "pirate-api-core-staging" not found`. So the last verified state from this shell is that no staging worker currently exists under that name/account combination. Do not rely on older notes about a deployed staging worker until they are re-verified with the correct Cloudflare credentials.
+The repo currently defines a single Cloudflare worker in `pirate-api/services/api/wrangler.jsonc`: `pirate-api-core`. There is no `env.staging` or `env.production` section in that config. Direct `wrangler deployments list` and `wrangler secret list` calls confirmed that `pirate-api-core` does not exist in the current Cloudflare account yet, so the next remote step is a first deploy followed by secret sync.
 
 ## Naming (resolved)
 
