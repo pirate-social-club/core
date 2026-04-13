@@ -15,5 +15,7 @@ Current slices:
 
 - `hns-authoritative-dns/`
   PowerDNS-based authoritative DNS deployment assets for Pirate-managed HNS roots.
+- `hns-verifier/`
+  Deployment assets and env templates for the PowerDNS-backed HNS verifier/provisioner.
 - `spaces-verifier/`
   Deployment assets and env templates for the VPS-hosted Spaces verifier stack.

@@ -1,6 +1,6 @@
 services:
   powerdns:
-    image: pschiffe/pdns-mysql:alpine
+    image: powerdns/pdns-auth-51
     container_name: pirate-hns-authdns
     restart: unless-stopped
     ports:

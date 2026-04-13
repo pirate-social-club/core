@@ -16,5 +16,7 @@ Boundary:
 
 Current services:
 
+- `hns/`
+  PowerDNS-backed HNS verifier and zone-provisioning sidecar.
 - `spaces/`
   Spaces verifier sidecar, native helper crate, and operator signing helper.
