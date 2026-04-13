@@ -45,7 +45,7 @@ type RpcFullSpaceOut = {
 
 function usage(): never {
   console.error(`Usage:
-  bun scripts/spaces-sign-digest.ts --space @pirate --digest <hex> [options]
+  bun services/verifier/spaces/scripts/sign-digest.ts --space @pirate --digest <hex> [options]
 
 Signs a Pirate Spaces verification digest with the current root key from a local Spaces wallet.
 
@@ -259,7 +259,7 @@ function runNative(options: Options, args: string[]) {
       "--offline",
       "--locked",
       "--manifest-path",
-      path.join(import.meta.dir, "spaces-verifier-native", "Cargo.toml"),
+      path.join(import.meta.dir, "..", "native", "Cargo.toml"),
       "--",
       ...args,
     ],

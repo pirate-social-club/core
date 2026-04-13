@@ -42,10 +42,6 @@ Top-level `scripts/` should stay limited to human-facing entrypoints. Shared hel
   Seeds deterministic control-plane fixture users and namespace verification state. Refuses Neon-hosted targets unless `--allow-production` is passed explicitly.
 - `split-control-plane-roles.ts`
   Splits control-plane access into runtime and migrator roles, with optional Infisical writes. Supports `--skip-infisical` for dry bootstrap and `--allow-missing-pgaudit` to continue when Neon blocks the extension.
-- `spaces-sign-digest.ts`
-  Signs a namespace digest for Spaces verification flows.
-- `spaces-verifier.ts`
-  Local HTTP verifier sidecar for Spaces verification.
 - `mint-test-jwt.mjs`
   Mints a local test JWT for auth and onboarding flows.
 - `check-lit-config.mjs`
@@ -57,8 +53,6 @@ Top-level `scripts/` should stay limited to human-facing entrypoints. Shared hel
   Shared helpers used by the top-level scripts.
 - `lit/`
   Lit-specific operational scripts and its own README.
-- `spaces-verifier-native/`
-  Native verifier binary source.
 - `vendor/`
   Vendored third-party source. Keep this isolated from normal entrypoints.
 
@@ -67,7 +61,7 @@ Top-level `scripts/` should stay limited to human-facing entrypoints. Shared hel
 - Do not add benchmark data, one-off notes, or historical artifacts to the top level unless they are active runtime inputs.
 - If a script is documented as runnable, keep the file present and verified.
 - If a command is only planned, document it as planned in `docs/`, not as an existing script.
-- Native build outputs such as `scripts/spaces-verifier-native/target/` are local cache, not repo content. Clean them when disk usage spikes, or set a separate `CARGO_TARGET_DIR` if you need to keep repeated Rust builds off the workspace tree.
+- VPS-run verifier code now lives under `services/verifier/`. Keep service-specific native sources, vendored crates, and helper entrypoints there instead of adding them back to top-level `scripts/`.
 
 ## Operator Launch Example
 

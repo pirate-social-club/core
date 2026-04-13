@@ -6,7 +6,7 @@ Related:
 
 - [docs/operators/spaces-verification-runtime-contract.md](./spaces-verification-runtime-contract.md)
 - [specs/domain/spaces-verification-flow.md](../../specs/domain/spaces-verification-flow.md)
-- [scripts/spaces-verifier.ts](../../scripts/spaces-verifier.ts)
+- [services/verifier/spaces/src/server.ts](../../services/verifier/spaces/src/server.ts)
 - [pirate-web/src/components/compositions/create-community-composer/create-community-composer.tsx](../../pirate-web/src/components/compositions/create-community-composer/create-community-composer.tsx)
 
 ## Problem
@@ -35,7 +35,7 @@ This repo now includes a local operator helper that performs the missing raw-dig
 without requiring upstream `scli` changes first:
 
 ```bash
-rtk bun run scripts/spaces-sign-digest.ts \
+rtk bun services/verifier/spaces/scripts/sign-digest.ts \
   --space @pirate \
   --digest <challenge_digest_hex> \
   --rpc-url http://127.0.0.1:7225 \
@@ -176,7 +176,7 @@ The intended public-v0 operator flow should be:
 Current repo-local equivalent:
 
 ```bash
-rtk bun run scripts/spaces-sign-digest.ts --space @pirate --digest <digest> ...
+rtk bun services/verifier/spaces/scripts/sign-digest.ts --space @pirate --digest <digest> ...
 ```
 
 3. Operator pastes the returned signature into Pirate.

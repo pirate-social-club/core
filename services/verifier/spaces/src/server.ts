@@ -53,7 +53,7 @@ const verifierHost = Bun.env.SPACES_VERIFIER_HOST?.trim() || "0.0.0.0";
 const verifierPort = Number(Bun.env.SPACES_VERIFIER_PORT || "4047");
 const maxAnchorAgeBlocks = Number(Bun.env.SPACES_VERIFIER_MAX_ANCHOR_AGE_BLOCKS || "144");
 const verifierAuthToken = Bun.env.SPACES_VERIFIER_AUTH_TOKEN?.trim() || null;
-const nativeManifestPath = new URL("./spaces-verifier-native/Cargo.toml", import.meta.url).pathname;
+const nativeManifestPath = new URL("../native/Cargo.toml", import.meta.url).pathname;
 const nativeBin = Bun.env.SPACES_VERIFIER_NATIVE_BIN?.trim() || null;
 const allowNativeBuildFallback = ["1", "true", "yes", "on"].includes(
   String(Bun.env.SPACES_NATIVE_ALLOW_BUILD_FALLBACK || "").trim().toLowerCase(),

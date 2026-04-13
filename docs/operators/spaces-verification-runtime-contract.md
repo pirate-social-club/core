@@ -27,7 +27,7 @@ Operational note:
 
 - Pirate-side verification is implemented.
 - This repo now includes a local operator helper for raw digest signing at
-  [scripts/spaces-sign-digest.ts](../../scripts/spaces-sign-digest.ts).
+  [services/verifier/spaces/scripts/sign-digest.ts](../../services/verifier/spaces/scripts/sign-digest.ts).
 - Public operator usability still depends on the Spaces toolchain exposing a first-class raw
   digest-signing primitive for the current root key. See
   [docs/operators/spaces-operator-signing-contract.md](./spaces-operator-signing-contract.md).
@@ -139,7 +139,7 @@ Rules:
 - the service layer mints the Pirate challenge nonce and digest
 - the service layer verifies the submitted signature against `rootPubkey`
 
-For local execution, the current implementation expects an HTTP sidecar at `SPACES_VERIFIER_BASE_URL` and ships one in [scripts/spaces-verifier.ts](../../scripts/spaces-verifier.ts). The sidecar contract is:
+For local execution, the current implementation expects an HTTP sidecar at `SPACES_VERIFIER_BASE_URL` and ships one in [services/verifier/spaces/src/server.ts](../../services/verifier/spaces/src/server.ts). The sidecar contract is:
 
 - `GET /inspect?root_label=@space|space`
 - `POST /verify-signature`

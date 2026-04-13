@@ -6,8 +6,10 @@ Related:
 
 - [docs/operators/spaces-verification-runtime-contract.md](./spaces-verification-runtime-contract.md)
 - [docs/operators/spaces-operator-signing-contract.md](./spaces-operator-signing-contract.md)
-- [scripts/spaces-verifier.ts](../../scripts/spaces-verifier.ts)
-- [scripts/spaces-sign-digest.ts](../../scripts/spaces-sign-digest.ts)
+- [services/verifier/spaces/README.md](../../services/verifier/spaces/README.md)
+- [services/verifier/spaces/src/server.ts](../../services/verifier/spaces/src/server.ts)
+- [services/verifier/spaces/scripts/sign-digest.ts](../../services/verifier/spaces/scripts/sign-digest.ts)
+- [ops/vps/spaces-verifier/README.md](../../ops/vps/spaces-verifier/README.md)
 - [pirate-api/services/api/src/lib/verification/spaces-verifier.ts](../../pirate-api/services/api/src/lib/verification/spaces-verifier.ts)
 
 ## Goal
@@ -161,7 +163,7 @@ Recommended variables for `verifier.env`:
 - `SPACES_VERIFIER_HOST=127.0.0.1`
 - `SPACES_VERIFIER_PORT=4047`
 - `SPACES_VERIFIER_AUTH_TOKEN=<random-bearer-token>`
-- `SPACES_VERIFIER_NATIVE_BIN=/srv/pirate-spaces/app/scripts/spaces-verifier-native/target/release/spaces-verifier-native`
+- `SPACES_VERIFIER_NATIVE_BIN=/srv/pirate-spaces/app/services/verifier/spaces/native/target/release/spaces-verifier-native`
 
 Do not rely on request-time `cargo run` on the VPS.
 
@@ -193,7 +195,7 @@ Recommended units:
 
 - start after `pirate-spaced.service`
 - read `/srv/pirate-spaces/config/verifier.env`
-- run `rtk bun run scripts/spaces-verifier.ts` from `/srv/pirate-spaces/app`
+- run `rtk bun services/verifier/spaces/src/server.ts` from `/srv/pirate-spaces/app`
 - restart on failure
 
 ## Build Strategy
@@ -203,7 +205,7 @@ The VPS should build the native verifier once and reuse the binary.
 Build outputs to preserve on the VPS:
 
 - Bun dependencies for the repo checkout
-- `scripts/spaces-verifier-native/target/release/spaces-verifier-native`
+- `services/verifier/spaces/native/target/release/spaces-verifier-native`
 
 Do not compile the Rust binary on every service restart.
 

@@ -1,0 +1,16 @@
+[Unit]
+Description=Pirate Spaces verifier
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pirate-spaces
+WorkingDirectory=/srv/pirate-spaces/app
+EnvironmentFile=/srv/pirate-spaces/config/verifier.env
+ExecStart=/usr/bin/env rtk bun services/verifier/spaces/src/server.ts
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

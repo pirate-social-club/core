@@ -1,0 +1,9 @@
+{
+  "name": "@pirate/verifier-spaces",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun src/server.ts",
+    "sign-digest": "bun scripts/sign-digest.ts"
+  }
+}
