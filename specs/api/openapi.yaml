@@ -819,6 +819,7 @@ paths:
     post:
       tags:
         - Profiles
+      x-implemented: true
       summary: Rename the current active global .pirate handle
       requestBody:
         required: true
@@ -850,6 +851,7 @@ paths:
     post:
       tags:
         - Profiles
+      x-implemented: true
       summary: Quote a paid upgrade into a cleaner .pirate handle
       requestBody:
         required: true
@@ -1867,6 +1869,7 @@ paths:
     post:
       tags:
         - Communities
+      x-implemented: true
       summary: Join a community
       description: |
         The server must always evaluate the platform baseline join gate before considering the community's membership mode.
@@ -2920,6 +2923,7 @@ paths:
     post:
       tags:
         - Posts
+      x-implemented: true
       summary: Cast or update a vote on a post
       description: |
         Public v0 voting requires community membership plus `verification_capabilities.unique_human.state = verified`

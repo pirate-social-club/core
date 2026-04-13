@@ -515,6 +515,66 @@ paths:
                 $ref: "#/components/schemas/Profile"
         "401":
           $ref: "#/components/responses/AuthError"
+  /profiles/me/global-handle/rename:
+    post:
+      tags:
+        - Profiles
+      summary: Rename the current active global .pirate handle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - desired_label
+              properties:
+                desired_label:
+                  type: string
+      responses:
+        "200":
+          description: Global handle updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GlobalHandle"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /profiles/me/global-handle/upgrade-quote:
+    post:
+      tags:
+        - Profiles
+      summary: Quote a paid upgrade into a cleaner .pirate handle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - desired_label
+              properties:
+                desired_label:
+                  type: string
+      responses:
+        "200":
+          description: Upgrade quote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HandleUpgradeQuote"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /profiles/{user_id}:
     get:
       tags:
@@ -939,6 +999,34 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /communities/{community_id}/join:
+    post:
+      tags:
+        - Communities
+      summary: Join a community
+      description: |
+        The server must always evaluate the platform baseline join gate before considering the community's membership mode.
+
+        Public v0 baseline join eligibility requires at least one approved platform trust credential:
+
+        - `unique_human` verified through an accepted provider such as `self` or `very`
+        - `wallet_score` verified through `passport` with a passing score
+        - operator-approved token-gated exceptions may exist later, but are not configurable through public v0 community creation or public community settings
+
+        `open` means no extra community-specific gate beyond that platform baseline. `gated` communities must satisfy the platform baseline and then all active membership-scope community gate rules.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      responses:
+        "200":
+          description: Membership created or request recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MembershipResult"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/GateFailed"
   /communities/{community_id}/posts:
     post:
       tags:
@@ -1360,6 +1448,55 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
+  /posts/{post_id}/vote:
+    post:
+      tags:
+        - Posts
+      summary: Cast or update a vote on a post
+      description: |
+        Public v0 voting requires community membership plus `verification_capabilities.unique_human.state = verified`
+        from an accepted human-verification provider such as `self` or `very`.
+        User-owned agents must not cast votes through this surface in v0.
+      parameters:
+        - $ref: "#/components/parameters/PostId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - value
+              properties:
+                value:
+                  type: integer
+                  enum:
+                    - -1
+                    - 1
+      responses:
+        "200":
+          description: Vote recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - post_id
+                  - value
+                properties:
+                  post_id:
+                    type: string
+                  value:
+                    type: integer
+                    enum:
+                      - -1
+                      - 1
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/VerificationRequired"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /jobs/{job_id}:
     get:
       tags:

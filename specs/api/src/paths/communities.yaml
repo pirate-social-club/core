@@ -1175,6 +1175,7 @@ communities_by_community_id_join:
   post:
     tags:
       - Communities
+    x-implemented: true
     summary: Join a community
     description: |
       The server must always evaluate the platform baseline join gate before considering the community's membership mode.

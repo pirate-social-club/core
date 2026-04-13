@@ -49,6 +49,7 @@ profiles_me_global_handle_rename:
   post:
     tags:
       - Profiles
+    x-implemented: true
     summary: Rename the current active global .pirate handle
     requestBody:
       required: true
@@ -80,6 +81,7 @@ profiles_me_global_handle_upgrade_quote:
   post:
     tags:
       - Profiles
+    x-implemented: true
     summary: Quote a paid upgrade into a cleaner .pirate handle
     requestBody:
       required: true
