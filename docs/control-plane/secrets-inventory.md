@@ -162,21 +162,11 @@ Dev is local-only. The API worker is run via `bun run dev:local` with secrets fr
 
 ### Production status
 
-No Cloudflare worker named `pirate-api-core` exists. Production has never been deployed. The sparse prod Infisical state (only `CONTROL_PLANE_DATABASE_URL`) is expected for a pre-deployed environment. Before first prod deploy, populate the required secret set via `scripts/sync-wrangler-api-secrets.sh --wrangler-env production`.
+The Infisical environment slug is `prod`, not `production`. `prod:/services/api` currently contains only `CONTROL_PLANE_DATABASE_URL`, and `prod:/services/control-plane` currently contains only `CONTROL_PLANE_MIGRATOR_DATABASE_URL`. That is consistent with an undeployed production worker, but the Cloudflare worker could not be fully audited from this shell because `wrangler` lacked a `CLOUDFLARE_API_TOKEN`.
 
 ### Staging Cloudflare worker secrets
 
-The staging worker `pirate-api-staging` was last deployed 2026-04-12. It currently carries stale secrets from the pirate/ v1 configuration that are not read by the current API code:
-
-- `ALLOW_LOCAL_STUB_REGISTRY_PUBLICATION` — dead, not in current Env type
-- `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN` — operator-only, belongs in `/services/control-plane`
-- `PIRATE_API_PUBLIC_ORIGIN` — dead, not in current Env type
-- `PRIVY_APP_ID` — public config, not a secret
-- `SPACES_VERIFIER_BASE_URL` — dead, not in current Env type
-- `TURSO_COMMUNITY_DB_WRAP_KEY` — operator-only, belongs in `/services/control-plane`
-- `REGISTRY_PUBLISHER_URL` — public config, not a secret
-
-These should be removed from the Cloudflare worker on the next staging deployment.
+`wrangler secret list --env staging` reached Cloudflare and returned `Worker "pirate-api-core-staging" not found`. So the last verified state from this shell is that no staging worker currently exists under that name/account combination. Do not rely on older notes about a deployed staging worker until they are re-verified with the correct Cloudflare credentials.
 
 ## Naming (resolved)
 
