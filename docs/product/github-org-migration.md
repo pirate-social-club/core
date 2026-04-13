@@ -12,8 +12,8 @@ Use short repo names inside the org:
 - `api` from local `/home/t42/Documents/pirate/pirate-api`
 - `contracts` from local `/home/t42/Documents/pirate/pirate-contracts`
 - `desktop` from local `/home/t42/Documents/pirate/pirate-desktop`
-- `tui` from local `/home/t42/Documents/pirate-v2/pirate-tui`
-- `core` from local `/home/t42/Documents/pirate-v2`
+- `tui` from local `pirate-v2/pirate-tui`
+- `core` from local `pirate-v2`
 
 Recommended visibility:
 
@@ -26,7 +26,7 @@ Verified locally after migration:
 
 - the major Pirate surfaces are separate Git repos locally
 - local `origin` remotes now point at `https://github.com/pirate-social-club/...`
-- `/home/t42/Documents/pirate-v2` now tracks `https://github.com/pirate-social-club/core.git`
+- the local `pirate-v2` repo now tracks `https://github.com/pirate-social-club/core.git`
 - org repos now exist:
   - public: `android`, `ios`, `web`, `contracts`, `desktop`
   - private: `api`, `core`
@@ -184,8 +184,8 @@ rtk git -C /home/t42/Documents/pirate-v2 remote -v
 ### TUI
 
 ```bash
-rtk git -C /home/t42/Documents/pirate-v2/pirate-tui remote add origin https://github.com/pirate-social-club/tui.git
-rtk git -C /home/t42/Documents/pirate-v2/pirate-tui remote -v
+rtk git -C pirate-tui remote add origin https://github.com/pirate-social-club/tui.git
+rtk git -C pirate-tui remote -v
 ```
 
 ## Step 6: Verify branch tracking after remote changes
@@ -197,8 +197,8 @@ rtk git -C /home/t42/Documents/pirate/pirate-web remote show origin
 rtk git -C /home/t42/Documents/pirate/pirate-api remote show origin
 rtk git -C /home/t42/Documents/pirate/pirate-contracts remote show origin
 rtk git -C /home/t42/Documents/pirate/pirate-desktop remote show origin
-rtk git -C /home/t42/Documents/pirate-v2/pirate-tui remote show origin
-rtk git -C /home/t42/Documents/pirate-v2 remote show origin
+rtk git -C pirate-tui remote show origin
+rtk git -C . remote show origin
 ```
 
 ## Step 7: Standardize repo metadata

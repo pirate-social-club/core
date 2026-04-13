@@ -2,18 +2,18 @@
 
 Defines the Turso secret surface and env contract for Pirate's community database plane.
 
-The central control-plane database no longer uses Turso. See [control-plane-neon-adr.md](/home/t42/Documents/pirate-v2/docs/adr/control-plane-neon-adr.md) for the Neon control-plane decision and role model.
+The central control-plane database no longer uses Turso. See [control-plane-neon-adr.md](../adr/control-plane-neon-adr.md) for the Neon control-plane decision and role model.
 
 This file does not contain secret values.
 
 Related:
 
-- [turso-sovereignty-adr.md](/home/t42/Documents/pirate-v2/docs/adr/turso-sovereignty-adr.md)
-- [turso-data-boundaries.md](/home/t42/Documents/pirate-v2/docs/control-plane/turso-data-boundaries.md)
-- [control-plane-schema.md](/home/t42/Documents/pirate-v2/docs/control-plane/control-plane-schema.md)
-- [turso-provisioning-contract.md](/home/t42/Documents/pirate-v2/docs/control-plane/turso-provisioning-contract.md)
-- [secrets-inventory.md](/home/t42/Documents/pirate-v2/docs/control-plane/secrets-inventory.md)
-- [infisical-migration.md](/home/t42/Documents/pirate-v2/docs/control-plane/infisical-migration.md)
+- [turso-sovereignty-adr.md](../adr/turso-sovereignty-adr.md)
+- [turso-data-boundaries.md](./turso-data-boundaries.md)
+- [control-plane-schema.md](./control-plane-schema.md)
+- [turso-provisioning-contract.md](./turso-provisioning-contract.md)
+- [secrets-inventory.md](./secrets-inventory.md)
+- [infisical-migration.md](./infisical-migration.md)
 
 ## Model
 
@@ -98,7 +98,7 @@ Relevant Turso docs:
 - invalidate all DB tokens: <https://docs.turso.tech/api-reference/databases/invalidate-tokens>
 - invalidate all group tokens: <https://docs.turso.tech/api-reference/groups/invalidate-tokens>
 
-The durable storage contract for these credentials lives in [control-plane-schema.md](/home/t42/Documents/pirate-v2/docs/control-plane/control-plane-schema.md).
+The durable storage contract for these credentials lives in [control-plane-schema.md](./control-plane-schema.md).
 
 ## Rotation
 

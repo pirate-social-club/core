@@ -23,7 +23,7 @@ After this runbook:
 ## 1. Reset the local API state
 
 ```bash
-cd /home/t42/Documents/pirate-v2/pirate-api/services/api
+cd pirate-api/services/api
 rtk bun run local:reset
 ```
 
@@ -56,7 +56,7 @@ This produces a local operational Infinity community with:
 ## 4. Start the API
 
 ```bash
-cd /home/t42/Documents/pirate-v2/pirate-api/services/api
+cd pirate-api/services/api
 rtk bun run dev:local-sqlite
 ```
 
@@ -71,7 +71,7 @@ pirate-api mode=local-sqlite
 ## 5. Start the web app
 
 ```bash
-cd /home/t42/Documents/pirate-v2/pirate-web
+cd pirate-web
 rtk bun run dev:web
 ```
 

@@ -4,9 +4,9 @@ Status: draft
 
 Related:
 
-- [market-context.md](/home/t42/Documents/pirate-v2/specs/domain/market-context.md)
-- [turso-data-boundaries.md](/home/t42/Documents/pirate-v2/docs/control-plane/turso-data-boundaries.md)
-- [../db/README.md](/home/t42/Documents/pirate-v2/db/README.md)
+- [market-context.md](../../specs/domain/market-context.md)
+- [turso-data-boundaries.md](../control-plane/turso-data-boundaries.md)
+- [../db/README.md](../../db/README.md)
 
 ## Purpose
 

@@ -4,10 +4,10 @@ Status: execution handoff for the first runtime implementation
 
 Related:
 
-- [turso-secret-contract.md](/home/t42/Documents/pirate-v2/docs/control-plane/turso-secret-contract.md)
-- [turso-provisioning-contract.md](/home/t42/Documents/pirate-v2/docs/control-plane/turso-provisioning-contract.md)
-- [control-plane-schema.md](/home/t42/Documents/pirate-v2/docs/control-plane/control-plane-schema.md)
-- [specs/api/src/paths/auth.yaml](/home/t42/Documents/pirate-v2/specs/api/src/paths/auth.yaml)
+- [turso-secret-contract.md](../control-plane/turso-secret-contract.md)
+- [turso-provisioning-contract.md](../control-plane/turso-provisioning-contract.md)
+- [control-plane-schema.md](../control-plane/control-plane-schema.md)
+- [specs/api/src/paths/auth.yaml](../../specs/api/src/paths/auth.yaml)
 
 ## Goal
 

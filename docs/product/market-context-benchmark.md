@@ -12,7 +12,7 @@ That separation matters because the current system is often acceptable at extrac
 
 ## Files
 
-- [market-context-benchmark.json](/home/t42/Documents/pirate-v2/scripts/market-context-benchmark.json)
+- [market-context-benchmark.json](../../scripts/market-context-benchmark.json)
 
 The benchmark corpus still lives in `scripts/`, but the runner and harness are not present in this repo snapshot. Treat this document as the contract for that benchmark shape, not as a guarantee that the local runner exists here today.
 

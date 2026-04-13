@@ -4,11 +4,11 @@ Status: execution handoff
 
 Related:
 
-- [spaces-verification-runtime-contract.md](/home/t42/Documents/pirate-v2/docs/operators/spaces-verification-runtime-contract.md)
-- [account-creation-first-slice.md](/home/t42/Documents/pirate-v2/docs/product/account-creation-first-slice.md)
-- [turso-data-boundaries.md](/home/t42/Documents/pirate-v2/docs/control-plane/turso-data-boundaries.md)
-- [turso-provisioning-contract.md](/home/t42/Documents/pirate-v2/docs/control-plane/turso-provisioning-contract.md)
-- [../db/README.md](/home/t42/Documents/pirate-v2/db/README.md)
+- [spaces-verification-runtime-contract.md](../operators/spaces-verification-runtime-contract.md)
+- [account-creation-first-slice.md](../product/account-creation-first-slice.md)
+- [turso-data-boundaries.md](../control-plane/turso-data-boundaries.md)
+- [turso-provisioning-contract.md](../control-plane/turso-provisioning-contract.md)
+- [../db/README.md](../../db/README.md)
 
 ## Purpose
 

@@ -2,7 +2,7 @@
 
 Status: active
 
-Scope: reconcile pirate-tui/internal/app/* with the Route+Focus+SessionPhase model defined in [tui-auth-home.md](/home/t42/Documents/pirate-v2/docs/tui/tui-auth-home.md).
+Scope: reconcile pirate-tui/internal/app/* with the Route+Focus+SessionPhase model defined in [tui-auth-home.md](./tui-auth-home.md).
 
 Audience: implementer working file-by-file through the current codebase.
 

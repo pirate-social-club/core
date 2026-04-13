@@ -45,10 +45,10 @@ This means the live private Turso control-plane path is now validated for:
 ## Required Inputs
 
 Operator env file:
-- [scripts/.env.operator-staging.example](/home/t42/Documents/pirate-v2/scripts/.env.operator-staging.example:1)
+- [scripts/.env.operator-staging.example](../../scripts/.env.operator-staging.example:1)
 
 API staging env file:
-- [pirate-api/services/api/.env.staging.example](/home/t42/Documents/pirate-v2/pirate-api/services/api/.env.staging.example:1)
+- [pirate-api/services/api/.env.staging.example](../../pirate-api/services/api/.env.staging.example:1)
 
 Required operator env:
 - `CONTROL_PLANE_DATABASE_URL`
@@ -156,7 +156,7 @@ The API must have:
 
 ### 5. Verify staging reads through the remote Turso binding
 
-Use [Infinity Staging Validation](/home/t42/Documents/pirate-v2/docs/runbooks/infinity-staging-validation.md:1).
+Use [Infinity Staging Validation](../runbooks/infinity-staging-validation.md:1).
 
 Minimum acceptance:
 - `GET /communities/infinity` succeeds
@@ -220,7 +220,7 @@ Check:
 - `schema_migrations` exists in the remote DB
 - the remote DB was bootstrapped through the checked-in community bootstrap path
 - no undocumented schema or data hotfixes exist outside the checked-in migration/history record
-- any live staging DB intervention is recorded in [staging-neon-hotfix-log.md](/home/t42/Documents/pirate-v2/docs/control-plane/staging-neon-hotfix-log.md)
+- any live staging DB intervention is recorded in [staging-neon-hotfix-log.md](./staging-neon-hotfix-log.md)
 
 ### staging API reads fail after successful operator commands
 

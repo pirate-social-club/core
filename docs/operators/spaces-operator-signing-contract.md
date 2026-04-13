@@ -4,10 +4,10 @@ Status: required to make the public-v0 Spaces verification flow operator-usable 
 
 Related:
 
-- [docs/operators/spaces-verification-runtime-contract.md](/home/t42/Documents/pirate-v2/docs/operators/spaces-verification-runtime-contract.md)
-- [specs/domain/spaces-verification-flow.md](/home/t42/Documents/pirate-v2/specs/domain/spaces-verification-flow.md)
-- [scripts/spaces-verifier.ts](/home/t42/Documents/pirate-v2/scripts/spaces-verifier.ts)
-- [pirate-web/src/components/compositions/create-community-composer/create-community-composer.tsx](/home/t42/Documents/pirate-v2/pirate-web/src/components/compositions/create-community-composer/create-community-composer.tsx)
+- [docs/operators/spaces-verification-runtime-contract.md](./spaces-verification-runtime-contract.md)
+- [specs/domain/spaces-verification-flow.md](../../specs/domain/spaces-verification-flow.md)
+- [scripts/spaces-verifier.ts](../../scripts/spaces-verifier.ts)
+- [pirate-web/src/components/compositions/create-community-composer/create-community-composer.tsx](../../pirate-web/src/components/compositions/create-community-composer/create-community-composer.tsx)
 
 ## Problem
 

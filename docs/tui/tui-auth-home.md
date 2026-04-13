@@ -4,15 +4,14 @@ Status: draft
 
 Related docs:
 
-- [onboarding.md](/home/t42/Documents/pirate-v2/specs/domain/onboarding.md)
-- [profile.md](/home/t42/Documents/pirate-v2/specs/domain/profile.md)
-- [search.md](/home/t42/Documents/pirate-v2/specs/domain/search.md)
-- [namespace.md](/home/t42/Documents/pirate-v2/specs/domain/namespace.md)
-- [community.md](/home/t42/Documents/pirate-v2/specs/domain/community.md)
-- [account-creation-first-slice.md](/home/t42/Documents/pirate-v2/docs/product/account-creation-first-slice.md)
-- [dvpn.md](/home/t42/Documents/pirate-v2/specs/domain/dvpn.md)
-- [auth.yaml](/home/t42/Documents/pirate-v2/specs/api/src/paths/auth.yaml)
-- [onboarding.yaml](/home/t42/Documents/pirate-v2/specs/api/src/paths/onboarding.yaml)
+- [onboarding.md](../../specs/domain/onboarding.md)
+- [profile.md](../../specs/domain/profile.md)
+- [namespace.md](../../specs/domain/namespace.md)
+- [community.md](../../specs/domain/community.md)
+- [account-creation-first-slice.md](../product/account-creation-first-slice.md)
+- [dvpn.md](../../specs/domain/dvpn.md)
+- [auth.yaml](../../specs/api/src/paths/auth.yaml)
+- [onboarding.yaml](../../specs/api/src/paths/onboarding.yaml)
 
 ## Purpose
 

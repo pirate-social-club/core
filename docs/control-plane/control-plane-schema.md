@@ -2,16 +2,16 @@
 
 Defines the first concrete relational schema for Pirate's central control-plane database.
 
-This is the logical schema spec for Pirate's Neon-backed root-of-trust control plane. See [control-plane-neon-adr.md](/home/t42/Documents/pirate-v2/docs/control-plane-neon-adr.md).
+This is the logical schema spec for Pirate's Neon-backed root-of-trust control plane. See [control-plane-neon-adr.md](../control-plane-neon-adr.md).
 
 Related:
 
-- [turso-sovereignty-adr.md](/home/t42/Documents/pirate-v2/docs/turso-sovereignty-adr.md)
-- [turso-data-boundaries.md](/home/t42/Documents/pirate-v2/docs/control-plane/turso-data-boundaries.md)
-- [turso-secret-contract.md](/home/t42/Documents/pirate-v2/docs/control-plane/turso-secret-contract.md)
-- [turso-provisioning-contract.md](/home/t42/Documents/pirate-v2/docs/control-plane/turso-provisioning-contract.md)
-- [user.md](/home/t42/Documents/pirate-v2/specs/domain/user.md)
-- [community.md](/home/t42/Documents/pirate-v2/specs/domain/community.md)
+- [turso-sovereignty-adr.md](../turso-sovereignty-adr.md)
+- [turso-data-boundaries.md](./turso-data-boundaries.md)
+- [turso-secret-contract.md](./turso-secret-contract.md)
+- [turso-provisioning-contract.md](./turso-provisioning-contract.md)
+- [user.md](../../specs/domain/user.md)
+- [community.md](../../specs/domain/community.md)
 
 ## Purpose
 
@@ -112,7 +112,7 @@ Constraints and indexes:
 
 Notes:
 
-- `verification_capabilities_json` stores the provider-neutral capability read model from [user.md](/home/t42/Documents/pirate-v2/specs/domain/user.md)
+- `verification_capabilities_json` stores the provider-neutral capability read model from [user.md](../../specs/domain/user.md)
 - sensitive provider fields such as raw nullifiers or full DOB are not duplicated here unless the user spec explicitly requires them on the canonical row
 
 ### `wallet_attachments`

@@ -4,11 +4,11 @@ Status: target production shape for moving the working local Spaces verification
 
 Related:
 
-- [docs/operators/spaces-verification-runtime-contract.md](/home/t42/Documents/pirate-v2/docs/operators/spaces-verification-runtime-contract.md)
-- [docs/operators/spaces-operator-signing-contract.md](/home/t42/Documents/pirate-v2/docs/operators/spaces-operator-signing-contract.md)
-- [scripts/spaces-verifier.ts](/home/t42/Documents/pirate-v2/scripts/spaces-verifier.ts)
-- [scripts/spaces-sign-digest.ts](/home/t42/Documents/pirate-v2/scripts/spaces-sign-digest.ts)
-- [pirate-api/services/api/src/lib/verification/spaces-verifier.ts](/home/t42/Documents/pirate-v2/pirate-api/services/api/src/lib/verification/spaces-verifier.ts)
+- [docs/operators/spaces-verification-runtime-contract.md](./spaces-verification-runtime-contract.md)
+- [docs/operators/spaces-operator-signing-contract.md](./spaces-operator-signing-contract.md)
+- [scripts/spaces-verifier.ts](../../scripts/spaces-verifier.ts)
+- [scripts/spaces-sign-digest.ts](../../scripts/spaces-sign-digest.ts)
+- [pirate-api/services/api/src/lib/verification/spaces-verifier.ts](../../pirate-api/services/api/src/lib/verification/spaces-verifier.ts)
 
 ## Goal
 

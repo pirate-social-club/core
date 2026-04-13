@@ -4,7 +4,7 @@ Explains the Lit/PKP execution model for pirate-v2. The machine-readable source 
 
 Related:
 
-- [lit-action-port-plan.md](/home/t42/Documents/pirate-v2/docs/operators/lit-action-port-plan.md)
+- [lit-action-port-plan.md](./lit-action-port-plan.md)
 
 ## Model
 

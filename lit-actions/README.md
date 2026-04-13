@@ -6,9 +6,9 @@ Principles:
 
 - source templates live in this tree
 - stamped outputs are generated from source templates plus repo config
-- action CIDs are recorded in [lit-families.json](/home/t42/Documents/pirate-v2/config/lit-families.json)
+- action CIDs are recorded in [lit-families.json](../config/lit-families.json)
 - runtime secrets do not live here
-- control-plane scripts live under [scripts/lit](/home/t42/Documents/pirate-v2/scripts/lit)
+- control-plane scripts live under [scripts/lit](../scripts/lit)
 
 Current first-wave scope:
 

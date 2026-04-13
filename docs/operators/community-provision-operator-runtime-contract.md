@@ -37,15 +37,15 @@ Rules:
 
 Current in-repo entrypoint:
 
-- [scripts/turso-control-plane-operator.ts](/home/t42/Documents/pirate-v2/scripts/turso-control-plane-operator.ts:1)
+- [scripts/turso-control-plane-operator.ts](../../scripts/turso-control-plane-operator.ts:1)
 
 Shared handler:
 
-- [scripts/lib/turso-control-plane-operator.ts](/home/t42/Documents/pirate-v2/scripts/lib/turso-control-plane-operator.ts:1)
+- [scripts/lib/turso-control-plane-operator.ts](../../scripts/lib/turso-control-plane-operator.ts:1)
 
 Backed by existing Turso control-plane library:
 
-- [scripts/lib/turso-control-plane.ts](/home/t42/Documents/pirate-v2/scripts/lib/turso-control-plane.ts:1)
+- [scripts/lib/turso-control-plane.ts](../../scripts/lib/turso-control-plane.ts:1)
 
 ## Authentication
 

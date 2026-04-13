@@ -10,10 +10,10 @@ Purpose:
 
 Related:
 
-- [post schema](/home/t42/Documents/pirate-v2/specs/api/src/components/schemas/posts.yaml)
-- [community post route](/home/t42/Documents/pirate-v2/specs/api/src/paths/communities.yaml)
-- [song artifact schema](/home/t42/Documents/pirate-v2/specs/api/src/components/schemas/song-artifacts.yaml)
-- [song publish state machine](/home/t42/Documents/pirate-v2/docs/product/song-publish-v0-state-machine.md)
+- [post schema](../../specs/api/src/components/schemas/posts.yaml)
+- [community post route](../../specs/api/src/paths/communities.yaml)
+- [song artifact schema](../../specs/api/src/components/schemas/song-artifacts.yaml)
+- [song publish state machine](./song-publish-v0-state-machine.md)
 
 Harness note:
 

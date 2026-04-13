@@ -6,19 +6,19 @@ Audit of what `pirate-v2` should reuse from `pirate/` for Lit action stamping, u
 
 What already exists:
 
-- signer-family inventory in [signer-families.md](/home/t42/Documents/pirate-v2/docs/operators/signer-families.md)
-- control-plane inventory in [lit-families.json](/home/t42/Documents/pirate-v2/config/lit-families.json)
-- control-plane policy doc in [lit-control-plane.md](/home/t42/Documents/pirate-v2/docs/operators/lit-control-plane.md)
-- live Story Aeneid delivery deployment in [story-aeneid-delivery.json](/home/t42/Documents/pirate-v2/config/story-aeneid-delivery.json)
+- signer-family inventory in [signer-families.md](./signer-families.md)
+- control-plane inventory in [lit-families.json](../../config/lit-families.json)
+- control-plane policy doc in [lit-control-plane.md](./lit-control-plane.md)
+- live Story Aeneid delivery deployment in [story-aeneid-delivery.json](../../config/story-aeneid-delivery.json)
 
 Implemented in this first pass:
 
-- repo-local Lit action source tree under [lit-actions](/home/t42/Documents/pirate-v2/lit-actions)
+- repo-local Lit action source tree under [lit-actions](../../lit-actions)
 - first `story-operator` source action for `publishAssetVersion(...)`
-- config-aware stamp script under [scripts/lit](/home/t42/Documents/pirate-v2/scripts/lit)
+- config-aware stamp script under [scripts/lit](../../scripts/lit)
 - local bundle/CID derivation script
 - Lit group sync script
-- real `publish-asset-version` CID recorded in [lit-families.json](/home/t42/Documents/pirate-v2/config/lit-families.json)
+- real `publish-asset-version` CID recorded in [lit-families.json](../../config/lit-families.json)
 - runtime smoke script and PKP-group membership enforcement in sync
 - clean PKP rekey path using a temporary Lit probe action to derive the real public key of a newly minted wallet
 - replacement `story-operator` PKP now live in v2 with a passing smoke for `publishAssetVersion(...)`
@@ -163,7 +163,7 @@ The v2 replacement family is:
 
 but its role is now:
 
-- produce EIP-712 `AccessProof` signatures for [SignedAccessConditionV1.sol](/home/t42/Documents/pirate-v2/pirate-contracts/story/delivery/src/SignedAccessConditionV1.sol)
+- produce EIP-712 `AccessProof` signatures for [SignedAccessConditionV1.sol](../../pirate-contracts/story/delivery/src/SignedAccessConditionV1.sol)
 
 So this family needs a new action shape, not a port.
 
@@ -179,7 +179,7 @@ That is not the current v1 settlement path.
 
 The live v1 settlement contract is:
 
-- [MarketplaceSettlementV1.sol](/home/t42/Documents/pirate-v2/pirate-contracts/story/delivery/src/MarketplaceSettlementV1.sol)
+- [MarketplaceSettlementV1.sol](../../pirate-contracts/story/delivery/src/MarketplaceSettlementV1.sol)
 
 So the first v2 settlement action should target:
 
@@ -241,8 +241,8 @@ This only needs to stamp one new action initially:
 
 Inputs should come from repo config, not ad hoc env sprawl:
 
-- PKP address from [lit-families.json](/home/t42/Documents/pirate-v2/config/lit-families.json)
-- contract address from [story-aeneid-delivery.json](/home/t42/Documents/pirate-v2/config/story-aeneid-delivery.json)
+- PKP address from [lit-families.json](../../config/lit-families.json)
+- contract address from [story-aeneid-delivery.json](../../config/story-aeneid-delivery.json)
 - RPC URL supplied explicitly or from deploy metadata
 
 ### 4. Write The New `publishAssetVersion` Action
@@ -283,13 +283,13 @@ That can start as two scripts:
 These should use:
 
 - account-scoped control-plane key from `dev:/local/lit`
-- execute group name / family mapping from [lit-families.json](/home/t42/Documents/pirate-v2/config/lit-families.json)
+- execute group name / family mapping from [lit-families.json](../../config/lit-families.json)
 
 ### 6. Record The CID Back Into Config
 
 After upload/sync:
 
-- replace `cid: "TBD"` for `story-operator -> publish-asset-version` in [lit-families.json](/home/t42/Documents/pirate-v2/config/lit-families.json)
+- replace `cid: "TBD"` for `story-operator -> publish-asset-version` in [lit-families.json](../../config/lit-families.json)
 
 That must be part of the workflow, not a side note.
 
@@ -303,8 +303,8 @@ That must be part of the workflow, not a side note.
 6. stamp `publish-asset-version`
 7. upload to IPFS and get CID
 8. sync to `story-operator-aeneid-v1`
-9. update [lit-families.json](/home/t42/Documents/pirate-v2/config/lit-families.json)
-10. smoke against live [AssetPublishCoordinatorV1.sol](/home/t42/Documents/pirate-v2/pirate-contracts/story/delivery/src/AssetPublishCoordinatorV1.sol)
+9. update [lit-families.json](../../config/lit-families.json)
+10. smoke against live [AssetPublishCoordinatorV1.sol](../../pirate-contracts/story/delivery/src/AssetPublishCoordinatorV1.sol)
 
 ## What Can Wait
 

@@ -20,9 +20,9 @@ Purpose:
 
 The following control-plane migrations were applied directly to staging using the migrator role:
 
-- [0019_control_plane_text_timestamps_to_timestamptz.sql](/home/t42/Documents/pirate-v2/db/control-plane/migrations/0019_control_plane_text_timestamps_to_timestamptz.sql)
-- [0032_control_plane_verification_session_metadata.sql](/home/t42/Documents/pirate-v2/db/control-plane/migrations/0032_control_plane_verification_session_metadata.sql)
-- [0033_control_plane_namespace_verification_spaces.sql](/home/t42/Documents/pirate-v2/db/control-plane/migrations/0033_control_plane_namespace_verification_spaces.sql)
+- [0019_control_plane_text_timestamps_to_timestamptz.sql](../../db/control-plane/migrations/0019_control_plane_text_timestamps_to_timestamptz.sql)
+- [0032_control_plane_verification_session_metadata.sql](../../db/control-plane/migrations/0032_control_plane_verification_session_metadata.sql)
+- [0033_control_plane_namespace_verification_spaces.sql](../../db/control-plane/migrations/0033_control_plane_namespace_verification_spaces.sql)
 
 Important:
 
@@ -69,4 +69,4 @@ After the migrations and row normalization, staging successfully advanced throug
 
 Related:
 
-- [community-registry-plane.md](/home/t42/Documents/pirate-v2/docs/community/community-registry-plane.md)
+- [community-registry-plane.md](../community/community-registry-plane.md)

@@ -16,12 +16,13 @@ Local sidecar checkouts may still exist at:
 - `pirate-web/` -> `pirate-social-club/web`
 - `pirate-contracts/` -> `pirate-social-club/contracts`
 - `pirate-tui/` -> `pirate-social-club/tui`
+- `pirate-desktop/` -> `pirate-social-club/desktop`
 
 Those sidecars are not tracked by `core`.
 
 The long-term goal is for `core` to stay focused on shared definitions and operational assets while runtime surfaces live in their own repos.
 
-Boundary rules live in [docs/repo/repo-boundaries.md](docs/repo/repo-boundaries.md). Target structure lives in [docs/repo/core-target-structure.md](docs/repo/core-target-structure.md). Split records live in [docs/repo/extraction-plan-web-contracts.md](docs/repo/extraction-plan-web-contracts.md) and [docs/repo/extraction-plan-tui.md](docs/repo/extraction-plan-tui.md).
+Boundary rules live in [docs/repo/repo-boundaries.md](docs/repo/repo-boundaries.md). Target structure lives in [docs/repo/core-target-structure.md](docs/repo/core-target-structure.md). Split records live in [docs/repo/extraction-plan-web-contracts.md](docs/repo/extraction-plan-web-contracts.md) and [docs/repo/extraction-plan-tui.md](docs/repo/extraction-plan-tui.md). The current desktop replacement plan lives in [docs/repo/desktop-electron-architecture-plan.md](docs/repo/desktop-electron-architecture-plan.md).
 
 ## License
 

@@ -4,14 +4,14 @@ Status: execution handoff for the first runtime implementation
 
 Related:
 
-- [specs/domain/spaces-verification-flow.md](/home/t42/Documents/pirate-v2/specs/domain/spaces-verification-flow.md)
-- [specs/domain/namespace-root-control.md](/home/t42/Documents/pirate-v2/specs/domain/namespace-root-control.md)
-- [docs/operators/spaces-operator-signing-contract.md](/home/t42/Documents/pirate-v2/docs/operators/spaces-operator-signing-contract.md)
-- [db/control-plane/migrations/0033_control_plane_namespace_verification_spaces.sql](/home/t42/Documents/pirate-v2/db/control-plane/migrations/0033_control_plane_namespace_verification_spaces.sql)
-- [specs/api/src/components/schemas/verification.yaml](/home/t42/Documents/pirate-v2/specs/api/src/components/schemas/verification.yaml)
+- [specs/domain/spaces-verification-flow.md](../../specs/domain/spaces-verification-flow.md)
+- [specs/domain/namespace-root-control.md](../../specs/domain/namespace-root-control.md)
+- [docs/operators/spaces-operator-signing-contract.md](./spaces-operator-signing-contract.md)
+- [db/control-plane/migrations/0033_control_plane_namespace_verification_spaces.sql](../../db/control-plane/migrations/0033_control_plane_namespace_verification_spaces.sql)
+- [specs/api/src/components/schemas/verification.yaml](../../specs/api/src/components/schemas/verification.yaml)
 - 
 - 
-- [scripts/lib/control-plane-fixtures.ts](/home/t42/Documents/pirate-v2/scripts/lib/control-plane-fixtures.ts)
+- [scripts/lib/control-plane-fixtures.ts](../../scripts/lib/control-plane-fixtures.ts)
 
 ## Goal
 
@@ -27,10 +27,10 @@ Operational note:
 
 - Pirate-side verification is implemented.
 - This repo now includes a local operator helper for raw digest signing at
-  [scripts/spaces-sign-digest.ts](/home/t42/Documents/pirate-v2/scripts/spaces-sign-digest.ts).
+  [scripts/spaces-sign-digest.ts](../../scripts/spaces-sign-digest.ts).
 - Public operator usability still depends on the Spaces toolchain exposing a first-class raw
   digest-signing primitive for the current root key. See
-  [docs/operators/spaces-operator-signing-contract.md](/home/t42/Documents/pirate-v2/docs/operators/spaces-operator-signing-contract.md).
+  [docs/operators/spaces-operator-signing-contract.md](./spaces-operator-signing-contract.md).
 
 The phase-1 Spaces runtime does not include:
 
@@ -45,7 +45,7 @@ The current template runtime is HNS-only in three places:
 
 - service flow in 
 - SQL writes in 
-- fixture shape in [control-plane-fixtures.ts](/home/t42/Documents/pirate-v2/scripts/lib/control-plane-fixtures.ts)
+- fixture shape in [control-plane-fixtures.ts](../../scripts/lib/control-plane-fixtures.ts)
 
 The Spaces implementation should patch those paths, not invent a second namespace-verification stack.
 
@@ -139,7 +139,7 @@ Rules:
 - the service layer mints the Pirate challenge nonce and digest
 - the service layer verifies the submitted signature against `rootPubkey`
 
-For local execution, the current implementation expects an HTTP sidecar at `SPACES_VERIFIER_BASE_URL` and ships one in [scripts/spaces-verifier.ts](/home/t42/Documents/pirate-v2/scripts/spaces-verifier.ts). The sidecar contract is:
+For local execution, the current implementation expects an HTTP sidecar at `SPACES_VERIFIER_BASE_URL` and ships one in [scripts/spaces-verifier.ts](../../scripts/spaces-verifier.ts). The sidecar contract is:
 
 - `GET /inspect?root_label=@space|space`
 - `POST /verify-signature`
@@ -170,7 +170,7 @@ Patch these files first:
 - 
 - 
 - 
-- [scripts/lib/control-plane-fixtures.ts](/home/t42/Documents/pirate-v2/scripts/lib/control-plane-fixtures.ts)
+- [scripts/lib/control-plane-fixtures.ts](../../scripts/lib/control-plane-fixtures.ts)
 
 The type and store layer should widen from HNS-only to shared namespace verification:
 
@@ -354,7 +354,7 @@ Minimum accepted Spaces capabilities:
 
 ## Fixture Contract
 
-Update [control-plane-fixtures.ts](/home/t42/Documents/pirate-v2/scripts/lib/control-plane-fixtures.ts) in two passes.
+Update [control-plane-fixtures.ts](../../scripts/lib/control-plane-fixtures.ts) in two passes.
 
 Pass 1:
 

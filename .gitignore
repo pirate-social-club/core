@@ -9,6 +9,7 @@ pirate-api/
 pirate-web/
 pirate-contracts/
 pirate-tui/
+pirate-desktop/
 
 # Deploy manifests
 deployments/

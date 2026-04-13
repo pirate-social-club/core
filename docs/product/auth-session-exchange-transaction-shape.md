@@ -4,8 +4,8 @@ Status: implementation handoff
 
 Related:
 
-- [account-creation-first-slice.md](/home/t42/Documents/pirate-v2/docs/product/account-creation-first-slice.md)
-- [db/control-plane/migrations/0001_control_plane_identity.sql](/home/t42/Documents/pirate-v2/db/control-plane/migrations/0001_control_plane_identity.sql)
+- [account-creation-first-slice.md](./account-creation-first-slice.md)
+- [db/control-plane/migrations/0001_control_plane_identity.sql](../../db/control-plane/migrations/0001_control_plane_identity.sql)
 
 ## Purpose
 

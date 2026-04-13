@@ -15,9 +15,9 @@ Runtime note:
 
 Related docs:
 
-- [control-plane-schema.md](/home/t42/Documents/pirate-v2/docs/control-plane/control-plane-schema.md)
-- [turso-provisioning-contract.md](/home/t42/Documents/pirate-v2/docs/control-plane/turso-provisioning-contract.md)
-- [turso-data-boundaries.md](/home/t42/Documents/pirate-v2/docs/control-plane/turso-data-boundaries.md)
+- [control-plane-schema.md](../docs/control-plane/control-plane-schema.md)
+- [turso-provisioning-contract.md](../docs/control-plane/turso-provisioning-contract.md)
+- [turso-data-boundaries.md](../docs/control-plane/turso-data-boundaries.md)
 
 ## Current Scope
 
@@ -123,4 +123,4 @@ rtk infisical run --env dev --path /services/api -- \
 - The community migration files target SQLite-compatible Turso/libSQL DDL.
 - The control-plane migration files are PostgreSQL-first and apply directly to Neon from `db/control-plane/migrations/`.
 - Community databases intentionally do not define a `users` table. They reference central Pirate `user_id` values as foreign identifiers, not local user rows.
-- This repo now includes migration runners in [scripts/apply-sqlite-migrations.sh](/home/t42/Documents/pirate-v2/scripts/apply-sqlite-migrations.sh) and [scripts/apply-postgres-migrations.ts](/home/t42/Documents/pirate-v2/scripts/apply-postgres-migrations.ts), plus [scripts/seed-control-plane-fixtures.ts](/home/t42/Documents/pirate-v2/scripts/seed-control-plane-fixtures.ts) and [scripts/bootstrap-community-slice.ts](/home/t42/Documents/pirate-v2/scripts/bootstrap-community-slice.ts) for Neon-backed local slice bootstrapping.
+- This repo now includes migration runners in [scripts/apply-sqlite-migrations.sh](../scripts/apply-sqlite-migrations.sh) and [scripts/apply-postgres-migrations.ts](../scripts/apply-postgres-migrations.ts), plus [scripts/seed-control-plane-fixtures.ts](../scripts/seed-control-plane-fixtures.ts) and [scripts/bootstrap-community-slice.ts](../scripts/bootstrap-community-slice.ts) for Neon-backed local slice bootstrapping.

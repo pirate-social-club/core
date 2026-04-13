@@ -2,7 +2,7 @@
 
 Status: accepted
 
-Supersedes the central control-plane storage choice in [turso-sovereignty-adr.md](/home/t42/Documents/pirate-v2/docs/adr/turso-sovereignty-adr.md).
+Supersedes the central control-plane storage choice in [turso-sovereignty-adr.md](./turso-sovereignty-adr.md).
 
 ## Decision
 

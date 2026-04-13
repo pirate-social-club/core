@@ -9,7 +9,7 @@ Create a fresh `pirate-v2` Infisical project and populate only:
 - `dev:/contracts/story`
   - `STORY_CONTRACT_OWNER_PRIVATE_KEY`
 
-This is the only secret required to run the current Story delivery deploy script at [deploy.sh](/home/t42/Documents/pirate-v2/pirate-contracts/story/delivery/scripts/deploy.sh).
+This is the only secret required to run the current Story delivery deploy script at [deploy.sh](../../pirate-contracts/story/delivery/scripts/deploy.sh).
 
 Non-secret deploy inputs stay outside Infisical:
 
@@ -183,10 +183,10 @@ the current launch environment.
 Operator env management:
 
 - keep checked operator env templates in:
-  - [scripts/.env.operator-staging.example](/home/t42/Documents/pirate-v2/scripts/.env.operator-staging.example:1)
-  - [scripts/.env.operator-production.example](/home/t42/Documents/pirate-v2/scripts/.env.operator-production.example:1)
-- source those env files through [scripts/operator-env-run.sh](/home/t42/Documents/pirate-v2/scripts/operator-env-run.sh:1) instead of repeating inline `set -a; source ...; set +a`
-- sync Cloudflare worker secrets from either the checked local env file or Infisical with [scripts/sync-wrangler-api-secrets.sh](/home/t42/Documents/pirate-v2/scripts/sync-wrangler-api-secrets.sh:1)
+  - [scripts/.env.operator-staging.example](../../scripts/.env.operator-staging.example:1)
+  - [scripts/.env.operator-production.example](../../scripts/.env.operator-production.example:1)
+- source those env files through [scripts/operator-env-run.sh](../../scripts/operator-env-run.sh:1) instead of repeating inline `set -a; source ...; set +a`
+- sync Cloudflare worker secrets from either the checked local env file or Infisical with [scripts/sync-wrangler-api-secrets.sh](../../scripts/sync-wrangler-api-secrets.sh:1)
 - keep only true secrets in Infisical:
   - `/services/control-plane` -> `TURSO_PLATFORM_API_TOKEN`
   - `/services/api` -> `TURSO_COMMUNITY_DB_WRAP_KEY`

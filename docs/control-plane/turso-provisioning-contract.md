@@ -4,10 +4,10 @@ Defines the control-plane contract for creating, rotating, and transferring comm
 
 Related:
 
-- [turso-sovereignty-adr.md](/home/t42/Documents/pirate-v2/docs/turso-sovereignty-adr.md)
-- [control-plane-schema.md](/home/t42/Documents/pirate-v2/docs/control-plane/control-plane-schema.md)
-- [turso-secret-contract.md](/home/t42/Documents/pirate-v2/docs/control-plane/turso-secret-contract.md)
-- [turso-data-boundaries.md](/home/t42/Documents/pirate-v2/docs/control-plane/turso-data-boundaries.md)
+- [turso-sovereignty-adr.md](../turso-sovereignty-adr.md)
+- [control-plane-schema.md](./control-plane-schema.md)
+- [turso-secret-contract.md](./turso-secret-contract.md)
+- [turso-data-boundaries.md](./turso-data-boundaries.md)
 
 ## Scope
 

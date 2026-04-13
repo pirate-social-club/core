@@ -4,11 +4,11 @@ Status: draft
 
 Related docs:
 
-- [onboarding.md](/home/t42/Documents/pirate-v2/specs/domain/onboarding.md)
-- [profile.md](/home/t42/Documents/pirate-v2/specs/domain/profile.md)
-- [user.md](/home/t42/Documents/pirate-v2/specs/domain/user.md)
-- [onboarding.yaml](/home/t42/Documents/pirate-v2/specs/api/src/components/schemas/onboarding.yaml)
-- [onboarding-paths.yaml](/home/t42/Documents/pirate-v2/specs/api/src/paths/onboarding.yaml)
+- [onboarding.md](../../specs/domain/onboarding.md)
+- [profile.md](../../specs/domain/profile.md)
+- [user.md](../../specs/domain/user.md)
+- [onboarding.yaml](../../specs/api/src/components/schemas/onboarding.yaml)
+- [onboarding-paths.yaml](../../specs/api/src/paths/onboarding.yaml)
 
 ## Purpose
 

@@ -52,6 +52,13 @@ Examples by bucket:
 - `product/funds-ledger.md`
 - `product/song-publish-v2-audit.md`
 
+## Repo
+
+- `repo/repo-boundaries.md`
+- `repo/core-target-structure.md`
+- `repo/extraction-plan-tui.md`
+- `repo/desktop-electron-architecture-plan.md`
+
 Hygiene rules:
 
 - If a document defines canonical product or API behavior, prefer `specs/`.
