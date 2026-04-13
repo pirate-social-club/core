@@ -66,34 +66,62 @@ Secrets consumed by the API worker at runtime.
 
 | Name | Type | Environment | Owner | Purpose | Runtime Consumer | Rotation Policy | Funded? | Legacy? |
 |---|---|---|---|---|---|---|---|---|
-| `MUSIC_WORKER_SECRET` | `worker-secret` | dev | human operator | Auth token for internal worker routes | API worker | On compromise | No | No |
-| `STREAK_VERIFIER_PRIVATE_KEY` | `private-key` | dev | human operator | Signer for StreakClaimV1 verifier attestations | API worker | On compromise | No | TBD |
-| `FILEBASE_S3_ACCESS_KEY` | `s3-credential` | dev | human operator | S3 uploads (avatars, videos, music, etc.) | API worker | Quarterly or on compromise | No | No |
-| `FILEBASE_S3_SECRET_KEY` | `s3-credential` | dev | human operator | S3 uploads (avatars, videos, music, etc.) | API worker | Quarterly or on compromise | No | No |
-| `FILEBASE_S3_PROFILE_COVERS_ACCESS_KEY` | `s3-credential` | dev | human operator | Profile cover S3 uploads | API worker | Quarterly or on compromise | No | No |
-| `FILEBASE_S3_PROFILE_COVERS_SECRET_KEY` | `s3-credential` | dev | human operator | Profile cover S3 uploads | API worker | Quarterly or on compromise | No | No |
-| `FILEBASE_S3_ROOM_COVERS_ACCESS_KEY` | `s3-credential` | dev | human operator | Room cover S3 uploads | API worker | Quarterly or on compromise | No | No |
-| `FILEBASE_S3_ROOM_COVERS_SECRET_KEY` | `s3-credential` | dev | human operator | Room cover S3 uploads | API worker | Quarterly or on compromise | No | No |
-| `MUSIC_ARWEAVE_TURBO_SIGNER_PRIVATE_KEY` | `private-key` | dev | human operator | Funded signer for Arweave Turbo ANS-104 uploads for non-CDR artifacts (lyrics, study-set data) | API worker | On compromise | Yes | No |
-| `STORY_SCROBBLE_OPERATOR_PRIVATE_KEY` | `private-key` | dev | human operator | Direct-key `ScrobbleV1` batch publisher for delegated scrobble anchoring | API worker | On compromise or planned PKP migration | Yes | No |
-| `MISTRAL_API_KEY` | `api-key` | dev | human operator | Say-it-back transcription/scoring | API worker | Quarterly or on compromise | No | No |
-| `ELEVENLABS_API_KEY` | `api-key` | dev | human operator | Timed lyrics forced alignment | API worker | Quarterly or on compromise | No | No |
-| `OPENROUTER_API_KEY` | `api-key` | dev | human operator | Structured-output extraction for market context, study-set generation, and caption translation | API worker | Quarterly or on compromise | No | No |
-| `JINA_API_KEY` | `api-key` | dev | human operator | Authenticated Jina Reader access for higher market-context crawl limits | API worker | Quarterly or on compromise | No | No |
-| `PREDICT_FUN_API_KEY` | `api-key` | dev | human operator | Optional Predict.fun mainnet API access for approved-provider market-context search | API worker | Quarterly or on compromise | No | No |
-| `FIRECRAWL_API_KEY` | `api-key` | dev | human operator | Optional crawler fallback for market-context page fetches | API worker | Quarterly or on compromise | No | No |
-| `ALCHEMY_EVM_RPC_URLS_JSON` | `api-key` | dev | human operator | Optional CAIP-2 keyed map of Alchemy RPC URLs for NFT ownership discovery across EVM chains | API worker | On compromise or provider rotation | No | No |
-| `ALCHEMY_ETH_MAINNET_RPC_URL` | `api-key` | dev | human operator | Ethereum mainnet Alchemy RPC URL used for NFT ownership discovery | API worker | On compromise or provider rotation | No | No |
-| `ALCHEMY_BASE_MAINNET_RPC_URL` | `api-key` | dev | human operator | Base mainnet Alchemy RPC URL used for NFT ownership discovery | API worker | On compromise or provider rotation | No | No |
-| `ALCHEMY_BASE_SEPOLIA_RPC_URL` | `api-key` | dev | human operator | Base Sepolia Alchemy RPC URL used for NFT ownership discovery | API worker | On compromise or provider rotation | No | No |
-| `COMMUNITY_GATE_OPERATOR_AUTH_TOKEN` | `worker-secret` | dev | human operator | Shared-secret bearer token for operator-managed community gate-rule provisioning routes | API worker | On compromise | No | No |
-| `SENTINEL_OPERATOR_AUTH_TOKEN` | `worker-secret` | dev | human operator | Shared-secret bearer token for the private Sentinel operator routes used for dVPN allocation and session lifecycle calls | API worker | On compromise | No | No |
-| `GENIUS_API_KEY` | `api-key` | dev | human operator | Server-side referent resolution | API worker | Quarterly or on compromise | No | No |
-| `DNS_SHARED_SECRET` | `worker-secret` | dev | human operator | DNS management auth | API worker | On compromise | No | No |
-| `ENDAOMENT_API_BEARER_TOKEN` | `api-key` | dev | human operator | Authenticated Endaoment API calls | API worker | On compromise | No | No |
-| `MUSIC_TAGGED_ITEMS_RESOLVER_AUTH_TOKEN` | `worker-secret` | dev | human operator | Bearer token for tagged-item resolver | API worker | On compromise | No | No |
+| `AUTH_UPSTREAM_JWT_SHARED_SECRET` | `worker-secret` | dev | human operator | HMAC shared secret for upstream JWT verification | API worker | On compromise | No | No |
+| `PIRATE_APP_JWT_PRIVATE_KEY` | `private-key` | dev | human operator | RS256 private key for signing Pirate session tokens | API worker | On compromise | No | No |
+| `PIRATE_APP_JWT_PUBLIC_KEY` | `private-key` | dev | human operator | RS256 public key for verifying Pirate session tokens | API worker | On compromise | No | No |
+| `PRIVY_APP_SECRET` | `api-key` | dev | human operator | Privy server-side secret for access token verification | API worker | On compromise | No | No |
 | `CONTROL_PLANE_DATABASE_URL` | `database-credential` | dev | human operator | Least-privilege runtime connection string for the central Pirate Neon control-plane database | API worker | On compromise, role rotation, or planned password rotation | No | No |
 | `TURSO_COMMUNITY_DB_WRAP_KEY` | `worker-secret` | dev | human operator | Envelope-encryption key for stored per-community Turso database credentials | API worker | On compromise, with controlled rewrap | No | No |
+| `TURSO_COMMUNITY_DB_WRAP_KEY_VERSION` | `tuning-knob` | dev | version control | Active envelope-encryption key version | API worker | N/A (public) | N/A | No |
+| `REGISTRY_PUBLISHER_AUTH_TOKEN` | `worker-secret` | dev | human operator | Bearer token for the internal community-registry publisher boundary | API worker | On compromise | No | No |
+| `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN` | `worker-secret` | dev | human operator | Bearer token for the private Turso provision operator | API worker | On compromise | No | No |
+| `LIT_CHIPOTLE_OPERATOR_API_KEY` | `usage-key` | dev | human operator | Story operator PKP actions (publish-asset-version) | API worker | On compromise or suspected misuse | No | No |
+| `LIT_CHIPOTLE_ACCESS_CONTROLLER_API_KEY` | `usage-key` | dev | human operator | Story temporary-access proof signer PKP actions | API worker | On compromise or suspected misuse | No | No |
+| `LIT_CHIPOTLE_STORY_SETTLEMENT_API_KEY` | `usage-key` | dev | human operator | Story settlement PKP actions | API worker | On compromise or suspected misuse | No | No |
+| `LIT_CHIPOTLE_BASE_TREASURY_API_KEY` | `usage-key` | dev | human operator | Base treasury PKP actions | API worker | On compromise or suspected misuse | No | No |
+| `LIT_CHIPOTLE_FEED_REGISTRAR_API_KEY` | `usage-key` | dev | human operator | Story feed registrar PKP actions | API worker | On compromise or suspected misuse | No | No |
+| `LIT_CHIPOTLE_STORY_SPONSOR_API_KEY` | `usage-key` | dev | human operator | Story sponsor PKP actions | API worker | On compromise or suspected misuse | No | No |
+| `LIT_CHIPOTLE_STORY_BACKEND_API_KEY` | `usage-key` | dev | human operator | Story backend signer PKP actions | API worker | On compromise or suspected misuse | No | No |
+| `LIT_CHIPOTLE_BASE_SPONSOR_API_KEY` | `usage-key` | dev | human operator | Base verification mirror sponsor PKP actions | API worker | On compromise or suspected misuse | No | No |
+
+Note:
+
+- `CONTROL_PLANE_DATABASE_URL` is a secret because the Postgres connection string carries credentials. The API worker reads it as `TURSO_CONTROL_PLANE_DATABASE_URL` (a naming inconsistency that should be reconciled — see Naming section below).
+- `PRIVY_APP_ID` and `PRIVY_API_URL` are not secrets — `PRIVY_APP_ID` is a public identifier, `PRIVY_API_URL` is a public endpoint.
+- `JWT_BASED_AUTH_*` vars are legacy aliases for `AUTH_UPSTREAM_JWT_*`. The code falls back to the `JWT_BASED_AUTH_*` name when the `AUTH_UPSTREAM_JWT_*` name is not set. New deployments should use `AUTH_UPSTREAM_JWT_*` only.
+
+### dev:/services/api (pirate/ carry-forward secrets)
+
+These secrets are documented from the pirate/ v1 system. They are not yet referenced in pirate-v2 API worker code. They are listed here for migration tracking. Remove each entry once the corresponding feature is confirmed not needed in pirate-v2, or add it to the active section above once the feature is wired.
+
+| Name | Type | Status | pirate/ Purpose |
+|---|---|---|---|
+| `MUSIC_WORKER_SECRET` | `worker-secret` | Not wired in pirate-v2 | Internal worker route auth |
+| `STREAK_VERIFIER_PRIVATE_KEY` | `private-key` | Not wired in pirate-v2 | StreakClaimV1 verifier attestations |
+| `FILEBASE_S3_ACCESS_KEY` | `s3-credential` | Not wired in pirate-v2 | S3 uploads |
+| `FILEBASE_S3_SECRET_KEY` | `s3-credential` | Not wired in pirate-v2 | S3 uploads |
+| `FILEBASE_S3_PROFILE_COVERS_ACCESS_KEY` | `s3-credential` | Not wired in pirate-v2 | Profile cover uploads |
+| `FILEBASE_S3_PROFILE_COVERS_SECRET_KEY` | `s3-credential` | Not wired in pirate-v2 | Profile cover uploads |
+| `FILEBASE_S3_ROOM_COVERS_ACCESS_KEY` | `s3-credential` | Not wired in pirate-v2 | Room cover uploads |
+| `FILEBASE_S3_ROOM_COVERS_SECRET_KEY` | `s3-credential` | Not wired in pirate-v2 | Room cover uploads |
+| `MUSIC_ARWEAVE_TURBO_SIGNER_PRIVATE_KEY` | `private-key` | Not wired in pirate-v2 | Arweave Turbo uploads |
+| `STORY_SCROBBLE_OPERATOR_PRIVATE_KEY` | `private-key` | Not wired in pirate-v2 | Direct-key scrobble anchoring |
+| `MISTRAL_API_KEY` | `api-key` | Not wired in pirate-v2 | Transcription/scoring |
+| `ELEVENLABS_API_KEY` | `api-key` | Not wired in pirate-v2 | Lyrics forced alignment |
+| `OPENROUTER_API_KEY` | `api-key` | Not wired in pirate-v2 | Structured-output extraction |
+| `JINA_API_KEY` | `api-key` | Not wired in pirate-v2 | Authenticated Jina Reader access |
+| `PREDICT_FUN_API_KEY` | `api-key` | Not wired in pirate-v2 | Predict.fun market-context search |
+| `FIRECRAWL_API_KEY` | `api-key` | Not wired in pirate-v2 | Crawler fallback |
+| `ALCHEMY_EVM_RPC_URLS_JSON` | `api-key` | Not wired in pirate-v2 | Multi-chain Alchemy RPC URLs |
+| `ALCHEMY_ETH_MAINNET_RPC_URL` | `api-key` | Not wired in pirate-v2 | ETH mainnet NFT ownership |
+| `ALCHEMY_BASE_MAINNET_RPC_URL` | `api-key` | Not wired in pirate-v2 | Base mainnet NFT ownership |
+| `ALCHEMY_BASE_SEPOLIA_RPC_URL` | `api-key` | Not wired in pirate-v2 | Base Sepolia NFT ownership |
+| `COMMUNITY_GATE_OPERATOR_AUTH_TOKEN` | `worker-secret` | Not wired in pirate-v2 | Community gate-rule provisioning |
+| `SENTINEL_OPERATOR_AUTH_TOKEN` | `worker-secret` | Not wired in pirate-v2 | dVPN allocation |
+| `GENIUS_API_KEY` | `api-key` | Not wired in pirate-v2 | Referent resolution |
+| `DNS_SHARED_SECRET` | `worker-secret` | Not wired in pirate-v2 | DNS management auth |
+| `ENDAOMENT_API_BEARER_TOKEN` | `api-key` | Not wired in pirate-v2 | Endaoment API calls |
+| `MUSIC_TAGGED_ITEMS_RESOLVER_AUTH_TOKEN` | `worker-secret` | Not wired in pirate-v2 | Tagged-item resolver |
 
 Note:
 
@@ -101,6 +129,14 @@ Note:
 - Alchemy "RPC URLs" are modeled here as `api-key` secrets because the URLs embed the project key. If the project later splits public base URLs from a standalone Alchemy key, the base URLs can move back to version-controlled config.
 - if hostnames or project identifiers are needed separately, keep those in version-controlled config or ordinary worker env.
 - `SENTINEL_OPERATOR_BASE_URL` and the Sentinel operator timeout env vars are not secrets and should stay in version-controlled runtime config rather than Infisical.
+
+## Naming Inconsistencies
+
+These should be reconciled before the next staging deployment:
+
+1. **`TURSO_CONTROL_PLANE_DATABASE_URL` (API worker) vs `CONTROL_PLANE_DATABASE_URL` (scripts/operator)** — same database, two names. The `TURSO_` prefix is misleading because the control-plane DB is now Neon/Postgres, not Turso. The operator examples and scripts use `CONTROL_PLANE_DATABASE_URL` which is more accurate. Recommended: rename the API worker var to `CONTROL_PLANE_DATABASE_URL`.
+2. **`AUTH_UPSTREAM_JWT_*` vs `JWT_BASED_AUTH_*`** — dual naming for the same concept. `AUTH_UPSTREAM_JWT_*` is the primary name; `JWT_BASED_AUTH_*` is a legacy fallback. The `JWT_BASED_AUTH_ENABLED` flag and the `JWT_BASED_AUTH_*` fallbacks should be removed once all deployed envs use the `AUTH_UPSTREAM_JWT_*` names.
+3. **`REGISTRY_PUBLISHER_URL` (code) vs `REGISTRY_PUBLISHER_BASE_URL` (json.env)** — the code reads `REGISTRY_PUBLISHER_URL`. The `BASE_URL` variant in the old json.env was never used.
 
 ### dev:/services/control-plane
 

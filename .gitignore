@@ -65,3 +65,4 @@ cache/
 .tmp
 .scratch-api-ci-head/
 debug-storybook.log
+json.env
