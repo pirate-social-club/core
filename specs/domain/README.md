@@ -106,8 +106,6 @@ Product and system design docs grouped by domain surface.
   Paid dVPN activation, lazy Sentinel wallet creation, and TUI gating rules.
 - `purchase-quote-flow.md`
   Purchase quote and buyer confirmation flow.
-- `search.md`
-  Search product behavior and result-surface expectations.
 
 UI handoff and runtime-specific docs live outside this index:
 

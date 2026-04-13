@@ -21,7 +21,7 @@ Those sidecars are not tracked by `core`.
 
 The long-term goal is for `core` to stay focused on shared definitions and operational assets while runtime surfaces live in their own repos.
 
-Boundary rules live in [docs/repo/repo-boundaries.md](/home/t42/Documents/pirate-v2/docs/repo/repo-boundaries.md). Target structure lives in [docs/repo/core-target-structure.md](/home/t42/Documents/pirate-v2/docs/repo/core-target-structure.md). Split records live in [docs/repo/extraction-plan-web-contracts.md](/home/t42/Documents/pirate-v2/docs/repo/extraction-plan-web-contracts.md) and [docs/repo/extraction-plan-tui.md](/home/t42/Documents/pirate-v2/docs/repo/extraction-plan-tui.md).
+Boundary rules live in [docs/repo/repo-boundaries.md](docs/repo/repo-boundaries.md). Target structure lives in [docs/repo/core-target-structure.md](docs/repo/core-target-structure.md). Split records live in [docs/repo/extraction-plan-web-contracts.md](docs/repo/extraction-plan-web-contracts.md) and [docs/repo/extraction-plan-tui.md](docs/repo/extraction-plan-tui.md).
 
 ## License
 

@@ -17,7 +17,7 @@ Use these buckets first:
 - `adr/`
   Architecture decisions that should stay stable over time.
 - `ci/`
-  CI definitions and supporting notes for sidecar repos.
+  CI definitions and supporting notes for sidecar repos. These are planning artifacts, not executable workflows. Once a child repo has a real `.github/workflows/*.yml`, the corresponding file here is historical only.
 - `tui/`
   TUI-specific contracts and active refactor notes.
 - `ux/`
