@@ -81,23 +81,20 @@ Important:
 
 This is the operational source of confusion behind "the user added NS and TXT in ShakeStation but `_pirate.kanye` still does not resolve." The parent registry can publish delegation. It does not auto-host the delegated zone contents.
 
-## Current Bootstrap Gap
+## Current Direction
 
-The current tracked CoreDNS deployment under `ops/vps/hns-authoritative-dns/` is only a bootstrap
-proof of concept.
+The tracked deployment direction under `ops/vps/hns-authoritative-dns/` should be treated as
+PowerDNS Authoritative with a writable backend.
 
-Today it serves static file-backed zones such as `infinity.`. That proves the delegated-authority
-shape, but it does not yet support arbitrary roots created during real verification flows.
+Reason:
 
-Consequences:
+- Pirate expects many delegated Handshake roots
+- each root becomes its own child zone
+- verification sessions need dynamic `_pirate.<root>` TXT publication
+- DNS serving and `/verify-txt` need one shared authoritative source of truth
 
-- `db.infinity` can answer `_pirate.infinity.`
-- `kanye/` delegated to the same nameserver will still fail unless Pirate provisions `kanye.`
-- `/verify-txt` cannot safely assume that "the VPS nameserver" automatically knows every delegated
-  Handshake root
-
-So public-v0 must not confuse "a nameserver exists" with "Pirate has provisioned the delegated child
-zone for this root."
+Static zone files can demonstrate the delegation model, but they are not the recommended public-v0
+architecture for multi-root operation.
 
 Example:
 
@@ -133,12 +130,12 @@ Recommended production posture:
 - two authoritative nameservers
 - distinct hosts, and ideally distinct failure domains
 
-Authoritative DNS software may be any conventional DNS server that can host the `infinity.` zone, such as:
+Authoritative DNS software may be any conventional DNS server that can host the `infinity.` zone,
+but the recommended choice for Pirate is:
 
 - PowerDNS Authoritative
-- NSD
-- Knot DNS
-- BIND
+
+because it supports writable backends and an HTTP API that match Pirate's provisioning model.
 
 Pirate may also run an HTTP reverse proxy on the same host if native HNS web traffic should be forwarded into the existing Pirate app stack.
 
@@ -198,7 +195,7 @@ Cloudflare may still be part of the architecture for:
 The minimum practical public v0 topology is:
 
 1. one small always-on VPS
-2. authoritative DNS software serving one or more HNS zones such as `infinity.`
+2. PowerDNS Authoritative serving one or more HNS zones such as `infinity.`
 3. Handshake root records delegating each HNS root to those nameservers
 4. optional reverse proxy on the same VPS forwarding native HNS web traffic into Pirate's existing app stack
 
@@ -237,14 +234,14 @@ Important:
 - `spaced` or other Handshake-parent inspection can prove delegation posture
 - it cannot replace the child-zone authoritative data path for delegated TXT verification
 
-Public-v0 implementation options:
+Recommended public-v0 implementation:
 
-1. generated zone files per root plus reload automation
-2. authoritative DNS backed by a database or API
-3. another dynamic authoritative model with the same single-source-of-truth property
+1. PowerDNS Authoritative
+2. writable backend
+3. HNS verifier/provisioner creates zones and records through the PowerDNS API
 
-Whichever option Pirate chooses, `/inspect`, DNS serving, and `/verify-txt` must be coherent about
-which source is canonical.
+Alternative implementations are possible, but the chosen path should preserve the same
+single-source-of-truth property.
 
 ## Recommended Zone Layout
 
@@ -337,7 +334,7 @@ To get HNS working end-to-end with the least ambiguity:
 2. In the frontend, ask the user to update only the Handshake parent delegation records in ShakeStation:
    - `NS`
    - any needed glue records
-3. After delegation is published, Pirate provisions the `<root>.` zone on its authoritative DNS service.
+3. After delegation is published, Pirate provisions the `<root>.` zone in PowerDNS.
 4. Pirate serves `_pirate.<root>` from that delegated zone and verifies it through the HNS verifier.
 5. Only after that path is stable should Pirate add the optional owner-managed authoritative-DNS variant.
 

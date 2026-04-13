@@ -158,6 +158,7 @@ Public-v0 implementation note:
 - the protocol model allows either owner-managed authoritative DNS or Pirate-managed authoritative DNS
 - the product should still ship one path first
 - if Pirate ships Pirate-managed authoritative DNS first, the frontend must ask the user to publish only Handshake parent delegation records in ShakeStation and must not imply that a parent-side TXT value alone satisfies `_pirate.<root>` after delegation
+- the recommended Pirate-managed implementation is PowerDNS Authoritative plus API-backed zone provisioning
 
 ## Flow
 
@@ -187,6 +188,9 @@ Inspection must determine:
 - whether the root already has working authoritative DNS
 - whether the root already routes traffic to Pirate
 - whether authoritative delegation to Pirate is present
+
+For the Pirate-managed path, inspection should also determine whether Pirate has already provisioned
+the delegated child zone in its authoritative backend.
 
 Outcomes:
 
@@ -222,6 +226,7 @@ Delegation clarification:
 - after that delegation, the frontend must not tell the user to keep editing `_pirate.<root>` only at the Handshake parent in ShakeStation
 - ShakeStation remains the place to update parent delegation records such as `NS` and glue
 - the delegated child-zone TXT challenge must be hosted by the authoritative DNS service for `<root>.`
+- for Pirate-managed public v0, that authoritative DNS service should be PowerDNS and the challenge should be written through its API-backed backend
 
 That challenge expiry should be modeled separately from the overall session expiry so clients and operators can distinguish "publish a new TXT challenge" from "start a new verification session."
 
@@ -323,14 +328,14 @@ The clearest path to "works natively for `infinity/` and is verifiable" is:
 3. Have the frontend generate the Handshake parent delegation instructions:
    - `NS`
    - any required glue records
-4. When delegation is observed, provision the child `<root>.` zone on Pirate DNS.
+4. When delegation is observed, provision the child `<root>.` zone in Pirate's authoritative DNS backend.
 5. Serve `_pirate.<root>` from that hosted zone.
 6. Verify TXT control and issue `namespace_verification_id`.
 7. Add owner-managed authoritative-DNS support only after the Pirate-managed path is operationally stable.
 
 Implementation requirement:
 
-- the zone provisioning step must not remain a hand-written static file workflow like `db.infinity`
+- the zone provisioning step must not remain a hand-written static file workflow
 - Pirate needs an automated authoritative child-zone path for arbitrary delegated roots before this rollout is complete
 
 ### 6. Derive Capabilities

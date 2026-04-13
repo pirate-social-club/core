@@ -1,8 +1,0 @@
-. {
-  log
-  errors
-  health
-
-  file /zones/db.infinity infinity
-  file /zones/db.pirate-dns.invalid pirate-dns.invalid
-}

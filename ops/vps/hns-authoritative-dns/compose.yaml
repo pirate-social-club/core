@@ -1,12 +1,12 @@
 services:
-  coredns:
-    image: coredns/coredns:1.12.1
+  powerdns:
+    image: pschiffe/pdns-mysql:alpine
     container_name: pirate-hns-authdns
     restart: unless-stopped
-    command: -conf /etc/coredns/Corefile
     ports:
       - "173.199.93.117:53:53/udp"
       - "173.199.93.117:53:53/tcp"
+      - "127.0.0.1:8081:8081/tcp"
     volumes:
-      - ./Corefile:/etc/coredns/Corefile:ro
-      - ./zones:/zones:ro
+      - ./config/pdns.conf:/etc/pdns/pdns.conf:ro
+      - ./data:/var/lib/powerdns
