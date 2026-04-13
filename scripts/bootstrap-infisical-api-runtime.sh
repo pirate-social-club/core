@@ -35,13 +35,9 @@ if [[ -z "${AUTH_UPSTREAM_JWT_SHARED_SECRET:-}" \
   && -z "${PIRATE_APP_JWT_PRIVATE_KEY:-}" \
   && -z "${PIRATE_APP_JWT_PUBLIC_KEY:-}" \
   && -z "${PRIVY_APP_SECRET:-}" \
-  && -z "${PRIVY_JWT_VERIFICATION_KEY:-}" \
-  && -z "${SPACES_VERIFIER_AUTH_TOKEN:-}" \
-  && -z "${FILEBASE_S3_ACCESS_KEY:-}" \
-  && -z "${FILEBASE_S3_SECRET_KEY:-}" \
-  && -z "${COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN:-}" ]]; then
+  && -z "${PRIVY_JWT_VERIFICATION_KEY:-}" ]]; then
   echo "provide at least one API runtime secret to bootstrap" >&2
-  echo "supported vars: AUTH_UPSTREAM_JWT_SHARED_SECRET PIRATE_APP_JWT_PRIVATE_KEY PIRATE_APP_JWT_PUBLIC_KEY PRIVY_APP_SECRET PRIVY_JWT_VERIFICATION_KEY SPACES_VERIFIER_AUTH_TOKEN FILEBASE_S3_ACCESS_KEY FILEBASE_S3_SECRET_KEY COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN" >&2
+  echo "supported vars: AUTH_UPSTREAM_JWT_SHARED_SECRET PIRATE_APP_JWT_PRIVATE_KEY PIRATE_APP_JWT_PUBLIC_KEY PRIVY_APP_SECRET PRIVY_JWT_VERIFICATION_KEY" >&2
   exit 1
 fi
 
@@ -55,10 +51,6 @@ set_secret_if_present "/services/api" "PIRATE_APP_JWT_PRIVATE_KEY"
 set_secret_if_present "/services/api" "PIRATE_APP_JWT_PUBLIC_KEY"
 set_secret_if_present "/services/api" "PRIVY_APP_SECRET"
 set_secret_if_present "/services/api" "PRIVY_JWT_VERIFICATION_KEY"
-set_secret_if_present "/services/api" "SPACES_VERIFIER_AUTH_TOKEN"
-set_secret_if_present "/services/api" "FILEBASE_S3_ACCESS_KEY"
-set_secret_if_present "/services/api" "FILEBASE_S3_SECRET_KEY"
-set_secret_if_present "/services/api" "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN"
 
 cat <<EOF
 infisical API runtime bootstrap complete
@@ -69,20 +61,14 @@ created/updated in /services/api when provided:
 - PIRATE_APP_JWT_PUBLIC_KEY
 - PRIVY_APP_SECRET
 - PRIVY_JWT_VERIFICATION_KEY
+intentionally not stored here:
+- AUTH_UPSTREAM_JWT_ISSUER
+- AUTH_UPSTREAM_JWT_AUDIENCE
+- PRIVY_APP_ID
+- PRIVY_API_URL
+not API runtime secrets (use operator bootstrap instead):
 - SPACES_VERIFIER_AUTH_TOKEN
 - FILEBASE_S3_ACCESS_KEY
 - FILEBASE_S3_SECRET_KEY
 - COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN
-intentionally not stored here:
-- AUTH_UPSTREAM_JWT_ISSUER
-- AUTH_UPSTREAM_JWT_AUDIENCE
-- PIRATE_API_PUBLIC_ORIGIN
-- VERY_WIDGET_APP_ID
-- VERY_WIDGET_CONTEXT
-- VERY_WIDGET_EXTERNAL_NULLIFIER
-- VERY_WIDGET_TYPE_ID
-- VERY_VERIFY_URL
-- PRIVY_APP_ID
-- PRIVY_API_URL
-- SPACES_VERIFIER_BASE_URL
 EOF
