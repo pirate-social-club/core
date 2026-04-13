@@ -60,6 +60,7 @@ Recommended shape:
 - repo remote: same `pirate-v2` origin
 - checkout path: `/srv/pirate-spaces/app`
 - branch: the branch or commit that contains the verified Spaces runtime
+- checkout mode: full monorepo checkout, not a flattened service copy
 
 Reason:
 
@@ -72,6 +73,12 @@ without improving the runtime boundary.
 
 Separate checkout: yes.
 Separate repo: no.
+
+Important:
+
+- the VPS runtime contract assumes the tracked repo layout exists under `/srv/pirate-spaces/app`
+- do not deploy only a flat subset of files and then keep legacy paths like `scripts/spaces-verifier.ts`
+- when this layout changes, the VPS checkout and systemd unit must be redeployed together
 
 ## Runtime Topology
 
@@ -195,7 +202,7 @@ Recommended units:
 
 - start after `pirate-spaced.service`
 - read `/srv/pirate-spaces/config/verifier.env`
-- run `rtk bun services/verifier/spaces/src/server.ts` from `/srv/pirate-spaces/app`
+- run `bun services/verifier/spaces/src/server.ts` from `/srv/pirate-spaces/app`
 - restart on failure
 
 ## Build Strategy

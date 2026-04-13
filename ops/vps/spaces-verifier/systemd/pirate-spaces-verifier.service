@@ -8,7 +8,7 @@ Type=simple
 User=pirate-spaces
 WorkingDirectory=/srv/pirate-spaces/app
 EnvironmentFile=/srv/pirate-spaces/config/verifier.env
-ExecStart=/usr/bin/env rtk bun services/verifier/spaces/src/server.ts
+ExecStart=/usr/bin/env bun services/verifier/spaces/src/server.ts
 Restart=on-failure
 RestartSec=3
 

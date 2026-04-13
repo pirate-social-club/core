@@ -35,5 +35,8 @@ Run the operator signing helper from the repo root:
 rtk bun services/verifier/spaces/scripts/sign-digest.ts --space @pirate --digest <hex>
 ```
 
+The native crate still builds the `spaces-verifier-native` binary, and
+`SPACES_VERIFIER_NATIVE_BIN` should point at that compiled artifact.
+
 For production-style runs, point `SPACES_VERIFIER_NATIVE_BIN` at a prebuilt binary. Keep
 `SPACES_NATIVE_ALLOW_BUILD_FALLBACK` reserved for local development.
