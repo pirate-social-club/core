@@ -10,7 +10,7 @@ Pirate v2 now has two relational migration roots:
 Runtime note:
 
 - `db/` is the canonical migration source for operational docs and bootstrap commands.
-- The API test suite (`pirate-api/services/api/tests/helpers.ts`) resolves directly into `db/control-plane/migrations/` for its SQLite fixture databases. Because the canonical tree is PostgreSQL-first, this currently breaks: migrations 0005+ use `ADD CONSTRAINT`, 0023 uses `DO $$`, and later migrations use `::jsonb` and `timestamptz`, none of which are valid SQLite. Fixing this requires either SQLite-compatible fixture copies or a baseline-snapshot approach for test databases.
+- The API test suite (`pirate-api/services/api/tests/helpers.ts`) uses a SQLite-compatible baseline snapshot (`pirate-api/services/api/tests/fixtures/control-plane-baseline-sqlite.sql`) derived from the canonical Postgres schema. The historical migration chain in `db/control-plane/migrations/` is PostgreSQL-first and cannot be replayed against SQLite/libSQL. When the canonical schema changes, the test fixture must be regenerated.
 - Keep the community-template trees in sync.
 
 Related docs:
