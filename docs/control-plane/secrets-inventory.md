@@ -64,146 +64,122 @@ Secrets used by Foundry deploy scripts for Base chain contracts.
 
 Secrets consumed by the API worker at runtime.
 
-| Name | Type | Environment | Owner | Purpose | Runtime Consumer | Rotation Policy | Funded? | Legacy? |
-|---|---|---|---|---|---|---|---|---|
-| `AUTH_UPSTREAM_JWT_SHARED_SECRET` | `worker-secret` | dev | human operator | HMAC shared secret for upstream JWT verification | API worker | On compromise | No | No |
-| `PIRATE_APP_JWT_PRIVATE_KEY` | `private-key` | dev | human operator | RS256 private key for signing Pirate session tokens | API worker | On compromise | No | No |
-| `PIRATE_APP_JWT_PUBLIC_KEY` | `private-key` | dev | human operator | RS256 public key for verifying Pirate session tokens | API worker | On compromise | No | No |
-| `PRIVY_APP_SECRET` | `api-key` | dev | human operator | Privy server-side secret for access token verification | API worker | On compromise | No | No |
-| `CONTROL_PLANE_DATABASE_URL` | `database-credential` | dev | human operator | Least-privilege runtime connection string for the central Pirate Neon control-plane database | API worker | On compromise, role rotation, or planned password rotation | No | No |
-| `TURSO_COMMUNITY_DB_WRAP_KEY` | `worker-secret` | dev | human operator | Envelope-encryption key for stored per-community Turso database credentials | API worker | On compromise, with controlled rewrap | No | No |
-| `TURSO_COMMUNITY_DB_WRAP_KEY_VERSION` | `tuning-knob` | dev | version control | Active envelope-encryption key version | API worker | N/A (public) | N/A | No |
-| `REGISTRY_PUBLISHER_AUTH_TOKEN` | `worker-secret` | dev | human operator | Bearer token for the internal community-registry publisher boundary | API worker | On compromise | No | No |
-| `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN` | `worker-secret` | dev | human operator | Bearer token for the private Turso provision operator | API worker | On compromise | No | No |
-| `LIT_CHIPOTLE_OPERATOR_API_KEY` | `usage-key` | dev | human operator | Story operator PKP actions (publish-asset-version) | API worker | On compromise or suspected misuse | No | No |
-| `LIT_CHIPOTLE_ACCESS_CONTROLLER_API_KEY` | `usage-key` | dev | human operator | Story temporary-access proof signer PKP actions | API worker | On compromise or suspected misuse | No | No |
-| `LIT_CHIPOTLE_STORY_SETTLEMENT_API_KEY` | `usage-key` | dev | human operator | Story settlement PKP actions | API worker | On compromise or suspected misuse | No | No |
-| `LIT_CHIPOTLE_BASE_TREASURY_API_KEY` | `usage-key` | dev | human operator | Base treasury PKP actions | API worker | On compromise or suspected misuse | No | No |
-| `LIT_CHIPOTLE_FEED_REGISTRAR_API_KEY` | `usage-key` | dev | human operator | Story feed registrar PKP actions | API worker | On compromise or suspected misuse | No | No |
-| `LIT_CHIPOTLE_STORY_SPONSOR_API_KEY` | `usage-key` | dev | human operator | Story sponsor PKP actions | API worker | On compromise or suspected misuse | No | No |
-| `LIT_CHIPOTLE_STORY_BACKEND_API_KEY` | `usage-key` | dev | human operator | Story backend signer PKP actions | API worker | On compromise or suspected misuse | No | No |
-| `LIT_CHIPOTLE_BASE_SPONSOR_API_KEY` | `usage-key` | dev | human operator | Base verification mirror sponsor PKP actions | API worker | On compromise or suspected misuse | No | No |
+#### Required (every deployment must have these)
 
-Note:
+The API worker cannot start without these. The sync script (`scripts/sync-wrangler-api-secrets.sh`) enforces their presence.
 
-- `CONTROL_PLANE_DATABASE_URL` is a secret because the Postgres connection string carries credentials. The API worker reads it as `TURSO_CONTROL_PLANE_DATABASE_URL` (a naming inconsistency that should be reconciled — see Naming section below).
-- `PRIVY_APP_ID` and `PRIVY_API_URL` are not secrets — `PRIVY_APP_ID` is a public identifier, `PRIVY_API_URL` is a public endpoint.
-- `JWT_BASED_AUTH_*` vars are legacy aliases for `AUTH_UPSTREAM_JWT_*`. The code falls back to the `JWT_BASED_AUTH_*` name when the `AUTH_UPSTREAM_JWT_*` name is not set. New deployments should use `AUTH_UPSTREAM_JWT_*` only.
+| Name | Type | Purpose |
+|---|---|---|
+| `AUTH_UPSTREAM_JWT_SHARED_SECRET` | `worker-secret` | HMAC shared secret for upstream JWT verification |
+| `PIRATE_APP_JWT_PRIVATE_KEY` | `private-key` | RS256 private key for signing Pirate session tokens |
+| `PIRATE_APP_JWT_PUBLIC_KEY` | `private-key` | RS256 public key for verifying Pirate session tokens |
+| `PRIVY_APP_SECRET` | `api-key` | Privy server-side secret for access token verification |
+| `CONTROL_PLANE_DATABASE_URL` | `database-credential` | Runtime connection string for the Neon control-plane database |
 
-### dev:/services/api (pirate/ carry-forward secrets)
+#### Conditional (only when the feature is enabled)
 
-These secrets are documented from the pirate/ v1 system. They are not yet referenced in pirate-v2 API worker code. They are listed here for migration tracking. Remove each entry once the corresponding feature is confirmed not needed in pirate-v2, or add it to the active section above once the feature is wired.
+| Name | Type | Condition |
+|---|---|---|
+| `CONTROL_PLANE_AUTH_TOKEN` | `worker-secret` | When the control-plane DB requires token auth |
+| `PRIVY_JWT_VERIFICATION_KEY` | `api-key` | When Privy auth is enabled |
+| `REGISTRY_PUBLISHER_AUTH_TOKEN` | `worker-secret` | When `REGISTRY_PUBLISHER_URL` is configured (the API calls an external registry publisher for community creation) |
+| `REDDIT_PULLPUSH_BASE_URL` | `api-key` | When Reddit onboarding is enabled |
+| `REDDIT_PROFILE_CHECK_USER_AGENT` | `tuning-knob` | When Reddit profile checks are enabled |
 
-| Name | Type | Status | pirate/ Purpose |
-|---|---|---|---|
-| `MUSIC_WORKER_SECRET` | `worker-secret` | Not wired in pirate-v2 | Internal worker route auth |
-| `STREAK_VERIFIER_PRIVATE_KEY` | `private-key` | Not wired in pirate-v2 | StreakClaimV1 verifier attestations |
-| `FILEBASE_S3_ACCESS_KEY` | `s3-credential` | Not wired in pirate-v2 | S3 uploads |
-| `FILEBASE_S3_SECRET_KEY` | `s3-credential` | Not wired in pirate-v2 | S3 uploads |
-| `FILEBASE_S3_PROFILE_COVERS_ACCESS_KEY` | `s3-credential` | Not wired in pirate-v2 | Profile cover uploads |
-| `FILEBASE_S3_PROFILE_COVERS_SECRET_KEY` | `s3-credential` | Not wired in pirate-v2 | Profile cover uploads |
-| `FILEBASE_S3_ROOM_COVERS_ACCESS_KEY` | `s3-credential` | Not wired in pirate-v2 | Room cover uploads |
-| `FILEBASE_S3_ROOM_COVERS_SECRET_KEY` | `s3-credential` | Not wired in pirate-v2 | Room cover uploads |
-| `MUSIC_ARWEAVE_TURBO_SIGNER_PRIVATE_KEY` | `private-key` | Not wired in pirate-v2 | Arweave Turbo uploads |
-| `STORY_SCROBBLE_OPERATOR_PRIVATE_KEY` | `private-key` | Not wired in pirate-v2 | Direct-key scrobble anchoring |
-| `MISTRAL_API_KEY` | `api-key` | Not wired in pirate-v2 | Transcription/scoring |
-| `ELEVENLABS_API_KEY` | `api-key` | Not wired in pirate-v2 | Lyrics forced alignment |
-| `OPENROUTER_API_KEY` | `api-key` | Not wired in pirate-v2 | Structured-output extraction |
-| `JINA_API_KEY` | `api-key` | Not wired in pirate-v2 | Authenticated Jina Reader access |
-| `PREDICT_FUN_API_KEY` | `api-key` | Not wired in pirate-v2 | Predict.fun market-context search |
-| `FIRECRAWL_API_KEY` | `api-key` | Not wired in pirate-v2 | Crawler fallback |
-| `ALCHEMY_EVM_RPC_URLS_JSON` | `api-key` | Not wired in pirate-v2 | Multi-chain Alchemy RPC URLs |
-| `ALCHEMY_ETH_MAINNET_RPC_URL` | `api-key` | Not wired in pirate-v2 | ETH mainnet NFT ownership |
-| `ALCHEMY_BASE_MAINNET_RPC_URL` | `api-key` | Not wired in pirate-v2 | Base mainnet NFT ownership |
-| `ALCHEMY_BASE_SEPOLIA_RPC_URL` | `api-key` | Not wired in pirate-v2 | Base Sepolia NFT ownership |
-| `COMMUNITY_GATE_OPERATOR_AUTH_TOKEN` | `worker-secret` | Not wired in pirate-v2 | Community gate-rule provisioning |
-| `SENTINEL_OPERATOR_AUTH_TOKEN` | `worker-secret` | Not wired in pirate-v2 | dVPN allocation |
-| `GENIUS_API_KEY` | `api-key` | Not wired in pirate-v2 | Referent resolution |
-| `DNS_SHARED_SECRET` | `worker-secret` | Not wired in pirate-v2 | DNS management auth |
-| `ENDAOMENT_API_BEARER_TOKEN` | `api-key` | Not wired in pirate-v2 | Endaoment API calls |
-| `MUSIC_TAGGED_ITEMS_RESOLVER_AUTH_TOKEN` | `worker-secret` | Not wired in pirate-v2 | Tagged-item resolver |
+#### Not secrets (version-controlled config)
 
-Note:
+These are read by the API worker but are public config, not secrets. They live in `wrangler.jsonc` vars or worker env, not in Infisical or Cloudflare secrets:
 
-- `CONTROL_PLANE_DATABASE_URL` is a secret because the Postgres connection string carries credentials.
-- Alchemy "RPC URLs" are modeled here as `api-key` secrets because the URLs embed the project key. If the project later splits public base URLs from a standalone Alchemy key, the base URLs can move back to version-controlled config.
-- if hostnames or project identifiers are needed separately, keep those in version-controlled config or ordinary worker env.
-- `SENTINEL_OPERATOR_BASE_URL` and the Sentinel operator timeout env vars are not secrets and should stay in version-controlled runtime config rather than Infisical.
-
-## Naming Inconsistencies
-
-These should be reconciled before the next staging deployment:
-
-1. **`TURSO_CONTROL_PLANE_DATABASE_URL` (API worker) vs `CONTROL_PLANE_DATABASE_URL` (scripts/operator)** — same database, two names. The `TURSO_` prefix is misleading because the control-plane DB is now Neon/Postgres, not Turso. The operator examples and scripts use `CONTROL_PLANE_DATABASE_URL` which is more accurate. Recommended: rename the API worker var to `CONTROL_PLANE_DATABASE_URL`.
-2. **`AUTH_UPSTREAM_JWT_*` vs `JWT_BASED_AUTH_*`** — dual naming for the same concept. `AUTH_UPSTREAM_JWT_*` is the primary name; `JWT_BASED_AUTH_*` is a legacy fallback. The `JWT_BASED_AUTH_ENABLED` flag and the `JWT_BASED_AUTH_*` fallbacks should be removed once all deployed envs use the `AUTH_UPSTREAM_JWT_*` names.
-3. **`REGISTRY_PUBLISHER_URL` (code) vs `REGISTRY_PUBLISHER_BASE_URL` (json.env)** — the code reads `REGISTRY_PUBLISHER_URL`. The `BASE_URL` variant in the old json.env was never used.
+- `AUTH_UPSTREAM_JWT_ENABLED`, `AUTH_UPSTREAM_JWT_ISSUER`, `AUTH_UPSTREAM_JWT_AUDIENCE`
+- `PIRATE_APP_JWT_ISSUER`, `PIRATE_APP_JWT_AUDIENCE`, `PIRATE_APP_JWT_TTL_SECONDS`
+- `PRIVY_APP_ID`, `PRIVY_API_URL`
+- `REGISTRY_PUBLISHER_URL`, `REGISTRY_PUBLISHER_TIMEOUT_MS`
+- `DEV_MEMORY_STORE_ENABLED`, `ENVIRONMENT`
+- `LOCAL_COMMUNITY_DB_ROOT`
 
 ### dev:/services/control-plane
 
-Secrets consumed by private provisioning tooling or a private control-plane worker.
+Secrets consumed by private provisioning tooling, not the API worker.
 
-| Name | Type | Environment | Owner | Purpose | Runtime Consumer | Rotation Policy | Funded? | Legacy? |
-|---|---|---|---|---|---|---|---|---|
-| `CONTROL_PLANE_MIGRATOR_DATABASE_URL` | `database-credential` | dev | human operator | Private migration and maintenance connection string for the central Pirate Neon control-plane database | private control-plane worker, CI migrations, or human-run tooling only | On compromise, role rotation, or planned password rotation | No | No |
-| `TURSO_PLATFORM_API_TOKEN` | `api-key` | dev | human operator | Turso Platform API root capability for creating groups, creating databases, minting tokens, and transferring groups | private control-plane worker or human-run provisioning tooling | On compromise and after initial setup handoff | No | No |
+| Name | Type | Purpose |
+|---|---|---|
+| `CONTROL_PLANE_MIGRATOR_DATABASE_URL` | `database-credential` | Private migration and maintenance connection string |
+| `TURSO_PLATFORM_API_TOKEN` | `api-key` | Turso Platform API root capability |
+| `TURSO_COMMUNITY_DB_WRAP_KEY` | `worker-secret` | Envelope-encryption key for per-community Turso DB credentials |
+| `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN` | `worker-secret` | Bearer token for the private Turso provision operator |
 
-Policy:
+### dev:/services/control-plane (Lit usage keys)
 
-- `CONTROL_PLANE_MIGRATOR_DATABASE_URL` must not be present in the public API worker runtime.
-- `TURSO_PLATFORM_API_TOKEN` must not be present in the public API worker runtime.
-- Per-community Turso database auth tokens must not be modeled as one Infisical secret per community. They are generated from the control plane and stored encrypted in the central control-plane database.
+Lit Chipotle execute-only usage keys. These are operator tooling keys, not API runtime secrets. They are used by human-run scripts (`scripts/lit/lit-action-smoke.mjs`, `scripts/lit/lit-probe-public-key.mjs`, deploy scripts) and will be consumed by the API worker only when PKP actions are wired into the runtime.
+
+| Name | Type | Purpose | Wired in API worker? |
+|---|---|---|---|
+| `LIT_CHIPOTLE_OPERATOR_API_KEY` | `usage-key` | Story operator PKP actions | No |
+| `LIT_CHIPOTLE_ACCESS_CONTROLLER_API_KEY` | `usage-key` | Story temporary-access proof signer | No |
+| `LIT_CHIPOTLE_STORY_SETTLEMENT_API_KEY` | `usage-key` | Story settlement PKP actions | No |
+| `LIT_CHIPOTLE_BASE_TREASURY_API_KEY` | `usage-key` | Base treasury PKP actions | No |
+| `LIT_CHIPOTLE_FEED_REGISTRAR_API_KEY` | `usage-key` | Story feed registrar PKP actions | No |
+| `LIT_CHIPOTLE_STORY_SPONSOR_API_KEY` | `usage-key` | Story sponsor PKP actions | No |
+| `LIT_CHIPOTLE_STORY_BACKEND_API_KEY` | `usage-key` | Story backend signer PKP actions | No |
+| `LIT_CHIPOTLE_BASE_SPONSOR_API_KEY` | `usage-key` | Base verification mirror sponsor | No |
+
+When a Lit key is wired into the API worker runtime, move it from `/services/control-plane` to `/services/api` and update this table.
 
 ### dev:/local/control-plane
 
 Break-glass control-plane credentials kept outside normal service paths.
 
-| Name | Type | Environment | Owner | Purpose | Runtime Consumer | Rotation Policy | Funded? | Legacy? |
-|---|---|---|---|---|---|---|---|---|
-| `CONTROL_PLANE_OWNER_DATABASE_URL` | `database-credential` | dev | human operator | Break-glass owner connection string for the central Pirate Neon control-plane database | human operator only | On compromise, role rotation, or planned password rotation | No | No |
+| Name | Type | Purpose |
+|---|---|---|
+| `CONTROL_PLANE_OWNER_DATABASE_URL` | `database-credential` | Break-glass owner connection string for role maintenance only |
 
-Policy:
+### dev model
 
-- `CONTROL_PLANE_OWNER_DATABASE_URL` must not be present in `/services/api` or `/services/control-plane`.
-- break-glass access is for exceptional recovery or role maintenance only.
+Dev is local-only. The API worker is run via `bun run dev:local` with secrets from `.dev.vars`, not from Infisical. Dev Infisical is pre-seeded for script integration testing only. Do not treat dev Infisical as the API worker's secret source.
 
-### dev:/services/api (Lit usage keys)
+## Live Infisical State (2026-04-13)
 
-Lit Chipotle execute-only usage keys. One key per signer family.
+### /services/api
 
-| Name | Type | Environment | Owner | Purpose | Runtime Consumer | Rotation Policy | Funded? | Legacy? |
-|---|---|---|---|---|---|---|---|---|
-| `LIT_CHIPOTLE_OPERATOR_API_KEY` | `usage-key` | dev | human operator | Story operator PKP actions (presentation/lyrics/study-set/publish-asset-version) | API worker | On compromise or suspected misuse | No | No |
-| `LIT_CHIPOTLE_ACCESS_CONTROLLER_API_KEY` | `usage-key` | dev | human operator | Story temporary-access proof signer PKP actions for signed CDR access proofs | API worker | On compromise or suspected misuse | No | No |
-| `LIT_CHIPOTLE_STORY_SETTLEMENT_API_KEY` | `usage-key` | dev | human operator | Story settlement PKP actions (`settlePurchase(...)`; later royalty-sync if adopted) | API worker | On compromise or suspected misuse | No | No |
-| `LIT_CHIPOTLE_BASE_TREASURY_API_KEY` | `usage-key` | dev | human operator | Base treasury PKP actions (donation/refund) | API worker | On compromise or suspected misuse | No | No |
-| `LIT_CHIPOTLE_FEED_REGISTRAR_API_KEY` | `usage-key` | dev | human operator | Story feed registrar PKP actions (post-story/translation) | API worker | On compromise or suspected misuse | No | No |
-| `LIT_CHIPOTLE_STORY_SPONSOR_API_KEY` | `usage-key` | dev | human operator | Story sponsor PKP actions (register-original/derivative/vault-bootstrap) | API worker | On compromise or suspected misuse | No | No |
-| `LIT_CHIPOTLE_STORY_BACKEND_API_KEY` | `usage-key` | dev | human operator | Story backend signer PKP actions (backend approvals on two-PKP router) | API worker | On compromise or suspected misuse | No | No |
-| `LIT_CHIPOTLE_BASE_SPONSOR_API_KEY` | `usage-key` | dev | human operator | Base verification mirror sponsor PKP actions | API worker | On compromise or suspected misuse | No | No |
+| Secret | dev | staging | prod |
+|--------|-----|---------|------|
+| `CONTROL_PLANE_DATABASE_URL` | YES | YES | YES |
+| `AUTH_UPSTREAM_JWT_SHARED_SECRET` | — | YES | — |
+| `PIRATE_APP_JWT_PRIVATE_KEY` | — | YES | — |
+| `PIRATE_APP_JWT_PUBLIC_KEY` | — | YES | — |
+| `PRIVY_APP_SECRET` | — | YES | — |
+| `REGISTRY_PUBLISHER_AUTH_TOKEN` | YES | — | — |
 
-## Not Carried Forward From pirate/
+### /services/control-plane
 
-These secrets existed in pirate/ and are intentionally excluded from pirate-v2:
+| Secret | dev | staging | prod |
+|--------|-----|---------|------|
+| `CONTROL_PLANE_MIGRATOR_DATABASE_URL` | YES | YES | YES |
+| `TURSO_PLATFORM_API_TOKEN` | YES | YES | — |
+| `TURSO_COMMUNITY_DB_WRAP_KEY` | — | YES | — |
+| `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN` | — | YES | — |
+| `LIT_CHIPOTLE_OPERATOR_API_KEY` | YES | — | — |
 
-| Name | Why excluded |
-|---|---|
-| `MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY` | Legacy fallback for settlement signer. PKP-only in pirate-v2. |
-| `MUSIC_PURCHASE_BASE_TREASURY_PRIVATE_KEY` | Legacy fallback for treasury signer. PKP-only in pirate-v2. |
-| `STORY_OPERATOR_PRIVATE_KEY` | Legacy fallback for operator signer. PKP-only in pirate-v2. |
-| `STORY_ACCESS_CONTROLLER_PRIVATE_KEY` | Legacy fallback for the old access-controller contract caller. In pirate-v2 this family is PKP-only and used only for signed CDR access proofs, not on-chain access-grant txs. |
-| `STORY_FEED_REGISTRAR_PRIVATE_KEY` | Legacy fallback for feed registrar. PKP-only in pirate-v2. |
-| `LIT_CHIPOTLE_ACCOUNT_API_KEY` | Account-scoped control-plane key for upload/sync tooling. Must not be in worker runtime. Control-plane ops only, managed outside worker secrets. |
+### Production status
 
-Migration note:
+No Cloudflare worker named `pirate-api-core` exists. Production has never been deployed. The sparse prod Infisical state (only `CONTROL_PLANE_DATABASE_URL`) is expected for a pre-deployed environment. Before first prod deploy, populate the required secret set via `scripts/sync-wrangler-api-secrets.sh --wrangler-env production`.
 
-- Do not wire `LIT_CHIPOTLE_ACCOUNT_API_KEY` into any runtime worker env in pirate-v2.
-- If pirate-v2 later needs this key for human-run upload or sync tooling, keep it in a separate control-plane secret path such as `dev:/local/lit`, not under runtime worker paths.
-- If no control-plane tooling needs it yet, do not create or migrate it preemptively.
+### Staging Cloudflare worker secrets
 
-## Secrets Not Yet Classified
+The staging worker `pirate-api-staging` was last deployed 2026-04-12. It currently carries stale secrets from the pirate/ v1 configuration that are not read by the current API code:
 
-These may be needed in pirate-v2 but are not yet inventoried with full metadata:
+- `ALLOW_LOCAL_STUB_REGISTRY_PUBLICATION` — dead, not in current Env type
+- `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN` — operator-only, belongs in `/services/control-plane`
+- `PIRATE_API_PUBLIC_ORIGIN` — dead, not in current Env type
+- `PRIVY_APP_ID` — public config, not a secret
+- `SPACES_VERIFIER_BASE_URL` — dead, not in current Env type
+- `TURSO_COMMUNITY_DB_WRAP_KEY` — operator-only, belongs in `/services/control-plane`
+- `REGISTRY_PUBLISHER_URL` — public config, not a secret
 
-- `ENS_GATEWAY_SIGNER_PRIVATE_KEY` — if pirate-v2 carries ENS/Handshake bridge
-- Any Privy or auth-related secrets beyond the current upstream-auth spec boundary
-- `LIT_CHIPOTLE_ACCOUNT_API_KEY` for local human-run Lit upload or sync tooling, if and when that tooling is activated in pirate-v2
+These should be removed from the Cloudflare worker on the next staging deployment.
+
+## Naming (resolved)
+
+1. ~~`TURSO_CONTROL_PLANE_DATABASE_URL` vs `CONTROL_PLANE_DATABASE_URL`~~ — **Resolved.** API worker now uses `CONTROL_PLANE_DATABASE_URL` matching the scripts/Infisical convention.
+2. ~~`AUTH_UPSTREAM_JWT_*` vs `JWT_BASED_AUTH_*`~~ — **Resolved.** `JWT_BASED_AUTH_*` aliases removed. Single canonical naming: `AUTH_UPSTREAM_JWT_ENABLED`, `AUTH_UPSTREAM_JWT_SHARED_SECRET`, `AUTH_UPSTREAM_JWT_ISSUER`, `AUTH_UPSTREAM_JWT_AUDIENCE`.
+3. ~~`REGISTRY_PUBLISHER_URL` vs `REGISTRY_PUBLISHER_BASE_URL`~~ — **Resolved.** `REGISTRY_PUBLISHER_BASE_URL` was a dead name only in the old `json.env`. Deleted from Infisical.
