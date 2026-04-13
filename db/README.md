@@ -10,8 +10,8 @@ Pirate v2 now has two relational migration roots:
 Runtime note:
 
 - `db/` is the canonical migration source for operational docs and bootstrap commands.
-- `pirate-api/db/` contains worker-local fixture migrations where the API slice needs them.
-- Keep the community-template trees in sync; control-plane fixture files may diverge when the worker fixture target is SQLite/libSQL while canonical control-plane migrations are PostgreSQL-first.
+- The API test suite (`pirate-api/services/api/tests/helpers.ts`) resolves directly into `db/control-plane/migrations/` for its SQLite fixture databases. Because the canonical tree is PostgreSQL-first, this currently breaks: migrations 0005+ use `ADD CONSTRAINT`, 0023 uses `DO $$`, and later migrations use `::jsonb` and `timestamptz`, none of which are valid SQLite. Fixing this requires either SQLite-compatible fixture copies or a baseline-snapshot approach for test databases.
+- Keep the community-template trees in sync.
 
 Related docs:
 
