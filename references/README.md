@@ -1,26 +1,23 @@
 # References
 
-This directory holds non-canonical material that informs Pirate v2 work but is not itself the production runtime.
+This directory is for non-canonical reference material in `pirate-social-club/core`.
 
-## Layout
+Current status:
 
-- `upstream/`
-  - local checkouts of external repos or sidecar projects kept for design, contract, or architecture reference
-  - tracked manifest lives in `upstream/README.md`
-- `templates/`
-  - starter implementations and handoff skeletons that encode current decisions without claiming canonical runtime ownership
-- `prototypes/`
-  - executable spikes used to prove feasibility, runtime shape, or third-party integration assumptions
+- `references/` is not the source of truth for any active runtime
+- production runtime work belongs in sidecar repos such as `pirate-api/`, not in `core/references/`
+- historical prototypes may remain here when they are still useful as context
 
-## Current Upstreams
+Template status:
 
-- `upstream/majeur/`
-  - Majeur DAO framework reference checkout
-- `upstream/multisig/`
-  - Multisig wallet reference checkout
+- the old `references/templates/api-worker-auth-first-slice/` implementation tree is retired and no longer carries generated compatibility outputs
+- generated compatibility artifacts now live under `specs/api/compatibility/`
+- historical prototypes may remain here when they are still useful as context
 
-These directories are intentionally ignored by the root repo because they carry their own git history and are not shipped as part of Pirate v2.
+Important:
 
-`templates/` and `prototypes/` may contain executable code, tests, and active experiments, but they remain reference material until promoted into a canonical runtime repo.
+- do not treat `references/` as the source of truth for the active API runtime
+- prefer the standalone runtime repos for implementation details
+- prefer `specs/`, `docs/`, `db/`, and `scripts/` in `core` for shared system definition
 
-Use `upstream/README.md` as the canonical tracked record for origin URLs, pinned commits, and local checkout expectations.
+There is no current compatibility build target under `references/`.

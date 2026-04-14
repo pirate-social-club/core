@@ -1,0 +1,42 @@
+SentinelSubscriptionEnsureResponse:
+  type: object
+  required:
+    - sentinel_subscription_id
+    - wallet_attachment_id
+    - wallet_address
+    - plan_key
+    - chain_subscription_id
+    - status
+    - created_now
+  properties:
+    sentinel_subscription_id:
+      type: string
+    wallet_attachment_id:
+      type: string
+    wallet_address:
+      type: string
+    plan_key:
+      type: string
+      description: |
+        Pirate-side plan key used to map a paid dVPN entitlement onto Sentinel allocation.
+    chain_subscription_id:
+      type: string
+    allocation_tx_hash:
+      type: string
+      nullable: true
+    allocated_bytes:
+      type: integer
+      nullable: true
+      format: int64
+    expires_at:
+      type: string
+      format: date-time
+      nullable: true
+    status:
+      type: string
+      enum:
+        - active
+    created_now:
+      type: boolean
+      description: |
+        `true` when this call created and persisted a new Sentinel subscription allocation.

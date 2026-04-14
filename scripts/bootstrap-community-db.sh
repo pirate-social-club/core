@@ -18,6 +18,8 @@ Options:
   --description TEXT                 Optional community description.
   --membership-mode MODE             Default: open
   --default-age-gate-policy POLICY   Default: none
+  --membership-unique-human-provider P Optional. Seed a membership-scope unique-human gate restricted to this provider.
+  --posting-unique-human-provider P  Optional. Seed a posting-scope unique-human gate restricted to this provider.
   --handle-policy-template TEMPLATE  Default: standard
   --handle-pricing-model MODEL       Optional.
   --namespace-label LABEL            Default: community ID lowercased
@@ -42,6 +44,8 @@ default_age_gate_policy="none"
 handle_policy_template="standard"
 handle_pricing_model=""
 namespace_label=""
+membership_unique_human_provider=""
+posting_unique_human_provider=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -75,6 +79,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --default-age-gate-policy)
       default_age_gate_policy="${2:-}"
+      shift 2
+      ;;
+    --membership-unique-human-provider)
+      membership_unique_human_provider="${2:-}"
+      shift 2
+      ;;
+    --posting-unique-human-provider)
+      posting_unique_human_provider="${2:-}"
       shift 2
       ;;
     --handle-policy-template)
@@ -131,6 +143,22 @@ case "$handle_policy_template" in
     ;;
 esac
 
+case "$membership_unique_human_provider" in
+  ""|self|very) ;;
+  *)
+    echo "invalid --membership-unique-human-provider: $membership_unique_human_provider" >&2
+    exit 1
+    ;;
+esac
+
+case "$posting_unique_human_provider" in
+  ""|self|very) ;;
+  *)
+    echo "invalid --posting-unique-human-provider: $posting_unique_human_provider" >&2
+    exit 1
+    ;;
+esac
+
 if [[ -z "$namespace_label" ]]; then
   namespace_label="$(printf '%s' "$community_id" | tr '[:upper:]' '[:lower:]')"
 fi
@@ -145,6 +173,8 @@ namespace_id="ns_${community_id}"
 namespace_handle_policy_id="nhp_${community_id}"
 membership_id="mbr_${community_id}_${user_id}"
 role_assignment_id="role_${community_id}_${user_id}_owner"
+membership_gate_rule_id="gate_${community_id}_membership_unique_human"
+posting_gate_rule_id="gate_${community_id}_posting_unique_human"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
@@ -162,6 +192,18 @@ fi
 pricing_model_sql="NULL"
 if [[ -n "$handle_pricing_model" ]]; then
   pricing_model_sql="$(sql_quote "$handle_pricing_model")"
+fi
+
+membership_gate_proof_requirements_sql="NULL"
+if [[ -n "$membership_unique_human_provider" ]]; then
+  membership_gate_proof_requirements_sql="$(sql_quote "[{\"proof_type\":\"unique_human\",\"accepted_providers\":[\"$membership_unique_human_provider\"]}]")"
+fi
+
+posting_gate_proof_requirements_sql="NULL"
+posting_gate_config_sql="NULL"
+if [[ -n "$posting_unique_human_provider" ]]; then
+  posting_gate_proof_requirements_sql="$(sql_quote "[{\"proof_type\":\"unique_human\",\"accepted_providers\":[\"$posting_unique_human_provider\"]}]")"
+  posting_gate_config_sql="$(sql_quote '{"post_types":["text"],"first_post_only":true}')"
 fi
 
 sqlite3 "$db_path" <<SQL
@@ -329,6 +371,86 @@ ON CONFLICT(namespace_handle_policy_id) DO UPDATE SET
     policy_template = excluded.policy_template,
     pricing_model = excluded.pricing_model,
     membership_required_for_claim = excluded.membership_required_for_claim,
+    updated_at = excluded.updated_at;
+
+DELETE FROM community_gate_rules
+WHERE gate_rule_id = $(sql_quote "$membership_gate_rule_id")
+  AND $(sql_quote "$membership_unique_human_provider") = '';
+
+INSERT INTO community_gate_rules (
+    gate_rule_id,
+    community_id,
+    scope,
+    gate_family,
+    gate_type,
+    proof_requirements_json,
+    chain_namespace,
+    gate_config_json,
+    status,
+    created_at,
+    updated_at
+) SELECT
+    $(sql_quote "$membership_gate_rule_id"),
+    $(sql_quote "$community_id"),
+    'membership',
+    'identity_proof',
+    'unique_human',
+    $membership_gate_proof_requirements_sql,
+    NULL,
+    NULL,
+    'active',
+    $(sql_quote "$now"),
+    $(sql_quote "$now")
+WHERE $(sql_quote "$membership_unique_human_provider") <> ''
+ON CONFLICT(gate_rule_id) DO UPDATE SET
+    community_id = excluded.community_id,
+    scope = excluded.scope,
+    gate_family = excluded.gate_family,
+    gate_type = excluded.gate_type,
+    proof_requirements_json = excluded.proof_requirements_json,
+    chain_namespace = excluded.chain_namespace,
+    gate_config_json = excluded.gate_config_json,
+    status = excluded.status,
+    updated_at = excluded.updated_at;
+
+DELETE FROM community_gate_rules
+WHERE gate_rule_id = $(sql_quote "$posting_gate_rule_id")
+  AND $(sql_quote "$posting_unique_human_provider") = '';
+
+INSERT INTO community_gate_rules (
+    gate_rule_id,
+    community_id,
+    scope,
+    gate_family,
+    gate_type,
+    proof_requirements_json,
+    chain_namespace,
+    gate_config_json,
+    status,
+    created_at,
+    updated_at
+) SELECT
+    $(sql_quote "$posting_gate_rule_id"),
+    $(sql_quote "$community_id"),
+    'posting',
+    'identity_proof',
+    'unique_human',
+    $posting_gate_proof_requirements_sql,
+    NULL,
+    $posting_gate_config_sql,
+    'active',
+    $(sql_quote "$now"),
+    $(sql_quote "$now")
+WHERE $(sql_quote "$posting_unique_human_provider") <> ''
+ON CONFLICT(gate_rule_id) DO UPDATE SET
+    community_id = excluded.community_id,
+    scope = excluded.scope,
+    gate_family = excluded.gate_family,
+    gate_type = excluded.gate_type,
+    proof_requirements_json = excluded.proof_requirements_json,
+    chain_namespace = excluded.chain_namespace,
+    gate_config_json = excluded.gate_config_json,
+    status = excluded.status,
     updated_at = excluded.updated_at;
 
 COMMIT;

@@ -1,0 +1,228 @@
+ModerationSignalSeverity:
+  type: string
+  enum:
+    - low
+    - medium
+    - high
+ModerationCaseStatus:
+  type: string
+  enum:
+    - open
+    - resolved
+ModerationQueueScope:
+  type: string
+  enum:
+    - community
+    - platform
+ModerationCaseOpenedBy:
+  type: string
+  enum:
+    - platform_analysis
+    - user_report
+    - mixed
+UserReportReasonCode:
+  type: string
+  enum:
+    - spam
+    - harassment
+    - hate
+    - sexual_content
+    - graphic_content
+    - misleading
+    - other
+ModerationActionType:
+  type: string
+  enum:
+    - dismiss
+    - hide
+    - remove
+    - restore
+    - age_gate
+CreateUserReportRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - reason_code
+  properties:
+    reason_code:
+      $ref: ./moderation.yaml#/UserReportReasonCode
+    note:
+      type: string
+      nullable: true
+UserReport:
+  type: object
+  required:
+    - user_report_id
+    - community_id
+    - post_id
+    - reporter_user_id
+    - reason_code
+    - created_at
+  properties:
+    user_report_id:
+      type: string
+    community_id:
+      type: string
+    post_id:
+      type: string
+    reporter_user_id:
+      type: string
+    reason_code:
+      $ref: ./moderation.yaml#/UserReportReasonCode
+    note:
+      type: string
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+ModerationSignal:
+  type: object
+  required:
+    - moderation_signal_id
+    - community_id
+    - post_id
+    - analysis_result_ref
+    - source
+    - signal_type
+    - severity
+    - provider
+    - provider_label
+    - created_at
+  properties:
+    moderation_signal_id:
+      type: string
+    community_id:
+      type: string
+    post_id:
+      type: string
+    analysis_result_ref:
+      type: string
+    source:
+      type: string
+      enum:
+        - platform_analysis
+    signal_type:
+      type: string
+    severity:
+      $ref: ./moderation.yaml#/ModerationSignalSeverity
+    provider:
+      type: string
+    provider_label:
+      type: string
+    evidence_ref:
+      type: string
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+ModerationAction:
+  type: object
+  required:
+    - moderation_action_id
+    - moderation_case_id
+    - community_id
+    - post_id
+    - actor_user_id
+    - action_type
+    - created_at
+  properties:
+    moderation_action_id:
+      type: string
+    moderation_case_id:
+      type: string
+    community_id:
+      type: string
+    post_id:
+      type: string
+    actor_user_id:
+      type: string
+    action_type:
+      $ref: ./moderation.yaml#/ModerationActionType
+    note:
+      type: string
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+ModerationCase:
+  type: object
+  required:
+    - moderation_case_id
+    - community_id
+    - post_id
+    - status
+    - queue_scope
+    - priority
+    - opened_by
+    - created_at
+    - updated_at
+  properties:
+    moderation_case_id:
+      type: string
+    community_id:
+      type: string
+    post_id:
+      type: string
+    status:
+      $ref: ./moderation.yaml#/ModerationCaseStatus
+    queue_scope:
+      $ref: ./moderation.yaml#/ModerationQueueScope
+    priority:
+      $ref: ./moderation.yaml#/ModerationSignalSeverity
+    opened_by:
+      $ref: ./moderation.yaml#/ModerationCaseOpenedBy
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+    resolved_at:
+      type: string
+      format: date-time
+      nullable: true
+ModerationCaseListResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: ./moderation.yaml#/ModerationCase
+ModerationCaseDetail:
+  type: object
+  required:
+    - case
+    - post
+    - signals
+    - reports
+    - actions
+  properties:
+    case:
+      $ref: ./moderation.yaml#/ModerationCase
+    post:
+      $ref: ./posts.yaml#/Post
+    signals:
+      type: array
+      items:
+        $ref: ./moderation.yaml#/ModerationSignal
+    reports:
+      type: array
+      items:
+        $ref: ./moderation.yaml#/UserReport
+    actions:
+      type: array
+      items:
+        $ref: ./moderation.yaml#/ModerationAction
+CreateModerationActionRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - action_type
+  properties:
+    action_type:
+      $ref: ./moderation.yaml#/ModerationActionType
+    note:
+      type: string
+      nullable: true

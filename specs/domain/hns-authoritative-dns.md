@@ -63,6 +63,39 @@ That means:
 - Pirate's authoritative DNS servers hold the actual `infinity.` zone
 - subdomains such as `profile.infinity.` resolve from that ordinary authoritative zone
 
+## Delegation Boundary
+
+The parent Handshake record set and the delegated child zone must not be conflated.
+
+If the owner sets `NS` for `kanye/` in ShakeStation:
+
+- Handshake stores the delegation for `kanye`
+- HNS-aware resolvers follow that delegation to the named authoritative DNS service
+- records inside the child zone, such as `_pirate.kanye.`, `kanye.`, or `profile.kanye.`, must then be served by that authoritative DNS service
+
+Important:
+
+- after `NS` delegation, `_pirate.<root>` TXT proof is no longer satisfied by a parent-side TXT value stored only in ShakeStation
+- the delegated authoritative DNS host must actually serve the `<root>.` zone
+- a static DNS server that only serves `infinity.` will not automatically answer for `kanye.` just because ShakeStation now points `kanye/` at that server
+
+This is the operational source of confusion behind "the user added NS and TXT in ShakeStation but `_pirate.kanye` still does not resolve." The parent registry can publish delegation. It does not auto-host the delegated zone contents.
+
+## Current Direction
+
+The tracked deployment direction under `ops/vps/hns-authoritative-dns/` should be treated as
+PowerDNS Authoritative with a writable backend.
+
+Reason:
+
+- Pirate expects many delegated Handshake roots
+- each root becomes its own child zone
+- verification sessions need dynamic `_pirate.<root>` TXT publication
+- DNS serving and `/verify-txt` need one shared authoritative source of truth
+
+Static zone files can demonstrate the delegation model, but they are not the recommended public-v0
+architecture for multi-root operation.
+
 Example:
 
 - Handshake root: `infinity`
@@ -97,14 +130,27 @@ Recommended production posture:
 - two authoritative nameservers
 - distinct hosts, and ideally distinct failure domains
 
-Authoritative DNS software may be any conventional DNS server that can host the `infinity.` zone, such as:
+Authoritative DNS software may be any conventional DNS server that can host the `infinity.` zone,
+but the recommended choice for Pirate is:
 
 - PowerDNS Authoritative
-- NSD
-- Knot DNS
-- BIND
+
+because it supports writable backends and an HTTP API that match Pirate's provisioning model.
 
 Pirate may also run an HTTP reverse proxy on the same host if native HNS web traffic should be forwarded into the existing Pirate app stack.
+
+One VPS may host multiple roles if that is the cheapest operational path:
+
+- authoritative DNS for delegated HNS zones
+- the Pirate reverse proxy for native HNS web routes
+- the verification API and verifier workers
+- the separate Spaces verifier runtime
+
+That consolidation is acceptable for public v0 as long as the logical responsibilities stay separate:
+
+- authoritative DNS serves delegated HNS child zones
+- the HNS verifier reads those zones
+- the Spaces verifier performs proof and signature checks unrelated to DNS
 
 ## What Pirate Does Not Need To Run
 
@@ -149,7 +195,7 @@ Cloudflare may still be part of the architecture for:
 The minimum practical public v0 topology is:
 
 1. one small always-on VPS
-2. authoritative DNS software serving one or more HNS zones such as `infinity.`
+2. PowerDNS Authoritative serving one or more HNS zones such as `infinity.`
 3. Handshake root records delegating each HNS root to those nameservers
 4. optional reverse proxy on the same VPS forwarding native HNS web traffic into Pirate's existing app stack
 
@@ -163,6 +209,39 @@ Examples:
 - `festival.`
 
 The cost driver is not community count. The cost driver is whether Pirate also chooses to run heavy Handshake chain infrastructure on the same machine, which public v0 should avoid.
+
+## Canonical Backing Model
+
+Pirate needs one canonical source of truth for Pirate-managed HNS child zones.
+
+Three different functions must agree:
+
+1. delegation inspection
+2. DNS serving
+3. TXT verification
+
+The recommended split is:
+
+1. delegation inspection reads Handshake parent data such as `NS` and glue posture
+2. authoritative DNS serves the delegated `<root>.` child zone
+3. challenge publication writes `_pirate.<root>` into Pirate's child-zone backing store
+4. `/verify-txt` reads from that same authoritative child-zone backing store, either directly or by
+   querying the authoritative server that serves it
+
+Important:
+
+- after `NS` delegation, parent-side TXT state in ShakeStation is not the authoritative `_pirate.<root>` source
+- `spaced` or other Handshake-parent inspection can prove delegation posture
+- it cannot replace the child-zone authoritative data path for delegated TXT verification
+
+Recommended public-v0 implementation:
+
+1. PowerDNS Authoritative
+2. writable backend
+3. HNS verifier/provisioner creates zones and records through the PowerDNS API
+
+Alternative implementations are possible, but the chosen path should preserve the same
+single-source-of-truth property.
 
 ## Recommended Zone Layout
 
@@ -180,16 +259,26 @@ For the public v0 TXT proof model, authoritative DNS setup must happen before TX
 
 Recommended order:
 
-1. the owner delegates the HNS root to authoritative DNS they control
-2. the owner serves `_pirate.<root>` with the session-bound TXT challenge value
-3. Pirate verifies creator-bound control
-4. the owner may keep the root owner-managed, or later move to Pirate-managed nameservers
+1. the owner chooses whether the root will stay owner-managed or delegate to Pirate-managed authoritative DNS
+2. if Pirate-managed DNS is chosen, the owner publishes Handshake `NS` and any required glue records that point at Pirate nameservers
+3. Pirate detects that delegation posture and provisions the `<root>.` child zone on its authoritative DNS service
+4. Pirate publishes `_pirate.<root>` with the session-bound TXT challenge value in that child-zone backing store
+5. the authoritative DNS service serves `_pirate.<root>` from the same backing store
+6. Pirate verifies creator-bound control against the delegated authoritative zone
+7. the owner may keep the root on Pirate-managed nameservers or later move elsewhere subject to later revalidation
+
+Alternative owner-managed path:
+
+1. the owner keeps authoritative DNS elsewhere
+2. the owner serves `_pirate.<root>` on that already-working authoritative DNS
+3. Pirate verifies creator-bound control there
 
 Important:
 
 - owner-managed authoritative DNS is sufficient for TXT proof
 - owner-managed authoritative DNS is also sufficient for HNS-native routing such as `profile.infinity`
 - Pirate-managed nameserver delegation is a separate operational choice and should not be required just to verify club attachment eligibility
+- but if Pirate chooses a public-v0 implementation that only automates Pirate-managed DNS first, the product must say that plainly in UX instead of implying that parent-side ShakeStation edits alone will populate the delegated child zone
 
 ## Verification Implications
 
@@ -236,3 +325,21 @@ Recommended sequence:
 5. add native HNS web proxying only where needed
 
 This is the simplest deployment model that makes `infinity/` and `profile.infinity` genuinely resolvable in HNS-aware environments without requiring Pirate to run a large archival Handshake node.
+
+## Public V0 Delivery Plan
+
+To get HNS working end-to-end with the least ambiguity:
+
+1. Ship one supported HNS path first: Pirate-managed authoritative DNS on a single VPS.
+2. In the frontend, ask the user to update only the Handshake parent delegation records in ShakeStation:
+   - `NS`
+   - any needed glue records
+3. After delegation is published, Pirate provisions the `<root>.` zone in PowerDNS.
+4. Pirate serves `_pirate.<root>` from that delegated zone and verifies it through the HNS verifier.
+5. Only after that path is stable should Pirate add the optional owner-managed authoritative-DNS variant.
+
+This keeps the public-v0 message simple:
+
+- HNS first
+- one Pirate-operated VPS can host the authoritative DNS and verifier stack
+- Spaces uses the same VPS later, but through a separate verifier path with no DNS delegation UX

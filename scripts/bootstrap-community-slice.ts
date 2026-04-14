@@ -12,6 +12,8 @@ type Options = {
   description?: string;
   membershipMode: "open" | "request" | "gated";
   defaultAgeGatePolicy: "none" | "18_plus";
+  membershipUniqueHumanProvider?: "self" | "very";
+  postingUniqueHumanProvider?: "self" | "very";
   handlePolicyTemplate: "standard" | "premium" | "membership_gated" | "custom";
   handlePricingModel?: string;
   namespaceLabel?: string;
@@ -36,6 +38,8 @@ Options:
   --description TEXT                Optional community description.
   --membership-mode MODE            Default: open
   --default-age-gate-policy POLICY  Default: none
+  --membership-unique-human-provider P Optional. Seed a membership-scope unique-human gate restricted to this provider.
+  --posting-unique-human-provider P Optional. Seed a posting-scope unique-human gate restricted to this provider.
   --handle-policy-template TPL      Default: standard
   --handle-pricing-model MODEL      Optional.
   --namespace-label LABEL           Optional. Defaults to lowercased community ID.
@@ -89,6 +93,14 @@ function parseArgs(argv: string[]): Options {
         break;
       case "--default-age-gate-policy":
         options.defaultAgeGatePolicy = value as Options["defaultAgeGatePolicy"];
+        index += 2;
+        break;
+      case "--membership-unique-human-provider":
+        options.membershipUniqueHumanProvider = value as Options["membershipUniqueHumanProvider"];
+        index += 2;
+        break;
+      case "--posting-unique-human-provider":
+        options.postingUniqueHumanProvider = value as Options["postingUniqueHumanProvider"];
         index += 2;
         break;
       case "--handle-policy-template":
@@ -147,6 +159,20 @@ if (!databaseUrl) {
 
 assertEnum(options.membershipMode, ["open", "request", "gated"] as const, "--membership-mode");
 assertEnum(options.defaultAgeGatePolicy, ["none", "18_plus"] as const, "--default-age-gate-policy");
+if (options.membershipUniqueHumanProvider) {
+  assertEnum(
+    options.membershipUniqueHumanProvider,
+    ["self", "very"] as const,
+    "--membership-unique-human-provider",
+  );
+}
+if (options.postingUniqueHumanProvider) {
+  assertEnum(
+    options.postingUniqueHumanProvider,
+    ["self", "very"] as const,
+    "--posting-unique-human-provider",
+  );
+}
 assertEnum(
   options.handlePolicyTemplate,
   ["standard", "premium", "membership_gated", "custom"] as const,
@@ -223,12 +249,7 @@ await db.begin(async (tx) => {
       namespace_verification_id,
       primary_database_binding_id,
       created_at,
-      updated_at,
-      registry_publication_state,
-      registry_attempt_id,
-      registry_published_at,
-      registry_publication_job_id,
-      registry_error_code
+      updated_at
     ) VALUES (
       ${options.communityId},
       ${options.userId},
@@ -240,12 +261,7 @@ await db.begin(async (tx) => {
       ${options.namespaceVerificationId},
       NULL,
       ${createdAt},
-      ${createdAt},
-      'not_started',
-      NULL,
-      NULL,
-      NULL,
-      NULL
+      ${createdAt}
     )
     ON CONFLICT (community_id) DO UPDATE SET
       creator_user_id = EXCLUDED.creator_user_id,
@@ -254,12 +270,7 @@ await db.begin(async (tx) => {
       provisioning_state = EXCLUDED.provisioning_state,
       transfer_state = EXCLUDED.transfer_state,
       namespace_verification_id = EXCLUDED.namespace_verification_id,
-      updated_at = EXCLUDED.updated_at,
-      registry_publication_state = EXCLUDED.registry_publication_state,
-      registry_attempt_id = NULL,
-      registry_published_at = EXCLUDED.registry_published_at,
-      registry_publication_job_id = EXCLUDED.registry_publication_job_id,
-      registry_error_code = EXCLUDED.registry_error_code
+      updated_at = EXCLUDED.updated_at
   `;
 
   await tx`
@@ -331,6 +342,12 @@ const bootstrap = Bun.spawnSync(
     options.membershipMode,
     "--default-age-gate-policy",
     options.defaultAgeGatePolicy,
+    ...(options.membershipUniqueHumanProvider
+      ? ["--membership-unique-human-provider", options.membershipUniqueHumanProvider]
+      : []),
+    ...(options.postingUniqueHumanProvider
+      ? ["--posting-unique-human-provider", options.postingUniqueHumanProvider]
+      : []),
     "--handle-policy-template",
     options.handlePolicyTemplate,
     ...(options.description ? ["--description", options.description] : []),
@@ -496,7 +513,6 @@ env: ${options.databaseUrlEnv}
 community_id: ${options.communityId}
 job_id: ${jobId}
 binding_id: ${bindingId}
-registry_attempt_id: none
 community_db: ${communityDbPath}
 bootstrap_output:
 ${stdout}`);

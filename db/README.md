@@ -10,14 +10,14 @@ Pirate v2 now has two relational migration roots:
 Runtime note:
 
 - `db/` is the canonical migration source for operational docs and bootstrap commands.
-- `pirate-api/db/` contains worker-local fixture migrations where the API slice needs them.
-- Keep the community-template trees in sync; control-plane fixture files may diverge when the worker fixture target is SQLite/libSQL while canonical control-plane migrations are PostgreSQL-first.
+- The API test suite (`pirate-api/services/api/tests/helpers.ts`) uses a SQLite-compatible baseline snapshot (`pirate-api/services/api/tests/fixtures/control-plane-baseline-sqlite.sql`) derived from the canonical Postgres schema. The historical migration chain in `db/control-plane/migrations/` is PostgreSQL-first and cannot be replayed against SQLite/libSQL. When the canonical schema changes, the test fixture must be regenerated.
+- Keep the community-template trees in sync.
 
 Related docs:
 
-- [turso-control-plane-schema.md](/home/t42/Documents/pirate-v2/docs/turso-control-plane-schema.md)
-- [turso-provisioning-contract.md](/home/t42/Documents/pirate-v2/docs/turso-provisioning-contract.md)
-- [turso-data-boundaries.md](/home/t42/Documents/pirate-v2/docs/turso-data-boundaries.md)
+- [control-plane-schema.md](../docs/control-plane/control-plane-schema.md)
+- [turso-provisioning-contract.md](../docs/control-plane/turso-provisioning-contract.md)
+- [turso-data-boundaries.md](../docs/control-plane/turso-data-boundaries.md)
 
 ## Current Scope
 
@@ -31,39 +31,31 @@ Current posture:
 
 ## Ordering
 
-Control-plane migrations:
+Migration order is defined by the filenames in the filesystem, not by this README.
 
-- `0001_control_plane_identity.sql`
-- `0002_control_plane_communities.sql`
-- `0003_control_plane_scrobbles.sql`
-- `0004_control_plane_jobs_and_audit.sql`
-- `0005_control_plane_namespace_verification.sql`
-- `0006_control_plane_community_create_idempotency.sql`
-- `0007_control_plane_registry_publication.sql`
-- `0008_control_plane_reddit_onboarding_and_profiles.sql`
-- `0009_control_plane_market_context_bindings.sql`
-- `0010_control_plane_community_money_policies.sql`
-- `0011_control_plane_song_artifact_bundles.sql`
-- `0012_control_plane_song_artifact_uploads.sql`
-- `0013_control_plane_song_artifact_upload_storage_metadata.sql`
-- `0014_control_plane_community_discovery_projection.sql`
-- `0015_control_plane_song_artifact_bundle_enrichment.sql`
-- `0016_control_plane_community_pricing_policies.sql`
-- `0017_control_plane_json_text_to_jsonb.sql`
-- `0018_control_plane_device_sessions.sql`
-- `0019_control_plane_text_timestamps_to_timestamptz.sql`
+Prefix rule:
 
-Community-template migrations:
+- each migration filename prefix must be unique within its migration root
+- the current runner applies files in lexicographic order and only warns on duplicate prefixes
+- do not rely on duplicate numeric prefixes to imply a stable order
 
-- `1001_community_core.sql`
-- `1002_community_listings.sql`
-- `1003_community_post_idempotency.sql`
-- `1004_community_market_context.sql`
-- `1005_community_purchase_quotes.sql`
-- `1006_community_assets.sql`
-- `1007_community_cached_counts.sql`
-- `1008_community_gate_rules.sql`
-- `1009_community_purchase_quote_verification_snapshots.sql`
+Use the directories themselves as the authoritative source:
+
+- `db/control-plane/migrations/`
+  Fresh Postgres targets start from `0000_control_plane_baseline_postgres.sql`.
+  Historical control-plane sequence then continues through the latest checked-in migration.
+- `db/community-template/migrations/`
+  Current community-template sequence starts at `1001_...` and continues through the latest checked-in migration.
+
+For Postgres control-plane runs, the migration runner treats `0000_control_plane_baseline_postgres.sql`
+as a fresh-database snapshot that supersedes the historical `0001_...0033_...` chain.
+It will:
+
+- apply the baseline on fresh Postgres targets
+- skip the historical SQLite-first files after the baseline is applied
+- skip the baseline on databases that already recorded the historical migrations
+
+Keep this README descriptive rather than maintaining a duplicated file-by-file index that can drift from the actual migration roots.
 
 ## Local Apply
 
@@ -131,4 +123,4 @@ rtk infisical run --env dev --path /services/api -- \
 - The community migration files target SQLite-compatible Turso/libSQL DDL.
 - The control-plane migration files are PostgreSQL-first and apply directly to Neon from `db/control-plane/migrations/`.
 - Community databases intentionally do not define a `users` table. They reference central Pirate `user_id` values as foreign identifiers, not local user rows.
-- This repo now includes migration runners in [scripts/apply-sqlite-migrations.sh](/home/t42/Documents/pirate-v2/scripts/apply-sqlite-migrations.sh) and [scripts/apply-postgres-migrations.ts](/home/t42/Documents/pirate-v2/scripts/apply-postgres-migrations.ts), plus [scripts/seed-control-plane-fixtures.ts](/home/t42/Documents/pirate-v2/scripts/seed-control-plane-fixtures.ts) and [scripts/bootstrap-community-slice.ts](/home/t42/Documents/pirate-v2/scripts/bootstrap-community-slice.ts) for Neon-backed local slice bootstrapping.
+- This repo now includes migration runners in [scripts/apply-sqlite-migrations.sh](../scripts/apply-sqlite-migrations.sh) and [scripts/apply-postgres-migrations.ts](../scripts/apply-postgres-migrations.ts), plus [scripts/seed-control-plane-fixtures.ts](../scripts/seed-control-plane-fixtures.ts) and [scripts/bootstrap-community-slice.ts](../scripts/bootstrap-community-slice.ts) for Neon-backed local slice bootstrapping.

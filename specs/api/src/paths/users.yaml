@@ -4,6 +4,15 @@ users_me:
       - Users
     x-implemented: true
     summary: Get the current user
+    parameters:
+      - in: query
+        name: community_ref
+        required: false
+        schema:
+          type: string
+        description: |
+          Optional community reference used to include community-specific posting state for the
+          caller. Accepts a community ID, route key, or `@namespace` label.
     responses:
       "200":
         description: Current user

@@ -152,6 +152,25 @@ CommunityGovernanceBackend:
       centralized: "#/components/schemas/CentralizedGovernanceBackend"
       multisig: "#/components/schemas/MultisigGovernanceBackend"
       majeur: "#/components/schemas/MajeurGovernanceBackend"
+UpdateCommunityGovernanceRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - governance_backend
+  properties:
+    governance_backend:
+      $ref: ./communities-governance.yaml#/CommunityGovernanceBackend
+CommunityGovernanceMutationResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - community_id
+    - governance_backend
+  properties:
+    community_id:
+      type: string
+    governance_backend:
+      $ref: ./communities-governance.yaml#/CommunityGovernanceBackend
 CentralizedGovernanceBackend:
   type: object
   required:

@@ -39,7 +39,7 @@ This doc does not define:
 
 The current Story Aeneid delivery deployment is recorded in:
 
-- [story-aeneid-delivery.json](/home/t42/Documents/pirate-v2/config/story-aeneid-delivery.json)
+- [story-aeneid-delivery.json](../../config/story-aeneid-delivery.json)
 
 That file is the checked-in source of truth for the active dev delivery addresses. The shell manifest produced by the deploy script remains local operational output under `pirate-contracts/story/delivery/deployments/`, but repo-owned docs and tooling should prefer the JSON file above.
 

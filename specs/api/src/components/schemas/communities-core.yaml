@@ -1,7 +1,7 @@
 CreateCommunityRequestBase:
   type: object
   description: |
-    Authoritative community-create write model. For namespace-backed communities in public v0, the server must resolve `namespace.namespace_verification_id` to the accepted namespace-verification object at create time and re-check creator binding, freshness, and `community_attach_allowed` before any community state is written.
+    Authoritative community-create write model. For namespace-backed communities in public v0, the server must resolve `namespace.namespace_verification_id` to the accepted namespace-verification object at create time and re-check creator binding, freshness, and `club_attach_allowed` before any community state is written.
   required:
     - display_name
     - membership_mode
@@ -207,6 +207,13 @@ CreateCommunityRequestBase:
       nullable: true
       description: |
         Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the effective default language policy from the first post onward.
+    civility_policy:
+      allOf:
+        - $ref: ./communities-community.yaml#/CreateCommunityCivilityPolicyInput
+      type: object
+      nullable: true
+      description: |
+        Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the effective default civility policy from the first post onward.
     provenance_policy:
       allOf:
         - $ref: ./communities-community.yaml#/CreateCommunityProvenancePolicyInput
@@ -527,7 +534,7 @@ CreateCommunityRequest:
   description: |
     Public v0 clients must submit only `CreateCentralizedCommunityRequest` (governance_mode = centralized). `CreateMultisigCommunityRequest` and `CreateMajeurCommunityRequest` remain valid in the API for internal, allowlisted, or feature-flagged use only. The public client must not submit them.
 
-    For namespace-backed public v0 create, the server must resolve `namespace.namespace_verification_id` to the accepted `NamespaceVerification` resource, confirm it belongs to the requesting creator, and reject the create if the accepted verification is stale, disputed, expired, or no longer satisfies `community_attach_allowed`.
+    For namespace-backed public v0 create, the server must resolve `namespace.namespace_verification_id` to the accepted `NamespaceVerification` resource, confirm it belongs to the requesting creator, and reject the create if the accepted verification is stale, disputed, expired, or no longer satisfies `club_attach_allowed`.
 CommunityCreateAcceptedResponse:
   type: object
   required:
@@ -539,15 +546,11 @@ CommunityCreateAcceptedResponse:
     job:
       $ref: ./jobs.yaml#/Job
       description: |
-        The operational community-provisioning job returned by `POST /communities`. Registry
-        publication is tracked separately; clients should read
-        `community.registry_publication_job_id` and poll `/jobs/{job_id}` for that distinct
-        lifecycle.
+        The operational community-provisioning job returned by `POST /communities`.
   description: |
     Async acceptance response for community creation. Returns both the community row and
     its operational provisioning job so CLI and SDK clients can continue without secondary
-    lookup. This top-level `job` field is the infrastructure/bootstrap job, not the
-    registry-publication job.
+    lookup.
 UpdateCommunityRequest:
   type: object
   properties:
@@ -663,7 +666,6 @@ Community:
     - display_name
     - status
     - provisioning_state
-    - registry_publication_state
     - membership_mode
     - allow_anonymous_identity
     - agent_posting_policy
@@ -681,6 +683,7 @@ Community:
     - graphic_content_policy
     - motion_media_policy
     - language_policy
+    - civility_policy
     - provenance_policy
     - promotion_policy
     - created_by_user_id
@@ -718,44 +721,6 @@ Community:
       description: |
         Community infrastructure lifecycle state. This is distinct from domain `status`.
         A community may be domain-active while infrastructure provisioning is still in progress.
-    registry_publication_state:
-      type: string
-      enum:
-        - not_started
-        - pending_create
-        - pending_seed
-        - published
-        - stale
-        - publication_error
-      description: |
-        Public registry publication lifecycle state. This is distinct from both domain `status`
-        and infrastructure `provisioning_state`. A community may be operationally usable while
-        registry publication remains pending or failed. Public discovery and public-canonical
-        mutation flows must treat only `published` as canonical.
-    registry_attempt_id:
-      type: string
-      nullable: true
-      description: |
-        Opaque identifier for the public create-attempt audit row associated with the current
-        community publication lifecycle.
-    registry_published_at:
-      type: string
-      format: date-time
-      nullable: true
-      description: |
-        Timestamp when the current canonical public registry publication most recently reached the
-        `published` state.
-    registry_publication_job_id:
-      type: string
-      nullable: true
-      description: |
-        Latest registry-publication job for this community, when one exists. Clients may poll this
-        job through `/jobs/{job_id}`.
-    registry_error_code:
-      type: string
-      nullable: true
-      description: |
-        Machine-readable publication failure code for the current registry lifecycle, when present.
     artist_identity_id:
       type: string
       nullable: true
@@ -944,6 +909,10 @@ Community:
       $ref: ./communities-community.yaml#/CommunityLanguagePolicy
       description: |
         Resolved effective language policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the default from an explicit community configuration.
+    civility_policy:
+      $ref: ./communities-community.yaml#/CommunityCivilityPolicy
+      description: |
+        Resolved effective civility policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the default from an explicit community configuration.
     provenance_policy:
       $ref: ./communities-community.yaml#/CommunityProvenancePolicy
       description: |

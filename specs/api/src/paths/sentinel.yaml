@@ -1,0 +1,73 @@
+sentinel_subscribe:
+  post:
+    tags:
+      - Wallets
+    summary: Ensure the current user has an active Sentinel plan allocation
+    description: |
+      Ensures the authenticated user has an active Sentinel subscription allocation for paid dVPN use.
+      This operation reuses the lazy wallet provisioning flow, then either returns an existing active
+      Sentinel allocation or creates one through Pirate's treasury/admin control plane. v0 assumes
+      treasury-funded allocation and does not attempt autobridge or swap execution.
+    responses:
+      "200":
+        description: Sentinel subscription allocation ready for session start
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/sentinel.yaml#/SentinelSubscriptionEnsureResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "402":
+        $ref: ../components/responses.yaml#/PaymentRequired
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+
+sentinel_session_start:
+  post:
+    tags:
+      - Wallets
+    summary: Start or reuse the current user's active Sentinel session
+    description: |
+      Ensures the authenticated user has a paid entitlement, a Privy-backed Sentinel wallet, and
+      an active Sentinel subscription allocation, then starts a transport session or returns the
+      existing active one. v0 returns WireGuard connection material and persists the active session
+      snapshot for idempotent reconnect behavior.
+    responses:
+      "200":
+        description: Sentinel session active and ready for local transport setup
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/sentinel-session.yaml#/SentinelSessionStartResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "402":
+        $ref: ../components/responses.yaml#/PaymentRequired
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+
+sentinel_session_by_id:
+  delete:
+    tags:
+      - Wallets
+    summary: End the specified Sentinel session
+    description: |
+      Ends the authenticated user's Sentinel session and marks it ended in Pirate's control plane.
+      Repeated calls are idempotent and return the ended state once the session is no longer active.
+    parameters:
+      - in: path
+        name: sentinel_session_id
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Sentinel session ended
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/sentinel-session.yaml#/SentinelSessionEndResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound

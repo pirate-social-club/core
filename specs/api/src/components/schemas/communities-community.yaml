@@ -1003,6 +1003,11 @@ CommunityModerationDecisionLevel:
     - allow
     - review
     - disallow
+CommunityEscalationDecisionLevel:
+  type: string
+  enum:
+    - review
+    - disallow
 CommunityDisclosureDecisionLevel:
   type: string
   enum:
@@ -1590,7 +1595,7 @@ CommunityMotionMediaPolicy:
 CreateCommunityLanguagePolicyInput:
   type: object
   description: |
-    Structured community policy for ordinary profanity and slur handling. Targeted harassment and hate speech remain platform-level constraints and are intentionally not configurable here.
+    Structured community policy for ordinary profanity, slurs, and related language categories above the platform floor.
   required:
     - profanity
     - slurs
@@ -1599,10 +1604,7 @@ CreateCommunityLanguagePolicyInput:
     profanity:
       $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
     slurs:
-      type: string
-      enum:
-        - review
-        - disallow
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
 UpdateCommunityLanguagePolicyRequest:
   type: object
   description: |
@@ -1615,10 +1617,7 @@ UpdateCommunityLanguagePolicyRequest:
     profanity:
       $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
     slurs:
-      type: string
-      enum:
-        - review
-        - disallow
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
 CommunityLanguagePolicy:
   type: object
   description: |
@@ -1637,10 +1636,73 @@ CommunityLanguagePolicy:
     profanity:
       $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
     slurs:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    updated_at:
       type: string
-      enum:
-        - review
-        - disallow
+      format: date-time
+CreateCommunityCivilityPolicyInput:
+  type: object
+  description: |
+    Structured community policy for group-directed demeaning language, targeted insults, harassment, and related legal-but-disputed conduct categories above the platform floor.
+  required:
+    - group_directed_demeaning_language
+    - targeted_insults
+    - targeted_harassment
+    - threatening_language
+  additionalProperties: false
+  properties:
+    group_directed_demeaning_language:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    targeted_insults:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    targeted_harassment:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    threatening_language:
+      $ref: ./communities-community.yaml#/CommunityEscalationDecisionLevel
+UpdateCommunityCivilityPolicyRequest:
+  type: object
+  description: |
+    Replace or update the community's civility policy. Changes apply prospectively to future posts and moderation decisions; existing posts are not automatically reclassified.
+  required:
+    - group_directed_demeaning_language
+    - targeted_insults
+    - targeted_harassment
+    - threatening_language
+  additionalProperties: false
+  properties:
+    group_directed_demeaning_language:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    targeted_insults:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    targeted_harassment:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    threatening_language:
+      $ref: ./communities-community.yaml#/CommunityEscalationDecisionLevel
+CommunityCivilityPolicy:
+  type: object
+  description: |
+    Resolved community civility policy. When no explicit policy has been configured, the server must still return the effective default policy with `policy_origin = default`.
+  required:
+    - community_id
+    - policy_origin
+    - group_directed_demeaning_language
+    - targeted_insults
+    - targeted_harassment
+    - threatening_language
+    - updated_at
+  properties:
+    community_id:
+      type: string
+    policy_origin:
+      $ref: ./communities-community.yaml#/CommunityPolicyOrigin
+    group_directed_demeaning_language:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    targeted_insults:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    targeted_harassment:
+      $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
+    threatening_language:
+      $ref: ./communities-community.yaml#/CommunityEscalationDecisionLevel
     updated_at:
       type: string
       format: date-time
@@ -2536,12 +2598,152 @@ CommunityProfile:
         $ref: ./communities-community.yaml#/CommunityResourceLink
 UpdateCommunityProfileRequest:
   type: object
+  additionalProperties: false
+  required:
+    - display_name
+    - description
+    - avatar_ref
+    - cover_ref
+  properties:
+    display_name:
+      type: string
+    description:
+      type: string
+      nullable: true
+    avatar_ref:
+      type: string
+      nullable: true
+    cover_ref:
+      type: string
+      nullable: true
+UpdateCommunityRulesRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - rules
   properties:
     rules:
       type: array
       items:
         $ref: ./communities-community.yaml#/CommunityRuleMutationInput
+UpdateCommunityResourceLinksRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - resource_links
+  properties:
     resource_links:
       type: array
       items:
         $ref: ./communities-community.yaml#/CommunityResourceLinkMutationInput
+UpdateCommunityDonationPolicyPublicRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - donation_policy
+  properties:
+    donation_policy:
+      type: object
+      additionalProperties: false
+      required:
+        - donation_policy_mode
+        - donation_partner_status
+      properties:
+        donation_policy_mode:
+          type: string
+          enum:
+            - none
+            - optional_creator_sidecar
+            - fundraiser_default
+        donation_partner_status:
+          type: string
+          enum:
+            - unconfigured
+            - active
+            - paused
+CommunityProfileMutationResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - community_id
+    - profile
+  properties:
+    community_id:
+      type: string
+    profile:
+      type: object
+      additionalProperties: false
+      required:
+        - display_name
+      properties:
+        display_name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        avatar_ref:
+          type: string
+          nullable: true
+        cover_ref:
+          type: string
+          nullable: true
+CommunityRulesMutationResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - community_id
+    - rules
+  properties:
+    community_id:
+      type: string
+    rules:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityRule
+    rules_table_name:
+      type: string
+      nullable: true
+CommunityResourceLinksMutationResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - community_id
+    - resource_links
+  properties:
+    community_id:
+      type: string
+    resource_links:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityResourceLink
+    resource_links_table_name:
+      type: string
+      nullable: true
+CommunityDonationPolicyPublicMutationResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - community_id
+    - donation_policy
+  properties:
+    community_id:
+      type: string
+    donation_policy:
+      type: object
+      additionalProperties: false
+      required:
+        - donation_policy_mode
+        - donation_partner_status
+      properties:
+        donation_policy_mode:
+          type: string
+          enum:
+            - none
+            - optional_creator_sidecar
+            - fundraiser_default
+        donation_partner_status:
+          type: string
+          enum:
+            - unconfigured
+            - active
+            - paused

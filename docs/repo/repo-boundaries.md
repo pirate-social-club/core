@@ -41,6 +41,7 @@ Runtime repos may still appear inside this working directory:
 - `pirate-web/`
 - `pirate-contracts/`
 - `pirate-tui/`
+- `pirate-desktop/`
 
 They are not tracked by `core`. They are local sidecar checkouts of the standalone repos:
 
@@ -48,6 +49,7 @@ They are not tracked by `core`. They are local sidecar checkouts of the standalo
 - `pirate-social-club/contracts`
 - `pirate-social-club/api`
 - `pirate-social-club/tui`
+- `pirate-social-club/desktop`
 
 This keeps the workspace convenient without turning `core` into a shadow monorepo.
 
@@ -100,6 +102,7 @@ The repo boundary is healthy when all of the following are true:
 - `core` no longer tracks runtime code under `pirate-web/` or `pirate-contracts/`
 - `core` no longer tracks runtime code under `pirate-api/`
 - `core` no longer tracks runtime code under `pirate-tui/`
+- `core` no longer tracks runtime code under `pirate-desktop/`
 - any local copies at those paths are treated as workspace checkouts only
 
 ## Rules Going Forward

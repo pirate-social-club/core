@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'EOF'
+Usage:
+  ./scripts/sync-wrangler-api-secrets.sh [--env-file PATH]
+
+If --env-file is omitted, the script reads from the current exported environment.
+
+Examples:
+  ./scripts/sync-wrangler-api-secrets.sh \
+    --env-file pirate-api/services/api/.env.remote
+
+  rtk infisical run --env staging --path /services/api -- \
+    ./scripts/sync-wrangler-api-secrets.sh
+EOF
+  exit 1
+}
+
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+API_DIR="$ROOT_DIR/pirate-api/services/api"
+WRANGLER="$API_DIR/node_modules/.bin/wrangler"
+ENV_FILE=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --env-file)
+      ENV_FILE="${2:-}"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      ;;
+    *)
+      echo "unknown argument: $1" >&2
+      usage
+      ;;
+  esac
+done
+
+if [[ ! -x "$WRANGLER" ]]; then
+  echo "wrangler executable not found: $WRANGLER" >&2
+  exit 1
+fi
+
+if [[ -n "$ENV_FILE" ]]; then
+  if [[ ! -f "$ENV_FILE" ]]; then
+    echo "env file not found: $ENV_FILE" >&2
+    exit 1
+  fi
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+fi
+
+required_names=(
+  AUTH_UPSTREAM_JWT_SHARED_SECRET
+  CONTROL_PLANE_DATABASE_URL
+  PIRATE_APP_JWT_PRIVATE_KEY
+  PIRATE_APP_JWT_PUBLIC_KEY
+  PRIVY_APP_SECRET
+)
+
+optional_names=(
+  CONTROL_PLANE_AUTH_TOKEN
+  PRIVY_JWT_VERIFICATION_KEY
+  REGISTRY_PUBLISHER_AUTH_TOKEN
+  SPACES_VERIFIER_AUTH_TOKEN
+)
+
+for name in "${required_names[@]}"; do
+  if [[ -z "${!name:-}" ]]; then
+    echo "missing required env var for wrangler secret sync: $name" >&2
+    exit 1
+  fi
+done
+
+put_secret() {
+  local name="$1"
+  local value="${!name:-}"
+  if [[ -z "$value" ]]; then
+    return 0
+  fi
+  printf '%s' "$value" | (
+    cd "$API_DIR"
+    "$WRANGLER" secret put "$name" >/dev/null
+  )
+}
+
+echo "syncing API worker secrets to Cloudflare worker from wrangler.jsonc" >&2
+
+for name in "${required_names[@]}"; do
+  put_secret "$name"
+done
+
+for name in "${optional_names[@]}"; do
+  put_secret "$name"
+done
+
+cat <<EOF
+wrangler API secret sync complete
+worker_name: pirate-api-core
+required:
+$(printf '%s\n' "${required_names[@]}" | sed 's/^/- /')
+optional when present:
+$(printf '%s\n' "${optional_names[@]}" | sed 's/^/- /')
+managed outside secret sync:
+- AUTH_UPSTREAM_JWT_ENABLED
+- AUTH_UPSTREAM_JWT_ISSUER
+- AUTH_UPSTREAM_JWT_AUDIENCE
+- PIRATE_APP_JWT_ISSUER
+- PIRATE_APP_JWT_AUDIENCE
+- PIRATE_APP_JWT_TTL_SECONDS
+- PRIVY_APP_ID
+- PRIVY_API_URL
+- REGISTRY_PUBLISHER_URL
+- REGISTRY_PUBLISHER_TIMEOUT_MS
+- SPACES_VERIFIER_BASE_URL
+- DEV_MEMORY_STORE_ENABLED
+- ENVIRONMENT
+EOF

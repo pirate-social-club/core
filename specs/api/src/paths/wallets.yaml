@@ -1,0 +1,26 @@
+wallets_sentinel_ensure:
+  post:
+    tags:
+      - Wallets
+    summary: Ensure the current user has a paid Sentinel wallet attachment
+    description: |
+      Returns the authenticated user's active `cosmos:sentinel` wallet attachment for paid dVPN use.
+      The server must not create this wallet during ordinary signup or session exchange. If the user
+      does not have an active paid dVPN entitlement, the server must return `402 PaymentRequired`
+      and must not create the wallet. Once the entitlement exists, the server lazily creates or
+      reuses the Privy-backed Cosmos wallet and persists the canonical wallet attachment plus any
+      provider-specific sidecar state needed for future signing. v0 does not attempt automatic
+      bridge or swap execution as part of this flow.
+    responses:
+      "200":
+        description: Sentinel wallet attachment ready for dVPN use
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/wallets.yaml#/SentinelWalletEnsureResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "402":
+        $ref: ../components/responses.yaml#/PaymentRequired
+      "409":
+        $ref: ../components/responses.yaml#/Conflict

@@ -26,6 +26,7 @@ posts_by_post_id_vote:
   post:
     tags:
       - Posts
+    x-implemented: true
     summary: Cast or update a vote on a post
     description: |
       Public v0 voting requires community membership plus `verification_capabilities.unique_human.state = verified`

@@ -5,6 +5,7 @@ Status: draft
 Related docs:
 
 - [community.md](./community.md)
+- [moderation.md](./moderation.md)
 - [namespace.md](./namespace.md)
 - [artist-identity.md](./artist-identity.md)
 - [handles.md](./handles.md)
@@ -605,7 +606,7 @@ Pirate should separate platform-required safety providers from community-selecta
 
 Rules:
 
-- platform-required safety analysis such as `18+`, CSAM, sexual-content, and violence detection remains platform-managed and is never chosen by the community
+- platform-required safety analysis such as `18+`, sexual-age ambiguity, credible threats, and other narrow platform-floor categories remains platform-managed and is never chosen by the community
 - community authenticity-detection choice applies only to authenticity/source evidence used for community-optional AI-content decisions
 - communities may choose only among platform-approved authenticity-detection profiles; they must not submit raw provider keys, thresholds, or vendor-specific model switches
 - provider choice must not leak directly into product semantics; Pirate should normalize provider outputs before policy evaluation
@@ -654,6 +655,14 @@ Suggested v0 normalized `content_safety_signals_json` item shape:
   - `animal_harm`
   - `profanity`
   - `slurs`
+  - `group_directed_demeaning_language`
+  - `targeted_insults`
+  - `targeted_harassment`
+  - `threatening_language`
+  - `self_harm_discussion`
+  - `self_harm_encouragement`
+  - `criminal_instruction`
+  - `criminal_solicitation`
 - `confidence`
 - `provider_label`
 - `provider_class`
@@ -666,8 +675,9 @@ Suggested v0 normalized `content_safety_signals_json` item shape:
 Interpretation:
 
 - the coarse `content_safety_state` and `age_gate_policy` remain the platform-owned safety floor
-- these finer safety signals enable community adult-content, graphic-content, and language policy decisions without forcing communities to tune raw provider thresholds
-- `content_safety_signals_json` includes `text` in `media_scope` because profanity and slur categories may arise from text or lyrics analysis, whereas `authenticity_signals_json` remains limited to media scopes relevant to authenticity detection
+- these finer safety signals enable community adult-content, graphic-content, language, and civility policy decisions without forcing communities to tune raw provider thresholds
+- the same normalized signal may be platform-relevant, community-relevant, or both
+- `content_safety_signals_json` includes `text` in `media_scope` because profanity, slur, harassment, and threat categories may arise from text or lyrics analysis, whereas `authenticity_signals_json` remains limited to media scopes relevant to authenticity detection
 
 ### Authenticity And Source Policy Interpretation
 
@@ -695,8 +705,9 @@ Recommended v0 policy interpretation:
 - `capture_edit_policy` should evaluate non-generative edit categories independently from AI/generative policy
 - if the same upload triggers both a non-generative edit category and a generative authenticity signal, the generative authenticity decision takes precedence for allow/block purposes
 - if a detected edit category is configured as `require_disclosure`, Pirate should require the disclosure before publication completes
-- if `adult_content_policy`, `graphic_content_policy`, or `language_policy` sets the detected category to `review`, Pirate should set `analysis_state = review_required`
-- if one of those policies sets the detected category to `disallow` with strong evidence, Pirate should set `analysis_state = blocked`
+- if `adult_content_policy`, `graphic_content_policy`, `language_policy`, or `civility_policy` sets the detected category to `review`, Pirate should normally create a moderation annotation and route the post to the relevant review queue; whether publication is held depends on whether the category is also platform-floor relevant
+- if one of those policies sets the detected category to `disallow` with strong evidence, Pirate may set `analysis_state = blocked` for categories the community is allowed to remove at create time
+- legal-but-disputed speech categories such as slurs, hate rhetoric, or non-threatening harassment should usually publish with flags or community-review annotations rather than being forced into a platform hold state
 - if `provenance_policy.require_creator_relation = true` and the post omits `creator_relation`, the create request should be rejected as invalid before publication
 - if the declared `creator_relation` is disallowed by community `provenance_policy`, Pirate should block the write
 - if the declared `creator_relation` materially contradicts authenticity or source evidence with high confidence, Pirate may apply the configured false-claim consequence and set `analysis_state = blocked`
@@ -709,12 +720,19 @@ Recommended v0 upload outcomes:
 
 - `allow`
   Upload may proceed without required changes.
+- `allow_with_flags`
+  Upload may proceed and publish, but Pirate records one or more moderation annotations for labeling, ranking, or community review.
 - `allow_with_required_reference`
   Upload may proceed only if the user attaches one or more required upstream references.
 - `review_required`
   Upload may proceed only after moderation or compliance review.
 - `blocked`
   Upload cannot proceed.
+
+Interpretation:
+
+- `allow_with_flags` is not a separate `analysis_state` on the base post row
+- flag-only outcomes should live in moderation annotations and review-queue records rather than overloading the base publishability state machine
 
 Recommended v0 policy interpretation:
 
@@ -740,7 +758,8 @@ The following table defines the recommended v0 threshold policy mapping analysis
 | text / lyrics | no flagged content | `safe` | `none` | Default for clean text |
 | text / lyrics | profanity (mild or strong) | `sensitive` | `none` | Profanity alone does not trigger `18_plus`; it surfaces the `sensitive` label |
 | text / lyrics | sexual or adult language | `adult` | `18_plus` | Explicit sexual content triggers adult |
-| text / lyrics | hate speech / violence | `pending` (escalated to moderation) | `18_plus` | Automated classification cannot set `adult` for hate/violence without human review; `content_safety_state` stays `pending` until a moderator resolves it. The `analysis_state` is set to `review_required` to route it into the moderation queue. |
+| text / lyrics | slurs, group-directed demeaning language, or non-threatening harassment | `sensitive` | `none` | These signals are usually publishable by default and should create moderation annotations for community policy or moderator review rather than a platform hold. |
+| text / lyrics | threatening language, unlawful incitement, or criminal instruction | `pending` (escalated to moderation) | `none` | Platform-floor text risk should route to platform review rather than be treated as ordinary community-governed language. |
 | image | no flagged content | `safe` | `none` | Default for clean images |
 | image | suggestive or partial nudity | `sensitive` | `none` | Non-explicit suggestive content |
 | image | explicit nudity / sexual content | `adult` | `18_plus` | Explicit sexual imagery |
@@ -758,6 +777,7 @@ Decision rules derived from this table:
 - strong language / profanity alone does not trigger `18_plus`; it triggers `sensitive` at most
 - non-explicit nudity is `sensitive`, not `adult`; explicit nudity or sexual content is `adult`
 - text/lyrics rules and image/video rules should be internally consistent: the same content classified as adult in text would also be adult in image form
+- legal-but-disputed speech signals may be stored as moderation annotations without forcing `content_safety_state = pending`
 - ambiguous or mixed signals should set `content_safety_state` to `pending` and `analysis_state` to `review_required` rather than defaulting `content_safety_state` to `safe`
 
 Mapping to post fields:
@@ -769,6 +789,7 @@ Mapping to post fields:
 - when a draft post is created from an allowed upload, `analysis_state` should mirror the final non-blocking upload outcome
 - the full reasoning and provider payload live on the shared `media_analysis_results` row referenced by `analysis_result_ref`
 - `content_safety_state` and `age_gate_policy` should be copied from the final analysis outcome at post creation time and may later be tightened by moderation
+- flag-only moderation outcomes should live on separate moderation annotation or queue records rather than mutating the coarse publishability state
 - when authenticity disclosure is required by community policy, the publish flow should snapshot the normalized disclosure label onto `disclosed_qualifiers_json` before publication completes
 
 ### Publication Merge Rule
@@ -787,6 +808,7 @@ If either axis is in a blocking state, publication is blocked:
 - `analysis_state = allow_with_required_reference` allows publication only after the user attaches the required upstream references
 - `content_safety_state = sensitive` allows publication but the post should carry any implied labeling or warnings according to product policy
 - `content_safety_state = adult` allows publication only when `age_gate_policy = 18_plus`; the published post must then be gated to adult-eligible viewers according to the club and post viewing rules
+- moderation annotations or community-review flags do not block publication by themselves unless they also produced a blocking `analysis_state` or `content_safety_state`
 
 This merge rule is the authoritative publishability gate. Individual analysis and safety decisions feed into it but neither axis alone determines publishability.
 
@@ -1083,10 +1105,29 @@ Suggested `action_type` values:
 - `lock`
 - `unlock`
 
+Suggested v0 automated moderation annotation shape:
+
+- `post_moderation_annotation_id`
+- `post_id`
+- `community_id`
+- `source`
+  - `platform_analysis`
+  - `community_automation`
+  - `user_report`
+- `signal_type`
+- `severity`
+- `queue_scope`
+  - `platform`
+  - `community`
+- `evidence_ref` nullable
+- `created_at`
+
 Rules:
 
 - `status` on the post stores the current visible lifecycle state
 - moderation records store the action history that led to that state
+- moderation annotations store classifier-derived or report-derived flags that may not have changed the base post lifecycle yet
+- whether a post is publishable remains a function of the base `analysis_state` and `content_safety_state` merge rule rather than a separate boolean on each annotation
 - moderators act within community policy; platform admins retain fallback authority
 - moderators may tighten `content_safety_state` or `age_gate_policy` after review, but should not weaken inherited upstream age gates without explicit admin tooling
 

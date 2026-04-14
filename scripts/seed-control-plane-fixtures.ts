@@ -4,6 +4,7 @@ import { seedControlPlaneFixtures } from "./lib/control-plane-fixtures";
 
 type Options = {
   databaseUrlEnv: string;
+  allowProduction: boolean;
   userId: string;
   subject: string;
   providerSubject?: string;
@@ -30,6 +31,7 @@ Options:
   --reddit-username NAME       Default: technohippie
   --provider NAME              Default: jwt
   --issuer ISS                 Default: pirate-dev-upstream
+  --allow-production           Allow writes to Neon-hosted databases. Default: false
   -h, --help                   Show this help text.`);
   process.exit(1);
 }
@@ -37,6 +39,7 @@ Options:
 function parseArgs(argv: string[]): Options {
   const options: Options = {
     databaseUrlEnv: "",
+    allowProduction: false,
     userId: "usr_demo_01",
     subject: "demo-subject-01",
     handle: "demo",
@@ -87,6 +90,10 @@ function parseArgs(argv: string[]): Options {
         options.issuer = value ?? options.issuer;
         index += 2;
         break;
+      case "--allow-production":
+        options.allowProduction = true;
+        index += 1;
+        break;
       case "-h":
       case "--help":
         usage();
@@ -104,6 +111,22 @@ function parseArgs(argv: string[]): Options {
   return options;
 }
 
+function assertSafeTargetDatabaseUrl(databaseUrl: string, allowProduction: boolean) {
+  let hostname = "";
+  try {
+    hostname = new URL(databaseUrl).hostname.toLowerCase();
+  } catch {
+    return;
+  }
+
+  if (hostname.includes(".neon.tech") && !allowProduction) {
+    console.error(
+      "refusing to seed fixtures into a Neon-hosted database without --allow-production",
+    );
+    process.exit(1);
+  }
+}
+
 const options = parseArgs(process.argv.slice(2));
 const databaseUrl = process.env[options.databaseUrlEnv];
 
@@ -111,6 +134,8 @@ if (!databaseUrl) {
   console.error(`missing database url env var: ${options.databaseUrlEnv}`);
   process.exit(1);
 }
+
+assertSafeTargetDatabaseUrl(databaseUrl, options.allowProduction);
 
 const result = await seedControlPlaneFixtures({
   databaseUrl,

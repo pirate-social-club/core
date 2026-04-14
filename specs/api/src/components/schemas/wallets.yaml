@@ -1,0 +1,30 @@
+SentinelWalletEnsureResponse:
+  type: object
+  required:
+    - wallet_attachment_id
+    - chain_namespace
+    - wallet_address
+    - public_key_hex
+    - source_provider
+    - created_now
+  properties:
+    wallet_attachment_id:
+      type: string
+    chain_namespace:
+      type: string
+      enum:
+        - cosmos:sentinel
+    wallet_address:
+      type: string
+    public_key_hex:
+      type: string
+      description: |
+        Hex-encoded compressed secp256k1 public key for the linked Sentinel wallet.
+    source_provider:
+      type: string
+      enum:
+        - privy
+    created_now:
+      type: boolean
+      description: |
+        `true` when this call created or first persisted the Sentinel wallet attachment.

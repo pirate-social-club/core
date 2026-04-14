@@ -16,7 +16,7 @@ ensure_folder() {
   local name="$2"
 
   if rtk infisical secrets folders get --env "$INFISICAL_ENV" --path "$parent" -o json |
-    rtk rg -q "\"name\"[[:space:]]*:[[:space:]]*\"$name\""; then
+    rtk rg -q "\"folderName\"[[:space:]]*:[[:space:]]*\"$name\""; then
     return 0
   fi
 
@@ -25,8 +25,14 @@ ensure_folder() {
 
 set_secret() {
   local path="$1"
-  local assignment="$2"
-  rtk infisical secrets set --env "$INFISICAL_ENV" --path "$path" "$assignment" >/dev/null
+  local name="$2"
+  local value="$3"
+  local temp_file
+
+  temp_file="$(mktemp)"
+  printf '%s' "$value" >"$temp_file"
+  rtk infisical secrets set --env "$INFISICAL_ENV" --path "$path" "${name}=@${temp_file}" >/dev/null
+  rm -f "$temp_file"
 }
 
 require_env STORY_CONTRACT_OWNER_PRIVATE_KEY
@@ -35,22 +41,22 @@ echo "bootstrapping pirate-v2 Story secrets in Infisical env: $INFISICAL_ENV" >&
 
 ensure_folder "/" "contracts"
 ensure_folder "/contracts" "story"
-set_secret "/contracts/story" "STORY_CONTRACT_OWNER_PRIVATE_KEY=$STORY_CONTRACT_OWNER_PRIVATE_KEY"
+set_secret "/contracts/story" "STORY_CONTRACT_OWNER_PRIVATE_KEY" "$STORY_CONTRACT_OWNER_PRIVATE_KEY"
 
 if [[ -n "${LIT_CHIPOTLE_OPERATOR_API_KEY:-}" || -n "${LIT_CHIPOTLE_ACCESS_CONTROLLER_API_KEY:-}" || -n "${LIT_CHIPOTLE_STORY_SETTLEMENT_API_KEY:-}" ]]; then
   ensure_folder "/" "services"
   ensure_folder "/services" "api"
 
   if [[ -n "${LIT_CHIPOTLE_OPERATOR_API_KEY:-}" ]]; then
-    set_secret "/services/api" "LIT_CHIPOTLE_OPERATOR_API_KEY=$LIT_CHIPOTLE_OPERATOR_API_KEY"
+    set_secret "/services/api" "LIT_CHIPOTLE_OPERATOR_API_KEY" "$LIT_CHIPOTLE_OPERATOR_API_KEY"
   fi
 
   if [[ -n "${LIT_CHIPOTLE_ACCESS_CONTROLLER_API_KEY:-}" ]]; then
-    set_secret "/services/api" "LIT_CHIPOTLE_ACCESS_CONTROLLER_API_KEY=$LIT_CHIPOTLE_ACCESS_CONTROLLER_API_KEY"
+    set_secret "/services/api" "LIT_CHIPOTLE_ACCESS_CONTROLLER_API_KEY" "$LIT_CHIPOTLE_ACCESS_CONTROLLER_API_KEY"
   fi
 
   if [[ -n "${LIT_CHIPOTLE_STORY_SETTLEMENT_API_KEY:-}" ]]; then
-    set_secret "/services/api" "LIT_CHIPOTLE_STORY_SETTLEMENT_API_KEY=$LIT_CHIPOTLE_STORY_SETTLEMENT_API_KEY"
+    set_secret "/services/api" "LIT_CHIPOTLE_STORY_SETTLEMENT_API_KEY" "$LIT_CHIPOTLE_STORY_SETTLEMENT_API_KEY"
   fi
 fi
 

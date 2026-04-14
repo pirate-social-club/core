@@ -17,6 +17,7 @@ tags:
   - name: Verification
   - name: Agents
   - name: Onboarding
+  - name: Wallets
   - name: Users
   - name: Profiles
   - name: Communities
@@ -27,6 +28,7 @@ tags:
   - name: Feeds
   - name: Tracks
   - name: Scrobbles
+  - name: Moderation
   - name: MPP
   - name: Jobs
 paths:
@@ -68,6 +70,15 @@ paths:
                             - privy_access_token
                         privy_access_token:
                           type: string
+                        privy_identity_token:
+                          type: string
+                          nullable: true
+                          description: |
+                            Optional Privy identity token for the same authenticated subject.
+                            When present, Pirate may extract linked wallets directly from the
+                            token and create wallet attachments during session bootstrap. In the
+                            first Privy slice, omitting this field still authenticates the user
+                            but may return an empty `wallet_attachments` array.
                         wallet_address:
                           type: string
                           nullable: true
@@ -76,6 +87,7 @@ paths:
                             When present, Pirate must resolve it against the wallet set linked to
                             the authenticated upstream identity and use that wallet attachment for
                             session bootstrap rather than discovering the default wallet implicitly.
+                            The first executable Privy slice may ignore this hint.
                     - type: object
                       required:
                         - type
@@ -135,10 +147,6 @@ paths:
                     provider_mode: qr_deeplink
                     requested_capabilities:
                       - unique_human
-                      - age_over_18
-                      - nationality
-                    verification_intent: profile_verification
-                    policy_id: verify_policy_self_profile_v0
                     status: pending
                     launch:
                       mode: qr_deeplink
@@ -148,11 +156,12 @@ paths:
                         endpoint_type: https
                         scope: pirate-verification-v0
                         session_id: ver_sess_01HSELFQREXAMPLE
-                        user_id: usr_01HUSEREXAMPLE
-                        user_id_type: uuid
+                        user_id: "0x5a20f59b8d4df2e3c68d94e2fa4e3f9c3a0dc5cde8e0c614f8b4bc2d53a9e8b1"
+                        user_id_type: hex
                         disclosures:
-                          nationality: true
-                          minimum_age: 18
+                          nationality: false
+                          minimum_age: null
+                          gender: false
                     callback_path: /verification-sessions/ver_sess_01HSELFQREXAMPLE/callback
                     created_at: 2026-04-10T12:00:00Z
                     expires_at: 2026-04-10T12:15:00Z
@@ -165,29 +174,27 @@ paths:
                     provider_mode: widget
                     requested_capabilities:
                       - unique_human
-                    verification_intent: community_creation
-                    policy_id: verify_policy_very_unique_human_v0
                     status: pending
                     launch:
                       mode: widget
                       very_widget:
-                        app_id: pirate-app
-                        context: ver_sess_01HVERYWIDGETEXAMPLE
-                        type_id: palm-scan-v0
+                        app_id: ""
+                        context: VeryAI - Palm Verification Timestamp
+                        type_id: "3"
                         query:
                           conditions:
-                            - identifier: palm
+                            - identifier: val
                               operation: IN
                               value:
-                                from: 2026-01-01T00:00:00Z
-                                to: 2026-12-31T23:59:59Z
+                                from: "1743436800"
+                                to: "2043436800"
                           options:
-                            expiredAtLowerBound: 2026-04-10T12:15:00Z
+                            expiredAtLowerBound: "1743436800"
                             externalNullifier: pirate-community-creation
                             equalCheckId: "0"
                             pseudonym: "0"
-                        verify_url: https://verify.very.example/widget
-                    callback_path: /verification-sessions/ver_sess_01HVERYWIDGETEXAMPLE/callback
+                        verify_url: https://verify.very.org/api/v1/verify
+                    callback_path: /verification-sessions/ver_sess_01HVERYWIDGETEXAMPLE/complete
                     created_at: 2026-04-10T12:00:00Z
                     expires_at: 2026-04-10T12:15:00Z
         "401":
@@ -265,6 +272,31 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
+  /verification-sessions/{verification_session_id}/callback:
+    post:
+      tags:
+        - Verification
+      x-implemented: true
+      summary: Provider callback for a verification session
+      parameters:
+        - $ref: "#/components/parameters/VerificationSessionId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderVerificationCallbackRequest"
+      responses:
+        "200":
+          description: Verification session updated by provider callback
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationSession"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /verification-sessions/{verification_session_id}/complete:
     post:
       tags:
@@ -288,35 +320,6 @@ paths:
                 $ref: "#/components/schemas/VerificationSession"
         "401":
           $ref: "#/components/responses/AuthError"
-        "404":
-          $ref: "#/components/responses/NotFound"
-  /verification-sessions/{verification_session_id}/callback:
-    post:
-      tags:
-        - Verification
-      security: []
-      summary: Receive an asynchronous provider callback for a verification session
-      description: |
-        Server-owned callback entrypoint used for provider-driven verification completion.
-        Examples include Self relayer callbacks and future provider-managed completion hooks.
-        Interactive clients should normally use the session `launch` payload plus
-        `POST /verification-sessions/{verification_session_id}/complete` rather than
-        calling this endpoint directly.
-      parameters:
-        - $ref: "#/components/parameters/VerificationSessionId"
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ProviderVerificationCallbackRequest"
-      responses:
-        "200":
-          description: Verification session updated from callback data
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/VerificationSession"
         "404":
           $ref: "#/components/responses/NotFound"
   /agent-ownership-sessions:
@@ -650,6 +653,15 @@ paths:
         - Users
       x-implemented: true
       summary: Get the current user
+      parameters:
+        - in: query
+          name: community_ref
+          required: false
+          schema:
+            type: string
+          description: |
+            Optional community reference used to include community-specific posting state for the
+            caller. Accepts a community ID, route key, or `@namespace` label.
       responses:
         "200":
           description: Current user
@@ -659,6 +671,103 @@ paths:
                 $ref: "#/components/schemas/User"
         "401":
           $ref: "#/components/responses/AuthError"
+  /wallets/sentinel/ensure:
+    post:
+      tags:
+        - Wallets
+      summary: Ensure the current user has a paid Sentinel wallet attachment
+      description: |
+        Returns the authenticated user's active `cosmos:sentinel` wallet attachment for paid dVPN use.
+        The server must not create this wallet during ordinary signup or session exchange. If the user
+        does not have an active paid dVPN entitlement, the server must return `402 PaymentRequired`
+        and must not create the wallet. Once the entitlement exists, the server lazily creates or
+        reuses the Privy-backed Cosmos wallet and persists the canonical wallet attachment plus any
+        provider-specific sidecar state needed for future signing. v0 does not attempt automatic
+        bridge or swap execution as part of this flow.
+      responses:
+        "200":
+          description: Sentinel wallet attachment ready for dVPN use
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SentinelWalletEnsureResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "402":
+          $ref: "#/components/responses/PaymentRequired"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /sentinel/subscribe:
+    post:
+      tags:
+        - Wallets
+      summary: Ensure the current user has an active Sentinel plan allocation
+      description: |
+        Ensures the authenticated user has an active Sentinel subscription allocation for paid dVPN use.
+        This operation reuses the lazy wallet provisioning flow, then either returns an existing active
+        Sentinel allocation or creates one through Pirate's treasury/admin control plane. v0 assumes
+        treasury-funded allocation and does not attempt autobridge or swap execution.
+      responses:
+        "200":
+          description: Sentinel subscription allocation ready for session start
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SentinelSubscriptionEnsureResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "402":
+          $ref: "#/components/responses/PaymentRequired"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /sentinel/session/start:
+    post:
+      tags:
+        - Wallets
+      summary: Start or reuse the current user's active Sentinel session
+      description: |
+        Ensures the authenticated user has a paid entitlement, a Privy-backed Sentinel wallet, and
+        an active Sentinel subscription allocation, then starts a transport session or returns the
+        existing active one. v0 returns WireGuard connection material and persists the active session
+        snapshot for idempotent reconnect behavior.
+      responses:
+        "200":
+          description: Sentinel session active and ready for local transport setup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SentinelSessionStartResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "402":
+          $ref: "#/components/responses/PaymentRequired"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /sentinel/session/{sentinel_session_id}:
+    delete:
+      tags:
+        - Wallets
+      summary: End the specified Sentinel session
+      description: |
+        Ends the authenticated user's Sentinel session and marks it ended in Pirate's control plane.
+        Repeated calls are idempotent and return the ended state once the session is no longer active.
+      parameters:
+        - in: path
+          name: sentinel_session_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Sentinel session ended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SentinelSessionEndResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /profiles/me:
     get:
       tags:
@@ -710,6 +819,7 @@ paths:
     post:
       tags:
         - Profiles
+      x-implemented: true
       summary: Rename the current active global .pirate handle
       requestBody:
         required: true
@@ -741,6 +851,7 @@ paths:
     post:
       tags:
         - Profiles
+      x-implemented: true
       summary: Quote a paid upgrade into a cleaner .pirate handle
       requestBody:
         required: true
@@ -799,7 +910,7 @@ paths:
         - the accepted namespace verification exists
         - it belongs to the requesting creator
         - it is still accepted and not stale, disputed, or expired
-        - its current capabilities still satisfy `community_attach_allowed`
+        - its current capabilities still satisfy `club_attach_allowed`
 
         Public v0 create must fail closed when those checks do not pass.
       requestBody:
@@ -980,24 +1091,7 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
-  /communities/{community_id}/community-profile:
-    get:
-      tags:
-        - Communities
-      summary: Get the community profile for a community
-      parameters:
-        - $ref: "#/components/parameters/CommunityId"
-      responses:
-        "200":
-          description: Community profile
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CommunityProfile"
-        "401":
-          $ref: "#/components/responses/AuthError"
-        "404":
-          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/profile:
     patch:
       tags:
         - Communities
@@ -1012,17 +1106,131 @@ paths:
               $ref: "#/components/schemas/UpdateCommunityProfileRequest"
       responses:
         "200":
-          description: Community profile updated
+          description: Community profile mutation published
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CommunityProfile"
+                $ref: "#/components/schemas/CommunityProfileMutationResponse"
         "401":
           $ref: "#/components/responses/AuthError"
         "403":
           $ref: "#/components/responses/EligibilityFailed"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /communities/{community_id}/governance:
+    patch:
+      tags:
+        - Communities
+      summary: Update the public governance pointer for a community
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCommunityGovernanceRequest"
+      responses:
+        "200":
+          description: Community governance mutation published
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityGovernanceMutationResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /communities/{community_id}/donation-policy-public:
+    patch:
+      tags:
+        - Communities
+      summary: Update the public donation policy summary for a community
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCommunityDonationPolicyPublicRequest"
+      responses:
+        "200":
+          description: Community donation-policy mutation published
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityDonationPolicyPublicMutationResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /communities/{community_id}/rules:
+    put:
+      tags:
+        - Communities
+      summary: Update the public community rules for a community
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCommunityRulesRequest"
+      responses:
+        "200":
+          description: Community rules mutation published
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityRulesMutationResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /communities/{community_id}/resource-links:
+    put:
+      tags:
+        - Communities
+      summary: Update the public community resource links for a community
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCommunityResourceLinksRequest"
+      responses:
+        "200":
+          description: Community resource-links mutation published
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityResourceLinksMutationResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /communities/{community_id}/reference-links:
     get:
       tags:
@@ -1661,6 +1869,7 @@ paths:
     post:
       tags:
         - Communities
+      x-implemented: true
       summary: Join a community
       description: |
         The server must always evaluate the platform baseline join gate before considering the community's membership mode.
@@ -1823,6 +2032,74 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/CreatePostRequest"
+            examples:
+              text_basic:
+                summary: Minimal text post with body only
+                value:
+                  idempotency_key: post_create_text_001
+                  post_type: text
+                  body: Looking for feedback on tonight's set.
+              image_basic:
+                summary: Image post with one uploaded image ref
+                value:
+                  idempotency_key: post_create_image_001
+                  post_type: image
+                  caption: Poster draft for next week.
+                  media_refs:
+                    - storage_ref: ipfs://bafybeiposterimage001
+                      mime_type: image/png
+                      size_bytes: 482193
+                      content_hash: 0ximgposter001
+              video_basic:
+                summary: Video post with one uploaded video ref
+                value:
+                  idempotency_key: post_create_video_001
+                  post_type: video
+                  title: Rehearsal clip
+                  media_refs:
+                    - storage_ref: ipfs://bafybeivideoclip001
+                      mime_type: video/mp4
+                      size_bytes: 18421933
+                      content_hash: 0xvideoclip001
+                      duration_ms: 27400
+              link_basic:
+                summary: Link post with optional title and commentary
+                value:
+                  idempotency_key: post_create_link_001
+                  post_type: link
+                  title: Fed meeting recap
+                  body: This is the cleanest summary I have seen so far.
+                  link_url: https://news.example.com/fed-meeting-recap
+              song_bundle_original:
+                summary: Song post backed by a registered artifact bundle
+                value:
+                  idempotency_key: post_create_song_bundle_001
+                  post_type: song
+                  identity_mode: public
+                  title: Harbor Lights
+                  song_mode: original
+                  rights_basis: original
+                  song_artifact_bundle_id: sab_01HSONGBUNDLE001
+              song_inline_remix:
+                summary: Inline remix song post with audio, lyrics, and upstream attribution
+                value:
+                  idempotency_key: post_create_song_inline_001
+                  post_type: song
+                  identity_mode: public
+                  title: Harbor Lights (Night Edit)
+                  song_mode: remix
+                  rights_basis: derivative
+                  upstream_asset_refs:
+                    - ast_01HUPSTREAM001
+                  media_refs:
+                    - storage_ref: ipfs://bafybeiaudioedit001
+                      mime_type: audio/mpeg
+                      size_bytes: 9234411
+                      content_hash: 0xaudioedit001
+                      duration_ms: 201000
+                  lyrics: |
+                    Streetlights on the water, echoes in the bay.
+                    Cut the drums lower, let the old hook stay.
       responses:
         "201":
           description: |
@@ -1876,6 +2153,116 @@ paths:
           $ref: "#/components/responses/AuthError"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /communities/{community_id}/posts/{post_id}/reports:
+    post:
+      tags:
+        - Moderation
+      summary: Report a post in a community
+      description: |
+        Creates a user report for the target post. If an open moderation case already exists for the
+        post, the report should attach to that case rather than creating a duplicate. Otherwise the
+        server may open a new community-scoped moderation case.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/PostId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserReportRequest"
+      responses:
+        "201":
+          description: User report created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserReport"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/VerificationRequired"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /communities/{community_id}/moderation/cases:
+    get:
+      tags:
+        - Moderation
+      summary: List moderation cases for a community
+      description: |
+        Returns moderation cases for the community. V0 is expected to focus on open cases used by
+        single creators or moderators through a simple `Needs Review` surface.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      responses:
+        "200":
+          description: Moderation cases
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModerationCaseListResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/moderation/cases/{moderation_case_id}:
+    get:
+      tags:
+        - Moderation
+      summary: Read a moderation case
+      description: |
+        Returns the case, target post, attached moderation signals, attached user reports, and any
+        prior moderation actions for a single moderation case.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/ModerationCaseId"
+      responses:
+        "200":
+          description: Moderation case detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModerationCaseDetail"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/moderation/cases/{moderation_case_id}/actions:
+    post:
+      tags:
+        - Moderation
+      summary: Resolve a moderation case with an action
+      description: |
+        Appends a moderation action to the case and updates the target post when the selected action
+        implies a post-state change such as `hide`, `remove`, `restore`, or `age_gate`.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/ModerationCaseId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateModerationActionRequest"
+      responses:
+        "200":
+          description: Moderation case detail after action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModerationCaseDetail"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /communities/{community_id}/song-artifact-uploads:
     post:
       tags:
@@ -2114,261 +2501,57 @@ paths:
             $ref: "#/components/responses/Conflict"
           "429":
             $ref: "#/components/responses/RateLimited"
-    communities_by_community_id_adult_content_policy:
-      get:
-        tags:
-          - Communities
-        summary: Get the active adult-content policy for a community
-        description: |
-          Returns the resolved effective adult-content policy. When the community has not explicitly configured an adult-content policy yet, the server must return the default policy with `policy_origin = default`. Platform age-gating and safety scanning remain mandatory regardless of this policy.
-        parameters:
-          - $ref: "#/components/parameters/CommunityId"
-        responses:
-          "200":
-            description: Community adult-content policy
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/CommunityAdultContentPolicy"
-          "401":
-            $ref: "#/components/responses/AuthError"
-          "404":
-            $ref: "#/components/responses/NotFound"
-      patch:
-        tags:
-          - Communities
-        summary: Configure or update the adult-content policy for a community
-        description: |
-          Stores an explicit community adult-content policy. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
-        parameters:
-          - $ref: "#/components/parameters/CommunityId"
-        requestBody:
-          required: true
+  /communities/{community_id}/civility-policy:
+    get:
+      tags:
+        - Communities
+      summary: Get the active civility policy for a community
+      description: |
+        Returns the resolved effective civility policy. When the community has not explicitly configured a civility policy yet, the server must return the default policy with `policy_origin = default`.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      responses:
+        "200":
+          description: Community civility policy
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UpdateCommunityAdultContentPolicyRequest"
-        responses:
-          "200":
-            description: Community adult-content policy updated
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/CommunityAdultContentPolicy"
-          "401":
-            $ref: "#/components/responses/AuthError"
-          "403":
-            $ref: "#/components/responses/EligibilityFailed"
-          "404":
-            $ref: "#/components/responses/NotFound"
-          "409":
-            $ref: "#/components/responses/Conflict"
-          "429":
-            $ref: "#/components/responses/RateLimited"
-    communities_by_community_id_graphic_content_policy:
-      get:
-        tags:
-          - Communities
-        summary: Get the active graphic-content policy for a community
-        description: |
-          Returns the resolved effective graphic-content policy. When the community has not explicitly configured a graphic-content policy yet, the server must return the default policy with `policy_origin = default`.
-        parameters:
-          - $ref: "#/components/parameters/CommunityId"
-        responses:
-          "200":
-            description: Community graphic-content policy
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/CommunityGraphicContentPolicy"
-          "401":
-            $ref: "#/components/responses/AuthError"
-          "404":
-            $ref: "#/components/responses/NotFound"
-      patch:
-        tags:
-          - Communities
-        summary: Configure or update the graphic-content policy for a community
-        description: |
-          Stores an explicit community graphic-content policy. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
-        parameters:
-          - $ref: "#/components/parameters/CommunityId"
-        requestBody:
-          required: true
+                $ref: "#/components/schemas/CommunityCivilityPolicy"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - Communities
+      summary: Configure or update the civility policy for a community
+      description: |
+        Stores an explicit community civility policy for group-directed demeaning language, targeted insults, harassment, and related legal-but-disputed conduct categories above the platform floor. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCommunityCivilityPolicyRequest"
+      responses:
+        "200":
+          description: Community civility policy updated
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UpdateCommunityGraphicContentPolicyRequest"
-        responses:
-          "200":
-            description: Community graphic-content policy updated
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/CommunityGraphicContentPolicy"
-          "401":
-            $ref: "#/components/responses/AuthError"
-          "403":
-            $ref: "#/components/responses/EligibilityFailed"
-          "404":
-            $ref: "#/components/responses/NotFound"
-          "409":
-            $ref: "#/components/responses/Conflict"
-          "429":
-            $ref: "#/components/responses/RateLimited"
-    communities_by_community_id_language_policy:
-      get:
-        tags:
-          - Communities
-        summary: Get the active language policy for a community
-        description: |
-          Returns the resolved effective language policy. When the community has not explicitly configured a language policy yet, the server must return the default policy with `policy_origin = default`.
-        parameters:
-          - $ref: "#/components/parameters/CommunityId"
-        responses:
-          "200":
-            description: Community language policy
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/CommunityLanguagePolicy"
-          "401":
-            $ref: "#/components/responses/AuthError"
-          "404":
-            $ref: "#/components/responses/NotFound"
-      patch:
-        tags:
-          - Communities
-        summary: Configure or update the language policy for a community
-        description: |
-          Stores an explicit community language policy for profanity and slur handling. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts. Targeted harassment and hate speech remain platform-level constraints.
-        parameters:
-          - $ref: "#/components/parameters/CommunityId"
-        requestBody:
-          required: true
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UpdateCommunityLanguagePolicyRequest"
-        responses:
-          "200":
-            description: Community language policy updated
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/CommunityLanguagePolicy"
-          "401":
-            $ref: "#/components/responses/AuthError"
-          "403":
-            $ref: "#/components/responses/EligibilityFailed"
-          "404":
-            $ref: "#/components/responses/NotFound"
-          "409":
-            $ref: "#/components/responses/Conflict"
-          "429":
-            $ref: "#/components/responses/RateLimited"
-    communities_by_community_id_capture_edit_policy:
-      get:
-        tags:
-          - Communities
-        summary: Get the active capture-edit policy for a community
-        description: |
-          Returns the resolved effective capture-edit policy for non-generative media adjustments. When the community has not explicitly configured a capture-edit policy yet, the server must return the default policy with `policy_origin = default`.
-        parameters:
-          - $ref: "#/components/parameters/CommunityId"
-        responses:
-          "200":
-            description: Community capture-edit policy
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/CommunityCaptureEditPolicy"
-          "401":
-            $ref: "#/components/responses/AuthError"
-          "404":
-            $ref: "#/components/responses/NotFound"
-      patch:
-        tags:
-          - Communities
-        summary: Configure or update the capture-edit policy for a community
-        description: |
-          Stores an explicit community capture-edit policy for non-generative photo and video editing. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts. Generative and AI-specific rules remain part of `content_authenticity_policy`.
-        parameters:
-          - $ref: "#/components/parameters/CommunityId"
-        requestBody:
-          required: true
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UpdateCommunityCaptureEditPolicyRequest"
-        responses:
-          "200":
-            description: Community capture-edit policy updated
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/CommunityCaptureEditPolicy"
-          "401":
-            $ref: "#/components/responses/AuthError"
-          "403":
-            $ref: "#/components/responses/EligibilityFailed"
-          "404":
-            $ref: "#/components/responses/NotFound"
-          "409":
-            $ref: "#/components/responses/Conflict"
-          "429":
-            $ref: "#/components/responses/RateLimited"
-    communities_by_community_id_motion_media_policy:
-      get:
-        tags:
-          - Communities
-        summary: Get the active motion-media policy for a community
-        description: |
-          Returns the resolved effective motion-media policy for animated images, looping clips, and audio-bearing video. When the community has not explicitly configured a motion-media policy yet, the server must return the default policy with `policy_origin = default`.
-        parameters:
-          - $ref: "#/components/parameters/CommunityId"
-        responses:
-          "200":
-            description: Community motion-media policy
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/CommunityMotionMediaPolicy"
-          "401":
-            $ref: "#/components/responses/AuthError"
-          "404":
-            $ref: "#/components/responses/NotFound"
-      patch:
-        tags:
-          - Communities
-        summary: Configure or update the motion-media policy for a community
-        description: |
-          Stores an explicit community motion-media policy. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts. This policy intentionally does not create a separate `gif` post type.
-        parameters:
-          - $ref: "#/components/parameters/CommunityId"
-        requestBody:
-          required: true
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UpdateCommunityMotionMediaPolicyRequest"
-        responses:
-          "200":
-            description: Community motion-media policy updated
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/CommunityMotionMediaPolicy"
-          "401":
-            $ref: "#/components/responses/AuthError"
-          "403":
-            $ref: "#/components/responses/EligibilityFailed"
-          "404":
-            $ref: "#/components/responses/NotFound"
-          "409":
-            $ref: "#/components/responses/Conflict"
-          "429":
-            $ref: "#/components/responses/RateLimited"
+                $ref: "#/components/schemas/CommunityCivilityPolicy"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /live-rooms/{live_room_id}:
     get:
       tags:
@@ -2740,6 +2923,7 @@ paths:
     post:
       tags:
         - Posts
+      x-implemented: true
       summary: Cast or update a vote on a post
       description: |
         Public v0 voting requires community membership plus `verification_capabilities.unique_human.state = verified`
@@ -3204,6 +3388,12 @@ components:
       required: true
       schema:
         type: string
+    ModerationCaseId:
+      in: path
+      name: moderation_case_id
+      required: true
+      schema:
+        type: string
     VerificationSessionId:
       in: path
       name: verification_session_id
@@ -3417,6 +3607,7 @@ components:
             - rate_limited
             - payment_failed
             - settlement_pending
+            - provider_unavailable
             - internal_error
         message:
           type: string
@@ -3463,6 +3654,16 @@ components:
       properties:
         user_id:
           type: string
+        community_posting_state:
+          type: object
+          nullable: true
+          properties:
+            community_ref:
+              type: string
+            community_id:
+              type: string
+            has_created_text_post:
+              type: boolean
         primary_wallet_attachment_id:
           type: string
           nullable: true
@@ -3566,6 +3767,7 @@ components:
       enum:
         - profile_verification
         - community_creation
+        - ucommunity_join
         - post_access_18_plus
         - commerce_pricing
         - qualifier_disclosure
@@ -3728,7 +3930,6 @@ components:
       type: object
       required:
         - provider
-        - requested_capabilities
       description: |
         Start an interactive verification session for a provider that requires a frontend launch flow.
         This surface is intentionally limited to interactive providers such as `self` and `very`.
@@ -3777,12 +3978,18 @@ components:
       type: object
       description: |
         Provider-agnostic completion or refresh payload for an interactive verification session.
-        Fields are optional because some providers complete asynchronously through the callback path
-        while others return proof material to the frontend first.
+        Fields are optional because some providers complete asynchronously while others return proof
+        material to the frontend first.
       properties:
         attestation_id:
           type: string
           nullable: true
+        proof:
+          type: string
+          nullable: true
+          description: |
+            Provider proof material returned to the browser and forwarded to Pirate for final
+            verification. This is currently required for the working Very bridge flow.
         proof_hash:
           type: string
           nullable: true
@@ -4255,6 +4462,212 @@ components:
         updated_at:
           type: string
           format: date-time
+    UserReportReasonCode:
+      type: string
+      enum:
+        - spam
+        - harassment
+        - hate
+        - sexual_content
+        - graphic_content
+        - misleading
+        - other
+    ModerationActionType:
+      type: string
+      enum:
+        - dismiss
+        - hide
+        - remove
+        - restore
+        - age_gate
+    ModerationSignal:
+      type: object
+      required:
+        - moderation_signal_id
+        - community_id
+        - post_id
+        - analysis_result_ref
+        - source
+        - signal_type
+        - severity
+        - provider
+        - provider_label
+        - created_at
+      properties:
+        moderation_signal_id:
+          type: string
+        community_id:
+          type: string
+        post_id:
+          type: string
+        analysis_result_ref:
+          type: string
+        source:
+          type: string
+          enum:
+            - platform_analysis
+        signal_type:
+          type: string
+        severity:
+          $ref: "#/components/schemas/ModerationSignalSeverity"
+        provider:
+          type: string
+        provider_label:
+          type: string
+        evidence_ref:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    UserReport:
+      type: object
+      required:
+        - user_report_id
+        - community_id
+        - post_id
+        - reporter_user_id
+        - reason_code
+        - created_at
+      properties:
+        user_report_id:
+          type: string
+        community_id:
+          type: string
+        post_id:
+          type: string
+        reporter_user_id:
+          type: string
+        reason_code:
+          $ref: "#/components/schemas/UserReportReasonCode"
+        note:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    ModerationAction:
+      type: object
+      required:
+        - moderation_action_id
+        - moderation_case_id
+        - community_id
+        - post_id
+        - actor_user_id
+        - action_type
+        - created_at
+      properties:
+        moderation_action_id:
+          type: string
+        moderation_case_id:
+          type: string
+        community_id:
+          type: string
+        post_id:
+          type: string
+        actor_user_id:
+          type: string
+        action_type:
+          $ref: "#/components/schemas/ModerationActionType"
+        note:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    ModerationCase:
+      type: object
+      required:
+        - moderation_case_id
+        - community_id
+        - post_id
+        - status
+        - queue_scope
+        - priority
+        - opened_by
+        - created_at
+        - updated_at
+      properties:
+        moderation_case_id:
+          type: string
+        community_id:
+          type: string
+        post_id:
+          type: string
+        status:
+          $ref: "#/components/schemas/ModerationCaseStatus"
+        queue_scope:
+          $ref: "#/components/schemas/ModerationQueueScope"
+        priority:
+          $ref: "#/components/schemas/ModerationSignalSeverity"
+        opened_by:
+          $ref: "#/components/schemas/ModerationCaseOpenedBy"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+    ModerationCaseDetail:
+      type: object
+      required:
+        - case
+        - post
+        - signals
+        - reports
+        - actions
+      properties:
+        case:
+          $ref: "#/components/schemas/ModerationCase"
+        post:
+          $ref: "#/components/schemas/Post"
+        signals:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModerationSignal"
+        reports:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserReport"
+        actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModerationAction"
+    ModerationCaseListResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModerationCase"
+    CreateUserReportRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - reason_code
+      properties:
+        reason_code:
+          $ref: "#/components/schemas/UserReportReasonCode"
+        note:
+          type: string
+          nullable: true
+    CreateModerationActionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - action_type
+      properties:
+        action_type:
+          $ref: "#/components/schemas/ModerationActionType"
+        note:
+          type: string
+          nullable: true
     UserAgent:
       type: object
       additionalProperties: false
@@ -4461,8 +4874,7 @@ components:
           type: string
           nullable: true
           description: |
-            Server-owned callback path reserved for provider redirects, relayers, or webhook-style
-            completion. Clients should treat this as informational.
+            Server-owned completion path for the session. Clients may treat this as informational.
         nationality:
           type: string
           nullable: true
@@ -4501,25 +4913,34 @@ components:
           type: string
           enum:
             - hns
+            - spaces
           description: |
-            Public v0 supports HNS only. Future namespace families may extend this surface without changing the session model.
+            Public v0 supports HNS and Spaces. Future namespace families may extend this surface without changing the session model.
         root_label:
           type: string
           description: Root label as entered by the creator before server normalization.
     CompleteNamespaceVerificationSessionRequest:
       type: object
       description: |
-        Trigger a refresh of TXT challenge observations and assertion derivation after the creator has published the required record. The body is optional because many implementations can treat this as an idempotent recheck.
+        Trigger a refresh of challenge observations and assertion derivation after the creator has completed the required proof step. The body is optional because many implementations can treat this as an idempotent recheck.
       properties:
         restart_challenge:
           type: boolean
           nullable: true
           description: |
-            Optional hint to invalidate the current TXT challenge and issue a new one if the creator wants to restart the proof flow.
+            Optional hint to invalidate the current challenge and issue a new one if the creator wants to restart the proof flow.
+        signature_payload:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: |
+            Optional family-specific completion payload supplied by the client.
+            Spaces flows may use this to submit a Schnorr signature plus related signer metadata.
+            HNS flows normally leave this unset because completion is resolver-driven rather than signature-submission driven.
     NamespaceVerificationAssertions:
       type: object
       description: |
-        Accepted or in-flight namespace assertions derived from the current evidence bundle. These facts remain distinct so attach capability, routing capability, and Pirate-managed subdomain capability are not collapsed into one flag.
+        Accepted or in-flight namespace assertions derived from the current evidence bundle. These facts remain distinct so attach capability, routing capability, live root-key control, and protocol-specific managed-issuance capability are not collapsed into one flag.
       properties:
         root_exists:
           type: boolean
@@ -4536,6 +4957,18 @@ components:
         pirate_dns_authority_verified:
           type: boolean
           nullable: true
+        root_key_proof_verified:
+          type: boolean
+          nullable: true
+        live_signature_verified:
+          type: boolean
+          nullable: true
+        anchor_fresh_enough:
+          type: boolean
+          nullable: true
+        owner_signed_updates_verified:
+          type: boolean
+          nullable: true
     NamespaceVerificationCapabilities:
       type: object
       description: |
@@ -4548,6 +4981,12 @@ components:
           type: boolean
           nullable: true
         pirate_subdomain_issuance_allowed:
+          type: boolean
+          nullable: true
+        owner_signed_record_updates_allowed:
+          type: boolean
+          nullable: true
+        pirate_subspace_issuance_allowed:
           type: boolean
           nullable: true
     NamespaceVerificationSession:
@@ -4574,6 +5013,7 @@ components:
           type: string
           enum:
             - hns
+            - spaces
         submitted_root_label:
           type: string
         normalized_root_label:
@@ -4592,19 +5032,32 @@ components:
             - failed
             - expired
             - disputed
-        challenge_host:
+          description: |
+            Shared namespace-verification session status.
+            `dns_setup_required` is HNS-only and should not be used for Spaces sessions.
+        challenge_kind:
           type: string
+          enum:
+            - dns_txt
+            - schnorr_sign
           nullable: true
-          description: Exact host where the TXT challenge must be published when required.
-        challenge_txt_value:
-          type: string
+          description: |
+            Family-specific challenge type for the current session.
+            `dns_txt` is used by HNS-style TXT proof flows.
+            `schnorr_sign` is used by Spaces root-signature proof flows.
+        challenge_payload:
+          type: object
           nullable: true
-          description: TXT value Pirate expects to observe for root-control proof.
+          additionalProperties: true
+          description: |
+            Family-specific challenge payload.
+            Example HNS payload fields may include `host` and `txt_value`.
+            Example Spaces payload fields may include `message`, `digest`, and signer metadata.
         challenge_expires_at:
           type: string
           format: date-time
           nullable: true
-          description: Expiration time for the currently issued TXT challenge, distinct from the overall namespace verification session expiry.
+          description: Expiration time for the currently issued challenge, distinct from the overall namespace verification session expiry.
         assertions:
           allOf:
             - $ref: "#/components/schemas/NamespaceVerificationAssertions"
@@ -4627,12 +5080,13 @@ components:
             - owner_managed_namespace
             - routing_only_namespace
             - pirate_delegated_namespace
+            - owner_signed_updates_namespace
           nullable: true
         observation_provider:
           type: string
           nullable: true
           description: |
-            Trusted HNS-aware provider used for the most recent accepted observation in public v0, such as Fire HSD.
+            Trusted provider used for the most recent accepted namespace-verification observation in public v0.
         evidence_bundle_ref:
           type: string
           nullable: true
@@ -4675,6 +5129,7 @@ components:
           type: string
           enum:
             - hns
+            - spaces
         normalized_root_label:
           type: string
         status:
@@ -4702,6 +5157,7 @@ components:
             - owner_managed_namespace
             - routing_only_namespace
             - pirate_delegated_namespace
+            - owner_signed_updates_namespace
           nullable: true
         observation_provider:
           type: string
@@ -4907,7 +5363,7 @@ components:
     CreateCommunityRequestBase:
       type: object
       description: |
-        Authoritative community-create write model. For namespace-backed communities in public v0, the server must resolve `namespace.namespace_verification_id` to the accepted namespace-verification object at create time and re-check creator binding, freshness, and `community_attach_allowed` before any community state is written.
+        Authoritative community-create write model. For namespace-backed communities in public v0, the server must resolve `namespace.namespace_verification_id` to the accepted namespace-verification object at create time and re-check creator binding, freshness, and `club_attach_allowed` before any community state is written.
       required:
         - display_name
         - membership_mode
@@ -5113,6 +5569,13 @@ components:
           nullable: true
           description: |
             Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the effective default language policy from the first post onward.
+        civility_policy:
+          allOf:
+            - $ref: "#/components/schemas/CreateCommunityCivilityPolicyInput"
+          type: object
+          nullable: true
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the effective default civility policy from the first post onward.
         provenance_policy:
           allOf:
             - $ref: "#/components/schemas/CreateCommunityProvenancePolicyInput"
@@ -5433,7 +5896,7 @@ components:
       description: |
         Public v0 clients must submit only `CreateCentralizedCommunityRequest` (governance_mode = centralized). `CreateMultisigCommunityRequest` and `CreateMajeurCommunityRequest` remain valid in the API for internal, allowlisted, or feature-flagged use only. The public client must not submit them.
 
-        For namespace-backed public v0 create, the server must resolve `namespace.namespace_verification_id` to the accepted `NamespaceVerification` resource, confirm it belongs to the requesting creator, and reject the create if the accepted verification is stale, disputed, expired, or no longer satisfies `community_attach_allowed`.
+        For namespace-backed public v0 create, the server must resolve `namespace.namespace_verification_id` to the accepted `NamespaceVerification` resource, confirm it belongs to the requesting creator, and reject the create if the accepted verification is stale, disputed, expired, or no longer satisfies `club_attach_allowed`.
     CommunityCreateAcceptedResponse:
       type: object
       required:
@@ -5445,15 +5908,11 @@ components:
         job:
           $ref: "#/components/schemas/Job"
           description: |
-            The operational community-provisioning job returned by `POST /communities`. Registry
-            publication is tracked separately; clients should read
-            `community.registry_publication_job_id` and poll `/jobs/{job_id}` for that distinct
-            lifecycle.
+            The operational community-provisioning job returned by `POST /communities`.
       description: |
         Async acceptance response for community creation. Returns both the community row and
         its operational provisioning job so CLI and SDK clients can continue without secondary
-        lookup. This top-level `job` field is the infrastructure/bootstrap job, not the
-        registry-publication job.
+        lookup.
     UpdateCommunityRequest:
       type: object
       properties:
@@ -6140,6 +6599,25 @@ components:
         updated_at:
           type: string
           format: date-time
+    UpdateCommunityGovernanceRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - governance_backend
+      properties:
+        governance_backend:
+          $ref: "#/components/schemas/CommunityGovernanceBackend"
+    CommunityGovernanceMutationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - community_id
+        - governance_backend
+      properties:
+        community_id:
+          type: string
+        governance_backend:
+          $ref: "#/components/schemas/CommunityGovernanceBackend"
     GovernanceVerificationState:
       type: string
       enum:
@@ -6475,7 +6953,7 @@ components:
         namespace_verification_id:
           type: string
           description: |
-            Opaque server-issued identifier for the previously accepted namespace verification session. The server resolves this to the underlying root-control evidence and assertions at create time. Creation must be rejected if the referenced verification is stale, disputed, or does not satisfy `community_attach_allowed` for the relevant protocol family. This field is required for public v0 create. Label and route fields below are derived from the verification session and are used for display and routing, not as proof of root control.
+            Opaque server-issued identifier for the previously accepted namespace verification session. The server resolves this to the underlying root-control evidence and assertions at create time. Creation must be rejected if the referenced verification is stale, disputed, or does not satisfy `club_attach_allowed` for the relevant protocol family. This field is required for public v0 create. Label and route fields below are derived from the verification session and are used for display and routing, not as proof of root control.
         display_label:
           type: string
           description: |
@@ -6528,7 +7006,6 @@ components:
         - display_name
         - status
         - provisioning_state
-        - registry_publication_state
         - membership_mode
         - allow_anonymous_identity
         - agent_posting_policy
@@ -6546,6 +7023,7 @@ components:
         - graphic_content_policy
         - motion_media_policy
         - language_policy
+        - civility_policy
         - provenance_policy
         - promotion_policy
         - created_by_user_id
@@ -6583,44 +7061,6 @@ components:
           description: |
             Community infrastructure lifecycle state. This is distinct from domain `status`.
             A community may be domain-active while infrastructure provisioning is still in progress.
-        registry_publication_state:
-          type: string
-          enum:
-            - not_started
-            - pending_create
-            - pending_seed
-            - published
-            - stale
-            - publication_error
-          description: |
-            Public registry publication lifecycle state. This is distinct from both domain `status`
-            and infrastructure `provisioning_state`. A community may be operationally usable while
-            registry publication remains pending or failed. Public discovery and public-canonical
-            mutation flows must treat only `published` as canonical.
-        registry_attempt_id:
-          type: string
-          nullable: true
-          description: |
-            Opaque identifier for the public create-attempt audit row associated with the current
-            community publication lifecycle.
-        registry_published_at:
-          type: string
-          format: date-time
-          nullable: true
-          description: |
-            Timestamp when the current canonical public registry publication most recently reached the
-            `published` state.
-        registry_publication_job_id:
-          type: string
-          nullable: true
-          description: |
-            Latest registry-publication job for this community, when one exists. Clients may poll this
-            job through `/jobs/{job_id}`.
-        registry_error_code:
-          type: string
-          nullable: true
-          description: |
-            Machine-readable publication failure code for the current registry lifecycle, when present.
         artist_identity_id:
           type: string
           nullable: true
@@ -6809,6 +7249,10 @@ components:
           $ref: "#/components/schemas/CommunityLanguagePolicy"
           description: |
             Resolved effective language policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the default from an explicit community configuration.
+        civility_policy:
+          $ref: "#/components/schemas/CommunityCivilityPolicy"
+          description: |
+            Resolved effective civility policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the default from an explicit community configuration.
         provenance_policy:
           $ref: "#/components/schemas/CommunityProvenancePolicy"
           description: |
@@ -7663,6 +8107,12 @@ components:
         duration_ms:
           type: integer
           nullable: true
+        clip_start_ms:
+          type: integer
+          nullable: true
+        clip_duration_ms:
+          type: integer
+          nullable: true
     SongImageArtifactDescriptor:
       type: object
       required:
@@ -7704,6 +8154,12 @@ components:
         duration_ms:
           type: integer
           nullable: true
+        clip_start_ms:
+          type: integer
+          nullable: true
+        clip_duration_ms:
+          type: integer
+          nullable: true
         width:
           type: integer
           nullable: true
@@ -7727,6 +8183,9 @@ components:
           nullable: true
         preview_audio:
           $ref: "#/components/schemas/SongArtifactUploadRef"
+          nullable: true
+        preview_window:
+          $ref: "#/components/schemas/SongPreviewWindow"
           nullable: true
         canvas_video:
           $ref: "#/components/schemas/SongArtifactUploadRef"
@@ -7857,6 +8316,7 @@ components:
         - media_refs
         - lyrics
         - lyrics_sha256
+        - preview_status
         - translation_status
         - alignment_status
         - moderation_status
@@ -7896,6 +8356,19 @@ components:
           nullable: true
         preview_audio:
           $ref: "#/components/schemas/SongAudioArtifactDescriptor"
+          nullable: true
+        preview_window:
+          $ref: "#/components/schemas/SongPreviewWindow"
+          nullable: true
+        preview_status:
+          type: string
+          enum:
+            - pending
+            - processing
+            - completed
+            - failed
+        preview_error:
+          type: string
           nullable: true
         canvas_video:
           $ref: "#/components/schemas/SongVideoArtifactDescriptor"
@@ -8069,6 +8542,7 @@ components:
                   - lyrics
         - description: |
             Song posts require either `song_artifact_bundle_id` or both `media_refs` (at least one `audio/*`) and `lyrics`. Identity must be public.
+            `access_mode = locked` is only supported for bundle-backed song posts so the post can expose preview-safe media while the asset keeps the full payload gated.
             When `rights_basis = derivative` or `song_mode = remix`, `upstream_asset_refs` must contain at least one entry; this is enforced server-side.
           required:
             - post_type
@@ -8090,6 +8564,11 @@ components:
               type: string
               enum:
                 - public
+            access_mode:
+              type: string
+              enum:
+                - public
+                - locked
             media_refs:
               type: array
               minItems: 1
@@ -8099,6 +8578,16 @@ components:
             anyOf:
               - required:
                   - link_url
+              - allOf:
+                  - required:
+                      - song_artifact_bundle_id
+                  - required:
+                      - media_refs
+              - allOf:
+                  - required:
+                      - song_artifact_bundle_id
+                  - required:
+                      - lyrics
       required:
         - idempotency_key
         - post_type
@@ -8199,6 +8688,13 @@ components:
             - machine_allowed
             - human_only
             - hybrid
+        access_mode:
+          type: string
+          description: |
+            Song-only asset access mode. `public` keeps the source audio public. `locked` creates a locked asset and requires `song_artifact_bundle_id`.
+          enum:
+            - public
+            - locked
           nullable: true
         asset_id:
           type: string
@@ -9100,15 +9596,102 @@ components:
             $ref: "#/components/schemas/CommunityResourceLink"
     UpdateCommunityProfileRequest:
       type: object
+      additionalProperties: false
+      required:
+        - display_name
+        - description
+        - avatar_ref
+        - cover_ref
+      properties:
+        display_name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        avatar_ref:
+          type: string
+          nullable: true
+        cover_ref:
+          type: string
+          nullable: true
+    CommunityProfileMutationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - community_id
+        - profile
+      properties:
+        community_id:
+          type: string
+        profile:
+          type: object
+          additionalProperties: false
+          required:
+            - display_name
+          properties:
+            display_name:
+              type: string
+            description:
+              type: string
+              nullable: true
+            avatar_ref:
+              type: string
+              nullable: true
+            cover_ref:
+              type: string
+              nullable: true
+    UpdateCommunityRulesRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - rules
       properties:
         rules:
           type: array
           items:
             $ref: "#/components/schemas/CommunityRuleMutationInput"
+    CommunityRulesMutationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - community_id
+        - rules
+      properties:
+        community_id:
+          type: string
+        rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommunityRule"
+        rules_table_name:
+          type: string
+          nullable: true
+    UpdateCommunityResourceLinksRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - resource_links
+      properties:
         resource_links:
           type: array
           items:
             $ref: "#/components/schemas/CommunityResourceLinkMutationInput"
+    CommunityResourceLinksMutationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - community_id
+        - resource_links
+      properties:
+        community_id:
+          type: string
+        resource_links:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommunityResourceLink"
+        resource_links_table_name:
+          type: string
+          nullable: true
     TrackResolveRequest:
       type: object
       description: |
@@ -9389,7 +9972,6 @@ components:
           type: string
           enum:
             - community_provisioning
-            - community_registry_publication
             - reddit_snapshot_import
             - club_threads_export
             - media_analysis

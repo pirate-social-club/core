@@ -30,6 +30,7 @@ These roots may exist locally for convenience, but they are not part of tracked 
 - `pirate-web/`
 - `pirate-contracts/`
 - `pirate-tui/`
+- `pirate-desktop/`
 
 They are sidecar checkouts of the standalone runtime repos.
 

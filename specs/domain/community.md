@@ -117,6 +117,7 @@ V0 fields for `communities`:
 - `graphic_content_policy`
 - `motion_media_policy`
 - `language_policy`
+- `civility_policy`
 - `provenance_policy`
 - `promotion_policy`
 - `community_agent_user_id` nullable
@@ -145,7 +146,8 @@ V0 fields for `communities`:
 - `adult_content_policy` is a structured community setting that defines which adult-content subcategories are allowed, review-only, or disallowed.
 - `graphic_content_policy` is a structured community setting that defines which graphic-violence and disturbing-content subcategories are allowed, review-only, or disallowed.
 - `motion_media_policy` is a structured community setting that governs animated images, looping clips, and ordinary audio-bearing video without creating a separate `gif` post type.
-- `language_policy` is a structured community setting that distinguishes ordinary profanity from slur categories while leaving targeted harassment and hate speech at the platform layer.
+- `language_policy` is a structured community setting that distinguishes ordinary profanity, slurs, and related language categories.
+- `civility_policy` is a structured community setting that governs group-directed demeaning language, targeted insults, harassment, and related legal-but-disputed conduct categories above the platform floor.
 - `provenance_policy` is a structured community setting that governs required creator-relation claims and the consequence posture for false ownership claims.
 - `promotion_policy` is a structured community setting that governs whether communities allow self-promotional posts and what disclosure or participation rules apply.
 - `donation_partner_id` points to the community's approved donation beneficiary when donation sidecars are enabled.
@@ -370,12 +372,21 @@ Rules:
 
 Several structured community policies below use shared decision levels instead of bespoke booleans.
 
+Some policies intentionally support fewer options than the full shared set.
+
+Examples:
+
+- `threatening_language` may omit `allow`
+- some disclosure-oriented policies use a separate `require_disclosure` family instead of plain moderation levels
+
 Recommended v0 levels:
 
 - `allow`
   - the detected category may publish if every other platform or community gate also passes
 - `review`
-  - the detected category is not automatically allowed; Pirate should route it into `analysis_state = review_required`
+  - the detected category is not automatically allowed
+  - Pirate should create a moderator-review path for the category
+  - whether the post is held pre-publication or published with a review annotation depends on whether the category is platform-floor relevant or merely community-governed
 - `disallow`
   - the detected category should be blocked when evidence is strong enough for an automatic denial
   - ambiguous evidence may still fall back to `review_required` rather than a hard block
@@ -799,7 +810,7 @@ Default when unset:
 
 ## Language Policy
 
-Communities should be able to distinguish ordinary profanity from more severe language categories without weakening platform bans on harassment or hate.
+Communities should be able to distinguish ordinary profanity from more severe language categories without collapsing those choices into platform-level speech policy.
 
 Suggested v0 field:
 
@@ -817,19 +828,65 @@ Suggested v0 shape:
   - `review`
   - `disallow`
 - `slurs`
+  - `allow`
   - `review`
   - `disallow`
 
 Rules:
 
-- targeted harassment and hate speech remain platform-level constraints and are intentionally not represented as community choices
+- communities may govern how legal slur-containing content is handled inside their own space
 - communities may be stricter than the platform floor but never looser
 
 Default when unset:
 
 - if `language_policy` is `null`, the effective policy must resolve to:
   - `profanity = allow`
-  - `slurs = disallow`
+  - `slurs = review`
+
+## Civility Policy
+
+Communities should be able to govern legal-but-disputed civility norms without Pirate pretending those categories are automatic platform violations.
+
+Suggested v0 field:
+
+- `civility_policy`
+
+Storage note:
+
+- the stored community setting may be `null` at create time in public v0
+- the server must resolve an effective default policy whenever no explicit civility policy has been configured yet
+
+Suggested v0 shape:
+
+- `group_directed_demeaning_language`
+  - `allow`
+  - `review`
+  - `disallow`
+- `targeted_insults`
+  - `allow`
+  - `review`
+  - `disallow`
+- `targeted_harassment`
+  - `allow`
+  - `review`
+  - `disallow`
+- `threatening_language`
+  - `review`
+  - `disallow`
+
+Rules:
+
+- communities may govern most legal hate, harassment, and civility norms
+- the platform floor still overrides community choice for credible threats, likely illegal incitement, or similarly high-risk categories
+- `threatening_language` may appear in community policy for moderator workflow purposes, but platform review should still take precedence when Pirate believes the content crosses the platform floor
+
+Default when unset:
+
+- if `civility_policy` is `null`, the effective policy must resolve to:
+  - `group_directed_demeaning_language = allow`
+  - `targeted_insults = allow`
+  - `targeted_harassment = review`
+  - `threatening_language = review`
 
 ## Provenance Policy
 
@@ -992,7 +1049,7 @@ Structured community content policy should be deferred from the public v0 create
 
 Rules:
 
-- public `POST /communities` may omit `agent_posting_policy`, `agent_posting_scope`, `content_authenticity_policy`, `source_policy`, `capture_edit_policy`, `adult_content_policy`, `graphic_content_policy`, `motion_media_policy`, `language_policy`, `provenance_policy`, and `promotion_policy`
+- public `POST /communities` may omit `agent_posting_policy`, `agent_posting_scope`, `content_authenticity_policy`, `source_policy`, `capture_edit_policy`, `adult_content_policy`, `graphic_content_policy`, `motion_media_policy`, `language_policy`, `civility_policy`, `provenance_policy`, and `promotion_policy`
 - public `POST /communities` may also omit `content_authenticity_detection_policy`
 - if omitted, the community may still transition to or remain `active` according to the normal lifecycle rules
 - upload enforcement must always evaluate the effective resolved policy, not the raw nullable stored field
@@ -1007,7 +1064,7 @@ Structured community content-policy changes should be prospective by default.
 
 Rules:
 
-- updating `agent_posting_policy`, `agent_posting_scope`, `content_authenticity_policy`, `source_policy`, `capture_edit_policy`, `adult_content_policy`, `graphic_content_policy`, `motion_media_policy`, `language_policy`, `provenance_policy`, or `promotion_policy` applies to new posts and new moderation decisions after the change
+- updating `agent_posting_policy`, `agent_posting_scope`, `content_authenticity_policy`, `source_policy`, `capture_edit_policy`, `adult_content_policy`, `graphic_content_policy`, `motion_media_policy`, `language_policy`, `civility_policy`, `provenance_policy`, or `promotion_policy` applies to new posts and new moderation decisions after the change
 - existing posts keep the `analysis_state`, `content_safety_state`, age-gate result, and disclosure snapshot they had when published unless moderators take a new explicit action
 - communities should not automatically reclassify all historical posts when policy flips from `human_first` to `ai_allowed` or vice versa
 - if Pirate later adds a bulk review tool for policy migrations, that should be modeled as a moderator workflow rather than an implicit side effect of settings updates

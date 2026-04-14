@@ -35,6 +35,28 @@ type ResolvedOptions = {
   issuer: string;
 };
 
+async function namespaceVerificationAssertionsHasFamilyColumn(db: Bun.SQL, databaseUrl: string): Promise<boolean> {
+  if (databaseUrl.startsWith("file:")) {
+    const rows = await db<{ name: string }[]>`
+      SELECT name
+      FROM pragma_table_info('namespace_verification_assertions')
+      WHERE name = 'family'
+    `;
+    return rows.length > 0;
+  }
+
+  const rows = await db<{ exists: boolean }[]>`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'namespace_verification_assertions'
+        AND column_name = 'family'
+    ) AS exists
+  `;
+  return Boolean(rows[0]?.exists);
+}
+
 function resolveOptions(input: SeedControlPlaneFixtureOptions): ResolvedOptions {
   return {
     databaseUrl: input.databaseUrl,
@@ -175,6 +197,8 @@ export async function seedControlPlaneFixtures(
   const db = new Bun.SQL(options.databaseUrl);
 
   try {
+    const assertionFamilyColumnPresent = await namespaceVerificationAssertionsHasFamilyColumn(db, options.databaseUrl);
+
     await db.begin(async (tx) => {
       await tx`
         INSERT INTO users (
@@ -577,6 +601,46 @@ export async function seedControlPlaneFixtures(
       ] as const;
 
       for (const [suffix, assertionName, assertionValue] of assertionRows) {
+        if (assertionFamilyColumnPresent) {
+          await tx`
+            INSERT INTO namespace_verification_assertions (
+              assertion_record_id,
+              namespace_verification_session_id,
+              namespace_verification_id,
+              family,
+              assertion_name,
+              assertion_value,
+              source_evidence_bundle_id,
+              status,
+              first_accepted_at,
+              last_revalidated_at,
+              created_at,
+              updated_at
+            ) VALUES (
+              ${`${suffix}_${namespaceNormalized}_${options.userId}`},
+              ${namespaceVerificationSessionId},
+              ${namespaceVerificationId},
+              'hns',
+              ${assertionName},
+              ${assertionValue},
+              ${evidenceBundleId},
+              'accepted',
+              ${nowIso},
+              ${nowIso},
+              ${nowIso},
+              ${nowIso}
+            )
+            ON CONFLICT (assertion_record_id) DO UPDATE SET
+              namespace_verification_id = EXCLUDED.namespace_verification_id,
+              assertion_value = EXCLUDED.assertion_value,
+              status = EXCLUDED.status,
+              first_accepted_at = EXCLUDED.first_accepted_at,
+              last_revalidated_at = EXCLUDED.last_revalidated_at,
+              updated_at = EXCLUDED.updated_at
+          `;
+          continue;
+        }
+
         await tx`
           INSERT INTO namespace_verification_assertions (
             assertion_record_id,
