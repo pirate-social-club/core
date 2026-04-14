@@ -7,6 +7,7 @@ This service hosts Pirate's PowerDNS-backed HNS verifier and zone-provisioning r
 - inspect whether Pirate has already provisioned a delegated HNS child zone
 - create the `<root>.` zone in PowerDNS when Pirate-managed delegation is observed
 - publish `_pirate.<root>` TXT records for verification sessions
+- trigger PowerDNS rediscovery after zone updates so delegated roots become authoritative immediately
 - verify TXT challenges against the same authoritative source of truth PowerDNS serves
 
 ## Endpoints
@@ -21,9 +22,9 @@ This service hosts Pirate's PowerDNS-backed HNS verifier and zone-provisioning r
 - `HNS_VERIFIER_HOST`
 - `HNS_VERIFIER_PORT`
 - `HNS_VERIFIER_AUTH_TOKEN`
-- `PDNS_API_URL`
-- `PDNS_SERVER_ID`
-- `PDNS_API_KEY`
+- `PDNS_SQLITE_DATABASE`
+- `PDNS_DEFAULT_SOA_CONTENT`
+- `PDNS_REDISCOVER_COMMAND`
 - `HNS_AUTHORITATIVE_NAMESERVERS`
 - `HNS_AUTHORITATIVE_TTL`
 - `HNS_AUTHORITATIVE_APEX_IPV4`
