@@ -3607,6 +3607,7 @@ components:
             - rate_limited
             - payment_failed
             - settlement_pending
+            - provider_unavailable
             - internal_error
         message:
           type: string

@@ -207,6 +207,12 @@ Challenge convention:
 5. verify a creator-provided signature against the extracted public key
 6. issue `namespace_verification_id` if the remaining policy checks pass
 
+Rollout note:
+
+- Spaces and HNS are separate verification families and must keep separate user instructions
+- Pirate may host both verifier runtimes on the same VPS to save cost
+- sharing a host does not imply sharing proof mechanics, state interpretation, or frontend UX
+
 ## Flow
 
 ### 1. Start Session
@@ -223,6 +229,11 @@ Server actions:
 - bind the session to the authenticated creator
 - normalize the root label
 - reject labels that are not valid top-level Spaces roots
+
+Frontend rule:
+
+- the Spaces start flow must never ask the user to set `NS`, `TXT`, or other DNS records
+- Spaces verification is a root-proof plus fresh-signature flow, not a DNS-delegation flow
 
 ### 2. Inspect Root
 
@@ -269,6 +280,8 @@ Rationale:
 - a static challenge is replayable
 - Pirate needs fresh creator-bound proof for the current session
 
+The frontend should display the challenge payload returned by the API and ask the user to sign that exact message or digest with the current root key.
+
 ### 4. Receive Signature
 
 The creator signs the challenge using the current key that controls the verified Spaces root.
@@ -304,6 +317,14 @@ Failure should preserve inspectable context:
 - expired challenge
 - stale or contradictory proof
 - provider unavailable
+
+Recommended frontend completion sequence:
+
+1. start `family = spaces` namespace verification
+2. read the signing challenge from the session payload
+3. request a signature from the current Spaces root key
+4. call `POST /namespace-verification-sessions/{id}/complete` with `signature_payload`
+5. if the session challenge expires, call the same completion endpoint with `restart_challenge = true` to mint a fresh challenge
 
 ### 6. Evaluate Assertions
 
@@ -419,6 +440,11 @@ The path family may stay shared with HNS, but the write model must preserve:
 - a family-specific challenge payload
 - a family-specific evidence bundle
 
+The shared path shape is acceptable only if the frontend still branches hard by family:
+
+- HNS shows DNS or delegation setup
+- Spaces shows proof and signature UX
+
 ## Revalidation
 
 Accepted Spaces verification is not permanent.
@@ -436,6 +462,15 @@ Revalidation should inspect:
 - current root proof under current accepted anchors
 - whether the current public key still matches the accepted state
 - whether a fresh signature is required for the attempted action
+
+## After HNS
+
+Recommended delivery sequence:
+
+1. make HNS work first with authoritative DNS, TXT verification, and native HNS routing
+2. keep the frontend family split explicit while HNS is the first live public-v0 path
+3. then enable Spaces on the same VPS using the proof-plus-signature verifier runtime
+4. keep the API surface shared where it is already shared, but preserve family-specific UX and evidence handling
 
 Recommended downgrade rules:
 

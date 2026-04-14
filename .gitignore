@@ -10,6 +10,7 @@ pirate-web/
 pirate-contracts/
 pirate-tui/
 pirate-desktop/
+pirate-android/
 
 # Deploy manifests
 deployments/

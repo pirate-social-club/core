@@ -16,34 +16,33 @@ After this runbook:
 
 ## Prerequisites
 
-- [pirate-api/services/api/.env.local-sqlite.example](../../pirate-api/services/api/.env.local-sqlite.example) copied to `.env.local-sqlite`
-- [pirate-web/.env.local-sqlite.example](../../pirate-web/.env.local-sqlite.example) copied to `.env.local-sqlite`
+- [pirate-api/services/api/.dev.vars.example](../../pirate-api/services/api/.dev.vars.example) copied to `.dev.vars`
 - required local secrets filled in
 
 ## 1. Reset the local API state
 
 ```bash
 cd pirate-api/services/api
-rtk bun run local:reset
+rtk bun run bruno:prepare:local
 ```
 
 This recreates:
 
-- the local control-plane DB at `CONTROL_PLANE_DATABASE_URL`
+- the local control-plane DB at `TURSO_CONTROL_PLANE_DATABASE_URL`
 - the local community DB root at `LOCAL_COMMUNITY_DB_ROOT`
 
 ## 2. Seed the Infinity user fixture
 
 ```bash
 cd /home/t42/Documents/pirate-v2
-rtk bash -lc 'set -a; source pirate-api/services/api/.env.local-sqlite; set +a; rtk bun scripts/seed-control-plane-fixtures.ts --database-url-env CONTROL_PLANE_DATABASE_URL --user-id usr_infinity_01 --subject infinity-subject-01 --handle infinitytester --namespace-label infinity --reddit-username infinitypilot --issuer pirate-dev-upstream'
+rtk bash -lc 'set -a; source pirate-api/services/api/.dev.vars; set +a; CONTROL_PLANE_DATABASE_URL="$TURSO_CONTROL_PLANE_DATABASE_URL" rtk bun scripts/seed-control-plane-fixtures.ts --database-url-env CONTROL_PLANE_DATABASE_URL --user-id usr_infinity_01 --subject infinity-subject-01 --handle infinitytester --namespace-label infinity --reddit-username infinitypilot --issuer pirate-dev-upstream'
 ```
 
 ## 3. Bootstrap the Infinity community
 
 ```bash
 cd /home/t42/Documents/pirate-v2
-rtk bash -lc 'set -a; source pirate-api/services/api/.env.local-sqlite; set +a; rtk bun scripts/bootstrap-community-slice.ts --database-url-env CONTROL_PLANE_DATABASE_URL --community-db /tmp/pirate-community-dbs-live/community-cmt_infinity_01.db --community-id cmt_infinity_01 --user-id usr_infinity_01 --display-name Infinity --namespace-verification-id nv_infinity_usr_infinity_01 --posting-unique-human-provider very --namespace-label infinity'
+rtk bash -lc 'set -a; source pirate-api/services/api/.dev.vars; set +a; CONTROL_PLANE_DATABASE_URL="$TURSO_CONTROL_PLANE_DATABASE_URL" rtk bun scripts/bootstrap-community-slice.ts --database-url-env CONTROL_PLANE_DATABASE_URL --community-db /tmp/pirate-community-dbs-live/community-cmt_infinity_01.db --community-id cmt_infinity_01 --user-id usr_infinity_01 --display-name Infinity --namespace-verification-id nv_infinity_usr_infinity_01 --posting-unique-human-provider very --namespace-label infinity'
 ```
 
 This produces a local operational Infinity community with:
