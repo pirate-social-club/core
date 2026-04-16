@@ -23,6 +23,7 @@ type InspectResult = {
 };
 
 import { PowerDnsStore, type PowerDnsZoneSnapshot } from "./pdns-store";
+import { json, requireBearerAuth } from "../../shared/http";
 
 const verifierHost = Bun.env.HNS_VERIFIER_HOST?.trim() || "127.0.0.1";
 const verifierPort = Number(Bun.env.HNS_VERIFIER_PORT || "4048");
@@ -49,24 +50,6 @@ function withTrailingDot(value: string): string {
 
 function toStorageName(value: string): string {
   return value.replace(/\.$/, "");
-}
-
-function json(data: unknown, init?: ResponseInit) {
-  return new Response(JSON.stringify(data), {
-    headers: {
-      "content-type": "application/json",
-    },
-    ...init,
-  });
-}
-
-function requireVerifierAuth(request: Request) {
-  if (!verifierAuthToken) {
-    return null;
-  }
-  return request.headers.get("authorization") === `Bearer ${verifierAuthToken}`
-    ? null
-    : json({ error: "Unauthorized" }, { status: 401 });
 }
 
 function requirePowerDnsStore(): PowerDnsStore {
@@ -302,7 +285,7 @@ Bun.serve({
   port: verifierPort,
   async fetch(request) {
     const url = new URL(request.url);
-    const authResponse = requireVerifierAuth(request);
+    const authResponse = requireBearerAuth(request, verifierAuthToken);
     if (authResponse) {
       return authResponse;
     }

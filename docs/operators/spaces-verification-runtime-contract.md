@@ -178,6 +178,7 @@ The type and store layer should widen from HNS-only to shared namespace verifica
 - `operation_class` includes `'owner_signed_updates_namespace'`
 - session rows gain `challenge_kind`, `challenge_payload_json`, `anchor_height`, `anchor_block_hash`, `anchor_root_hash`, `proof_root_hash`
 - verification rows gain `anchor_height`, `anchor_block_hash`, `anchor_root_hash`, `proof_root_hash`
+- the Spaces verifier wire format uses `accepted_anchor_*` prefixes; the repository layer maps these to the `anchor_*` DB columns
 - HNS-only convenience fields on verification rows become nullable in runtime types
 
 The store interface should add explicit write helpers for canonical records:

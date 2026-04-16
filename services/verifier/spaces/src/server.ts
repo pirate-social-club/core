@@ -1,17 +1,12 @@
-type JsonRpcSuccess<T> = {
-  jsonrpc: "2.0";
-  id: string | number | null;
-  result: T;
-};
-
-type JsonRpcError = {
-  jsonrpc: "2.0";
-  id: string | number | null;
-  error: {
-    code: number;
-    message: string;
-  };
-};
+import { json, requireBearerAuth } from "../../shared/http";
+import { rpc } from "./json-rpc";
+import {
+  type NativeExecutionConfig,
+  resolveNativeExecutionConfig,
+  runNative,
+  decodeNativeJson,
+} from "./native";
+import { normalizeRootLabel } from "./labels";
 
 type RootAnchor = {
   root: string;
@@ -47,7 +42,7 @@ type VerifyNativeResult = {
   error?: string;
 };
 
-const spacedRpcUrl = Bun.env.SPACED_RPC_URL?.trim() || "http://127.0.0.1:7222";
+const spacedRpcUrl = Bun.env.SPACED_RPC_URL?.trim() || "http://127.0.0.1:7225";
 const spacedRpcAuthToken = Bun.env.SPACED_RPC_AUTH_TOKEN?.trim() || null;
 const verifierHost = Bun.env.SPACES_VERIFIER_HOST?.trim() || "0.0.0.0";
 const verifierPort = Number(Bun.env.SPACES_VERIFIER_PORT || "4047");
@@ -59,112 +54,26 @@ const allowNativeBuildFallback = ["1", "true", "yes", "on"].includes(
   String(Bun.env.SPACES_NATIVE_ALLOW_BUILD_FALLBACK || "").trim().toLowerCase(),
 );
 
-type NativeExecutionConfig =
-  | { mode: "binary"; command: string[] }
-  | { mode: "cargo_dev_fallback"; command: string[] };
+const nativeExecutionConfig: NativeExecutionConfig = resolveNativeExecutionConfig({
+  nativeBin,
+  allowNativeBuildFallback,
+  nativeManifestPath,
+});
 
-function getNativeExecutionConfig(): NativeExecutionConfig {
-  if (nativeBin) {
-    return {
-      mode: "binary",
-      command: [nativeBin],
-    };
-  }
-
-  if (allowNativeBuildFallback) {
-    return {
-      mode: "cargo_dev_fallback",
-      command: ["cargo", "run", "--quiet", "--offline", "--locked", "--manifest-path", nativeManifestPath, "--"],
-    };
-  }
-
-  throw new Error(
-    "Spaces verifier native binary is not configured. Set SPACES_VERIFIER_NATIVE_BIN or explicitly enable SPACES_NATIVE_ALLOW_BUILD_FALLBACK=true for local development.",
-  );
+function spacedRpc<T>(method: string, params: unknown[] = []): Promise<T> {
+  return rpc<T>(spacedRpcUrl, spacedRpcAuthToken, method, params);
 }
 
-const nativeExecutionConfig = getNativeExecutionConfig();
-
-function json(data: unknown, init?: ResponseInit) {
-  return new Response(JSON.stringify(data), {
-    headers: {
-      "content-type": "application/json",
-    },
-    ...init,
-  });
-}
-
-function normalizeRootLabel(value: string) {
-  const trimmed = value.trim().toLowerCase();
-  return trimmed.startsWith("@") ? trimmed.slice(1) : trimmed;
-}
-
-function deriveTaprootPubkey(scriptPubkey: string | null | undefined) {
+export function deriveTaprootPubkey(scriptPubkey: string | null | undefined) {
   const normalized = scriptPubkey?.trim().toLowerCase() ?? "";
   return normalized.startsWith("5120") && normalized.length === 68
     ? normalized.slice(4)
     : null;
 }
 
-async function rpc<T>(method: string, params: unknown[] = []): Promise<T> {
-  const headers: Record<string, string> = {
-    "content-type": "application/json",
-    accept: "application/json",
-  };
-  if (spacedRpcAuthToken) {
-    headers.authorization = `Basic ${spacedRpcAuthToken}`;
-  }
-
-  const response = await fetch(spacedRpcUrl, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: method,
-      method,
-      params,
-    }),
-  });
-
-  const body = await response.json() as JsonRpcSuccess<T> | JsonRpcError;
-  if (!response.ok || "error" in body) {
-    throw new Error("spaced rpc request failed");
-  }
-  return body.result;
-}
-
-function runNative(args: string[]) {
-  return Bun.spawnSync([...nativeExecutionConfig.command, ...args], {
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-}
-
-function decodeNativeJson<T extends { error?: string }>(result: Bun.SpawnSyncReturns<Uint8Array>): T {
-  const stdout = Buffer.from(result.stdout).toString("utf8").trim();
-  const stderr = Buffer.from(result.stderr).toString("utf8").trim();
-  if (result.exitCode !== 0) {
-    throw new Error(stderr || stdout || "native verifier failed");
-  }
-  const parsed = JSON.parse(stdout) as T;
-  if (parsed.error) {
-    throw new Error(parsed.error);
-  }
-  return parsed;
-}
-
-function requireVerifierAuth(request: Request) {
-  if (!verifierAuthToken) {
-    return null;
-  }
-  return request.headers.get("authorization") === `Bearer ${verifierAuthToken}`
-    ? null
-    : json({ error: "Unauthorized" }, { status: 401 });
-}
-
 async function inspectRoot(rootLabel: string) {
   const normalizedRootLabel = normalizeRootLabel(rootLabel);
-  const existingRoot = await rpc<RpcFullSpace | null>("getspace", [`@${normalizedRootLabel}`]);
+  const existingRoot = await spacedRpc<RpcFullSpace | null>("getspace", [`@${normalizedRootLabel}`]);
   if (existingRoot == null) {
     return {
       root_exists: false,
@@ -184,8 +93,8 @@ async function inspectRoot(rootLabel: string) {
     };
   }
 
-  const anchors = await rpc<RootAnchor[]>("getrootanchors");
-  const proof = await rpc<ProofResult>("provespaceoutpoint", [`@${normalizedRootLabel}`]);
+  const anchors = await spacedRpc<RootAnchor[]>("getrootanchors");
+  const proof = await spacedRpc<ProofResult>("provespaceoutpoint", [`@${normalizedRootLabel}`]);
 
   if (!proof.root || !proof.proof) {
     return {
@@ -209,7 +118,7 @@ async function inspectRoot(rootLabel: string) {
   const matchedAnchor = anchors.find((anchor) => anchor.root === proof.root) ?? null;
   const newestHeight = anchors.reduce((max, anchor) => Math.max(max, anchor.block.height), 0);
   const native = decodeNativeJson<InspectNativeResult>(
-    runNative(["inspect", `@${normalizedRootLabel}`, proof.proof, proof.root]),
+    runNative(nativeExecutionConfig, ["inspect", `@${normalizedRootLabel}`, proof.proof, proof.root]),
   );
   const provedOutpoint = typeof native.proved_outpoint === "string" ? native.proved_outpoint : null;
   const liveOutpoint = typeof existingRoot.txid === "string" && Number.isInteger(existingRoot.n)
@@ -285,7 +194,7 @@ async function verifySignature(body: {
   }
 
   const native = decodeNativeJson<VerifyNativeResult>(
-    runNative(["verify-schnorr", digest, signature, rootPubkey]),
+    runNative(nativeExecutionConfig, ["verify-schnorr", digest, signature, rootPubkey]),
   );
 
   return json({
@@ -301,7 +210,7 @@ Bun.serve({
   port: verifierPort,
   async fetch(request) {
     const url = new URL(request.url);
-    const authResponse = requireVerifierAuth(request);
+    const authResponse = requireBearerAuth(request, verifierAuthToken);
     if (authResponse) {
       return authResponse;
     }

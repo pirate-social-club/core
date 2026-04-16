@@ -2,6 +2,14 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { rpc } from "../src/json-rpc";
+import {
+  type NativeExecutionConfig,
+  resolveNativeExecutionConfig,
+  runNative,
+  decodeNativeJson,
+} from "../src/native";
+import { ensureAtPrefix } from "../src/labels";
 
 type Options = {
   space: string;
@@ -16,21 +24,6 @@ type Options = {
   nativeBin: string | null;
   outpoint: string | null;
   allowNativeBuildFallback: boolean;
-};
-
-type JsonRpcSuccess<T> = {
-  jsonrpc: "2.0";
-  id: string | number | null;
-  result: T;
-};
-
-type JsonRpcError = {
-  jsonrpc: "2.0";
-  id: string | number | null;
-  error: {
-    code: number;
-    message: string;
-  };
 };
 
 type RpcOutPoint = {
@@ -55,7 +48,7 @@ Options:
   --wallet NAME             Wallet label. Default: default
   --wallet-dir PATH         Explicit wallet directory containing wallet.json and wallet.db
   --spaces-data-dir PATH    Base spaced data dir; used to derive wallet dir as <dir>/wallets/<wallet>
-  --rpc-url URL             spaced RPC URL. Default: $SPACED_RPC_URL or http://127.0.0.1:7222
+  --rpc-url URL             spaced RPC URL. Default: $SPACED_RPC_URL or http://127.0.0.1:7225
   --rpc-auth-token TOKEN    Precomputed Basic auth token for spaced RPC
   --rpc-cookie PATH         Cookie file used to derive Basic auth token
   --network NAME            Bitcoin network for wallet load. Default: mainnet
@@ -73,7 +66,7 @@ function parseArgs(argv: string[]): Options {
     wallet: process.env.SPACES_WALLET?.trim() || "default",
     walletDir: process.env.SPACES_WALLET_DIR?.trim() || null,
     spacesDataDir: process.env.SPACES_DATA_DIR?.trim() || null,
-    rpcUrl: process.env.SPACED_RPC_URL?.trim() || "http://127.0.0.1:7222",
+    rpcUrl: process.env.SPACED_RPC_URL?.trim() || "http://127.0.0.1:7225",
     rpcAuthToken: process.env.SPACED_RPC_AUTH_TOKEN?.trim() || null,
     rpcCookiePath: process.env.SPACED_RPC_COOKIE?.trim() || null,
     network: process.env.SPACES_NETWORK?.trim() || "mainnet",
@@ -146,11 +139,6 @@ function parseArgs(argv: string[]): Options {
   return options;
 }
 
-function normalizeSpace(value: string): string {
-  const trimmed = value.trim().toLowerCase();
-  return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
-}
-
 function normalizeDigest(value: string): string {
   return value.trim().replace(/^0x/i, "").toLowerCase();
 }
@@ -186,33 +174,9 @@ function getRpcAuthToken(options: Options): string | null {
   return Buffer.from(cookie).toString("base64");
 }
 
-async function rpc<T>(options: Options, method: string, params: unknown[]): Promise<T> {
-  const headers: Record<string, string> = {
-    "content-type": "application/json",
-    accept: "application/json",
-  };
+async function spacedRpc<T>(options: Options, method: string, params: unknown[]): Promise<T> {
   const authToken = getRpcAuthToken(options);
-  if (authToken) {
-    headers.authorization = `Basic ${authToken}`;
-  }
-
-  const response = await fetch(options.rpcUrl, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: method,
-      method,
-      params,
-    }),
-  });
-
-  const body = await response.json() as JsonRpcSuccess<T> | JsonRpcError;
-  if (!response.ok || "error" in body) {
-    const message = "error" in body ? body.error.message : `http ${response.status}`;
-    throw new Error(`spaced rpc ${method} failed: ${message}`);
-  }
-  return body.result;
+  return rpc<T>(options.rpcUrl, authToken, method, params);
 }
 
 async function resolveOutpoint(options: Options, space: string): Promise<string> {
@@ -221,7 +185,7 @@ async function resolveOutpoint(options: Options, space: string): Promise<string>
   }
 
   try {
-    const owner = await rpc<RpcOutPoint | null>(options, "getspaceowner", [space]);
+    const owner = await spacedRpc<RpcOutPoint | null>(options, "getspaceowner", [space]);
     if (owner?.txid != null && typeof owner.vout === "number") {
       return `${owner.txid}:${owner.vout}`;
     }
@@ -229,7 +193,7 @@ async function resolveOutpoint(options: Options, space: string): Promise<string>
     // Fall through to getspace for older or narrower RPC surfaces.
   }
 
-  const spaceout = await rpc<RpcFullSpaceOut | null>(options, "getspace", [space]);
+  const spaceout = await spacedRpc<RpcFullSpaceOut | null>(options, "getspace", [space]);
   if (spaceout?.txid != null && typeof spaceout.n === "number") {
     return `${spaceout.txid}:${spaceout.n}`;
   }
@@ -237,55 +201,18 @@ async function resolveOutpoint(options: Options, space: string): Promise<string>
   throw new Error(`space not found or current owner outpoint unavailable for ${space}`);
 }
 
-function runNative(options: Options, args: string[]) {
-  if (options.nativeBin) {
-    return Bun.spawnSync([options.nativeBin, ...args], {
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-  }
-
-  if (!options.allowNativeBuildFallback) {
-    throw new Error(
-      "native signer binary is not configured. Set --native-bin or SPACES_VERIFIER_NATIVE_BIN, or explicitly enable SPACES_NATIVE_ALLOW_BUILD_FALLBACK=true for local development",
-    );
-  }
-
-  return Bun.spawnSync(
-    [
-      "cargo",
-      "run",
-      "--quiet",
-      "--offline",
-      "--locked",
-      "--manifest-path",
-      path.join(import.meta.dir, "..", "native", "Cargo.toml"),
-      "--",
-      ...args,
-    ],
-    {
-      stdout: "pipe",
-      stderr: "pipe",
-    },
-  );
-}
-
-function decodeNativeJson(result: Bun.SpawnSyncReturns<Uint8Array>) {
-  const stdout = Buffer.from(result.stdout).toString("utf8").trim();
-  const stderr = Buffer.from(result.stderr).toString("utf8").trim();
-  if (result.exitCode !== 0) {
-    throw new Error(stderr || stdout || "native signer failed");
-  }
-  const parsed = JSON.parse(stdout) as { error?: string };
-  if (parsed.error) {
-    throw new Error(parsed.error);
-  }
-  return parsed;
+function resolveNativeConfig(options: Options): NativeExecutionConfig {
+  const nativeManifestPath = path.join(import.meta.dir, "..", "native", "Cargo.toml");
+  return resolveNativeExecutionConfig({
+    nativeBin: options.nativeBin,
+    allowNativeBuildFallback: options.allowNativeBuildFallback,
+    nativeManifestPath,
+  });
 }
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
-  const space = normalizeSpace(options.space);
+  const space = ensureAtPrefix(options.space);
   const digest = normalizeDigest(options.digest);
 
   if (!/^@[a-z0-9-]+$/.test(space)) {
@@ -295,10 +222,12 @@ async function main() {
     throw new Error("digest must be a 32-byte hex string");
   }
 
+  const nativeConfig = resolveNativeConfig(options);
   const walletDir = resolveWalletDir(options);
   const outpoint = await resolveOutpoint(options, space);
   const parsed = decodeNativeJson(
-    runNative(options, ["sign-digest", walletDir, options.network, outpoint, digest]),
+    runNative(nativeConfig, ["sign-digest", walletDir, options.network, outpoint, digest]),
+    "native signer failed",
   ) as Record<string, unknown>;
 
   console.log(JSON.stringify({
