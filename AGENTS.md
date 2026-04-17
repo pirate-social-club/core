@@ -62,49 +62,31 @@ If a child repo has its own `AGENTS.md`, follow the root file for workspace/repo
 
 ## Branch Workflow
 
-One task = one named branch = one agent owner.
+All work commits directly to `main`. No feature branches, no task branches.
+
+- commit to `main` in the owning child repo for every completed change
+- do not create feature or task branches until the project is stable enough for multiple contributors
+- if a task spans multiple child repos, commit to `main` in each repo separately
 
 When a task belongs to a child repo:
 
-- inspect from the parent folder if shared context helps
-- `cd` into the owning child repo before branch creation, branch switching, or commits
-- keep one task per branch
-- keep one active agent per branch
-- prefer parallel branches for unrelated work
-- use stacked branches only when one change depends on another unfinished branch in the same repo
-
-Branch creation and commits use plain git:
-
-- `git checkout -b <type>/<slug>` to create a task branch
-- `git add` + `git commit -m "<message>"` to commit work
-- `git checkout main` to return to the base branch between tasks
+- `cd` into the owning child repo before committing
+- do not keep coding in the wrong repo after discovering the ownership is elsewhere. Stop, switch to the correct repo, and commit there
 
 Read-only Git commands are fine for inspection, including `git status`, `git diff`, `git log`, and `git show`.
-
-If a task spans multiple child repos:
-
-- handle each repo separately
-- create one branch per repo
-- use the same task slug in each repo when possible
-- report results per repo, not as one mixed branch
-
-Do not create child-repo branches from the parent folder.
-Do not keep coding in the wrong repo after discovering the ownership is elsewhere.
-Stop, switch to the correct repo, and branch there.
 
 ## CI Workflow
 
 Use one consistent order of operations in child repos:
 
-1. create or switch the task branch with git
-2. run the smallest repo-native local check that matches the change
-3. if the repo has a real GitHub Actions workflow, run that workflow locally with `agent-ci`
-4. push only after the relevant local checks are green, or when remote validation/artifacts are specifically needed
-5. let GitHub Actions run remotely on Blacksmith for PR and branch validation
+1. run the smallest repo-native local check that matches the change
+2. if the repo has a real GitHub Actions workflow, run that workflow locally with `agent-ci`
+3. push only after the relevant local checks are green, or when remote validation/artifacts are specifically needed
+4. let GitHub Actions run remotely on Blacksmith for validation
 
 Tool roles:
 
-- plain git manages branch and stack workflow in child repos
+- plain git manages commits on main in child repos
 - `agent-ci` runs the repo's actual GitHub Actions workflow locally for fast iteration
 - Blacksmith is the remote runner for GitHub Actions; it does not replace local checks
 

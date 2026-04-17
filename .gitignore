@@ -11,6 +11,7 @@ pirate-contracts/
 pirate-tui/
 pirate-desktop/
 pirate-android/
+freedom-browser/
 
 # Deploy manifests
 deployments/
@@ -35,6 +36,9 @@ target/
 !.env.*.example
 scripts/.env.operator-*
 !scripts/.env.operator-*.example
+ops/prod/.infisical.json
+ops/prod/.env*
+!ops/prod/.env*.example
 
 # IDE
 .idea/
