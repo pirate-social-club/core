@@ -9,7 +9,8 @@ This file is the single source of truth for "what secrets exist." It does not co
 - **Infisical stores secrets only.** API keys, private keys, and usage keys go in Infisical. Everything else is version-controlled config.
 - **High-cardinality generated tenant secrets are the exception.** Per-community runtime credentials that would otherwise require one secret per community may be stored encrypted in the central control-plane database. Infisical stores the root secrets that mint and wrap those credentials, not every derived tenant token.
 - **Version control stores public config.** Contract addresses, PKP addresses, action CIDs, bucket names, RPC URLs, and tuning knobs are not secrets. They live in repo config files.
-- **No secret appears in more than one Infisical path.** If a secret is needed in two runtimes, both runtimes read from the same path.
+- **The normal hosted Infisical contract has only two path families:** `/services` for hosted runtime/provisioning secrets and `/local` for local-dev-only convenience/break-glass material.
+- **A small number of shared secrets are intentionally duplicated across service paths.** When the same value appears in `/services/api` and `/services/control-plane`, the doctor contract must enforce equality.
 - **AI environments must not have Infisical auth.** See `docs/control-plane/ai-infisical-boundary.md` (to be written for pirate-v2; policy carried from pirate/).
 
 ## Type Definitions
@@ -35,18 +36,16 @@ This file is the single source of truth for "what secrets exist." It does not co
 
 ## Inventory
 
-### dev:/contracts/story
+### Story deploy signer
 
-Secrets used by Foundry deploy scripts for Story chain contracts.
+`STORY_CONTRACT_OWNER_PRIVATE_KEY` is no longer part of the Infisical contract.
 
-| Name | Type | Environment | Owner | Purpose | Runtime Consumer | Rotation Policy | Funded? | Legacy? |
-|---|---|---|---|---|---|---|---|---|
-| `STORY_CONTRACT_OWNER_PRIVATE_KEY` | `private-key` | dev | human operator | Story contract deployer, role grants, emergency owner actions | Foundry deploy scripts, emergency ops | On compromise or before mainnet; migrate to multisig | Yes | No |
-| `OWNER` | `contract-address` | dev | version control | Story contract owner address for deploy scripts | Foundry deploy scripts | N/A (public) | N/A | No |
-| `TREASURY` | `contract-address` | dev | version control | Treasury address for contract constructor args | Foundry deploy scripts | N/A (public) | N/A | No |
-| `STORY_RPC_URL` | `rpc-url` | dev | version control | Story Aeneid RPC endpoint | Foundry deploy scripts, worker | N/A (public) | N/A | No |
+If you still use the hot-key Story Foundry deploy path locally, treat it as an operator-local env
+var only. Do not store it in hosted Infisical environments. For staging/production, the intended
+model is:
 
-Note: `OWNER`, `TREASURY`, and `STORY_RPC_URL` are listed here for completeness but are not secrets. They should be version-controlled, not stored in Infisical. pirate/ put them in Infisical for deploy-script convenience. pirate-v2 should pass them as env vars or foundry config without Infisical.
+- Chipotle for approved hot operator actions
+- Keystone cold wallet for ownership and privileged deployment/signing
 
 ### dev:/contracts/base
 
@@ -74,6 +73,12 @@ The API worker cannot start without these. The sync script (`scripts/sync-wrangl
 | `PIRATE_APP_JWT_PRIVATE_KEY` | `private-key` | RS256 private key for signing Pirate session tokens |
 | `PIRATE_APP_JWT_PUBLIC_KEY` | `private-key` | RS256 public key for verifying Pirate session tokens |
 | `PRIVY_APP_SECRET` | `api-key` | Privy server-side secret for access token verification |
+| `FILEBASE_S3_ACCESS_KEY` | `api-key` | Filebase S3 access key for community media uploads |
+| `FILEBASE_S3_SECRET_KEY` | `api-key` | Filebase S3 secret key for community media uploads |
+| `OPENROUTER_API_KEY` | `api-key` | OpenRouter API key for song lyrics age-gate classification |
+| `ACRCLOUD_ACCESS_KEY` | `api-key` | ACRCloud access key for song audio identification |
+| `ACRCLOUD_ACCESS_SECRET` | `api-key` | ACRCloud access secret for song audio identification signing |
+| `ELEVENLABS_API_KEY` | `api-key` | ElevenLabs API key for song forced alignment |
 | `CONTROL_PLANE_DATABASE_URL` | `database-credential` | Runtime connection string for the Neon control-plane database |
 
 #### Conditional (only when the feature is enabled)
@@ -96,6 +101,10 @@ These are read by the API worker but are public config, not secrets. They live i
 - `REGISTRY_PUBLISHER_URL`, `REGISTRY_PUBLISHER_TIMEOUT_MS`
 - `DEV_MEMORY_STORE_ENABLED`, `ENVIRONMENT`
 - `LOCAL_COMMUNITY_DB_ROOT`
+- `FILEBASE_MEDIA_BUCKET`, `FILEBASE_S3_ENDPOINT`, `FILEBASE_S3_REGION`
+- `OPENROUTER_BASE_URL`, `OPENROUTER_MODEL`, `OPENROUTER_TIMEOUT_MS`
+- `ACRCLOUD_HOST`, `ACRCLOUD_IDENTIFY_PATH`, `ACRCLOUD_TIMEOUT_MS`
+- `ELEVENLABS_FORCE_ALIGNMENT_URL`, `ELEVENLABS_TIMEOUT_MS`
 
 ### dev:/services/control-plane
 
@@ -137,36 +146,25 @@ Break-glass control-plane credentials kept outside normal service paths.
 
 Dev is local-only. The API worker is run via `bun run dev:local` with secrets from `.dev.vars`, not from Infisical. Dev Infisical is pre-seeded for script integration testing only. Do not treat dev Infisical as the API worker's secret source.
 
-## Live Infisical State (2026-04-13)
+### Hosted model
 
-### /services/api
+Hosted environments use `/services` only.
 
-| Secret | dev | staging | prod |
-|--------|-----|---------|------|
-| `CONTROL_PLANE_DATABASE_URL` | YES | YES | YES |
-| `AUTH_UPSTREAM_JWT_SHARED_SECRET` | — | YES | — |
-| `PIRATE_APP_JWT_PRIVATE_KEY` | — | YES | — |
-| `PIRATE_APP_JWT_PUBLIC_KEY` | — | YES | — |
-| `PRIVY_APP_SECRET` | — | YES | — |
-| `REGISTRY_PUBLISHER_AUTH_TOKEN` | YES | — | — |
+- `staging` and `prod` should not use `/local`
+- `CONTROL_PLANE_OWNER_DATABASE_URL` may still exist operationally for hosted databases, but it is break-glass material and should not be part of the normal hosted Infisical contract
+- Lit/Chipotle keys are deferred for hosted runtime until the corresponding runtime integrations are actually live
 
-### /services/control-plane
+## Live State
 
-| Secret | dev | staging | prod |
-|--------|-----|---------|------|
-| `CONTROL_PLANE_MIGRATOR_DATABASE_URL` | YES | YES | YES |
-| `TURSO_PLATFORM_API_TOKEN` | YES | YES | — |
-| `TURSO_COMMUNITY_DB_WRAP_KEY` | — | YES | — |
-| `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN` | — | YES | — |
-| `LIT_CHIPOTLE_OPERATOR_API_KEY` | YES | — | — |
+Live Infisical contents drift quickly. Do not treat this file as a live inventory snapshot.
 
-### Production status
+Use these instead:
 
-The Infisical environment slug is `prod`, not `production`. `prod:/services/api` currently contains only `CONTROL_PLANE_DATABASE_URL`, and `prod:/services/control-plane` currently contains only `CONTROL_PLANE_MIGRATOR_DATABASE_URL`. No production Cloudflare worker is deployed yet.
+- `rtk bun scripts/check-infisical-env.ts --env <env>`
+- `rtk bun scripts/check-infisical-env.ts --env <env> --connect`
+- the shared contract in `scripts/lib/infisical-env-contract.ts`
 
-### Remote Cloudflare worker status
-
-The repo currently defines a single Cloudflare worker in `pirate-api/services/api/wrangler.jsonc`: `pirate-api-core`. There is no `env.staging` or `env.production` section in that config. Direct `wrangler deployments list` and `wrangler secret list` calls confirmed that `pirate-api-core` does not exist in the current Cloudflare account yet, so the next remote step is a first deploy followed by secret sync.
+The current hosted environment slug is `prod`, not `production`.
 
 ## Naming (resolved)
 

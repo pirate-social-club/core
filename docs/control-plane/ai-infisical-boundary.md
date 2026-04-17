@@ -6,6 +6,12 @@ Defines the minimum secret-boundary policy for AI-assisted workflows in pirate-v
 
 AI environments must not have Infisical auth.
 
+Repo-level policy:
+
+- repo root `.infisical.json` is non-prod only (`pirate-dev-staging`)
+- production must use a separate human-only project config directory such as `ops/prod`
+- AI shells must not use `--project-config-dir=ops/prod`
+
 This includes:
 
 - no Infisical service token in AI runtime env

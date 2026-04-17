@@ -49,11 +49,15 @@ fi
 if [[ -n "${TURSO_COMMUNITY_DB_WRAP_KEY:-}" ]]; then
   ensure_folder "/services" "control-plane"
   set_secret_if_present "/services/control-plane" "TURSO_COMMUNITY_DB_WRAP_KEY"
+  ensure_folder "/services" "api"
+  set_secret_if_present "/services/api" "TURSO_COMMUNITY_DB_WRAP_KEY"
 fi
 
 if [[ -n "${COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN:-}" ]]; then
   ensure_folder "/services" "control-plane"
   set_secret_if_present "/services/control-plane" "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN"
+  ensure_folder "/services" "api"
+  set_secret_if_present "/services/api" "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN"
 fi
 
 cat <<EOF
@@ -62,10 +66,15 @@ env: $INFISICAL_ENV
 created/updated:
 - /services/control-plane: TURSO_PLATFORM_API_TOKEN when provided
 - /services/control-plane: TURSO_COMMUNITY_DB_WRAP_KEY when provided
+- /services/api: TURSO_COMMUNITY_DB_WRAP_KEY when provided
 - /services/control-plane: COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN when provided
+- /services/api: COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN when provided
 intentionally not stored in Infisical:
 - TURSO_ORGANIZATION_SLUG
 - TURSO_COMMUNITY_DB_WRAP_KEY_VERSION
 - COMMUNITY_PROVISION_OPERATOR_HOST
 - COMMUNITY_PROVISION_OPERATOR_PORT
+
+validate with:
+  bun scripts/check-infisical-env.ts --env $INFISICAL_ENV
 EOF

@@ -10,6 +10,7 @@ import {
 
 export type TursoControlPlaneOperatorEnv = {
   CONTROL_PLANE_DATABASE_URL?: string;
+  TURSO_CONTROL_PLANE_AUTH_TOKEN?: string;
   TURSO_PLATFORM_API_TOKEN?: string;
   TURSO_ORGANIZATION_SLUG?: string;
   TURSO_COMMUNITY_DB_WRAP_KEY?: string;
@@ -106,6 +107,7 @@ function requireOperatorAuth(request: Request, env: TursoControlPlaneOperatorEnv
 
 function requireOperatorRuntime(env: TursoControlPlaneOperatorEnv): {
   controlPlaneDatabaseUrl: string;
+  controlPlaneAuthToken: string | null;
   tursoPlatformApiToken: string;
   tursoOrganizationSlug: string;
   tursoCommunityDbWrapKey: string;
@@ -113,6 +115,7 @@ function requireOperatorRuntime(env: TursoControlPlaneOperatorEnv): {
 } {
   return {
     controlPlaneDatabaseUrl: requireText(env.CONTROL_PLANE_DATABASE_URL, "CONTROL_PLANE_DATABASE_URL"),
+    controlPlaneAuthToken: trim(env.TURSO_CONTROL_PLANE_AUTH_TOKEN) || null,
     tursoPlatformApiToken: requireText(env.TURSO_PLATFORM_API_TOKEN, "TURSO_PLATFORM_API_TOKEN"),
     tursoOrganizationSlug: requireText(env.TURSO_ORGANIZATION_SLUG, "TURSO_ORGANIZATION_SLUG"),
     tursoCommunityDbWrapKey: requireText(env.TURSO_COMMUNITY_DB_WRAP_KEY, "TURSO_COMMUNITY_DB_WRAP_KEY"),
@@ -226,6 +229,7 @@ export function createTursoControlPlaneOperatorHandler(
         const runtime = requireOperatorRuntime(env);
         const result = await rotateCommunityTokenFn({
           controlPlaneDatabaseUrl: runtime.controlPlaneDatabaseUrl,
+          controlPlaneAuthToken: runtime.controlPlaneAuthToken,
           tursoPlatformApiToken: runtime.tursoPlatformApiToken,
           tursoCommunityDbWrapKey: runtime.tursoCommunityDbWrapKey,
           tursoCommunityDbWrapKeyVersion: runtime.tursoCommunityDbWrapKeyVersion,
@@ -240,6 +244,7 @@ export function createTursoControlPlaneOperatorHandler(
         const body = await readJson<DoctorRouteBody>(request);
         const result = await doctorControlPlaneFn({
           controlPlaneDatabaseUrl: requireText(env.CONTROL_PLANE_DATABASE_URL, "CONTROL_PLANE_DATABASE_URL"),
+          controlPlaneAuthToken: trim(env.TURSO_CONTROL_PLANE_AUTH_TOKEN) || null,
           communityId: trim(body.community_id ?? "") || null,
           tursoCommunityDbWrapKey: requireText(env.TURSO_COMMUNITY_DB_WRAP_KEY, "TURSO_COMMUNITY_DB_WRAP_KEY"),
         });

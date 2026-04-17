@@ -4,12 +4,11 @@ Phase the `pirate-v2` Infisical migration deliberately. Do not copy the old `pir
 
 ## Phase 1
 
-Create a fresh `pirate-v2` Infisical project and populate only:
+Create a fresh `pirate-v2` Infisical project and populate only the hosted service paths.
 
-- `dev:/contracts/story`
-  - `STORY_CONTRACT_OWNER_PRIVATE_KEY`
-
-This is the only secret required to run the current Story delivery deploy script at [deploy.sh](../../pirate-contracts/story/delivery/scripts/deploy.sh).
+`STORY_CONTRACT_OWNER_PRIVATE_KEY` is no longer part of the Infisical contract. If you still use
+the hot-key Story Foundry deploy path locally, pass that key as an operator-local env var instead
+of storing it in Infisical.
 
 Non-secret deploy inputs stay outside Infisical:
 
@@ -23,14 +22,8 @@ These resolve from repo config and operator-supplied env, not from Infisical.
 
 ### Bootstrap Commands
 
-After `infisical login` and project selection, you can create the minimal Phase 1/2 tree with:
-
-```bash
-export STORY_CONTRACT_OWNER_PRIVATE_KEY=...
-rtk ./scripts/bootstrap-infisical-story.sh
-```
-
-If you also want the Phase 2 runtime keys in place immediately:
+After `infisical login` and project selection, you can create the minimal Story runtime key tree
+only when Story runtime usage keys are actually needed:
 
 ```bash
 export LIT_CHIPOTLE_OPERATOR_API_KEY=...
@@ -39,10 +32,7 @@ export LIT_CHIPOTLE_STORY_SETTLEMENT_API_KEY=...
 rtk ./scripts/bootstrap-infisical-story.sh
 ```
 
-The helper creates only:
-
-- `dev:/contracts/story`
-- `dev:/services/api` when one or more runtime usage keys are provided
+The helper creates only `dev:/services/api` when one or more runtime usage keys are provided.
 
 ## Phase 2
 
@@ -149,7 +139,7 @@ Populate `/services/api` with the API runtime secrets that should not live in ve
 - `SPACES_VERIFIER_AUTH_TOKEN`
 - `FILEBASE_S3_ACCESS_KEY`
 - `FILEBASE_S3_SECRET_KEY`
-- `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN`
+- `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN` (also in `/services/control-plane`; must match)
 
 Bootstrap helper:
 
@@ -189,8 +179,9 @@ Operator env management:
 - sync Cloudflare worker secrets from either the checked local env file or Infisical with [scripts/sync-wrangler-api-secrets.sh](../../scripts/sync-wrangler-api-secrets.sh:1)
 - keep only true secrets in Infisical:
   - `/services/control-plane` -> `TURSO_PLATFORM_API_TOKEN`
+  - `/services/control-plane` -> `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN`
   - `/services/api` -> `TURSO_COMMUNITY_DB_WRAP_KEY`
-  - `/services/api` -> `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN`
+  - `/services/api` -> `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN` (must match `/services/control-plane`)
 - keep non-secrets outside Infisical:
   - `TURSO_ORGANIZATION_SLUG`
   - `TURSO_COMMUNITY_DB_WRAP_KEY_VERSION`
@@ -226,3 +217,107 @@ Do not migrate these legacy fallback secrets from `pirate/`:
 - `STORY_SCROBBLE_OPERATOR_PRIVATE_KEY`
 
 The v2 policy is PKP-only for those families.
+
+## Migration Checksum Drift
+
+The `ACCEPTED_HISTORICAL_CHECKSUMS` map in `scripts/lib/postgres-migrations.ts` exists because
+the baseline migration file (`0000_control_plane_baseline_postgres.sql`) was modified after
+dev and staging had already applied an earlier version of it. The databases carry the original
+checksum in `schema_migrations`, but the file on disk now hashes differently.
+
+Historical checksums recorded:
+
+- `0000_control_plane_baseline_postgres.sql`: `74e8627d...` (applied to dev/staging; current
+  file hashes to `41ad670e...`)
+- `0002_control_plane_communities.sql`: `8eb1ffcb...` (applied to dev/staging; current file
+  hashes differently)
+
+**Rule: do not mutate baseline migration files after any environment has applied them.** If a
+schema change is needed, it belongs in a new numbered migration.
+
+## Environment Validation
+
+Run `scripts/check-infisical-env.ts` before migrations and deploys to verify that the Infisical
+environment matches the contract defined in `scripts/lib/infisical-env-contract.ts`:
+
+```bash
+rtk bun scripts/check-infisical-env.ts --env dev
+rtk bun scripts/check-infisical-env.ts --env staging --connect
+```
+
+The `--connect` flag validates database identity, host consistency, and expected privilege shape
+(migrator has DDL + DML, runtime has DML-only, roles match what the URLs claim). It is not a full
+application smoke test — it checks that the secret contract is met, not that the application works.
+
+Production absence is acceptable until production provisioning begins. The doctor will report
+that the environment does not exist, which is the correct state.
+
+## Environment Shape
+
+The Infisical contract now has only two path families:
+
+- `/services`
+  Hosted runtime and provisioning secrets. This is the contract for `staging` and `prod`.
+- `/local`
+  Local-development convenience and break-glass material. This is dev-only.
+
+Do not use `/local` as a hosted staging/production path. If a hosted break-glass store is ever
+needed, it should live under a distinct ops/break-glass path with tighter access policy, not under
+`/local`.
+
+## Project Split
+
+Treat the repo root project config as non-prod only:
+
+- repo root `.infisical.json` -> current non-prod project (`pirate-dev-staging`)
+
+Treat production as a separate human-only project boundary:
+
+- `ops/prod/.infisical.json` -> prod-only project (`pirate-prod`)
+
+Recommended usage:
+
+```bash
+# non-prod from repo root
+rtk bun scripts/check-infisical-env.ts --env dev --connect
+rtk bun scripts/check-infisical-env.ts --env staging --connect
+
+# prod from human-only config dir
+rtk infisical run --project-config-dir=ops/prod --env prod -- \
+  rtk bun scripts/check-infisical-env.ts --env prod --connect
+```
+
+Do not point the repo root `.infisical.json` at the prod project.
+
+`pirate-prod` is now scaffolded with the required hosted folder tree and required prod secret keys.
+Those keys are intentionally seeded as `__HUMAN_SET_REQUIRED__` placeholders so the prod doctor
+fails closed until a human replaces every value.
+
+If `pirate-dev-staging` is only a rename of the existing non-prod project, the root
+`.infisical.json` binding can stay as-is. If it is a different Infisical project ID, re-run
+`rtk infisical init` at the repo root from a human-approved shell.
+
+For the exact human-only prod sequence, use:
+
+- [production-infisical-human-only-checklist.md](../runbooks/production-infisical-human-only-checklist.md)
+
+## Bootstrap
+
+Use `scripts/bootstrap-infisical.ts` to provision Infisical from the same contract the doctor
+validates:
+
+```bash
+CONTROL_PLANE_DATABASE_URL=... CONTROL_PLANE_MIGRATOR_DATABASE_URL=... \
+  rtk bun scripts/bootstrap-infisical.ts --env dev
+
+CONTROL_PLANE_DATABASE_URL=... CONTROL_PLANE_MIGRATOR_DATABASE_URL=... \
+  rtk bun scripts/bootstrap-infisical.ts --env dev --dry-run
+```
+
+The contract is the single source of truth for which secrets must exist, where, and at what
+requiredness tier. Both the doctor and the unified bootstrap script read from
+`scripts/lib/infisical-env-contract.ts`.
+
+The individual bootstrap scripts (`bootstrap-infisical-control-plane.sh`,
+`bootstrap-infisical-turso.sh`, etc.) still work but are superseded by the unified script. They
+will be removed once the unified script is proven in use.

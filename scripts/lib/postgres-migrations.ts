@@ -37,10 +37,20 @@ const LEGACY_MIGRATION_NAMES: Record<string, string[]> = {
 };
 
 const ACCEPTED_HISTORICAL_CHECKSUMS: Record<string, string[]> = {
+  "0000_control_plane_baseline_postgres.sql": [
+    "74e8627d1ba7ff144713a49c8965110dfbfd8b5580443127418e7b29b0041593",
+  ],
   "0002_control_plane_communities.sql": [
     "8eb1ffcbe1e3259383015ff449f1f3ba8186ecafcc694a9241614bd4af2779ba",
   ],
 };
+// These historical checksums exist because the baseline migration file was modified
+// after dev/staging had already applied an earlier version. The databases carry the
+// original checksum in schema_migrations; the file on disk now hashes differently.
+// Do not add new entries here without documenting the root cause in
+// docs/control-plane/infisical-migration.md. Baseline migration files must not be
+// mutated after any environment has applied them — if a schema change is needed, it
+// belongs in a new numbered migration.
 
 const SUPERSEDED_MIGRATIONS: Record<string, string[]> = {
   "0000_control_plane_baseline_postgres.sql": [

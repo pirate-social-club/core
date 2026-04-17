@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createClient } from "@libsql/client";
+import type { Client as LibsqlClient, InStatement, Transaction as LibsqlTransaction } from "@libsql/core/api";
 import {
   bootstrapCommunityDatabase,
   listExpectedCommunityMigrationChecksums,
@@ -47,8 +48,20 @@ type ActiveCredentialRow = {
   token_name: string;
 };
 
+type TaggedQueryExecutor = <T = unknown[]>(strings: TemplateStringsArray, ...values: unknown[]) => Promise<T>;
+
+type ControlPlaneQueryable = {
+  sql: TaggedQueryExecutor;
+};
+
+type ControlPlaneDatabase = ControlPlaneQueryable & {
+  begin<T>(callback: (tx: ControlPlaneQueryable) => Promise<T>): Promise<T>;
+  close(): Promise<void>;
+};
+
 export type ProvisionCommunityInput = {
   controlPlaneDatabaseUrl: string;
+  controlPlaneAuthToken?: string | null;
   tursoPlatformApiToken: string;
   tursoOrganizationSlug: string;
   tursoCommunityDbWrapKey: string;
@@ -111,6 +124,7 @@ export type ProvisionCommunityRuntimeResult = {
 
 export type RotateCommunityTokenInput = {
   controlPlaneDatabaseUrl: string;
+  controlPlaneAuthToken?: string | null;
   tursoPlatformApiToken: string;
   tursoCommunityDbWrapKey: string;
   tursoCommunityDbWrapKeyVersion: number;
@@ -133,6 +147,7 @@ export type RotateCommunityTokenResult = {
 
 export type DoctorInput = {
   controlPlaneDatabaseUrl: string;
+  controlPlaneAuthToken?: string | null;
   communityId?: string | null;
   tursoCommunityDbWrapKey?: string | null;
   inspectCommunityDatabaseSchemaFn?: (input: {
@@ -244,14 +259,116 @@ function isExpectedDatabaseUrl(
   }
 }
 
+function isLibsqlControlPlaneUrl(url: string): boolean {
+  const normalized = url.trim().toLowerCase();
+  return normalized.startsWith("libsql:")
+    || normalized.startsWith("file:")
+    || normalized.startsWith("http:")
+    || normalized.startsWith("https:");
+}
+
+function normalizeSqlArg(value: unknown): unknown {
+  if (value === undefined) {
+    return null;
+  }
+  if (typeof value === "boolean") {
+    return value ? 1 : 0;
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  return value;
+}
+
+function compileTaggedStatement(
+  strings: TemplateStringsArray,
+  values: unknown[],
+): { sql: string; args: unknown[] } {
+  let sql = "";
+  const args: unknown[] = [];
+
+  for (let index = 0; index < strings.length; index += 1) {
+    sql += strings[index];
+    if (index < values.length) {
+      sql += "?";
+      args.push(normalizeSqlArg(values[index]));
+    }
+  }
+
+  return { sql, args };
+}
+
+function createLibsqlQueryable(executor: Pick<LibsqlClient, "execute"> | Pick<LibsqlTransaction, "execute">): ControlPlaneQueryable {
+  return {
+    sql: async <T = unknown[]>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T> => {
+      const statement = compileTaggedStatement(strings, values);
+      const result = await executor.execute(statement);
+      return result.rows as T;
+    },
+  };
+}
+
+function createBunQueryable(executor: Bun.SQL): ControlPlaneQueryable {
+  return {
+    sql: async <T = unknown[]>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T> => {
+      return executor<T>(strings, ...values);
+    },
+  };
+}
+
+function openControlPlaneDatabase(input: {
+  url: string;
+  authToken?: string | null;
+}): ControlPlaneDatabase {
+  if (isLibsqlControlPlaneUrl(input.url)) {
+    const client = createClient({
+      url: input.url,
+      authToken: input.authToken?.trim() || undefined,
+    });
+
+    return {
+      ...createLibsqlQueryable(client),
+      begin: async <T>(callback: (tx: ControlPlaneQueryable) => Promise<T>): Promise<T> => {
+        const tx = await client.transaction("write");
+        try {
+          const result = await callback(createLibsqlQueryable(tx));
+          await tx.commit();
+          return result;
+        } catch (error) {
+          try {
+            await tx.rollback();
+          } catch {}
+          throw error;
+        } finally {
+          tx.close();
+        }
+      },
+      close: async (): Promise<void> => {
+        client.close();
+      },
+    };
+  }
+
+  const db = new Bun.SQL(input.url);
+  return {
+    ...createBunQueryable(db),
+    begin: async <T>(callback: (tx: ControlPlaneQueryable) => Promise<T>): Promise<T> => {
+      return db.begin(async (tx) => callback(createBunQueryable(tx as unknown as Bun.SQL)));
+    },
+    close: async (): Promise<void> => {
+      await db.end();
+    },
+  };
+}
+
 async function requireNamespaceVerification(
-  db: Bun.SQL,
+  db: ControlPlaneQueryable,
   input: {
     namespaceVerificationId: string;
     creatorUserId: string;
   },
 ): Promise<NamespaceVerificationRow> {
-  const rows = await db<NamespaceVerificationRow[]>`
+  const rows = await db.sql<NamespaceVerificationRow[]>`
     SELECT
       namespace_verification_id,
       user_id,
@@ -276,10 +393,10 @@ async function requireNamespaceVerification(
 }
 
 async function getCommunityByNamespaceVerificationId(
-  db: Bun.SQL,
+  db: ControlPlaneQueryable,
   namespaceVerificationId: string,
 ): Promise<CommunityRow | null> {
-  const rows = await db<CommunityRow[]>`
+  const rows = await db.sql<CommunityRow[]>`
     SELECT community_id, creator_user_id, primary_database_binding_id, provisioning_state
     FROM communities
     WHERE namespace_verification_id = ${namespaceVerificationId}
@@ -289,10 +406,10 @@ async function getCommunityByNamespaceVerificationId(
 }
 
 async function getPrimaryBindingByCommunityId(
-  db: Bun.SQL,
+  db: ControlPlaneQueryable,
   communityId: string,
 ): Promise<BindingRow | null> {
-  const rows = await db<BindingRow[]>`
+  const rows = await db.sql<BindingRow[]>`
     SELECT
       community_database_binding_id,
       community_id,
@@ -311,10 +428,10 @@ async function getPrimaryBindingByCommunityId(
 }
 
 async function getActivePrimaryBindingsByCommunityId(
-  db: Bun.SQL,
+  db: ControlPlaneQueryable,
   communityId: string,
 ): Promise<BindingRow[]> {
-  return db<BindingRow[]>`
+  return db.sql<BindingRow[]>`
     SELECT
       community_database_binding_id,
       community_id,
@@ -332,13 +449,13 @@ async function getActivePrimaryBindingsByCommunityId(
 }
 
 async function getActiveNamespaceCollisionCommunityIds(
-  db: Bun.SQL,
+  db: ControlPlaneQueryable,
   input: {
     communityId: string;
     routeSlug: string;
   },
 ): Promise<string[]> {
-  const rows = await db<{ community_id: string }[]>`
+  const rows = await db.sql<{ community_id: string }[]>`
     SELECT c.community_id
     FROM communities AS c
     INNER JOIN namespace_verifications AS nv
@@ -353,12 +470,12 @@ async function getActiveNamespaceCollisionCommunityIds(
 }
 
 async function getNextRotationNumber(
-  db: Bun.SQL,
+  db: ControlPlaneQueryable,
   input: {
     communityId: string;
   },
 ): Promise<number> {
-  const rows = await db<{ token_name: string }[]>`
+  const rows = await db.sql<{ token_name: string }[]>`
     SELECT cdc.token_name
     FROM community_db_credentials AS cdc
     INNER JOIN community_database_bindings AS cdb
@@ -374,7 +491,7 @@ async function getNextRotationNumber(
 }
 
 async function writeActiveCommunityCredential(
-  tx: Bun.SQL,
+  tx: ControlPlaneQueryable,
   input: {
     communityDatabaseBindingId: string;
     communityDbCredentialId: string;
@@ -384,7 +501,7 @@ async function writeActiveCommunityCredential(
     timestamp: string;
   },
 ): Promise<void> {
-  await tx`
+  await tx.sql`
     UPDATE community_db_credentials
     SET status = 'superseded',
         invalidated_at = ${input.timestamp},
@@ -393,7 +510,7 @@ async function writeActiveCommunityCredential(
       AND status = 'active'
   `;
 
-  await tx`
+  await tx.sql`
     INSERT INTO community_db_credentials (
       community_db_credential_id,
       community_database_binding_id,
@@ -427,10 +544,10 @@ async function writeActiveCommunityCredential(
 }
 
 async function getActiveCredentialCount(
-  db: Bun.SQL,
+  db: ControlPlaneQueryable,
   communityDatabaseBindingId: string,
 ): Promise<number> {
-  const rows = await db<{ count: number }[]>`
+  const rows = await db.sql<{ count: number }[]>`
     SELECT COUNT(*) AS count
     FROM community_db_credentials
     WHERE community_database_binding_id = ${communityDatabaseBindingId}
@@ -440,10 +557,10 @@ async function getActiveCredentialCount(
 }
 
 async function getActiveCredentialRow(
-  db: Bun.SQL,
+  db: ControlPlaneQueryable,
   communityDatabaseBindingId: string,
 ): Promise<ActiveCredentialRow | null> {
-  const rows = await db<ActiveCredentialRow[]>`
+  const rows = await db.sql<ActiveCredentialRow[]>`
     SELECT
       community_db_credential_id,
       encrypted_token,
@@ -525,6 +642,7 @@ export async function provisionCommunity(
   input: ProvisionCommunityInput,
 ): Promise<ProvisionCommunityResult> {
   const controlPlaneDatabaseUrl = requireText(input.controlPlaneDatabaseUrl, "controlPlaneDatabaseUrl");
+  const controlPlaneAuthToken = input.controlPlaneAuthToken?.trim() || null;
   const tursoPlatformApiToken = requireText(input.tursoPlatformApiToken, "tursoPlatformApiToken");
   const tursoOrganizationSlug = requireText(input.tursoOrganizationSlug, "tursoOrganizationSlug");
   const tursoCommunityDbWrapKey = requireText(input.tursoCommunityDbWrapKey, "tursoCommunityDbWrapKey");
@@ -547,10 +665,13 @@ export async function provisionCommunity(
   const credentialId = makeId("cdc");
   const successAuditId = makeId("aud");
   const failureAuditId = makeId("aud");
-  let db: Bun.SQL | null = null;
+  let db: ControlPlaneDatabase | null = null;
 
   try {
-    db = new Bun.SQL(controlPlaneDatabaseUrl);
+    db = openControlPlaneDatabase({
+      url: controlPlaneDatabaseUrl,
+      authToken: controlPlaneAuthToken,
+    });
     const namespaceVerification = await requireNamespaceVerification(db, {
       namespaceVerificationId,
       creatorUserId,
@@ -566,7 +687,7 @@ export async function provisionCommunity(
     const bindingId = existingBinding?.community_database_binding_id ?? bindingIdFallback;
 
     await db.begin(async (tx) => {
-      await tx`
+      await tx.sql`
         INSERT INTO communities (
           community_id,
           creator_user_id,
@@ -602,7 +723,7 @@ export async function provisionCommunity(
           updated_at = EXCLUDED.updated_at
       `;
 
-      await tx`
+      await tx.sql`
         INSERT INTO jobs (
           job_id,
           job_type,
@@ -728,7 +849,7 @@ export async function provisionCommunity(
     });
 
     await db.begin(async (tx) => {
-      await tx`
+      await tx.sql`
         INSERT INTO community_database_bindings (
           community_database_binding_id,
           community_id,
@@ -772,7 +893,7 @@ export async function provisionCommunity(
           updated_at = EXCLUDED.updated_at
       `;
 
-      await writeActiveCommunityCredential(tx as unknown as Bun.SQL, {
+      await writeActiveCommunityCredential(tx, {
         communityDatabaseBindingId: bindingId,
         communityDbCredentialId: credentialId,
         tokenName,
@@ -781,7 +902,7 @@ export async function provisionCommunity(
         timestamp,
       });
 
-      await tx`
+      await tx.sql`
         UPDATE communities
         SET primary_database_binding_id = ${bindingId},
             provisioning_state = 'active',
@@ -789,7 +910,7 @@ export async function provisionCommunity(
         WHERE community_id = ${communityId}
       `;
 
-      await tx`
+      await tx.sql`
         UPDATE jobs
         SET status = 'succeeded',
             result_ref = ${databaseUrl},
@@ -798,7 +919,7 @@ export async function provisionCommunity(
         WHERE job_id = ${jobId}
       `;
 
-      await tx`
+      await tx.sql`
         INSERT INTO audit_log (
           audit_event_id,
           actor_type,
@@ -857,7 +978,7 @@ export async function provisionCommunity(
 
     try {
       await db.begin(async (tx) => {
-        await tx`
+        await tx.sql`
           UPDATE jobs
           SET status = 'failed',
               error_code = 'community_turso_provisioning_failed',
@@ -866,14 +987,14 @@ export async function provisionCommunity(
           WHERE job_id = ${jobId}
         `;
 
-        await tx`
+        await tx.sql`
           UPDATE communities
           SET provisioning_state = 'error',
               updated_at = ${failureAt}
           WHERE community_id = ${communityId}
         `;
 
-        await tx`
+        await tx.sql`
           INSERT INTO audit_log (
             audit_event_id,
             actor_type,
@@ -904,7 +1025,7 @@ export async function provisionCommunity(
     throw error;
   } finally {
     if (db) {
-      await db.end();
+      await db.close();
     }
   }
 }
@@ -913,6 +1034,7 @@ export async function provisionCommunityRuntime(
   input: ProvisionCommunityInput,
 ): Promise<ProvisionCommunityRuntimeResult> {
   const controlPlaneDatabaseUrl = requireText(input.controlPlaneDatabaseUrl, "controlPlaneDatabaseUrl");
+  const controlPlaneAuthToken = input.controlPlaneAuthToken?.trim() || null;
   const tursoPlatformApiToken = requireText(input.tursoPlatformApiToken, "tursoPlatformApiToken");
   const tursoOrganizationSlug = requireText(input.tursoOrganizationSlug, "tursoOrganizationSlug");
   const communityId = requireText(input.communityId, "communityId");
@@ -925,10 +1047,13 @@ export async function provisionCommunityRuntime(
   const groupName = buildCommunityGroupName(communityId);
   const bootstrapFn = input.bootstrapCommunityDatabaseFn ?? bootstrapCommunityDatabase;
   const timestamp = nowIso(input.now ?? new Date());
-  let db: Bun.SQL | null = null;
+  let db: ControlPlaneDatabase | null = null;
 
   try {
-    db = new Bun.SQL(controlPlaneDatabaseUrl);
+    db = openControlPlaneDatabase({
+      url: controlPlaneDatabaseUrl,
+      authToken: controlPlaneAuthToken,
+    });
     const namespaceVerification = await requireNamespaceVerification(db, {
       namespaceVerificationId,
       creatorUserId,
@@ -1030,7 +1155,7 @@ export async function provisionCommunityRuntime(
     };
   } finally {
     if (db) {
-      await db.end();
+      await db.close();
     }
   }
 }
@@ -1039,6 +1164,7 @@ export async function rotateCommunityToken(
   input: RotateCommunityTokenInput,
 ): Promise<RotateCommunityTokenResult> {
   const controlPlaneDatabaseUrl = requireText(input.controlPlaneDatabaseUrl, "controlPlaneDatabaseUrl");
+  const controlPlaneAuthToken = input.controlPlaneAuthToken?.trim() || null;
   const tursoPlatformApiToken = requireText(input.tursoPlatformApiToken, "tursoPlatformApiToken");
   const tursoCommunityDbWrapKey = requireText(input.tursoCommunityDbWrapKey, "tursoCommunityDbWrapKey");
   const tursoCommunityDbWrapKeyVersion = requirePositiveInt(
@@ -1051,11 +1177,14 @@ export async function rotateCommunityToken(
   const databaseTokenExpiration = input.databaseTokenExpiration?.trim() || null;
   const credentialId = makeId("cdc");
   const auditEventId = makeId("aud");
-  let db: Bun.SQL | null = null;
+  let db: ControlPlaneDatabase | null = null;
 
   try {
-    db = new Bun.SQL(controlPlaneDatabaseUrl);
-    const communityRows = await db<CommunityRow[]>`
+    db = openControlPlaneDatabase({
+      url: controlPlaneDatabaseUrl,
+      authToken: controlPlaneAuthToken,
+    });
+    const communityRows = await db.sql<CommunityRow[]>`
       SELECT community_id, creator_user_id, primary_database_binding_id, provisioning_state, status, transfer_state
       FROM communities
       WHERE community_id = ${communityId}
@@ -1093,7 +1222,7 @@ export async function rotateCommunityToken(
     });
 
     await db.begin(async (tx) => {
-      await writeActiveCommunityCredential(tx as unknown as Bun.SQL, {
+      await writeActiveCommunityCredential(tx, {
         communityDatabaseBindingId: binding.community_database_binding_id,
         communityDbCredentialId: credentialId,
         tokenName,
@@ -1102,13 +1231,13 @@ export async function rotateCommunityToken(
         timestamp,
       });
 
-      await tx`
+      await tx.sql`
         UPDATE communities
         SET updated_at = ${timestamp}
         WHERE community_id = ${communityId}
       `;
 
-      await tx`
+      await tx.sql`
         INSERT INTO audit_log (
           audit_event_id,
           actor_type,
@@ -1151,7 +1280,7 @@ export async function rotateCommunityToken(
     throw error;
   } finally {
     if (db) {
-      await db.end();
+      await db.close();
     }
   }
 }
@@ -1160,13 +1289,17 @@ export async function doctorControlPlane(
   input: DoctorInput,
 ): Promise<DoctorResult> {
   const controlPlaneDatabaseUrl = requireText(input.controlPlaneDatabaseUrl, "controlPlaneDatabaseUrl");
+  const controlPlaneAuthToken = input.controlPlaneAuthToken?.trim() || null;
   const communityId = input.communityId?.trim() || null;
   const tursoCommunityDbWrapKey = input.tursoCommunityDbWrapKey?.trim() || null;
   const inspectCommunityDatabaseSchemaFn = input.inspectCommunityDatabaseSchemaFn ?? inspectCommunityDatabaseSchema;
-  let db: Bun.SQL | null = null;
+  let db: ControlPlaneDatabase | null = null;
 
   try {
-    db = new Bun.SQL(controlPlaneDatabaseUrl);
+    db = openControlPlaneDatabase({
+      url: controlPlaneDatabaseUrl,
+      authToken: controlPlaneAuthToken,
+    });
     const findings: DoctorFinding[] = [];
     let checkedCommunityCount = 0;
     let checkedBindingCount = 0;
@@ -1175,7 +1308,7 @@ export async function doctorControlPlane(
 
     let communities: CommunityRow[];
     if (communityId) {
-      communities = await db<CommunityRow[]>`
+      communities = await db.sql<CommunityRow[]>`
         SELECT community_id, creator_user_id, primary_database_binding_id, provisioning_state, status, transfer_state, route_slug
         FROM communities
         WHERE community_id = ${communityId}
@@ -1184,7 +1317,7 @@ export async function doctorControlPlane(
         throw new Error(`community not found: ${communityId}`);
       }
     } else {
-      communities = await db<CommunityRow[]>`
+      communities = await db.sql<CommunityRow[]>`
         SELECT community_id, creator_user_id, primary_database_binding_id, provisioning_state, status, transfer_state, route_slug
         FROM communities
         WHERE status = 'active'
@@ -1364,7 +1497,7 @@ export async function doctorControlPlane(
     throw error;
   } finally {
     if (db) {
-      await db.end();
+      await db.close();
     }
   }
 }

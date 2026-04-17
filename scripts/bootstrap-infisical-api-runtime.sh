@@ -35,9 +35,16 @@ if [[ -z "${AUTH_UPSTREAM_JWT_SHARED_SECRET:-}" \
   && -z "${PIRATE_APP_JWT_PRIVATE_KEY:-}" \
   && -z "${PIRATE_APP_JWT_PUBLIC_KEY:-}" \
   && -z "${PRIVY_APP_SECRET:-}" \
-  && -z "${PRIVY_JWT_VERIFICATION_KEY:-}" ]]; then
+  && -z "${PRIVY_JWT_VERIFICATION_KEY:-}" \
+  && -z "${FILEBASE_S3_ACCESS_KEY:-}" \
+  && -z "${FILEBASE_S3_SECRET_KEY:-}" \
+  && -z "${OPENROUTER_API_KEY:-}" \
+  && -z "${ACRCLOUD_ACCESS_KEY:-}" \
+  && -z "${ACRCLOUD_ACCESS_SECRET:-}" \
+  && -z "${ACRCLOUD_PERSONAL_ACCESS_TOKEN:-}" \
+  && -z "${ELEVENLABS_API_KEY:-}" ]]; then
   echo "provide at least one API runtime secret to bootstrap" >&2
-  echo "supported vars: AUTH_UPSTREAM_JWT_SHARED_SECRET PIRATE_APP_JWT_PRIVATE_KEY PIRATE_APP_JWT_PUBLIC_KEY PRIVY_APP_SECRET PRIVY_JWT_VERIFICATION_KEY" >&2
+  echo "supported vars: AUTH_UPSTREAM_JWT_SHARED_SECRET PIRATE_APP_JWT_PRIVATE_KEY PIRATE_APP_JWT_PUBLIC_KEY PRIVY_APP_SECRET PRIVY_JWT_VERIFICATION_KEY FILEBASE_S3_ACCESS_KEY FILEBASE_S3_SECRET_KEY OPENROUTER_API_KEY ACRCLOUD_ACCESS_KEY ACRCLOUD_ACCESS_SECRET ACRCLOUD_PERSONAL_ACCESS_TOKEN ELEVENLABS_API_KEY" >&2
   exit 1
 fi
 
@@ -51,6 +58,13 @@ set_secret_if_present "/services/api" "PIRATE_APP_JWT_PRIVATE_KEY"
 set_secret_if_present "/services/api" "PIRATE_APP_JWT_PUBLIC_KEY"
 set_secret_if_present "/services/api" "PRIVY_APP_SECRET"
 set_secret_if_present "/services/api" "PRIVY_JWT_VERIFICATION_KEY"
+set_secret_if_present "/services/api" "FILEBASE_S3_ACCESS_KEY"
+set_secret_if_present "/services/api" "FILEBASE_S3_SECRET_KEY"
+set_secret_if_present "/services/api" "OPENROUTER_API_KEY"
+set_secret_if_present "/services/api" "ACRCLOUD_ACCESS_KEY"
+set_secret_if_present "/services/api" "ACRCLOUD_ACCESS_SECRET"
+set_secret_if_present "/services/api" "ACRCLOUD_PERSONAL_ACCESS_TOKEN"
+set_secret_if_present "/services/api" "ELEVENLABS_API_KEY"
 
 cat <<EOF
 infisical API runtime bootstrap complete
@@ -61,14 +75,29 @@ created/updated in /services/api when provided:
 - PIRATE_APP_JWT_PUBLIC_KEY
 - PRIVY_APP_SECRET
 - PRIVY_JWT_VERIFICATION_KEY
+- FILEBASE_S3_ACCESS_KEY
+- FILEBASE_S3_SECRET_KEY
+- OPENROUTER_API_KEY
+- ACRCLOUD_ACCESS_KEY
+- ACRCLOUD_ACCESS_SECRET
+- ACRCLOUD_PERSONAL_ACCESS_TOKEN
+- ELEVENLABS_API_KEY
 intentionally not stored here:
 - AUTH_UPSTREAM_JWT_ISSUER
 - AUTH_UPSTREAM_JWT_AUDIENCE
 - PRIVY_APP_ID
 - PRIVY_API_URL
-not API runtime secrets (use operator bootstrap instead):
+- OPENROUTER_BASE_URL
+- OPENROUTER_MODEL
+- ACRCLOUD_HOST
+- ACRCLOUD_IDENTIFY_PATH
+- ACRCLOUD_BUCKET_ID
+- ACRCLOUD_CONSOLE_BASE_URL
+- ELEVENLABS_FORCE_ALIGNMENT_URL
+still handled outside this bootstrap:
 - SPACES_VERIFIER_AUTH_TOKEN
-- FILEBASE_S3_ACCESS_KEY
-- FILEBASE_S3_SECRET_KEY
 - COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN
+
+validate with:
+  bun scripts/check-infisical-env.ts --env $INFISICAL_ENV
 EOF

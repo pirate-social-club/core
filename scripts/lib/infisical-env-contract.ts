@@ -1,0 +1,360 @@
+export type Requiredness =
+  | "required_now"
+  | "required_for_local_dev"
+  | "required_for_hosted"
+  | "required_for_staging"
+  | "required_for_production"
+  | "deferred";
+
+export type SecretSpec = {
+  path: string;
+  key: string;
+  requiredness: Requiredness;
+  validate?: (value: string) => string | null;
+};
+
+export type CrossPathCheckResult = {
+  status: "ok" | "skip" | "fail";
+  message?: string;
+};
+
+export type CrossPathCheck = {
+  description: string;
+  check: (secrets: Map<string, { path: string; value: string | null }>) => CrossPathCheckResult;
+};
+
+export type FolderSpec = {
+  path: string;
+  requiredness: Requiredness;
+};
+
+export type EnvContract = {
+  folders: FolderSpec[];
+  secrets: SecretSpec[];
+  crossPathChecks: CrossPathCheck[];
+};
+
+function isPostgresUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    if (!["postgresql:", "postgres:"].includes(url.protocol)) {
+      return `expected postgresql:// URL, got ${url.protocol}//`;
+    }
+    if (!url.hostname) {
+      return "missing hostname";
+    }
+    return null;
+  } catch {
+    return "not a valid URL";
+  }
+}
+
+function is64CharHex(value: string): string | null {
+  if (!/^[0-9a-f]{64}$/.test(value)) {
+    return "expected 64-character lowercase hex string";
+  }
+  return null;
+}
+
+function isNonEmpty(_value: string): string | null {
+  return null;
+}
+
+export const ENV_CONTRACT: EnvContract = {
+  folders: [
+    { path: "/services", requiredness: "required_now" },
+    { path: "/services/api", requiredness: "required_now" },
+    { path: "/services/control-plane", requiredness: "required_now" },
+    { path: "/local", requiredness: "required_for_local_dev" },
+    { path: "/local/control-plane", requiredness: "required_for_local_dev" },
+  ],
+
+  secrets: [
+    {
+      path: "/services/api",
+      key: "CONTROL_PLANE_DATABASE_URL",
+      requiredness: "required_now",
+      validate: isPostgresUrl,
+    },
+    {
+      path: "/services/api",
+      key: "TURSO_COMMUNITY_DB_WRAP_KEY",
+      requiredness: "required_now",
+      validate: is64CharHex,
+    },
+    {
+      path: "/services/api",
+      key: "AUTH_UPSTREAM_JWT_SHARED_SECRET",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "PIRATE_APP_JWT_PRIVATE_KEY",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "PIRATE_APP_JWT_PUBLIC_KEY",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "PRIVY_APP_SECRET",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "PRIVY_JWT_VERIFICATION_KEY",
+      requiredness: "deferred",
+    },
+    {
+      path: "/services/api",
+      key: "SPACES_VERIFIER_AUTH_TOKEN",
+      requiredness: "deferred",
+    },
+    {
+      path: "/services/api",
+      key: "FILEBASE_S3_ACCESS_KEY",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "FILEBASE_S3_SECRET_KEY",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "ACRCLOUD_ACCESS_KEY",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "ACRCLOUD_ACCESS_SECRET",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "ACRCLOUD_PERSONAL_ACCESS_TOKEN",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "ELEVENLABS_API_KEY",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN",
+      requiredness: "required_now",
+    },
+    {
+      path: "/services/api",
+      key: "OPENROUTER_API_KEY",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "JINA_API_KEY",
+      requiredness: "deferred",
+    },
+    {
+      path: "/services/api",
+      key: "LIT_CHIPOTLE_OPERATOR_API_KEY",
+      requiredness: "deferred",
+    },
+    {
+      path: "/services/api",
+      key: "LIT_CHIPOTLE_ACCESS_CONTROLLER_API_KEY",
+      requiredness: "deferred",
+    },
+    {
+      path: "/services/api",
+      key: "LIT_CHIPOTLE_STORY_SETTLEMENT_API_KEY",
+      requiredness: "deferred",
+    },
+    {
+      path: "/services/control-plane",
+      key: "CONTROL_PLANE_MIGRATOR_DATABASE_URL",
+      requiredness: "required_now",
+      validate: isPostgresUrl,
+    },
+    {
+      path: "/services/control-plane",
+      key: "TURSO_PLATFORM_API_TOKEN",
+      requiredness: "required_now",
+    },
+    {
+      path: "/services/control-plane",
+      key: "TURSO_COMMUNITY_DB_WRAP_KEY",
+      requiredness: "required_now",
+      validate: is64CharHex,
+    },
+    {
+      path: "/services/control-plane",
+      key: "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN",
+      requiredness: "required_now",
+    },
+    {
+      path: "/local/control-plane",
+      key: "CONTROL_PLANE_OWNER_DATABASE_URL",
+      requiredness: "required_for_local_dev",
+      validate: isPostgresUrl,
+    },
+  ],
+
+  crossPathChecks: [
+    {
+      description: "TURSO_COMMUNITY_DB_WRAP_KEY must match between /services/api and /services/control-plane",
+      check: (secrets) => {
+        const api = secrets.get("TURSO_COMMUNITY_DB_WRAP_KEY__/services/api");
+        const cp = secrets.get("TURSO_COMMUNITY_DB_WRAP_KEY__/services/control-plane");
+        if (!api || !cp || api.value === null || cp.value === null) {
+          return { status: "skip", message: "one or both values missing" };
+        }
+        if (api.value !== cp.value) {
+          return { status: "fail", message: `/services/api has ${api.value.slice(0, 8)}... vs /services/control-plane has ${cp.value.slice(0, 8)}...` };
+        }
+        return { status: "ok" };
+      },
+    },
+    {
+      description: "Runtime and migrator URLs must point at the same database host",
+      check: (secrets) => {
+        const runtime = secrets.get("CONTROL_PLANE_DATABASE_URL__/services/api");
+        const migrator = secrets.get("CONTROL_PLANE_MIGRATOR_DATABASE_URL__/services/control-plane");
+        if (!runtime || !migrator || runtime.value === null || migrator.value === null) {
+          return { status: "skip", message: "one or both values missing" };
+        }
+        try {
+          const runtimeHost = new URL(runtime.value).hostname;
+          const migratorHost = new URL(migrator.value).hostname;
+          if (runtimeHost !== migratorHost) {
+            return { status: "fail", message: `runtime=${runtimeHost}, migrator=${migratorHost}` };
+          }
+        } catch {
+          return { status: "fail", message: "could not parse database URLs" };
+        }
+        return { status: "ok" };
+      },
+    },
+    {
+      description: "Runtime and migrator URLs must use different roles",
+      check: (secrets) => {
+        const runtime = secrets.get("CONTROL_PLANE_DATABASE_URL__/services/api");
+        const migrator = secrets.get("CONTROL_PLANE_MIGRATOR_DATABASE_URL__/services/control-plane");
+        if (!runtime || !migrator || runtime.value === null || migrator.value === null) {
+          return { status: "skip", message: "one or both values missing" };
+        }
+        try {
+          const runtimeUser = new URL(runtime.value).username;
+          const migratorUser = new URL(migrator.value).username;
+          if (runtimeUser === migratorUser) {
+            return { status: "fail", message: `both use ${runtimeUser}` };
+          }
+        } catch {
+          return { status: "fail", message: "could not parse database URLs" };
+        }
+        return { status: "ok" };
+      },
+    },
+    {
+      description: "Owner URL must point at the same database host as runtime",
+      check: (secrets) => {
+        const runtime = secrets.get("CONTROL_PLANE_DATABASE_URL__/services/api");
+        const owner = secrets.get("CONTROL_PLANE_OWNER_DATABASE_URL__/local/control-plane");
+        if (!runtime || !owner || runtime.value === null || owner.value === null) {
+          return { status: "skip", message: "one or both values missing" };
+        }
+        try {
+          const runtimeHost = new URL(runtime.value).hostname;
+          const ownerHost = new URL(owner.value).hostname;
+          if (runtimeHost !== ownerHost) {
+            return { status: "fail", message: `runtime=${runtimeHost}, owner=${ownerHost}` };
+          }
+        } catch {
+          return { status: "fail", message: "could not parse database URLs" };
+        }
+        return { status: "ok" };
+      },
+    },
+    {
+      description: "Owner URL must use a different role than runtime and migrator",
+      check: (secrets) => {
+        const runtime = secrets.get("CONTROL_PLANE_DATABASE_URL__/services/api");
+        const migrator = secrets.get("CONTROL_PLANE_MIGRATOR_DATABASE_URL__/services/control-plane");
+        const owner = secrets.get("CONTROL_PLANE_OWNER_DATABASE_URL__/local/control-plane");
+        if (!owner || owner.value === null) {
+          return { status: "skip", message: "owner value missing" };
+        }
+        try {
+          const ownerUser = new URL(owner.value).username;
+          if (runtime && runtime.value !== null) {
+            const runtimeUser = new URL(runtime.value).username;
+            if (ownerUser === runtimeUser) {
+              return { status: "fail", message: `owner and runtime both use ${ownerUser}` };
+            }
+          }
+          if (migrator && migrator.value !== null) {
+            const migratorUser = new URL(migrator.value).username;
+            if (ownerUser === migratorUser) {
+              return { status: "fail", message: `owner and migrator both use ${ownerUser}` };
+            }
+          }
+        } catch {
+          return { status: "fail", message: "could not parse database URLs" };
+        }
+        return { status: "ok" };
+      },
+    },
+    {
+      description: "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN must match between /services/api and /services/control-plane",
+      check: (secrets) => {
+        const api = secrets.get("COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN__/services/api");
+        const cp = secrets.get("COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN__/services/control-plane");
+        if (!api || !cp || api.value === null || cp.value === null) {
+          return { status: "skip", message: "one or both values missing" };
+        }
+        if (api.value !== cp.value) {
+          return { status: "fail", message: `/services/api has ${api.value.slice(0, 8)}... vs /services/control-plane has ${cp.value.slice(0, 8)}...` };
+        }
+        return { status: "ok" };
+      },
+    },
+  ],
+};
+
+export function requirednessApplies(requiredness: Requiredness, env: string): boolean {
+  const isProduction = env === "production" || env === "prod";
+
+  switch (requiredness) {
+    case "required_now":
+      return true;
+    case "required_for_local_dev":
+      return env === "dev";
+    case "required_for_hosted":
+      return env === "staging" || isProduction;
+    case "required_for_staging":
+      return env === "staging";
+    case "required_for_production":
+      return isProduction;
+    case "deferred":
+      return false;
+  }
+}
+
+export function requirednessLabel(requiredness: Requiredness): string {
+  switch (requiredness) {
+    case "required_now":
+      return "required";
+    case "required_for_local_dev":
+      return "required (local dev)";
+    case "required_for_hosted":
+      return "required (hosted)";
+    case "required_for_staging":
+      return "required (staging)";
+    case "required_for_production":
+      return "required (production)";
+    case "deferred":
+      return "deferred";
+  }
+}

@@ -31,6 +31,7 @@ function usage(): never {
 
 Environment:
   CONTROL_PLANE_DATABASE_URL           Required for every command.
+  TURSO_CONTROL_PLANE_AUTH_TOKEN       Required when CONTROL_PLANE_DATABASE_URL targets a protected libsql/Turso endpoint.
   TURSO_PLATFORM_API_TOKEN             Required for provision-community and rotate-community-token.
   TURSO_ORGANIZATION_SLUG              Required for provision-community.
   TURSO_COMMUNITY_DB_WRAP_KEY          Required for provision-community, rotate-community-token, and doctor.
@@ -193,10 +194,12 @@ function requirePositiveIntString(name: string): number {
 
 const options = parseArgs(process.argv.slice(2));
 const controlPlaneDatabaseUrl = requireEnv("CONTROL_PLANE_DATABASE_URL");
+const controlPlaneAuthToken = String(process.env.TURSO_CONTROL_PLANE_AUTH_TOKEN ?? "").trim() || null;
 
 if (options.command === "provision-community") {
   const result = await provisionCommunity({
     controlPlaneDatabaseUrl,
+    controlPlaneAuthToken,
     tursoPlatformApiToken: requireEnv("TURSO_PLATFORM_API_TOKEN"),
     tursoOrganizationSlug: requireEnv("TURSO_ORGANIZATION_SLUG"),
     tursoCommunityDbWrapKey: requireEnv("TURSO_COMMUNITY_DB_WRAP_KEY"),
@@ -232,6 +235,7 @@ rotation_number: ${result.rotationNumber}`);
 if (options.command === "rotate-community-token") {
   const result = await rotateCommunityToken({
     controlPlaneDatabaseUrl,
+    controlPlaneAuthToken,
     tursoPlatformApiToken: requireEnv("TURSO_PLATFORM_API_TOKEN"),
     tursoCommunityDbWrapKey: requireEnv("TURSO_COMMUNITY_DB_WRAP_KEY"),
     tursoCommunityDbWrapKeyVersion: requirePositiveIntString("TURSO_COMMUNITY_DB_WRAP_KEY_VERSION"),
@@ -253,6 +257,7 @@ rotation_number: ${result.rotationNumber}`);
 if (options.command === "doctor") {
   const result = await doctorControlPlane({
     controlPlaneDatabaseUrl,
+    controlPlaneAuthToken,
     communityId: options.communityId || null,
     tursoCommunityDbWrapKey: requireEnv("TURSO_COMMUNITY_DB_WRAP_KEY"),
   });

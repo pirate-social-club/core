@@ -62,4 +62,7 @@ env: $INFISICAL_ENV
 created/updated:
 - /services/api: CONTROL_PLANE_DATABASE_URL when provided
 - /services/control-plane: CONTROL_PLANE_MIGRATOR_DATABASE_URL when provided
+
+validate with:
+  bun scripts/check-infisical-env.ts --env $INFISICAL_ENV
 EOF
