@@ -45,10 +45,6 @@ User:
       type: string
       format: date-time
       nullable: true
-    nationality:
-      type: string
-      nullable: true
-      description: ISO country code when the current accepted identity includes nationality
     created_at:
       type: string
       format: date-time

@@ -1,17 +1,22 @@
 CreateCommunityRequestBase:
   type: object
   description: |
-    Authoritative community-create write model. For namespace-backed communities in public v0, the server must resolve `namespace.namespace_verification_id` to the accepted namespace-verification object at create time and re-check creator binding, freshness, and `club_attach_allowed` before any community state is written.
+    Authoritative community-create write model. When `namespace` is provided for namespace-backed communities in public v0, the server must resolve `namespace.namespace_verification_id` to the accepted namespace-verification object at create time and re-check creator binding, freshness, and `club_attach_allowed` before any community state is written. When `namespace` is omitted, the community is created without a namespace and can attach one later.
   required:
     - display_name
     - membership_mode
     - allow_anonymous_identity
-    - namespace
     - handle_policy
   properties:
     display_name:
       type: string
     description:
+      type: string
+      nullable: true
+    avatar_ref:
+      type: string
+      nullable: true
+    banner_ref:
       type: string
       nullable: true
     artist_identity_id:
@@ -141,11 +146,38 @@ CreateCommunityRequestBase:
       description: |
         Optional community-local cap on active user-owned agents per human owner. Must not exceed
         the platform-wide maximum.
+    human_verification_lane:
+      type: string
+      enum:
+        - very
+        - self
+      nullable: true
+      description: |
+        Primary public-v0 human-verification lane for this community. This is the UX-facing trust
+        lane that tells users which verification path to complete first. `very` is the lighter
+        baseline `unique_human` lane. `self` is the higher-friction lane for communities that also
+        need richer identity-derived capabilities or stronger agent-native trust semantics. When
+        omitted on create, the server may resolve a platform default lane. The server must reject
+        or normalize lane selections that are inconsistent with the effective gate set. For
+        example, a community whose resolved gates require Self-only capabilities such as
+        `nationality` or `age_over_18` must not resolve to `human_verification_lane = very`.
+    accepted_agent_ownership_providers:
+      type: array
+      nullable: true
+      description: |
+        Optional stricter override for agent KYA acceptance. When omitted, reads should derive the
+        effective accepted agent-ownership providers from `human_verification_lane` and the
+        community trust floor: any platform-approved KYA provider is acceptable so long as the
+        bound human clears the required lane. Set this only when the community wants a narrower
+        agent-auth posture, such as Self-only agent ownership.
+      items:
+        $ref: ./agents.yaml#/AgentOwnershipProvider
     namespace:
       allOf:
         - $ref: ./handles.yaml#/NamespaceAttachmentInput
+      nullable: true
       description: |
-        Namespace attachment input for community creation. In public v0 this must reference an accepted namespace-verification object via `namespace_verification_id`; the server must consume that accepted verification, not treat the field as a blind string.
+        Namespace attachment input for community creation. When provided, this must reference an accepted namespace-verification object via `namespace_verification_id`; the server must consume that accepted verification, not treat the field as a blind string. When omitted, the community is created without a namespace and can attach one later.
     handle_policy:
       allOf:
         - $ref: ./handles.yaml#/HandlePolicyInput
@@ -261,6 +293,7 @@ CreateCommunityRequestBase:
       nullable: true
       description: |
         Public v0 create is limited to `membership`-scope `identity_proof` gate rules only. Each submitted gate rule must include explicit `proof_requirements`. Token-holding gate rules, `viewer`-scope gates, and `posting`-scope gates are deferred until post-create settings. The server should reject create requests containing gate rules that fall outside the public v0 scope.
+        Public v0 self-serve creation should still reject `sanctions_clear` identity gates; those remain deferred or operator-controlled until their end-to-end request and policy semantics are fully locked.
         Token-holding gate rules are operator-controlled exceptions when enabled later; they are not public-v0 self-serve configuration.
 GateRuleInput:
   type: object
@@ -309,8 +342,9 @@ GateRuleInput:
         Provider-neutral rule config for the selected gate. For identity-proof gates, public v0
         should normalize on a small shared shape rather than arbitrary provider knobs:
         - `nationality`: `required_value` (single ISO code) or `excluded_values` (array of ISO codes)
-        - `gender`: `required_value` (`M` or `F`)
+        - `gender`: `required_value` for the Self document marker (`M` or `F`)
         - `wallet_score`: `minimum_score` (number)
+        Deferred/admin-only gates may additionally use:
         - `sanctions_clear`: no extra config required
 
         Token-holding gate configs are reserved for operator-approved exceptions and are not accepted through public v0 community creation.
@@ -378,8 +412,9 @@ GateRule:
         Stored provider-neutral rule config. For identity-proof gates, public v0 should normalize
         on:
         - `nationality`: `required_value` or `excluded_values`
-        - `gender`: `required_value`
+        - `gender`: `required_value` for the Self document marker
         - `wallet_score`: `minimum_score`
+        Deferred/admin-only gates may additionally use:
         - `sanctions_clear`: no extra config
         Token-holding configs should be typed by `gate_type` and use CAIP-2 `chain_namespace`.
         `erc721_holding` should support `contract_any`, `token_id_allowlist`, and `metadata_match`
@@ -439,8 +474,9 @@ ProofRequirement:
         - `unique_human`: `self` or `very`
         - `age_over_18`: `self`
         - `nationality`: `self`
-        - `gender`: `self`
+        - `gender`: `self` (document marker `M` / `F`)
         - `wallet_score`: `passport`
+        Deferred/admin-only combinations:
         - `sanctions_clear`: `passport`
         Other modeled proof types such as `biometric_liveness`, `gov_id`, and `phone` remain
         intentionally unvalidated at the public-v0 provider-matrix layer until the product locks
@@ -463,9 +499,18 @@ ProofRequirement:
       description: |
         Optional proof-level constraints. For public v0, identity-proof community gates should
         prefer provider-neutral semantics here or in `gate_config`:
-        - `required_value` for `nationality` or `gender`
+        - `required_value` for `nationality` or the Self document marker `gender`
         - `excluded_values` for `nationality`
         - `minimum_score` for `wallet_score`
+HumanVerificationLane:
+  type: string
+  enum:
+    - very
+    - self
+  description: |
+    Primary public-v0 human-verification lane for a community. This is a simple UX-facing summary,
+    not a replacement for the underlying capability model. The server must ensure this value is
+    consistent with the community's effective gate requirements.
 RootPostQuotaRule:
   type: object
   required:
@@ -534,7 +579,7 @@ CreateCommunityRequest:
   description: |
     Public v0 clients must submit only `CreateCentralizedCommunityRequest` (governance_mode = centralized). `CreateMultisigCommunityRequest` and `CreateMajeurCommunityRequest` remain valid in the API for internal, allowlisted, or feature-flagged use only. The public client must not submit them.
 
-    For namespace-backed public v0 create, the server must resolve `namespace.namespace_verification_id` to the accepted `NamespaceVerification` resource, confirm it belongs to the requesting creator, and reject the create if the accepted verification is stale, disputed, expired, or no longer satisfies `club_attach_allowed`.
+    For namespace-backed public v0 create, when `namespace` is provided the server must resolve `namespace.namespace_verification_id` to the accepted `NamespaceVerification` resource, confirm it belongs to the requesting creator, and reject the create if the accepted verification is stale, disputed, expired, or no longer satisfies `club_attach_allowed`. When `namespace` is omitted, the community is created without a namespace and can attach one later.
 CommunityCreateAcceptedResponse:
   type: object
   required:
@@ -557,6 +602,12 @@ UpdateCommunityRequest:
     display_name:
       type: string
     description:
+      type: string
+      nullable: true
+    avatar_ref:
+      type: string
+      nullable: true
+    banner_ref:
       type: string
       nullable: true
     membership_mode:
@@ -659,6 +710,21 @@ UpdateCommunityRequest:
     agent_owner_active_limit:
       type: integer
       nullable: true
+    human_verification_lane:
+      $ref: ./communities-core.yaml#/HumanVerificationLane
+      nullable: true
+      description: |
+        Optional update-time override for the community's primary human-verification lane. Null
+        clears the explicit override so the server can re-derive the effective lane from the
+        current gate set or platform default.
+    accepted_agent_ownership_providers:
+      type: array
+      nullable: true
+      description: |
+        Optional update-time stricter override for accepted agent-ownership providers. Null clears
+        the explicit override so reads can return the server-derived effective provider set.
+      items:
+        $ref: ./agents.yaml#/AgentOwnershipProvider
 Community:
   type: object
   required:
@@ -668,8 +734,10 @@ Community:
     - provisioning_state
     - membership_mode
     - allow_anonymous_identity
+    - human_verification_lane
     - agent_posting_policy
     - agent_posting_scope
+    - accepted_agent_ownership_providers
     - governance_mode
     - donation_policy_mode
     - donation_partner_status
@@ -697,11 +765,23 @@ Community:
     description:
       type: string
       nullable: true
+    avatar_ref:
+      type: string
+      nullable: true
+    banner_ref:
+      type: string
+      nullable: true
     namespace_verification_id:
       type: string
       nullable: true
       description: |
         Attached accepted namespace-verification resource when the community is namespace-backed.
+    route_slug:
+      type: string
+      nullable: true
+    pending_namespace_verification_session_id:
+      type: string
+      nullable: true
     status:
       type: string
       enum:
@@ -744,6 +824,10 @@ Community:
         - thread_stable
         - post_ephemeral
       nullable: true
+    human_verification_lane:
+      $ref: ./communities-core.yaml#/HumanVerificationLane
+      description: |
+        Resolved effective public-v0 human-verification lane for this community.
     allowed_disclosed_qualifiers:
       type: array
       items:
@@ -841,6 +925,15 @@ Community:
       nullable: true
       description: |
         Effective community-local cap on active user-owned agents per human owner.
+    accepted_agent_ownership_providers:
+      type: array
+      description: |
+        Resolved effective accepted agent-ownership providers for this community. The server must
+        always return the concrete effective provider set on reads, whether it came from an
+        explicit override or from derivation based on `human_verification_lane` and the
+        underlying trust floor.
+      items:
+        $ref: ./agents.yaml#/AgentOwnershipProvider
     civic_scale_tier:
       type: string
       enum:
@@ -990,3 +1083,178 @@ MembershipResult:
         - joined
         - requested
         - left
+MembershipGateSummary:
+  type: object
+  required:
+    - gate_type
+  properties:
+    gate_type:
+      type: string
+      enum:
+        - nationality
+        - gender
+        - unique_human
+        - age_over_18
+        - wallet_score
+    accepted_providers:
+      type: array
+      nullable: true
+      items:
+        type: string
+        enum:
+          - self
+          - very
+          - passport
+    required_value:
+      type: string
+      nullable: true
+      description: ISO 3166-1 alpha-2 country code when gate_type is nationality
+    excluded_values:
+      type: array
+      nullable: true
+      items:
+        type: string
+      description: Array of excluded ISO country codes for nationality gates
+CommunityPreview:
+  type: object
+  required:
+    - community_id
+    - display_name
+    - membership_mode
+    - human_verification_lane
+    - membership_gate_summaries
+    - created_at
+  properties:
+    community_id:
+      type: string
+    display_name:
+      type: string
+    description:
+      type: string
+      nullable: true
+    avatar_ref:
+      type: string
+      nullable: true
+    banner_ref:
+      type: string
+      nullable: true
+    membership_mode:
+      type: string
+      enum:
+        - open
+        - request
+        - gated
+    human_verification_lane:
+      $ref: ./communities-core.yaml#/HumanVerificationLane
+    member_count:
+      type: integer
+      nullable: true
+    membership_gate_summaries:
+      type: array
+      items:
+        $ref: ./communities-core.yaml#/MembershipGateSummary
+    viewer_membership_status:
+      type: string
+      enum:
+        - member
+        - not_member
+        - banned
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+JoinEligibility:
+  type: object
+  required:
+    - community_id
+    - membership_mode
+    - human_verification_lane
+    - joinable_now
+    - status
+    - membership_gate_summaries
+    - missing_capabilities
+  properties:
+    community_id:
+      type: string
+    membership_mode:
+      type: string
+      enum:
+        - open
+        - gated
+    human_verification_lane:
+      $ref: ./communities-core.yaml#/HumanVerificationLane
+    joinable_now:
+      type: boolean
+    status:
+      type: string
+      enum:
+        - joinable
+        - requestable
+        - verification_required
+        - gate_failed
+        - already_joined
+        - banned
+    membership_gate_summaries:
+      type: array
+      items:
+        $ref: ./communities-core.yaml#/MembershipGateSummary
+    missing_capabilities:
+      type: array
+      items:
+        type: string
+        enum:
+          - unique_human
+          - age_over_18
+          - nationality
+          - gender
+      description: |
+        Missing capability keys for the evaluated join path. Public-v0 community remediation should
+        surface only capability keys Pirate can remediate end to end for the current lane, including
+        `unique_human`, `age_over_18`, `nationality`, and `gender` for Self-backed flows.
+    suggested_verification_provider:
+      type: string
+      enum:
+        - self
+        - very
+      nullable: true
+    suggested_verification_intent:
+      type: string
+      enum:
+        - community_join
+      nullable: true
+GateFailureDetails:
+  type: object
+  properties:
+    human_verification_lane:
+      $ref: ./communities-core.yaml#/HumanVerificationLane
+    membership_gate_summaries:
+      type: array
+      nullable: true
+      items:
+        $ref: ./communities-core.yaml#/MembershipGateSummary
+    missing_capabilities:
+      type: array
+      nullable: true
+      items:
+        type: string
+    suggested_verification_provider:
+      type: string
+      enum:
+        - self
+        - very
+      nullable: true
+    suggested_verification_intent:
+      type: string
+      enum:
+        - community_join
+      nullable: true
+    failure_reason:
+      type: string
+      enum:
+        - missing_verification
+        - provider_not_accepted
+        - nationality_mismatch
+        - gender_mismatch
+        - unsupported
+        - banned
+      nullable: true

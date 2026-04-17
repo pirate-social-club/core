@@ -70,7 +70,6 @@ export type User = {
   capability_provider?: "self" | "very" | null;
   verification_capabilities: VerificationCapabilities;
   verified_at?: string | null;
-  nationality?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -162,7 +161,11 @@ export type Community = {
   community_id: string;
   display_name: string;
   description?: string | null;
+  avatar_ref?: string | null;
+  banner_ref?: string | null;
   namespace_verification_id?: string | null;
+  route_slug?: string | null;
+  pending_namespace_verification_session_id?: string | null;
   status: "draft" | "active" | "frozen" | "archived" | "deleted";
   provisioning_state: "requested" | "provisioning" | "active" | "rotation_required" | "error";
   artist_identity_id?: string | null;
@@ -170,6 +173,7 @@ export type Community = {
   membership_mode: "open" | "request" | "gated";
   allow_anonymous_identity: boolean;
   anonymous_identity_scope?: "community_stable" | "thread_stable" | "post_ephemeral" | null;
+  human_verification_lane: HumanVerificationLane;
   allowed_disclosed_qualifiers?: Array<string> | null;
   allow_qualifiers_on_anonymous_posts?: boolean | null;
   root_post_min_trust_tier?: "new" | "established" | "trusted" | "high_trust" | null;
@@ -186,6 +190,7 @@ export type Community = {
   agent_daily_reply_cap?: number | null;
   agent_min_owner_trust_tier?: "new" | "established" | "trusted" | "high_trust" | null;
   agent_owner_active_limit?: number | null;
+  accepted_agent_ownership_providers: Array<AgentOwnershipProvider>;
   civic_scale_tier?: "club" | "village" | "town" | "city" | "state";
   donation_policy_mode: "none" | "optional_creator_sidecar" | "fundraiser_default";
   donation_partner_status: "unconfigured" | "active" | "paused";
@@ -461,9 +466,10 @@ export type CommunityCreateAcceptedResponse = {
 };
 
 export type ErrorShape = {
-  code: "bad_request" | "auth_error" | "payment_required" | "verification_required" | "eligibility_failed" | "gate_failed" | "posting_trust_tier_too_low" | "posting_quota_exhausted" | "analysis_blocked" | "analysis_review_required" | "label_required" | "invalid_label_selection" | "label_required_but_none_applicable" | "conflict" | "not_found" | "rate_limited" | "payment_failed" | "settlement_pending" | "internal_error";
+  code: "bad_request" | "auth_error" | "payment_required" | "verification_required" | "eligibility_failed" | "gate_failed" | "posting_trust_tier_too_low" | "posting_quota_exhausted" | "analysis_blocked" | "analysis_review_required" | "label_required" | "invalid_label_selection" | "label_required_but_none_applicable" | "conflict" | "not_found" | "rate_limited" | "payment_failed" | "settlement_pending" | "provider_unavailable" | "internal_error";
   message: string;
   retryable?: boolean;
+  details?: (Record<string, unknown>) | null;
 };
 
 export type ModerationCase = {
@@ -535,6 +541,8 @@ export type CreateModerationActionRequest = {
   action_type: ModerationActionType;
   note?: string | null;
 };
+
+type AgentOwnershipProvider = "self_agent_id" | "clawkey" | "very_kya";
 
 type CentralizedGovernanceBackend = {
   governance_mode: "centralized";
@@ -856,6 +864,8 @@ type GateRule = {
 };
 
 type GovernanceVerificationState = "not_required" | "pending" | "verified" | "broken";
+
+type HumanVerificationLane = "very" | "self";
 
 type MajeurGovernanceBackend = {
   governance_mode: "majeur";

@@ -14,11 +14,23 @@ Profile:
     avatar_ref:
       type: string
       nullable: true
+    cover_ref:
+      type: string
+      nullable: true
     bio:
       type: string
       nullable: true
     preferred_locale:
       type: string
+      nullable: true
+    linked_handles:
+      type: array
+      nullable: true
+      items:
+        $ref: ./profiles.yaml#/LinkedHandle
+    primary_public_handle:
+      allOf:
+        - $ref: ./profiles.yaml#/LinkedHandle
       nullable: true
     primary_wallet_address:
       type: string
@@ -37,6 +49,29 @@ Profile:
     updated_at:
       type: string
       format: date-time
+LinkedHandle:
+  type: object
+  required:
+    - linked_handle_id
+    - label
+    - kind
+    - verification_state
+  properties:
+    linked_handle_id:
+      type: string
+    label:
+      type: string
+    kind:
+      type: string
+      enum:
+        - pirate
+        - ens
+    verification_state:
+      type: string
+      enum:
+        - verified
+        - unverified
+        - stale
 GlobalHandle:
   type: object
   required:

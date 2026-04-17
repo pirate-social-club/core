@@ -117,7 +117,7 @@ Notes:
 
 Pirate uses a provider-agnostic verification layer. Supported v0 providers:
 
-- `self` — provides `unique_human`, `age_over_18`, `nationality`; may also disclose `gender` and selected document/person fields when a specific flow requests them
+- `self` — provides `unique_human`, `age_over_18`, `nationality`, and a document-derived `gender` marker in public v0; may later disclose additional document/person fields when a specific flow requests them
 - `very` — provides `unique_human`; may also support a provider-specific `Palm Scan` qualifier layer
 - `passport` — provides `wallet_score` and selected provider-backed proofs such as `gov_id`, `phone`, and `sanctions_clear`
 - `zkpass` — may support schema-backed third-party attestations such as service-usage thresholds through registered provider schemas; see [attestations.md](./attestations.md)
@@ -130,8 +130,30 @@ Qualifier note:
 
 - qualifier rendering may still reference provider-specific verification facts even when the gate model stays provider-neutral
 - Self is especially important here because its disclosure set is variable per flow
-- a Pirate flow may request only `minimumAge`, or may additionally request disclosures such as `nationality` or `gender`
-- public qualifier rendering should use a small safe subset such as `18+`, `US National`, `Male`, or `Female`, not raw document fields
+- a Pirate flow may request only `minimumAge`, or may additionally request disclosures such as `nationality` or a document-derived `gender` marker
+- public qualifier rendering should use a small safe subset such as `18+`, `US National`, `Document marker M`, or `Document marker F`, not raw document fields
+
+### Self Capability Acquisition Model
+
+Self should be modeled as progressive capability acquisition, not as one monolithic identity ceremony and not as per-community re-verification.
+
+Recommended v0 rules:
+
+- Self verification sessions request a capability set, not a generic "verify with Self" blob
+- the server should request only the missing capabilities needed for the current product action
+- if the requested set includes `age_over_18` or `nationality`, the session should also satisfy `unique_human`
+- completed Self sessions should mint or refresh only the capabilities they actually proved, while preserving any previously accepted capabilities on the user
+- users should experience this as account-level upgrade, not as community-specific repeated verification
+
+Examples:
+
+- a user with `very` `unique_human` joins a Self 18+ community
+  - Pirate requests Self `age_over_18`
+- a user with Self `unique_human` and `age_over_18` joins a nationality-gated community
+  - Pirate requests Self `nationality`
+- once a capability is accepted, later communities should reuse it until it expires or is revoked
+
+This keeps Self additive and reusable instead of making every Self-backed community feel like a fresh onboarding flow.
 
 ### Proof Model
 
@@ -163,6 +185,8 @@ Suggested v0 proof types:
   - age verified as 18+
 - `nationality`
   - nationality disclosed through an accepted proof flow
+- `gender`
+  - disclosed document marker claim from an accepted proof flow
 - `sanctions_clear`
   - sanctions-screened or "clean hands" proof
 
@@ -196,6 +220,12 @@ Recommended v0 product posture:
 - a club or commerce surface that relies only on `very` for identity can still satisfy `unique_human`, but it cannot use nationality-tiered pricing until it also accepts `self` nationality proofs
 - wallet-score systems such as Human Passport should be available for softer anti-Sybil and community-entry gates, not as the sole proof for high-trust actions
 - token-holding gates are operator-controlled exceptions, not public-v0 write or join policy; they may not substitute for `unique_human` requirements on posting, voting, community creation, or anonymous posting
+- public-v0 Self-backed community gating should support:
+  - `unique_human`
+  - `age_over_18`
+  - `nationality`
+  - `gender` as a Self document-marker gate
+- `sanctions_clear` should remain a canonical capability rather than a provider-specific Self toggle, and public-v0 community UX should not expose raw Self `ofac` or `excluded_countries` settings as direct user-facing knobs
 
 ### Capability Shape
 
@@ -222,7 +252,7 @@ Suggested v0 `verification_capabilities` structure:
   - `verified_at` nullable
 - `gender`
   - `state`: `unverified` | `verified` | `expired`
-  - `value`: nullable `M` | `F`
+  - `value`: nullable document marker `M` | `F`
   - `provider`: `self`
   - `proof_type`: `gender`
   - `verified_at` nullable
@@ -245,10 +275,42 @@ Suggested v0 `verification_capabilities` structure:
 
 Additional v0 note:
 
-- `gender` should be treated as an optional, high-sensitivity disclosure capability for qualifier rendering rather than a default gate primitive
+- `gender` should be treated as an optional, high-sensitivity document-marker capability and gate primitive
+- communities using `gender` gates should do so intentionally and be shown moderator/admin warnings that the underlying Self disclosure is a document marker, currently limited to `M` or `F`, not a broad identity claim
 - provider-specific qualifiers such as `Palm Scan` from `very` may be exposed through the qualifier template layer without becoming new provider-neutral gate capabilities
 - schema-backed provider attestations such as `zkpass` proofs should live in `user_attestations`, not as ad hoc new top-level capability fields
 - Human Passport stamp detail should live in `user_attestations` even when the derived `wallet_score` capability is surfaced in `verification_capabilities`
+
+### Capability Lifecycle
+
+Verification capabilities need an explicit lifecycle, not just a state enum.
+
+Recommended public-v0 posture:
+
+- capabilities should remain reusable account-level facts until they expire, are revoked, or are replaced by a fresher accepted proof
+- public v0 should use a conservative server-controlled TTL for accepted interactive identity capabilities rather than assuming indefinite validity
+- for Self-backed `unique_human`, `age_over_18`, and `nationality`, Pirate should use a simple time-based expiry model in v0
+- Pirate may store provider expiry metadata, but the effective product expiry should resolve to the earlier of:
+  - the provider-reported expiry when available
+  - Pirate's own product TTL ceiling
+- a good public-v0 default is `90 days`
+- refresh should be reactive in public v0:
+  - when a gated action needs a capability whose state is now `expired`, Pirate starts a fresh verification session for the missing capability set
+- refresh should use the same acquisition flow as the original proof
+- Pirate should not rely on background refresh or silent provider-side renewal in public v0
+- Pirate should not use grace windows in public v0; once the capability is expired, the next gated action requiring it should trigger refresh
+
+Examples:
+
+- `unique_human = verified`, `age_over_18 = expired`
+  - non-age-gated communities continue to work
+  - 18+ community join or post-access flows trigger a fresh Self age proof
+- `nationality = expired`
+  - nationality-gated communities or nationality-backed commerce flows trigger a fresh Self nationality proof
+- `unique_human = expired`
+  - posting, voting, community creation, and any other baseline-human gate should require refresh before continuing
+
+This keeps the lifecycle understandable and aligns with Pirate's capability-by-capability gate model.
 
 Derived-state interpretation for `unique_human`:
 

@@ -312,12 +312,13 @@ Identity-proof note:
   - `age_over_18`
   - `nationality`
   - `gender`
-  - `sanctions_clear`
   - `wallet_score`
+- modeled but deferred/admin-only identity-proof community gates may later target:
+  - `sanctions_clear`
 - `nationality` gates should support either:
   - an allowlist-style `required_value` such as `US`
   - an exclusion list such as `["IRN", "PRK"]`
-- `gender` gates should support a `required_value` such as `M`
+- `gender` gates should support a required document marker value such as `M`
 - OFAC-style restrictions should be modeled as `sanctions_clear` rather than as a provider-specific UI flag in community policy
 - provider-specific verification knobs such as Self `excludedCountries` and `ofac` should be resolved by the backend when it maps a community gate requirement to a concrete verification-session policy
 
@@ -338,6 +339,49 @@ Platform baseline join gate:
   - `token_id_allowlist`
   - `metadata_match`
 - ownership discovery may use an indexer such as Alchemy, but the stored gate contract should remain provider-neutral
+
+## Verification Policy Compilation
+
+Communities should declare canonical capability requirements, not raw provider disclosure payloads.
+
+Recommended v0 rules:
+
+- community policy expresses required capabilities such as `unique_human`, `age_over_18`, or `nationality`
+- when a user is missing one or more required capabilities, the server should compile a verification policy for the next session rather than forcing the client to choose disclosures manually
+- for Self-backed flows, the compiled session should request only the missing capabilities needed for the current action
+- if multiple missing Self-backed capabilities can be satisfied in one flow, the server should request them together
+- provider-specific disclosure details such as Self `minimum_age` or `nationality = true` remain server-owned implementation details derived from the missing capability set
+
+Examples:
+
+- a community that needs only baseline uniqueness resolves to `very` or `self` lane and requests only `unique_human`
+- a Self 18+ community requests `age_over_18`, which should also imply `unique_human`
+- a Self nationality-gated community requests `nationality`, which should also imply `unique_human`
+- a user who already has Self `age_over_18` should not be asked to repeat that proof when joining another 18+ community
+
+This keeps community policy stable while letting Pirate evolve the provider-specific verification wiring behind the scenes.
+
+## Public V0 Human Verification Lane
+
+Public v0 community configuration should prefer one primary human-verification lane rather than presenting `self` and `very` as parallel asks for the same baseline trust floor.
+
+Recommended v0 posture:
+
+- a community should choose one primary `human_verification_lane`
+  - `very`
+  - `self`
+- `very` is the lighter-weight baseline lane for `unique_human`
+- `self` is the higher-friction, higher-capability lane that can also support things such as `age_over_18`, `nationality`, or stronger agent-native trust postures
+- public v0 community UX should not encourage configuring both `self` and `very` as separate asks for the same `unique_human` gate
+
+Interpretation:
+
+- if the community's needs stop at baseline `unique_human`, `very` is a reasonable lane
+- if the community needs richer identity-derived capabilities or stronger agent-native trust semantics, `self` is the appropriate lane
+- if the community uses Self-only capabilities such as `age_over_18` or `nationality`, the lane must resolve to `self`
+- the internal gate model may remain capability-oriented and provider-neutral where possible, but the public v0 configuration surface should stay simple
+
+This keeps community setup legible without giving up Pirate's more general capability model under the hood.
 
 ## Adult Communities
 

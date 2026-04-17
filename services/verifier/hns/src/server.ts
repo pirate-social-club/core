@@ -123,14 +123,26 @@ function summarizeZone(zone: PowerDnsZoneSnapshot): InspectResult["rrsets"] {
 }
 
 function deriveInspectionFields(zoneExists: boolean) {
+  if (!zoneExists) {
+    return {
+      root_exists: null,
+      root_control_verified: null,
+      expiry_horizon_sufficient: null,
+      routing_enabled: null,
+      pirate_dns_authority_verified: false,
+      control_class: null,
+      operation_class: null,
+    };
+  }
+
   return {
-    root_exists: zoneExists,
+    root_exists: true,
     root_control_verified: null,
-    expiry_horizon_sufficient: zoneExists,
-    routing_enabled: zoneExists,
-    pirate_dns_authority_verified: zoneExists,
+    expiry_horizon_sufficient: true,
+    routing_enabled: true,
+    pirate_dns_authority_verified: true,
     control_class: "single_holder_root" as const,
-    operation_class: "owner_managed_namespace" as const,
+    operation_class: "pirate_delegated_namespace" as const,
   };
 }
 
@@ -273,7 +285,7 @@ async function verifyTxt(body: {
     routing_enabled: true,
     pirate_dns_authority_verified: true,
     control_class: "single_holder_root",
-    operation_class: "owner_managed_namespace",
+    operation_class: "pirate_delegated_namespace",
     root_label: normalizedRoot,
     zone_name: zoneName,
     challenge_name: challengeName,

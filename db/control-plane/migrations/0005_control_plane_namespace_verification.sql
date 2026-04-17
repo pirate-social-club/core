@@ -13,6 +13,7 @@ CREATE TABLE namespace_verification_sessions (
         status IN (
             'draft',
             'inspecting',
+            'dns_setup_required',
             'challenge_required',
             'challenge_pending',
             'verifying',
@@ -24,6 +25,7 @@ CREATE TABLE namespace_verification_sessions (
     ),
     challenge_host TEXT,
     challenge_txt_value TEXT,
+    setup_nameservers_json JSONB,
     challenge_expires_at TEXT,
     root_exists INTEGER CHECK (root_exists IS NULL OR root_exists IN (0, 1)),
     root_control_verified INTEGER CHECK (root_control_verified IS NULL OR root_control_verified IN (0, 1)),
@@ -45,7 +47,8 @@ CREATE TABLE namespace_verification_sessions (
         operation_class IS NULL OR operation_class IN (
             'owner_managed_namespace',
             'routing_only_namespace',
-            'pirate_delegated_namespace'
+            'pirate_delegated_namespace',
+            'owner_signed_updates_namespace'
         )
     ),
     observation_provider TEXT,
@@ -99,7 +102,8 @@ CREATE TABLE namespace_verifications (
         operation_class IS NULL OR operation_class IN (
             'owner_managed_namespace',
             'routing_only_namespace',
-            'pirate_delegated_namespace'
+            'pirate_delegated_namespace',
+            'owner_signed_updates_namespace'
         )
     ),
     observation_provider TEXT,

@@ -75,38 +75,66 @@ function createRemoteBootstrapSql(input: {
     authToken: input.databaseAuthToken,
   });
 
+  function isRetryableRemoteBootstrapError(error: unknown): boolean {
+    const message = (error instanceof Error ? error.message : String(error)).toUpperCase();
+    return message.includes("HTTP STATUS 401")
+      || message.includes("TOKEN_INVALID")
+      || message.includes("UNAUTHORIZED")
+      || message.includes("AUTHENTICATION")
+      || message.includes("AUTH")
+  }
+
+  async function retryRemoteBootstrap<T>(operation: () => Promise<T>): Promise<T> {
+    const delaysMs = [200, 500, 1000, 1500];
+
+    for (let attempt = 0; attempt <= delaysMs.length; attempt += 1) {
+      try {
+        return await operation();
+      } catch (error) {
+        if (!isRetryableRemoteBootstrapError(error) || attempt === delaysMs.length) {
+          throw error
+        }
+        await new Promise((resolve) => setTimeout(resolve, delaysMs[attempt]))
+      }
+    }
+
+    throw new Error("remote bootstrap retry loop exhausted")
+  }
+
   return {
     async execute<T>(statement, params) {
-      const result = await client.execute({
+      const result = await retryRemoteBootstrap(() => client.execute({
         sql: statement,
         args: params ?? [],
-      });
+      }));
       return result.rows as T[];
     },
     async transaction<T>(fn) {
-      const tx = await client.transaction("write");
-      const wrapped: CommunityBootstrapSql = {
-        async execute<U>(statement, params) {
-          const result = await tx.execute({
-            sql: statement,
-            args: params ?? [],
-          });
-          return result.rows as U[];
-        },
-        transaction() {
-          throw new Error("nested_remote_bootstrap_transactions_not_supported");
-        },
-        async close() {},
-      };
+      return retryRemoteBootstrap(async () => {
+        const tx = await client.transaction("write");
+        const wrapped: CommunityBootstrapSql = {
+          async execute<U>(statement, params) {
+            const result = await tx.execute({
+              sql: statement,
+              args: params ?? [],
+            });
+            return result.rows as U[];
+          },
+          transaction() {
+            throw new Error("nested_remote_bootstrap_transactions_not_supported");
+          },
+          async close() {},
+        };
 
-      try {
-        const result = await fn(wrapped);
-        await tx.commit();
-        return result;
-      } catch (error) {
-        await tx.rollback();
-        throw error;
-      }
+        try {
+          const result = await fn(wrapped);
+          await tx.commit();
+          return result;
+        } catch (error) {
+          await tx.rollback();
+          throw error;
+        }
+      })
     },
     async close() {
       client.close();

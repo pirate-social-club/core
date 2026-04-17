@@ -500,6 +500,9 @@ paths:
                 avatar_ref:
                   type: string
                   nullable: true
+                cover_ref:
+                  type: string
+                  nullable: true
                 bio:
                   type: string
                   nullable: true
@@ -575,6 +578,46 @@ paths:
           $ref: "#/components/responses/EligibilityFailed"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /profiles/me/linked-handles/sync:
+    post:
+      tags:
+        - Profiles
+      summary: Refresh wallet-derived linked handles for the current profile
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "401":
+          $ref: "#/components/responses/AuthError"
+  /profiles/me/primary-public-handle:
+    post:
+      tags:
+        - Profiles
+      summary: Select the current profile's primary public handle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                linked_handle_id:
+                  type: string
+                  nullable: true
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /profiles/{user_id}:
     get:
       tags:
@@ -601,14 +644,16 @@ paths:
       description: |
         Creates a community once all create-time prerequisites are already satisfied.
 
-        For namespace-backed public v0 create, the server must consume the accepted namespace-verification resource referenced by `namespace.namespace_verification_id`, not just the raw identifier string. Before writing any community state, the server must re-check:
+        When `namespace` is provided, the server must consume the accepted namespace-verification resource referenced by `namespace.namespace_verification_id`, not just the raw identifier string. Before writing any community state, the server must re-check:
 
         - the accepted namespace verification exists
         - it belongs to the requesting creator
         - it is still accepted and not stale, disputed, or expired
         - its current capabilities still satisfy `club_attach_allowed`
 
-        Public v0 create must fail closed when those checks do not pass.
+        When `namespace` is omitted, the community is created without a namespace. A namespace can be attached later via the namespace-attachment endpoint.
+
+        Public v0 create must fail closed when namespace is provided but those checks do not pass.
       requestBody:
         required: true
         content:
@@ -1027,6 +1072,58 @@ paths:
           $ref: "#/components/responses/AuthError"
         "403":
           $ref: "#/components/responses/GateFailed"
+  /communities/{community_id}/preview:
+    get:
+      tags:
+        - Communities
+      summary: Preview a community as a viewer
+      description: |
+        Returns a viewer-safe community preview for active communities. Unlike the owner-only
+        GET /communities/{community_id}, this endpoint does not require ownership and omits
+        owner-only internal fields. Includes membership gate summaries so the viewer can
+        understand join requirements before attempting to join.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      responses:
+        "200":
+          description: Community preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityPreview"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/join-eligibility:
+    get:
+      tags:
+        - Communities
+      summary: Check join eligibility for a community
+      description: |
+        Returns a machine-readable join eligibility assessment for the authenticated user.
+        The client should use this to determine whether to show a Join button, a Verify to Join
+        CTA, or a blocking message before the user attempts to join.
+
+        The `status` field distinguishes:
+        - `joinable`: user can join immediately
+        - `verification_required`: user is missing a remediable proof (e.g. nationality from self)
+        - `gate_failed`: user's existing proof does not satisfy the gate (e.g. nationality mismatch)
+        - `already_joined`: user is already a member
+        - `banned`: user is banned from the community
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      responses:
+        "200":
+          description: Join eligibility
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JoinEligibility"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /communities/{community_id}/posts:
     post:
       tags:
@@ -1808,6 +1905,10 @@ components:
         retryable:
           type: boolean
           default: false
+        details:
+          type: object
+          nullable: true
+          additionalProperties: true
     SessionExchangeResponse:
       type: object
       required:
@@ -1882,10 +1983,6 @@ components:
           type: string
           format: date-time
           nullable: true
-        nationality:
-          type: string
-          nullable: true
-          description: ISO country code when the current accepted identity includes nationality
         created_at:
           type: string
           format: date-time
@@ -1939,7 +2036,7 @@ components:
                 - M
                 - F
               nullable: true
-              description: Verified gender value when disclosed by an eligible flow
+              description: Verified document marker value when disclosed by an eligible Self flow; currently limited to `M` or `F`
             proof_type:
               type: string
               enum:
@@ -1949,6 +2046,12 @@ components:
           $ref: "#/components/schemas/SanctionsClearCapabilityState"
         wallet_score:
           $ref: "#/components/schemas/WalletScoreCapabilityState"
+      description: |
+        Current resolved account-level verification capability state. Public-v0 product policy should
+        treat these capabilities as reusable until they expire, are revoked, or are replaced by a
+        fresher accepted proof. For interactive identity capabilities, Pirate should use reactive
+        refresh at gate time rather than background renewal. `gender` remains a high-sensitivity
+        document-marker disclosure even when enabled as a supported gate capability.
     RequestedVerificationCapability:
       type: string
       enum:
@@ -1956,12 +2059,16 @@ components:
         - age_over_18
         - nationality
         - gender
+      description: |
+        Canonical capability requested from an interactive verification flow. Public v0 should treat
+        `unique_human`, `age_over_18`, `nationality`, and a document-derived `gender` marker as the
+        actively supported Self-backed capability set.
     VerificationIntent:
       type: string
       enum:
         - profile_verification
         - community_creation
-        - ucommunity_join
+        - community_join
         - post_access_18_plus
         - commerce_pricing
         - qualifier_disclosure
@@ -1971,6 +2078,8 @@ components:
         - state
       description: |
         Capability state for unique_human, which may be pending during an active verification session.
+        Public-v0 product policy should treat `expired` as requiring a fresh verification before the
+        next gated action that depends on this capability.
       properties:
         state:
           type: string
@@ -2004,7 +2113,8 @@ components:
       description: |
         Capability state for Self-backed disclosure capabilities in v0. These capabilities have no
         pending state — they are either unverified, verified from an accepted record, or expired after
-        a re-verification requirement.
+        a re-verification requirement. Public-v0 refresh should be reactive at gate time rather than
+        background or silent.
       properties:
         state:
           type: string
@@ -2129,6 +2239,11 @@ components:
         This surface is intentionally limited to interactive providers such as `self` and `very`.
         Human Passport wallet-score refresh is not modeled as a verification session because it is
         a server-side score lookup by address rather than a QR, widget, or redirect ceremony.
+
+        The server should treat this request as capability-driven. Clients should not ask the user to
+        manually choose raw Self disclosures such as `minimum_age` or `nationality`; the backend should
+        compile the provider-specific launch payload from the missing canonical capabilities and the
+        current product intent.
       properties:
         provider:
           type: string
@@ -2152,6 +2267,13 @@ components:
           description: |
             Capability set the session is intended to satisfy. The server owns the provider-specific
             verifier configuration and maps this request to an approved launch payload.
+
+            Public-v0 intent:
+            - `very`: `unique_human` only
+            - `self`: `unique_human`, `age_over_18`, `nationality`, and `gender` (document marker)
+
+            When a Self session requests `age_over_18`, `nationality`, or `gender`, the server should
+            also treat `unique_human` as part of the effective capability set.
         wallet_attachment_id:
           type: string
           nullable: true
@@ -2229,6 +2351,15 @@ components:
       type: object
       description: |
         Server-resolved disclosure and policy config for a Self launch payload.
+        This is backend-authored provider wiring, not a public community-settings surface.
+        Public-v0 community and join flows should primarily rely on:
+        - `minimum_age`
+        - `nationality`
+        - `gender` (document marker)
+
+        Other Self disclosure knobs remain modeled for future or operator-controlled use, but public-v0
+        product flows should not expose raw Self `ofac` or `excluded_countries` settings as first-class
+        community toggles until Pirate locks their canonical capability and moderation semantics.
       properties:
         issuing_state:
           type: boolean
@@ -2919,11 +3050,23 @@ components:
         avatar_ref:
           type: string
           nullable: true
+        cover_ref:
+          type: string
+          nullable: true
         bio:
           type: string
           nullable: true
         preferred_locale:
           type: string
+          nullable: true
+        linked_handles:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/LinkedHandle"
+        primary_public_handle:
+          allOf:
+            - $ref: "#/components/schemas/LinkedHandle"
           nullable: true
         primary_wallet_address:
           type: string
@@ -3239,6 +3382,16 @@ components:
             Family-specific challenge type for the current session.
             `dns_txt` is used by HNS-style TXT proof flows.
             `schnorr_sign` is used by Spaces root-signature proof flows.
+        challenge_host:
+          type: string
+          nullable: true
+          description: |
+            Explicit record host for DNS TXT flows such as `_pirate.<root>`.
+        challenge_txt_value:
+          type: string
+          nullable: true
+          description: |
+            Exact TXT content Pirate expects for DNS TXT verification flows.
         challenge_payload:
           type: object
           nullable: true
@@ -3252,6 +3405,13 @@ components:
           format: date-time
           nullable: true
           description: Expiration time for the currently issued challenge, distinct from the overall namespace verification session expiry.
+        setup_nameservers:
+          type: array
+          nullable: true
+          items:
+            type: string
+          description: |
+            Nameservers the user should publish for the Pirate-managed HNS path before TXT verification can continue.
         assertions:
           allOf:
             - $ref: "#/components/schemas/NamespaceVerificationAssertions"
@@ -3559,13 +3719,175 @@ components:
       description: Implementation-bound public-v0 community create shape. Deferred policy objects and broader community-setting inputs remain draft-only until the runtime persists and returns them coherently.
       required:
         - display_name
-        - namespace
         - handle_policy
       properties:
         display_name:
           type: string
+        description:
+          type: string
+          nullable: true
+        avatar_ref:
+          type: string
+          nullable: true
+        banner_ref:
+          type: string
+          nullable: true
+        artist_identity_id:
+          type: string
+          nullable: true
+        membership_mode:
+          type: string
+          enum:
+            - open
+            - request
+            - gated
+          description: |
+            Public v0 community creation should submit only `open` or `gated`. `request` remains in the model for deferred, internal, or later use and should not be exposed by the public create client.
+        allow_anonymous_identity:
+          type: boolean
+        anonymous_identity_scope:
+          type: string
+          enum:
+            - community_stable
+            - thread_stable
+            - post_ephemeral
+          nullable: true
+          description: |
+            Required when `allow_anonymous_identity = true`. Public v0 should default to `community_stable`. `post_ephemeral` must not be submitted in the public v0 create flow unless all prerequisites from the domain spec (active content safety classification, at least one active moderator) can be verified at create time.
+        allowed_disclosed_qualifiers:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: |
+            Array of platform-defined `qualifier_template_id` values. Public v0 create may set this when `allow_anonymous_identity = true`. Qualifier suppression of entries already implied by community gates is a read/composer behavior concern, not a create-time configuration concern.
+        allow_qualifiers_on_anonymous_posts:
+          type: boolean
+          nullable: true
+          description: |
+            Enables anonymous posts in the community to attach disclosed qualifiers from `allowed_disclosed_qualifiers`. Public v0 create may set this only when `allow_anonymous_identity = true`. If `false` or `null`, anonymous posts must not expose optional qualifiers.
+        root_post_min_trust_tier:
+          type: string
+          enum:
+            - new
+            - established
+            - trusted
+            - high_trust
+          nullable: true
+        reply_min_trust_tier:
+          type: string
+          enum:
+            - new
+            - established
+            - trusted
+            - high_trust
+          nullable: true
+        anonymous_posting_min_trust_tier:
+          type: string
+          enum:
+            - new
+            - established
+            - trusted
+            - high_trust
+          nullable: true
+        root_post_quota_by_trust_tier:
+          $ref: "#/components/schemas/RootPostQuotaByTrustTier"
+          nullable: true
+        reply_quota_by_trust_tier:
+          $ref: "#/components/schemas/ReplyQuotaByTrustTier"
+          nullable: true
+        probation_window_days:
+          type: integer
+          nullable: true
+        link_post_policy:
+          type: string
+          enum:
+            - allow
+            - require_established
+          nullable: true
+        default_age_gate_policy:
+          type: string
+          enum:
+            - none
+            - 18_plus
+          default: none
+          description: |
+            Community-wide default viewer age gate. Setting this to `18_plus` requires the acting creator or updating owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
+        agent_posting_policy:
+          type: string
+          enum:
+            - disallow
+            - review
+            - allow_with_disclosure
+            - allow
+          nullable: true
+          description: |
+            Optional create-time user-agent posting policy. When omitted, reads must resolve the
+            restrictive default `disallow`.
+        agent_posting_scope:
+          type: string
+          enum:
+            - replies_only
+            - top_level_and_replies
+          nullable: true
+          description: |
+            Optional create-time scope for user-owned agent posting. When omitted in a context where
+            user-owned agents are enabled, reads should resolve `replies_only`.
+        agent_daily_post_cap:
+          type: integer
+          nullable: true
+          description: |
+            Optional rolling 24-hour cap for user-agent top-level posts in this community.
+        agent_daily_reply_cap:
+          type: integer
+          nullable: true
+          description: |
+            Optional rolling 24-hour cap for user-agent replies in this community.
+        agent_min_owner_trust_tier:
+          type: string
+          enum:
+            - new
+            - established
+            - trusted
+            - high_trust
+          nullable: true
+          description: |
+            Optional minimum trust tier the owning human must satisfy before their user-owned agent may post.
+        agent_owner_active_limit:
+          type: integer
+          nullable: true
+          description: |
+            Optional community-local cap on active user-owned agents per human owner. Must not exceed
+            the platform-wide maximum.
+        human_verification_lane:
+          type: string
+          enum:
+            - very
+            - self
+          nullable: true
+          description: |
+            Primary public-v0 human-verification lane for this community. This is the UX-facing trust
+            lane that tells users which verification path to complete first. `very` is the lighter
+            baseline `unique_human` lane. `self` is the higher-friction lane for communities that also
+            need richer identity-derived capabilities or stronger agent-native trust semantics. When
+            omitted on create, the server may resolve a platform default lane. The server must reject
+            or normalize lane selections that are inconsistent with the effective gate set. For
+            example, a community whose resolved gates require Self-only capabilities such as
+            `nationality` or `age_over_18` must not resolve to `human_verification_lane = very`.
+        accepted_agent_ownership_providers:
+          type: array
+          nullable: true
+          description: |
+            Optional stricter override for agent KYA acceptance. When omitted, reads should derive the
+            effective accepted agent-ownership providers from `human_verification_lane` and the
+            community trust floor: any platform-approved KYA provider is acceptable so long as the
+            bound human clears the required lane. Set this only when the community wants a narrower
+            agent-auth posture, such as Self-only agent ownership.
+          items:
+            $ref: "#/components/schemas/AgentOwnershipProvider"
         namespace:
           type: object
+          nullable: true
           required:
             - namespace_verification_id
           properties:
@@ -3583,6 +3905,111 @@ components:
                 - standard
               default: standard
               description: Public v0 implemented create currently supports only the standard handle-policy template.
+        donation_policy:
+          allOf:
+            - $ref: "#/components/schemas/CreateCommunityDonationPolicyInput"
+          type: object
+          nullable: true
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. Remains valid in the API for internal and future use.
+        content_authenticity_policy:
+          allOf:
+            - $ref: "#/components/schemas/CreateCommunityContentAuthenticityPolicyInput"
+          type: object
+          nullable: true
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the restrictive default effective policy from the first post onward. Platform-minimum synthetic-likeness bans still override any submitted value.
+        source_policy:
+          allOf:
+            - $ref: "#/components/schemas/CreateCommunitySourcePolicyInput"
+          type: object
+          nullable: true
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the restrictive default effective policy from the first post onward. This policy governs repost and fan-work handling rather than AI authenticity.
+        capture_edit_policy:
+          allOf:
+            - $ref: "#/components/schemas/CreateCommunityCaptureEditPolicyInput"
+          type: object
+          nullable: true
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the effective default non-generative edit policy from the first post onward.
+        adult_content_policy:
+          allOf:
+            - $ref: "#/components/schemas/CreateCommunityAdultContentPolicyInput"
+          type: object
+          nullable: true
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the effective default adult-content subcategory policy from the first post onward.
+        graphic_content_policy:
+          allOf:
+            - $ref: "#/components/schemas/CreateCommunityGraphicContentPolicyInput"
+          type: object
+          nullable: true
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the effective default graphic-content subcategory policy from the first post onward.
+        motion_media_policy:
+          allOf:
+            - $ref: "#/components/schemas/CreateCommunityMotionMediaPolicyInput"
+          type: object
+          nullable: true
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must resolve the effective default motion-media policy from the first post onward.
+        language_policy:
+          allOf:
+            - $ref: "#/components/schemas/CreateCommunityLanguagePolicyInput"
+          type: object
+          nullable: true
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the effective default language policy from the first post onward.
+        civility_policy:
+          allOf:
+            - $ref: "#/components/schemas/CreateCommunityCivilityPolicyInput"
+          type: object
+          nullable: true
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the effective default civility policy from the first post onward.
+        provenance_policy:
+          allOf:
+            - $ref: "#/components/schemas/CreateCommunityProvenancePolicyInput"
+          type: object
+          nullable: true
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the effective default provenance policy from the first post onward.
+        promotion_policy:
+          allOf:
+            - $ref: "#/components/schemas/CreateCommunityPromotionPolicyInput"
+          type: object
+          nullable: true
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must enforce the effective default promotion policy from the first post onward.
+        content_authenticity_detection_policy:
+          allOf:
+            - $ref: "#/components/schemas/CreateCommunityContentAuthenticityDetectionPolicyInput"
+          type: object
+          nullable: true
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must use the platform-default authenticity-detection profile from the first post onward. Platform-required safety and age-gating analysis remain platform-managed and unaffected.
+        market_context_policy:
+          allOf:
+            - $ref: "#/components/schemas/CreateCommunityMarketContextPolicyInput"
+          type: object
+          nullable: true
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. If omitted, the server must resolve the platform-default market-context policy from the first eligible post onward.
+        community_bootstrap:
+          $ref: "#/components/schemas/CreateCommunityBootstrapInput"
+          nullable: true
+          description: |
+            Deferred from the public v0 create client. May be configured during post-create onboarding or through community settings. Remains valid in the API for internal and future use.
+        gate_rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/GateRuleInput"
+          nullable: true
+          description: |
+            Public v0 create is limited to `membership`-scope `identity_proof` gate rules only. Each submitted gate rule must include explicit `proof_requirements`. Token-holding gate rules, `viewer`-scope gates, and `posting`-scope gates are deferred until post-create settings. The server should reject create requests containing gate rules that fall outside the public v0 scope.
+            Public v0 self-serve creation should still reject `sanctions_clear` identity gates; those remain deferred or operator-controlled until their end-to-end request and policy semantics are fully locked.
+            Token-holding gate rules are operator-controlled exceptions when enabled later; they are not public-v0 self-serve configuration.
     GateRuleInput:
       type: object
       required:
@@ -3630,8 +4057,9 @@ components:
             Provider-neutral rule config for the selected gate. For identity-proof gates, public v0
             should normalize on a small shared shape rather than arbitrary provider knobs:
             - `nationality`: `required_value` (single ISO code) or `excluded_values` (array of ISO codes)
-            - `gender`: `required_value` (`M` or `F`)
+            - `gender`: `required_value` for the Self document marker (`M` or `F`)
             - `wallet_score`: `minimum_score` (number)
+            Deferred/admin-only gates may additionally use:
             - `sanctions_clear`: no extra config required
 
             Token-holding gate configs are reserved for operator-approved exceptions and are not accepted through public v0 community creation.
@@ -3699,8 +4127,9 @@ components:
             Stored provider-neutral rule config. For identity-proof gates, public v0 should normalize
             on:
             - `nationality`: `required_value` or `excluded_values`
-            - `gender`: `required_value`
+            - `gender`: `required_value` for the Self document marker
             - `wallet_score`: `minimum_score`
+            Deferred/admin-only gates may additionally use:
             - `sanctions_clear`: no extra config
             Token-holding configs should be typed by `gate_type` and use CAIP-2 `chain_namespace`.
             `erc721_holding` should support `contract_any`, `token_id_allowlist`, and `metadata_match`
@@ -3760,8 +4189,9 @@ components:
             - `unique_human`: `self` or `very`
             - `age_over_18`: `self`
             - `nationality`: `self`
-            - `gender`: `self`
+            - `gender`: `self` (document marker `M` / `F`)
             - `wallet_score`: `passport`
+            Deferred/admin-only combinations:
             - `sanctions_clear`: `passport`
             Other modeled proof types such as `biometric_liveness`, `gov_id`, and `phone` remain
             intentionally unvalidated at the public-v0 provider-matrix layer until the product locks
@@ -3784,7 +4214,7 @@ components:
           description: |
             Optional proof-level constraints. For public v0, identity-proof community gates should
             prefer provider-neutral semantics here or in `gate_config`:
-            - `required_value` for `nationality` or `gender`
+            - `required_value` for `nationality` or the Self document marker `gender`
             - `excluded_values` for `nationality`
             - `minimum_score` for `wallet_score`
     RootPostQuotaRule:
@@ -3867,6 +4297,12 @@ components:
         display_name:
           type: string
         description:
+          type: string
+          nullable: true
+        avatar_ref:
+          type: string
+          nullable: true
+        banner_ref:
           type: string
           nullable: true
         membership_mode:
@@ -3969,6 +4405,21 @@ components:
         agent_owner_active_limit:
           type: integer
           nullable: true
+        human_verification_lane:
+          $ref: "#/components/schemas/HumanVerificationLane"
+          nullable: true
+          description: |
+            Optional update-time override for the community's primary human-verification lane. Null
+            clears the explicit override so the server can re-derive the effective lane from the
+            current gate set or platform default.
+        accepted_agent_ownership_providers:
+          type: array
+          nullable: true
+          description: |
+            Optional update-time stricter override for accepted agent-ownership providers. Null clears
+            the explicit override so reads can return the server-derived effective provider set.
+          items:
+            $ref: "#/components/schemas/AgentOwnershipProvider"
     CommunityFundingRouteStatusPolicy:
       type: string
       enum:
@@ -4956,8 +5407,10 @@ components:
         - provisioning_state
         - membership_mode
         - allow_anonymous_identity
+        - human_verification_lane
         - agent_posting_policy
         - agent_posting_scope
+        - accepted_agent_ownership_providers
         - governance_mode
         - donation_policy_mode
         - donation_partner_status
@@ -4984,11 +5437,23 @@ components:
         description:
           type: string
           nullable: true
+        avatar_ref:
+          type: string
+          nullable: true
+        banner_ref:
+          type: string
+          nullable: true
         namespace_verification_id:
           type: string
           nullable: true
           description: |
             Attached accepted namespace-verification resource when the community is namespace-backed.
+        route_slug:
+          type: string
+          nullable: true
+        pending_namespace_verification_session_id:
+          type: string
+          nullable: true
         status:
           type: string
           enum:
@@ -5031,6 +5496,10 @@ components:
             - thread_stable
             - post_ephemeral
           nullable: true
+        human_verification_lane:
+          $ref: "#/components/schemas/HumanVerificationLane"
+          description: |
+            Resolved effective public-v0 human-verification lane for this community.
         allowed_disclosed_qualifiers:
           type: array
           items:
@@ -5128,6 +5597,15 @@ components:
           nullable: true
           description: |
             Effective community-local cap on active user-owned agents per human owner.
+        accepted_agent_ownership_providers:
+          type: array
+          description: |
+            Resolved effective accepted agent-ownership providers for this community. The server must
+            always return the concrete effective provider set on reads, whether it came from an
+            explicit override or from derivation based on `human_verification_lane` and the
+            underlying trust floor.
+          items:
+            $ref: "#/components/schemas/AgentOwnershipProvider"
         civic_scale_tier:
           type: string
           enum:

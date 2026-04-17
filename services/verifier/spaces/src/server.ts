@@ -42,12 +42,36 @@ type VerifyNativeResult = {
   error?: string;
 };
 
+type ResolveResponse =
+  | {
+      resolved: true;
+      handle: string;
+      canonical_handle: string;
+      root_pubkey: string | null;
+      outpoint: string | null;
+      proof_verified: boolean;
+      proof_root_hash: string | null;
+      accepted_anchor_height: number | null;
+      accepted_anchor_block_hash: string | null;
+      accepted_anchor_root_hash: string | null;
+      control_class: string | null;
+      operation_class: string | null;
+      web_url: string | null;
+      observation_provider: string | null;
+    }
+  | {
+      resolved: false;
+      handle: string;
+      reason: string;
+    };
+
 const spacedRpcUrl = Bun.env.SPACED_RPC_URL?.trim() || "http://127.0.0.1:7225";
 const spacedRpcAuthToken = Bun.env.SPACED_RPC_AUTH_TOKEN?.trim() || null;
 const verifierHost = Bun.env.SPACES_VERIFIER_HOST?.trim() || "0.0.0.0";
 const verifierPort = Number(Bun.env.SPACES_VERIFIER_PORT || "4047");
 const maxAnchorAgeBlocks = Number(Bun.env.SPACES_VERIFIER_MAX_ANCHOR_AGE_BLOCKS || "144");
 const verifierAuthToken = Bun.env.SPACES_VERIFIER_AUTH_TOKEN?.trim() || null;
+const publishedWebTargetsJson = Bun.env.SPACES_PUBLISHED_WEB_TARGETS_JSON?.trim() || "";
 const nativeManifestPath = new URL("../native/Cargo.toml", import.meta.url).pathname;
 const nativeBin = Bun.env.SPACES_VERIFIER_NATIVE_BIN?.trim() || null;
 const allowNativeBuildFallback = ["1", "true", "yes", "on"].includes(
@@ -59,6 +83,28 @@ const nativeExecutionConfig: NativeExecutionConfig = resolveNativeExecutionConfi
   allowNativeBuildFallback,
   nativeManifestPath,
 });
+
+function parsePublishedWebTargets(raw: string): Map<string, string> {
+  if (!raw) {
+    return new Map();
+  }
+
+  const parsed = JSON.parse(raw) as Record<string, unknown>;
+  const entries = Object.entries(parsed)
+    .map(([handle, url]) => {
+      const normalized = normalizeRootLabel(handle);
+      const target = typeof url === "string" ? url.trim() : "";
+      if (!normalized || !target) {
+        return null;
+      }
+      return [`@${normalized}`, target] as const;
+    })
+    .filter((entry): entry is readonly [string, string] => entry != null);
+
+  return new Map(entries);
+}
+
+const publishedWebTargets = parsePublishedWebTargets(publishedWebTargetsJson);
 
 function spacedRpc<T>(method: string, params: unknown[] = []): Promise<T> {
   return rpc<T>(spacedRpcUrl, spacedRpcAuthToken, method, params);
@@ -164,6 +210,46 @@ async function inspectRoot(rootLabel: string) {
   };
 }
 
+async function resolveHandle(handle: string): Promise<ResolveResponse> {
+  const normalizedRootLabel = normalizeRootLabel(handle);
+  const inspection = await inspectRoot(normalizedRootLabel);
+
+  if (inspection.root_exists !== true) {
+    return {
+      resolved: false,
+      handle: `@${normalizedRootLabel}`,
+      reason: typeof inspection.failure_reason === "string" ? inspection.failure_reason : "root_not_found",
+    };
+  }
+
+  return {
+    resolved: true,
+    handle: `@${normalizedRootLabel}`,
+    canonical_handle: `@${normalizedRootLabel}`,
+    root_pubkey: typeof inspection.root_pubkey === "string" ? inspection.root_pubkey : null,
+    outpoint:
+      typeof inspection.proof_payload?.live_outpoint === "string"
+        ? inspection.proof_payload.live_outpoint
+        : null,
+    proof_verified: inspection.root_key_proof_verified === true,
+    proof_root_hash:
+      typeof inspection.proof_root_hash === "string" ? inspection.proof_root_hash : null,
+    accepted_anchor_height:
+      typeof inspection.accepted_anchor_height === "number" ? inspection.accepted_anchor_height : null,
+    accepted_anchor_block_hash:
+      typeof inspection.accepted_anchor_block_hash === "string" ? inspection.accepted_anchor_block_hash : null,
+    accepted_anchor_root_hash:
+      typeof inspection.accepted_anchor_root_hash === "string" ? inspection.accepted_anchor_root_hash : null,
+    control_class:
+      typeof inspection.control_class === "string" ? inspection.control_class : null,
+    operation_class:
+      typeof inspection.operation_class === "string" ? inspection.operation_class : null,
+    web_url: publishedWebTargets.get(`@${normalizedRootLabel}`) ?? null,
+    observation_provider:
+      typeof inspection.observation_provider === "string" ? inspection.observation_provider : null,
+  };
+}
+
 async function verifySignature(body: {
   digest?: string | null;
   signature?: string | null;
@@ -210,9 +296,13 @@ Bun.serve({
   port: verifierPort,
   async fetch(request) {
     const url = new URL(request.url);
-    const authResponse = requireBearerAuth(request, verifierAuthToken);
-    if (authResponse) {
-      return authResponse;
+    const isPublicPath = url.pathname === "/health" || url.pathname === "/resolve";
+
+    if (!isPublicPath) {
+      const authResponse = requireBearerAuth(request, verifierAuthToken);
+      if (authResponse) {
+        return authResponse;
+      }
     }
 
     if (url.pathname === "/health") {
@@ -225,6 +315,27 @@ Bun.serve({
         requires_spaced_auth: spacedRpcAuthToken != null,
         native_execution_mode: nativeExecutionConfig.mode,
       });
+    }
+
+    if (url.pathname === "/resolve") {
+      if (request.method !== "GET") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
+
+      const handle = url.searchParams.get("handle");
+      if (!handle || !normalizeRootLabel(handle)) {
+        return json({ error: "handle is required" }, { status: 400 });
+      }
+
+      try {
+        return json(await resolveHandle(handle));
+      } catch (error) {
+        return json({
+          resolved: false,
+          handle: handle.trim(),
+          reason: error instanceof Error ? error.message : "resolver_unavailable",
+        }, { status: 500 });
+      }
     }
 
     if (url.pathname === "/" || url.pathname === "/inspect") {

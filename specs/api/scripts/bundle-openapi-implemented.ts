@@ -117,16 +117,32 @@ function narrowImplementedCreateAndPostSchemas(schemas: unknown): Record<string,
   }
 
   const nextSchemas: Record<string, unknown> = { ...schemas };
+  const existingCreateBase = isNodeObject(nextSchemas["CreateCommunityRequestBase"])
+    ? nextSchemas["CreateCommunityRequestBase"]
+    : {};
+  const existingCreateBaseProperties = isNodeObject(existingCreateBase.properties)
+    ? existingCreateBase.properties
+    : {};
 
   nextSchemas["CreateCommunityRequestBase"] = {
-    ...(isNodeObject(nextSchemas["CreateCommunityRequestBase"]) ? nextSchemas["CreateCommunityRequestBase"] : {}),
-    required: ["display_name", "namespace", "handle_policy"],
+    ...existingCreateBase,
+    required: ["display_name", "handle_policy"],
     properties: {
+      ...existingCreateBaseProperties,
       display_name: {
         type: "string",
       },
+      avatar_ref: {
+        type: "string",
+        nullable: true,
+      },
+      banner_ref: {
+        type: "string",
+        nullable: true,
+      },
       namespace: {
         type: "object",
+        nullable: true,
         required: ["namespace_verification_id"],
         properties: {
           namespace_verification_id: {

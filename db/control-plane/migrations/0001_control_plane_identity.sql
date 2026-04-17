@@ -161,6 +161,32 @@ CREATE UNIQUE INDEX idx_global_handles_active_user
     ON global_handles(user_id)
     WHERE status = 'active';
 
+CREATE TABLE linked_handles (
+    linked_handle_id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    wallet_attachment_id TEXT,
+    kind TEXT NOT NULL CHECK (
+        kind IN ('pirate', 'ens')
+    ),
+    label_normalized TEXT NOT NULL,
+    label_display TEXT NOT NULL,
+    verification_state TEXT NOT NULL CHECK (
+        verification_state IN ('verified', 'unverified', 'stale')
+    ),
+    metadata_json TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (wallet_attachment_id) REFERENCES wallet_attachments(wallet_attachment_id)
+);
+
+CREATE UNIQUE INDEX idx_linked_handles_user_kind_label
+    ON linked_handles(user_id, kind, label_normalized);
+
+CREATE UNIQUE INDEX idx_linked_handles_wallet_kind
+    ON linked_handles(wallet_attachment_id, kind)
+    WHERE wallet_attachment_id IS NOT NULL;
+
 CREATE TABLE profiles (
     user_id TEXT PRIMARY KEY,
     display_name TEXT,
@@ -168,10 +194,12 @@ CREATE TABLE profiles (
     avatar_ref TEXT,
     cover_ref TEXT,
     global_handle_id TEXT,
+    primary_linked_handle_id TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(user_id),
-    FOREIGN KEY (global_handle_id) REFERENCES global_handles(global_handle_id)
+    FOREIGN KEY (global_handle_id) REFERENCES global_handles(global_handle_id),
+    FOREIGN KEY (primary_linked_handle_id) REFERENCES linked_handles(linked_handle_id)
 );
 
 ALTER TABLE users

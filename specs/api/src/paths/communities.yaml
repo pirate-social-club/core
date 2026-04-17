@@ -7,14 +7,16 @@ communities:
     description: |
       Creates a community once all create-time prerequisites are already satisfied.
 
-      For namespace-backed public v0 create, the server must consume the accepted namespace-verification resource referenced by `namespace.namespace_verification_id`, not just the raw identifier string. Before writing any community state, the server must re-check:
+      When `namespace` is provided, the server must consume the accepted namespace-verification resource referenced by `namespace.namespace_verification_id`, not just the raw identifier string. Before writing any community state, the server must re-check:
 
       - the accepted namespace verification exists
       - it belongs to the requesting creator
       - it is still accepted and not stale, disputed, or expired
       - its current capabilities still satisfy `club_attach_allowed`
 
-      Public v0 create must fail closed when those checks do not pass.
+      When `namespace` is omitted, the community is created without a namespace. A namespace can be attached later via the namespace-attachment endpoint.
+
+      Public v0 create must fail closed when namespace is provided but those checks do not pass.
     requestBody:
       required: true
       content:
@@ -1200,6 +1202,60 @@ communities_by_community_id_join:
         $ref: ../components/responses.yaml#/AuthError
       "403":
         $ref: ../components/responses.yaml#/GateFailed
+communities_by_community_id_preview:
+  get:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Preview a community as a viewer
+    description: |
+      Returns a viewer-safe community preview for active communities. Unlike the owner-only
+      GET /communities/{community_id}, this endpoint does not require ownership and omits
+      owner-only internal fields. Includes membership gate summaries so the viewer can
+      understand join requirements before attempting to join.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community preview
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-core.yaml#/CommunityPreview
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_join_eligibility:
+  get:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Check join eligibility for a community
+    description: |
+      Returns a machine-readable join eligibility assessment for the authenticated user.
+      The client should use this to determine whether to show a Join button, a Verify to Join
+      CTA, or a blocking message before the user attempts to join.
+
+      The `status` field distinguishes:
+      - `joinable`: user can join immediately
+      - `verification_required`: user is missing a remediable proof (e.g. nationality from self)
+      - `gate_failed`: user's existing proof does not satisfy the gate (e.g. nationality mismatch)
+      - `already_joined`: user is already a member
+      - `banned`: user is banned from the community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Join eligibility
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-core.yaml#/JoinEligibility
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
 communities_by_community_id_live_rooms:
   post:
     tags:

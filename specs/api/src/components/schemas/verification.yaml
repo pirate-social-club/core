@@ -5,12 +5,16 @@ RequestedVerificationCapability:
     - age_over_18
     - nationality
     - gender
+  description: |
+    Canonical capability requested from an interactive verification flow. Public v0 should treat
+    `unique_human`, `age_over_18`, `nationality`, and a document-derived `gender` marker as the
+    actively supported Self-backed capability set.
 VerificationIntent:
   type: string
   enum:
     - profile_verification
     - community_creation
-    - ucommunity_join
+    - community_join
     - post_access_18_plus
     - commerce_pricing
     - qualifier_disclosure
@@ -23,6 +27,11 @@ StartVerificationSessionRequest:
     This surface is intentionally limited to interactive providers such as `self` and `very`.
     Human Passport wallet-score refresh is not modeled as a verification session because it is
     a server-side score lookup by address rather than a QR, widget, or redirect ceremony.
+
+    The server should treat this request as capability-driven. Clients should not ask the user to
+    manually choose raw Self disclosures such as `minimum_age` or `nationality`; the backend should
+    compile the provider-specific launch payload from the missing canonical capabilities and the
+    current product intent.
   properties:
     provider:
       type: string
@@ -46,6 +55,13 @@ StartVerificationSessionRequest:
       description: |
         Capability set the session is intended to satisfy. The server owns the provider-specific
         verifier configuration and maps this request to an approved launch payload.
+
+        Public-v0 intent:
+        - `very`: `unique_human` only
+        - `self`: `unique_human`, `age_over_18`, `nationality`, and `gender` (document marker)
+
+        When a Self session requests `age_over_18`, `nationality`, or `gender`, the server should
+        also treat `unique_human` as part of the effective capability set.
     wallet_attachment_id:
       type: string
       nullable: true
@@ -123,6 +139,15 @@ SelfVerificationDisclosures:
   type: object
   description: |
     Server-resolved disclosure and policy config for a Self launch payload.
+    This is backend-authored provider wiring, not a public community-settings surface.
+    Public-v0 community and join flows should primarily rely on:
+    - `minimum_age`
+    - `nationality`
+    - `gender` (document marker)
+
+    Other Self disclosure knobs remain modeled for future or operator-controlled use, but public-v0
+    product flows should not expose raw Self `ofac` or `excluded_countries` settings as first-class
+    community toggles until Pirate locks their canonical capability and moderation semantics.
   properties:
     issuing_state:
       type: boolean
@@ -310,7 +335,7 @@ VerificationCapabilities:
             - M
             - F
           nullable: true
-          description: Verified gender value when disclosed by an eligible flow
+          description: Verified document marker value when disclosed by an eligible Self flow; currently limited to `M` or `F`
         proof_type:
           type: string
           enum:
@@ -320,12 +345,20 @@ VerificationCapabilities:
       $ref: ./verification.yaml#/SanctionsClearCapabilityState
     wallet_score:
       $ref: ./verification.yaml#/WalletScoreCapabilityState
+  description: |
+    Current resolved account-level verification capability state. Public-v0 product policy should
+    treat these capabilities as reusable until they expire, are revoked, or are replaced by a
+    fresher accepted proof. For interactive identity capabilities, Pirate should use reactive
+    refresh at gate time rather than background renewal. `gender` remains a high-sensitivity
+    document-marker disclosure even when enabled as a supported gate capability.
 VerificationCapabilityState:
   type: object
   required:
     - state
   description: |
     Capability state for unique_human, which may be pending during an active verification session.
+    Public-v0 product policy should treat `expired` as requiring a fresh verification before the
+    next gated action that depends on this capability.
   properties:
     state:
       type: string
@@ -359,7 +392,8 @@ VerifiedCapabilityState:
   description: |
     Capability state for Self-backed disclosure capabilities in v0. These capabilities have no
     pending state — they are either unverified, verified from an accepted record, or expired after
-    a re-verification requirement.
+    a re-verification requirement. Public-v0 refresh should be reactive at gate time rather than
+    background or silent.
   properties:
     state:
       type: string
@@ -701,6 +735,16 @@ NamespaceVerificationSession:
         Family-specific challenge type for the current session.
         `dns_txt` is used by HNS-style TXT proof flows.
         `schnorr_sign` is used by Spaces root-signature proof flows.
+    challenge_host:
+      type: string
+      nullable: true
+      description: |
+        Explicit record host for DNS TXT flows such as `_pirate.<root>`.
+    challenge_txt_value:
+      type: string
+      nullable: true
+      description: |
+        Exact TXT content Pirate expects for DNS TXT verification flows.
     challenge_payload:
       type: object
       nullable: true
@@ -714,6 +758,13 @@ NamespaceVerificationSession:
       format: date-time
       nullable: true
       description: Expiration time for the currently issued challenge, distinct from the overall namespace verification session expiry.
+    setup_nameservers:
+      type: array
+      nullable: true
+      items:
+        type: string
+      description: |
+        Nameservers the user should publish for the Pirate-managed HNS path before TXT verification can continue.
     assertions:
       allOf:
         - $ref: ./verification.yaml#/NamespaceVerificationAssertions

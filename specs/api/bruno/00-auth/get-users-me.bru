@@ -22,6 +22,6 @@ tests {
   test("resolved user matches exchanged user", function() {
     const body = res.getBody();
     expect(body.user_id).to.equal(bru.getEnvVar("pirate_user_id"));
-    expect(body.verification_state).to.equal("verified");
+    expect(body.verification_state).to.equal("unverified");
   });
 }

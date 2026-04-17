@@ -30,6 +30,9 @@ profiles_me:
               avatar_ref:
                 type: string
                 nullable: true
+              cover_ref:
+                type: string
+                nullable: true
               bio:
                 type: string
                 nullable: true
@@ -107,6 +110,48 @@ profiles_me_global_handle_upgrade_quote:
         $ref: ../components/responses.yaml#/EligibilityFailed
       "429":
         $ref: ../components/responses.yaml#/RateLimited
+profiles_me_linked_handles_sync:
+  post:
+    tags:
+      - Profiles
+    x-implemented: true
+    summary: Refresh wallet-derived linked handles for the current profile
+    responses:
+      "200":
+        description: Updated profile
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/profiles.yaml#/Profile
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+profiles_me_primary_public_handle:
+  post:
+    tags:
+      - Profiles
+    x-implemented: true
+    summary: Select the current profile's primary public handle
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              linked_handle_id:
+                type: string
+                nullable: true
+    responses:
+      "200":
+        description: Updated profile
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/profiles.yaml#/Profile
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
 profiles_by_user_id:
   get:
     tags:

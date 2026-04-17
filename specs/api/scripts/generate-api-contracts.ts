@@ -76,6 +76,10 @@ const TYPE_EXPORTS = [
   { name: "SongArtifactBundle", ref: "#/components/schemas/SongArtifactBundle" },
   { name: "Post", ref: "#/components/schemas/Post" },
   { name: "LocalizedPostResponse", ref: "#/components/schemas/LocalizedPostResponse" },
+  { name: "MembershipGateSummary", ref: "#/components/schemas/MembershipGateSummary" },
+  { name: "CommunityPreview", ref: "#/components/schemas/CommunityPreview" },
+  { name: "JoinEligibility", ref: "#/components/schemas/JoinEligibility" },
+  { name: "GateFailureDetails", ref: "#/components/schemas/GateFailureDetails" },
 ] as const;
 
 const ROUTE_EXPORTS = [
@@ -108,6 +112,8 @@ const ROUTE_EXPORTS = [
   { name: "communityPurchaseSettlements", path: "/communities/{community_id}/purchase-settlements" },
   { name: "communityPurchaseSettlementFailures", path: "/communities/{community_id}/purchase-settlements/fail" },
   { name: "communityPosts", path: "/communities/{community_id}/posts" },
+  { name: "communityPreview", path: "/communities/{community_id}/preview" },
+  { name: "communityJoinEligibility", path: "/communities/{community_id}/join-eligibility" },
   { name: "communitySongArtifactUploads", path: "/communities/{community_id}/song-artifact-uploads" },
   {
     name: "communitySongArtifactUploadContent",
