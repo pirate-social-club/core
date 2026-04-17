@@ -15,7 +15,6 @@ Local sidecar checkouts may still exist at:
 - `pirate-api/` -> `pirate-social-club/api`
 - `pirate-web/` -> `pirate-social-club/web`
 - `pirate-contracts/` -> `pirate-social-club/contracts`
-- `pirate-tui/` -> `pirate-social-club/tui`
 - `pirate-desktop/` -> `pirate-social-club/desktop`
 
 Those sidecars are not tracked by `core`.

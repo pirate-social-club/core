@@ -37,7 +37,6 @@ They are sibling repos in one workspace, not Git submodules:
 
 - `pirate-api/`
 - `pirate-web/`
-- `pirate-tui/`
 - `pirate-contracts/`
 
 Work from the parent folder when reading shared context across repos.
@@ -47,14 +46,13 @@ Typical ownership:
 
 - backend/API work -> `pirate-api/`
 - frontend/browser UI -> `pirate-web/`
-- terminal app work -> `pirate-tui/`
 - contract/protocol work -> `pirate-contracts/`
 - shared docs/scripts/root config -> parent repo
 
 Repo boundary rules:
 
 - the parent `core` repo must ignore all four child repo roots
-- do not add or keep parent-repo tracked files under `pirate-api/`, `pirate-web/`, `pirate-tui/`, or `pirate-contracts/`
+- do not add or keep parent-repo tracked files under `pirate-api/`, `pirate-web/`, or `pirate-contracts/`
 - if parent `git status` shows child-repo paths, treat that as a boundary violation and fix the parent `.gitignore` or parent index before continuing
 - do not use or expect `.gitmodules`; these repos are independent sidecar checkouts
 
