@@ -14,6 +14,7 @@ This service hosts Pirate's PowerDNS-backed HNS verifier and zone-provisioning r
 
 - `GET /health`
 - `GET /inspect?root_label=<root>`
+- `POST /ensure-zone`
 - `POST /publish-txt`
 - `POST /verify-txt`
 

@@ -22,6 +22,11 @@ That requires:
 
 PowerDNS fits that model better than file-oriented DNS servers.
 
+For public web/profile routing, this should remain a wildcard-at-root model, not one DNS record per user handle.
+See:
+
+- [docs/hns-public-profile-routing.md](../../../docs/hns-public-profile-routing.md)
+
 ## Recommended Stack
 
 - PowerDNS Authoritative
@@ -44,6 +49,13 @@ That means:
 3. Pirate publishes `_pirate.<root>` TXT in that zone via the PowerDNS API
 4. PowerDNS serves the zone
 5. `/verify-txt` verifies against that same authoritative child-zone data path
+
+For the `pirate.` root specifically, PowerDNS may also serve wildcard web-routing records for HNS-hosted public profile traffic.
+That should be one wildcard record for the root, not per-user records.
+
+The corresponding HTTP origin for those wildcard records lives in:
+
+- [ops/vps/hns-public-gateway](../hns-public-gateway/README.md)
 
 Do not use parent-side TXT values in ShakeStation as the source of truth after `NS` delegation.
 

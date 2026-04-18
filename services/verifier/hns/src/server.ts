@@ -233,6 +233,44 @@ async function publishTxt(body: {
   });
 }
 
+async function ensureZone(body: {
+  root_label?: string | null;
+  apex_ipv4?: string | null;
+  profile_ipv4?: string | null;
+  wildcard_ipv4?: string | null;
+  nameservers?: string[] | null;
+}) {
+  const rootLabel = body.root_label?.trim();
+  if (!rootLabel) {
+    return json({ error: "root_label is required" }, { status: 400 });
+  }
+
+  const store = requirePowerDnsStore();
+  const normalizedRoot = normalizeRootLabel(rootLabel);
+  const zoneName = normalizeZoneName(normalizedRoot);
+  const nameservers = body.nameservers?.map(withTrailingDot) ?? defaultNameservers;
+
+  const ensured = store.ensureZone({
+    zoneName,
+    nameservers,
+    apexIpv4: body.apex_ipv4?.trim() || defaultApexIpv4,
+    profileIpv4: body.profile_ipv4?.trim() || defaultProfileIpv4,
+    wildcardIpv4: body.wildcard_ipv4?.trim() || defaultWildcardIpv4,
+    ttl: defaultTtl,
+  });
+
+  await rediscoverZones();
+
+  return json({
+    root_label: normalizedRoot,
+    zone_name: zoneName,
+    zone_created: ensured.created,
+    nameservers,
+    observation_provider: "powerdns_sqlite",
+    rrsets: summarizeZone(ensured.zone),
+  });
+}
+
 async function verifyTxt(body: {
   root_label?: string | null;
   challenge_host?: string | null;
@@ -292,10 +330,7 @@ async function verifyTxt(body: {
   });
 }
 
-Bun.serve({
-  hostname: verifierHost,
-  port: verifierPort,
-  async fetch(request) {
+export async function handleRequest(request: Request) {
     const url = new URL(request.url);
     const authResponse = requireBearerAuth(request, verifierAuthToken);
     if (authResponse) {
@@ -346,6 +381,21 @@ Bun.serve({
       }
     }
 
+    if (url.pathname === "/ensure-zone") {
+      if (request.method !== "POST") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
+
+      try {
+        const body = await request.json() as Parameters<typeof ensureZone>[0];
+        return await ensureZone(body);
+      } catch (error) {
+        return json({
+          error: error instanceof Error ? error.message : "zone ensure failed",
+        }, { status: 500 });
+      }
+    }
+
     if (url.pathname === "/verify-txt") {
       if (request.method !== "POST") {
         return new Response("Method Not Allowed", { status: 405 });
@@ -362,7 +412,16 @@ Bun.serve({
     }
 
     return new Response("Not Found", { status: 404 });
-  },
-});
+}
 
-console.log(`HNS verifier listening on http://${verifierHost}:${verifierPort}`);
+if (import.meta.main) {
+  Bun.serve({
+    hostname: verifierHost,
+    port: verifierPort,
+    fetch(request) {
+      return handleRequest(request);
+    },
+  });
+
+  console.log(`HNS verifier listening on http://${verifierHost}:${verifierPort}`);
+}
