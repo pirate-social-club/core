@@ -44,6 +44,20 @@ No Lit control-plane details live here. See `config/lit-families.json` for execu
 | Funding requirement | No — proof signing only. This family should not be pre-funded in `docs/product/funds-ledger.md` |
 | Fallback status | None. pirate/ had no legacy direct key for this family. |
 
+### story-cdr-writer
+
+| Field | Value |
+|---|---|
+| Chain | Story Aeneid (1315) |
+| Signer kind | `pkp` |
+| Canonical signer address | `0x7d65696d4d0342d0baba3beaee9ca3a30696cb8c` |
+| Purpose | Allocate Story CDR vaults and write encrypted song data keys during locked-song publish |
+| Allowed contracts | Story CDR (`0xcccccc0000000000000000000000000000000005`) |
+| Allowed methods | `allocate(...)`, `write(...)` |
+| Required on-chain grants | None beyond owning/funding the PKP for CDR fee-bearing txs; the signer is constrained by Lit action to the CDR contract and those methods only |
+| Funding requirement | Yes — gas plus CDR allocate/write fees. See `docs/product/funds-ledger.md` |
+| Fallback status | None. This must stay PKP-only in pirate-v2. |
+
 ### story-scrobble-operator
 
 | Field | Value |

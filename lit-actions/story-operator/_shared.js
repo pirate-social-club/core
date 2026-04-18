@@ -213,10 +213,13 @@ async function signConstrainedTx(firstArg, expected, abi, functionName, validate
 
 export {
   fail,
+  parseUnsignedTx,
   requireAddress,
   requireBytes32,
   requireHex,
   requireUintString,
   resolveJsParams,
+  resolveExpectedPrivateKey,
+  validateTxEnvelope,
   signConstrainedTx
 };

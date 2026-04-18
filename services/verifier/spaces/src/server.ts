@@ -42,6 +42,14 @@ type VerifyNativeResult = {
   error?: string;
 };
 
+type ResolveFabricRecordsResult = {
+  canonical_handle?: string | null;
+  web_url?: string | null;
+  freedom_url?: string | null;
+  records?: Record<string, string[]>;
+  error?: string;
+};
+
 type ResolveResponse =
   | {
       resolved: true;
@@ -57,6 +65,7 @@ type ResolveResponse =
       control_class: string | null;
       operation_class: string | null;
       web_url: string | null;
+      freedom_url: string | null;
       observation_provider: string | null;
     }
   | {
@@ -73,16 +82,19 @@ const maxAnchorAgeBlocks = Number(Bun.env.SPACES_VERIFIER_MAX_ANCHOR_AGE_BLOCKS 
 const verifierAuthToken = Bun.env.SPACES_VERIFIER_AUTH_TOKEN?.trim() || null;
 const publishedWebTargetsJson = Bun.env.SPACES_PUBLISHED_WEB_TARGETS_JSON?.trim() || "";
 const nativeManifestPath = new URL("../native/Cargo.toml", import.meta.url).pathname;
+const spacesPublisherDir = new URL("../../../../tools/spaces-publisher", import.meta.url).pathname;
 const nativeBin = Bun.env.SPACES_VERIFIER_NATIVE_BIN?.trim() || null;
+const spacesPublisherBin = Bun.env.SPACES_PUBLISHER_BIN?.trim() || null;
+const spacesPublisherTimeoutMs = Number(Bun.env.SPACES_PUBLISHER_TIMEOUT_MS || "10000");
 const allowNativeBuildFallback = ["1", "true", "yes", "on"].includes(
   String(Bun.env.SPACES_NATIVE_ALLOW_BUILD_FALLBACK || "").trim().toLowerCase(),
 );
-
 const nativeExecutionConfig: NativeExecutionConfig = resolveNativeExecutionConfig({
   nativeBin,
   allowNativeBuildFallback,
   nativeManifestPath,
 });
+const spacesPublisherCommand = spacesPublisherBin ? [spacesPublisherBin] : ["go", "run", "."];
 
 function parsePublishedWebTargets(raw: string): Map<string, string> {
   if (!raw) {
@@ -105,6 +117,20 @@ function parsePublishedWebTargets(raw: string): Map<string, string> {
 }
 
 const publishedWebTargets = parsePublishedWebTargets(publishedWebTargetsJson);
+
+function trimOptionalString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function appendObservationProvider(base: string | null, addition: string | null) {
+  if (!base) {
+    return addition;
+  }
+  if (!addition) {
+    return base;
+  }
+  return base.includes(addition) ? base : `${base}+${addition}`;
+}
 
 function spacedRpc<T>(method: string, params: unknown[] = []): Promise<T> {
   return rpc<T>(spacedRpcUrl, spacedRpcAuthToken, method, params);
@@ -210,9 +236,56 @@ async function inspectRoot(rootLabel: string) {
   };
 }
 
+async function resolveFabricRecords(handle: string): Promise<ResolveFabricRecordsResult> {
+  const result = Bun.spawn([...spacesPublisherCommand, "resolve", handle], {
+    cwd: spacesPublisherDir,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+
+  const timeoutId = setTimeout(() => {
+    try {
+      result.kill();
+    } catch {
+      // best effort timeout cleanup
+    }
+  }, spacesPublisherTimeoutMs);
+
+  const [exitCode, stdout, stderr] = await Promise.all([
+    result.exited,
+    new Response(result.stdout).text(),
+    new Response(result.stderr).text(),
+  ]);
+  clearTimeout(timeoutId);
+
+  const normalizedStdout = stdout.trim();
+  const normalizedStderr = stderr.trim();
+  if (exitCode !== 0) {
+    throw new Error(
+      normalizedStderr || normalizedStdout || `spaces publisher resolve failed after ${spacesPublisherTimeoutMs}ms`,
+    );
+  }
+
+  const parsed = JSON.parse(normalizedStdout) as ResolveFabricRecordsResult;
+  if (parsed.error) {
+    throw new Error(parsed.error);
+  }
+  return parsed;
+}
+
 async function resolveHandle(handle: string): Promise<ResolveResponse> {
   const normalizedRootLabel = normalizeRootLabel(handle);
-  const inspection = await inspectRoot(normalizedRootLabel);
+  const [inspection, fabricRecords] = await Promise.all([
+    inspectRoot(normalizedRootLabel),
+    resolveFabricRecords(`@${normalizedRootLabel}`).catch((error) => {
+      console.warn(
+        `[spaces] native fabric record lookup failed for @${normalizedRootLabel}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return null;
+    }),
+  ]);
 
   if (inspection.root_exists !== true) {
     return {
@@ -222,10 +295,13 @@ async function resolveHandle(handle: string): Promise<ResolveResponse> {
     };
   }
 
+  const nativeWebUrl = trimOptionalString(fabricRecords?.web_url);
+  const nativeFreedomUrl = trimOptionalString(fabricRecords?.freedom_url);
+
   return {
     resolved: true,
     handle: `@${normalizedRootLabel}`,
-    canonical_handle: `@${normalizedRootLabel}`,
+    canonical_handle: trimOptionalString(fabricRecords?.canonical_handle) ?? `@${normalizedRootLabel}`,
     root_pubkey: typeof inspection.root_pubkey === "string" ? inspection.root_pubkey : null,
     outpoint:
       typeof inspection.proof_payload?.live_outpoint === "string"
@@ -244,9 +320,12 @@ async function resolveHandle(handle: string): Promise<ResolveResponse> {
       typeof inspection.control_class === "string" ? inspection.control_class : null,
     operation_class:
       typeof inspection.operation_class === "string" ? inspection.operation_class : null,
-    web_url: publishedWebTargets.get(`@${normalizedRootLabel}`) ?? null,
-    observation_provider:
+    web_url: nativeWebUrl ?? publishedWebTargets.get(`@${normalizedRootLabel}`) ?? null,
+    freedom_url: nativeFreedomUrl,
+    observation_provider: appendObservationProvider(
       typeof inspection.observation_provider === "string" ? inspection.observation_provider : null,
+      fabricRecords != null ? "fabric_zone" : null,
+    ),
   };
 }
 

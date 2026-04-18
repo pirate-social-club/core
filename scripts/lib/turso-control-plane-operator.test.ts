@@ -127,6 +127,68 @@ describe("turso control-plane operator handler", () => {
     });
   });
 
+  test("provision route accepts namespaceless community requests", async () => {
+    let received: Record<string, unknown> | null = null;
+    const handler = createTursoControlPlaneOperatorHandler(baseEnv, {
+      provisionCommunityFn: async (input) => {
+        received = input as unknown as Record<string, unknown>;
+        return {
+          communityId: "cmt_no_namespace",
+          jobId: "job_no_namespace",
+          communityDatabaseBindingId: "cdb_no_namespace",
+          communityDbCredentialId: "cdc_no_namespace",
+          organizationSlug: "pirate-social",
+          groupName: "club-cmt-no-namespace",
+          groupId: "grp_no_namespace",
+          databaseName: "main-cmt-no-namespace",
+          databaseId: "db_no_namespace",
+          databaseUrl: "libsql://main-cmt-no-namespace-pirate-social.aws-us-east-1.turso.io",
+          location: "aws-us-east-1",
+          tokenName: "worker-cmt_no_namespace-v1",
+          plaintextToken: "db-token-no-namespace",
+          issuedAt: "2026-04-12T00:00:00.000Z",
+          expiresAt: null,
+          rotationNumber: 1,
+        };
+      },
+    });
+
+    const response = await handler(new Request("http://operator.test/internal/v0/community-provisioning/provision", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${baseEnv.COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        community_id: "cmt_no_namespace",
+        creator_user_id: "usr_01",
+        display_name: "Namespaceless",
+        namespace_verification_id: null,
+        group_location: "aws-us-east-1",
+        bootstrap_payload: {
+          description: "hello",
+          membership_mode: "open",
+          default_age_gate_policy: "none",
+          membership_unique_human_provider: null,
+          posting_unique_human_provider: null,
+          handle_policy_template: "standard",
+          handle_pricing_model: null,
+          namespace_label: null,
+        },
+      }),
+    }));
+
+    expect(response.status).toBe(200);
+    expect(received).toMatchObject({
+      communityId: "cmt_no_namespace",
+      creatorUserId: "usr_01",
+      displayName: "Namespaceless",
+      namespaceVerificationId: null,
+      groupLocation: "aws-us-east-1",
+      namespaceLabel: null,
+    });
+  });
+
   test("doctor route delegates and returns findings", async () => {
     const handler = createTursoControlPlaneOperatorHandler(baseEnv, {
       doctorControlPlaneFn: async () => ({

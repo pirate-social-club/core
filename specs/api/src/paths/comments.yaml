@@ -1,0 +1,128 @@
+comments_by_comment_id:
+  delete:
+    tags:
+      - Comments
+    x-implemented: true
+    summary: Tombstone a comment
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommentId
+    responses:
+      "200":
+        description: Comment tombstoned
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/comments.yaml#/Comment
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+
+comments_by_comment_id_replies:
+  get:
+    tags:
+      - Comments
+    x-implemented: true
+    summary: List direct replies for a comment
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommentId
+      - $ref: ../components/parameters.yaml#/FeedSort
+      - $ref: ../components/parameters.yaml#/Cursor
+      - $ref: ../components/parameters.yaml#/Limit
+    responses:
+      "200":
+        description: Direct replies
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/comments.yaml#/CommentListResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  post:
+    tags:
+      - Comments
+    x-implemented: true
+    summary: Create a reply beneath a comment
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommentId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/comments.yaml#/CreateCommentRequest
+    responses:
+      "201":
+        description: Comment created
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/comments.yaml#/Comment
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/VerificationRequired
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+
+comments_by_comment_id_context:
+  get:
+    tags:
+      - Comments
+    x-implemented: true
+    summary: Load permalink context for a comment
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommentId
+      - $ref: ../components/parameters.yaml#/Cursor
+      - $ref: ../components/parameters.yaml#/Limit
+    responses:
+      "200":
+        description: Comment context
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/comments.yaml#/CommentContext
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+
+comments_by_comment_id_vote:
+  post:
+    tags:
+      - Comments
+    x-implemented: true
+    summary: Cast or update a vote on a comment
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommentId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - value
+            properties:
+              value:
+                type: integer
+                enum:
+                  - -1
+                  - 1
+    responses:
+      "200":
+        description: Vote recorded
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/comments.yaml#/CommentVoteResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/VerificationRequired
+      "404":
+        $ref: ../components/responses.yaml#/NotFound

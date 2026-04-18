@@ -55,6 +55,7 @@ UserReport:
     - user_report_id
     - community_id
     - post_id
+    - comment_id
     - reporter_user_id
     - reason_code
     - created_at
@@ -65,6 +66,10 @@ UserReport:
       type: string
     post_id:
       type: string
+      nullable: true
+    comment_id:
+      type: string
+      nullable: true
     reporter_user_id:
       type: string
     reason_code:
@@ -81,6 +86,7 @@ ModerationSignal:
     - moderation_signal_id
     - community_id
     - post_id
+    - comment_id
     - analysis_result_ref
     - source
     - signal_type
@@ -95,8 +101,13 @@ ModerationSignal:
       type: string
     post_id:
       type: string
+      nullable: true
+    comment_id:
+      type: string
+      nullable: true
     analysis_result_ref:
       type: string
+      nullable: true
     source:
       type: string
       enum:
@@ -122,6 +133,7 @@ ModerationAction:
     - moderation_case_id
     - community_id
     - post_id
+    - comment_id
     - actor_user_id
     - action_type
     - created_at
@@ -134,6 +146,10 @@ ModerationAction:
       type: string
     post_id:
       type: string
+      nullable: true
+    comment_id:
+      type: string
+      nullable: true
     actor_user_id:
       type: string
     action_type:
@@ -150,6 +166,7 @@ ModerationCase:
     - moderation_case_id
     - community_id
     - post_id
+    - comment_id
     - status
     - queue_scope
     - priority
@@ -163,6 +180,10 @@ ModerationCase:
       type: string
     post_id:
       type: string
+      nullable: true
+    comment_id:
+      type: string
+      nullable: true
     status:
       $ref: ./moderation.yaml#/ModerationCaseStatus
     queue_scope:
@@ -195,6 +216,7 @@ ModerationCaseDetail:
   required:
     - case
     - post
+    - comment
     - signals
     - reports
     - actions
@@ -203,6 +225,10 @@ ModerationCaseDetail:
       $ref: ./moderation.yaml#/ModerationCase
     post:
       $ref: ./posts.yaml#/Post
+      nullable: true
+    comment:
+      $ref: ./comments.yaml#/Comment
+      nullable: true
     signals:
       type: array
       items:

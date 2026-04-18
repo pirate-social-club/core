@@ -1,0 +1,223 @@
+Comment:
+  type: object
+  additionalProperties: false
+  required:
+    - comment_id
+    - community_id
+    - thread_root_post_id
+    - parent_comment_id
+    - author_user_id
+    - authorship_mode
+    - identity_mode
+    - anonymous_scope
+    - anonymous_label
+    - body
+    - status
+    - depth
+    - direct_reply_count
+    - descendant_count
+    - upvote_count
+    - downvote_count
+    - score
+    - last_reply_at
+    - content_hash
+    - swarm_body_ref
+    - created_at
+    - updated_at
+  properties:
+    comment_id:
+      type: string
+    community_id:
+      type: string
+    thread_root_post_id:
+      type: string
+    parent_comment_id:
+      type: string
+      nullable: true
+    author_user_id:
+      type: string
+      nullable: true
+    authorship_mode:
+      type: string
+      enum:
+        - human_direct
+    identity_mode:
+      type: string
+      enum:
+        - public
+        - anonymous
+    anonymous_scope:
+      type: string
+      enum:
+        - community_stable
+        - thread_stable
+      nullable: true
+    anonymous_label:
+      type: string
+      nullable: true
+    body:
+      type: string
+      nullable: true
+    status:
+      type: string
+      enum:
+        - published
+        - hidden
+        - removed
+        - deleted
+    depth:
+      type: integer
+    direct_reply_count:
+      type: integer
+    descendant_count:
+      type: integer
+    upvote_count:
+      type: integer
+    downvote_count:
+      type: integer
+    score:
+      type: integer
+    last_reply_at:
+      type: string
+      format: date-time
+      nullable: true
+    content_hash:
+      type: string
+      nullable: true
+    swarm_body_ref:
+      type: string
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+CreateCommentRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - body
+  properties:
+    body:
+      type: string
+    identity_mode:
+      type: string
+      enum:
+        - public
+        - anonymous
+      default: public
+    anonymous_scope:
+      type: string
+      enum:
+        - community_stable
+        - thread_stable
+      nullable: true
+
+CommentListItem:
+  type: object
+  additionalProperties: false
+  required:
+    - comment
+    - viewer_vote
+  properties:
+    comment:
+      $ref: ./comments.yaml#/Comment
+    viewer_vote:
+      type: integer
+      enum:
+        - -1
+        - 1
+      nullable: true
+
+CommentListResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - items
+    - next_cursor
+    - thread_snapshot
+  properties:
+    items:
+      type: array
+      items:
+        $ref: ./comments.yaml#/CommentListItem
+    next_cursor:
+      type: string
+      nullable: true
+    thread_snapshot:
+      $ref: ./comments.yaml#/CommentThreadSnapshot
+      nullable: true
+
+CommentContext:
+  type: object
+  additionalProperties: false
+  required:
+    - ancestors
+    - comment
+    - replies
+    - next_replies_cursor
+    - thread_snapshot
+  properties:
+    ancestors:
+      type: array
+      items:
+        $ref: ./comments.yaml#/CommentListItem
+    comment:
+      $ref: ./comments.yaml#/CommentListItem
+    replies:
+      type: array
+      items:
+        $ref: ./comments.yaml#/CommentListItem
+    next_replies_cursor:
+      type: string
+      nullable: true
+    thread_snapshot:
+      $ref: ./comments.yaml#/CommentThreadSnapshot
+      nullable: true
+
+CommentThreadSnapshot:
+  type: object
+  additionalProperties: false
+  required:
+    - thread_root_post_id
+    - snapshot_seq
+    - published_through_comment_created_at
+    - comment_count
+    - swarm_manifest_ref
+    - swarm_feed_ref
+    - created_at
+  properties:
+    thread_root_post_id:
+      type: string
+    snapshot_seq:
+      type: integer
+    published_through_comment_created_at:
+      type: string
+      format: date-time
+    comment_count:
+      type: integer
+    swarm_manifest_ref:
+      type: string
+    swarm_feed_ref:
+      type: string
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+
+CommentVoteResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - comment_id
+    - value
+  properties:
+    comment_id:
+      type: string
+    value:
+      type: integer
+      enum:
+        - -1
+        - 1

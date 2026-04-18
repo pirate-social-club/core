@@ -3,7 +3,7 @@ import { IMPLEMENTED_BUNDLE_FILE } from "./_shared";
 import { loadSourceSchemas, type BundleSpec, TypeGenerator } from "./_typegen";
 
 const SOURCE_SCHEMA_DIR = "specs/api/src/components/schemas";
-const OUTPUT_FILE = "pirate-api/services/contracts/src/index.ts";
+const OUTPUT_FILE = process.env.API_CONTRACTS_OUTPUT_FILE || "pirate-api/services/contracts/src/index.ts";
 
 const TYPE_EXPORTS = [
   { name: "ErrorResponse", ref: "#/components/schemas/Error" },
@@ -72,14 +72,37 @@ const TYPE_EXPORTS = [
   { name: "CreateSongArtifactUploadRequest", ref: "#/components/schemas/CreateSongArtifactUploadRequest" },
   { name: "CreateSongArtifactBundleRequest", ref: "#/components/schemas/CreateSongArtifactBundleRequest" },
   { name: "CreatePostRequest", ref: "#/components/schemas/CreatePostRequest" },
+  { name: "CreateCommentRequest", ref: "#/components/schemas/CreateCommentRequest" },
+  { name: "Asset", ref: "#/components/schemas/Asset" },
+  { name: "AssetAccessResponse", ref: "#/components/schemas/AssetAccessResponse" },
   { name: "SongArtifactUpload", ref: "#/components/schemas/SongArtifactUpload" },
   { name: "SongArtifactBundle", ref: "#/components/schemas/SongArtifactBundle" },
   { name: "Post", ref: "#/components/schemas/Post" },
+  { name: "Comment", ref: "#/components/schemas/Comment" },
+  { name: "CommentListItem", ref: "#/components/schemas/CommentListItem" },
+  { name: "CommentThreadSnapshot", ref: "#/components/schemas/CommentThreadSnapshot" },
+  { name: "CommentListResponse", ref: "#/components/schemas/CommentListResponse" },
+  { name: "CommentContext", ref: "#/components/schemas/CommentContext" },
+  { name: "CommentVoteResponse", ref: "#/components/schemas/CommentVoteResponse" },
+  { name: "ModerationSignalSeverity", ref: "#/components/schemas/ModerationSignalSeverity" },
+  { name: "UserReportReasonCode", ref: "#/components/schemas/UserReportReasonCode" },
+  { name: "ModerationActionType", ref: "#/components/schemas/ModerationActionType" },
+  { name: "CreateUserReportRequest", ref: "#/components/schemas/CreateUserReportRequest" },
+  { name: "UserReport", ref: "#/components/schemas/UserReport" },
+  { name: "ModerationSignal", ref: "#/components/schemas/ModerationSignal" },
+  { name: "ModerationAction", ref: "#/components/schemas/ModerationAction" },
+  { name: "ModerationCase", ref: "#/components/schemas/ModerationCase" },
+  { name: "ModerationCaseDetail", ref: "#/components/schemas/ModerationCaseDetail" },
+  { name: "ModerationCaseListResponse", ref: "#/components/schemas/ModerationCaseListResponse" },
+  { name: "CreateModerationActionRequest", ref: "#/components/schemas/CreateModerationActionRequest" },
   { name: "LocalizedPostResponse", ref: "#/components/schemas/LocalizedPostResponse" },
   { name: "MembershipGateSummary", ref: "#/components/schemas/MembershipGateSummary" },
   { name: "CommunityPreview", ref: "#/components/schemas/CommunityPreview" },
   { name: "JoinEligibility", ref: "#/components/schemas/JoinEligibility" },
   { name: "GateFailureDetails", ref: "#/components/schemas/GateFailureDetails" },
+  { name: "LinkedHandle", ref: "#/components/schemas/LinkedHandle" },
+  { name: "SelfVerificationDisclosures", ref: "#/components/schemas/SelfVerificationDisclosures" },
+  { name: "SelfVerificationLaunch", ref: "#/components/schemas/SelfVerificationLaunch" },
 ] as const;
 
 const ROUTE_EXPORTS = [
@@ -112,6 +135,12 @@ const ROUTE_EXPORTS = [
   { name: "communityPurchaseSettlements", path: "/communities/{community_id}/purchase-settlements" },
   { name: "communityPurchaseSettlementFailures", path: "/communities/{community_id}/purchase-settlements/fail" },
   { name: "communityPosts", path: "/communities/{community_id}/posts" },
+  { name: "communityPostComments", path: "/communities/{community_id}/posts/{post_id}/comments" },
+  { name: "communityPostReports", path: "/communities/{community_id}/posts/{post_id}/reports" },
+  { name: "communityCommentReports", path: "/communities/{community_id}/comments/{comment_id}/reports" },
+  { name: "communityModerationCases", path: "/communities/{community_id}/moderation/cases" },
+  { name: "communityModerationCase", path: "/communities/{community_id}/moderation/cases/{moderation_case_id}" },
+  { name: "communityModerationCaseActions", path: "/communities/{community_id}/moderation/cases/{moderation_case_id}/actions" },
   { name: "communityPreview", path: "/communities/{community_id}/preview" },
   { name: "communityJoinEligibility", path: "/communities/{community_id}/join-eligibility" },
   { name: "communitySongArtifactUploads", path: "/communities/{community_id}/song-artifact-uploads" },
@@ -123,6 +152,10 @@ const ROUTE_EXPORTS = [
   { name: "communitySongArtifact", path: "/communities/{community_id}/song-artifacts/{song_artifact_bundle_id}" },
   { name: "job", path: "/jobs/{job_id}" },
   { name: "post", path: "/posts/{post_id}" },
+  { name: "comment", path: "/comments/{comment_id}" },
+  { name: "commentReplies", path: "/comments/{comment_id}/replies" },
+  { name: "commentContext", path: "/comments/{comment_id}/context" },
+  { name: "commentVote", path: "/comments/{comment_id}/vote" },
 ] as const;
 
 const GENERATED_FILE_BANNER = `// GENERATED FILE. Edit specs/api/src/** and run \`rtk bun specs/api/scripts/generate-api-contracts.ts\`.\n`;

@@ -159,17 +159,32 @@ export const ENV_CONTRACT: EnvContract = {
     },
     {
       path: "/services/api",
-      key: "LIT_CHIPOTLE_OPERATOR_API_KEY",
+      key: "STORY_CONTRACT_OWNER_PRIVATE_KEY",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "STORY_RUNTIME_PRIVATE_KEY",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "STORY_OPERATOR_PRIVATE_KEY",
       requiredness: "deferred",
     },
     {
       path: "/services/api",
-      key: "LIT_CHIPOTLE_ACCESS_CONTROLLER_API_KEY",
+      key: "STORY_CDR_WRITER_PRIVATE_KEY",
       requiredness: "deferred",
     },
     {
       path: "/services/api",
-      key: "LIT_CHIPOTLE_STORY_SETTLEMENT_API_KEY",
+      key: "STORY_ACCESS_CONTROLLER_PRIVATE_KEY",
+      requiredness: "deferred",
+    },
+    {
+      path: "/services/api",
+      key: "MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY",
       requiredness: "deferred",
     },
     {

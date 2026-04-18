@@ -1464,10 +1464,62 @@ communities_by_community_id_posts:
         $ref: ../components/responses.yaml#/AuthError
       "429":
         $ref: ../components/responses.yaml#/RateLimited
+
+communities_by_community_id_posts_by_post_id_comments:
+  get:
+    tags:
+      - Comments
+    x-implemented: true
+    summary: List top-level comments for a post thread
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/PostId
+      - $ref: ../components/parameters.yaml#/FeedSort
+      - $ref: ../components/parameters.yaml#/Cursor
+      - $ref: ../components/parameters.yaml#/Limit
+    responses:
+      "200":
+        description: Top-level comments
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/comments.yaml#/CommentListResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  post:
+    tags:
+      - Comments
+    x-implemented: true
+    summary: Create a top-level comment under a post thread
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/PostId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/comments.yaml#/CreateCommentRequest
+    responses:
+      "201":
+        description: Comment created
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/comments.yaml#/Comment
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/VerificationRequired
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
 communities_by_community_id_posts_by_post_id_reports:
   post:
     tags:
       - Moderation
+    x-implemented: true
     summary: Report a post in a community
     description: |
       Creates a user report for the target post. If an open moderation case already exists for the
@@ -1497,10 +1549,45 @@ communities_by_community_id_posts_by_post_id_reports:
         $ref: ../components/responses.yaml#/NotFound
       "429":
         $ref: ../components/responses.yaml#/RateLimited
+communities_by_community_id_comments_by_comment_id_reports:
+  post:
+    tags:
+      - Moderation
+    x-implemented: true
+    summary: Report a comment in a community
+    description: |
+      Creates a user report for the target comment. If an open moderation case already exists for the
+      comment, the report should attach to that case rather than creating a duplicate. Otherwise the
+      server may open a new community-scoped moderation case.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/CommentId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/moderation.yaml#/CreateUserReportRequest
+    responses:
+      "201":
+        description: User report created
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/moderation.yaml#/UserReport
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/VerificationRequired
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
 communities_by_community_id_moderation_cases:
   get:
     tags:
       - Moderation
+    x-implemented: true
     summary: List moderation cases for a community
     description: |
       Returns moderation cases for the community. V0 is expected to focus on open cases used by
@@ -1524,6 +1611,7 @@ communities_by_community_id_moderation_cases_by_moderation_case_id:
   get:
     tags:
       - Moderation
+    x-implemented: true
     summary: Read a moderation case
     description: |
       Returns the case, target post, attached moderation signals, attached user reports, and any
@@ -1548,6 +1636,7 @@ communities_by_community_id_moderation_cases_by_moderation_case_id_actions:
   post:
     tags:
       - Moderation
+    x-implemented: true
     summary: Resolve a moderation case with an action
     description: |
       Appends a moderation action to the case and updates the target post when the selected action

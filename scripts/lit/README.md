@@ -9,6 +9,8 @@ Current first-wave scope:
 Current files:
 
 - [story-operator-stamp.mjs](/home/t42/Documents/pirate-v2/scripts/lit/story-operator-stamp.mjs)
+- [story-cdr-writer-stamp.mjs](/home/t42/Documents/pirate-v2/scripts/lit/story-cdr-writer-stamp.mjs)
+- [story-cdr-writer-provision.mjs](/home/t42/Documents/pirate-v2/scripts/lit/story-cdr-writer-provision.mjs)
 - [_lib/config.mjs](/home/t42/Documents/pirate-v2/scripts/lit/_lib/config.mjs)
 - [_lib/action-source.mjs](/home/t42/Documents/pirate-v2/scripts/lit/_lib/action-source.mjs)
 - [_lib/lit-api.mjs](/home/t42/Documents/pirate-v2/scripts/lit/_lib/lit-api.mjs)
@@ -20,6 +22,20 @@ Stamp dry run:
 ```bash
 rtk node scripts/lit/story-operator-stamp.mjs \
   --dry-run
+```
+
+CDR writer stamp dry run:
+
+```bash
+rtk node scripts/lit/story-cdr-writer-stamp.mjs \
+  --dry-run
+```
+
+Provision or probe a family PKP into its execute group:
+
+```bash
+rtk bun scripts/lit/story-cdr-writer-provision.mjs \
+  --family story-cdr-writer
 ```
 
 Notes:

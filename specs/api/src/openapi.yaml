@@ -22,6 +22,7 @@ tags:
   - name: Communities
   - name: Handles
   - name: Posts
+  - name: Comments
   - name: Livestreams
   - name: Questions
   - name: Feeds
@@ -163,8 +164,12 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_market_context_policy
   /communities/{community_id}/posts:
     $ref: ./paths/communities.yaml#/communities_by_community_id_posts
+  /communities/{community_id}/posts/{post_id}/comments:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_posts_by_post_id_comments
   /communities/{community_id}/posts/{post_id}/reports:
     $ref: ./paths/communities.yaml#/communities_by_community_id_posts_by_post_id_reports
+  /communities/{community_id}/comments/{comment_id}/reports:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_comments_by_comment_id_reports
   /communities/{community_id}/moderation/cases:
     $ref: ./paths/communities.yaml#/communities_by_community_id_moderation_cases
   /communities/{community_id}/moderation/cases/{moderation_case_id}:
@@ -213,6 +218,14 @@ paths:
     $ref: ./paths/posts.yaml#/posts_by_post_id_vote
   /posts/{post_id}/reactions:
     $ref: ./paths/posts.yaml#/posts_by_post_id_reactions
+  /comments/{comment_id}:
+    $ref: ./paths/comments.yaml#/comments_by_comment_id
+  /comments/{comment_id}/replies:
+    $ref: ./paths/comments.yaml#/comments_by_comment_id_replies
+  /comments/{comment_id}/context:
+    $ref: ./paths/comments.yaml#/comments_by_comment_id_context
+  /comments/{comment_id}/vote:
+    $ref: ./paths/comments.yaml#/comments_by_comment_id_vote
   /feeds/home:
     $ref: ./paths/feeds.yaml#/feeds_home
   /feeds/your-communities:

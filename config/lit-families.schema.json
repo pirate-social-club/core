@@ -83,6 +83,10 @@
           "type": "string",
           "pattern": "^(TBD|0x[a-fA-F0-9]{40})$"
         },
+        "pkpId": {
+          "type": "string",
+          "pattern": "^(TBD|0x[a-fA-F0-9]{40})$"
+        },
         "pkpPublicKey": {
           "type": "string",
           "pattern": "^(TBD|0x[a-fA-F0-9]{130})$"

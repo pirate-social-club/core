@@ -155,11 +155,6 @@ export class TypeGenerator {
 
   private resolveRef(ref: string): SchemaObject {
     if (ref.startsWith("#/")) {
-      const resolved = resolveJsonPointer(this.bundle, ref.slice(2));
-      if (resolved !== undefined) {
-        return asSchema(resolved, ref);
-      }
-
       const rootName = ref.slice(2);
       if (rootName.startsWith("components/schemas/")) {
         const schemaName = rootName.slice("components/schemas/".length);
@@ -167,6 +162,11 @@ export class TypeGenerator {
         if (componentFallback !== undefined) {
           return asSchema(componentFallback, ref);
         }
+      }
+
+      const resolved = resolveJsonPointer(this.bundle, rootName);
+      if (resolved !== undefined) {
+        return asSchema(resolved, ref);
       }
 
       const sourceSchema = this.sourceSchemas[rootName];

@@ -22,6 +22,12 @@ PostId:
   required: true
   schema:
     type: string
+CommentId:
+  in: path
+  name: comment_id
+  required: true
+  schema:
+    type: string
 AssetId:
   in: path
   name: asset_id

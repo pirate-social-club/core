@@ -2111,6 +2111,9 @@ CreateCommunityRuleInput:
       type: string
     body:
       type: string
+    report_reason:
+      type: string
+      nullable: true
     position:
       type: integer
       minimum: 0
@@ -2126,6 +2129,9 @@ UpdateCommunityRuleInput:
       type: string
     body:
       type: string
+    report_reason:
+      type: string
+      nullable: true
     position:
       type: integer
       minimum: 0
@@ -2144,6 +2150,7 @@ CommunityRule:
     - rule_id
     - title
     - body
+    - report_reason
     - position
     - status
   properties:
@@ -2152,6 +2159,8 @@ CommunityRule:
     title:
       type: string
     body:
+      type: string
+    report_reason:
       type: string
     position:
       type: integer

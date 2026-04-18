@@ -23,6 +23,7 @@ tags:
   - name: Communities
   - name: Handles
   - name: Posts
+  - name: Comments
   - name: Livestreams
   - name: Questions
   - name: Feeds
@@ -2254,10 +2255,61 @@ paths:
           $ref: "#/components/responses/AuthError"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /communities/{community_id}/posts/{post_id}/comments:
+    get:
+      tags:
+        - Comments
+      x-implemented: true
+      summary: List top-level comments for a post thread
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/PostId"
+        - $ref: "#/components/parameters/FeedSort"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Top-level comments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentListResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags:
+        - Comments
+      x-implemented: true
+      summary: Create a top-level comment under a post thread
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/PostId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCommentRequest"
+      responses:
+        "201":
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/VerificationRequired"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /communities/{community_id}/posts/{post_id}/reports:
     post:
       tags:
         - Moderation
+      x-implemented: true
       summary: Report a post in a community
       description: |
         Creates a user report for the target post. If an open moderation case already exists for the
@@ -2287,10 +2339,45 @@ paths:
           $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /communities/{community_id}/comments/{comment_id}/reports:
+    post:
+      tags:
+        - Moderation
+      x-implemented: true
+      summary: Report a comment in a community
+      description: |
+        Creates a user report for the target comment. If an open moderation case already exists for the
+        comment, the report should attach to that case rather than creating a duplicate. Otherwise the
+        server may open a new community-scoped moderation case.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/CommentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserReportRequest"
+      responses:
+        "201":
+          description: User report created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserReport"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/VerificationRequired"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /communities/{community_id}/moderation/cases:
     get:
       tags:
         - Moderation
+      x-implemented: true
       summary: List moderation cases for a community
       description: |
         Returns moderation cases for the community. V0 is expected to focus on open cases used by
@@ -2314,6 +2401,7 @@ paths:
     get:
       tags:
         - Moderation
+      x-implemented: true
       summary: Read a moderation case
       description: |
         Returns the case, target post, attached moderation signals, attached user reports, and any
@@ -2338,6 +2426,7 @@ paths:
     post:
       tags:
         - Moderation
+      x-implemented: true
       summary: Resolve a moderation case with an action
       description: |
         Appends a moderation action to the case and updates the target post when the selected action
@@ -3121,6 +3210,131 @@ paths:
           $ref: "#/components/responses/VerificationRequired"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /comments/{comment_id}:
+    delete:
+      tags:
+        - Comments
+      x-implemented: true
+      summary: Tombstone a comment
+      parameters:
+        - $ref: "#/components/parameters/CommentId"
+      responses:
+        "200":
+          description: Comment tombstoned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /comments/{comment_id}/replies:
+    get:
+      tags:
+        - Comments
+      x-implemented: true
+      summary: List direct replies for a comment
+      parameters:
+        - $ref: "#/components/parameters/CommentId"
+        - $ref: "#/components/parameters/FeedSort"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Direct replies
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentListResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags:
+        - Comments
+      x-implemented: true
+      summary: Create a reply beneath a comment
+      parameters:
+        - $ref: "#/components/parameters/CommentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCommentRequest"
+      responses:
+        "201":
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/VerificationRequired"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /comments/{comment_id}/context:
+    get:
+      tags:
+        - Comments
+      x-implemented: true
+      summary: Load permalink context for a comment
+      parameters:
+        - $ref: "#/components/parameters/CommentId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Comment context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentContext"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /comments/{comment_id}/vote:
+    post:
+      tags:
+        - Comments
+      x-implemented: true
+      summary: Cast or update a vote on a comment
+      parameters:
+        - $ref: "#/components/parameters/CommentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - value
+              properties:
+                value:
+                  type: integer
+                  enum:
+                    - -1
+                    - 1
+      responses:
+        "200":
+          description: Vote recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentVoteResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/VerificationRequired"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /feeds/home:
     get:
       tags:
@@ -4621,6 +4835,7 @@ components:
         - moderation_signal_id
         - community_id
         - post_id
+        - comment_id
         - analysis_result_ref
         - source
         - signal_type
@@ -4635,8 +4850,13 @@ components:
           type: string
         post_id:
           type: string
+          nullable: true
+        comment_id:
+          type: string
+          nullable: true
         analysis_result_ref:
           type: string
+          nullable: true
         source:
           type: string
           enum:
@@ -4661,6 +4881,7 @@ components:
         - user_report_id
         - community_id
         - post_id
+        - comment_id
         - reporter_user_id
         - reason_code
         - created_at
@@ -4671,6 +4892,10 @@ components:
           type: string
         post_id:
           type: string
+          nullable: true
+        comment_id:
+          type: string
+          nullable: true
         reporter_user_id:
           type: string
         reason_code:
@@ -4688,6 +4913,7 @@ components:
         - moderation_case_id
         - community_id
         - post_id
+        - comment_id
         - actor_user_id
         - action_type
         - created_at
@@ -4700,6 +4926,10 @@ components:
           type: string
         post_id:
           type: string
+          nullable: true
+        comment_id:
+          type: string
+          nullable: true
         actor_user_id:
           type: string
         action_type:
@@ -4716,6 +4946,7 @@ components:
         - moderation_case_id
         - community_id
         - post_id
+        - comment_id
         - status
         - queue_scope
         - priority
@@ -4729,6 +4960,10 @@ components:
           type: string
         post_id:
           type: string
+          nullable: true
+        comment_id:
+          type: string
+          nullable: true
         status:
           $ref: "#/components/schemas/ModerationCaseStatus"
         queue_scope:
@@ -4752,6 +4987,7 @@ components:
       required:
         - case
         - post
+        - comment
         - signals
         - reports
         - actions
@@ -4760,6 +4996,10 @@ components:
           $ref: "#/components/schemas/ModerationCase"
         post:
           $ref: "#/components/schemas/Post"
+          nullable: true
+        comment:
+          $ref: "#/components/schemas/Comment"
+          nullable: true
         signals:
           type: array
           items:
@@ -7296,6 +7536,31 @@ components:
           description: |
             Community infrastructure lifecycle state. This is distinct from domain `status`.
             A community may be domain-active while infrastructure provisioning is still in progress.
+        registry_publication_state:
+          type: string
+          enum:
+            - not_started
+            - pending_create
+            - pending_seed
+            - published
+            - stale
+            - publication_error
+          description: |
+            Registry publication lifecycle for namespace-backed communities and other externally
+            published community records.
+        registry_attempt_id:
+          type: string
+          nullable: true
+        registry_published_at:
+          type: string
+          format: date-time
+          nullable: true
+        registry_publication_job_id:
+          type: string
+          nullable: true
+        registry_error_code:
+          type: string
+          nullable: true
         artist_identity_id:
           type: string
           nullable: true
@@ -7501,6 +7766,24 @@ components:
           $ref: "#/components/schemas/CommunityCivilityPolicy"
           description: |
             Resolved effective civility policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the default from an explicit community configuration.
+        openai_moderation_settings:
+          type: object
+          nullable: true
+          additionalProperties: false
+          properties:
+            scan_titles:
+              type: boolean
+            scan_post_bodies:
+              type: boolean
+            scan_captions:
+              type: boolean
+            scan_link_preview_text:
+              type: boolean
+            scan_images:
+              type: boolean
+          description: |
+            Optional moderation-scan toggles persisted in community settings for text and image
+            surfaces. Null means the community is using the platform default moderation scan profile.
         provenance_policy:
           $ref: "#/components/schemas/CommunityProvenancePolicy"
           description: |
@@ -9115,6 +9398,16 @@ components:
             - human_only
             - hybrid
           nullable: true
+        access_mode:
+          type: string
+          description: |
+            Song-only asset access mode for the rendered post. `public` keeps the source audio public.
+            `locked` means the post is backed by a locked asset and should expose only preview-safe
+            media in ordinary reads.
+          enum:
+            - public
+            - locked
+          nullable: true
         asset_id:
           type: string
           nullable: true
@@ -9684,6 +9977,9 @@ components:
           type: string
         body:
           type: string
+        report_reason:
+          type: string
+          nullable: true
         position:
           type: integer
           minimum: 0
@@ -9699,6 +9995,9 @@ components:
           type: string
         body:
           type: string
+        report_reason:
+          type: string
+          nullable: true
         position:
           type: integer
           minimum: 0
@@ -9717,6 +10016,7 @@ components:
         - rule_id
         - title
         - body
+        - report_reason
         - position
         - status
       properties:
@@ -9725,6 +10025,8 @@ components:
         title:
           type: string
         body:
+          type: string
+        report_reason:
           type: string
         position:
           type: integer

@@ -545,6 +545,57 @@ AssetAccessResponse:
       enum:
         - primary_content_ref
         - locked_delivery_ref
+        - story_cdr_ref
     delivery_ref:
       type: string
       nullable: true
+    story_cdr_access:
+      type: object
+      nullable: true
+      required:
+        - chain_id
+        - rpc_url
+        - cdr_contract_address
+        - read_condition_address
+        - ciphertext_ref
+        - cipher_algorithm
+        - cipher_iv_b64
+        - mime_type
+        - vault_uuid
+        - namespace
+        - access_scope
+        - access_ref
+        - access_proof
+      properties:
+        chain_id:
+          type: integer
+        rpc_url:
+          type: string
+        cdr_contract_address:
+          type: string
+        read_condition_address:
+          type: string
+        ciphertext_ref:
+          type: string
+        cipher_algorithm:
+          type: string
+        cipher_iv_b64:
+          type: string
+        mime_type:
+          type: string
+        vault_uuid:
+          type: integer
+        namespace:
+          type: string
+        access_scope:
+          type: string
+          enum:
+            - asset.owner
+            - asset.share
+        access_ref:
+          type: string
+        access_aux_data_hex:
+          type: string
+        access_proof:
+          type: object
+          additionalProperties: true

@@ -6,11 +6,11 @@ const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const EXPECTED = Object.freeze({
   actionName: "story-operator-publish-asset-version-v1",
   storyChainId: 1315,
-  contractAddress: "0xf68b731a5801A50e983E9302E32eF6DA22CB0792",
+  contractAddress: "0xAD6919367E72F3D2390E837bEbf042368c2acfDf",
   functionSelector: "0xbcb4f79b",
   pkpAddress: "0x7f969455cFe240927F1ACe4E23000685Ad224dA7",
   pkpPublicKey: "0x04ff36485e133ca9e0d005372533b0a46474487743d210b7840ed534e6b9dad1232d326b9f063e34d6e28eab2b663a3e195b9a6ec9205e1086079fe7648204dba3",
-  rpcUrl: "https://rpc.ankr.com/story_aeneid_testnet"
+  rpcUrl: "https://aeneid.storyrpc.io"
 });
 
 const ABI = [

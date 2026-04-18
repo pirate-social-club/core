@@ -469,6 +469,16 @@ Post:
         - human_only
         - hybrid
       nullable: true
+    access_mode:
+      type: string
+      description: |
+        Song-only asset access mode for the rendered post. `public` keeps the source audio public.
+        `locked` means the post is backed by a locked asset and should expose only preview-safe
+        media in ordinary reads.
+      enum:
+        - public
+        - locked
+      nullable: true
     asset_id:
       type: string
       nullable: true
@@ -544,9 +554,13 @@ LocalizedPostResponse:
     - translation_state
     - machine_translated
     - source_hash
+    - thread_snapshot
   properties:
     post:
       $ref: ./posts.yaml#/Post
+    thread_snapshot:
+      $ref: ./comments.yaml#/CommentThreadSnapshot
+      nullable: true
     market_context:
       $ref: ./market-context.yaml#/MarketContextSummary
       nullable: true

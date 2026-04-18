@@ -69,7 +69,7 @@ export type ProvisionCommunityInput = {
   communityId: string;
   creatorUserId: string;
   displayName: string;
-  namespaceVerificationId: string;
+  namespaceVerificationId?: string | null;
   groupLocation: string;
   description?: string | null;
   membershipMode?: "open" | "request" | "gated";
@@ -83,7 +83,7 @@ export type ProvisionCommunityInput = {
   fetch?: TursoPlatformFetch;
   bootstrapCommunityDatabaseFn?: (
     input: BootstrapCommunityDatabaseInput,
-  ) => Promise<{ databaseUrl: string; communityId: string; namespaceId: string }>;
+  ) => Promise<{ databaseUrl: string; communityId: string; namespaceId: string | null }>;
   now?: Date;
 };
 
@@ -653,7 +653,7 @@ export async function provisionCommunity(
   const communityId = requireText(input.communityId, "communityId");
   const creatorUserId = requireText(input.creatorUserId, "creatorUserId");
   const displayName = requireText(input.displayName, "displayName");
-  const namespaceVerificationId = requireText(input.namespaceVerificationId, "namespaceVerificationId");
+  const namespaceVerificationId = input.namespaceVerificationId?.trim() || null;
   const groupLocation = requireText(input.groupLocation, "groupLocation");
   const databaseTokenExpiration = input.databaseTokenExpiration?.trim() || null;
   const databaseName = buildCommunityDatabaseName(communityId);
@@ -672,12 +672,16 @@ export async function provisionCommunity(
       url: controlPlaneDatabaseUrl,
       authToken: controlPlaneAuthToken,
     });
-    const namespaceVerification = await requireNamespaceVerification(db, {
-      namespaceVerificationId,
-      creatorUserId,
-    });
-    const existingCommunity = await getCommunityByNamespaceVerificationId(db, namespaceVerificationId);
-    if (existingCommunity && existingCommunity.community_id !== communityId) {
+    const namespaceVerification = namespaceVerificationId
+      ? await requireNamespaceVerification(db, {
+          namespaceVerificationId,
+          creatorUserId,
+        })
+      : null;
+    const existingCommunity = namespaceVerificationId
+      ? await getCommunityByNamespaceVerificationId(db, namespaceVerificationId)
+      : null;
+    if (namespaceVerificationId && existingCommunity && existingCommunity.community_id !== communityId) {
       throw new Error(
         `namespace verification already attached to a different community: ${existingCommunity.community_id}`,
       );
@@ -820,7 +824,7 @@ export async function provisionCommunity(
     });
     const plaintextToken = requireText(minted.jwt, "minted database auth token");
 
-    const namespaceLabel = input.namespaceLabel?.trim() || namespaceVerification.normalized_root_label;
+    const namespaceLabel = input.namespaceLabel?.trim() || namespaceVerification?.normalized_root_label || null;
     await bootstrapFn({
       databaseUrl,
       databaseAuthToken: plaintextToken,
@@ -1040,7 +1044,7 @@ export async function provisionCommunityRuntime(
   const communityId = requireText(input.communityId, "communityId");
   const creatorUserId = requireText(input.creatorUserId, "creatorUserId");
   const displayName = requireText(input.displayName, "displayName");
-  const namespaceVerificationId = requireText(input.namespaceVerificationId, "namespaceVerificationId");
+  const namespaceVerificationId = input.namespaceVerificationId?.trim() || null;
   const groupLocation = requireText(input.groupLocation, "groupLocation");
   const databaseTokenExpiration = input.databaseTokenExpiration?.trim() || null;
   const databaseName = buildCommunityDatabaseName(communityId);
@@ -1054,10 +1058,12 @@ export async function provisionCommunityRuntime(
       url: controlPlaneDatabaseUrl,
       authToken: controlPlaneAuthToken,
     });
-    const namespaceVerification = await requireNamespaceVerification(db, {
-      namespaceVerificationId,
-      creatorUserId,
-    });
+    const namespaceVerification = namespaceVerificationId
+      ? await requireNamespaceVerification(db, {
+          namespaceVerificationId,
+          creatorUserId,
+        })
+      : null;
 
     const platform = new TursoPlatformClient({
       apiToken: tursoPlatformApiToken,
@@ -1114,7 +1120,7 @@ export async function provisionCommunityRuntime(
     });
     const plaintextToken = requireText(minted.jwt, "minted database auth token");
 
-    const namespaceLabel = input.namespaceLabel?.trim() || namespaceVerification.normalized_root_label;
+    const namespaceLabel = input.namespaceLabel?.trim() || namespaceVerification?.normalized_root_label || null;
     await bootstrapFn({
       databaseUrl,
       databaseAuthToken: plaintextToken,

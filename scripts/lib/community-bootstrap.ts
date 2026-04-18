@@ -16,7 +16,7 @@ export type BootstrapCommunityDatabaseInput = {
   communityId: string;
   userId: string;
   displayName: string;
-  namespaceVerificationId: string;
+  namespaceVerificationId: string | null;
   description?: string | null;
   membershipMode: "open" | "request" | "gated";
   defaultAgeGatePolicy: "none" | "18_plus";
@@ -294,16 +294,16 @@ export async function bootstrapCommunityDatabase(
 ): Promise<{
   databaseUrl: string;
   communityId: string;
-  namespaceId: string;
+  namespaceId: string | null;
 }> {
   const sql = communityBootstrapSql({
     databaseUrl: input.databaseUrl,
     databaseAuthToken: input.databaseAuthToken,
   });
   const timestamp = (input.now ?? new Date()).toISOString();
-  const namespaceLabel = input.namespaceLabel?.trim() || input.communityId.toLowerCase();
-  const namespaceId = `ns_${input.communityId}`;
-  const namespaceHandlePolicyId = `nhp_${input.communityId}`;
+  const namespaceLabel = input.namespaceLabel?.trim() || null;
+  const namespaceId = input.namespaceVerificationId ? `ns_${input.communityId}` : null;
+  const namespaceHandlePolicyId = input.namespaceVerificationId ? `nhp_${input.communityId}` : null;
   const membershipId = `mbr_${input.communityId}_${input.userId}`;
   const roleAssignmentId = `role_${input.communityId}_${input.userId}_owner`;
   const membershipGateRuleId = `gate_${input.communityId}_membership_unique_human`;
@@ -430,63 +430,65 @@ export async function bootstrapCommunityDatabase(
         ],
       );
 
-      await tx.execute(
-        `INSERT INTO namespace_bindings (
-           namespace_id,
-           community_id,
-           namespace_verification_id,
-           display_label,
-           normalized_label,
-           resolver_label,
-           route_family,
-           status,
-           created_at,
-           updated_at
-         ) VALUES (?, ?, ?, ?, ?, NULL, NULL, 'active', ?, ?)
-         ON CONFLICT(namespace_id) DO UPDATE SET
-           namespace_verification_id = excluded.namespace_verification_id,
-           display_label = excluded.display_label,
-           normalized_label = excluded.normalized_label,
-           status = excluded.status,
-           updated_at = excluded.updated_at`,
-        [
-          namespaceId,
-          input.communityId,
-          input.namespaceVerificationId,
-          namespaceLabel,
-          namespaceLabel,
-          timestamp,
-          timestamp,
-        ],
-      );
+      if (input.namespaceVerificationId && namespaceId && namespaceHandlePolicyId && namespaceLabel) {
+        await tx.execute(
+          `INSERT INTO namespace_bindings (
+             namespace_id,
+             community_id,
+             namespace_verification_id,
+             display_label,
+             normalized_label,
+             resolver_label,
+             route_family,
+             status,
+             created_at,
+             updated_at
+           ) VALUES (?, ?, ?, ?, ?, NULL, NULL, 'active', ?, ?)
+           ON CONFLICT(namespace_id) DO UPDATE SET
+             namespace_verification_id = excluded.namespace_verification_id,
+             display_label = excluded.display_label,
+             normalized_label = excluded.normalized_label,
+             status = excluded.status,
+             updated_at = excluded.updated_at`,
+          [
+            namespaceId,
+            input.communityId,
+            input.namespaceVerificationId,
+            namespaceLabel,
+            namespaceLabel,
+            timestamp,
+            timestamp,
+          ],
+        );
 
-      await tx.execute(
-        `INSERT INTO namespace_handle_policies (
-           namespace_handle_policy_id,
-           community_id,
-           namespace_id,
-           policy_template,
-           pricing_model,
-           membership_required_for_claim,
-           settings_json,
-           created_at,
-           updated_at
-         ) VALUES (?, ?, ?, ?, ?, 1, NULL, ?, ?)
-         ON CONFLICT(namespace_handle_policy_id) DO UPDATE SET
-           policy_template = excluded.policy_template,
-           pricing_model = excluded.pricing_model,
-           membership_required_for_claim = excluded.membership_required_for_claim,
-           updated_at = excluded.updated_at`,
-        [
-          namespaceHandlePolicyId,
-          input.communityId,
-          namespaceId,
-          input.handlePolicyTemplate,
-          input.handlePricingModel ?? null,
-          timestamp,
-          timestamp,
-        ],
-      );
+        await tx.execute(
+          `INSERT INTO namespace_handle_policies (
+             namespace_handle_policy_id,
+             community_id,
+             namespace_id,
+             policy_template,
+             pricing_model,
+             membership_required_for_claim,
+             settings_json,
+             created_at,
+             updated_at
+           ) VALUES (?, ?, ?, ?, ?, 1, NULL, ?, ?)
+           ON CONFLICT(namespace_handle_policy_id) DO UPDATE SET
+             policy_template = excluded.policy_template,
+             pricing_model = excluded.pricing_model,
+             membership_required_for_claim = excluded.membership_required_for_claim,
+             updated_at = excluded.updated_at`,
+          [
+            namespaceHandlePolicyId,
+            input.communityId,
+            namespaceId,
+            input.handlePolicyTemplate,
+            input.handlePricingModel ?? null,
+            timestamp,
+            timestamp,
+          ],
+        );
+      }
 
       await tx.execute(
         `DELETE FROM community_gate_rules

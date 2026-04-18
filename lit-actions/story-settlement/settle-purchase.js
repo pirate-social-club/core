@@ -72,11 +72,18 @@ function resolveJsParams(firstArg) {
     : params;
 }
 
-async function resolveExpectedPrivateKey(expectedSignerAddress) {
+async function resolveExpectedPrivateKey(expectedSignerAddress, expectedPkpId = null) {
   const getPrivateKey = resolveGetPrivateKey();
+  const publicKey = String(globalThis.EXPECTED_PKP_PUBLIC_KEY || "").trim();
   const attempts = [
-    { label: "pkpId", payload: { pkpId: expectedSignerAddress } },
+    ...(typeof expectedPkpId === "string" && expectedPkpId.trim()
+      ? [{ label: "pkpId", payload: { pkpId: expectedPkpId.trim() } }]
+      : [{ label: "pkpId", payload: { pkpId: expectedSignerAddress } }]),
     { label: "pkpAddress", payload: { pkpAddress: expectedSignerAddress } },
+    ...(publicKey ? [
+      { label: "pkpPublicKey", payload: { pkpPublicKey: publicKey } },
+      { label: "publicKey", payload: { publicKey } },
+    ] : []),
   ];
   const failures = [];
   for (const attempt of attempts) {
@@ -108,6 +115,8 @@ export async function main(firstArg) {
   const params = resolveJsParams(firstArg);
   const unsignedTx = params.unsignedTx || {};
   const expectedSignerAddress = requireAddress(params.expectedSignerAddress, "expectedSignerAddress");
+  const expectedPkpId = typeof params.expectedPkpId === "string" ? params.expectedPkpId.trim() : "";
+  globalThis.EXPECTED_PKP_PUBLIC_KEY = typeof params.expectedPkpPublicKey === "string" ? params.expectedPkpPublicKey : "";
 
   const txTo = requireAddress(unsignedTx.to, "unsignedTx.to");
   const txData = requireHex(String(unsignedTx.data || ""), "unsignedTx.data");
@@ -159,7 +168,7 @@ export async function main(firstArg) {
     fail("payout_recipient_zero");
   }
 
-  const privateKey = await resolveExpectedPrivateKey(expectedSignerAddress);
+  const privateKey = await resolveExpectedPrivateKey(expectedSignerAddress, expectedPkpId || null);
   const wallet = new Wallet(privateKey);
   const signerAddress = requireAddress(wallet.address, "wallet.address");
   if (signerAddress !== expectedSignerAddress) {

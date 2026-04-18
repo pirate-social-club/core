@@ -10,7 +10,7 @@ const EXPECTED = Object.freeze({
   functionSelector: "0xbcb4f79b",
   pkpAddress: "0x0000000000000000000000000000000000000000",
   pkpPublicKey: "0x",
-  rpcUrl: "https://rpc.ankr.com/story_aeneid_testnet"
+  rpcUrl: "https://aeneid.storyrpc.io"
 });
 
 const ABI = [

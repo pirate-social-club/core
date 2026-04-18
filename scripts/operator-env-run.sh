@@ -8,6 +8,7 @@ Usage:
 
 Profiles:
   control-plane-seed
+  story-delivery-owner
   turso-provision
   turso-rotate
   turso-doctor
@@ -69,6 +70,11 @@ case "$PROFILE" in
     ;;
   control-plane-seed)
     REQUIRED_VARS+=("CONTROL_PLANE_DATABASE_URL")
+    ;;
+  story-delivery-owner)
+    REQUIRED_VARS+=(
+      "STORY_CONTRACT_OWNER_PRIVATE_KEY"
+    )
     ;;
   turso-provision)
     REQUIRED_VARS+=(

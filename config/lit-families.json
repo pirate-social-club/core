@@ -55,7 +55,7 @@
             },
             {
               "name": "publish-asset-version",
-              "cid": "ipfs://QmQVwzMx7xxuqcU6NXZmQfsV6P6k8jjSBVnMEQhuTpLAvU",
+              "cid": "ipfs://QmUndNcG1iaYY8QbWqeACtz1hWEUX9nDD84Tp8Lkaz2Bfu",
               "contractMethod": "publishAssetVersion",
               "contract": "AssetPublishCoordinatorV1"
             }
@@ -66,17 +66,36 @@
           "chain": "story-aeneid",
           "chainId": 1315,
           "executeGroup": "story-access-controller-aeneid-v1",
-          "pkpAddress": "0x2125952f22Ad971df5645E31a613fe42DCC42c48",
-          "pkpPublicKey": "TBD",
+          "pkpAddress": "0x33617684f55154fc180db7c158b86694639aa46d",
+          "pkpPublicKey": "0x04d1015de10d8d0ee8f59a88af9c9f668ed7e4a8f0409591c7e8fb3c96b5a4967ffcf137e4762015ed2986b55d75df8d466fac0661f28d7c043b34fc57963df982",
           "usageKeyEnvVar": "LIT_CHIPOTLE_ACCESS_CONTROLLER_API_KEY",
           "signerFamilyRef": "docs/signer-families.md#story-access-controller",
           "fundsLedgerPlaceholder": null,
           "actions": [
             {
               "name": "sign-access-proof",
-              "cid": "TBD",
+              "cid": "ipfs://Qmcg6b2z86VyrvcjTvTte5FwuQUw1yMgBWS1s7ttCWqEnK",
               "contractMethod": "sign AccessProof (EIP-712)",
               "contract": "SignedAccessConditionV1"
+            }
+          ]
+        },
+        {
+          "family": "story-cdr-writer",
+          "chain": "story-aeneid",
+          "chainId": 1315,
+          "executeGroup": "story-cdr-writer-aeneid-v1",
+          "pkpAddress": "0x7d65696d4d0342d0baba3beaee9ca3a30696cb8c",
+          "pkpPublicKey": "0x043fac30f258f36ce3be6bd98c8a30e896f8f63e5096bae481b472f605699e96ed4996ec4201a93960fad075f1b28a2c4acb3de389b5e3a793782f66c56a7b15ff",
+          "usageKeyEnvVar": "LIT_CHIPOTLE_CDR_WRITER_API_KEY",
+          "signerFamilyRef": "docs/signer-families.md#story-cdr-writer",
+          "fundsLedgerPlaceholder": "STORY_CDR_WRITER_ADDRESS",
+          "actions": [
+            {
+              "name": "allocate-write",
+              "cid": "ipfs://Qmbg5WCda76ACk23xfdbgZPkXEQikhXe96VJv99YFz8B55",
+              "contractMethod": "allocate(...) + write(...)",
+              "contract": "CDR"
             }
           ]
         },
@@ -110,15 +129,16 @@
           "chain": "story-aeneid",
           "chainId": 1315,
           "executeGroup": "story-settlement-aeneid-v1",
-          "pkpAddress": "0xfB1E0bbE209C1B75f8E365F3055bfF4b0a24702B",
-          "pkpPublicKey": "TBD",
+          "pkpAddress": "0x209b7980e44C6Ec200F062c4AA95B46C241B0141",
+          "pkpId": "0xfB1E0bbE209C1B75f8E365F3055bfF4b0a24702B",
+          "pkpPublicKey": "0x044ccf50032d7f8f7dc67940e9c9c2ac337c22c0a34dff741e5db56ef0e6285c09cbcc9b5cd98e1b91637fb452fbb04ae294025c2a0c3f2c9ebf8c7709810aa1e8",
           "usageKeyEnvVar": "LIT_CHIPOTLE_STORY_SETTLEMENT_API_KEY",
           "signerFamilyRef": "docs/signer-families.md#story-settlement",
           "fundsLedgerPlaceholder": "STORY_SETTLEMENT_ADDRESS",
           "actions": [
             {
               "name": "purchase-settlement",
-              "cid": "TBD",
+              "cid": "ipfs://Qmcw4qgJh4TbrW8Kja4U3cYofYAxi6Tq3uzGKLFrVm1Ddk",
               "contractMethod": "settlePurchase",
               "contract": "MarketplaceSettlementV1"
             },

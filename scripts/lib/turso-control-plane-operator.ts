@@ -24,7 +24,7 @@ type ProvisionRouteBody = {
   community_id?: string;
   creator_user_id?: string;
   display_name?: string;
-  namespace_verification_id?: string;
+  namespace_verification_id?: string | null;
   group_location?: string;
   database_token_expiration?: string | null;
   bootstrap_payload?: {
@@ -209,7 +209,7 @@ export function createTursoControlPlaneOperatorHandler(
           communityId: requireText(body.community_id, "community_id"),
           creatorUserId: requireText(body.creator_user_id, "creator_user_id"),
           displayName: requireText(body.display_name, "display_name"),
-          namespaceVerificationId: requireText(body.namespace_verification_id, "namespace_verification_id"),
+          namespaceVerificationId: trim(body.namespace_verification_id ?? "") || null,
           groupLocation: requireText(body.group_location, "group_location"),
           description: body.bootstrap_payload?.description ?? null,
           membershipMode: body.bootstrap_payload?.membership_mode ?? "open",

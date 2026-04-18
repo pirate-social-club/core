@@ -5,8 +5,8 @@ import process from "node:process";
 const repoRoot = process.cwd();
 const litConfigPath = path.join(repoRoot, "config", "lit-families.json");
 const deliveryManifestPath = path.join(repoRoot, "config", "story-aeneid-delivery.json");
-const signerFamiliesPath = path.join(repoRoot, "docs", "signer-families.md");
-const fundsLedgerPath = path.join(repoRoot, "docs", "funds-ledger.md");
+const signerFamiliesPath = path.join(repoRoot, "docs", "operators", "signer-families.md");
+const fundsLedgerPath = path.join(repoRoot, "docs", "product", "funds-ledger.md");
 
 function fail(message) {
   throw new Error(message);
@@ -116,6 +116,10 @@ function validateFamily(family, envName, signerAnchors, fundsPlaceholders, usage
   assert(
     family.pkpPublicKey === "TBD" || isPublicKey(family.pkpPublicKey),
     `${envName}/${family.family}: invalid pkpPublicKey`
+  );
+  assert(
+    family.pkpId == null || family.pkpId === "TBD" || isAddress(String(family.pkpId)),
+    `${envName}/${family.family}: invalid pkpId ${family.pkpId}`
   );
   assert(
     /^[A-Z0-9_]+$/.test(family.usageKeyEnvVar),

@@ -271,6 +271,110 @@ describe("turso control-plane provision-community", () => {
     ]);
   });
 
+  test("provisions a namespaceless community without requiring namespace verification", async () => {
+    const db = await createControlPlaneTestDatabase();
+    cleanup = db.cleanup;
+
+    const fixture = await seedControlPlaneFixtures({
+      databaseUrl: db.databaseUrl,
+      userId: "usr_turso_no_namespace",
+      subject: "turso-no-namespace-user",
+      handle: "turso-nsless",
+    });
+
+    let bootstrapInput: Record<string, unknown> | null = null;
+    const result = await provisionCommunity({
+      controlPlaneDatabaseUrl: db.databaseUrl,
+      tursoPlatformApiToken: "platform-token",
+      tursoOrganizationSlug: "pirate-org",
+      tursoCommunityDbWrapKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      tursoCommunityDbWrapKeyVersion: 1,
+      communityId: "cmt_turso_no_namespace",
+      creatorUserId: fixture.userId,
+      displayName: "Turso Namespaceless Club",
+      namespaceVerificationId: null,
+      groupLocation: "iad",
+      fetch: async (url, init) => {
+        const text = String(url);
+        if (text.includes("/groups") && String(init?.method ?? "GET") === "POST") {
+          return Response.json({
+            group: {
+              name: "club-cmt-turso-no-namespace",
+              uuid: "grp_no_namespace",
+              locations: ["iad"],
+              primary: "iad",
+              delete_protection: false,
+            },
+          });
+        }
+        if (text.endsWith("/groups")) {
+          return Response.json({ groups: [] });
+        }
+        if (text.includes("/databases?group=club-cmt-turso-no-namespace")) {
+          return Response.json({ databases: [] });
+        }
+        if (text.endsWith("/databases")) {
+          return Response.json({
+            database: {
+              name: "main-cmt-turso-no-namespace",
+              db_id: "db_no_namespace",
+              hostname: "main-cmt-turso-no-namespace-pirate-org.iad.turso.io",
+              group: "club-cmt-turso-no-namespace",
+              primary_region: "iad",
+              regions: ["iad"],
+            },
+          });
+        }
+        if (text.includes("/configuration") && String(init?.method ?? "GET") === "PATCH") {
+          return Response.json({ delete_protection: true });
+        }
+        if (text.includes("/databases/main-cmt-turso-no-namespace/auth/tokens")) {
+          return Response.json({ jwt: "db-token-no-namespace" });
+        }
+        return new Response("not found", { status: 404 });
+      },
+      bootstrapCommunityDatabaseFn: async (input) => {
+        bootstrapInput = input as unknown as Record<string, unknown>;
+        return {
+          databaseUrl: input.databaseUrl,
+          communityId: input.communityId,
+          namespaceId: null,
+        };
+      },
+      now: new Date("2026-04-18T00:00:00.000Z"),
+    });
+
+    expect(result.communityId).toBe("cmt_turso_no_namespace");
+    expect(bootstrapInput).toEqual({
+      databaseUrl: "libsql://main-cmt-turso-no-namespace-pirate-org.iad.turso.io",
+      databaseAuthToken: "db-token-no-namespace",
+      communityId: "cmt_turso_no_namespace",
+      userId: fixture.userId,
+      displayName: "Turso Namespaceless Club",
+      namespaceVerificationId: null,
+      description: null,
+      membershipMode: "open",
+      defaultAgeGatePolicy: "none",
+      membershipUniqueHumanProvider: null,
+      postingUniqueHumanProvider: null,
+      handlePolicyTemplate: "standard",
+      handlePricingModel: null,
+      namespaceLabel: null,
+      now: new Date("2026-04-18T00:00:00.000Z"),
+    });
+
+    const communities = await db.client.execute({
+      sql: `
+        SELECT namespace_verification_id, provisioning_state
+        FROM communities
+        WHERE community_id = ?1
+      `,
+      args: ["cmt_turso_no_namespace"],
+    });
+    expect(communities.rows[0]?.namespace_verification_id).toBeNull();
+    expect(communities.rows[0]?.provisioning_state).toBe("active");
+  });
+
   test("passes membership-scope unique-human gate bootstrap input through provisioning", async () => {
     const db = await createControlPlaneTestDatabase();
     cleanup = db.cleanup;

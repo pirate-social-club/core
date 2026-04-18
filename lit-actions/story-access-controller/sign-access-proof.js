@@ -66,9 +66,14 @@ function resolveJsParams(firstArg) {
 
 async function resolveExpectedPrivateKey(expectedSignerAddress) {
   const getPrivateKey = resolveGetPrivateKey();
+  const publicKey = String(globalThis.EXPECTED_PKP_PUBLIC_KEY || "").trim();
   const attempts = [
     { label: "pkpId", payload: { pkpId: expectedSignerAddress } },
     { label: "pkpAddress", payload: { pkpAddress: expectedSignerAddress } },
+    ...(publicKey ? [
+      { label: "pkpPublicKey", payload: { pkpPublicKey: publicKey } },
+      { label: "publicKey", payload: { publicKey } },
+    ] : []),
   ];
 
   const failures = [];
@@ -98,6 +103,7 @@ export async function main(firstArg) {
   const params = resolveJsParams(firstArg);
   const digest = requireHex(String(params.digest || ""), "digest", 32);
   const expectedSignerAddress = requireAddress(params.expectedSignerAddress, "expectedSignerAddress");
+  globalThis.EXPECTED_PKP_PUBLIC_KEY = typeof params.expectedPkpPublicKey === "string" ? params.expectedPkpPublicKey : "";
   const privateKey = await resolveExpectedPrivateKey(expectedSignerAddress);
   const wallet = new Wallet(privateKey);
   const signerAddress = requireAddress(wallet.address, "wallet.address");
