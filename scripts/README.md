@@ -74,6 +74,29 @@ Bootstrap missing direct Story runtime signers in `dev`:
 rtk bun scripts/provision-story-runtime-signers.ts --env dev
 ```
 
+## Paid-Song Dev E2E Prerequisites
+
+For the simplified direct-key `dev` mainline, the minimum practical setup is:
+
+- `scripts/.env.operator-dev` contains `STORY_CONTRACT_OWNER_PRIVATE_KEY`
+- `dev:/services/api` in Infisical contains `STORY_RUNTIME_PRIVATE_KEY`
+- song analysis provider secrets are present in `dev:/services/api`:
+  - `OPENROUTER_API_KEY`
+  - `ACRCLOUD_ACCESS_KEY`
+  - `ACRCLOUD_ACCESS_SECRET`
+  - `ACRCLOUD_HOST`
+  - `ELEVENLABS_API_KEY`
+
+Minimum Aeneid funding to run the paid flow comfortably:
+
+- shared runtime wallet: at least `0.12 IP`
+- buyer wallet used by the live script: at least `0.03 IP` or let the script top it up from the runtime wallet
+
+The paid-song live script assumes the API is started with both:
+
+- the local owner key from `scripts/.env.operator-dev`
+- the runtime secrets from Infisical `/services/api`
+
 ## Subdirectories
 
 - `lib/`
@@ -111,7 +134,8 @@ Run the live paid-song CDR e2e with the same local owner key available for owner
 
 ```bash
 rtk ./scripts/operator-env-run.sh --env-file scripts/.env.operator-dev --profile story-delivery-owner -- \
-  rtk bunx tsx pirate-web/scripts/live-paid-song-e2e.ts
+  rtk infisical run --env=dev --path=/services/api -- \
+  rtk bun run --cwd pirate-web scripts/live-paid-song-e2e.ts
 ```
 
 Top up only the CDR writer signer to a specific target balance from the local runtime funder or owner wallet:
