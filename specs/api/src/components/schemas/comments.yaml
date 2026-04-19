@@ -121,6 +121,10 @@ CommentListItem:
   required:
     - comment
     - viewer_vote
+    - resolved_locale
+    - translation_state
+    - machine_translated
+    - source_hash
   properties:
     comment:
       $ref: ./comments.yaml#/Comment
@@ -130,6 +134,22 @@ CommentListItem:
         - -1
         - 1
       nullable: true
+    resolved_locale:
+      type: string
+    translation_state:
+      type: string
+      enum:
+        - ready
+        - pending
+        - same_language
+        - policy_blocked
+    machine_translated:
+      type: boolean
+    translated_body:
+      type: string
+      nullable: true
+    source_hash:
+      type: string
 
 CommentListResponse:
   type: object

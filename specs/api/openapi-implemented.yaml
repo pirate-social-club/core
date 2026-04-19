@@ -22,6 +22,7 @@ tags:
   - name: Posts
   - name: Comments
   - name: Moderation
+  - name: Notifications
   - name: Jobs
 paths:
   /auth/session/exchange:
@@ -1769,18 +1770,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - post_id
-                  - value
-                properties:
-                  post_id:
-                    type: string
-                  value:
-                    type: integer
-                    enum:
-                      - -1
-                      - 1
+                $ref: "#/components/schemas/PostVoteResponse"
         "401":
           $ref: "#/components/responses/AuthError"
         "403":
@@ -1907,6 +1897,89 @@ paths:
           $ref: "#/components/responses/VerificationRequired"
         "404":
           $ref: "#/components/responses/NotFound"
+  /notifications/summary:
+    get:
+      operationId: notifications_summary
+      tags:
+        - Notifications
+      summary: Get notification summary for badge state
+      responses:
+        "200":
+          description: Notification summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationSummary"
+  /notifications/tasks:
+    get:
+      operationId: notifications_tasks
+      tags:
+        - Notifications
+      summary: List open tasks for the current user
+      responses:
+        "200":
+          description: User tasks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationTasksResponse"
+  /notifications/feed:
+    get:
+      operationId: notifications_feed
+      tags:
+        - Notifications
+      summary: List activity feed items for the current user
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        "200":
+          description: Activity feed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationFeedResponse"
+  /notifications/mark-read:
+    post:
+      operationId: notifications_mark_read
+      tags:
+        - Notifications
+      summary: Mark activity items as read
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkNotificationsReadRequest"
+      responses:
+        "204":
+          description: Marked as read
+  /notifications/dismiss-task:
+    post:
+      operationId: notifications_dismiss_task
+      tags:
+        - Notifications
+      summary: Dismiss a user task
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DismissTaskRequest"
+      responses:
+        "200":
+          description: Task dismissed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserTask"
   /jobs/{job_id}:
     get:
       tags:
@@ -5985,7 +6058,6 @@ components:
           enum:
             - none
             - optional_creator_sidecar
-            - fundraiser_default
         donation_partner_status:
           type: string
           enum:
@@ -6601,6 +6673,9 @@ components:
         provider_partner_ref:
           type: string
           nullable: true
+        image_url:
+          type: string
+          nullable: true
         review_status:
           type: string
           enum:
@@ -6629,7 +6704,6 @@ components:
           enum:
             - none
             - optional_creator_sidecar
-            - fundraiser_default
         donation_partner_status:
           type: string
           enum:
@@ -7755,9 +7829,13 @@ components:
         - translation_state
         - machine_translated
         - source_hash
+        - thread_snapshot
       properties:
         post:
           $ref: "#/components/schemas/Post"
+        thread_snapshot:
+          $ref: "#/components/schemas/CommentThreadSnapshot"
+          nullable: true
         market_context:
           $ref: "#/components/schemas/MarketContextSummary"
           nullable: true
@@ -7809,6 +7887,11 @@ components:
           nullable: true
           description: |
             Viewer-facing translated body text when `translation_state = ready`.
+        translated_title:
+          type: string
+          nullable: true
+          description: |
+            Viewer-facing translated title text when `translation_state = ready`.
         translated_caption:
           type: string
           nullable: true
@@ -7979,88 +8062,29 @@ components:
       type: object
       required:
         - items
+        - top_communities
       properties:
         items:
           type: array
           items:
             $ref: "#/components/schemas/FeedItem"
+        top_communities:
+          type: array
+          items:
+            $ref: "#/components/schemas/HomeFeedCommunitySummary"
         next_cursor:
           type: string
           nullable: true
     FeedItem:
       type: object
       required:
+        - community
         - post
-        - upvote_count
-        - downvote_count
-        - like_count
-        - viewer_vote
-        - viewer_reaction_kinds
-        - resolved_locale
-        - translation_state
-        - machine_translated
-        - source_hash
       properties:
+        community:
+          $ref: "#/components/schemas/HomeFeedCommunitySummary"
         post:
-          $ref: "#/components/schemas/Post"
-        market_context:
-          $ref: "#/components/schemas/MarketContextSummary"
-          nullable: true
-        label:
-          $ref: "#/components/schemas/PostLabel"
-          nullable: true
-        upvote_count:
-          type: integer
-          minimum: 0
-        downvote_count:
-          type: integer
-          minimum: 0
-        like_count:
-          type: integer
-          minimum: 0
-        viewer_vote:
-          type: integer
-          enum:
-            - -1
-            - 1
-          nullable: true
-          description: |
-            The caller's active vote on the post. Null means the caller has not cast a vote.
-        viewer_reaction_kinds:
-          type: array
-          description: |
-            Active reaction kinds from the caller on this post. Empty when the caller has no active reactions.
-          items:
-            type: string
-            enum:
-              - like
-        resolved_locale:
-          type: string
-        translation_state:
-          type: string
-          enum:
-            - ready
-            - pending
-            - same_language
-            - policy_blocked
-          description: |
-            Translation resolution state for the resolved locale. `ready` means a machine translation exists. `pending` means the translation is being materialized lazily. `same_language` means no translation is needed. `policy_blocked` means `translation_policy` forbids machine translation.
-        machine_translated:
-          type: boolean
-          description: |
-            True only when `translation_state = ready` and translated text is being surfaced for the resolved locale.
-        translated_body:
-          type: string
-          nullable: true
-          description: |
-            Viewer-facing translated body text when `translation_state = ready`.
-        translated_caption:
-          type: string
-          nullable: true
-          description: |
-            Viewer-facing translated caption text when `translation_state = ready`.
-        source_hash:
-          type: string
+          $ref: "#/components/schemas/LocalizedPostResponse"
     CreateCommunityBootstrapInput:
       type: object
       properties:
@@ -8838,6 +8862,187 @@ components:
       properties:
         job:
           $ref: "#/components/schemas/Job"
+    UserTaskType:
+      type: string
+      enum:
+        - namespace_verification_required
+        - namespace_verification_pending
+        - payout_setup_required
+    UserTaskStatus:
+      type: string
+      enum:
+        - open
+        - completed
+        - dismissed
+    NotificationEventType:
+      type: string
+      enum:
+        - comment_reply
+        - post_commented
+        - mention
+        - mod_event
+        - community_update
+    UserTask:
+      type: object
+      required:
+        - task_id
+        - user_id
+        - type
+        - subject_type
+        - subject_id
+        - status
+        - priority
+        - payload
+        - created_at
+        - updated_at
+      properties:
+        task_id:
+          type: string
+        user_id:
+          type: string
+        type:
+          $ref: "#/components/schemas/UserTaskType"
+        subject_type:
+          type: string
+        subject_id:
+          type: string
+        status:
+          $ref: "#/components/schemas/UserTaskStatus"
+        priority:
+          type: integer
+        payload:
+          type: object
+          nullable: true
+          additionalProperties: true
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+        dismissed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    NotificationEvent:
+      type: object
+      required:
+        - event_id
+        - type
+        - actor_user_id
+        - subject_type
+        - subject_id
+        - created_at
+      properties:
+        event_id:
+          type: string
+        type:
+          $ref: "#/components/schemas/NotificationEventType"
+        actor_user_id:
+          type: string
+          nullable: true
+        subject_type:
+          type: string
+        subject_id:
+          type: string
+        object_type:
+          type: string
+          nullable: true
+        object_id:
+          type: string
+          nullable: true
+        payload:
+          type: object
+          nullable: true
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+    NotificationReceipt:
+      type: object
+      required:
+        - event_id
+        - recipient_user_id
+        - created_at
+      properties:
+        event_id:
+          type: string
+        recipient_user_id:
+          type: string
+        seen_at:
+          type: string
+          format: date-time
+          nullable: true
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    NotificationSummary:
+      type: object
+      required:
+        - open_task_count
+        - unread_activity_count
+        - has_unread
+      properties:
+        open_task_count:
+          type: integer
+        unread_activity_count:
+          type: integer
+        has_unread:
+          type: boolean
+    NotificationFeedItem:
+      type: object
+      required:
+        - event
+        - receipt
+      properties:
+        event:
+          $ref: "#/components/schemas/NotificationEvent"
+        receipt:
+          $ref: "#/components/schemas/NotificationReceipt"
+    NotificationFeedResponse:
+      type: object
+      required:
+        - items
+        - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationFeedItem"
+        next_cursor:
+          type: string
+          nullable: true
+    NotificationTasksResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserTask"
+    MarkNotificationsReadRequest:
+      type: object
+      properties:
+        event_ids:
+          type: array
+          items:
+            type: string
+    DismissTaskRequest:
+      type: object
+      required:
+        - task_id
+      properties:
+        task_id:
+          type: string
     MppChallenge:
       type: object
       required:

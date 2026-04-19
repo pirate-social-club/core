@@ -612,6 +612,11 @@ LocalizedPostResponse:
       nullable: true
       description: |
         Viewer-facing translated body text when `translation_state = ready`.
+    translated_title:
+      type: string
+      nullable: true
+      description: |
+        Viewer-facing translated title text when `translation_state = ready`.
     translated_caption:
       type: string
       nullable: true
@@ -746,3 +751,17 @@ DisclosedQualifierSnapshot:
     redundancy_key:
       type: string
       nullable: true
+PostVoteResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - post_id
+    - value
+  properties:
+    post_id:
+      type: string
+    value:
+      type: integer
+      enum:
+        - -1
+        - 1

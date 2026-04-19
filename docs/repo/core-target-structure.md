@@ -29,7 +29,6 @@ These roots may exist locally for convenience, but they are not part of tracked 
 - `pirate-api/`
 - `pirate-web/`
 - `pirate-contracts/`
-- `pirate-tui/`
 - `pirate-desktop/`
 
 They are sidecar checkouts of the standalone runtime repos.
@@ -42,7 +41,6 @@ Do not add new top-level roots in `core` for:
 - `ios/`
 - `desktop/`
 - `api/`
-- `tui/`
 
 Those belong in their own repos under `pirate-social-club`.
 

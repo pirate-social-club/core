@@ -974,7 +974,6 @@ Community:
       enum:
         - none
         - optional_creator_sidecar
-        - fundraiser_default
     donation_partner_status:
       type: string
       enum:

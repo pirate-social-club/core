@@ -1,0 +1,192 @@
+UserTaskType:
+  type: string
+  enum:
+    - namespace_verification_required
+    - namespace_verification_pending
+    - payout_setup_required
+
+UserTaskStatus:
+  type: string
+  enum:
+    - open
+    - completed
+    - dismissed
+
+NotificationEventType:
+  type: string
+  enum:
+    - comment_reply
+    - post_commented
+    - mention
+    - mod_event
+    - community_update
+
+UserTask:
+  type: object
+  required:
+    - task_id
+    - user_id
+    - type
+    - subject_type
+    - subject_id
+    - status
+    - priority
+    - payload
+    - created_at
+    - updated_at
+  properties:
+    task_id:
+      type: string
+    user_id:
+      type: string
+    type:
+      $ref: ./notifications.yaml#/UserTaskType
+    subject_type:
+      type: string
+    subject_id:
+      type: string
+    status:
+      $ref: ./notifications.yaml#/UserTaskStatus
+    priority:
+      type: integer
+    payload:
+      type: object
+      nullable: true
+      additionalProperties: true
+    resolved_at:
+      type: string
+      format: date-time
+      nullable: true
+    dismissed_at:
+      type: string
+      format: date-time
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+NotificationEvent:
+  type: object
+  required:
+    - event_id
+    - type
+    - actor_user_id
+    - subject_type
+    - subject_id
+    - created_at
+  properties:
+    event_id:
+      type: string
+    type:
+      $ref: ./notifications.yaml#/NotificationEventType
+    actor_user_id:
+      type: string
+      nullable: true
+    subject_type:
+      type: string
+    subject_id:
+      type: string
+    object_type:
+      type: string
+      nullable: true
+    object_id:
+      type: string
+      nullable: true
+    payload:
+      type: object
+      nullable: true
+      additionalProperties: true
+    created_at:
+      type: string
+      format: date-time
+
+NotificationReceipt:
+  type: object
+  required:
+    - event_id
+    - recipient_user_id
+    - created_at
+  properties:
+    event_id:
+      type: string
+    recipient_user_id:
+      type: string
+    seen_at:
+      type: string
+      format: date-time
+      nullable: true
+    read_at:
+      type: string
+      format: date-time
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+
+NotificationSummary:
+  type: object
+  required:
+    - open_task_count
+    - unread_activity_count
+    - has_unread
+  properties:
+    open_task_count:
+      type: integer
+    unread_activity_count:
+      type: integer
+    has_unread:
+      type: boolean
+
+NotificationFeedItem:
+  type: object
+  required:
+    - event
+    - receipt
+  properties:
+    event:
+      $ref: ./notifications.yaml#/NotificationEvent
+    receipt:
+      $ref: ./notifications.yaml#/NotificationReceipt
+
+NotificationFeedResponse:
+  type: object
+  required:
+    - items
+    - next_cursor
+  properties:
+    items:
+      type: array
+      items:
+        $ref: ./notifications.yaml#/NotificationFeedItem
+    next_cursor:
+      type: string
+      nullable: true
+
+NotificationTasksResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: ./notifications.yaml#/UserTask
+
+MarkNotificationsReadRequest:
+  type: object
+  properties:
+    event_ids:
+      type: array
+      items:
+        type: string
+
+DismissTaskRequest:
+  type: object
+  required:
+    - task_id
+  properties:
+    task_id:
+      type: string

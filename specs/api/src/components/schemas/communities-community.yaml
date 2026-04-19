@@ -59,6 +59,9 @@ DonationPartnerSummary:
     provider_partner_ref:
       type: string
       nullable: true
+    image_url:
+      type: string
+      nullable: true
     review_status:
       type: string
       enum:
@@ -87,7 +90,6 @@ CommunityDonationPolicy:
       enum:
         - none
         - optional_creator_sidecar
-        - fundraiser_default
     donation_partner_status:
       type: string
       enum:
@@ -2663,7 +2665,6 @@ UpdateCommunityDonationPolicyPublicRequest:
           enum:
             - none
             - optional_creator_sidecar
-            - fundraiser_default
         donation_partner_status:
           type: string
           enum:
@@ -2749,7 +2750,6 @@ CommunityDonationPolicyPublicMutationResponse:
           enum:
             - none
             - optional_creator_sidecar
-            - fundraiser_default
         donation_partner_status:
           type: string
           enum:

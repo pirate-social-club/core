@@ -2,85 +2,51 @@ FeedResponse:
   type: object
   required:
     - items
+    - top_communities
   properties:
     items:
       type: array
       items:
         $ref: ./feeds.yaml#/FeedItem
+    top_communities:
+      type: array
+      items:
+        $ref: ./feeds.yaml#/HomeFeedCommunitySummary
     next_cursor:
       type: string
       nullable: true
 FeedItem:
   type: object
   required:
+    - community
     - post
-    - upvote_count
-    - downvote_count
-    - like_count
-    - viewer_vote
-    - viewer_reaction_kinds
-    - resolved_locale
-    - translation_state
-    - machine_translated
-    - source_hash
   properties:
+    community:
+      $ref: ./feeds.yaml#/HomeFeedCommunitySummary
     post:
-      $ref: ./posts.yaml#/Post
-    market_context:
-      $ref: ./market-context.yaml#/MarketContextSummary
+      $ref: ./posts.yaml#/LocalizedPostResponse
+
+HomeFeedCommunitySummary:
+  type: object
+  additionalProperties: false
+  required:
+    - community_id
+    - display_name
+    - updated_at
+  properties:
+    community_id:
+      type: string
+    display_name:
+      type: string
+    route_slug:
+      type: string
       nullable: true
-    label:
-      $ref: ./communities-community.yaml#/PostLabel
+    avatar_ref:
+      type: string
       nullable: true
-    upvote_count:
+    member_count:
       type: integer
-      minimum: 0
-    downvote_count:
-      type: integer
-      minimum: 0
-    like_count:
-      type: integer
-      minimum: 0
-    viewer_vote:
-      type: integer
-      enum:
-        - -1
-        - 1
       nullable: true
-      description: |
-        The caller's active vote on the post. Null means the caller has not cast a vote.
-    viewer_reaction_kinds:
-      type: array
-      description: |
-        Active reaction kinds from the caller on this post. Empty when the caller has no active reactions.
-      items:
-        type: string
-        enum:
-          - like
-    resolved_locale:
+    updated_at:
       type: string
-    translation_state:
-      type: string
-      enum:
-        - ready
-        - pending
-        - same_language
-        - policy_blocked
-      description: |
-        Translation resolution state for the resolved locale. `ready` means a machine translation exists. `pending` means the translation is being materialized lazily. `same_language` means no translation is needed. `policy_blocked` means `translation_policy` forbids machine translation.
-    machine_translated:
-      type: boolean
-      description: |
-        True only when `translation_state = ready` and translated text is being surfaced for the resolved locale.
-    translated_body:
-      type: string
-      nullable: true
-      description: |
-        Viewer-facing translated body text when `translation_state = ready`.
-    translated_caption:
-      type: string
-      nullable: true
-      description: |
-        Viewer-facing translated caption text when `translation_state = ready`.
-    source_hash:
-      type: string
+      format: date-time

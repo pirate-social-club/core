@@ -91,8 +91,11 @@ export type Profile = {
   user_id: string;
   display_name?: string | null;
   avatar_ref?: string | null;
+  cover_ref?: string | null;
   bio?: string | null;
   preferred_locale?: string | null;
+  linked_handles?: Array<LinkedHandle> | null;
+  primary_public_handle?: LinkedHandle | null;
   primary_wallet_address?: string | null;
   verification_capabilities?: VerificationCapabilities | null;
   global_handle: GlobalHandle;
@@ -168,6 +171,11 @@ export type Community = {
   pending_namespace_verification_session_id?: string | null;
   status: "draft" | "active" | "frozen" | "archived" | "deleted";
   provisioning_state: "requested" | "provisioning" | "active" | "rotation_required" | "error";
+  registry_publication_state?: "not_started" | "pending_create" | "pending_seed" | "published" | "stale" | "publication_error";
+  registry_attempt_id?: string | null;
+  registry_published_at?: string | null;
+  registry_publication_job_id?: string | null;
+  registry_error_code?: string | null;
   artist_identity_id?: string | null;
   community_agent_user_id?: string | null;
   membership_mode: "open" | "request" | "gated";
@@ -192,10 +200,11 @@ export type Community = {
   agent_owner_active_limit?: number | null;
   accepted_agent_ownership_providers: Array<AgentOwnershipProvider>;
   civic_scale_tier?: "club" | "village" | "town" | "city" | "state";
-  donation_policy_mode: "none" | "optional_creator_sidecar" | "fundraiser_default";
+  donation_policy_mode: "none" | "optional_creator_sidecar";
   donation_partner_status: "unconfigured" | "active" | "paused";
   donation_partner_id?: string | null;
   donation_partner?: DonationPartnerSummary | null;
+  money_policy: CommunityMoneyPolicy;
   content_authenticity_policy: CommunityContentAuthenticityPolicy;
   content_authenticity_detection_policy: CommunityContentAuthenticityDetectionPolicy;
   market_context_policy: CommunityMarketContextPolicy;
@@ -206,6 +215,13 @@ export type Community = {
   motion_media_policy: CommunityMotionMediaPolicy;
   language_policy: CommunityLanguagePolicy;
   civility_policy: CommunityCivilityPolicy;
+  openai_moderation_settings?: ({
+    scan_titles?: boolean;
+    scan_post_bodies?: boolean;
+    scan_captions?: boolean;
+    scan_link_preview_text?: boolean;
+    scan_images?: boolean;
+  }) | null;
   provenance_policy: CommunityProvenancePolicy;
   promotion_policy: CommunityPromotionPolicy;
   label_policy?: CommunityLabelPolicy | null;
@@ -475,7 +491,8 @@ export type ErrorShape = {
 export type ModerationCase = {
   moderation_case_id: string;
   community_id: string;
-  post_id: string;
+  post_id: string | null;
+  comment_id: string | null;
   status: ModerationCaseStatus;
   queue_scope: ModerationQueueScope;
   priority: ModerationSignalSeverity;
@@ -487,7 +504,8 @@ export type ModerationCase = {
 
 export type ModerationCaseDetail = {
   case: ModerationCase;
-  post: Post;
+  post: Post | null;
+  comment: Comment | null;
   signals: Array<ModerationSignal>;
   reports: Array<UserReport>;
   actions: Array<ModerationAction>;
@@ -500,8 +518,9 @@ export type ModerationCaseListResponse = {
 export type ModerationSignal = {
   moderation_signal_id: string;
   community_id: string;
-  post_id: string;
-  analysis_result_ref: string;
+  post_id: string | null;
+  comment_id: string | null;
+  analysis_result_ref: string | null;
   source: "platform_analysis";
   signal_type: string;
   severity: ModerationSignalSeverity;
@@ -514,7 +533,8 @@ export type ModerationSignal = {
 export type UserReport = {
   user_report_id: string;
   community_id: string;
-  post_id: string;
+  post_id: string | null;
+  comment_id: string | null;
   reporter_user_id: string;
   reason_code: UserReportReasonCode;
   note?: string | null;
@@ -525,7 +545,8 @@ export type ModerationAction = {
   moderation_action_id: string;
   moderation_case_id: string;
   community_id: string;
-  post_id: string;
+  post_id: string | null;
+  comment_id: string | null;
   actor_user_id: string;
   action_type: ModerationActionType;
   note?: string | null;
@@ -548,6 +569,31 @@ type CentralizedGovernanceBackend = {
   governance_mode: "centralized";
   governance_verification_state: GovernanceVerificationState;
   governance_display_label?: string | null;
+};
+
+type Comment = {
+  comment_id: string;
+  community_id: string;
+  thread_root_post_id: string;
+  parent_comment_id: string | null;
+  author_user_id: string | null;
+  authorship_mode: "human_direct";
+  identity_mode: "public" | "anonymous";
+  anonymous_scope: "community_stable" | "thread_stable" | null;
+  anonymous_label: string | null;
+  body: string | null;
+  status: "published" | "hidden" | "removed" | "deleted";
+  depth: number;
+  direct_reply_count: number;
+  descendant_count: number;
+  upvote_count: number;
+  downvote_count: number;
+  score: number;
+  last_reply_at: string | null;
+  content_hash: string | null;
+  swarm_body_ref: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 type CommunityAdultContentPolicy = {
@@ -794,6 +840,7 @@ type CommunityRule = {
   rule_id: string;
   title: string;
   body: string;
+  report_reason: string;
   position: number;
   status: "active" | "archived";
 };
@@ -845,6 +892,7 @@ type DonationPartnerSummary = {
   display_name: string;
   provider: "endaoment";
   provider_partner_ref?: string | null;
+  image_url?: string | null;
   review_status: "pending" | "approved" | "rejected";
   status: "active" | "paused" | "retired";
 };
@@ -866,6 +914,13 @@ type GateRule = {
 type GovernanceVerificationState = "not_required" | "pending" | "verified" | "broken";
 
 type HumanVerificationLane = "very" | "self";
+
+type LinkedHandle = {
+  linked_handle_id: string;
+  label: string;
+  kind: "pirate" | "ens";
+  verification_state: "verified" | "unverified" | "stale";
+};
 
 type MajeurGovernanceBackend = {
   governance_mode: "majeur";
@@ -972,6 +1027,7 @@ type Post = {
   promotion_disclosure?: PromotionDisclosure | null;
   source_language?: string | null;
   translation_policy?: "none" | "machine_allowed" | "human_only" | "hybrid" | null;
+  access_mode?: "public" | "locked" | null;
   asset_id?: string | null;
   song_artifact_bundle_id?: string | null;
   parent_post_id?: string | null;

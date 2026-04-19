@@ -30,6 +30,7 @@ tags:
   - name: Scrobbles
   - name: Moderation
   - name: MPP
+  - name: Notifications
   - name: Jobs
 paths:
   /auth/session/exchange:
@@ -244,6 +245,16 @@ paths:
     $ref: ./paths/mpp.yaml#/mpp_communities_by_community_id_threads_export
   /mpp/jobs/{job_id}:
     $ref: ./paths/mpp.yaml#/mpp_jobs_by_job_id
+  /notifications/summary:
+    $ref: ./paths/notifications.yaml#/notifications_summary
+  /notifications/tasks:
+    $ref: ./paths/notifications.yaml#/notifications_tasks
+  /notifications/feed:
+    $ref: ./paths/notifications.yaml#/notifications_feed
+  /notifications/mark-read:
+    $ref: ./paths/notifications.yaml#/notifications_mark_read
+  /notifications/dismiss-task:
+    $ref: ./paths/notifications.yaml#/notifications_dismiss_task
   /jobs:
     $ref: ./paths/jobs.yaml#/jobs
   /jobs/{job_id}:
@@ -693,6 +704,30 @@ components:
       $ref: ./components/schemas/jobs.yaml#/Job
     JobAcceptedResponse:
       $ref: ./components/schemas/jobs.yaml#/JobAcceptedResponse
+    UserTaskType:
+      $ref: ./components/schemas/notifications.yaml#/UserTaskType
+    UserTaskStatus:
+      $ref: ./components/schemas/notifications.yaml#/UserTaskStatus
+    NotificationEventType:
+      $ref: ./components/schemas/notifications.yaml#/NotificationEventType
+    UserTask:
+      $ref: ./components/schemas/notifications.yaml#/UserTask
+    NotificationEvent:
+      $ref: ./components/schemas/notifications.yaml#/NotificationEvent
+    NotificationReceipt:
+      $ref: ./components/schemas/notifications.yaml#/NotificationReceipt
+    NotificationSummary:
+      $ref: ./components/schemas/notifications.yaml#/NotificationSummary
+    NotificationFeedItem:
+      $ref: ./components/schemas/notifications.yaml#/NotificationFeedItem
+    NotificationFeedResponse:
+      $ref: ./components/schemas/notifications.yaml#/NotificationFeedResponse
+    NotificationTasksResponse:
+      $ref: ./components/schemas/notifications.yaml#/NotificationTasksResponse
+    MarkNotificationsReadRequest:
+      $ref: ./components/schemas/notifications.yaml#/MarkNotificationsReadRequest
+    DismissTaskRequest:
+      $ref: ./components/schemas/notifications.yaml#/DismissTaskRequest
     MppChallenge:
       $ref: ./components/schemas/mpp.yaml#/MppChallenge
     PaymentFailure:

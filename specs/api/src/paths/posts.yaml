@@ -54,18 +54,7 @@ posts_by_post_id_vote:
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - post_id
-                - value
-              properties:
-                post_id:
-                  type: string
-                value:
-                  type: integer
-                  enum:
-                    - -1
-                    - 1
+              $ref: ../components/schemas/posts.yaml#/PostVoteResponse
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "403":
