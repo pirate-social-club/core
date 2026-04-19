@@ -339,7 +339,6 @@ CommunityPricingAdjustmentType:
   type: string
   enum:
     - multiplier
-    - fixed_price_usd
 CommunityPricingTier:
   type: object
   required:

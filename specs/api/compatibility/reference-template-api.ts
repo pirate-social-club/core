@@ -171,11 +171,6 @@ export type Community = {
   pending_namespace_verification_session_id?: string | null;
   status: "draft" | "active" | "frozen" | "archived" | "deleted";
   provisioning_state: "requested" | "provisioning" | "active" | "rotation_required" | "error";
-  registry_publication_state?: "not_started" | "pending_create" | "pending_seed" | "published" | "stale" | "publication_error";
-  registry_attempt_id?: string | null;
-  registry_published_at?: string | null;
-  registry_publication_job_id?: string | null;
-  registry_error_code?: string | null;
   artist_identity_id?: string | null;
   community_agent_user_id?: string | null;
   membership_mode: "open" | "request" | "gated";
@@ -760,7 +755,7 @@ type CommunityMotionMediaPolicy = {
 
 type CommunityPolicyOrigin = "default" | "explicit";
 
-type CommunityPricingAdjustmentType = "multiplier" | "fixed_price_usd";
+type CommunityPricingAdjustmentType = "multiplier";
 
 type CommunityPricingCountryAssignment = {
   country_code: string;

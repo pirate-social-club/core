@@ -7614,31 +7614,6 @@ components:
           description: |
             Community infrastructure lifecycle state. This is distinct from domain `status`.
             A community may be domain-active while infrastructure provisioning is still in progress.
-        registry_publication_state:
-          type: string
-          enum:
-            - not_started
-            - pending_create
-            - pending_seed
-            - published
-            - stale
-            - publication_error
-          description: |
-            Registry publication lifecycle for namespace-backed communities and other externally
-            published community records.
-        registry_attempt_id:
-          type: string
-          nullable: true
-        registry_published_at:
-          type: string
-          format: date-time
-          nullable: true
-        registry_publication_job_id:
-          type: string
-          nullable: true
-        registry_error_code:
-          type: string
-          nullable: true
         artist_identity_id:
           type: string
           nullable: true
