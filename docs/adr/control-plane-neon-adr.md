@@ -14,7 +14,6 @@ This means:
 
 - Neon is the root-of-trust database for platform identity, verification, routing, encrypted community credentials, jobs, and audit state
 - Turso remains the community data plane and the transfer unit for future community sovereignty
-- Tableland remains the public or externally auditable community registry surface where that model is appropriate
 
 ## Why
 
@@ -58,7 +57,7 @@ Turso still applies to:
 - per-community runtime credentials
 - community-local durable state
 
-This ADR does not change the Tableland decision for community-facing public data.
+This ADR keeps community authority inside the Neon/Turso model. It does not introduce a second registry plane.
 
 ## Role Model
 

@@ -7,7 +7,7 @@ It is intentionally narrow:
 - only active mainline tooling stays here
 - top-level `scripts/` is now just folders plus this index
 - shared implementation stays in `scripts/lib/`
-- historical helpers, Lit tooling, Tableland scripts, extraction helpers, and benchmark data do not belong here
+- historical helpers, removed registry tooling, extraction helpers, and benchmark data do not belong here
 
 ## Layout
 

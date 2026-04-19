@@ -16,7 +16,7 @@ Bring up one operator-managed Infinity community on staging with:
 ## Do Not Assume
 
 - do not use `POST /communities` on staging for this path
-- do not block this path on Tableland publication
+- do not block this path on any removed publication subsystem
 - do not wait for self-serve community creation
 
 ## What Already Exists

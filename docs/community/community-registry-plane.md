@@ -1,12 +1,12 @@
-# Community Registry Plane
+# Community Routing Plane
 
-Status: deferred for launch
+Status: current
 
 ## Current Decision
 
-Pirate does not ship a Tableland-backed community registry at launch.
+Pirate v2 does not ship any separate public registry plane.
 
-Launch authority is:
+Community authority is:
 
 - Neon for control-plane identity, verification, routing, jobs, and audit
 - Turso for community operational state
@@ -14,23 +14,23 @@ Launch authority is:
 
 ## What This Means
 
-- `pirate-web` does not query Tableland directly.
-- Community create, update, and read flows do not depend on Tableland publication.
-- No launch API contract includes registry-publication status fields or publication jobs.
-- Any older Tableland publisher or registry-plan material should be treated as archived and non-operative.
+- `pirate-web` reads community state from API-served projections.
+- Community create, update, and read flows have one operational write path.
+- External publication, publisher jobs, and mirrored registry state are not part of the v2 mainline.
+- Any older registry-publisher material should be treated as deleted product direction, not deferred work.
 
-## Why It Was Deferred
+## Why
 
-The Tableland path added a second authority plane, publisher/runtime complexity, signer policy questions, and schema/mutation overhead that is not required for launch.
+A second registry plane added authority duplication, publication jobs, signer policy questions, and schema overhead with no current product payoff.
 
 The launch goal is a simpler system with one real operational write path.
 
 ## Revisit Criteria
 
-Pirate should only revive a public onchain registry if one of these becomes a real product requirement:
+Pirate should only add a second public registry plane if one of these becomes a real product requirement:
 
 - third-party verifiable history for community identity/governance fields
 - public mutable registry rows consumable by external agents
 - explicit community-sovereignty guarantees that exceed backend policy
 
-If that happens, write a fresh design from the live Neon/Turso model rather than assuming the deleted Tableland planning docs still apply.
+If that happens, write a fresh design from the live Neon/Turso model rather than reviving deleted registry assumptions.

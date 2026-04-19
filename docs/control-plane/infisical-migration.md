@@ -160,7 +160,7 @@ For the intended secret split, bootstrap both `CONTROL_PLANE_DATABASE_URL` and `
 
 ### Registry Publisher Secrets
 
-Tableland publication is deferred for launch.
+External registry publication is not part of the current system.
 
 Do not provision `/services/registry-publisher` or publisher-specific secrets in
 the current launch environment.

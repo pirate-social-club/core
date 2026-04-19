@@ -13,14 +13,14 @@ The near-term shipping goal is:
 - Turso community database
 - Very-backed first text post gate working end to end
 
-This goal does not require Tableland publication yet.
+This goal does not involve any external registry publication.
 
 ## Architecture
 
 - control plane: Neon/Postgres
 - community databases: Turso/libSQL
 - local development: file-backed emulation for both planes
-- registry/publication: later phase for the happy path
+- registry/publication: removed from the current happy path
 
 ## Current State
 
@@ -28,7 +28,7 @@ This goal does not require Tableland publication yet.
 |---|---|---|
 | Local operational Infinity | Green | Proven locally end to end, including the Very first-text-post rule |
 | Staging operational Infinity | Next | Correct next goal; requires manual Turso bring-up or a small operator script |
-| Staging published Infinity | Not started | Defer until staging operational Infinity is stable |
+| Staging published Infinity | Removed | Not part of the current system |
 | Generic self-serve community creation | Not started | Defer until the single-community staging path is stable |
 
 ## What Is Already Working
@@ -55,7 +55,7 @@ This goal does not require Tableland publication yet.
 2. Validate `/c/infinity` and first text post on staging.
 3. If needed, keep a fully manual fallback for reconciliation and emergency recovery.
 4. Switch any operator hand-steps around that command into one repeatable staging workflow.
-5. Only then take on registry publication and generic community creation.
+5. Only then take on generic community creation.
 
 ## Acceptance Criteria
 
@@ -73,12 +73,6 @@ This goal does not require Tableland publication yet.
 - API can read and write the remote community DB
 - `/c/infinity` loads on staging web
 - first Infinity text post works through Very
-
-### Staging published Infinity
-
-- staging operational Infinity is already stable
-- registry publisher path succeeds
-- publication state is visible and auditable
 
 ### Self-serve community creation
 

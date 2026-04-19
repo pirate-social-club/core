@@ -1074,7 +1074,7 @@ CREATE INDEX idx_community_pricing_policies_enabled
 
 CREATE TABLE community_registry_table_refs (
     community_id TEXT PRIMARY KEY,
-    tableland_chain_id INTEGER NOT NULL,
+    registry_chain_id INTEGER NOT NULL,
     attempts_table_name TEXT NOT NULL,
     club_registry_table_name TEXT,
     club_namespace_table_name TEXT,

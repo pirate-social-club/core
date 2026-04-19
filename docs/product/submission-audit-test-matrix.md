@@ -18,7 +18,7 @@ Related:
 Harness note:
 
 - the executable Bruno collection now lives in `pirate-api/services/api/bruno`
-- Tableland publication is deferred for launch, so no submission path should depend on registry publication state.
+- Submission paths must not depend on any external registry or publication job state.
 - this doc is the rule matrix that collection should implement
 - case IDs below should remain stable so audit notes, screenshots, and CI logs can reference the same identifiers
 
@@ -123,7 +123,7 @@ For each policy endpoint below, the minimum audit set is:
 | `SCN-INF-001` | Seed an existing-user fixture plus an operational Infinity community via `scripts/community/bootstrap-infinity-existing-user.sh` | control-plane user fixture exists, Infinity local community DB exists, creator membership is seeded |
 | `SCN-INF-002` | Inspect the bootstrapped Infinity community in control-plane state | `status = active`, `provisioning_state = active` |
 | `SCN-INF-003` | Create a post as the seeded existing Infinity user | create succeeds with `201` or `202` if all normal posting preconditions pass |
-| `SCN-INF-004` | Confirm the Infinity local-stub scenario does not depend on Tableland | community create and read flows succeed without any registry-publication step |
+| `SCN-INF-004` | Confirm the Infinity local-stub scenario does not depend on any external registry | community create and read flows succeed without any publication step |
 
 ## Evidence Checklist
 
