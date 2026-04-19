@@ -34,8 +34,8 @@ Minimal verification:
 
 ```bash
 cd /home/t42/Documents/pirate-v2/ops/prod
-rtk bun ../../scripts/check-infisical-env.ts --env prod
-rtk bun ../../scripts/check-infisical-env.ts --env prod --connect
+rtk bun ../../scripts/infisical/check-infisical-env.ts --env prod
+rtk bun ../../scripts/infisical/check-infisical-env.ts --env prod --connect
 ```
 
 Migration command:
@@ -43,7 +43,7 @@ Migration command:
 ```bash
 cd /home/t42/Documents/pirate-v2/ops/prod
 rtk infisical run --project-config-dir=. --env prod -- \
-  rtk bun ../../scripts/apply-postgres-migrations.ts \
+  rtk bun ../../scripts/control-plane/apply-postgres-migrations.ts \
   --database-url-env CONTROL_PLANE_MIGRATOR_DATABASE_URL \
   --migrations ../../db/control-plane/migrations \
   --label control-plane

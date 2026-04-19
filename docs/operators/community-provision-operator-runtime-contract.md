@@ -37,7 +37,7 @@ Rules:
 
 Current in-repo entrypoint:
 
-- [scripts/turso-control-plane-operator.ts](../../scripts/turso-control-plane-operator.ts:1)
+- [scripts/turso/turso-control-plane-operator.ts](../../scripts/turso/turso-control-plane-operator.ts:1)
 
 Shared handler:
 

@@ -22,28 +22,24 @@ These resolve from repo config and operator-supplied env, not from Infisical.
 
 ### Bootstrap Commands
 
-After `infisical login` and project selection, you can create the minimal Story runtime key tree
-only when Story runtime usage keys are actually needed:
+The current mainline does not use Lit usage keys. When Story runtime work is active, seed the
+direct runtime keys instead and write them through the unified bootstrap:
 
 ```bash
-export LIT_CHIPOTLE_OPERATOR_API_KEY=...
-export LIT_CHIPOTLE_ACCESS_CONTROLLER_API_KEY=...
-export LIT_CHIPOTLE_STORY_SETTLEMENT_API_KEY=...
-rtk ./scripts/bootstrap-infisical-story.sh
+export CONTROL_PLANE_DATABASE_URL=...
+export CONTROL_PLANE_MIGRATOR_DATABASE_URL=...
+export STORY_RUNTIME_PRIVATE_KEY=...
+export STORY_OPERATOR_PRIVATE_KEY=...
+export STORY_CDR_WRITER_PRIVATE_KEY=...
+export STORY_ACCESS_CONTROLLER_PRIVATE_KEY=...
+export MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY=...
+rtk bun scripts/infisical/bootstrap-infisical.ts --env dev
 ```
-
-The helper creates only `dev:/services/api` when one or more runtime usage keys are provided.
 
 ## Phase 2
 
-Populate the runtime Lit usage-key path when API-side publish and access flows are ready:
-
-- `dev:/services/api`
-  - `LIT_CHIPOTLE_OPERATOR_API_KEY`
-  - `LIT_CHIPOTLE_ACCESS_CONTROLLER_API_KEY`
-  - `LIT_CHIPOTLE_STORY_SETTLEMENT_API_KEY`
-
-Add the remaining Story usage keys only when the corresponding families are in active use.
+Populate direct API runtime secrets only when the corresponding feature is actually in use.
+Do not create placeholder Lit or PKP secret paths for future work.
 
 ## Phase 2.5: Market Context Runtime Keys
 
@@ -56,14 +52,14 @@ Populate `dev:/services/api` with market-context runtime secrets only when the f
 
 Jina Reader base URLs, OpenRouter model names, provider base URLs, score thresholds, and TTLs are not secrets. Keep them in version-controlled config or ordinary worker env.
 
-Bootstrap helper:
+Bootstrap these through the same unified command:
 
 ```bash
 export OPENROUTER_API_KEY=...
 export JINA_API_KEY=... # optional but recommended for higher Reader limits
 export PREDICT_FUN_API_KEY=... # optional, only for approved-provider integration
 export FIRECRAWL_API_KEY=... # optional
-rtk ./scripts/bootstrap-infisical-api.sh
+rtk bun scripts/infisical/bootstrap-infisical.ts --env dev
 ```
 
 ## Explicitly Deferred
@@ -116,15 +112,14 @@ Non-secret Turso config stays outside Infisical:
 - `TURSO_ORGANIZATION_SLUG`
 - naming conventions for groups and databases
 
-Bootstrap helper:
+Bootstrap these through the unified command:
 
 ```bash
 export TURSO_PLATFORM_API_TOKEN=...
 export CONTROL_PLANE_DATABASE_URL=...
 export CONTROL_PLANE_MIGRATOR_DATABASE_URL=...
 export TURSO_COMMUNITY_DB_WRAP_KEY=...
-rtk ./scripts/bootstrap-infisical-control-plane.sh
-rtk ./scripts/bootstrap-infisical-turso.sh
+rtk bun scripts/infisical/bootstrap-infisical.ts --env dev
 ```
 
 ### API Runtime Secrets
@@ -141,14 +136,14 @@ Populate `/services/api` with the API runtime secrets that should not live in ve
 - `FILEBASE_S3_SECRET_KEY`
 - `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN` (also in `/services/control-plane`; must match)
 
-Bootstrap helper:
+Bootstrap these through the unified command:
 
 ```bash
 export AUTH_UPSTREAM_JWT_SHARED_SECRET=...
 export PIRATE_APP_JWT_PRIVATE_KEY=...
 export PIRATE_APP_JWT_PUBLIC_KEY=...
 export PRIVY_APP_SECRET=...
-rtk ./scripts/bootstrap-infisical-api-runtime.sh
+rtk bun scripts/infisical/bootstrap-infisical.ts --env dev
 ```
 
 Keep non-secret runtime config outside Infisical:
@@ -173,10 +168,10 @@ the current launch environment.
 Operator env management:
 
 - keep checked operator env templates in:
-  - [scripts/.env.operator-staging.example](../../scripts/.env.operator-staging.example:1)
-  - [scripts/.env.operator-production.example](../../scripts/.env.operator-production.example:1)
-- source those env files through [scripts/operator-env-run.sh](../../scripts/operator-env-run.sh:1) instead of repeating inline `set -a; source ...; set +a`
-- sync Cloudflare worker secrets from either the checked local env file or Infisical with [scripts/sync-wrangler-api-secrets.sh](../../scripts/sync-wrangler-api-secrets.sh:1)
+  - [scripts/infisical/.env.operator-staging.example](../../scripts/infisical/.env.operator-staging.example:1)
+  - [scripts/infisical/.env.operator-production.example](../../scripts/infisical/.env.operator-production.example:1)
+- source those env files through [scripts/infisical/operator-env-run.sh](../../scripts/infisical/operator-env-run.sh:1) instead of repeating inline `set -a; source ...; set +a`
+- sync Cloudflare worker secrets from either the checked local env file or Infisical with [scripts/infisical/sync-wrangler-api-secrets.sh](../../scripts/infisical/sync-wrangler-api-secrets.sh:1)
 - keep only true secrets in Infisical:
   - `/services/control-plane` -> `TURSO_PLATFORM_API_TOKEN`
   - `/services/control-plane` -> `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN`
@@ -197,26 +192,18 @@ Keep the break-glass owner URL outside service paths, for example:
 
 ## Control Plane
 
-`LIT_CHIPOTLE_ACCOUNT_API_KEY` must not be present in worker runtime env.
-
-If control-plane automation later needs it, create a separate path such as:
-
-- `dev:/local/lit`
-
-Do not place that key under `dev:/services/api`, and do not create it until control-plane tooling actually exists.
+Lit-specific control-plane keys are not part of the current `pirate-v2` mainline. Do not create
+`/local/lit` or any Lit-only hosted path in this project until Lit returns to the runtime.
 
 ## Not Carried Forward
 
-Do not migrate these legacy fallback secrets from `pirate/`:
+Do not migrate these legacy-only secrets from `pirate/`:
 
-- `MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY`
 - `MUSIC_PURCHASE_BASE_TREASURY_PRIVATE_KEY`
-- `STORY_OPERATOR_PRIVATE_KEY`
-- `STORY_ACCESS_CONTROLLER_PRIVATE_KEY`
 - `STORY_FEED_REGISTRAR_PRIVATE_KEY`
 - `STORY_SCROBBLE_OPERATOR_PRIVATE_KEY`
 
-The v2 policy is PKP-only for those families.
+Current `pirate-v2` mainline uses direct Infisical-backed Story runtime keys, not PKP/Lit usage-key flows.
 
 ## Migration Checksum Drift
 
@@ -237,12 +224,12 @@ schema change is needed, it belongs in a new numbered migration.
 
 ## Environment Validation
 
-Run `scripts/check-infisical-env.ts` before migrations and deploys to verify that the Infisical
+Run `scripts/infisical/check-infisical-env.ts` before migrations and deploys to verify that the Infisical
 environment matches the contract defined in `scripts/lib/infisical-env-contract.ts`:
 
 ```bash
-rtk bun scripts/check-infisical-env.ts --env dev
-rtk bun scripts/check-infisical-env.ts --env staging --connect
+rtk bun scripts/infisical/check-infisical-env.ts --env dev
+rtk bun scripts/infisical/check-infisical-env.ts --env staging --connect
 ```
 
 The `--connect` flag validates database identity, host consistency, and expected privilege shape
@@ -279,12 +266,12 @@ Recommended usage:
 
 ```bash
 # non-prod from repo root
-rtk bun scripts/check-infisical-env.ts --env dev --connect
-rtk bun scripts/check-infisical-env.ts --env staging --connect
+rtk bun scripts/infisical/check-infisical-env.ts --env dev --connect
+rtk bun scripts/infisical/check-infisical-env.ts --env staging --connect
 
 # prod from human-only config dir
 rtk infisical run --project-config-dir=ops/prod --env prod -- \
-  rtk bun scripts/check-infisical-env.ts --env prod --connect
+  rtk bun scripts/infisical/check-infisical-env.ts --env prod --connect
 ```
 
 Do not point the repo root `.infisical.json` at the prod project.
@@ -303,21 +290,19 @@ For the exact human-only prod sequence, use:
 
 ## Bootstrap
 
-Use `scripts/bootstrap-infisical.ts` to provision Infisical from the same contract the doctor
+Use `scripts/infisical/bootstrap-infisical.ts` to provision Infisical from the same contract the doctor
 validates:
 
 ```bash
 CONTROL_PLANE_DATABASE_URL=... CONTROL_PLANE_MIGRATOR_DATABASE_URL=... \
-  rtk bun scripts/bootstrap-infisical.ts --env dev
+  rtk bun scripts/infisical/bootstrap-infisical.ts --env dev
 
 CONTROL_PLANE_DATABASE_URL=... CONTROL_PLANE_MIGRATOR_DATABASE_URL=... \
-  rtk bun scripts/bootstrap-infisical.ts --env dev --dry-run
+  rtk bun scripts/infisical/bootstrap-infisical.ts --env dev --dry-run
 ```
 
 The contract is the single source of truth for which secrets must exist, where, and at what
 requiredness tier. Both the doctor and the unified bootstrap script read from
 `scripts/lib/infisical-env-contract.ts`.
 
-The individual bootstrap scripts (`bootstrap-infisical-control-plane.sh`,
-`bootstrap-infisical-turso.sh`, etc.) still work but are superseded by the unified script. They
-will be removed once the unified script is proven in use.
+The wrapper bootstrap scripts are removed. Use only the unified script above.

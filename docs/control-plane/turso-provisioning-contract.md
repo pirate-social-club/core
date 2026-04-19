@@ -285,7 +285,7 @@ The control plane should support eventual doctor or reconcile actions:
 The first human-run interface now exists for provisioning:
 
 ```bash
-rtk bun scripts/turso-control-plane.ts provision-community --community-id cmt_01... --creator-user-id usr_01... --display-name "Infinity" --namespace-verification-id nv_01... --group-location aws-us-east-1
+rtk bun scripts/turso/turso-control-plane.ts provision-community --community-id cmt_01... --creator-user-id usr_01... --display-name "Infinity" --namespace-verification-id nv_01... --group-location aws-us-east-1
 ```
 
 Implemented in the current CLI:

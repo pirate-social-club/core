@@ -83,7 +83,7 @@ db/control-plane/migrations/0004_control_plane_jobs_and_audit.sql — audit_log
 
 Apply using the project migration runner:
 ```bash
-./scripts/apply-sqlite-migrations.sh \
+./scripts/community/apply-sqlite-migrations.sh \
   --db <path-or-connection> \
   --migrations db/control-plane/migrations \
   --label control-plane

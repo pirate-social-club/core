@@ -61,7 +61,7 @@ From `ops/prod`, confirm the current placeholder state:
 
 ```bash
 cd /home/t42/Documents/pirate-v2/ops/prod
-rtk bun ../../scripts/check-infisical-env.ts --env prod
+rtk bun ../../scripts/infisical/check-infisical-env.ts --env prod
 ```
 
 Expected before real values are set:
@@ -86,7 +86,7 @@ Run:
 
 ```bash
 cd /home/t42/Documents/pirate-v2/ops/prod
-rtk bun ../../scripts/split-control-plane-roles.ts \
+rtk bun ../../scripts/control-plane/split-control-plane-roles.ts \
   --infisical-env prod \
   --skip-infisical \
   --allow-missing-pgaudit
@@ -177,14 +177,14 @@ First do the non-connect doctor:
 
 ```bash
 cd /home/t42/Documents/pirate-v2/ops/prod
-rtk bun ../../scripts/check-infisical-env.ts --env prod
+rtk bun ../../scripts/infisical/check-infisical-env.ts --env prod
 ```
 
 Then do the live DB-connect doctor:
 
 ```bash
 cd /home/t42/Documents/pirate-v2/ops/prod
-rtk bun ../../scripts/check-infisical-env.ts --env prod --connect
+rtk bun ../../scripts/infisical/check-infisical-env.ts --env prod --connect
 ```
 
 Go only if all checks pass.
@@ -211,7 +211,7 @@ Run the control-plane migrations using the prod config boundary:
 ```bash
 cd /home/t42/Documents/pirate-v2/ops/prod
 rtk infisical run --project-config-dir=. --env prod -- \
-  rtk bun ../../scripts/apply-postgres-migrations.ts \
+  rtk bun ../../scripts/control-plane/apply-postgres-migrations.ts \
   --database-url-env CONTROL_PLANE_MIGRATOR_DATABASE_URL \
   --migrations ../../db/control-plane/migrations \
   --label control-plane

@@ -68,7 +68,7 @@ Postgres / Neon:
 
 ```bash
 rtk infisical run --env dev --path /services/control-plane -- \
-  bun scripts/apply-postgres-migrations.ts \
+  bun scripts/control-plane/apply-postgres-migrations.ts \
     --database-url-env CONTROL_PLANE_MIGRATOR_DATABASE_URL \
     --migrations db/control-plane/migrations \
     --label control-plane
@@ -77,7 +77,7 @@ rtk infisical run --env dev --path /services/control-plane -- \
 SQLite/libSQL community template:
 
 ```bash
-rtk bash scripts/apply-sqlite-migrations.sh \
+rtk bash scripts/community/apply-sqlite-migrations.sh \
   --db /tmp/pirate-community-template.db \
   --migrations db/community-template/migrations \
   --label community-template
@@ -96,7 +96,7 @@ Control-plane fixture seed for the JWT-first, no-browser path:
 
 ```bash
 rtk infisical run --env dev --path /services/api -- \
-  bun scripts/seed-control-plane-fixtures.ts \
+  bun scripts/control-plane/seed-control-plane-fixtures.ts \
     --database-url-env CONTROL_PLANE_DATABASE_URL \
     --user-id usr_demo_01 \
     --subject demo-subject-01 \
@@ -108,7 +108,7 @@ Local community bootstrap using the seeded namespace verification:
 
 ```bash
 rtk infisical run --env dev --path /services/api -- \
-  bun scripts/bootstrap-community-slice.ts \
+  bun scripts/community/bootstrap-community-slice.ts \
     --database-url-env CONTROL_PLANE_DATABASE_URL \
     --community-db /tmp/pirate-community-demo.db \
     --community-id cmt_demo_01 \
@@ -123,4 +123,4 @@ rtk infisical run --env dev --path /services/api -- \
 - The community migration files target SQLite-compatible Turso/libSQL DDL.
 - The control-plane migration files are PostgreSQL-first and apply directly to Neon from `db/control-plane/migrations/`.
 - Community databases intentionally do not define a `users` table. They reference central Pirate `user_id` values as foreign identifiers, not local user rows.
-- This repo now includes migration runners in [scripts/apply-sqlite-migrations.sh](../scripts/apply-sqlite-migrations.sh) and [scripts/apply-postgres-migrations.ts](../scripts/apply-postgres-migrations.ts), plus [scripts/seed-control-plane-fixtures.ts](../scripts/seed-control-plane-fixtures.ts) and [scripts/bootstrap-community-slice.ts](../scripts/bootstrap-community-slice.ts) for Neon-backed local slice bootstrapping.
+- This repo now includes migration runners in [scripts/community/apply-sqlite-migrations.sh](../scripts/community/apply-sqlite-migrations.sh) and [scripts/control-plane/apply-postgres-migrations.ts](../scripts/control-plane/apply-postgres-migrations.ts), plus [scripts/control-plane/seed-control-plane-fixtures.ts](../scripts/control-plane/seed-control-plane-fixtures.ts) and [scripts/community/bootstrap-community-slice.ts](../scripts/community/bootstrap-community-slice.ts) for Neon-backed local slice bootstrapping.

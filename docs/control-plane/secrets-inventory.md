@@ -18,7 +18,6 @@ This file is the single source of truth for "what secrets exist." It does not co
 | Type | Secret? | Storage | Examples |
 |---|---|---|---|
 | `private-key` | Yes | Infisical | Contract deployer key, Arweave Turbo signer key |
-| `usage-key` | Yes | Infisical | Lit Chipotle execute-only API keys |
 | `api-key` | Yes | Infisical | Mistral, ElevenLabs, OpenRouter, Genius, Etherscan |
 | `s3-credential` | Yes | Infisical | Filebase access/secret key pairs |
 | `worker-secret` | Yes | Infisical | Worker-internal auth tokens (MUSIC_WORKER_SECRET, etc.) |
@@ -41,11 +40,13 @@ This file is the single source of truth for "what secrets exist." It does not co
 `STORY_CONTRACT_OWNER_PRIVATE_KEY` is no longer part of the Infisical contract.
 
 If you still use the hot-key Story Foundry deploy path locally, treat it as an operator-local env
-var only. Do not store it in hosted Infisical environments. For staging/production, the intended
-model is:
+var only. Do not store it in hosted Infisical environments.
 
-- Chipotle for approved hot operator actions
-- Keystone cold wallet for ownership and privileged deployment/signing
+Current `pirate-v2` runtime model:
+
+- owner key stays local and operator-only
+- direct Story runtime signer private keys live in `/services/api`
+- no Lit usage-key or PKP secret path is part of the current mainline
 
 ### dev:/contracts/base
 
@@ -65,7 +66,7 @@ Secrets consumed by the API worker at runtime.
 
 #### Required (every deployment must have these)
 
-The API worker cannot start without these. The sync script (`scripts/sync-wrangler-api-secrets.sh`) enforces their presence.
+The API worker cannot start without these. The sync script (`scripts/infisical/sync-wrangler-api-secrets.sh`) enforces their presence.
 
 | Name | Type | Purpose |
 |---|---|---|
@@ -117,23 +118,6 @@ Secrets consumed by private provisioning tooling, not the API worker.
 | `TURSO_COMMUNITY_DB_WRAP_KEY` | `worker-secret` | Envelope-encryption key for per-community Turso DB credentials |
 | `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN` | `worker-secret` | Bearer token for the private Turso provision operator |
 
-### dev:/services/control-plane (Lit usage keys)
-
-Lit Chipotle execute-only usage keys. These are operator tooling keys, not API runtime secrets. They are used by human-run scripts (`scripts/lit/lit-action-smoke.mjs`, `scripts/lit/lit-probe-public-key.mjs`, deploy scripts) and will be consumed by the API worker only when PKP actions are wired into the runtime.
-
-| Name | Type | Purpose | Wired in API worker? |
-|---|---|---|---|
-| `LIT_CHIPOTLE_OPERATOR_API_KEY` | `usage-key` | Story operator PKP actions | No |
-| `LIT_CHIPOTLE_ACCESS_CONTROLLER_API_KEY` | `usage-key` | Story temporary-access proof signer | No |
-| `LIT_CHIPOTLE_STORY_SETTLEMENT_API_KEY` | `usage-key` | Story settlement PKP actions | No |
-| `LIT_CHIPOTLE_BASE_TREASURY_API_KEY` | `usage-key` | Base treasury PKP actions | No |
-| `LIT_CHIPOTLE_FEED_REGISTRAR_API_KEY` | `usage-key` | Story feed registrar PKP actions | No |
-| `LIT_CHIPOTLE_STORY_SPONSOR_API_KEY` | `usage-key` | Story sponsor PKP actions | No |
-| `LIT_CHIPOTLE_STORY_BACKEND_API_KEY` | `usage-key` | Story backend signer PKP actions | No |
-| `LIT_CHIPOTLE_BASE_SPONSOR_API_KEY` | `usage-key` | Base verification mirror sponsor | No |
-
-When a Lit key is wired into the API worker runtime, move it from `/services/control-plane` to `/services/api` and update this table.
-
 ### dev:/local/control-plane
 
 Break-glass control-plane credentials kept outside normal service paths.
@@ -152,7 +136,7 @@ Hosted environments use `/services` only.
 
 - `staging` and `prod` should not use `/local`
 - `CONTROL_PLANE_OWNER_DATABASE_URL` may still exist operationally for hosted databases, but it is break-glass material and should not be part of the normal hosted Infisical contract
-- Lit/Chipotle keys are deferred for hosted runtime until the corresponding runtime integrations are actually live
+- Lit/PKP secret paths are out of the current hosted mainline
 
 ## Live State
 
@@ -160,8 +144,8 @@ Live Infisical contents drift quickly. Do not treat this file as a live inventor
 
 Use these instead:
 
-- `rtk bun scripts/check-infisical-env.ts --env <env>`
-- `rtk bun scripts/check-infisical-env.ts --env <env> --connect`
+- `rtk bun scripts/infisical/check-infisical-env.ts --env <env>`
+- `rtk bun scripts/infisical/check-infisical-env.ts --env <env> --connect`
 - the shared contract in `scripts/lib/infisical-env-contract.ts`
 
 The current hosted environment slug is `prod`, not `production`.

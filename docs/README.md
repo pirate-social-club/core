@@ -9,7 +9,7 @@ Use these buckets first:
 - `community/`
   Community creation, registry, authority, and cross-plane rollout docs.
 - `operators/`
-  Signer families, Spaces, Sentinel, Lit, and other operator-facing runtime contracts.
+  Signer families, Spaces, Sentinel, and other operator-facing runtime contracts.
 - `product/`
   Cross-cutting product, rollout, audit, and flow docs.
 - `repo/`
@@ -40,7 +40,6 @@ Examples by bucket:
 ## Operators
 
 - `operators/signer-families.md`
-- `operators/lit-control-plane.md`
 - `operators/community-provision-operator-runtime-contract.md`
 - `operators/spaces-verification-runtime-contract.md`
 - `operators/sentinel-operator-runtime-contract.md`

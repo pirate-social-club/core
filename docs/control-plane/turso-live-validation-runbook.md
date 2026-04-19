@@ -45,7 +45,7 @@ This means the live private Turso control-plane path is now validated for:
 ## Required Inputs
 
 Operator env file:
-- [scripts/.env.operator-staging.example](../../scripts/.env.operator-staging.example:1)
+- [scripts/infisical/.env.operator-staging.example](../../scripts/infisical/.env.operator-staging.example:1)
 
 API staging env file:
 - [pirate-api/services/api/.env.staging.example](../../pirate-api/services/api/.env.staging.example:1)
@@ -92,8 +92,8 @@ export PIRATE_NAMESPACE_LABEL=infinity
 ### 1. Seed or confirm the control-plane actor
 
 ```bash
-rtk ./scripts/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile control-plane-seed -- \
-  rtk bun scripts/seed-control-plane-fixtures.ts \
+rtk ./scripts/infisical/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile control-plane-seed -- \
+  rtk bun scripts/control-plane/seed-control-plane-fixtures.ts \
     --database-url-env CONTROL_PLANE_DATABASE_URL \
     --user-id "$PIRATE_CREATOR_USER_ID" \
     --subject infinity-subject-01 \
@@ -110,8 +110,8 @@ Expected result:
 ### 2. Provision the Turso sovereignty unit
 
 ```bash
-rtk ./scripts/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile turso-provision -- \
-  rtk bun scripts/turso-control-plane.ts provision-community \
+rtk ./scripts/infisical/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile turso-provision -- \
+  rtk bun scripts/turso/turso-control-plane.ts provision-community \
     --community-id "$PIRATE_COMMUNITY_ID" \
     --creator-user-id "$PIRATE_CREATOR_USER_ID" \
     --display-name "$PIRATE_DISPLAY_NAME" \
@@ -132,8 +132,8 @@ Expected result:
 ### 3. Run doctor immediately after provisioning
 
 ```bash
-rtk ./scripts/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile turso-doctor -- \
-  rtk bun scripts/turso-control-plane.ts doctor \
+rtk ./scripts/infisical/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile turso-doctor -- \
+  rtk bun scripts/turso/turso-control-plane.ts doctor \
     --community-id "$PIRATE_COMMUNITY_ID"
 ```
 
@@ -166,8 +166,8 @@ Minimum acceptance:
 ### 6. Rotate the community DB token
 
 ```bash
-rtk ./scripts/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile turso-rotate -- \
-  rtk bun scripts/turso-control-plane.ts rotate-community-token \
+rtk ./scripts/infisical/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile turso-rotate -- \
+  rtk bun scripts/turso/turso-control-plane.ts rotate-community-token \
     --community-id "$PIRATE_COMMUNITY_ID" \
     --reason live_validation
 ```
@@ -180,8 +180,8 @@ Expected result:
 ### 7. Re-run doctor after rotation
 
 ```bash
-rtk ./scripts/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile turso-doctor -- \
-  rtk bun scripts/turso-control-plane.ts doctor \
+rtk ./scripts/infisical/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile turso-doctor -- \
+  rtk bun scripts/turso/turso-control-plane.ts doctor \
     --community-id "$PIRATE_COMMUNITY_ID"
 ```
 

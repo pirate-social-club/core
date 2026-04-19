@@ -4,62 +4,11 @@ import { join } from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
 import { createClient } from "@libsql/client";
 import { seedControlPlaneFixtures } from "./control-plane-fixtures";
+import { splitSqlStatements, toSqliteCompatibleStatement } from "../../pirate-api/services/api/shared/sql-migration";
 
 type Cleanup = () => Promise<void>;
 
 let cleanup: Cleanup | null = null;
-
-function splitSqlStatements(sql: string): string[] {
-  const statements: string[] = [];
-  let current = "";
-  let inSingleQuote = false;
-  let inTrigger = false;
-
-  for (let index = 0; index < sql.length; index += 1) {
-    const char = sql[index];
-    const next = sql[index + 1];
-    current += char;
-
-    if (!inSingleQuote && !inTrigger && current.trimStart().toUpperCase().startsWith("CREATE TRIGGER")) {
-      inTrigger = true;
-    }
-
-    if (char === "'" && sql[index - 1] !== "\\") {
-      if (inSingleQuote && next === "'") {
-        current += next;
-        index += 1;
-        continue;
-      }
-      inSingleQuote = !inSingleQuote;
-      continue;
-    }
-
-    if (inTrigger && !inSingleQuote && current.trimEnd().toUpperCase().endsWith("END;")) {
-      const statement = current.trim();
-      if (statement) {
-        statements.push(statement);
-      }
-      current = "";
-      inTrigger = false;
-      continue;
-    }
-
-    if (char === ";" && !inSingleQuote && !inTrigger) {
-      const statement = current.trim();
-      if (statement) {
-        statements.push(statement);
-      }
-      current = "";
-    }
-  }
-
-  const trailing = current.trim();
-  if (trailing) {
-    statements.push(trailing);
-  }
-
-  return statements;
-}
 
 async function createControlPlaneTestDatabase(): Promise<{
   databaseUrl: string;
@@ -70,15 +19,21 @@ async function createControlPlaneTestDatabase(): Promise<{
   const client = createClient({
     url: `file:${databasePath}`,
   });
-  const migrationsDir = new URL("../../pirate-api/db/control-plane/migrations/", import.meta.url);
+  const migrationsDir = new URL("../../db/control-plane/migrations/", import.meta.url);
   const entries = (await readdir(migrationsDir))
     .filter((entry) => entry.endsWith(".sql"))
     .sort();
+  const baselineEntry = entries.find((entry) => entry.startsWith("0000_") && entry.includes("baseline"));
+  const entriesToApply = baselineEntry ? [baselineEntry] : entries;
 
-  for (const entry of entries) {
+  for (const entry of entriesToApply) {
     const rawSql = await readFile(new URL(entry, migrationsDir), "utf8");
     for (const statement of splitSqlStatements(rawSql)) {
-      await client.execute(statement);
+      const sqliteStatement = toSqliteCompatibleStatement(statement);
+      if (!sqliteStatement) {
+        continue;
+      }
+      await client.execute(sqliteStatement);
     }
   }
 

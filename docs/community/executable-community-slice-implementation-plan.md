@@ -92,7 +92,7 @@ Current repo-local command:
 
 ```bash
 rtk infisical run --env dev --path /services/control-plane -- \
-  bun scripts/apply-postgres-migrations.ts \
+  bun scripts/control-plane/apply-postgres-migrations.ts \
     --database-url-env CONTROL_PLANE_MIGRATOR_DATABASE_URL \
     --migrations db/control-plane/migrations \
     --label control-plane
@@ -129,18 +129,15 @@ The fixture plan is part of implementation, not an afterthought.
 Current repo-local upstream JWT helper:
 
 ```bash
-rtk bun scripts/mint-test-jwt.mjs \
-  --issuer pirate-dev-upstream \
-  --audience pirate-api \
-  --subject user_demo_01 \
-  --secret dev-upstream-secret
+rtk bun pirate-api/services/api/scripts/mint-dev-jwt.ts \
+  --sub user_demo_01
 ```
 
 Current repo-local control-plane fixture seed helper:
 
 ```bash
 rtk infisical run --env dev --path /services/api -- \
-  bun scripts/seed-control-plane-fixtures.ts \
+  bun scripts/control-plane/seed-control-plane-fixtures.ts \
     --database-url-env CONTROL_PLANE_DATABASE_URL \
     --user-id usr_demo_01 \
     --subject demo-subject-01 \
@@ -152,7 +149,7 @@ Current repo-local community bootstrap helper:
 
 ```bash
 rtk infisical run --env dev --path /services/api -- \
-  bun scripts/bootstrap-community-slice.ts \
+  bun scripts/community/bootstrap-community-slice.ts \
     --database-url-env CONTROL_PLANE_DATABASE_URL \
     --community-db /tmp/pirate-community-demo.db \
     --community-id cmt_demo_01 \

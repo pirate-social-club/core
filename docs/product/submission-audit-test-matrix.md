@@ -120,7 +120,7 @@ For each policy endpoint below, the minimum audit set is:
 
 | Case ID | Goal | Expected result |
 |---|---|---|
-| `SCN-INF-001` | Seed an existing-user fixture plus an operational Infinity community via `scripts/bootstrap-infinity-existing-user.sh` | control-plane user fixture exists, Infinity local community DB exists, creator membership is seeded |
+| `SCN-INF-001` | Seed an existing-user fixture plus an operational Infinity community via `scripts/community/bootstrap-infinity-existing-user.sh` | control-plane user fixture exists, Infinity local community DB exists, creator membership is seeded |
 | `SCN-INF-002` | Inspect the bootstrapped Infinity community in control-plane state | `status = active`, `provisioning_state = active` |
 | `SCN-INF-003` | Create a post as the seeded existing Infinity user | create succeeds with `201` or `202` if all normal posting preconditions pass |
 | `SCN-INF-004` | Confirm the Infinity local-stub scenario does not depend on Tableland | community create and read flows succeed without any registry-publication step |

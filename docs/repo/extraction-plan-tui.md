@@ -13,7 +13,6 @@ This document records the completed split of `pirate-tui/` out of `pirate-social
 - `pirate-tui/` is no longer tracked by `core`
 - the root `.gitignore` treats `pirate-tui/` as a local sidecar path
 - the workspace may still contain a nested `pirate-social-club/tui` checkout at `pirate-tui/`
-- `scripts/extract-tui-subtree.sh` remains as the historical extraction helper
 
 ## What Changed
 

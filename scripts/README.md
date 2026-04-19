@@ -1,168 +1,123 @@
 # Scripts
 
-This directory contains shared operational tooling for the core repo.
+`scripts/` holds the current human-run operational entrypoints for `core`.
 
-Top-level `scripts/` should stay limited to human-facing entrypoints. Shared helpers belong under `scripts/lib/`. Domain-specific tool groups can keep their own subdirectories, such as `scripts/lit/`.
+It is intentionally narrow:
 
-## Current Layout
+- only active mainline tooling stays here
+- top-level `scripts/` is now just folders plus this index
+- shared implementation stays in `scripts/lib/`
+- historical helpers, Lit tooling, Tableland scripts, extraction helpers, and benchmark data do not belong here
 
-- `apply-postgres-migrations.ts`
-  Applies PostgreSQL control-plane migrations from `db/control-plane/migrations`, including the fresh-database baseline snapshot for new Neon targets.
-- `inventory-control-plane.ts`
-  Runs a read-only control-plane inventory against the configured database URL and flags likely fixture contamination versus live Turso-backed state.
-- `harden-control-plane-postgres.ts`
-  Applies owner-only Neon hardening: pgAudit, runtime `schema_migrations` read grants, and FORCE RLS policies on crown-jewel tables. Requires an explicit owner-capable database URL; it does not fall back to the runtime URL. Supports `--allow-missing-pgaudit` so grants and RLS can still be applied when Neon blocks the extension.
-- `apply-sqlite-migrations.sh`
-  Applies SQLite/libSQL community-template migrations from `db/community-template/migrations`.
-- `bootstrap-community-db.sh`
-  Bootstraps a local community database from the template schema.
-- `bootstrap-community-slice.ts`
-  Provisions the control-plane records plus the local community database for a local slice.
-- `bootstrap-infisical-api-runtime.sh`
-  Writes API runtime secrets such as JWT signing material, Privy secret material, Story runtime signer private keys, and private operator bearer tokens into `/services/api` for a chosen Infisical env.
-- `provision-story-runtime-signers.ts`
-  Generates missing direct Story runtime signer private keys and stores them in Infisical `/services/api`. Use `--rotate` only when you intentionally want new signer identities and are prepared to re-fund them.
-- `turso-control-plane.ts`
-  Private operator CLI for Turso-backed community provisioning operations. Supports `provision-community`, `rotate-community-token`, and `doctor`. `doctor` verifies binding/credential invariants plus remote `schema_migrations` state. Source operator-only secrets from a separate local env file such as `scripts/.env.operator-staging`, not from the public API runtime env. Keep those local files untracked and use the checked-in `*.example` templates as the source of truth.
-- `enforce-turso-delete-protection.ts`
-  Enables Turso delete protection on existing community groups and databases in the configured org.
-- `cleanup-orphaned-turso-resources.ts`
-  Deletes orphaned Turso groups and databases after confirming they have no control-plane binding rows.
-- `turso-control-plane-operator.ts`
-  Private HTTP operator for Turso-backed community provisioning. Serves authenticated internal routes for `provision`, `rotate-token`, and `doctor` so the public API worker can provision through a private boundary without holding `TURSO_PLATFORM_API_TOKEN`.
-- `reconcile-community-provisioning-state.ts`
-  Promotes published-but-error communities back to `provisioning_state=active` when their binding and credential shape is still valid.
-- `archive-tableland-community.ts`
-  Updates published Tableland community rows to a new status such as `archived`.
-- `operator-env-run.sh`
-  Sources an operator env file, validates the required env contract for a named profile, and executes the target command. Use this instead of repeating `set -a; source ...; set +a` in runbooks.
-- `sync-wrangler-api-secrets.sh`
-  Pushes the current API runtime secret surface into the default Wrangler worker from `pirate-api/services/api/wrangler.jsonc`. Use this after sourcing a local env file or inside `rtk infisical run`.
-- `bootstrap-infinity-existing-user.sh`
-  Seeds a deterministic existing-user fixture plus a local Infinity community.
-- `seed-control-plane-fixtures.ts`
-  Seeds deterministic control-plane fixture users and namespace verification state. Refuses Neon-hosted targets unless `--allow-production` is passed explicitly.
-- `split-control-plane-roles.ts`
-  Splits control-plane access into runtime and migrator roles, with optional Infisical writes. Supports `--skip-infisical` for dry bootstrap and `--allow-missing-pgaudit` to continue when Neon blocks the extension.
-- `mint-test-jwt.mjs`
-  Mints a local test JWT for auth and onboarding flows.
-- `check-lit-config.mjs`
-  Validates Lit control-plane config and delivery manifests. The paid-song mainline no longer depends on Lit, so treat this as legacy/deferred tooling.
-- `lit/lit-sign-native-transfer.mjs`
-  Executes the `sign-native-transfer` Lit action for a signer family, broadcasts the signed native transfer, and waits for the receipt. Legacy/deferred tooling while the paid-song runtime uses direct Infisical-backed keys.
+## Layout
 
-## Story Runtime Secrets
+- `control-plane/`
+  Postgres control-plane migration, role, inventory, and reconciliation commands.
+- `community/`
+  SQLite community-template migration and local community bootstrap commands.
+- `infisical/`
+  Infisical contract/bootstrap commands, operator env wrapper, and checked env templates.
+- `story/`
+  Story-specific operator helpers.
+- `turso/`
+  Turso provisioning, operator server, and Turso maintenance commands.
+- `lib/`
+  Shared tested logic used by the entrypoints above.
 
-The active paid-song Story runtime uses direct private keys sourced from Infisical `/services/api`.
+## Mainline Commands
 
-Required runtime secrets in Infisical:
+### Control Plane
 
-- `STORY_CONTRACT_OWNER_PRIVATE_KEY`
+- `scripts/control-plane/apply-postgres-migrations.ts`
+  Apply `db/control-plane/migrations` to a Postgres target.
+- `scripts/control-plane/seed-control-plane-fixtures.ts`
+  Seed deterministic fixture users and namespace state.
+- `scripts/control-plane/split-control-plane-roles.ts`
+  Split runtime and migrator roles and optionally write the resulting URLs to Infisical.
+- `scripts/control-plane/harden-control-plane-postgres.ts`
+  Apply owner-only hardening such as pgAudit, `schema_migrations` grants, and FORCE RLS.
+- `scripts/control-plane/inventory-control-plane.ts`
+  Read-only inventory for control-plane state and likely fixture contamination.
+- `scripts/control-plane/reconcile-community-provisioning-state.ts`
+  Promote valid `provisioning_state=error` communities back to `active`.
+
+### Community
+
+- `scripts/community/apply-sqlite-migrations.sh`
+  Apply `db/community-template/migrations` to a SQLite or libSQL target.
+- `scripts/community/bootstrap-community-db.sh`
+  Bootstrap a local community DB from the community template.
+- `scripts/community/bootstrap-community-slice.ts`
+  Create the control-plane rows plus the local community DB for a local slice.
+- `scripts/community/bootstrap-infinity-existing-user.sh`
+  Seed the deterministic Infinity local scenario.
+
+### Infisical
+
+- `scripts/infisical/bootstrap-infisical.ts`
+  Write the current secret contract into Infisical.
+- `scripts/infisical/check-infisical-env.ts`
+  Validate the Infisical contract, with optional live DB checks.
+- `scripts/infisical/operator-env-run.sh`
+  Source a checked operator env file and run a command under a named profile.
+- `scripts/infisical/sync-wrangler-api-secrets.sh`
+  Push the API runtime secret surface into the worker.
+- `scripts/infisical/.env.operator-*.example`
+  Checked templates for local operator env files.
+
+### Story
+
+- `scripts/story/provision-story-runtime-signers.ts`
+  Generate missing direct Story runtime signer keys in Infisical.
+
+### Turso
+
+- `scripts/turso/turso-control-plane.ts`
+  Private Turso provisioning CLI with `provision-community`, `rotate-community-token`, and `doctor`.
+- `scripts/turso/turso-control-plane-operator.ts`
+  Private HTTP operator used by the API worker for Turso-backed community provisioning.
+- `scripts/turso/enforce-turso-delete-protection.ts`
+  Enable delete protection for current Turso groups and databases.
+- `scripts/turso/cleanup-orphaned-turso-resources.ts`
+  Delete Turso groups and databases that have no control-plane binding rows.
+
+## Current Secret Shape
+
+The active paid-song mainline uses direct private keys from Infisical `/services/api`:
+
 - `STORY_RUNTIME_PRIVATE_KEY`
 - `STORY_OPERATOR_PRIVATE_KEY`
 - `STORY_CDR_WRITER_PRIVATE_KEY`
 - `STORY_ACCESS_CONTROLLER_PRIVATE_KEY`
 - `MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY`
 
-The owner key stays out of the public API worker config and is only provided locally through `scripts/.env.operator-dev` when you need owner-only actions such as entitlement class configuration or signer authorization repair.
+`STORY_CONTRACT_OWNER_PRIVATE_KEY` stays local and operator-only. The usual local file is
+`scripts/.env.operator-dev`, which remains untracked on purpose.
 
-The direct runtime signer keys are loaded into the API worker from `/services/api` and are the single supported mainline for paid-song publish, settlement, and buyer access proof signing. For early dev/staging, you can set only `STORY_RUNTIME_PRIVATE_KEY` and let the role-specific keys stay unset. When you want role separation later, populate the specific keys and they will override the shared runtime key.
+## Examples
 
-Bootstrap missing direct Story runtime signers in `dev`:
-
-```bash
-rtk bun scripts/provision-story-runtime-signers.ts --env dev
-```
-
-## Paid-Song Dev E2E Prerequisites
-
-For the simplified direct-key `dev` mainline, the minimum practical setup is:
-
-- `scripts/.env.operator-dev` contains `STORY_CONTRACT_OWNER_PRIVATE_KEY`
-- `dev:/services/api` in Infisical contains `STORY_RUNTIME_PRIVATE_KEY`
-- song analysis provider secrets are present in `dev:/services/api`:
-  - `OPENROUTER_API_KEY`
-  - `ACRCLOUD_ACCESS_KEY`
-  - `ACRCLOUD_ACCESS_SECRET`
-  - `ACRCLOUD_HOST`
-  - `ELEVENLABS_API_KEY`
-
-Minimum Aeneid funding to run the paid flow comfortably:
-
-- shared runtime wallet: at least `0.12 IP`
-- buyer wallet used by the live script: at least `0.03 IP` or let the script top it up from the runtime wallet
-
-The paid-song live script assumes the API is started with both:
-
-- the local owner key from `scripts/.env.operator-dev`
-- the runtime secrets from Infisical `/services/api`
-
-## Subdirectories
-
-- `lib/`
-  Shared helpers used by the top-level scripts.
-- `lit/`
-  Lit-specific operational scripts and its own README.
-- `vendor/`
-  Vendored third-party source. Keep this isolated from normal entrypoints.
-
-## Hygiene Rules
-
-- Do not add benchmark data, one-off notes, or historical artifacts to the top level unless they are active runtime inputs.
-- If a script is documented as runnable, keep the file present and verified.
-- If a command is only planned, document it as planned in `docs/`, not as an existing script.
-- VPS-run verifier code now lives under `services/verifier/`. Keep service-specific native sources, vendored crates, and helper entrypoints there instead of adding them back to top-level `scripts/`.
-
-## Operator Launch Example
-
-Start the private Turso provision operator with the checked operator env template:
+Start the private Turso operator:
 
 ```bash
-rtk ./scripts/operator-env-run.sh --env-file scripts/.env.operator-staging --profile turso-operator-server -- \
-  rtk bun scripts/turso-control-plane-operator.ts
+rtk ./scripts/infisical/operator-env-run.sh --env-file scripts/.env.operator-staging --profile turso-operator-server -- \
+  rtk bun scripts/turso/turso-control-plane-operator.ts
 ```
 
-Start the local API with the operator-only Story owner key plus `/services/api` runtime secrets:
+Validate non-prod Infisical:
 
 ```bash
-rtk ./scripts/operator-env-run.sh --env-file scripts/.env.operator-dev --profile story-delivery-owner -- \
-  rtk infisical run --env=dev --path=/services/api -- \
-  rtk bun run dev:local
+rtk bun scripts/infisical/check-infisical-env.ts --env staging --connect
 ```
 
-Run the live paid-song CDR e2e with the same local owner key available for owner-only Story actions. If you also set `STORY_RUNTIME_FUNDER_PRIVATE_KEY` in `scripts/.env.operator-dev`, the funding script can top up runtime signers from that separate wallet:
+Bootstrap missing Story signer keys:
 
 ```bash
-rtk ./scripts/operator-env-run.sh --env-file scripts/.env.operator-dev --profile story-delivery-owner -- \
-  rtk infisical run --env=dev --path=/services/api -- \
-  rtk bun run --cwd pirate-web scripts/live-paid-song-e2e.ts
+rtk bun scripts/story/provision-story-runtime-signers.ts --env dev
 ```
 
-Top up only the CDR writer signer to a specific target balance from the local runtime funder or owner wallet:
-
-```bash
-rtk ./scripts/operator-env-run.sh --env-file scripts/.env.operator-dev --profile story-delivery-owner -- \
-  rtk bun run --cwd pirate-api/services/api fund:story-runtime-signers -- \
-  --signer=story-cdr-writer \
-  --target-balance-wei=80000000000000000
-```
-
-Resume a previously-mined Story CDR read without paying the read fee again by reusing the same deterministic requester key and `fromBlock`:
-
-```bash
-rtk ./scripts/operator-env-run.sh --env-file scripts/.env.operator-dev --profile story-delivery-owner -- \
-  rtk infisical run --env=dev --path=/services/api -- \
-  rtk bun pirate-web/scripts/story-cdr-direct-read-check.ts \
-  --vault-uuid=656 \
-  --ciphertext-object-key=locked-assets/.../payload.bin \
-  --buyer-private-key=0x... \
-  --collect-only=true \
-  --from-block=1234567
-```
-
-Sync the remote API worker secrets from Infisical:
+Sync worker secrets from Infisical:
 
 ```bash
 rtk infisical run --env staging --path /services/api -- \
-  rtk ./scripts/sync-wrangler-api-secrets.sh
+  rtk ./scripts/infisical/sync-wrangler-api-secrets.sh
 ```

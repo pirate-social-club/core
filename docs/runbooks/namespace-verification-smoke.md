@@ -288,7 +288,7 @@ Staging is proven end-to-end. Production rollout requires:
 
 ### 1. Control-plane schema
 
-Run `scripts/apply-sqlite-migrations.sh` against the production control plane DB. The tables `community_db_credentials` and `audit_log` are defined in migrations `0002` and `0004` and must exist before deploying.
+Run `scripts/community/apply-sqlite-migrations.sh` against the production control plane DB. The tables `community_db_credentials` and `audit_log` are defined in migrations `0002` and `0004` and must exist before deploying.
 
 ### 2. Operator idempotency
 

@@ -22,10 +22,10 @@ Bring up one operator-managed Infinity community on staging with:
 ## What Already Exists
 
 - Turso Platform client primitives in [scripts/lib/turso-platform.ts](../../scripts/lib/turso-platform.ts)
-- operator provisioning command in [scripts/turso-control-plane.ts](../../scripts/turso-control-plane.ts)
+- operator provisioning command in [scripts/turso/turso-control-plane.ts](../../scripts/turso/turso-control-plane.ts)
 - operator provisioning implementation in [scripts/lib/turso-control-plane.ts](../../scripts/lib/turso-control-plane.ts)
-- operator HTTP surface in [scripts/turso-control-plane-operator.ts](../../scripts/turso-control-plane-operator.ts)
-- operator validation command in [scripts/turso-control-plane.ts](../../scripts/turso-control-plane.ts)
+- operator HTTP surface in [scripts/turso/turso-control-plane-operator.ts](../../scripts/turso/turso-control-plane-operator.ts)
+- operator validation command in [scripts/turso/turso-control-plane.ts](../../scripts/turso/turso-control-plane.ts)
 - runtime remote community DB read path in [community-db-factory.ts](../../pirate-api/services/api/src/lib/communities/community-db-factory.ts)
 - credential encryption in [community-db-credential-crypto.ts](../../pirate-api/services/api/src/lib/communities/community-db-credential-crypto.ts)
 - control-plane tables for `community_database_bindings` and `community_db_credentials`
@@ -43,8 +43,8 @@ Use stable identifiers:
 You also need:
 
 - API staging runtime env in [pirate-api/services/api/.env.staging.example](../../pirate-api/services/api/.env.staging.example)
-- operator staging env in [scripts/.env.operator-staging.example](../../scripts/.env.operator-staging.example)
-- operator env wrapper in [scripts/operator-env-run.sh](../../scripts/operator-env-run.sh)
+- operator staging env in [scripts/infisical/.env.operator-staging.example](../../scripts/infisical/.env.operator-staging.example)
+- operator env wrapper in [scripts/infisical/operator-env-run.sh](../../scripts/infisical/operator-env-run.sh)
 - a Turso organization slug
 - a Turso group location
 - working staging web/API env files
@@ -99,9 +99,7 @@ set -a
 source pirate-api/services/api/.env.staging
 source scripts/.env.operator-staging
 set +a
-INFISICAL_ENV=staging rtk ./scripts/bootstrap-infisical-control-plane.sh
-INFISICAL_ENV=staging rtk ./scripts/bootstrap-infisical-turso.sh
-INFISICAL_ENV=staging rtk ./scripts/bootstrap-infisical-api-runtime.sh
+INFISICAL_ENV=staging rtk bun scripts/infisical/bootstrap-infisical.ts --env staging
 ```
 
 Sync the current API runtime secret surface into the single remote Cloudflare worker:
@@ -109,7 +107,7 @@ Sync the current API runtime secret surface into the single remote Cloudflare wo
 ```bash
 cd /home/t42/Documents/pirate-v2
 rtk infisical run --env staging --path /services/api -- \
-  rtk ./scripts/sync-wrangler-api-secrets.sh
+  rtk ./scripts/infisical/sync-wrangler-api-secrets.sh
 ```
 
 ### 3. Seed or confirm the Infinity actor and namespace state in Neon
@@ -125,8 +123,8 @@ Use the existing control-plane fixture tooling where possible. Do not use local 
 Recommended command shape:
 
 ```bash
-rtk ./scripts/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile control-plane-seed -- \
-  rtk bun scripts/seed-control-plane-fixtures.ts \
+rtk ./scripts/infisical/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile control-plane-seed -- \
+  rtk bun scripts/control-plane/seed-control-plane-fixtures.ts \
     --database-url-env CONTROL_PLANE_DATABASE_URL \
     --user-id "$PIRATE_CREATOR_USER_ID" \
     --subject infinity-subject-01 \
@@ -141,8 +139,8 @@ rtk ./scripts/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profi
 Preferred path:
 
 ```bash
-rtk ./scripts/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile turso-provision -- \
-  rtk bun scripts/turso-control-plane.ts provision-community \
+rtk ./scripts/infisical/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile turso-provision -- \
+  rtk bun scripts/turso/turso-control-plane.ts provision-community \
     --community-id "$PIRATE_COMMUNITY_ID" \
     --creator-user-id "$PIRATE_CREATOR_USER_ID" \
     --display-name "$PIRATE_DISPLAY_NAME" \
@@ -172,8 +170,8 @@ What it already does:
 Immediately validate the binding:
 
 ```bash
-rtk ./scripts/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile turso-doctor -- \
-  rtk bun scripts/turso-control-plane.ts doctor \
+rtk ./scripts/infisical/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile turso-doctor -- \
+  rtk bun scripts/turso/turso-control-plane.ts doctor \
     --community-id "$PIRATE_COMMUNITY_ID"
 ```
 
@@ -246,13 +244,13 @@ Use [Infinity Staging Validation](./infinity-staging-validation.md).
 This confirms that staging survives a real credential change, not just first-time bring-up.
 
 ```bash
-rtk ./scripts/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile turso-rotate -- \
-  rtk bun scripts/turso-control-plane.ts rotate-community-token \
+rtk ./scripts/infisical/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile turso-rotate -- \
+  rtk bun scripts/turso/turso-control-plane.ts rotate-community-token \
     --community-id "$PIRATE_COMMUNITY_ID" \
     --reason staging_validation
 
-rtk ./scripts/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile turso-doctor -- \
-  rtk bun scripts/turso-control-plane.ts doctor \
+rtk ./scripts/infisical/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile turso-doctor -- \
+  rtk bun scripts/turso/turso-control-plane.ts doctor \
     --community-id "$PIRATE_COMMUNITY_ID"
 ```
 

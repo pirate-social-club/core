@@ -41,7 +41,7 @@ This goal does not require Tableland publication yet.
 - Neon-shaped control-plane runtime contract in the API
 - runtime read path for remote Turso community databases through `community_database_bindings` and `community_db_credentials`
 - Turso Platform client primitives in [scripts/lib/turso-platform.ts](../../scripts/lib/turso-platform.ts)
-- checked-in operator provisioning command in [scripts/turso-control-plane.ts](../../scripts/turso-control-plane.ts)
+- checked-in operator provisioning command in [scripts/turso/turso-control-plane.ts](../../scripts/turso/turso-control-plane.ts)
 
 ## What Is Not Wired Yet
 

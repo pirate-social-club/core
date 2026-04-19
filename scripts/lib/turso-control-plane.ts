@@ -696,6 +696,7 @@ export async function provisionCommunity(
           community_id,
           creator_user_id,
           display_name,
+          membership_mode,
           status,
           provisioning_state,
           transfer_state,
@@ -708,6 +709,7 @@ export async function provisionCommunity(
           ${communityId},
           ${creatorUserId},
           ${displayName},
+          ${input.membershipMode ?? "open"},
           'active',
           'provisioning',
           'none',
@@ -720,6 +722,7 @@ export async function provisionCommunity(
         ON CONFLICT (community_id) DO UPDATE SET
           creator_user_id = EXCLUDED.creator_user_id,
           display_name = EXCLUDED.display_name,
+          membership_mode = EXCLUDED.membership_mode,
           status = EXCLUDED.status,
           provisioning_state = EXCLUDED.provisioning_state,
           transfer_state = EXCLUDED.transfer_state,

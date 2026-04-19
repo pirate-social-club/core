@@ -9,7 +9,7 @@ The purpose is to prove one operational Infinity community on staging before tak
 - staging API is running against Neon
 - Infinity has an active Turso community DB binding
 - Infinity remote community DB has been migrated and bootstrapped
-- `rtk bun scripts/turso-control-plane.ts doctor --community-id cmt_infinity_01` returns `findings: 0`
+- `rtk bun scripts/turso/turso-control-plane.ts doctor --community-id cmt_infinity_01` returns `findings: 0`
 - staging web points at the staging API
 - Very credentials are configured in staging
 
@@ -64,7 +64,7 @@ Check:
 - `community_database_bindings.database_url` points at the real Turso DB
 - one active `community_db_credentials` row exists
 - encrypted token decrypts with the current `TURSO_COMMUNITY_DB_WRAP_KEY`
-- `rtk bun scripts/turso-control-plane.ts doctor --community-id cmt_infinity_01` reports no binding or schema findings
+- `rtk bun scripts/turso/turso-control-plane.ts doctor --community-id cmt_infinity_01` reports no binding or schema findings
 
 ### join still blocks after Very
 
