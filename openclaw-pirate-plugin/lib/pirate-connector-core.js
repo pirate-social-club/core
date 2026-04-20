@@ -5,14 +5,92 @@ import { dirname, join } from "node:path";
 export const DEFAULT_DISPLAY_NAME = "OpenClaw Agent";
 const CONNECTION_STORE_VERSION = 1;
 const POLLABLE_TERMINAL_STATUSES = new Set(["verified", "failed", "expired", "cancelled"]);
+const VALID_CONNECTION_STATUSES = new Set(["pending", "awaiting_owner", "verified", "failed", "expired", "cancelled"]);
+const COMMUNITY_ID_PATTERN = /\b(cmt_[a-zA-Z0-9]+)\b/;
+const COMMUNITY_ROUTE_PATTERN = /\/c\/([^/\s)]+)/i;
 
 export function normalizeApiBaseUrl(value) {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new Error("Pirate API base URL is required");
   }
 
-  const normalized = new URL(value.trim()).toString();
+  const parsed = new URL(value.trim());
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("Pirate API base URL must use http or https");
+  }
+
+  const normalized = parsed.toString();
   return normalized.endsWith("/") ? normalized.slice(0, -1) : normalized;
+}
+
+export function normalizePirateCommunityIdentifier(value) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error("Pirate community identifier is required");
+  }
+
+  const trimmed = value.trim();
+  const cmtMatch = trimmed.match(COMMUNITY_ID_PATTERN);
+  if (cmtMatch) {
+    return cmtMatch[1];
+  }
+
+  const routeMatch = trimmed.match(COMMUNITY_ROUTE_PATTERN);
+  if (routeMatch?.[1]) {
+    return routeMatch[1].trim();
+  }
+
+  try {
+    const url = new URL(trimmed);
+    const urlRouteMatch = url.pathname.match(/^\/c\/([^/]+)/i);
+    if (urlRouteMatch?.[1]) {
+      return urlRouteMatch[1].trim();
+    }
+  } catch {
+    // Fall through to raw slug normalization.
+  }
+
+  return trimmed.replace(/^\/+/, "").replace(/^c\//i, "").trim();
+}
+
+function classifyPirateCommunityIdentifier(value) {
+  const trimmed = String(value ?? "").trim();
+  if (COMMUNITY_ID_PATTERN.test(trimmed)) {
+    return "id";
+  }
+  if (COMMUNITY_ROUTE_PATTERN.test(trimmed)) {
+    return "route";
+  }
+  try {
+    const url = new URL(trimmed);
+    if (/^\/c\/([^/]+)/i.test(url.pathname)) {
+      return "route";
+    }
+  } catch {
+    // Ignore parse errors and fall through.
+  }
+  return "name";
+}
+
+function requireEd25519PrivateKey(privateKeyPem) {
+  const key = createPrivateKey(privateKeyPem);
+  if (key.asymmetricKeyType !== "ed25519") {
+    throw new Error("Only Ed25519 identities are supported");
+  }
+  return key;
+}
+
+function requireObjectResponse(payload, message) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error(message);
+  }
+  return payload;
+}
+
+function requireStringField(payload, key, message) {
+  if (typeof payload[key] !== "string" || payload[key].trim().length === 0) {
+    throw new Error(message);
+  }
+  return payload[key];
 }
 
 export function buildClawkeyChallenge(identity, input = {}) {
@@ -30,7 +108,7 @@ export function buildClawkeyChallenge(identity, input = {}) {
     ? input.message
     : `clawkey-register-${timestamp}`;
   const publicKeyDer = createPublicKey(identity.publicKeyPem).export({ type: "spki", format: "der" });
-  const signatureBytes = sign(null, Buffer.from(message, "utf8"), createPrivateKey(identity.privateKeyPem));
+  const signatureBytes = sign(null, Buffer.from(message, "utf8"), requireEd25519PrivateKey(identity.privateKeyPem));
 
   return {
     device_id: identity.deviceId,
@@ -69,6 +147,10 @@ export async function callPirateJson(input) {
     body: input.body ? JSON.stringify(input.body) : undefined,
   });
 
+  if (response.status === 204 || response.status === 205) {
+    return null;
+  }
+
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const message = typeof payload?.message === "string"
@@ -86,7 +168,7 @@ export async function callPirateJson(input) {
 
 export async function claimPiratePairing(input) {
   const apiBaseUrl = normalizeApiBaseUrl(input.apiBaseUrl);
-  const response = await callPirateJson({
+  const response = requireObjectResponse(await callPirateJson({
     fetchImpl: input.fetchImpl,
     method: "POST",
     url: `${apiBaseUrl}/agent-ownership-pairing/claim`,
@@ -95,13 +177,13 @@ export async function claimPiratePairing(input) {
       display_name: input.displayName ?? DEFAULT_DISPLAY_NAME,
       agent_challenge: input.agentChallenge,
     },
-  });
+  }), "Pirate pairing claim response was not valid JSON");
 
   return {
     apiBaseUrl,
-    agentOwnershipSessionId: String(response.agent_ownership_session_id),
-    registrationUrl: String(response.registration_url),
-    connectionToken: String(response.connection_token),
+    agentOwnershipSessionId: requireStringField(response, "agent_ownership_session_id", "Pirate pairing claim response is missing agent_ownership_session_id"),
+    registrationUrl: requireStringField(response, "registration_url", "Pirate pairing claim response is missing registration_url"),
+    connectionToken: requireStringField(response, "connection_token", "Pirate pairing claim response is missing connection_token"),
   };
 }
 
@@ -120,7 +202,7 @@ export async function completePirateOwnershipSession(input) {
 
 export async function issuePirateDelegatedCredential(input) {
   const apiBaseUrl = normalizeApiBaseUrl(input.apiBaseUrl);
-  const response = await callPirateJson({
+  const response = requireObjectResponse(await callPirateJson({
     fetchImpl: input.fetchImpl,
     method: "POST",
     url: `${apiBaseUrl}/agents/${encodeURIComponent(input.agentId)}/credential`,
@@ -128,22 +210,22 @@ export async function issuePirateDelegatedCredential(input) {
     body: {
       current_ownership_record_id: input.currentOwnershipRecordId ?? undefined,
     },
-  });
+  }), "Pirate credential response was not valid JSON");
 
   return {
     apiBaseUrl,
-    agentId: String(response.agent_id),
-    currentOwnershipRecordId: String(response.current_ownership_record_id),
-    accessToken: String(response.access_token),
-    refreshToken: String(response.refresh_token),
-    expiresAt: String(response.expires_at),
+    agentId: requireStringField(response, "agent_id", "Pirate credential response is missing agent_id"),
+    currentOwnershipRecordId: requireStringField(response, "current_ownership_record_id", "Pirate credential response is missing current_ownership_record_id"),
+    accessToken: requireStringField(response, "access_token", "Pirate credential response is missing access_token"),
+    refreshToken: requireStringField(response, "refresh_token", "Pirate credential response is missing refresh_token"),
+    expiresAt: requireStringField(response, "expires_at", "Pirate credential response is missing expires_at"),
     refreshExpiresAt: response.refresh_expires_at == null ? null : String(response.refresh_expires_at),
   };
 }
 
 export async function refreshPirateDelegatedCredential(input) {
   const apiBaseUrl = normalizeApiBaseUrl(input.apiBaseUrl);
-  const response = await callPirateJson({
+  const response = requireObjectResponse(await callPirateJson({
     fetchImpl: input.fetchImpl,
     method: "POST",
     url: `${apiBaseUrl}/agents/${encodeURIComponent(input.agentId)}/credential/refresh`,
@@ -151,17 +233,118 @@ export async function refreshPirateDelegatedCredential(input) {
     body: {
       refresh_token: input.refreshToken,
     },
-  });
+  }), "Pirate credential refresh response was not valid JSON");
 
   return {
     apiBaseUrl,
-    agentId: String(response.agent_id),
-    currentOwnershipRecordId: String(response.current_ownership_record_id),
-    accessToken: String(response.access_token),
-    refreshToken: String(response.refresh_token),
-    expiresAt: String(response.expires_at),
+    agentId: requireStringField(response, "agent_id", "Pirate credential refresh response is missing agent_id"),
+    currentOwnershipRecordId: requireStringField(response, "current_ownership_record_id", "Pirate credential refresh response is missing current_ownership_record_id"),
+    accessToken: requireStringField(response, "access_token", "Pirate credential refresh response is missing access_token"),
+    refreshToken: requireStringField(response, "refresh_token", "Pirate credential refresh response is missing refresh_token"),
+    expiresAt: requireStringField(response, "expires_at", "Pirate credential refresh response is missing expires_at"),
     refreshExpiresAt: response.refresh_expires_at == null ? null : String(response.refresh_expires_at),
   };
+}
+
+export async function findPirateCommunities(input) {
+  const apiBaseUrl = normalizeApiBaseUrl(input.apiBaseUrl);
+  const url = new URL(`${apiBaseUrl}/public-communities`);
+  if (typeof input.query === "string" && input.query.trim()) {
+    url.searchParams.set("query", input.query.trim());
+  }
+  if (Number.isFinite(input.limit) && input.limit > 0) {
+    url.searchParams.set("limit", String(Math.trunc(input.limit)));
+  }
+
+  const response = requireObjectResponse(await callPirateJson({
+    fetchImpl: input.fetchImpl,
+    method: "GET",
+    url: url.toString(),
+  }), "Pirate community search response was not valid JSON");
+
+  return {
+    apiBaseUrl,
+    query: typeof response.query === "string" ? response.query : null,
+    communities: Array.isArray(response.communities)
+      ? response.communities.map((community) => ({
+        communityId: String(community.community_id),
+        displayName: String(community.display_name),
+        routeSlug: typeof community.route_slug === "string" ? community.route_slug : null,
+      }))
+      : [],
+  };
+}
+
+function normalizeLookupText(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+export async function resolvePirateCommunityId(input) {
+  const identifierKind = classifyPirateCommunityIdentifier(input.communityIdentifier);
+  const normalized = normalizePirateCommunityIdentifier(input.communityIdentifier);
+  if (normalized.startsWith("cmt_")) {
+    return {
+      apiBaseUrl: normalizeApiBaseUrl(input.apiBaseUrl),
+      communityId: normalized,
+      matchedBy: "id",
+      communities: [],
+    };
+  }
+
+  const search = await findPirateCommunities({
+    fetchImpl: input.fetchImpl,
+    apiBaseUrl: input.apiBaseUrl,
+    query: normalized,
+    limit: 10,
+  });
+
+  const normalizedNeedle = normalizeLookupText(normalized);
+  const exactRoute = search.communities.find((community) => normalizeLookupText(community.routeSlug) === normalizedNeedle);
+  if (exactRoute) {
+    return {
+      apiBaseUrl: search.apiBaseUrl,
+      communityId: exactRoute.communityId,
+      matchedBy: "route_slug",
+      communities: search.communities,
+    };
+  }
+
+  if (identifierKind !== "route") {
+    const exactDisplayNameMatches = search.communities.filter((community) =>
+      normalizeLookupText(community.displayName) === normalizedNeedle
+    );
+    if (exactDisplayNameMatches.length === 1) {
+      return {
+        apiBaseUrl: search.apiBaseUrl,
+        communityId: exactDisplayNameMatches[0].communityId,
+        matchedBy: "display_name",
+        communities: search.communities,
+      };
+    }
+  }
+
+  if (identifierKind === "name" && search.communities.length === 1) {
+    return {
+      apiBaseUrl: search.apiBaseUrl,
+      communityId: search.communities[0].communityId,
+      matchedBy: "single_result",
+      communities: search.communities,
+    };
+  }
+
+  if (search.communities.length === 0) {
+    throw new Error(`No Pirate community matched "${input.communityIdentifier}"`);
+  }
+
+  if (identifierKind === "route") {
+    throw new Error(
+      `No verified Pirate route matched "${input.communityIdentifier}". Use the cmt_ community id until the community has a real /c/ slug.`,
+    );
+  }
+
+  throw new Error(
+    `Multiple Pirate communities matched "${input.communityIdentifier}". Be more specific or use a cmt_ community id.`,
+  );
 }
 
 export function isTerminalOwnershipStatus(status) {
@@ -213,12 +396,20 @@ function normalizePath(pathname) {
 }
 
 function sortJsonValue(value) {
+  return sortJsonValueWithSeen(value, new WeakSet());
+}
+
+function sortJsonValueWithSeen(value, seen) {
   if (Array.isArray(value)) {
-    return value.map((item) => sortJsonValue(item));
+    return value.map((item) => sortJsonValueWithSeen(item, seen));
   }
   if (value && typeof value === "object") {
+    if (seen.has(value)) {
+      throw new Error("Pirate action proof body cannot contain circular references");
+    }
+    seen.add(value);
     const entries = Object.entries(value).sort(([left], [right]) => compareUtf8Ascending(left, right));
-    return Object.fromEntries(entries.map(([key, child]) => [key, sortJsonValue(child)]));
+    return Object.fromEntries(entries.map(([key, child]) => [key, sortJsonValueWithSeen(child, seen)]));
   }
   return value;
 }
@@ -279,7 +470,7 @@ export function signPirateActionProof(identity, input) {
     signedAt,
     canonicalRequestHash,
   });
-  const signature = sign(null, Buffer.from(payload, "utf8"), createPrivateKey(identity.privateKeyPem)).toString("base64");
+  const signature = sign(null, Buffer.from(payload, "utf8"), requireEd25519PrivateKey(identity.privateKeyPem)).toString("base64");
 
   return {
     nonce,
@@ -319,7 +510,7 @@ export async function loadConnectionStore(stateFile) {
 export async function saveConnectionStore(stateFile, store) {
   await mkdir(dirname(stateFile), { recursive: true });
   const tempFile = `${stateFile}.tmp`;
-  await writeFile(tempFile, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+  await writeFile(tempFile, `${JSON.stringify(store, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
   await rename(tempFile, stateFile);
 }
 
@@ -337,7 +528,9 @@ export function upsertConnectionEntry(store, input) {
     connection_token: input.connectionToken,
     pairing_code: input.pairingCode,
     registration_url: input.registrationUrl,
-    status: input.status ?? existing.status ?? "awaiting_owner",
+    status: VALID_CONNECTION_STATUSES.has(input.status)
+      ? input.status
+      : (VALID_CONNECTION_STATUSES.has(existing.status) ? existing.status : "awaiting_owner"),
     agent_id: input.agentId ?? existing.agent_id ?? null,
     current_ownership_record_id: input.currentOwnershipRecordId ?? existing.current_ownership_record_id ?? null,
     credential_access_token: input.credentialAccessToken ?? existing.credential_access_token ?? null,

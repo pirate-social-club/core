@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { generateKeyPairSync, verify } from "node:crypto";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -10,10 +10,13 @@ import {
   callPirateJson,
   canonicalizePirateActionSignaturePayload,
   computePirateActionRequestHash,
+  findPirateCommunities,
   issuePirateDelegatedCredential,
   loadConnectionStore,
+  normalizePirateCommunityIdentifier,
   normalizeApiBaseUrl,
   refreshPirateDelegatedCredential,
+  resolvePirateCommunityId,
   resolvePluginStateFile,
   saveConnectionStore,
   sha256Hex,
@@ -24,6 +27,21 @@ import {
 
 test("normalizeApiBaseUrl trims trailing slash", () => {
   assert.equal(normalizeApiBaseUrl("http://127.0.0.1:8787/"), "http://127.0.0.1:8787");
+});
+
+test("normalizeApiBaseUrl rejects unsupported schemes", () => {
+  assert.throws(() => normalizeApiBaseUrl("ftp://pirate.test"), /must use http or https/);
+});
+
+test("normalizePirateCommunityIdentifier accepts ids, slugs, routes, and URLs", () => {
+  assert.equal(normalizePirateCommunityIdentifier("cmt_123"), "cmt_123");
+  assert.equal(normalizePirateCommunityIdentifier("/c/infinity"), "infinity");
+  assert.equal(normalizePirateCommunityIdentifier("infinity"), "infinity");
+  assert.equal(normalizePirateCommunityIdentifier("https://pirate.test/c/infinity"), "infinity");
+  assert.equal(
+    normalizePirateCommunityIdentifier("the /c/infinity Pirate subreddit (cmt_7ad4fad6214240c486fb320c0b8c247e)"),
+    "cmt_7ad4fad6214240c486fb320c0b8c247e",
+  );
 });
 
 test("buildClawkeyChallenge signs the exact UTF-8 message", () => {
@@ -64,6 +82,19 @@ test("callPirateJson sends JSON and connection token header", async () => {
   assert.equal(seen.init.body, JSON.stringify({ hello: "world" }));
 });
 
+test("callPirateJson allows 204 no-content responses", async () => {
+  const payload = await callPirateJson({
+    fetchImpl: async () => new Response(null, {
+      status: 204,
+      headers: { "content-type": "application/json" },
+    }),
+    method: "POST",
+    url: "https://pirate.test/no-content",
+  });
+
+  assert.equal(payload, null);
+});
+
 test("delegated credential helpers send the connection token header", async () => {
   const seen = [];
   const fetchImpl = async (url, init) => {
@@ -100,6 +131,80 @@ test("delegated credential helpers send the connection token header", async () =
   assert.equal(seen[1].init.headers["x-agent-connection-token"], "agpair_123");
 });
 
+test("findPirateCommunities returns lightweight community search results", async () => {
+  const results = await findPirateCommunities({
+    fetchImpl: async (url) => {
+      assert.match(String(url), /\/public-communities\?query=infinity&limit=5$/);
+      return new Response(JSON.stringify({
+        query: "infinity",
+        communities: [
+          {
+            community_id: "cmt_123",
+            display_name: "Infinity",
+            route_slug: null,
+          },
+        ],
+      }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    },
+    apiBaseUrl: "http://127.0.0.1:8787",
+    query: "infinity",
+    limit: 5,
+  });
+
+  assert.equal(results.communities[0]?.communityId, "cmt_123");
+  assert.equal(results.communities[0]?.displayName, "Infinity");
+  assert.equal(results.communities[0]?.routeSlug, null);
+});
+
+test("resolvePirateCommunityId requires a real route match for route-like input", async () => {
+  await assert.rejects(
+    () => resolvePirateCommunityId({
+      fetchImpl: async () => new Response(JSON.stringify({
+        query: "infinity",
+        communities: [
+          {
+            community_id: "cmt_7ad4fad6214240c486fb320c0b8c247e",
+            display_name: "Infinity",
+            route_slug: null,
+          },
+        ],
+      }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+      apiBaseUrl: "http://127.0.0.1:8787",
+      communityIdentifier: "/c/infinity",
+    }),
+    /No verified Pirate route matched/,
+  );
+});
+
+test("resolvePirateCommunityId can use a unique exact display-name match for plain names", async () => {
+  const resolved = await resolvePirateCommunityId({
+    fetchImpl: async () => new Response(JSON.stringify({
+      query: "infinity",
+      communities: [
+        {
+          community_id: "cmt_7ad4fad6214240c486fb320c0b8c247e",
+          display_name: "Infinity",
+          route_slug: null,
+        },
+      ],
+    }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }),
+    apiBaseUrl: "http://127.0.0.1:8787",
+    communityIdentifier: "Infinity",
+  });
+
+  assert.equal(resolved.communityId, "cmt_7ad4fad6214240c486fb320c0b8c247e");
+  assert.equal(resolved.matchedBy, "display_name");
+});
+
 test("connection store persists current entry", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "pirate-openclaw-plugin-"));
   const stateFile = resolvePluginStateFile(stateDir, "@pirate/openclaw-pirate-connector");
@@ -123,6 +228,8 @@ test("connection store persists current entry", async () => {
   assert.equal(loaded.entries.default.connection_token, "agpair_123");
   const raw = JSON.parse(await readFile(stateFile, "utf8"));
   assert.equal(raw.entries.default.scope_key, "default");
+  const stats = await stat(stateFile);
+  assert.equal(stats.mode & 0o777, 0o600);
 });
 
 test("signPirateActionProof matches the expected canonical hash and signature payload", () => {

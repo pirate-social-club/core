@@ -8,8 +8,11 @@ import {
   buildConnectionScopeKey,
   callPirateJson,
   claimPiratePairing,
+  findPirateCommunities,
   issuePirateDelegatedCredential,
   refreshPirateDelegatedCredential,
+  normalizePirateCommunityIdentifier,
+  resolvePirateCommunityId,
   signPirateActionProof,
   completePirateOwnershipSession,
   DEFAULT_DISPLAY_NAME,
@@ -73,6 +76,8 @@ class ToolInputError extends Error {
   }
 }
 
+const VALID_PIRATE_CONNECTION_STATUSES = new Set(["pending", "awaiting_owner", "verified", "failed", "expired", "cancelled"]);
+
 function textResult(text, details) {
   return {
     content: [
@@ -119,6 +124,26 @@ function resolveApiBaseUrl(rawParams, pluginConfig) {
   return normalizeApiBaseUrl(value);
 }
 
+function resolveStoredOrConfiguredApiBaseUrl(rawParams, pluginConfig, current) {
+  if (readStringParam(rawParams, "api_base_url")) {
+    return resolveApiBaseUrl(rawParams, pluginConfig);
+  }
+
+  const candidate = current?.api_base_url ?? pluginConfig?.pirateApiBaseUrl;
+  if (typeof candidate !== "string" || candidate.trim().length === 0) {
+    throw new ToolInputError("No Pirate API URL configured. Provide api_base_url or set pirateApiBaseUrl in plugin config.");
+  }
+
+  return normalizeApiBaseUrl(candidate);
+}
+
+function resolveValidatedPirateStatus(status, fallbackStatus) {
+  if (typeof status === "string" && VALID_PIRATE_CONNECTION_STATUSES.has(status)) {
+    return status;
+  }
+  return fallbackStatus;
+}
+
 async function loadIdentityFromStateDir(api) {
   const stateDir = api.runtime.state.resolveStateDir();
   const identityPath = join(stateDir, "identity", "device.json");
@@ -145,6 +170,15 @@ function getStateFile(api) {
 
 function readOptionalTrimmedString(rawParams, key) {
   return readStringParam(rawParams, key, { required: false });
+}
+
+function resolveCommunityIdentifier(rawParams) {
+  const candidate = readOptionalTrimmedString(rawParams, "community_id")
+    ?? readOptionalTrimmedString(rawParams, "community");
+  if (!candidate) {
+    throw new ToolInputError("Community required");
+  }
+  return candidate;
 }
 
 async function saveUpdatedConnection(api, store, current, updates = {}) {
@@ -180,9 +214,7 @@ async function ensureVerifiedPirateConnection(api, toolContext, rawParams) {
     throw new ToolInputError("Pirate connection is not verified yet. Run the connection check after completing ClawKey verification.");
   }
 
-  const apiBaseUrl = readStringParam(rawParams, "api_base_url")
-    ? resolveApiBaseUrl(rawParams, api.pluginConfig)
-    : normalizeApiBaseUrl(current.api_base_url ?? api.pluginConfig?.pirateApiBaseUrl);
+  const apiBaseUrl = resolveStoredOrConfiguredApiBaseUrl(rawParams, api.pluginConfig, current);
 
   return { store, current, apiBaseUrl };
 }
@@ -346,15 +378,14 @@ function createCheckPirateConnectionTool(api, toolContext) {
         throw new ToolInputError("No pending Pirate connection found. Ask Pirate for a pairing code first.");
       }
 
-      const apiBaseUrl = readStringParam(rawParams, "api_base_url")
-        ? resolveApiBaseUrl(rawParams, api.pluginConfig)
-        : normalizeApiBaseUrl(current.api_base_url ?? api.pluginConfig?.pirateApiBaseUrl);
+      const apiBaseUrl = resolveStoredOrConfiguredApiBaseUrl(rawParams, api.pluginConfig, current);
       const session = await completePirateOwnershipSession({
         fetchImpl: fetch,
         apiBaseUrl,
         agentOwnershipSessionId: current.agent_ownership_session_id,
         connectionToken: current.connection_token,
       });
+      const nextStatus = resolveValidatedPirateStatus(session?.status, current.status);
 
       const updatedStore = upsertConnectionEntry(store, {
         scopeKey: current.scope_key ?? scopeKey,
@@ -363,14 +394,14 @@ function createCheckPirateConnectionTool(api, toolContext) {
         agentOwnershipSessionId: current.agent_ownership_session_id,
         connectionToken: current.connection_token,
         registrationUrl: current.registration_url ?? null,
-        status: typeof session.status === "string" ? session.status : current.status,
+        status: nextStatus,
         agentId: session.agent_id ?? current.agent_id ?? null,
         currentOwnershipRecordId: session.resolved_agent_ownership_record_id ?? current.current_ownership_record_id ?? null,
-        verifiedAt: session.status === "verified" ? new Date().toISOString() : current.verified_at ?? null,
+        verifiedAt: nextStatus === "verified" ? new Date().toISOString() : current.verified_at ?? null,
       });
       let persistedStore = updatedStore;
 
-      if (session.status === "verified") {
+      if (nextStatus === "verified") {
         const credential = await issuePirateDelegatedCredential({
           fetchImpl: fetch,
           apiBaseUrl,
@@ -385,7 +416,7 @@ function createCheckPirateConnectionTool(api, toolContext) {
           agentOwnershipSessionId: current.agent_ownership_session_id,
           connectionToken: current.connection_token,
           registrationUrl: current.registration_url ?? null,
-          status: session.status,
+          status: nextStatus,
           agentId: credential.agentId,
           currentOwnershipRecordId: credential.currentOwnershipRecordId,
           credentialAccessToken: credential.accessToken,
@@ -409,18 +440,18 @@ function createCheckPirateConnectionTool(api, toolContext) {
 
       await saveConnectionStore(stateFile, persistedStore);
 
-      if (isTerminalOwnershipStatus(session.status)) {
+      if (isTerminalOwnershipStatus(nextStatus)) {
         return jsonResult({
-          status: session.status,
+          status: nextStatus,
           failure_reason: session.failure_reason ?? null,
           agent_ownership_session_id: session.agent_ownership_session_id,
         });
       }
 
       return textResult(
-        `Pirate is still waiting for verification: ${session.status}.`,
+        `Pirate is still waiting for verification: ${nextStatus}.`,
         {
-          status: session.status,
+          status: nextStatus,
           agent_ownership_session_id: session.agent_ownership_session_id,
         },
       );
@@ -439,7 +470,11 @@ function createPostToPirateTool(api, toolContext) {
       properties: {
         community_id: {
           type: "string",
-          description: "Target Pirate community id, for example cmt_123.",
+          description: "Target Pirate community identifier. Accepts a community id like cmt_123, a route like /c/infinity, a slug like infinity, or a full Pirate community URL.",
+        },
+        community: {
+          type: "string",
+          description: "Alias for community_id. Accepts a community id like cmt_123, a route like /c/infinity, a slug like infinity, or a full Pirate community URL.",
         },
         title: {
           type: "string",
@@ -458,15 +493,21 @@ function createPostToPirateTool(api, toolContext) {
           description: "Optional Pirate API base URL override.",
         },
       },
-      required: ["community_id", "title", "body"],
+      required: ["title", "body"],
     },
     execute: async (_toolCallId, rawParams) => {
-      const communityId = readStringParam(rawParams, "community_id", { required: true, label: "Community id" });
+      const communityIdentifier = resolveCommunityIdentifier(rawParams);
       const title = readStringParam(rawParams, "title", { required: true, label: "Title" });
       const bodyText = readStringParam(rawParams, "body", { required: true, label: "Body" });
       const idempotencyKey = readOptionalTrimmedString(rawParams, "idempotency_key") ?? `pirate-post-${randomUUID()}`;
       const identity = await loadIdentityFromStateDir(api);
       const { apiBaseUrl, current, accessToken } = await ensurePirateCredential(api, toolContext, rawParams);
+      const communityResolution = await resolvePirateCommunityId({
+        fetchImpl: fetch,
+        apiBaseUrl,
+        communityIdentifier,
+      });
+      const communityId = communityResolution.communityId;
       const url = `${apiBaseUrl}/communities/${encodeURIComponent(communityId)}/posts`;
       const postPayload = {
         post_type: "text",
@@ -497,6 +538,7 @@ function createPostToPirateTool(api, toolContext) {
         {
           post_id: created.post_id,
           community_id: communityId,
+          community_match: communityResolution.matchedBy,
           agent_id: current.agent_id,
           status: created.status ?? null,
         },
@@ -516,7 +558,11 @@ function createReplyToPirateTool(api, toolContext) {
       properties: {
         community_id: {
           type: "string",
-          description: "Required for top-level post comments. Omit for nested comment replies.",
+          description: "Required for top-level post comments. Accepts a community id like cmt_123, a route like /c/infinity, a slug like infinity, or a full Pirate community URL. Omit for nested comment replies.",
+        },
+        community: {
+          type: "string",
+          description: "Alias for community_id. Accepts a community id like cmt_123, a route like /c/infinity, a slug like infinity, or a full Pirate community URL.",
         },
         post_id: {
           type: "string",
@@ -539,15 +585,24 @@ function createReplyToPirateTool(api, toolContext) {
     },
     execute: async (_toolCallId, rawParams) => {
       const bodyText = readStringParam(rawParams, "body", { required: true, label: "Body" });
-      const communityId = readOptionalTrimmedString(rawParams, "community_id");
+      const communityRaw = readOptionalTrimmedString(rawParams, "community_id")
+        ?? readOptionalTrimmedString(rawParams, "community");
       const postId = readOptionalTrimmedString(rawParams, "post_id");
       const commentId = readOptionalTrimmedString(rawParams, "comment_id");
-      if (!commentId && !(communityId && postId)) {
+      if (!commentId && !(communityRaw && postId)) {
         throw new ToolInputError("Provide either comment_id for a nested reply, or both community_id and post_id for a top-level comment.");
       }
 
       const identity = await loadIdentityFromStateDir(api);
       const { apiBaseUrl, current, accessToken } = await ensurePirateCredential(api, toolContext, rawParams);
+      const communityResolution = !commentId
+        ? await resolvePirateCommunityId({
+          fetchImpl: fetch,
+          apiBaseUrl,
+          communityIdentifier: communityRaw,
+        })
+        : null;
+      const communityId = communityResolution?.communityId;
       const url = commentId
         ? `${apiBaseUrl}/comments/${encodeURIComponent(commentId)}/replies`
         : `${apiBaseUrl}/communities/${encodeURIComponent(communityId)}/posts/${encodeURIComponent(postId)}/comments`;
@@ -578,9 +633,58 @@ function createReplyToPirateTool(api, toolContext) {
           comment_id: created.comment_id,
           parent_comment_id: created.parent_comment_id ?? null,
           post_id: postId ?? null,
+          community_id: communityId ?? null,
+          community_match: communityResolution?.matchedBy ?? null,
           agent_id: current.agent_id,
         },
       );
+    },
+  };
+}
+
+function createFindPirateCommunitiesTool(api) {
+  return {
+    name: "find_pirate_communities",
+    label: "Find Pirate Communities",
+    description: "Search Pirate communities by id, route slug, or display name. Use this when the user names a community but does not know the cmt_ id.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        query: {
+          type: "string",
+          description: "Community id, route slug, /c/slug, or display name to search for.",
+        },
+        limit: {
+          type: "number",
+          description: "Optional max number of results to return. Defaults to 5.",
+        },
+        api_base_url: {
+          type: "string",
+          description: "Optional Pirate API base URL override.",
+        },
+      },
+      required: ["query"],
+    },
+    execute: async (_toolCallId, rawParams) => {
+      const query = readStringParam(rawParams, "query", { required: true, label: "Query" });
+      const limit = Number.isFinite(rawParams?.limit) ? Number(rawParams.limit) : 5;
+      const apiBaseUrl = resolveApiBaseUrl(rawParams, api.pluginConfig);
+      const results = await findPirateCommunities({
+        fetchImpl: fetch,
+        apiBaseUrl,
+        query: normalizePirateCommunityIdentifier(query),
+        limit,
+      });
+
+      return jsonResult({
+        query: results.query,
+        communities: results.communities.map((community) => ({
+          community_id: community.communityId,
+          display_name: community.displayName,
+          route_slug: community.routeSlug,
+        })),
+      });
     },
   };
 }
@@ -593,6 +697,7 @@ export default definePluginEntry({
   register(api) {
     api.registerTool((toolContext) => createConnectPirateTool(api, toolContext));
     api.registerTool((toolContext) => createCheckPirateConnectionTool(api, toolContext));
+    api.registerTool(() => createFindPirateCommunitiesTool(api));
     api.registerTool((toolContext) => createPostToPirateTool(api, toolContext));
     api.registerTool((toolContext) => createReplyToPirateTool(api, toolContext));
   },

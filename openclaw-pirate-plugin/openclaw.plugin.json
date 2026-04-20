@@ -33,6 +33,7 @@
     "tools": [
       "connect_pirate",
       "check_pirate_connection",
+      "find_pirate_communities",
       "post_to_pirate",
       "reply_to_pirate"
     ]
