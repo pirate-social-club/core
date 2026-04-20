@@ -297,9 +297,13 @@ CreateCommunityRequestBase:
         $ref: ./communities-core.yaml#/GateRuleInput
       nullable: true
       description: |
-        Public v0 create is limited to `membership`-scope `identity_proof` gate rules only. Each submitted gate rule must include explicit `proof_requirements`. `viewer`-scope gates and `posting`-scope gates are not supported in v0. The server should reject create requests containing gate rules that fall outside the public v0 scope.
+        Public v0 create is limited to `membership`-scope gate rules only. Each `identity_proof`
+        submitted gate rule must include explicit `proof_requirements`. `viewer`-scope gates and
+        `posting`-scope gates are not supported in v0. The server should reject create requests
+        containing gate rules that fall outside the public v0 scope.
         Public v0 self-serve creation should still reject `sanctions_clear` identity gates; those remain deferred or operator-controlled until their end-to-end request and policy semantics are fully locked.
-        Token-holding gate rules are not supported in v0; the membership evaluator does not resolve them.
+        Public v0 self-serve creation supports a narrow token-holding lane for Ethereum mainnet
+        ERC-721 collection membership gates only. Other token-holding variants remain unsupported.
 GateRuleInput:
   type: object
   required:
@@ -316,6 +320,7 @@ GateRuleInput:
     gate_family:
       type: string
       enum:
+        - token_holding
         - identity_proof
     gate_type:
       type: string
@@ -326,6 +331,7 @@ GateRuleInput:
         - gender
         - sanctions_clear
         - wallet_score
+        - erc721_holding
     proof_requirements:
       type: array
       nullable: true
@@ -339,11 +345,12 @@ GateRuleInput:
       nullable: true
       additionalProperties: true
       description: |
-        Provider-neutral rule config for the selected gate. For identity-proof gates, public v0
-        should normalize on a small shared shape rather than arbitrary provider knobs:
+        Provider-neutral rule config for the selected gate. For public-v0 gates, normalize on a
+        small shared shape rather than arbitrary provider knobs:
         - `nationality`: `required_value` (single ISO code) or `excluded_values` (array of ISO codes)
         - `gender`: `required_value` for the Self document marker (`M` or `F`)
         - `wallet_score`: `minimum_score` (number)
+        - `erc721_holding`: `contract_address` on Ethereum mainnet (`chain_namespace: eip155:1`)
         Deferred/admin-only gates may additionally use:
         - `sanctions_clear`: no extra config required
 GateRule:
@@ -371,6 +378,7 @@ GateRule:
     gate_family:
       type: string
       enum:
+        - token_holding
         - identity_proof
     gate_type:
       type: string
@@ -381,6 +389,7 @@ GateRule:
         - gender
         - sanctions_clear
         - wallet_score
+        - erc721_holding
     proof_requirements:
       type: array
       nullable: true
@@ -394,11 +403,11 @@ GateRule:
       nullable: true
       additionalProperties: true
       description: |
-        Stored provider-neutral rule config. For identity-proof gates, public v0 should normalize
-        on:
+        Stored provider-neutral rule config. For public-v0 gates, normalize on:
         - `nationality`: `required_value` or `excluded_values`
         - `gender`: `required_value` for the Self document marker
         - `wallet_score`: `minimum_score`
+        - `erc721_holding`: `contract_address`
         Deferred/admin-only gates may additionally use:
         - `sanctions_clear`: no extra config
     status:
@@ -1112,6 +1121,7 @@ MembershipGateSummary:
         - unique_human
         - age_over_18
         - wallet_score
+        - erc721_holding
     accepted_providers:
       type: array
       nullable: true
@@ -1131,6 +1141,14 @@ MembershipGateSummary:
       items:
         type: string
       description: Array of excluded ISO country codes for nationality gates
+    chain_namespace:
+      type: string
+      nullable: true
+      description: Chain namespace for token-holding summaries. `eip155:1` for Ethereum mainnet ERC-721 gates.
+    contract_address:
+      type: string
+      nullable: true
+      description: Contract address for token-holding summaries such as Ethereum ERC-721 collection gates.
 CommunityTextLocalization:
   type: object
   required:
@@ -1295,6 +1313,17 @@ JoinEligibility:
       enum:
         - community_join
       nullable: true
+    failure_reason:
+      type: string
+      enum:
+        - missing_verification
+        - provider_not_accepted
+        - nationality_mismatch
+        - gender_mismatch
+        - erc721_holding_required
+        - unsupported
+        - banned
+      nullable: true
 GateFailureDetails:
   type: object
   properties:
@@ -1328,6 +1357,7 @@ GateFailureDetails:
         - provider_not_accepted
         - nationality_mismatch
         - gender_mismatch
+        - erc721_holding_required
         - unsupported
         - banned
       nullable: true
