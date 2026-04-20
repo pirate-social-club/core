@@ -415,7 +415,7 @@ function sortJsonValueWithSeen(value, seen) {
 }
 
 export function canonicalizePirateActionRequest(input) {
-  const url = new URL(input.url, "http://pirate.local");
+  const url = new URL(input.url);
   const method = String(input.method).trim().toUpperCase();
   const query = Array.from(url.searchParams.entries())
     .sort(([leftKey, leftValue], [rightKey, rightValue]) => {
@@ -434,8 +434,9 @@ export function canonicalizePirateActionRequest(input) {
       : JSON.stringify(sortJsonValue(input.body));
 
   return [
-    "pirate-agent-action-proof-v1",
+    "pirate-agent-action-proof-v2",
     method,
+    url.origin,
     normalizePath(url.pathname),
     query,
     body,
@@ -448,7 +449,7 @@ export function computePirateActionRequestHash(input) {
 
 export function canonicalizePirateActionSignaturePayload(input) {
   return [
-    "pirate-agent-action-signature-v1",
+    "pirate-agent-action-signature-v2",
     input.nonce.trim(),
     input.signedAt.trim(),
     input.canonicalRequestHash.trim(),

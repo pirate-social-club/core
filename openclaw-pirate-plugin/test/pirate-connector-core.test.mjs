@@ -9,6 +9,7 @@ import {
   buildClawkeyChallenge,
   callPirateJson,
   canonicalizePirateActionSignaturePayload,
+  canonicalizePirateActionRequest,
   computePirateActionRequestHash,
   findPirateCommunities,
   issuePirateDelegatedCredential,
@@ -274,6 +275,39 @@ test("signPirateActionProof matches the expected canonical hash and signature pa
     Buffer.from(proof.signature, "base64"),
   );
   assert.equal(verified, true);
+});
+
+test("canonicalizePirateActionRequest binds the proof to the request origin", () => {
+  const canonical = canonicalizePirateActionRequest({
+    method: "POST",
+    url: "https://pirate.test/communities/cmt_123/posts?draft=false",
+    body: { title: "Hello" },
+  });
+
+  assert.match(canonical, /^pirate-agent-action-proof-v2\nPOST\nhttps:\/\/pirate\.test\n\/communities\/cmt_123\/posts\ndraft=false\n/);
+  assert.notEqual(
+    computePirateActionRequestHash({
+      method: "POST",
+      url: "http://pirate.test/communities/cmt_123/posts?draft=false",
+      body: { title: "Hello" },
+    }),
+    computePirateActionRequestHash({
+      method: "POST",
+      url: "https://pirate.test/communities/cmt_123/posts?draft=false",
+      body: { title: "Hello" },
+    }),
+  );
+});
+
+test("canonicalizePirateActionRequest rejects circular JSON bodies", () => {
+  const body = { title: "loop" };
+  body.self = body;
+
+  assert.throws(() => canonicalizePirateActionRequest({
+    method: "POST",
+    url: "https://pirate.test/example",
+    body,
+  }), /cannot contain circular references/);
 });
 
 test("sha256Hex returns deterministic hex", () => {
