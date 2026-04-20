@@ -3,7 +3,6 @@ AgentOwnershipProvider:
   enum:
     - self_agent_id
     - clawkey
-    - very_kya
 AgentOwnershipSessionKind:
   type: string
   enum:
@@ -13,6 +12,11 @@ AgentOwnershipSessionKind:
     - deregister
 AgentOwnershipSessionStatus:
   type: string
+  description: |
+    Lifecycle status for a KYA ownership session. Implementations may fail fast from `pending`
+    when the challenge, bootstrap conditions, or provider initialization fails before owner
+    handoff. Callback and explicit completion flows must be idempotent once a session reaches a
+    terminal state.
   enum:
     - pending
     - awaiting_owner
@@ -23,6 +27,11 @@ AgentOwnershipSessionStatus:
     - cancelled
 UserAgentStatus:
   type: string
+  description: |
+    Runtime status for a user-owned agent. Public v0 should prefer creating durable `user_agents`
+    rows only after successful registration. If a server creates provisional `pending` rows
+    earlier, they must not authorize reads or writes and should never survive as an active state
+    after the registration flow terminates.
   enum:
     - pending
     - active
@@ -42,25 +51,34 @@ AgentChallenge:
   type: object
   additionalProperties: false
   required:
+    - device_id
+    - public_key
     - message
     - signature
-    - signed_at
+    - timestamp
   description: |
-    Agent-signed proof of key control used to start a KYA ownership session.
+    Agent-signed proof of key control used to start a KYA ownership session. The mainline
+    `clawkey` provider uses a stable `device_id`, an Ed25519 public key encoded as base64 DER
+    SPKI, a raw Ed25519 signature encoded as base64, and a unix-millisecond `timestamp`. Pirate
+    verifies a fresh Ed25519 signature over the raw UTF-8 `message` bytes and rejects stale or
+    future-skewed challenges outside the server freshness window.
   properties:
     device_id:
       type: string
-      nullable: true
+      description: Stable device or agent identifier used by the ownership provider.
     public_key:
       type: string
-      nullable: true
+      description: Ed25519 public key encoded as base64 DER SPKI without PEM wrapper.
     message:
       type: string
+      description: Exact UTF-8 message that was signed.
     signature:
       type: string
-    signed_at:
-      type: string
-      format: date-time
+      description: Raw Ed25519 signature encoded as base64.
+    timestamp:
+      type: integer
+      format: int64
+      description: Unix timestamp in milliseconds when the challenge was created.
 AgentActionProof:
   type: object
   additionalProperties: false
@@ -71,8 +89,16 @@ AgentActionProof:
     - signature
   description: |
     Agent-signed request proof bound to the current write. The server must recompute
-    `canonical_request_hash` from the route plus request body, verify the signature against the
-    active agent key material, and reject replays of the same `(agent_id, nonce)` pair.
+    `canonical_request_hash` from the request according to Pirate's canonical request hashing
+    mini-spec, verify the signature against the active agent key material, and reject replays of
+    the same `(agent_id, nonce)` pair. The canonicalization contract must define path
+    normalization, query handling, body serialization, the empty-body rule, UTF-8 encoding, and
+    digest output so clients and the server produce the same hash. When the request body carries
+    the proof envelope itself, the proof field is excluded from canonicalization; public v0
+    excludes `CreatePostRequest.agent_action_proof`. Pirate v0 also defines the signature payload
+    contract in `specs/domain/agent-action-proof.md`: Ed25519 over the newline-delimited
+    `pirate-agent-action-signature-v1`, `nonce`, `signed_at`, and `canonical_request_hash`
+    payload, using the active ownership record's SPKI PEM public key.
   properties:
     nonce:
       type: string
@@ -81,6 +107,11 @@ AgentActionProof:
       format: date-time
     canonical_request_hash:
       type: string
+      description: |
+        Digest of the canonicalized request that the agent signed. This field is intentionally
+        algorithm-agnostic in the schema, but implementations must follow Pirate's published
+        canonical request hashing mini-spec rather than inventing provider- or client-local rules.
+        Pirate v0 currently anchors that contract in `specs/domain/agent-action-proof.md`.
     signature:
       type: string
 SelfAgentOwnershipLaunch:
@@ -100,13 +131,17 @@ ClawkeyRegistrationLaunch:
   type: object
   additionalProperties: false
   required:
+    - session_id
     - registration_url
   properties:
     session_id:
       type: string
-      nullable: true
     registration_url:
       type: string
+    expires_at:
+      type: string
+      format: date-time
+      nullable: true
 AgentOwnershipSessionLaunch:
   type: object
   additionalProperties: false
@@ -118,14 +153,11 @@ AgentOwnershipSessionLaunch:
       enum:
         - qr_deeplink
         - registration_url
-        - widget
         - none
     self_agent:
       $ref: ./agents.yaml#/SelfAgentOwnershipLaunch
     clawkey_registration:
       $ref: ./agents.yaml#/ClawkeyRegistrationLaunch
-    very_widget:
-      $ref: ./verification.yaml#/VeryWidgetLaunch
 StartAgentOwnershipSessionRequest:
   type: object
   additionalProperties: false
@@ -136,6 +168,11 @@ StartAgentOwnershipSessionRequest:
   description: |
     Start a KYA-backed agent ownership session. `register` may omit `agent_id` when creating a
     new user-owned agent. `refresh`, `transfer`, and `deregister` require an existing `agent_id`.
+    `display_name` is an optional requested initial name for registration flows. `policy_id` is an
+    optional server policy lookup key for provider-specific session configuration and must not act
+    as an authorization bypass around community or platform trust rules. The mainline public
+    provider flow is `clawkey`, which expects the ClawKey challenge contract and returns a
+    registration URL for the human owner to open manually.
   properties:
     session_kind:
       $ref: ./agents.yaml#/AgentOwnershipSessionKind
@@ -147,9 +184,16 @@ StartAgentOwnershipSessionRequest:
     display_name:
       type: string
       nullable: true
+      description: |
+        Optional requested display name for `register`. Servers may ignore this field for
+        `refresh` and `deregister` unless the provider flow requires name continuity or review.
     policy_id:
       type: string
       nullable: true
+      description: |
+        Optional policy lookup key that selects provider-specific verifier settings or ownership
+        flow configuration at session start. The server must still enforce platform and community
+        trust policy independently of this field.
     agent_challenge:
       $ref: ./agents.yaml#/AgentChallenge
 CompleteAgentOwnershipSessionRequest:
@@ -165,9 +209,53 @@ CompleteAgentOwnershipSessionRequest:
     provider_payload_ref:
       type: string
       nullable: true
+AgentOwnershipPairing:
+  type: object
+  additionalProperties: false
+  required:
+    - pairing_code
+    - expires_at
+  properties:
+    pairing_code:
+      type: string
+    expires_at:
+      type: string
+      format: date-time
+AgentOwnershipPairingClaimRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - pairing_code
+    - agent_challenge
+  properties:
+    pairing_code:
+      type: string
+    agent_challenge:
+      $ref: ./agents.yaml#/AgentChallenge
+AgentOwnershipPairingClaimResult:
+  type: object
+  additionalProperties: false
+  required:
+    - agent_ownership_session_id
+    - registration_url
+    - connection_token
+  properties:
+    agent_ownership_session_id:
+      type: string
+    registration_url:
+      type: string
+    connection_token:
+      type: string
 ProviderAgentOwnershipCallbackRequest:
   type: object
   additionalProperties: false
+  description: |
+    Provider-delivered callback payload for an ownership session. The callback transport may be
+    publicly reachable, but the runtime must authenticate the caller using the expected provider's
+    secret or verification method associated with the stored session. The `provider` field in this
+    body is advisory only and must not be trusted by itself. Providers may retry callbacks, so
+    duplicate deliveries must be handled idempotently. Mainline `clawkey` ownership should be
+    treated as polling-first; callback support is optional and provider-specific.
   properties:
     provider:
       $ref: ./agents.yaml#/AgentOwnershipProvider
@@ -215,6 +303,12 @@ AgentOwnershipRecord:
       nullable: true
     ownership_state:
       $ref: ./agents.yaml#/AgentOwnershipState
+    source_session_id:
+      type: string
+      nullable: true
+      description: |
+        Internal audit anchor for the ownership session that created or last transitioned this
+        record. This may be null on legacy or backfilled records.
     verified_at:
       type: string
       format: date-time
@@ -239,6 +333,9 @@ AgentOwnershipRecord:
 AgentOwnershipSession:
   type: object
   additionalProperties: false
+  description: |
+    KYA ownership session state tracked by Pirate while a provider-backed registration, refresh,
+    transfer, or deregistration flow is in progress or has recently completed.
   required:
     - agent_ownership_session_id
     - session_kind
@@ -256,6 +353,10 @@ AgentOwnershipSession:
     owner_user_id:
       type: string
       nullable: true
+      description: |
+        May be null while Pirate is still resolving the human owner, such as agent-initiated
+        starts or transfer handoff flows. A session must not transition to `verified` until the
+        effective owner is known.
     agent_id:
       type: string
       nullable: true
@@ -273,6 +374,10 @@ AgentOwnershipSession:
     callback_path:
       type: string
       nullable: true
+      description: |
+        Public callback endpoint for provider delivery when the selected provider uses asynchronous
+        completion. Runtime callers must still authenticate the provider separately from transport-
+        level auth, and duplicate callback deliveries must be idempotent.
     resolved_agent_ownership_record_id:
       type: string
       nullable: true
@@ -288,6 +393,9 @@ AgentOwnershipSession:
 UserAgent:
   type: object
   additionalProperties: false
+  description: |
+    User-owned agent read model. An agent becomes operational only when it has an active verified
+    ownership interval; provisional `pending` rows, if they exist at all, are non-authorizing.
   required:
     - agent_id
     - owner_user_id
@@ -307,6 +415,8 @@ UserAgent:
     current_ownership_record_id:
       type: string
       nullable: true
+      description: |
+        Present only when the agent currently has an active verified ownership interval.
     current_ownership:
       $ref: ./agents.yaml#/AgentOwnershipRecord
       nullable: true
@@ -316,6 +426,79 @@ UserAgent:
     updated_at:
       type: string
       format: date-time
+AgentDelegatedCredentialIssueRequest:
+  type: object
+  additionalProperties: false
+  description: |
+    Optional delegated credential issuance hints for the authenticated owner. Public v0 should
+    issue an opaque bearer access token plus refresh token after re-checking owner standing,
+    active ownership, and KYA baseline. Internal-only milestones may temporarily reuse the owner's
+    ordinary Pirate bearer token while validating KYA enforcement, but that does not count as this
+    public delegated credential contract.
+  properties:
+    current_ownership_record_id:
+      type: string
+      nullable: true
+      description: |
+        Optional optimistic concurrency hint for the ownership interval the caller believes is
+        active. Servers must still resolve the actual active verified ownership interval and reject
+        issuance if the hint is stale or mismatched.
+AgentDelegatedCredentialRefreshRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - refresh_token
+  description: |
+    Refresh request for an existing delegated agent credential. Refresh must fail when the owner no
+    longer satisfies standing requirements, the active ownership interval is no longer valid, or
+    KYA verification has lapsed.
+  properties:
+    refresh_token:
+      type: string
+AgentDelegatedCredential:
+  type: object
+  additionalProperties: false
+  required:
+    - agent_id
+    - owner_user_id
+    - current_ownership_record_id
+    - token_type
+    - access_token
+    - refresh_token
+    - issued_at
+    - expires_at
+  description: |
+    Delegated agent API credential issued to the authenticated owner for a specific user-owned
+    agent. Public v0 should prefer opaque bearer tokens over long-lived self-contained JWTs so
+    refresh denial remains the primary revocation chokepoint.
+  properties:
+    agent_id:
+      type: string
+    owner_user_id:
+      type: string
+    current_ownership_record_id:
+      type: string
+      description: |
+        Ownership interval the credential was issued against. Historical writes still carry their
+        own `agent_ownership_record_id` snapshots and must not rely on the current token state.
+    token_type:
+      type: string
+      enum:
+        - Bearer
+    access_token:
+      type: string
+    refresh_token:
+      type: string
+    issued_at:
+      type: string
+      format: date-time
+    expires_at:
+      type: string
+      format: date-time
+    refresh_expires_at:
+      type: string
+      format: date-time
+      nullable: true
 UserAgentListResponse:
   type: object
   additionalProperties: false
@@ -326,4 +509,3 @@ UserAgentListResponse:
       type: array
       items:
         $ref: ./agents.yaml#/UserAgent
-

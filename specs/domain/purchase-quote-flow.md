@@ -21,6 +21,7 @@ It covers:
 - how verification-backed pricing tiers affect the quote
 - what data is fixed before onchain settlement
 - how the app-level quote maps to `MarketplaceSettlementV1`
+- how the buyer's wallet path continues through Story-side entitlement unlock
 
 ## Core Principle
 
@@ -140,6 +141,73 @@ Recommended v0 flow:
 14. Pirate or the settlement operator calls `MarketplaceSettlementV1.settlePurchase(...)` with the resolved purchase reference and amount.
 15. Pirate records the canonical app-level `purchase` row from the successful settlement.
 
+## Buyer-Facing Wallet Path
+
+Quote issuance and locked-asset unlocking should feel like one continuous path to the buyer even though they cross app, route-provider, and Story boundaries.
+
+Recommended v0 user-visible sequence:
+
+1. Buyer opens a paid asset or paid replay.
+2. Pirate checks for an eligible EIP-155 wallet path for settlement.
+3. If no eligible settlement wallet is available, Pirate returns a wallet-required state and deep-links to the wallet hub.
+4. Buyer requests a quote for the listing and chosen funding lane.
+5. Pirate validates the funding lane against the active community money policy.
+6. If the funding lane is executable, Pirate issues the quote and required Story-side settlement lane.
+7. Buyer completes any required routed-funding step.
+8. Pirate or the operator finalizes Story settlement using the resolved settlement wallet path.
+9. Pirate records the purchase and entitlement snapshot.
+10. The paid asset then moves from purchase-eligible to unlock-eligible for that buyer wallet path.
+
+Important user-facing rule:
+
+- the wallet used for Story settlement must remain legible to the buyer
+- if Pirate later supports explicit settlement-wallet selection, the chosen wallet must be shown before execution rather than inferred opaquely
+
+## Story CDR Unlock Path
+
+Locked Story delivery should have a clear post-purchase read path rather than treating purchase and playback as unrelated surfaces.
+
+Recommended v0 unlock flow:
+
+1. Buyer requests access to a locked asset after purchase.
+2. Pirate resolves whether the asset is delivered through direct app storage or Story CDR.
+3. If direct app delivery applies, Pirate may return the ordinary protected delivery ref.
+4. If Story CDR applies, Pirate must return a short-lived access package bound to the resolved locked asset version and buyer entitlement context.
+5. The client must use a connected eligible EIP-155 wallet to satisfy the Story read condition and read or decrypt the payload.
+6. If the connected wallet does not match the entitled wallet path, Pirate should return a switch-wallet or reconnect-wallet state rather than a generic playback failure.
+7. If the entitlement is not yet final, Pirate should return a settlement-pending state rather than treating the purchase as absent.
+
+Recommended v0 Story CDR access-package contents:
+
+- the locked asset version binding
+- the vault or namespace binding needed for the CDR read
+- the buyer entitlement binding
+- expiry information for the short-lived read authorization
+- any additional proof material needed by the Story-side read path
+
+Important boundary:
+
+- the funding asset or source chain does not perform the unlock
+- routed funding is only the way value reaches the Story-side settlement lane
+- the actual locked read path remains Story entitlement plus Story CDR access
+
+## Unlock Failure States
+
+The app should distinguish commerce failure from read-path failure.
+
+Recommended v0 states:
+
+- `wallet_required`
+  - no eligible settlement or read wallet is available
+- `route_unavailable`
+  - the requested funding lane is not executable under the active money policy
+- `settlement_pending`
+  - value movement started but Story-side finalization or entitlement projection is not yet confirmed
+- `unlock_wallet_mismatch`
+  - the buyer has an entitlement, but the currently connected wallet is not the wallet path needed for the read
+- `unlock_failed`
+  - the Story CDR read path failed for a reason other than missing entitlement or wrong wallet
+
 ## Verification-Backed Pricing
 
 Recommended v0 regional pricing model:
@@ -244,12 +312,15 @@ Offchain:
 - settlement-token amount resolution
 - payout-destination resolution
 - quote issuance and expiry
+- locked-read authorization packaging
+- wallet-required and switch-wallet state resolution
 
 Onchain:
 
 - purchase finalization
 - payout execution
 - entitlement mint
+- locked-read condition enforcement
 
 ## Open Questions
 

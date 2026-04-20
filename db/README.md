@@ -29,6 +29,13 @@ Current posture:
 - community-template migrations intentionally cover only the stable v0 sovereignty core
 - richer commerce, analytics, and read-model denormalizations can be added later in new migrations
 
+Current post visibility schema:
+
+- community DB `posts.visibility`
+  `public | members_only`
+- control-plane `community_post_projections.visibility`
+  mirrors the community post row for public-route and feed filtering
+
 ## Ordering
 
 Migration order is defined by the filenames in the filesystem, not by this README.
@@ -122,5 +129,6 @@ rtk infisical run --env dev --path /services/api -- \
 
 - The community migration files target SQLite-compatible Turso/libSQL DDL.
 - The control-plane migration files are PostgreSQL-first and apply directly to Neon from `db/control-plane/migrations/`.
+- Post visibility is part of the mainline schema now. New environments should include both the community `posts.visibility` column and the control-plane `community_post_projections.visibility` column from the checked-in migrations and baseline snapshot.
 - Community databases intentionally do not define a `users` table. They reference central Pirate `user_id` values as foreign identifiers, not local user rows.
 - This repo now includes migration runners in [scripts/community/apply-sqlite-migrations.sh](../scripts/community/apply-sqlite-migrations.sh) and [scripts/control-plane/apply-postgres-migrations.ts](../scripts/control-plane/apply-postgres-migrations.ts), plus [scripts/control-plane/seed-control-plane-fixtures.ts](../scripts/control-plane/seed-control-plane-fixtures.ts) and [scripts/community/bootstrap-community-slice.ts](../scripts/community/bootstrap-community-slice.ts) for Neon-backed local slice bootstrapping.

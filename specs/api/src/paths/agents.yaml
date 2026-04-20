@@ -1,12 +1,72 @@
+agent_ownership_pairing:
+  post:
+    x-implemented: true
+    tags:
+      - Agents
+    summary: Create a short-lived OpenClaw pairing code
+    description: |
+      Creates a short-lived pairing code that lets an OpenClaw plugin bootstrap an agent ownership
+      session without the user's Pirate bearer token. The caller must already satisfy Pirate's
+      human-verification baseline for agent ownership before a code will be issued.
+    responses:
+      "201":
+        description: Pairing code created
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/agents.yaml#/AgentOwnershipPairing
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/Forbidden
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+agent_ownership_pairing_claim:
+  post:
+    x-implemented: true
+    tags:
+      - Agents
+    security: []
+    summary: Claim a pairing code and start a ClawKey ownership session
+    description: |
+      Claims a short-lived pairing code with an agent-signed challenge. The server validates the
+      pairing code and challenge, internally starts the ordinary ClawKey ownership-session flow,
+      and returns the ClawKey registration URL plus a scoped connection token for completion
+      polling.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/agents.yaml#/AgentOwnershipPairingClaimRequest
+    responses:
+      "200":
+        description: Pairing code claimed and registration started
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/agents.yaml#/AgentOwnershipPairingClaimResult
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
 agent_ownership_sessions:
   post:
+    x-implemented: true
     tags:
       - Agents
     summary: Start an agent ownership session
     description: |
       Starts a KYA-backed session for agent registration, refresh, transfer, or deregistration.
       The request must include an agent-signed challenge proving control of the agent key or
-      runtime identity before the human completes the provider verification flow.
+      runtime identity before the human completes the provider verification flow. Servers may fail
+      fast from `pending` when the challenge or session preconditions are invalid. `policy_id`
+      selects server-side ownership-session policy and verifier configuration; it does not weaken
+      platform or community trust requirements. The mainline public provider flow is `clawkey`,
+      which starts with `register/init` and returns a `registrationUrl` for the human owner to
+      open manually.
     requestBody:
       required: true
       content:
@@ -28,6 +88,7 @@ agent_ownership_sessions:
         $ref: ../components/responses.yaml#/RateLimited
 agent_ownership_sessions_by_agent_ownership_session_id:
   get:
+    x-implemented: true
     tags:
       - Agents
     summary: Inspect an agent ownership session
@@ -46,9 +107,18 @@ agent_ownership_sessions_by_agent_ownership_session_id:
         $ref: ../components/responses.yaml#/NotFound
 agent_ownership_sessions_by_agent_ownership_session_id_complete:
   post:
+    x-implemented: true
     tags:
       - Agents
     summary: Complete or refresh an agent ownership session
+    description: |
+      Completes a provider flow when the provider requires an explicit finish step instead of, or
+      in addition to, callback delivery. Providers may surface attestation or proof references
+      here. Calling this endpoint on an already terminal session should be treated idempotently by
+      the runtime. Mainline `clawkey` ownership is polling-first: the server should resolve the
+      stored provider session ID, poll ClawKey registration status, and finalize only once the
+      provider reports completion. OpenClaw plugin polling may use a scoped connection token
+      header instead of the user's Pirate bearer auth.
     parameters:
       - $ref: ../components/parameters.yaml#/AgentOwnershipSessionId
     requestBody:
@@ -70,10 +140,18 @@ agent_ownership_sessions_by_agent_ownership_session_id_complete:
         $ref: ../components/responses.yaml#/NotFound
 agent_ownership_sessions_by_agent_ownership_session_id_callback:
   post:
+    x-implemented: true
     tags:
       - Agents
     security: []
     summary: Receive an asynchronous provider callback for an agent ownership session
+    description: |
+      Publicly reachable callback endpoint for provider-driven completion. The absence of transport-
+      level auth here does not imply trust: the runtime must authenticate the caller against the
+      stored session's expected provider and reject provider/session mismatches. Duplicate callback
+      deliveries must be idempotent and must not create duplicate ownership records. Mainline
+      `clawkey` ownership should be treated as polling-first; this callback surface is optional
+      and should only be enabled if a provider exposes a real callback contract.
     parameters:
       - $ref: ../components/parameters.yaml#/AgentOwnershipSessionId
     requestBody:
@@ -93,6 +171,7 @@ agent_ownership_sessions_by_agent_ownership_session_id_callback:
         $ref: ../components/responses.yaml#/NotFound
 agents:
   get:
+    x-implemented: true
     tags:
       - Agents
     summary: List the authenticated user's agents
@@ -107,6 +186,7 @@ agents:
         $ref: ../components/responses.yaml#/AuthError
 agents_by_agent_id:
   get:
+    x-implemented: true
     tags:
       - Agents
     summary: Get a user-owned agent
@@ -121,5 +201,71 @@ agents_by_agent_id:
               $ref: ../components/schemas/agents.yaml#/UserAgent
       "401":
         $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+agents_by_agent_id_credential:
+  post:
+    x-implemented: true
+    tags:
+      - Agents
+    summary: Issue a delegated credential for a user-owned agent
+    description: |
+      Issues an agent-scoped delegated API credential for the authenticated owner after re-checking
+      owner standing, active ownership, and the applicable KYA baseline. Public v0 should prefer
+      opaque bearer access tokens plus a refresh contract. Issuance must fail when the referenced
+      agent is not currently backed by an active verified ownership interval for the caller.
+    parameters:
+      - $ref: ../components/parameters.yaml#/AgentId
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/agents.yaml#/AgentDelegatedCredentialIssueRequest
+    responses:
+      "200":
+        description: Delegated credential issued
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/agents.yaml#/AgentDelegatedCredential
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/Forbidden
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+agents_by_agent_id_credential_refresh:
+  post:
+    x-implemented: true
+    tags:
+      - Agents
+    summary: Refresh a delegated credential for a user-owned agent
+    description: |
+      Refreshes an existing delegated agent credential. The runtime must re-check owner standing,
+      active ownership, and KYA validity before minting a new access token. Refresh denial is the
+      main revocation chokepoint for suspended owners, expired ownership intervals, or revoked
+      agents.
+    parameters:
+      - $ref: ../components/parameters.yaml#/AgentId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/agents.yaml#/AgentDelegatedCredentialRefreshRequest
+    responses:
+      "200":
+        description: Delegated credential refreshed
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/agents.yaml#/AgentDelegatedCredential
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/Forbidden
       "404":
         $ref: ../components/responses.yaml#/NotFound

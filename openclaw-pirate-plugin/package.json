@@ -1,0 +1,19 @@
+{
+  "name": "@pirate/openclaw-pirate-connector",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "OpenClaw plugin for connecting a local agent identity to Pirate via ClawKey pairing codes.",
+  "license": "AGPL-3.0-or-later",
+  "openclaw": {
+    "extensions": [
+      "./index.js"
+    ]
+  },
+  "dependencies": {
+    "openclaw": "^2026.4.15"
+  },
+  "scripts": {
+    "test": "node --test ./test/*.test.mjs"
+  }
+}

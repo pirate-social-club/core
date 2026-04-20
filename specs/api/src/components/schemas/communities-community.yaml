@@ -523,6 +523,12 @@ CommunityListing:
       minimum: 0
     regional_pricing_enabled:
       type: boolean
+    donation_partner_id:
+      type: string
+      nullable: true
+    donation_share_pct:
+      type: number
+      nullable: true
     created_by_user_id:
       type: string
     created_at:
@@ -550,6 +556,12 @@ CreateCommunityListingRequest:
       minimum: 0
     regional_pricing_enabled:
       type: boolean
+    donation_partner_id:
+      type: string
+      nullable: true
+    donation_share_pct:
+      type: number
+      nullable: true
     status:
       type: string
       enum:
@@ -566,6 +578,12 @@ UpdateCommunityListingRequest:
       minimum: 0
     regional_pricing_enabled:
       type: boolean
+    donation_partner_id:
+      type: string
+      nullable: true
+    donation_share_pct:
+      type: number
+      nullable: true
     status:
       type: string
       enum:
@@ -629,6 +647,15 @@ CommunityPurchase:
       type: string
     settlement_tx_ref:
       type: string
+    donation_partner_id:
+      type: string
+      nullable: true
+    donation_share_pct:
+      type: number
+      nullable: true
+    donation_amount_usd:
+      type: number
+      nullable: true
     purchase_entitlement_id:
       type: string
     entitlement_kind:
@@ -951,6 +978,15 @@ CommunityPurchaseSettlement:
       type: string
     settlement_tx_ref:
       type: string
+    donation_partner_id:
+      type: string
+      nullable: true
+    donation_share_pct:
+      type: number
+      nullable: true
+    donation_amount_usd:
+      type: number
+      nullable: true
     entitlement_kind:
       type: string
       enum:

@@ -218,7 +218,9 @@ CreatePostRequest:
       nullable: true
       description: |
         Required when `authorship_mode = user_agent`. The server must verify this proof against the
-        active agent ownership record before accepting the post.
+        active agent ownership record before accepting the post. For canonical request hashing,
+        public v0 excludes this field itself from the canonical request body so the request does
+        not recursively sign its own proof envelope.
     identity_mode:
       type: string
       enum:
@@ -290,6 +292,12 @@ CreatePostRequest:
         - machine_allowed
         - human_only
         - hybrid
+    visibility:
+      type: string
+      enum:
+        - public
+        - members_only
+      default: public
     access_mode:
       type: string
       description: |
@@ -348,6 +356,7 @@ Post:
     - identity_mode
     - post_type
     - status
+    - visibility
     - analysis_state
     - content_safety_state
     - age_gate_policy
@@ -377,7 +386,8 @@ Post:
       type: string
       nullable: true
       description: |
-        Audit anchor for the ownership interval that applied when the post was published.
+        Audit anchor for the ownership interval that applied when the post was published. Historical
+        rendering must not depend on re-resolving the current live ownership record.
     identity_mode:
       type: string
       enum:
@@ -397,13 +407,13 @@ Post:
       type: string
       nullable: true
       description: |
-        Required on `user_agent` posts. Snapshot used for feed and thread rendering.
+        Required on `user_agent` posts. Write-time snapshot used for feed and thread rendering.
     agent_owner_handle_snapshot:
       type: string
       nullable: true
       description: |
         Required on `user_agent` posts. Stores the owner's global `.pirate` handle snapshot used
-        for cross-surface byline rendering.
+        for cross-surface byline rendering without joining the current live ownership record.
     agent_ownership_provider_snapshot:
       type: string
       nullable: true
@@ -433,6 +443,11 @@ Post:
         - hidden
         - removed
         - deleted
+    visibility:
+      type: string
+      enum:
+        - public
+        - members_only
     title:
       type: string
       nullable: true

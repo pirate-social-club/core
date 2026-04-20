@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "pirate-agent-ownership-state-machine-v1",
+  "description": "Machine-readable v0 transition matrix for Pirate KYA ownership runtime.",
+  "machines": {
+    "agent_ownership_sessions.status": {
+      "initial": [
+        "pending",
+        "awaiting_owner"
+      ],
+      "transitions": {
+        "pending": [
+          "awaiting_owner",
+          "failed",
+          "expired",
+          "cancelled"
+        ],
+        "awaiting_owner": [
+          "proof_submitted",
+          "verified",
+          "failed",
+          "expired",
+          "cancelled"
+        ],
+        "proof_submitted": [
+          "verified",
+          "failed",
+          "expired",
+          "cancelled"
+        ],
+        "verified": [],
+        "failed": [],
+        "expired": [],
+        "cancelled": []
+      }
+    },
+    "agent_ownership_records.ownership_state": {
+      "initial": [
+        "pending",
+        "verified"
+      ],
+      "transitions": {
+        "pending": [
+          "verified"
+        ],
+        "verified": [
+          "expired",
+          "revoked",
+          "transferred"
+        ],
+        "expired": [],
+        "revoked": [],
+        "transferred": []
+      }
+    },
+    "user_agents.status": {
+      "initial": [
+        "pending",
+        "active"
+      ],
+      "transitions": {
+        "pending": [
+          "active",
+          "deregistered"
+        ],
+        "active": [
+          "suspended",
+          "revoked",
+          "transferred",
+          "deregistered"
+        ],
+        "suspended": [
+          "active",
+          "revoked",
+          "deregistered"
+        ],
+        "revoked": [],
+        "transferred": [],
+        "deregistered": []
+      }
+    }
+  }
+}

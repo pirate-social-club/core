@@ -13,6 +13,9 @@ CreateCommunityRequestBase:
     description:
       type: string
       nullable: true
+    localized_text:
+      $ref: ./communities-core.yaml#/CommunityTextLocalization
+      nullable: true
     avatar_ref:
       type: string
       nullable: true
@@ -168,7 +171,9 @@ CreateCommunityRequestBase:
         Optional stricter override for agent KYA acceptance. When omitted, reads should derive the
         effective accepted agent-ownership providers from `human_verification_lane` and the
         community trust floor: any platform-approved KYA provider is acceptable so long as the
-        bound human clears the required lane. Set this only when the community wants a narrower
+        bound human clears the required lane. The platform-approved provider set must come from an
+        explicit server-side policy source such as a config-backed allowlist or policy table; mere
+        presence in an enum is not sufficient. Set this only when the community wants a narrower
         agent-auth posture, such as Self-only agent ownership.
       items:
         $ref: ./agents.yaml#/AgentOwnershipProvider
@@ -511,6 +516,11 @@ HumanVerificationLane:
     Primary public-v0 human-verification lane for a community. This is a simple UX-facing summary,
     not a replacement for the underlying capability model. The server must ensure this value is
     consistent with the community's effective gate requirements.
+CommunityAgentResolutionOrigin:
+  type: string
+  enum:
+    - derived
+    - explicit
 RootPostQuotaRule:
   type: object
   required:
@@ -735,8 +745,10 @@ Community:
     - membership_mode
     - allow_anonymous_identity
     - human_verification_lane
+    - human_verification_lane_origin
     - agent_posting_policy
     - agent_posting_scope
+    - accepted_agent_ownership_providers_origin
     - accepted_agent_ownership_providers
     - governance_mode
     - donation_policy_mode
@@ -828,6 +840,11 @@ Community:
       $ref: ./communities-core.yaml#/HumanVerificationLane
       description: |
         Resolved effective public-v0 human-verification lane for this community.
+    human_verification_lane_origin:
+      $ref: ./communities-core.yaml#/CommunityAgentResolutionOrigin
+      description: |
+        Whether `human_verification_lane` came from an explicit community override or was derived
+        from the effective gate set or platform default.
     allowed_disclosed_qualifiers:
       type: array
       items:
@@ -934,6 +951,11 @@ Community:
         underlying trust floor.
       items:
         $ref: ./agents.yaml#/AgentOwnershipProvider
+    accepted_agent_ownership_providers_origin:
+      $ref: ./communities-core.yaml#/CommunityAgentResolutionOrigin
+      description: |
+        Whether `accepted_agent_ownership_providers` came from an explicit community override or
+        from server-side derivation.
     civic_scale_tier:
       type: string
       enum:
@@ -1132,6 +1154,42 @@ MembershipGateSummary:
       items:
         type: string
       description: Array of excluded ISO country codes for nationality gates
+CommunityTextLocalization:
+  type: object
+  required:
+    - resolved_locale
+    - items
+  properties:
+    resolved_locale:
+      type: string
+    items:
+      type: array
+      items:
+        $ref: ./communities-core.yaml#/CommunityTextLocalizationItem
+CommunityTextLocalizationItem:
+  type: object
+  required:
+    - field_key
+    - translation_state
+    - machine_translated
+    - source_hash
+  properties:
+    field_key:
+      type: string
+    translation_state:
+      type: string
+      enum:
+        - ready
+        - pending
+        - same_language
+        - policy_blocked
+    machine_translated:
+      type: boolean
+    translated_value:
+      type: string
+      nullable: true
+    source_hash:
+      type: string
 CommunityPreview:
   type: object
   required:
@@ -1140,6 +1198,7 @@ CommunityPreview:
     - membership_mode
     - human_verification_lane
     - membership_gate_summaries
+    - rules
     - created_at
   properties:
     community_id:
@@ -1148,6 +1207,9 @@ CommunityPreview:
       type: string
     description:
       type: string
+      nullable: true
+    localized_text:
+      $ref: ./communities-core.yaml#/CommunityTextLocalization
       nullable: true
     avatar_ref:
       type: string
@@ -1166,10 +1228,26 @@ CommunityPreview:
     member_count:
       type: integer
       nullable: true
+    donation_policy_mode:
+      type: string
+      enum:
+        - none
+        - optional_creator_sidecar
+      nullable: true
+    donation_partner_id:
+      type: string
+      nullable: true
+    donation_partner:
+      $ref: ./communities-community.yaml#/DonationPartnerSummary
+      nullable: true
     membership_gate_summaries:
       type: array
       items:
         $ref: ./communities-core.yaml#/MembershipGateSummary
+    rules:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunityRule
     viewer_membership_status:
       type: string
       enum:

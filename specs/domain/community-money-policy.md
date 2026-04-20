@@ -152,6 +152,35 @@ For current Story-native purchase flows this means:
 
 Pirate should not imply that the funding asset itself performs the unlock.
 
+## Phased Funding-Lane Support
+
+Funding-lane support should expand honestly and in narrow executable slices.
+
+Recommended rollout:
+
+- phase 1
+  - EVM funding lanes into Story-side settlement
+  - narrow approved route-provider set
+  - honest user-facing support posture centered on Ethereum, Base, and Story-linked purchase execution
+- phase 1.5
+  - Tempo may be added as a payment or funding lane once Pirate has a concrete mapping from Tempo-side payment success into the same purchase-quote and Story-settlement flow
+  - until that mapping exists, Pirate should not present Tempo as a fully general wallet-family equivalent to EIP-155 support
+- deferred
+  - Solana funding lanes
+  - Bitcoin-native funding lanes
+
+Important posture:
+
+- the wallet hub may become first-class before every funding family is supported
+- missing Solana or Bitcoin support should not block EVM-first commerce if Pirate states the narrower support claim clearly
+- broader social funding preference labels such as `BTC` remain acceptable only when the executable lane is specified honestly
+
+Example honest phased posture:
+
+- `funding_preference = BTC`
+- current executable lane = routed EVM funding into Story settlement
+- future executable lane may later include a narrower Bitcoin-related source asset such as wrapped or bridged BTC, but Pirate should not imply raw Bitcoin-native purchase support before that path exists
+
 ## Route Viability
 
 Route viability is a purchase precondition, not a post-condition.

@@ -49,6 +49,10 @@ paths:
     $ref: ./paths/verification.yaml#/verification_sessions_by_verification_session_id_complete
   /agent-ownership-sessions:
     $ref: ./paths/agents.yaml#/agent_ownership_sessions
+  /agent-ownership-pairing:
+    $ref: ./paths/agents.yaml#/agent_ownership_pairing
+  /agent-ownership-pairing/claim:
+    $ref: ./paths/agents.yaml#/agent_ownership_pairing_claim
   /agent-ownership-sessions/{agent_ownership_session_id}:
     $ref: ./paths/agents.yaml#/agent_ownership_sessions_by_agent_ownership_session_id
   /agent-ownership-sessions/{agent_ownership_session_id}/complete:
@@ -59,6 +63,10 @@ paths:
     $ref: ./paths/agents.yaml#/agents
   /agents/{agent_id}:
     $ref: ./paths/agents.yaml#/agents_by_agent_id
+  /agents/{agent_id}/credential:
+    $ref: ./paths/agents.yaml#/agents_by_agent_id_credential
+  /agents/{agent_id}/credential/refresh:
+    $ref: ./paths/agents.yaml#/agents_by_agent_id_credential_refresh
   /namespace-verification-sessions:
     $ref: ./paths/verification.yaml#/namespace_verification_sessions
   /namespace-verification-sessions/{namespace_verification_session_id}:
@@ -410,6 +418,12 @@ components:
       $ref: ./components/schemas/agents.yaml#/AgentOwnershipRecord
     AgentOwnershipSession:
       $ref: ./components/schemas/agents.yaml#/AgentOwnershipSession
+    AgentDelegatedCredentialIssueRequest:
+      $ref: ./components/schemas/agents.yaml#/AgentDelegatedCredentialIssueRequest
+    AgentDelegatedCredentialRefreshRequest:
+      $ref: ./components/schemas/agents.yaml#/AgentDelegatedCredentialRefreshRequest
+    AgentDelegatedCredential:
+      $ref: ./components/schemas/agents.yaml#/AgentDelegatedCredential
     UserReportReasonCode:
       $ref: ./components/schemas/moderation.yaml#/UserReportReasonCode
     ModerationActionType:

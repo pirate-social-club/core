@@ -177,6 +177,7 @@ export type Community = {
   allow_anonymous_identity: boolean;
   anonymous_identity_scope?: "community_stable" | "thread_stable" | "post_ephemeral" | null;
   human_verification_lane: HumanVerificationLane;
+  human_verification_lane_origin: CommunityAgentResolutionOrigin;
   allowed_disclosed_qualifiers?: Array<string> | null;
   allow_qualifiers_on_anonymous_posts?: boolean | null;
   root_post_min_trust_tier?: "new" | "established" | "trusted" | "high_trust" | null;
@@ -194,6 +195,7 @@ export type Community = {
   agent_min_owner_trust_tier?: "new" | "established" | "trusted" | "high_trust" | null;
   agent_owner_active_limit?: number | null;
   accepted_agent_ownership_providers: Array<AgentOwnershipProvider>;
+  accepted_agent_ownership_providers_origin: CommunityAgentResolutionOrigin;
   civic_scale_tier?: "club" | "village" | "town" | "city" | "state";
   donation_policy_mode: "none" | "optional_creator_sidecar";
   donation_partner_status: "unconfigured" | "active" | "paused";
@@ -558,7 +560,7 @@ export type CreateModerationActionRequest = {
   note?: string | null;
 };
 
-type AgentOwnershipProvider = "self_agent_id" | "clawkey" | "very_kya";
+type AgentOwnershipProvider = "self_agent_id" | "clawkey";
 
 type CentralizedGovernanceBackend = {
   governance_mode: "centralized";
@@ -572,10 +574,15 @@ type Comment = {
   thread_root_post_id: string;
   parent_comment_id: string | null;
   author_user_id: string | null;
-  authorship_mode: "human_direct";
+  authorship_mode: "human_direct" | "user_agent";
+  agent_id?: string | null;
+  agent_ownership_record_id?: string | null;
   identity_mode: "public" | "anonymous";
   anonymous_scope: "community_stable" | "thread_stable" | null;
   anonymous_label: string | null;
+  agent_display_name_snapshot?: string | null;
+  agent_owner_handle_snapshot?: string | null;
+  agent_ownership_provider_snapshot?: AgentOwnershipProvider | null;
   body: string | null;
   status: "published" | "hidden" | "removed" | "deleted";
   depth: number;
@@ -601,6 +608,8 @@ type CommunityAdultContentPolicy = {
   fetish_content: CommunityModerationDecisionLevel;
   updated_at: string;
 };
+
+type CommunityAgentResolutionOrigin = "derived" | "explicit";
 
 type CommunityAuthenticityDetectionProfileStatus = "active" | "archived";
 
@@ -1013,6 +1022,7 @@ type Post = {
   label_id?: string | null;
   post_type: "text" | "image" | "video" | "link" | "song";
   status: "draft" | "published" | "hidden" | "removed" | "deleted";
+  visibility: "public" | "members_only";
   title?: string | null;
   body?: string | null;
   caption?: string | null;

@@ -17,6 +17,12 @@ AuthError:
             retryable: false
       schema:
         $ref: ./schemas/common.yaml#/Error
+Forbidden:
+  description: Authenticated caller is not allowed to perform the requested action
+  content:
+    application/json:
+      schema:
+        $ref: ./schemas/common.yaml#/Error
 PaymentRequired:
   description: Payment is required before the resource can be accessed
   headers:

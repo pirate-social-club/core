@@ -371,6 +371,92 @@ Rules:
 - an active wallet address may belong to only one user at a time in v0
 - if wallet ownership is ever transferred between users, the old attachment must be revoked before a new active attachment is created
 
+## Wallet Product Surface
+
+Wallets should have a first-class product path without turning wallet address into the user's canonical identity.
+
+Recommended v0 posture:
+
+- Pirate should expose a dedicated wallet hub rather than burying all wallet operations inside generic settings
+- the wallet hub is the operational surface for wallet-linked capabilities
+- profile may still expose the chosen public primary wallet as a public trust projection
+- settings may still deep-link into wallet management, but should not be the only truthful entry point
+
+Recommended wallet-hub responsibilities:
+
+- show all active wallet attachments and their chain families
+- set or change the current primary wallet attachment
+- show capability readiness for wallet-dependent product actions
+- explain which wallet path Pirate will use for follow, settlement, and locked-asset reads
+- present the next required action when the current wallet state is insufficient
+
+Examples of wallet-hub readiness states:
+
+- no wallet attached
+- primary wallet ready
+- settlement wallet required
+- reconnect wallet
+- switch to entitled wallet
+- unsupported chain for this action
+
+Important boundary:
+
+- the wallet hub is a first-class app path, not a second identity system
+- `user_id` remains the canonical Pirate subject
+- wallet addresses remain capability inputs and public trust signals where product policy chooses to expose them
+
+## Capability-Specific Wallet Resolution
+
+One global `is_primary` flag is a convenience pointer, not the full product contract for wallet-linked actions.
+
+Recommended v0 rule:
+
+- Pirate may keep one global primary wallet attachment
+- wallet-dependent features should still resolve against explicit capability rules rather than assuming every feature uses the same exact wallet path forever
+
+Recommended v0 capability defaults:
+
+- profile public wallet
+  - defaults to the user's current primary active EIP-155 wallet attachment
+- follow
+  - defaults to the user's canonical EFP-capable EIP-155 wallet attachment
+  - the write path remains Base-backed as defined in [follow.md](./follow.md)
+- Story purchase settlement
+  - defaults to the user's current primary active EIP-155 wallet attachment unless the purchase flow explicitly selects another eligible EIP-155 attachment
+- Story CDR locked-asset read
+  - should use the buyer wallet that actually holds or can prove the entitlement needed for the locked read
+  - in v0 this should normally be the same EIP-155 wallet path used for purchase settlement unless Pirate later introduces explicit entitlement-wallet selection
+- scrobble anchoring
+  - defaults to the current primary active EIP-155 wallet attachment as defined below
+
+Failure posture:
+
+- if a feature needs a wallet family the user does not currently have, Pirate should return a wallet-required or switch-wallet state
+- Pirate should not silently fall back to an unrelated wallet family just because some wallet attachment exists
+- the wallet hub should be the canonical place where these capability-specific requirements are made legible to the user
+
+## Phased Chain Support
+
+Wallet support should expand by capability family, not by promising every chain everywhere at launch.
+
+Recommended rollout:
+
+- phase 1
+  - EIP-155 wallets only for profile trust, follow, Story settlement, and Story CDR reads
+  - honest user-facing support posture should center on Ethereum, Base, and Story-linked execution paths
+- phase 1.5
+  - Tempo may be added as a supported payment or funding method once Pirate has a concrete settlement mapping for it
+  - Tempo should not be described as a fully general wallet family before that mapping exists
+- deferred
+  - Solana wallet support
+  - Bitcoin wallet support
+
+Reasoning:
+
+- Solana is a separate wallet family and signing/runtime surface, not just another EIP-155 chain id
+- Bitcoin-native support should not be implied when the real executable posture may still be a narrower routed funding lane
+- Pirate should prefer an honest narrow support claim over broad "multi-chain" language that hides capability gaps
+
 ## Scrobble Wallet Resolution
 
 Scrobble batch anchoring requires a resolved EIP-155 wallet address per user.

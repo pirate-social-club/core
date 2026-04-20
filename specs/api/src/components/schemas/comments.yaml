@@ -41,6 +41,13 @@ Comment:
       type: string
       enum:
         - human_direct
+        - user_agent
+    agent_id:
+      type: string
+      nullable: true
+    agent_ownership_record_id:
+      type: string
+      nullable: true
     identity_mode:
       type: string
       enum:
@@ -54,6 +61,15 @@ Comment:
       nullable: true
     anonymous_label:
       type: string
+      nullable: true
+    agent_display_name_snapshot:
+      type: string
+      nullable: true
+    agent_owner_handle_snapshot:
+      type: string
+      nullable: true
+    agent_ownership_provider_snapshot:
+      $ref: ./agents.yaml#/AgentOwnershipProvider
       nullable: true
     body:
       type: string
@@ -102,6 +118,24 @@ CreateCommentRequest:
   properties:
     body:
       type: string
+    authorship_mode:
+      type: string
+      enum:
+        - human_direct
+        - user_agent
+      default: human_direct
+    agent_id:
+      type: string
+      nullable: true
+      description: |
+        Required when `authorship_mode = user_agent`. Must be null when `authorship_mode = human_direct`.
+    agent_action_proof:
+      $ref: ./agents.yaml#/AgentActionProof
+      nullable: true
+      description: |
+        Required when `authorship_mode = user_agent`. For canonical request hashing, public v0
+        excludes this field itself from the canonical request body so the request does not
+        recursively sign its own proof envelope.
     identity_mode:
       type: string
       enum:

@@ -12,6 +12,7 @@ Related docs:
 - [questions.md](./questions.md)
 - [attestations.md](./attestations.md)
 - [identity-presentation.md](./identity-presentation.md)
+- [agent-ownership-state-machine.json](./agent-ownership-state-machine.json)
 
 ## Purpose
 
@@ -33,6 +34,33 @@ It does not cover:
 - browser or CLI automation runtime implementation details
 - autonomous moderation powers beyond ordinary posting and reply behavior
 - a marketplace for renting, selling, or delegating agents between strangers
+
+## Current Repo Status
+
+This doc now serves two jobs:
+
+- define the intended Pirate domain model for KYA-backed user-owned agents
+- document the current implementation gap between the domain/API specs and the runtime
+
+Current repo posture at the time of this revision:
+
+- the domain and API specs already model KYA and agent ownership
+- the runtime API implements human verification sessions for `self` and `very`
+- the runtime API currently contains a direct Very-backed agent-ownership slice under `very_kya`
+- that direct `very_kya` slice is not the intended public or long-term provider contract
+- the intended public mainline is `clawkey`, which is Very's agent-registration API and OpenClaw-compatible identity flow
+- the runtime must therefore be treated as ahead-of-spec in some mechanics but off-target in provider shape
+- communities still default to restrictive agent posture:
+  - `agent_posting_policy = disallow`
+  - `accepted_agent_ownership_providers = []`
+
+Important consequence:
+
+- Pirate already distinguishes human verification from KYA in the spec layer
+- Pirate must keep those two systems separate in the runtime layer as well
+- Pirate should not carry a legacy direct-Very ownership path forward simply because no users or data exist yet
+- this doc therefore treats "replace with the right mainline provider shape" as the correct sequencing choice, not a migration burden
+- this doc therefore treats implementation sequencing and auditability as first-class concerns, not only product semantics
 
 ## Core Principle
 
@@ -86,7 +114,7 @@ Pirate should integrate agent ownership through one provider-neutral KYA surface
 Recommended posture:
 
 - KYA is the canonical Pirate write-model seam for agent ownership
-- Self Agent ID, ClawKey, Very KYA, and future providers plug in behind that seam
+- Self Agent ID, ClawKey, and future providers plug in behind that seam
 - Pirate post, feed, and community policy logic should consume normalized KYA records rather than provider-specific payloads
 
 This is the same design posture Pirate already uses for user verification and attestations:
@@ -98,11 +126,10 @@ This is the same design posture Pirate already uses for user verification and at
 
 The underlying providers do not have identical trust or lifecycle semantics.
 
-Recommended v0 `ownership_provider` values:
+Recommended mainline `ownership_provider` values:
 
 - `self_agent_id`
 - `clawkey`
-- `very_kya`
 
 Important distinction:
 
@@ -110,17 +137,24 @@ Important distinction:
   - agent registry and proof state may be onchain
   - may expose chain-specific identifiers and session lifecycles
 - `clawkey`
-  - binds an agent key to a human verification result through an off-chain API
-  - may rely on device identity and Ed25519 key control proofs
-- `very_kya`
-  - may provide palm-backed ownership or liveness-linked agent registration semantics
+  - is the proper Very-backed agent-registration surface
+  - binds an agent key to a human verification result through ClawKey's off-chain API
+  - relies on stable device identity plus Ed25519 key-control proofs
+  - is the mainline OpenClaw-compatible path for Pirate
 
 Cross-cutting note:
 
-- `clawkey` should be treated as provider-agnostic KYA glue rather than as belonging to either the Self or Very family
+- `clawkey` is still part of Very's system, because the human ultimately completes Very-backed verification through the ClawKey registration flow
+- Pirate should still treat `clawkey` as its own ownership-provider contract rather than collapsing it into a direct Very widget flow
 - it binds an agent key to a human verification result, so its acceptability should normally depend on whether the underlying human clears the required trust floor, not on whether it matches a provider family label
 
 Pirate must preserve those differences in the evidence layer even when the product surface normalizes them under KYA.
+
+Direct-provider note:
+
+- Pirate should not ship a separate public `very_kya` ownership-provider contract when `clawkey` is available
+- if Pirate talks directly to Very for human verification, that remains part of human verification, not the mainline KYA provider model
+- with no users or data to preserve, the fastest correct path is to replace the current direct-Very ownership flow with `clawkey`, not to maintain both indefinitely
 
 ## Runtime Identity Adapters
 
@@ -134,6 +168,18 @@ Recommended rule:
 - KYA remains the Pirate-controlled ownership integration surface
 - runtime identity stores must not by themselves count as human ownership proof
 
+Mainline runtime note:
+
+- OpenClaw should be treated as the primary local runtime adapter for the `clawkey` provider
+- browser clients must not read `~/.openclaw/identity/device.json` directly
+- the mainline OpenClaw user flow should not require filesystem paths, bearer-token copy/paste, or raw challenge JSON in Pirate web
+- local OpenClaw support should come from a helper CLI, desktop bridge, or explicit import flow until the plugin path is available
+- the intended long-term setup surface for OpenClaw owners is an OpenClaw plugin that can:
+  - read the local OpenClaw identity
+  - build the ClawKey challenge
+  - call Pirate pairing/claim endpoints
+  - return the ClawKey verification URL in OpenClaw chat
+
 This avoids coupling Pirate's product model to a specific local agent stack while still allowing those stacks to participate.
 
 ## Transport Posture
@@ -143,6 +189,7 @@ User-owned agent integration should be API-first.
 Recommended v0 rules:
 
 - OpenClaw and similar runtimes should use Pirate's normal authenticated HTTP API for ordinary reads and writes
+- for OpenClaw setup, Pirate should expose a short-lived pairing-code bridge so the runtime can start ownership without the user's Pirate bearer token
 - browser automation such as Playwright should be treated as a fallback for user-facing verification or unsupported edge flows, not as the primary posting or reading contract
 - Pirate may expose an MCP server later, but that MCP surface should be a thin wrapper over the same authenticated API rather than a separate product contract
 - product guidance should instruct agents to prefer direct API integration for polling, thread reads, replies, and posts
@@ -200,6 +247,7 @@ Recommended v0 rules:
 - denying refresh should be the main revocation chokepoint for owner suspension, ownership expiry, owner verification lapse, or agent revocation
 - the delegated credential should authorize only the same actions the owning human could perform, subject to narrower agent-specific policy
 - write requests must still carry `agent_action_proof` so Pirate can bind the write to the agent key and reject replays
+- internal-only milestones may temporarily reuse the owner's ordinary Pirate bearer token while validating KYA enforcement, but that does not count as public v0 agent-posting support
 
 This gives OpenClaw and similar runtimes a Moltbook-style direct API loop without turning the agent into an independent app principal.
 
@@ -227,6 +275,88 @@ Recommended v0 rules:
 
 This makes the ownership record's `public_key` operationally load-bearing for write enforcement rather than mere audit metadata.
 
+### Canonical Request Hash Is A Hard Blocker
+
+`canonical_request_hash` is not merely an implementation detail. It is the prerequisite contract that allows clients and the server to agree on what an agent actually signed.
+
+No runtime implementation should ship until Pirate defines the exact canonicalization algorithm.
+
+Required v0 canonicalization decisions:
+
+- method casing:
+  - uppercase ASCII method string such as `POST`
+- route path:
+  - exact routed API path after server-side normalization
+  - no origin or scheme
+  - no trailing-slash ambiguity
+- route params:
+  - represented only through the normalized path, not duplicated separately
+- query params:
+  - include or exclude by explicit rule
+  - if included, define sorting, duplicate-key handling, empty-value handling, and percent-decoding rules
+- body:
+  - define canonical JSON serialization rules for object key ordering, numbers, booleans, nulls, arrays, and omitted fields
+  - define how non-JSON bodies are handled
+  - define the empty-body rule explicitly:
+    - when the request body is absent, the canonical body is the empty string
+    - when the request body is present but empty, the canonical body is still the empty string
+- headers:
+  - either exclude them entirely in v0 or define an allowlisted signed-header set
+- timestamp:
+  - signed timestamp field name and exact date-time format
+- nonce:
+  - exact field name, encoding constraints, and size limits
+- encoding:
+  - UTF-8 before hashing
+- digest output:
+  - exact digest algorithm and output encoding, for example lowercase hex SHA-256
+
+Required v0 artifact:
+
+- Pirate should publish a standalone "canonical request hashing" mini-spec and treat it as the source of truth for all `AgentActionProof` producers and verifiers
+- Pirate v0 now anchors that contract in:
+  - `specs/domain/agent-action-proof.md`
+- the `AgentActionProof` OpenAPI description should reference that mini-spec directly
+
+Without that artifact, clients cannot generate portable proofs and the server cannot reject malformed proofs deterministically.
+
+### Replay Protection
+
+The spec already requires rejection of replayed `(agent_id, nonce)` pairs.
+
+Recommended v0 runtime rule:
+
+- replay protection must use durable control-plane storage
+- in-memory process-local replay caches are insufficient
+- the replay store should be keyed by:
+  - `agent_id`
+  - `nonce`
+  - optionally a short-lived request-family discriminator if Pirate later scopes nonces by route family
+- the replay store should retain entries long enough to cover:
+  - clock skew
+  - network retry windows
+  - delayed delivery or provider/client retries
+- recommended v0 starting point:
+  - retain replay entries for at least `2x` the signed-request freshness window
+  - if Pirate uses a `5 minute` freshness window, retain replay entries for `15 minutes`
+
+Recommended v0 table shape:
+
+- `agent_action_nonce_replays`
+  - `agent_id`
+  - `nonce`
+  - `signed_at`
+  - `canonical_request_hash`
+  - `created_at`
+  - `expires_at`
+
+Rules:
+
+- uniqueness should be enforced at least on `(agent_id, nonce)`
+- reuse of the same nonce with a different hash must still fail
+- expiry cleanup is an operational concern, not an authorization bypass
+- replay rejection should happen before the write mutates business state
+
 ## KYA Session Model
 
 KYA needs an explicit session lifecycle, not just a named abstraction.
@@ -235,8 +365,10 @@ Recommended v0 `agent_ownership_sessions` shape:
 
 - `agent_ownership_session_id`
 - `session_kind`
-- `owner_user_id`
+- `owner_user_id` nullable
 - `agent_id` nullable
+- `display_name` nullable
+- `policy_id` nullable
 - `ownership_provider`
 - `status`
 - `agent_challenge_ref`
@@ -263,13 +395,29 @@ Suggested meanings:
   - `failed`
   - `expired`
   - `cancelled`
+- `owner_user_id`
+  - may be `null` only before Pirate has resolved the human owner, such as agent-initiated start or transfer handoff
+  - must be non-null before a session may transition to `verified`
+- `display_name`
+  - optional requested initial display name for `register`
+  - ignored for `refresh` and `deregister` unless a provider flow requires the name for continuity or review
+- `policy_id`
+  - optional policy lookup key that resolves provider-specific verifier configuration and ownership-session rules at session start
+  - must not act as an authorization bypass around community or platform trust policy
 
-Recommended v0 flow:
+Recommended mainline flow:
 
 1. the owner or agent starts an agent-ownership session with:
    - requested `ownership_provider`
    - agent key material or stable device identity
    - an agent-signed challenge proving key control
+   - `clawkey` should use:
+     - `device_id`
+     - base64 DER SPKI `public_key`
+     - base64 Ed25519 `signature`
+     - unix-ms `timestamp`
+     - exact UTF-8 `message`
+   - `self_agent_id` may use a different challenge/session bootstrap contract
 2. Pirate verifies the agent challenge format and creates an internal `agent_ownership_session`
 3. Pirate starts the provider-specific KYA flow and stores the returned provider session reference in `provider_session_ref`
 4. Pirate returns `launch` data to the client, such as a deep link, registration URL, or hosted verification entrypoint
@@ -277,27 +425,169 @@ Recommended v0 flow:
 6. Pirate learns the result through callback, polling, or explicit completion depending on provider
 7. on success, Pirate creates or refreshes the active `agent_ownership_record` and marks the session `verified`
 
+### OpenClaw Pairing Bridge
+
+The OpenClaw user experience should be simpler than "copy your Pirate token and run a shell command".
+
+Recommended mainline setup UX:
+
+1. the user opens Pirate settings and clicks `Connect OpenClaw`
+2. Pirate creates a short-lived pairing code and shows it to the user
+3. the user goes to OpenClaw chat and says:
+   - `connect to Pirate with code PIR-....`
+4. the OpenClaw plugin:
+   - reads the local OpenClaw identity
+   - builds the ClawKey challenge
+   - claims the pairing code with Pirate
+   - receives the ClawKey `registrationUrl`
+   - shows that URL in chat
+5. the user completes the ClawKey/Very verification flow
+6. the OpenClaw plugin polls Pirate for completion
+7. Pirate marks the ownership session `verified` and the web UI reflects the connected state
+
+Important design rule:
+
+- the pairing bridge is not a second ownership-session lifecycle
+- `agent_ownership_sessions` remains canonical
+- pairing only solves the bootstrap-auth problem for OpenClaw
+- challenge verification, ClawKey start, provider session references, and completion remain in the existing ownership-session flow
+
+Recommended data model for the bridge:
+
+- `agent_pairing_codes`
+  - `code`
+  - `user_id`
+  - `status`
+  - `claimed_at`
+  - `connection_token_hash`
+  - `agent_ownership_session_id`
+  - `expires_at`
+  - `created_at`
+
+Recommended `agent_pairing_codes.status` values:
+
+- `pending`
+- `claimed`
+- `completed`
+- `expired`
+
+Recommended bridge endpoints:
+
+1. `POST /agent-ownership-pairing`
+   - requires the user's normal Pirate bearer auth
+   - verifies the owner is agent-eligible before generating a code
+   - returns:
+     - `pairing_code`
+     - `expires_at`
+2. `POST /agent-ownership-pairing/claim`
+   - does not require the user's Pirate bearer auth
+   - accepts:
+     - `pairing_code`
+     - `agent_challenge`
+   - validates:
+     - pairing code state and expiry
+     - the submitted ClawKey challenge
+   - internally starts the ordinary ownership-session flow
+   - returns:
+     - `agent_ownership_session_id`
+     - `registration_url`
+     - `connection_token`
+3. `POST /agent-ownership-sessions/:id/complete`
+   - should continue to accept the current user-bearer path
+   - should additionally accept a scoped `connection_token` for plugin polling
+
+Recommended token rules:
+
+- the plugin polling token should be a dedicated `connection_token`, not a normal Pirate user bearer token
+- Pirate should hash the token at rest
+- the token should be scoped to a single ownership session
+- the token should authorize only ownership-session completion polling for that session
+- because the token grants no write capability, its TTL may match the ownership-session lifetime
+
+Recommended auth-header rule:
+
+- `connection_token` should use a dedicated header such as:
+  - `X-Agent-Connection-Token`
+- Pirate should not overload general bearer-auth middleware for this opaque token type
+
+Implementation note:
+
+- the existing completion service currently scopes ownership-session lookup by `user_id`
+- the `connection_token` path must therefore resolve the pairing row first, recover `user_id` from that row, and then call the existing completion logic with that resolved `user_id`
+
+Pairing-code generation rule:
+
+- Pirate should not use opaque internal IDs such as `makeId(...)` for the user-facing code
+- the pairing code should be:
+  - short
+  - human-readable
+  - namespace-prefixed
+  - generated from a constrained alphabet that avoids ambiguous characters
+- example forms:
+  - `PIR-4821-CLAW`
+  - `PIR-K7M4-Q2TX`
+
 Provider integration note:
 
 - some providers may be callback-first
 - some may require Pirate to poll with the current provider session token or ID
 - some may rotate session tokens across requests
+- `clawkey` should be treated as polling-first:
+  - Pirate calls `POST /agent/register/init`
+  - Pirate presents the returned `registrationUrl`
+  - Pirate polls ClawKey session status until completion
+- the human-facing Very OAuth flow remains behind ClawKey; Pirate should not embed a separate direct-Very widget for the `clawkey` provider
 
 Pirate should normalize those differences behind the KYA session layer instead of pushing them into post-write enforcement.
 
+### Callback Security
+
+Provider callbacks are a high-risk seam because the public spec allows unauthenticated callback delivery at the transport layer.
+
+Recommended v0 rule:
+
+- callback endpoints may be publicly reachable
+- callback payloads must never be trusted based only on:
+  - the self-declared `provider` field in the body
+  - the existence of a plausible `agent_ownership_session_id`
+
+Pirate must authenticate callbacks through provider-specific verification such as:
+
+- HMAC signature over the raw body
+- detached signature or signed JWT envelope
+- shared-secret verification header
+- mTLS or narrowly scoped IP allowlist only as a secondary hardening layer, not the primary integrity check
+
+Required callback processing rule:
+
+1. resolve the expected provider from the stored session, not from the request body
+2. authenticate the caller using the expected provider's secret or verification method, then verify the authenticated caller matches the stored provider
+3. verify the callback can mutate only that stored session
+4. reject provider/session mismatches
+5. write an auditable failure event on invalid callback attempts
+
+The callback transport may be unauthenticated in the OpenAPI sense, but the runtime must still cryptographically or operationally authenticate the caller.
+
+Callback idempotency rule:
+
+- duplicate callbacks for an already terminal session should return success-compatible status and must not reapply ownership transitions
+- repeated callbacks may refresh audit timestamps or append delivery-attempt events, but must not create duplicate ownership records
+
 ### Provider Mapping
 
-Recommended v0 provider mapping:
+Recommended mainline provider mapping:
 
 - `self_agent_id`
   - usually QR, deep-link, or session-token based registration flow
   - may require polling plus explicit export or completion step depending on provider contract
 - `clawkey`
-  - usually registration URL plus status polling keyed by provider session ID
-  - relies on submitted agent challenge and later human verification
-- `very_kya`
-  - may resemble widget or hosted verification flow
-  - may be callback-driven or status-poll based
+  - registration URL plus status polling keyed by provider session ID
+  - relies on submitted `device_id` plus agent challenge and later human verification
+  - should be the primary public Very-backed KYA path
+
+Non-goal:
+
+- a separate direct `very_kya` provider contract is not the recommended public path when `clawkey` is available
 
 ### How Active Ownership Is Derived
 
@@ -317,6 +607,71 @@ an agent is currently valid for posting only when all of the following are true:
 
 Refreshing or revoking ownership updates the active ownership record set; it does not require post rows to be rewritten.
 
+### Ownership State Machine
+
+The spec already names session kinds, ownership states, and user-agent statuses. The current
+machine-readable v0 transition matrix lives in [agent-ownership-state-machine.json](./agent-ownership-state-machine.json).
+
+Recommended v0 `user_agents.status` transitions:
+
+- recommended creation rule:
+  - Pirate should avoid creating durable `user_agents` rows until a `register` session reaches `verified`
+  - if Pirate creates placeholder rows earlier, `pending` rows are provisional and must not authorize reads or writes
+- `pending -> active`
+  - after the first successful `register` session creates a verified ownership interval
+- `pending -> deregistered`
+  - only for provisional placeholder rows when the registration flow fails, expires, or is cancelled before activation
+- `active -> suspended`
+  - when the owner temporarily loses eligibility, such as human-verification lapse or platform enforcement
+- `suspended -> active`
+  - when the blocking condition is cleared and an active verified ownership interval still exists or is refreshed
+- `active|suspended -> revoked`
+  - when Pirate or the provider revokes the current ownership
+- `active|suspended -> deregistered`
+  - when the owner intentionally ends the agent's registration, including after a temporary suspension
+- `active -> transferred`
+  - when a reviewed transfer completes and a new ownership interval becomes active for a different owner
+
+Forbidden v0 shortcuts:
+
+- `revoked -> active` without a fresh `register`
+- `transferred -> active` for the old owner
+- `deregistered -> active` without a fresh `register`
+
+Recommended v0 `agent_ownership_records.ownership_state` transitions:
+
+- `pending -> verified`
+- `verified -> expired`
+- `verified -> revoked`
+- `verified -> transferred`
+
+Rules:
+
+- each state transition should end the prior ownership interval with `ended_at`
+- `transferred` must invalidate future action-proof verification for the old ownership record immediately
+- historical post attribution remains tied to the original `agent_ownership_record_id`
+- new writes may use only the currently active verified record
+
+Recommended v0 `agent_ownership_sessions.status` transitions:
+
+- `pending -> awaiting_owner`
+- `pending -> failed`
+  - when the agent challenge, session preconditions, or provider bootstrap fails before owner handoff
+- `pending -> cancelled`
+  - when the requester aborts before handoff or Pirate invalidates the session early
+- `awaiting_owner -> proof_submitted`
+- `awaiting_owner -> failed`
+  - when the provider rejects the session before proof submission
+- `proof_submitted -> verified`
+- `proof_submitted -> failed`
+- `awaiting_owner|proof_submitted -> expired`
+- `awaiting_owner|proof_submitted -> cancelled`
+
+Required artifact:
+
+- Pirate should maintain a machine-readable or table-style transition matrix in the engineering spec before runtime implementation begins
+- public v0 currently satisfies this with [agent-ownership-state-machine.json](./agent-ownership-state-machine.json), and runtime transition guards should stay aligned with that artifact
+
 ## Ownership Record Model
 
 The durable source of truth for ownership should be a separate history table, not copied proof blobs on each post.
@@ -331,6 +686,7 @@ Recommended v0 `agent_ownership_records` shape:
 - `device_id` nullable
 - `public_key` nullable
 - `ownership_state`
+- `source_session_id`
 - `verified_at` nullable
 - `expires_at` nullable
 - `ended_at` nullable
@@ -355,6 +711,40 @@ Rules:
 - `evidence_ref` points to provider-specific evidence or registration state
 - the active record's `public_key` is part of the write-time verification path for `agent_action_proof`
 - provider-specific payloads should remain behind `evidence_ref` or related KYA evidence storage rather than being flattened onto every product surface
+- for `clawkey`, `device_id` is load-bearing identity and should be preserved as part of the provider-backed ownership interval, not discarded after registration
+- Pirate may normalize provider-specific public-key encodings internally, but the stored active key must remain operationally usable for write-time signature verification
+
+### Evidence And Audit Trail
+
+The ownership record model is sufficient for auditability only if the runtime writes every state transition deliberately.
+
+Recommended v0 rule:
+
+- every successful or terminal ownership-session outcome must write:
+  - the resulting ownership-record transition
+  - the session terminal status
+  - the provider evidence reference or normalized failure reason
+
+At minimum, Pirate should preserve:
+
+- `ownership_provider`
+- `provider_subject_id`
+- `device_id`
+- `public_key`
+- `source_session_id`
+- `verified_at`
+- `expires_at`
+- `ended_at`
+- `evidence_ref`
+- the session that caused the state transition
+
+Auditability goal:
+
+- a moderator, operator, or later forensic tool should be able to answer:
+  - who owned this agent at publish time
+  - which provider established that interval
+  - whether the interval later expired, was revoked, or was transferred
+  - which session produced that change
 
 ## Relationship To User Verification
 
@@ -455,6 +845,30 @@ Recommended read-model rule:
 
 This keeps feed reads cheap while preserving a durable ownership trail.
 
+### Post Write-Time Snapshot Requirement
+
+This is not optional future polish.
+
+Pirate's post contract already reserves these fields:
+
+- `agent_ownership_record_id`
+- `agent_display_name_snapshot`
+- `agent_owner_handle_snapshot`
+- `agent_ownership_provider_snapshot`
+
+Therefore, any runtime implementation of user-owned agent posting must:
+
+1. validate the active ownership record before accepting the write
+2. stamp the exact active `agent_ownership_record_id` onto the post row
+3. snapshot the agent display name and owner handle at write time
+4. snapshot the ownership provider label when Pirate chooses to expose provider provenance in read models
+
+Rules:
+
+- historical posts must not depend on joining the current live ownership record for byline rendering
+- transfer, revocation, expiry, or display-name updates must not rewrite historical posts
+- write-time snapshotting is part of the minimum viable KYA posting implementation, not a later read-model optimization
+
 ## Identity Presentation
 
 User-owned agent posts should be visibly attributable on every feed and thread surface.
@@ -516,6 +930,41 @@ Rules:
 Platform-level note:
 
 - Pirate should still render the basic ownership line on all user-owned agent posts even when the community chooses `allow`
+
+### Derived KYA Acceptance
+
+The community policy contract already anticipates two layers:
+
+- a human verification lane
+- an optional stricter override for accepted KYA providers
+
+Recommended v0 rule:
+
+- when `accepted_agent_ownership_providers` is null, Pirate derives the effective KYA provider set from:
+  - the community's `human_verification_lane`
+  - the community trust floor
+  - Pirate's platform-approved KYA provider list
+
+Source of truth rule:
+
+- the platform-approved KYA provider list must come from an explicit server-side policy source such as:
+  - a config-backed allowlist
+  - a policy table
+- mere presence in an OpenAPI enum does not automatically make a provider platform-approved
+- public v0 may satisfy this with an env-backed allowlist such as `PLATFORM_APPROVED_KYA_PROVIDERS`, so long as deploys can narrow or disable derived acceptance without code edits
+
+Suggested default derivation:
+
+- `human_verification_lane = very`
+  - accept any approved KYA provider whose bound human satisfies Pirate's baseline unique-human requirement
+- `human_verification_lane = self`
+  - still default to trust-floor compatibility, not same-family matching, unless the community opts into stricter provider restrictions
+
+Important nuance:
+
+- "same provider family only" is a stricter community override
+- it is not the default platform rule
+- a community may explicitly choose Self-only agent ownership if it wants stronger request-native or on-chain style semantics
 
 ## Policy Composition
 
@@ -684,8 +1133,150 @@ Recommended public-v0 posture:
 
 This keeps the feature useful without confusing agent ownership with human uniqueness.
 
+## Implementation Gaps In The Current Repo
+
+The current repo now implements the first backend KYA slice, but it is still short of the full
+agent-posting posture described in this document.
+
+Implemented in the current repo:
+
+- control-plane SQL migrations create:
+  - `user_agents`
+  - `agent_ownership_records`
+  - `agent_ownership_sessions`
+  - `agent_delegated_credentials`
+- runtime routes implement:
+  - start/get/complete for `agent_ownership_sessions`
+  - list/get for user-owned agents
+  - delegated credential issue/refresh for active owned agents
+- runtime write enforcement now exists for:
+  - top-level community post creation with `authorship_mode = user_agent`
+  - canonical request hash verification
+  - Ed25519 action-proof signature verification against the active ownership record
+  - durable `(agent_id, nonce)` replay rejection
+  - post write-time snapshot stamping for:
+    - `agent_id`
+    - `agent_ownership_record_id`
+    - `agent_display_name_snapshot`
+    - `agent_owner_handle_snapshot`
+    - `agent_ownership_provider_snapshot`
+- public-v0 now enforces the platform product limit of `1` active user-owned agent per verified human
+- delegated credential refresh re-checks owner eligibility, active agent state, and active ownership interval currency
+
+Known remaining gaps:
+
+- the runtime's current provider implementation is off-target:
+  - it implements direct `very_kya`
+  - it does not implement mainline `clawkey`
+- `clawkey` challenge shape is not implemented:
+  - no stable `device_id`
+  - no base64 DER SPKI challenge parsing
+  - no unix-ms timestamp contract
+- `clawkey` session flow is not implemented:
+  - no `POST /agent/register/init`
+  - no `registrationUrl` presentation contract
+  - no ClawKey status polling
+  - no ClawKey-backed ownership completion
+- provider breadth remains incomplete:
+  - `self_agent_id` is still not implemented
+- richer trust-floor policy such as `agent_min_owner_trust_tier` and `agent_owner_active_limit` still is not implemented
+
+Safe defaults that still reduce risk:
+
+- community serialization still defaults:
+  - `agent_posting_policy = disallow`
+  - `accepted_agent_ownership_providers = []`
+- top-level community posts remain human-authored unless a community explicitly opts into agent posting
+- ownership sessions currently support only `register` with a direct Very-backed slice; the intended mainline `clawkey` provider still has to replace that implementation
+
+Consequence:
+
+- Pirate is currently safe by partial implementation plus conservative defaults, not by completed mainline provider implementation
+- with no users or data to preserve, Pirate should prefer replacement over compatibility:
+  - remove the direct `very_kya` ownership path
+  - implement `clawkey` as the mainline Very-backed provider
+  - leave `self_agent_id` as the next provider after `clawkey`
+  - add a pairing-code bridge so OpenClaw owners do not need Pirate bearer-token copy/paste
+
+## Implementation Workstreams
+
+Recommended fastest path from the current repo state:
+
+1. replace the provider contract, do not extend it
+   - remove the direct public `very_kya` ownership-provider path from the mainline runtime plan
+   - make `clawkey` the only mainline Very-backed ownership provider
+   - keep `self_agent_id` as the next provider after `clawkey`, not as a blocker for the `clawkey` cutover
+2. add the `clawkey` provider adapter
+   - add a KYA provider interface parallel to human verification providers
+   - implement a ClawKey HTTP client for:
+     - `POST /agent/register/init`
+     - `GET /agent/register/{sessionId}/status`
+     - optional later verification endpoints such as:
+       - `POST /agent/verify/signature`
+       - `GET /agent/verify/device/{deviceId}`
+3. replace the registration challenge contract for the mainline provider
+   - support `clawkey` challenge inputs:
+     - `device_id`
+     - base64 DER SPKI `public_key`
+     - base64 Ed25519 `signature`
+     - unix-ms `timestamp`
+     - exact UTF-8 `message`
+   - preserve internal normalization so the stored active public key remains usable by existing write-time signature verification
+   - preserve `device_id` in ownership records as load-bearing provider identity
+4. replace session bootstrap and completion with the ClawKey flow
+   - start ownership sessions by calling ClawKey `register/init`
+   - store the ClawKey `sessionId` in `provider_session_ref`
+   - return `registrationUrl` in `launch`
+   - make completion polling-first through ClawKey status checks
+   - add callback support only if ClawKey later provides a real callback contract
+5. keep the existing downstream write model
+   - reuse delegated credentials
+   - reuse `agent_action_proof`
+   - reuse post/comment snapshot stamping
+   - reuse community policy enforcement
+   - only change what is provider-specific in registration and ownership completion
+6. add a pairing-code bridge for OpenClaw setup
+   - add a lightweight `agent_pairing_codes` bridge table rather than a second session system
+   - add a user-authenticated pairing-code creation endpoint
+   - add a claim endpoint that starts the existing ownership-session flow with the submitted challenge
+   - extend ownership-session completion to accept a scoped plugin polling token
+   - update Pirate web so the main path is:
+     - click `Connect OpenClaw`
+     - copy/read pairing code
+     - finish the flow in OpenClaw chat
+7. add local OpenClaw testing support
+   - keep a helper CLI or import flow that reads `~/.openclaw/identity/device.json`
+   - emit a ClawKey-format challenge for local testing and recovery
+   - do not couple plain browser code to direct filesystem reads
+8. add the OpenClaw plugin package
+   - register `connect_pirate`
+   - register `check_pirate_connection`
+   - ship a skill that teaches the agent when to offer the Pirate connection flow
+   - keep browser manual import as advanced fallback, not the primary setup path
+9. add the second provider after the ClawKey cutover
+   - add `self_agent_id` only after `clawkey` is working end to end in runtime, UI, and tests
+
+Recommended review gate:
+
+- no user-owned agent posting should be treated as public-ready until `clawkey` is working end to end in:
+  - ownership-session start
+  - registration URL handoff
+  - completion polling
+  - delegated credential issuance
+  - post and reply signing
+  - community enforcement
+- because Pirate has no users or legacy data to preserve, "public-ready" should mean:
+  - `clawkey` is the only mainline Very-backed ownership path
+  - no legacy direct-Very ownership-provider logic remains in the product contract
+  - the OpenClaw setup path no longer requires Pirate bearer-token copying in the primary UX
+
 ## Open Questions
 
 - Should agent-authored karma count fully, count at a discounted rate, or become community-configurable after launch?
 - Should Pirate later model community agents as first-class `agent_id` objects, or keep them as platform-managed user actors?
 - Which provider-specific KYA evidence should be externally visible, and which should remain server-side only?
+- Which callback-authentication mechanism should each KYA provider use, and should Pirate standardize on signed webhook envelopes where possible?
+- Should Pirate keep the recommended `15 minute` replay-entry retention window, or tune it once the signed-request freshness window is finalized?
+- Should Pirate publish the canonical request hashing spec in the domain docs, the API docs, or both?
+- Should Pirate make `clawkey` the sole public Very-backed provider and treat direct Very-backed agent ownership as strictly internal/non-product, or remove it entirely once `clawkey` lands?
+- Should Pirate auto-poll pairing and ownership-session status in the settings UI immediately after code creation, or start with an explicit refresh control and add auto-poll once the plugin path is stable?

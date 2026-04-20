@@ -1,4 +1,4 @@
-# Nationality-Gated Community v0 — Implementation Plan
+# Identity-Gated Community v0 — Nationality + Passport Score Implementation Plan
 
 ## Product Decision
 
@@ -10,6 +10,105 @@ Lock v0 to **citizenship/nationality**, not residency.
 - Do not introduce residency wording, residency fields, or "country" copy that suggests location rather than nationality.
 
 The canonical nationality source is `verification_capabilities.nationality.value`, not `users.nationality`.
+
+This document also owns the follow-on **Human Passport score-gated community** slice for
+membership-scoped identity-proof gates. The nationality slice remains interactive and
+Self-backed. The wallet-score slice is non-interactive and Passport-backed.
+
+## Human Passport Score Gate Slice
+
+### Product Decision
+
+Support a common v0 community preset that requires a configurable Human Passport score.
+
+- Keep this as `gate_family = identity_proof`, not `token_holding`.
+- Use `gate_type = wallet_score`.
+- Accepted provider is only `passport`.
+- Gate config uses `minimum_score`.
+- New communities should default the score input to `20`, but the saved threshold must remain configurable per gate.
+- Join remediation for a missing Passport score is non-interactive. Do not route users into Self or Very for this gate.
+- `human_verification_lane` stays limited to interactive providers. Do not add `passport` to that field.
+
+Canonical serialized shape:
+
+```json
+{
+  "scope": "membership",
+  "gate_family": "identity_proof",
+  "gate_type": "wallet_score",
+  "proof_requirements": [
+    {
+      "proof_type": "wallet_score",
+      "accepted_providers": ["passport"],
+      "config": {
+        "minimum_score": 20
+      }
+    }
+  ]
+}
+```
+
+### Rollout Order For Passport Score Gates
+
+1. Contracts
+2. Backend evaluator
+3. Web gate preservation
+4. Web create/settings UI
+5. Web preview/join copy
+6. Tests
+7. Passport score API integration later
+
+### Minimum Contract Changes
+
+The wallet-score extension should stay small and targeted.
+
+- Add `minimum_score` to `MembershipGateSummary`.
+- Add `wallet_score` to the `JoinEligibility.missing_capabilities` union.
+- Add `passport` to `suggested_verification_provider`.
+
+Do not broaden `human_verification_lane` for this slice.
+
+### Backend Behavior
+
+`evaluateMembershipGateRules` should handle `wallet_score` explicitly instead of falling through to
+the generic `unsatisfied:*` path.
+
+Expected behavior:
+
+- if the user has no current wallet-score capability, return:
+  - `missingCapabilities = ["wallet_score"]`
+  - `suggestedVerificationProvider = "passport"`
+- if provider is not accepted, return `provider_not_accepted`
+- if `passing_score !== true`, return a wallet-score-specific mismatch
+- if `minimum_score` is configured and the current score is lower, return a wallet-score-specific mismatch
+
+The low-level proof checker may continue to enforce the numeric comparison. The explicit evaluator
+branch exists so join eligibility and UI remediation are structured rather than opaque.
+
+### Web Behavior
+
+The most urgent web fix is preservation.
+
+- community settings must not silently discard existing non-nationality gates
+- moderation save must round-trip unrecognized active membership gates as opaque passthrough rules until every common gate has dedicated UI
+- the wallet-score gate editor should expose a single numeric score input
+- the default score shown in UI is `20`
+- the saved gate remains configurable
+
+Join UX rules:
+
+- display threshold copy such as `Requires Human Passport score 20+`
+- if `missing_capabilities = ["wallet_score"]`, show a non-interactive remediation state
+- do not route wallet-score remediation into Self or Very verification session launch
+- below-threshold users should see a threshold failure state such as `Passport score too low`
+
+### Non-Goals For This Slice
+
+- do not model Passport score as an NFT or token-holding gate
+- do not add live Passport score API integration as a blocker for create/edit/join enforcement
+- do not add `passport` to `human_verification_lane`
+- do not replace the existing nationality flow
+- do not broaden token-holding self-serve configuration in public v0
 
 ---
 
@@ -26,7 +125,7 @@ The canonical nationality source is `verification_capabilities.nationality.value
 
 ## Implementation Order
 
-1. Fix spec/contracts typo and add new schemas
+1. Fix spec/contracts typo and update the existing schemas
 2. Regenerate contracts
 3. Implement backend API behavior and tests
 4. Implement web creation flow
@@ -47,9 +146,19 @@ The canonical nationality source is `verification_capabilities.nationality.value
 
 Do not edit `specs/api/openapi.yaml` or `specs/api/openapi-implemented.yaml` directly. They are generated artifacts. The generated contract at `pirate-api/services/contracts/src/index.ts:179` already has `community_join` (the typo is only in the YAML source). After the source fix and regeneration, the generated outputs will match.
 
-### 1B. Add new schemas to `specs/api/src/components/schemas/communities-core.yaml`
+### 1B. Update the existing schemas in `specs/api/src/components/schemas/communities-core.yaml`
 
-Add these new type definitions after the existing `ProofRequirement` block (after line 468):
+These schemas already exist in the source tree. Do not redefine `MembershipGateSummary`,
+`CommunityPreview`, `JoinEligibility`, or `GateFailureDetails` from scratch. Make the additive
+changes required for the wallet-score slice only:
+
+- add `minimum_score` to `MembershipGateSummary`
+- add `wallet_score` to the constrained `missing_capabilities` union in `JoinEligibility`
+- add `passport` to `suggested_verification_provider` in `JoinEligibility`
+- add the same `wallet_score` / `passport` union expansion where `GateFailureDetails` constrains those fields
+- leave `human_verification_lane` unchanged
+
+Target additive patch:
 
 ```yaml
 MembershipGateSummary:
@@ -57,103 +166,14 @@ MembershipGateSummary:
   required:
     - gate_type
   properties:
-    gate_type:
-      type: string
-      enum:
-        - nationality
-        - unique_human
-        - age_over_18
-        - wallet_score
-    accepted_providers:
-      type: array
+    minimum_score:
+      type: number
       nullable: true
-      items:
-        type: string
-        enum:
-          - self
-          - very
-          - passport
-    required_value:
-      type: string
-      nullable: true
-      description: ISO 3166-1 alpha-2 country code when gate_type is nationality
-    excluded_values:
-      type: array
-      nullable: true
-      items:
-        type: string
-      description: Array of excluded ISO country codes for nationality gates
-
-CommunityPreview:
-  type: object
-  required:
-    - community_id
-    - display_name
-    - membership_mode
-    - membership_gate_summaries
-    - created_at
-  properties:
-    community_id:
-      type: string
-    display_name:
-      type: string
-    description:
-      type: string
-      nullable: true
-    membership_mode:
-      type: string
-      enum:
-        - open
-        - gated
-    member_count:
-      type: integer
-      nullable: true
-    membership_gate_summaries:
-      type: array
-      items:
-        $ref: ./communities-core.yaml#/MembershipGateSummary
-    viewer_membership_status:
-      type: string
-      enum:
-        - member
-        - not_member
-        - banned
-      nullable: true
-    created_at:
-      type: string
-      format: date-time
+      description: Minimum Human Passport wallet score when gate_type is wallet_score
 
 JoinEligibility:
   type: object
-  required:
-    - community_id
-    - membership_mode
-    - joinable_now
-    - status
-    - membership_gate_summaries
-    - missing_capabilities
   properties:
-    community_id:
-      type: string
-    membership_mode:
-      type: string
-      enum:
-        - open
-        - gated
-    joinable_now:
-      type: boolean
-    status:
-      type: string
-      enum:
-        - joinable
-        - verification_required
-        - gate_failed
-        - already_joined
-        - banned
-    membership_gate_summaries:
-      type: array
-      items:
-        $ref: ./communities-core.yaml#/MembershipGateSummary
     missing_capabilities:
       type: array
       items:
@@ -163,52 +183,29 @@ JoinEligibility:
           - age_over_18
           - nationality
           - gender
+          - wallet_score
     suggested_verification_provider:
       type: string
       enum:
         - self
         - very
-      nullable: true
-    suggested_verification_intent:
-      type: string
-      enum:
-        - community_join
+        - passport
       nullable: true
 
 GateFailureDetails:
   type: object
   properties:
-    membership_gate_summaries:
-      type: array
-      nullable: true
-      items:
-        $ref: ./communities-core.yaml#/MembershipGateSummary
-    missing_capabilities:
-      type: array
-      nullable: true
-      items:
-        type: string
     suggested_verification_provider:
       type: string
       enum:
         - self
         - very
-      nullable: true
-    suggested_verification_intent:
-      type: string
-      enum:
-        - community_join
-      nullable: true
-    failure_reason:
-      type: string
-      enum:
-        - missing_verification
-        - provider_not_accepted
-        - nationality_mismatch
-        - unsupported
-        - banned
+        - passport
       nullable: true
 ```
+
+The summary addition is necessary because preview/sidebar/join surfaces need to show threshold copy
+such as `Requires Human Passport score 20+`.
 
 ### 1C. Add preview and join-eligibility endpoints in source path files
 
@@ -1021,17 +1018,29 @@ export type NationalityGateDraft = {
   requiredValue: string
 }
 
-export type UniqueHumanGateDraft = {
-  gateType: "unique_human"
-  acceptedProviders: Array<"self" | "very">
-}
-
-export type AgeOver18GateDraft = {
-  gateType: "age_over_18"
+export type GenderGateDraft = {
+  gateType: "gender"
   acceptedProviders: ["self"]
+  requiredValue: "M" | "F"
 }
 
-export type GateDraft = NationalityGateDraft | UniqueHumanGateDraft | AgeOver18GateDraft
+export type WalletScoreGateDraft = {
+  gateType: "wallet_score"
+  acceptedProviders: ["passport"]
+  minimumScore: number
+}
+
+export type EditableGateDraft =
+  | NationalityGateDraft
+  | GenderGateDraft
+  | WalletScoreGateDraft
+
+export type PassthroughMembershipGateRule = {
+  gateRuleId: string
+  rule: Record<string, unknown>
+}
+
+export type GateDraft = EditableGateDraft
 
 export type ComposerStep = 1 | 2 | 3
 
@@ -1057,6 +1066,7 @@ export interface CreateCommunityComposerProps {
     allowAnonymousIdentity: boolean
     anonymousIdentityScope: AnonymousIdentityScope
     gateDrafts: GateDraft[]
+    passthroughMembershipGateRules?: PassthroughMembershipGateRule[]
   }) => Promise<{
     communityId: string
   }>
@@ -1066,6 +1076,8 @@ export interface CreateCommunityComposerProps {
 Key differences from current:
 - `gateTypes: Set<GateType>` replaced with `gateDrafts: GateDraft[]`
 - `NationalityGateDraft` requires `requiredValue` (ISO alpha-2 code)
+- `WalletScoreGateDraft` is first-class and carries `minimumScore`
+- `PassthroughMembershipGateRule[]` preserves active gates the current UI cannot edit yet
 - `GateFamily` and `GateType` string-union types removed (they were only used for the chip matrix)
 - `onCreate` input type uses `gateDrafts` instead of `gateTypes`
 
@@ -1087,7 +1099,9 @@ Replace with:
 - A `NationalityPicker` component (see 3C below)
 - When membership mode is "gated", show:
   - A "Nationality" option card (or similar) that, when selected, shows the country picker
-  - No generic chip matrix for other gate types in v0
+  - A "Human Passport score" option card (or similar) that, when selected, shows a numeric threshold input defaulted to `20`
+  - Existing gender controls if they remain in scope for the same surface
+  - No generic chip matrix fallback for common v0 identity-proof gates
 
 #### Update `handleCreate`
 
@@ -1196,6 +1210,7 @@ const handleCreate = React.useCallback(async (input: {
   allowAnonymousIdentity: boolean
   anonymousIdentityScope: "community_stable" | "thread_stable" | "post_ephemeral"
   gateDrafts: GateDraft[]
+  passthroughMembershipGateRules?: PassthroughMembershipGateRule[]
 }) => {
   try {
     const gateRules = input.gateDrafts.map((draft): Record<string, unknown> => {
@@ -1213,28 +1228,41 @@ const handleCreate = React.useCallback(async (input: {
           ],
         }
       }
-      if (draft.gateType === "unique_human") {
+      if (draft.gateType === "gender") {
         return {
           scope: "membership",
           gate_family: "identity_proof",
-          gate_type: "unique_human",
+          gate_type: "gender",
           proof_requirements: [
-            { proof_type: "unique_human", accepted_providers: draft.acceptedProviders },
+            {
+              proof_type: "gender",
+              accepted_providers: ["self"],
+              config: { required_value: draft.requiredValue },
+            },
           ],
         }
       }
-      if (draft.gateType === "age_over_18") {
+      if (draft.gateType === "wallet_score") {
         return {
           scope: "membership",
           gate_family: "identity_proof",
-          gate_type: "age_over_18",
+          gate_type: "wallet_score",
           proof_requirements: [
-            { proof_type: "age_over_18", accepted_providers: ["self"] },
+            {
+              proof_type: "wallet_score",
+              accepted_providers: ["passport"],
+              config: { minimum_score: draft.minimumScore },
+            },
           ],
         }
       }
       throw new Error(`Unsupported gate type: ${(draft as { gateType: string }).gateType}`)
     })
+
+    const mergedGateRules = [
+      ...gateRules,
+      ...(input.passthroughMembershipGateRules?.map((entry) => entry.rule) ?? []),
+    ]
 
     const result = await api.communities.create({
       display_name: input.displayName,
@@ -1245,7 +1273,7 @@ const handleCreate = React.useCallback(async (input: {
       anonymous_identity_scope: input.anonymousIdentityScope,
       handle_policy: { policy_template: "standard" },
       governance_mode: "centralized",
-      gate_rules: gateRules.length > 0 ? gateRules : undefined,
+      gate_rules: mergedGateRules.length > 0 ? mergedGateRules : undefined,
     })
 
     navigate(`/c/${result.community.community_id}`)
@@ -1258,6 +1286,86 @@ const handleCreate = React.useCallback(async (input: {
 ```
 
 After regenerating contracts, update `api.communities.create` in `pirate-web/src/lib/api/client.ts:226` to use the generated `GateRuleInput[]` type instead of `unknown[] | null` for the `gate_rules` parameter. The current `unknown[]` typing bypasses the contract; the regenerated `CreateCentralizedCommunityRequest` will carry `gate_rules?: Array<GateRuleInput>`, and the API client should reflect that.
+
+For wallet-score gates specifically:
+
+- serialize `accepted_providers: ["passport"]`
+- serialize `config.minimum_score`
+- do not use `required_value`
+- preserve opaque active membership rules that the current UI cannot edit yet
+
+### 3E. Wallet score composer UI and preservation path
+
+The wallet-score gate is a first-class common gate, not an opaque admin-only edge case.
+
+**Files to update:**
+
+- `pirate-web/src/components/compositions/create-community-composer/create-community-composer.types.ts`
+- `pirate-web/src/components/compositions/create-community-composer/create-community-composer.tsx`
+- `pirate-web/src/app/authenticated-routes/create-community-route.tsx`
+- `pirate-web/src/app/authenticated-routes/moderation-helpers.ts`
+- `pirate-web/src/app/authenticated-routes/moderation-state.tsx`
+- `pirate-web/src/lib/identity-gates.ts`
+- `pirate-web/src/app/authenticated-routes/community-sidebar-helpers.ts`
+
+#### Composer / settings UI
+
+Add a dedicated wallet-score gate row beside the existing identity-gate controls.
+
+- label: `Human Passport score`
+- control: numeric input
+- default value for new drafts: `20`
+- stored value: `minimumScore`
+- provider is fixed to `passport`
+
+Do not hide this behind a generic advanced JSON editor. It should be selectable through the same
+top-level gate UI the user uses for nationality and gender.
+
+#### Preservation in moderation
+
+This is the most urgent web fix for the Passport-score slice.
+
+`moderation-helpers.ts` currently rehydrates only nationality and gender drafts. That behavior
+silently destroys any active wallet-score gate on save. Fix this before or alongside the new UI.
+
+Expected approach:
+
+- parse supported editable rules into typed drafts
+- collect all other active membership rules into `PassthroughMembershipGateRule[]`
+- save `serializedEditableDrafts + passthroughRules`
+- do not mutate or normalize passthrough rules beyond preserving their stored contract shape
+
+#### Preview / join copy files
+
+Update the explicit copy helpers, not just acceptance criteria:
+
+1. `pirate-web/src/lib/identity-gates.ts`
+   - `formatGateRequirement` must include threshold copy for wallet score
+   - example: `Requires Human Passport score 20+`
+   - `getVerificationPromptCopy` needs a non-interactive Passport branch
+   - do not reuse the Self/Very `Verify with ID` copy for wallet-score remediation
+   - `getGateFailureMessage` needs wallet-score-specific failure reasons such as `score_below_minimum`
+
+2. `pirate-web/src/app/authenticated-routes/community-sidebar-helpers.ts`
+   - `formatSidebarRequirement` must include the threshold instead of plain `Passport score`
+   - example: `Passport score 20+`
+
+3. `pirate-web/src/app/authenticated-routes/community-route.tsx`
+   - when `missing_capabilities = ["wallet_score"]`, show a non-interactive remediation state
+   - do not route into Self or Very verification session launch
+
+#### Passport remediation branch
+
+The current `VerificationProvider` flow is interactive and only models `self | very`.
+Wallet score needs a third branch in product behavior, even if the implementation chooses a
+different type name than `VerificationProvider`.
+
+Expected UX:
+
+- title: `Passport score required`
+- description: `This community requires a Human Passport score of 20+`
+- state: non-interactive
+- CTA: optional external/manage-later affordance, but not a Self/Very verification launch
 
 ---
 
@@ -1629,7 +1737,7 @@ Leave the `users.nationality` column in the database unchanged. No migration. Th
 | File | Change |
 |---|---|
 | `specs/api/src/components/schemas/verification.yaml:13` | Fix `ucommunity_join` → `community_join` |
-| `specs/api/src/components/schemas/communities-core.yaml` | Add `MembershipGateSummary`, `CommunityPreview`, `JoinEligibility`, `GateFailureDetails` schemas; add nationality create example to `gate_rules` |
+| `specs/api/src/components/schemas/communities-core.yaml` | Update existing `MembershipGateSummary`, `JoinEligibility`, and `GateFailureDetails` schemas; add `minimum_score`, `wallet_score` missing-capability support, and `passport` provider support |
 | `specs/api/src/components/schemas/users.yaml:48-51` | Remove `nationality` field |
 | `specs/api/src/components/schemas/common.yaml` (or `Error` schema location) | Add `details` field to error response |
 | `specs/api/src/paths/communities.yaml` | Add `GET /communities/{community_id}/preview` and `GET /communities/{community_id}/join-eligibility` operations with `x-implemented: true` |
@@ -1661,7 +1769,7 @@ Do not edit these files directly. Verify that regeneration produces the expected
 
 | File | Change |
 |---|---|
-| `pirate-web/src/components/compositions/create-community-composer/create-community-composer.types.ts` | Replace `Set<GateType>` with `GateDraft[]`; add `NationalityGateDraft`, etc. |
+| `pirate-web/src/components/compositions/create-community-composer/create-community-composer.types.ts` | Replace `Set<GateType>` with `GateDraft[]`; add `NationalityGateDraft`, `GenderGateDraft`, `WalletScoreGateDraft`, and passthrough rule support |
 | `pirate-web/src/components/compositions/create-community-composer/create-community-composer.tsx` | Replace chip matrix with nationality picker; update state, validation, review step, `handleCreate` |
 | `pirate-web/src/components/compositions/create-community-composer/nationality-picker.tsx` | New: searchable country picker component |
 | `pirate-web/src/lib/countries.ts` | New: static ISO 3166-1 alpha-2 country list |
@@ -1672,6 +1780,10 @@ Do not edit these files directly. Verify that regeneration produces the expected
 | `pirate-web/src/lib/self-verification-flow.ts` | New: self session start/complete helpers |
 | `pirate-web/src/components/compositions/self-qr-launch/self-qr-launch.tsx` | New: QR code rendering + polling for self verification |
 | `pirate-web/src/components/compositions/community-join-panel/community-join-panel.tsx` | New: join CTA with state management |
+| `pirate-web/src/app/authenticated-routes/moderation-helpers.ts` | Rehydrate editable gates and preserve unsupported active membership gates as passthrough |
+| `pirate-web/src/app/authenticated-routes/moderation-state.tsx` | Save editable gate drafts plus passthrough gate rules without destroying wallet-score gates |
+| `pirate-web/src/lib/identity-gates.ts` | Add wallet-score threshold copy, non-interactive Passport remediation copy, and wallet-score failure messaging |
+| `pirate-web/src/app/authenticated-routes/community-sidebar-helpers.ts` | Include wallet-score threshold in sidebar requirement copy |
 
 ---
 
@@ -1707,3 +1819,28 @@ The work is done when all of the following are true:
 11. Relevant spec, API, and web tests pass
 12. `rtk bun run types` passes in `pirate-web`
 13. `rtk bun specs/api/scripts/generate-api-contracts.ts` produces contracts without errors
+
+### Passport Score Slice Acceptance Criteria
+
+The Human Passport score gate slice is done when all of the following are true:
+
+1. Creating a Passport-score-gated community from the web sends a real `gate_rules` payload with `accepted_providers: ["passport"]` and `config.minimum_score`
+2. The score is configurable in the web UI and defaults to `20` for new wallet-score gates
+3. `MembershipGateSummary` exposes `minimum_score` so preview and join surfaces can show the threshold
+4. `JoinEligibility.missing_capabilities` can return `wallet_score`
+5. `suggested_verification_provider` can return `passport`
+6. `evaluateMembershipGateRules` returns a structured missing-capability result for absent wallet-score capability instead of an opaque `unsatisfied:wallet_score` mismatch
+7. A user whose `wallet_score.score` is at or above the configured `minimum_score` and whose `passing_score = true` can join a wallet-score-gated community
+8. A user whose wallet score is below the configured threshold is rejected with clear wallet-score-specific copy
+9. A user missing wallet-score capability sees non-interactive remediation copy and is not routed into Self or Very session launch
+10. Community settings preserve existing unrecognized membership gates instead of dropping them on save
+11. Editing a community with an existing wallet-score gate does not destroy or rewrite that gate incorrectly
+12. Relevant spec, API, and web tests pass for the wallet-score path
+
+### Deferred Follow-On
+
+The following work is explicitly deferred and should not block the wallet-score gate slice above:
+
+- live Human Passport score read endpoint
+- live Human Passport score refresh endpoint
+- production Passport provider integration beyond test or seeded development capability data
