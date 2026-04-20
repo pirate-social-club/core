@@ -297,9 +297,9 @@ CreateCommunityRequestBase:
         $ref: ./communities-core.yaml#/GateRuleInput
       nullable: true
       description: |
-        Public v0 create is limited to `membership`-scope `identity_proof` gate rules only. Each submitted gate rule must include explicit `proof_requirements`. Token-holding gate rules, `viewer`-scope gates, and `posting`-scope gates are deferred until post-create settings. The server should reject create requests containing gate rules that fall outside the public v0 scope.
+        Public v0 create is limited to `membership`-scope `identity_proof` gate rules only. Each submitted gate rule must include explicit `proof_requirements`. `viewer`-scope gates and `posting`-scope gates are not supported in v0. The server should reject create requests containing gate rules that fall outside the public v0 scope.
         Public v0 self-serve creation should still reject `sanctions_clear` identity gates; those remain deferred or operator-controlled until their end-to-end request and policy semantics are fully locked.
-        Token-holding gate rules are operator-controlled exceptions when enabled later; they are not public-v0 self-serve configuration.
+        Token-holding gate rules are not supported in v0; the membership evaluator does not resolve them.
 GateRuleInput:
   type: object
   required:
@@ -316,15 +316,10 @@ GateRuleInput:
     gate_family:
       type: string
       enum:
-        - token_holding
         - identity_proof
     gate_type:
       type: string
       enum:
-        - erc721_holding
-        - erc1155_holding
-        - erc20_balance
-        - solana_nft_holding
         - unique_human
         - age_over_18
         - nationality
@@ -351,16 +346,6 @@ GateRuleInput:
         - `wallet_score`: `minimum_score` (number)
         Deferred/admin-only gates may additionally use:
         - `sanctions_clear`: no extra config required
-
-        Token-holding gate configs are reserved for operator-approved exceptions and are not accepted through public v0 community creation.
-        They should still use typed, provider-neutral shapes keyed by `gate_type` rather than arbitrary adapter JSON.
-        EVM token gates should require CAIP-2 `chain_namespace` values such as `eip155:1` or `eip155:8453`.
-        For `erc721_holding`, the normalized rule shape should support:
-        - `standard = erc721`
-        - `mode = contract_any | token_id_allowlist | metadata_match`
-        - `contract_address`
-        - `token_ids` for `token_id_allowlist`
-        - `text_terms` and/or `attributes` for `metadata_match`
 GateRule:
   type: object
   required:
@@ -386,15 +371,10 @@ GateRule:
     gate_family:
       type: string
       enum:
-        - token_holding
         - identity_proof
     gate_type:
       type: string
       enum:
-        - erc721_holding
-        - erc1155_holding
-        - erc20_balance
-        - solana_nft_holding
         - unique_human
         - age_over_18
         - nationality
@@ -421,9 +401,6 @@ GateRule:
         - `wallet_score`: `minimum_score`
         Deferred/admin-only gates may additionally use:
         - `sanctions_clear`: no extra config
-        Token-holding configs should be typed by `gate_type` and use CAIP-2 `chain_namespace`.
-        `erc721_holding` should support `contract_any`, `token_id_allowlist`, and `metadata_match`
-        modes so the same gate model can handle generic collection gates and item-level NFT gates.
     status:
       type: string
       enum:
