@@ -601,6 +601,70 @@ CommunityListingListResponse:
       type: array
       items:
         $ref: ./communities-community.yaml#/CommunityListing
+CommunitySaleAllocationRecipientType:
+  type: string
+  enum:
+    - creator
+    - charity
+    - community_treasury
+CommunitySaleAllocationSettlementStrategy:
+  type: string
+  enum:
+    - story_payout
+    - provider_payout
+    - treasury_payout
+CommunitySaleAllocationStatus:
+  type: string
+  enum:
+    - quoted
+    - pending
+    - confirmed
+    - failed
+CommunitySaleAllocationSnapshot:
+  type: object
+  description: |
+    Immutable quote-time allocation snapshot for a priced sale. Settlement must consume this snapshot directly rather than recomputing money flow from the current listing or community state.
+  required:
+    - recipient_type
+    - waterfall_position
+    - share_bps
+    - amount_usd
+    - settlement_strategy
+  additionalProperties: false
+  properties:
+    recipient_type:
+      $ref: ./communities-community.yaml#/CommunitySaleAllocationRecipientType
+    recipient_ref:
+      type: string
+      nullable: true
+    waterfall_position:
+      type: integer
+      minimum: 0
+    share_bps:
+      type: integer
+      minimum: 0
+      maximum: 10000
+    amount_usd:
+      type: number
+      minimum: 0
+    settlement_strategy:
+      $ref: ./communities-community.yaml#/CommunitySaleAllocationSettlementStrategy
+CommunitySaleAllocationLeg:
+  allOf:
+    - $ref: ./communities-community.yaml#/CommunitySaleAllocationSnapshot
+    - type: object
+      required:
+        - status
+      additionalProperties: false
+      properties:
+        status:
+          $ref: ./communities-community.yaml#/CommunitySaleAllocationStatus
+        settlement_ref:
+          type: string
+          nullable: true
+        failure_reason:
+          type: string
+          nullable: true
 CommunityPurchase:
   type: object
   required:
@@ -613,6 +677,7 @@ CommunityPurchase:
     - settlement_chain
     - settlement_token
     - settlement_tx_ref
+    - allocations
     - purchase_entitlement_id
     - entitlement_kind
     - entitlement_target_ref
@@ -647,6 +712,10 @@ CommunityPurchase:
       type: string
     settlement_tx_ref:
       type: string
+    allocations:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunitySaleAllocationLeg
     donation_partner_id:
       type: string
       nullable: true
@@ -821,6 +890,7 @@ CommunityPurchaseQuote:
     - buyer_user_id
     - base_price_usd
     - final_price_usd
+    - allocation_snapshot
     - funding_mode
     - route_policy_compliant
     - policy_origin
@@ -857,6 +927,10 @@ CommunityPurchaseQuote:
     final_price_usd:
       type: number
       minimum: 0
+    allocation_snapshot:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunitySaleAllocationSnapshot
     funding_mode:
       $ref: ./communities-community.yaml#/CommunityPurchaseFundingMode
     funding_asset:
@@ -940,6 +1014,7 @@ CommunityPurchaseSettlement:
     - settlement_chain_ref
     - settlement_token
     - settlement_tx_ref
+    - allocations
     - entitlement_kind
     - entitlement_target_ref
     - purchase_entitlement_id
@@ -978,6 +1053,10 @@ CommunityPurchaseSettlement:
       type: string
     settlement_tx_ref:
       type: string
+    allocations:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/CommunitySaleAllocationLeg
     donation_partner_id:
       type: string
       nullable: true

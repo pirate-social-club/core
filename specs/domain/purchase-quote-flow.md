@@ -98,7 +98,7 @@ Recommended v0 app-level quote fields:
 - `settlement_token`
 - `settlement_amount`
 - `payout_destination`
-- `donation_snapshot` nullable
+- `allocation_snapshot[]`
 - `entitlement_token_id`
 - `asset_version_id`
 - `expires_at`
@@ -109,6 +109,22 @@ Recommended v0 app-level quote fields:
 Important v0 property:
 
 - the quote is the canonical bridge between offchain pricing policy and onchain settlement inputs
+- `allocation_snapshot[]` is the canonical bridge between offchain payout policy and downstream settlement execution
+
+Allocation snapshot rules:
+
+- `allocation_snapshot[]` is resolved once at quote time and must not be recomputed from current listing or community settings during settlement
+- each allocation entry should include:
+  - `recipient_type`
+  - `recipient_ref` nullable
+  - `waterfall_position`
+  - `share_bps`
+  - `amount_usd`
+  - `settlement_strategy`
+- `share_bps` uses integer basis points
+- the snapshot must include exactly one creator leg
+- total `share_bps` across the snapshot must equal `10000`
+- non-remainder legs round first; creator receives the remainder
 
 Minimum pricing-audit expectation:
 
@@ -132,7 +148,7 @@ Recommended v0 flow:
 7. Pirate resolves the Story-side settlement token and exact settlement amount.
 8. Pirate checks whether at least one approved route from an accepted funding asset to the destination settlement token is viable within the current money-policy constraints.
 9. If no approved route is viable, Pirate must not issue an executable quote for that funding lane.
-10. Pirate resolves payout destinations and donation snapshot data.
+10. Pirate resolves payout destinations and the allocation snapshot.
 11. Pirate resolves the locked asset delivery binding:
    - `asset_version_id`
    - `entitlement_token_id`
@@ -190,6 +206,7 @@ Important boundary:
 - the funding asset or source chain does not perform the unlock
 - routed funding is only the way value reaches the Story-side settlement lane
 - the actual locked read path remains Story entitlement plus Story CDR access
+- the encrypted asset payload is not re-authored per pricing tier; the quote changes price, not the locked content binding
 
 ## Unlock Failure States
 
@@ -267,6 +284,12 @@ Current contract boundary:
 - payout recipient is resolved before submission
 - the native amount sent in the transaction is the resolved settlement amount
 
+Current implementation note:
+
+- `MarketplaceSettlementV1` is still a single-recipient settlement primitive
+- multi-leg app-level allocations may therefore contain legs that are not yet confirmed onchain in the same step
+- the quote snapshot remains canonical even when execution backends differ by allocation leg
+
 In other words:
 
 - pricing logic stays offchain
@@ -287,7 +310,8 @@ After successful settlement, Pirate should write an app-level purchase row that 
 - `settlement_tx_ref`
 - `entitlement_token_id`
 - `asset_version_id`
-- any donation routing fields used
+- `allocation_snapshot[]` as executed purchase legs
+- compatibility donation fields, when present
 
 This keeps the app DB as the canonical analytical and support surface even when the entitlement is also onchain.
 

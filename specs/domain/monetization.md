@@ -208,6 +208,11 @@ Recommended v0 order:
 
 This keeps upstream obligations ahead of club/platform economics.
 
+Settlement modeling rule:
+
+- quote creation should snapshot the resolved post-waterfall allocations that settlement will execute
+- the creator donation sidecar is represented as a charity allocation leg cut from creator-side proceeds, not as a recomputed special case during settlement
+
 ## Livestream Revenue Boundary
 
 Livestream access sales follow the same payout waterfall, but room access and performer settlement should not be conflated.

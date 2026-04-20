@@ -48,47 +48,33 @@ This reduces scam surface area and keeps club identity coherent.
 
 `donation_partner_id` must point to a real reviewed partner object.
 
-Suggested v0 `donation_partners` shape:
+The `donation_partners` table is defined in the community-template SQLite schema (`db/community-template/migrations/1038_donation_partners.sql`). In v0 it stores partner metadata per-community.
 
-- `donation_partner_id`
-- `display_name`
-- `provider`
-- `provider_partner_ref`
-- `payout_destination_ref`
-- `review_status`
-- `status`
-- `created_at`
-- `updated_at`
+Fields:
 
-Suggested meanings:
+- `donation_partner_id` (TEXT PRIMARY KEY)
+- `display_name` (TEXT NOT NULL)
+- `provider` (TEXT NOT NULL CHECK `endaoment`)
+- `provider_partner_ref` (TEXT)
+- `image_url` (TEXT)
+- `review_status` (TEXT NOT NULL CHECK `pending` | `approved` | `rejected`)
+- `status` (TEXT NOT NULL CHECK `active` | `paused` | `retired`)
+- `created_at` (TEXT NOT NULL)
+- `updated_at` (TEXT NOT NULL)
 
-- `provider`
-  - `endaoment`
-- `provider_partner_ref`
-  Opaque provider-specific ID such as an Endaoment organization ID
-- `payout_destination_ref`
-  Canonical settlement destination reference resolved by Pirate when routing donation proceeds
-- `review_status`
-  - `pending`
-  - `approved`
-  - `rejected`
-- `status`
-  - `active`
-  - `paused`
-  - `retired`
+`payout_destination_ref` is not yet stored in v0; it resolves at payout time through the Endaoment integration.
 
 Rules:
 
 - v0 supports `provider = endaoment` only
 - only `review_status = approved` partners may be attached to communities in v0
-- `payout_destination_ref` is the source of truth for where donation proceeds route
 - the partner object, not the post or listing, owns provider-specific payout routing data
 - partner approval is a platform-admin action in v0
 
 V0 Endaoment note:
 
-- for `provider = endaoment`, `provider_partner_ref` should carry the Endaoment organization identifier
-- `payout_destination_ref` should resolve through Pirate's Endaoment integration to the actual donation settlement destination used at payout time
+- for `provider = endaoment`, `provider_partner_ref` carries the Endaoment organization identifier
+- `payout_destination_ref` resolves through Pirate's Endaoment integration at actual payout time
 
 ## Community-Level Donation Partner
 
@@ -148,12 +134,20 @@ Interpretation:
 
 Purchase-time settlement should snapshot donation routing for reporting.
 
-Suggested v0 purchase-level donation fields:
+Suggested v0 purchase-level settlement fields:
 
-- `donation_partner_id` nullable
-- `donation_share_pct` nullable
-- `donation_amount_usd` nullable
-- `donation_settlement_ref` nullable
+- `allocations[]`
+- compatibility donation fields:
+  - `donation_partner_id` nullable
+  - `donation_share_pct` nullable
+  - `donation_amount_usd` nullable
+  - `donation_settlement_ref` nullable
+
+Rules:
+
+- the quote's allocation snapshot is authoritative for settlement execution
+- donation reporting fields are a compatibility projection of the charity allocation leg, not the canonical settlement model
+- when the charity allocation leg is present, its amount is rounded at quote time and creator receives the remainder
 
 ## Donation Modes
 

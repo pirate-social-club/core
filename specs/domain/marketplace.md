@@ -142,6 +142,7 @@ Suggested v0 purchase fields:
 - `settlement_chain`
 - `settlement_token`
 - `settlement_tx_ref`
+- `allocations[]`
 - `donation_partner_id` nullable
 - `donation_share_pct` nullable
 - `donation_amount_usd` nullable
@@ -155,7 +156,9 @@ Rules:
 - any onchain receipt or token should be treated as an implementation of the purchase/entitlement, not the only source of truth in v0
 - `settlement_wallet_attachment_id` snapshots which attached wallet was used for onchain settlement at purchase time
 - `pricing_tier` captures the pricing tier applied to the buyer's final quote when regional pricing is active
-- donation fields snapshot what donation routing, if any, actually applied at settlement time
+- `allocations[]` snapshots the quote-resolved payout waterfall legs that settlement executes
+- the quote's allocation snapshot is the source of truth for settlement; it must not be recomputed from the live listing or live community policy at settlement time
+- donation compatibility fields snapshot the charity leg, when present, for reporting and transition compatibility
 - exactly one of `asset_id` or `live_room_id` must be non-null
 
 ## Regional Pricing
