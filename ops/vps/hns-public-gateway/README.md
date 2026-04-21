@@ -13,6 +13,8 @@ routes those hosts to Pirate's VPS.
 `app.pirate` is not part of this public-profile gateway. It is the main Pirate web app host and
 should route to the app origin before wildcard profile routing is evaluated.
 `api.pirate` is also reserved for API traffic and should route before wildcard profile routing.
+When these hosts proxy to the Cloudflare `.sc` runtime, forward `X-Pirate-HNS-Host` so SSR can
+derive app/API/canonical metadata from the HNS entrypoint after validating the forwarder IP.
 
 It should:
 

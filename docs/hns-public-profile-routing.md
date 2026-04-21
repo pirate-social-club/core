@@ -73,6 +73,8 @@ The important rules are:
 
 - `app.pirate` is the main app host, not a profile host
 - `api.pirate` is reserved for API traffic
+- Privy client-side allowed origins must include `https://app.pirate`; do not try to use raw
+  `https://pirate/`
 - `pirate.` should delegate through HNS-native glue, not `ns1.pirate.sc.`
 - one wildcard web target for `*.pirate`
 - not millions of per-label records

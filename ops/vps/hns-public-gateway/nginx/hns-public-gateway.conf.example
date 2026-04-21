@@ -3,11 +3,14 @@ server {
   server_name app.pirate;
 
   location / {
-    proxy_set_header Host $host;
+    proxy_set_header Host pirate.sc;
+    proxy_set_header X-Pirate-HNS-Host $host;
     proxy_set_header X-Forwarded-Host $host;
     proxy_set_header X-Forwarded-Proto https;
     proxy_set_header X-Real-IP $remote_addr;
-    proxy_pass http://127.0.0.1:4050;
+    proxy_ssl_server_name on;
+    proxy_ssl_name pirate.sc;
+    proxy_pass https://pirate.sc;
   }
 }
 
@@ -16,11 +19,14 @@ server {
   server_name api.pirate;
 
   location / {
-    proxy_set_header Host $host;
+    proxy_set_header Host api.pirate.sc;
+    proxy_set_header X-Pirate-HNS-Host $host;
     proxy_set_header X-Forwarded-Host $host;
     proxy_set_header X-Forwarded-Proto https;
     proxy_set_header X-Real-IP $remote_addr;
-    proxy_pass http://127.0.0.1:4051;
+    proxy_ssl_server_name on;
+    proxy_ssl_name api.pirate.sc;
+    proxy_pass https://api.pirate.sc;
   }
 }
 

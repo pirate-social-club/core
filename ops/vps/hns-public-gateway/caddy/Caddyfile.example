@@ -1,9 +1,15 @@
 app.pirate {
-  reverse_proxy 127.0.0.1:4050
+  reverse_proxy https://pirate.sc {
+    header_up Host pirate.sc
+    header_up X-Pirate-HNS-Host {host}
+  }
 }
 
 api.pirate {
-  reverse_proxy 127.0.0.1:4051
+  reverse_proxy https://api.pirate.sc {
+    header_up Host api.pirate.sc
+    header_up X-Pirate-HNS-Host {host}
+  }
 }
 
 *.pirate {
