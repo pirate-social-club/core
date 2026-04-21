@@ -100,7 +100,7 @@ VerificationRequirement:
         - minimum_age
     minimum_age:
       type: integer
-      minimum: 1
+      minimum: 18
       maximum: 125
       description: Minimum age threshold requested from the verifier.
 CompleteVerificationSessionRequest:
