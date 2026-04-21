@@ -28,11 +28,18 @@ Must apply to hosted `prod`:
 - `PIRATE_APP_JWT_PRIVATE_KEY`
 - `PIRATE_APP_JWT_PUBLIC_KEY`
 - `PRIVY_APP_SECRET`
+- `STORY_RUNTIME_PRIVATE_KEY`
+- `STORY_OPERATOR_PRIVATE_KEY`
+- `STORY_CDR_WRITER_PRIVATE_KEY`
+- `STORY_ACCESS_CONTROLLER_PRIVATE_KEY`
+- `MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY`
 
 Must stay excluded from normal hosted `prod`:
 
 - `CONTROL_PLANE_OWNER_DATABASE_URL`
 - `STORY_CONTRACT_OWNER_PRIVATE_KEY`
+- `LIT_CHIPOTLE_*` until the hosted runtime deliberately switches to PKP/Lit mode
+- `REGISTRY_PUBLISHER_AUTH_TOKEN` until `REGISTRY_PUBLISHER_URL` is configured
 
 Stop if this is not true.
 
@@ -143,6 +150,11 @@ rtk infisical secrets set \
   TURSO_COMMUNITY_DB_WRAP_KEY="$TURSO_COMMUNITY_DB_WRAP_KEY" \
   AUTH_UPSTREAM_JWT_SHARED_SECRET="$AUTH_UPSTREAM_JWT_SHARED_SECRET" \
   PRIVY_APP_SECRET="$PRIVY_APP_SECRET" \
+  STORY_RUNTIME_PRIVATE_KEY="$STORY_RUNTIME_PRIVATE_KEY" \
+  STORY_OPERATOR_PRIVATE_KEY="$STORY_OPERATOR_PRIVATE_KEY" \
+  STORY_CDR_WRITER_PRIVATE_KEY="$STORY_CDR_WRITER_PRIVATE_KEY" \
+  STORY_ACCESS_CONTROLLER_PRIVATE_KEY="$STORY_ACCESS_CONTROLLER_PRIVATE_KEY" \
+  MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY="$MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY" \
   COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN="$COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN" \
   --env prod --path /services/api
 ```
@@ -178,13 +190,14 @@ First do the non-connect doctor:
 ```bash
 cd /home/t42/Documents/pirate-v2/ops/prod
 rtk bun ../../scripts/infisical/check-infisical-env.ts --env prod
+rtk bun ../../scripts/infisical/check-infisical-env.ts --env prod --profile commerce
 ```
 
 Then do the live DB-connect doctor:
 
 ```bash
 cd /home/t42/Documents/pirate-v2/ops/prod
-rtk bun ../../scripts/infisical/check-infisical-env.ts --env prod --connect
+rtk bun ../../scripts/infisical/check-infisical-env.ts --env prod --profile commerce --connect
 ```
 
 Go only if all checks pass.
@@ -194,6 +207,7 @@ This must verify:
 - environment exists
 - required folders exist
 - required secrets exist with no placeholder values left
+- undeclared live folders/secrets are absent
 - runtime and migrator DB URLs connect
 - runtime and migrator point at the same DB host
 - runtime and migrator use different roles

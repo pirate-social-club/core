@@ -81,6 +81,15 @@ The API worker cannot start without these. The sync script (`scripts/infisical/s
 | `ACRCLOUD_ACCESS_SECRET` | `api-key` | ACRCloud access secret for song audio identification signing |
 | `ELEVENLABS_API_KEY` | `api-key` | ElevenLabs API key for song forced alignment |
 | `CONTROL_PLANE_DATABASE_URL` | `database-credential` | Runtime connection string for the Neon control-plane database |
+| `STORY_RUNTIME_PRIVATE_KEY` | `private-key` | Shared Story Aeneid runtime fallback signer |
+| `STORY_OPERATOR_PRIVATE_KEY` | `private-key` | Story asset publish/register signer |
+| `STORY_CDR_WRITER_PRIVATE_KEY` | `private-key` | Story CDR writer signer |
+| `STORY_ACCESS_CONTROLLER_PRIVATE_KEY` | `private-key` | Story access proof signer |
+| `MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY` | `private-key` | Music purchase settlement signer |
+| `PIRATE_CHECKOUT_OPERATOR_PRIVATE_KEY` | `private-key` | Base testnet checkout receiver/proof signer |
+| `PIRATE_CHECKOUT_RPC_URL` | `api-key` | Checkout source-chain RPC URL when it embeds provider credentials |
+| `PIRATE_CHECKOUT_SOURCE_CHAIN_ID` | `tuning-knob` | Checkout source chain id; currently carried by the secret sync contract |
+| `PIRATE_CHECKOUT_USDC_TOKEN_ADDRESS` | `contract-address` | Checkout source-chain USDC address; currently carried by the secret sync contract |
 
 #### Conditional (only when the feature is enabled)
 
@@ -88,7 +97,6 @@ The API worker cannot start without these. The sync script (`scripts/infisical/s
 |---|---|---|
 | `CONTROL_PLANE_AUTH_TOKEN` | `worker-secret` | When the control-plane DB requires token auth |
 | `PRIVY_JWT_VERIFICATION_KEY` | `api-key` | When Privy auth is enabled |
-| `REGISTRY_PUBLISHER_AUTH_TOKEN` | `worker-secret` | When `REGISTRY_PUBLISHER_URL` is configured (the API calls an external registry publisher for community creation) |
 | `REDDIT_PULLPUSH_BASE_URL` | `api-key` | When Reddit onboarding is enabled |
 | `REDDIT_PROFILE_CHECK_USER_AGENT` | `tuning-knob` | When Reddit profile checks are enabled |
 
@@ -137,6 +145,7 @@ Hosted environments use `/services` only.
 - `staging` and `prod` should not use `/local`
 - `CONTROL_PLANE_OWNER_DATABASE_URL` may still exist operationally for hosted databases, but it is break-glass material and should not be part of the normal hosted Infisical contract
 - Lit/PKP secret paths are out of the current hosted mainline
+- `REGISTRY_PUBLISHER_AUTH_TOKEN` is out of the hosted mainline until `REGISTRY_PUBLISHER_URL` is configured deliberately
 
 ## Live State
 
@@ -146,7 +155,11 @@ Use these instead:
 
 - `rtk bun scripts/infisical/check-infisical-env.ts --env <env>`
 - `rtk bun scripts/infisical/check-infisical-env.ts --env <env> --connect`
+- `rtk bun scripts/infisical/check-infisical-env.ts --env prod --profile commerce --connect`
 - the shared contract in `scripts/lib/infisical-env-contract.ts`
+
+The doctor fails on undeclared live hosted folders/secrets by default. Use `--allow-extra` only
+for one-off inventory, not production readiness gates.
 
 The current hosted environment slug is `prod`, not `production`.
 
