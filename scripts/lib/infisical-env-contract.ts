@@ -148,24 +148,6 @@ export const ENV_CONTRACT: EnvContract = {
     },
     {
       path: "/services/api",
-      key: "VERY_APP_ID",
-      requiredness: "required_for_hosted",
-      validate: (value) => value.startsWith("very_") ? null : "expected Very client id beginning with very_",
-    },
-    {
-      path: "/services/api",
-      key: "VERY_API_URL",
-      requiredness: "deferred",
-      validate: isHttpUrl,
-    },
-    {
-      path: "/services/api",
-      key: "VERY_VERIFY_URL",
-      requiredness: "deferred",
-      validate: isHttpUrl,
-    },
-    {
-      path: "/services/api",
       key: "FILEBASE_S3_ACCESS_KEY",
       requiredness: "required_for_hosted",
     },
@@ -495,7 +477,6 @@ export const CORE_SECRET_IDS = [
 export const HAPPY_PATH_SECRET_IDS = [
   "SPACES_VERIFIER_AUTH_TOKEN__/services/api",
   "HNS_VERIFIER_AUTH_TOKEN__/services/api",
-  "VERY_APP_ID__/services/api",
 ] as const;
 
 export const COMMERCE_SECRET_IDS = [
@@ -558,6 +539,9 @@ export const WRANGLER_MANAGED_CONFIG_NAMES = [
   "PIRATE_APP_JWT_TTL_SECONDS",
   "PRIVY_APP_ID",
   "PRIVY_API_URL",
+  "VERY_APP_ID",
+  "VERY_API_URL",
+  "VERY_VERIFY_URL",
   "FILEBASE_MEDIA_BUCKET",
   "FILEBASE_S3_ENDPOINT",
   "FILEBASE_S3_REGION",

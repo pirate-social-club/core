@@ -38,6 +38,7 @@ Must stay excluded from normal hosted `prod`:
 
 - `CONTROL_PLANE_OWNER_DATABASE_URL`
 - `STORY_CONTRACT_OWNER_PRIVATE_KEY`
+- `VERY_APP_ID`, `VERY_API_URL`, and `VERY_VERIFY_URL`
 - `LIT_CHIPOTLE_*` until the hosted runtime deliberately switches to PKP/Lit mode
 - `REGISTRY_PUBLISHER_AUTH_TOKEN` until `REGISTRY_PUBLISHER_URL` is configured
 
