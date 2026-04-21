@@ -83,6 +83,7 @@ CREATE TABLE verification_sessions (
     provider TEXT NOT NULL,
     session_kind TEXT NOT NULL,
     requested_capabilities_json JSONB NOT NULL,
+    verification_requirements_json JSONB NOT NULL DEFAULT '[]'::jsonb,
     status TEXT NOT NULL CHECK (
         status IN ('pending', 'verified', 'failed', 'expired', 'canceled')
     ),

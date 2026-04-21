@@ -3,12 +3,13 @@ RequestedVerificationCapability:
   enum:
     - unique_human
     - age_over_18
+    - minimum_age
     - nationality
     - gender
   description: |
     Canonical capability requested from an interactive verification flow. Public v0 should treat
-    `unique_human`, `age_over_18`, `nationality`, and a document-derived `gender` marker as the
-    actively supported Self-backed capability set.
+    `unique_human`, `age_over_18`, `minimum_age`, `nationality`, and a document-derived `gender`
+    marker as the actively supported Self-backed capability set.
 VerificationIntent:
   type: string
   enum:
@@ -62,6 +63,15 @@ StartVerificationSessionRequest:
 
         When a Self session requests `age_over_18`, `nationality`, or `gender`, the server should
         also treat `unique_human` as part of the effective capability set.
+    verification_requirements:
+      type: array
+      nullable: true
+      items:
+        $ref: ./verification.yaml#/VerificationRequirement
+      description: |
+        Additional typed verifier constraints for the requested capability set. Public v0 uses this
+        to request a Self-backed `minimum_age` proof such as 21+ without encoding provider-specific
+        verifier configuration in the client.
     wallet_attachment_id:
       type: string
       nullable: true
@@ -78,6 +88,21 @@ StartVerificationSessionRequest:
         Optional server-defined verification policy identifier. When supplied, the server should
         use this policy as the source of truth for provider-specific verifier settings rather than
         trusting client-authored disclosure or widget configuration.
+VerificationRequirement:
+  type: object
+  required:
+    - proof_type
+    - minimum_age
+  properties:
+    proof_type:
+      type: string
+      enum:
+        - minimum_age
+    minimum_age:
+      type: integer
+      minimum: 1
+      maximum: 125
+      description: Minimum age threshold requested from the verifier.
 CompleteVerificationSessionRequest:
   type: object
   description: |
@@ -293,6 +318,7 @@ VerificationCapabilities:
   required:
     - unique_human
     - age_over_18
+    - minimum_age
     - nationality
     - gender
     - sanctions_clear
@@ -310,6 +336,20 @@ VerificationCapabilities:
           enum:
             - age_over_18
           nullable: true
+    minimum_age:
+      allOf:
+        - $ref: ./verification.yaml#/VerifiedCapabilityState
+      type: object
+      properties:
+        proof_type:
+          type: string
+          enum:
+            - minimum_age
+          nullable: true
+        value:
+          type: integer
+          nullable: true
+          description: Highest reusable minimum-age threshold verified by Self.
     nationality:
       allOf:
         - $ref: ./verification.yaml#/VerifiedCapabilityState
@@ -410,6 +450,7 @@ VerifiedCapabilityState:
       type: string
       enum:
         - age_over_18
+        - minimum_age
         - nationality
         - gender
       nullable: true
@@ -545,6 +586,10 @@ VerificationSession:
       type: array
       items:
         $ref: ./verification.yaml#/RequestedVerificationCapability
+    verification_requirements:
+      type: array
+      items:
+        $ref: ./verification.yaml#/VerificationRequirement
     verification_intent:
       $ref: ./verification.yaml#/VerificationIntent
       nullable: true

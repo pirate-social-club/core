@@ -327,6 +327,7 @@ GateRuleInput:
       enum:
         - unique_human
         - age_over_18
+        - minimum_age
         - nationality
         - gender
         - sanctions_clear
@@ -348,6 +349,7 @@ GateRuleInput:
         Provider-neutral rule config for the selected gate. For public-v0 gates, normalize on a
         small shared shape rather than arbitrary provider knobs:
         - `nationality`: `required_value` (single ISO code) or `excluded_values` (array of ISO codes)
+        - `minimum_age`: `minimum_age` integer threshold from 1 to 125
         - `gender`: `required_value` for the Self document marker (`M` or `F`)
         - `wallet_score`: `minimum_score` (number)
         - `erc721_holding`: `contract_address` on Ethereum mainnet (`chain_namespace: eip155:1`)
@@ -385,6 +387,7 @@ GateRule:
       enum:
         - unique_human
         - age_over_18
+        - minimum_age
         - nationality
         - gender
         - sanctions_clear
@@ -405,6 +408,7 @@ GateRule:
       description: |
         Stored provider-neutral rule config. For public-v0 gates, normalize on:
         - `nationality`: `required_value` or `excluded_values`
+        - `minimum_age`: `minimum_age`
         - `gender`: `required_value` for the Self document marker
         - `wallet_score`: `minimum_score`
         - `erc721_holding`: `contract_address`
@@ -431,6 +435,8 @@ ProofRequirement:
       - very
     age_over_18:
       - self
+    minimum_age:
+      - self
     nationality:
       - self
     gender:
@@ -452,6 +458,7 @@ ProofRequirement:
         - wallet_score
         - gov_id
         - age_over_18
+        - minimum_age
         - nationality
         - gender
         - sanctions_clear
@@ -464,6 +471,7 @@ ProofRequirement:
         Valid public-v0 combinations are:
         - `unique_human`: `self` or `very`
         - `age_over_18`: `self`
+        - `minimum_age`: `self`
         - `nationality`: `self`
         - `gender`: `self` (document marker `M` / `F`)
         - `wallet_score`: `passport`
@@ -1120,6 +1128,7 @@ MembershipGateSummary:
         - gender
         - unique_human
         - age_over_18
+        - minimum_age
         - wallet_score
         - erc721_holding
     accepted_providers:
@@ -1134,13 +1143,25 @@ MembershipGateSummary:
     required_value:
       type: string
       nullable: true
-      description: ISO 3166-1 alpha-2 country code when gate_type is nationality
+      description: ISO 3166-1 alpha-2 or alpha-3 country code when gate_type is nationality
+    required_values:
+      type: array
+      nullable: true
+      items:
+        type: string
+      description: Array of accepted ISO country codes for nationality gates
     excluded_values:
       type: array
       nullable: true
       items:
         type: string
       description: Array of excluded ISO country codes for nationality gates
+    required_minimum_age:
+      type: integer
+      nullable: true
+      minimum: 1
+      maximum: 125
+      description: Minimum age threshold when gate_type is minimum_age
     chain_namespace:
       type: string
       nullable: true
@@ -1296,6 +1317,7 @@ JoinEligibility:
         enum:
           - unique_human
           - age_over_18
+          - minimum_age
           - nationality
           - gender
       description: |
@@ -1320,6 +1342,7 @@ JoinEligibility:
         - provider_not_accepted
         - nationality_mismatch
         - gender_mismatch
+        - minimum_age_mismatch
         - erc721_holding_required
         - unsupported
         - banned
@@ -1357,6 +1380,7 @@ GateFailureDetails:
         - provider_not_accepted
         - nationality_mismatch
         - gender_mismatch
+        - minimum_age_mismatch
         - erc721_holding_required
         - unsupported
         - banned

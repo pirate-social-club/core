@@ -11,7 +11,7 @@ export type VerificationCapabilityState = {
 export type VerifiedCapabilityState = {
   state: "unverified" | "verified" | "expired";
   provider?: "self" | null;
-  proof_type?: "age_over_18" | "nationality" | "gender" | null;
+  proof_type?: "age_over_18" | "minimum_age" | "nationality" | "gender" | null;
   mechanism?: string | null;
   verified_at?: string | null;
 };
@@ -45,6 +45,10 @@ export type VerificationCapabilities = {
   unique_human: VerificationCapabilityState;
   age_over_18: (VerifiedCapabilityState & {
     proof_type?: "age_over_18" | null;
+  });
+  minimum_age: (VerifiedCapabilityState & {
+    proof_type?: "minimum_age" | null;
+    value?: number | null;
   });
   nationality: (VerifiedCapabilityState & {
     proof_type?: "nationality" | null;
@@ -952,7 +956,7 @@ type GateRule = {
   community_id: string;
   scope: "membership" | "viewer" | "posting";
   gate_family: "token_holding" | "identity_proof";
-  gate_type: "unique_human" | "age_over_18" | "nationality" | "gender" | "sanctions_clear" | "wallet_score" | "erc721_holding";
+  gate_type: "unique_human" | "age_over_18" | "minimum_age" | "nationality" | "gender" | "sanctions_clear" | "wallet_score" | "erc721_holding";
   proof_requirements?: Array<ProofRequirement> | null;
   chain_namespace?: string | null;
   gate_config?: (Record<string, unknown>) | null;
@@ -1106,7 +1110,7 @@ type PromotionDisclosure = {
 };
 
 type ProofRequirement = {
-  proof_type: "unique_human" | "biometric_liveness" | "wallet_score" | "gov_id" | "age_over_18" | "nationality" | "gender" | "sanctions_clear" | "phone";
+  proof_type: "unique_human" | "biometric_liveness" | "wallet_score" | "gov_id" | "age_over_18" | "minimum_age" | "nationality" | "gender" | "sanctions_clear" | "phone";
   accepted_providers?: Array<"self" | "very" | "passport"> | null;
   accepted_mechanisms?: Array<string> | null;
   config?: (Record<string, unknown>) | null;

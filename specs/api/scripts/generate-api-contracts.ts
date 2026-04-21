@@ -27,6 +27,7 @@ const TYPE_EXPORTS = [
   { name: "VerificationSessionLaunch", ref: "#/components/schemas/VerificationSessionLaunch" },
   { name: "VeryWidgetLaunch", ref: "#/components/schemas/VeryWidgetLaunch" },
   { name: "RequestedVerificationCapability", ref: "#/components/schemas/RequestedVerificationCapability" },
+  { name: "VerificationRequirement", ref: "#/components/schemas/VerificationRequirement" },
   { name: "VerificationIntent", ref: "#/components/schemas/VerificationIntent" },
   { name: "AgentOwnershipProvider", ref: "#/components/schemas/AgentOwnershipProvider" },
   { name: "AgentOwnershipSessionKind", ref: "#/components/schemas/AgentOwnershipSessionKind" },

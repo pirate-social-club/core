@@ -1,6 +1,7 @@
 export const PROVIDER_MATRIX = {
   unique_human: ["self", "very"],
   age_over_18: ["self"],
+  minimum_age: ["self"],
   nationality: ["self"],
   gender: ["self"],
   wallet_score: ["passport"],
