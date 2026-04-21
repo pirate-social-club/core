@@ -139,7 +139,40 @@ export const ENV_CONTRACT: EnvContract = {
     {
       path: "/services/api",
       key: "SPACES_VERIFIER_AUTH_TOKEN",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "HNS_VERIFIER_AUTH_TOKEN",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "VERY_APP_ID",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "VERY_API_KEY",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "VERY_API_URL",
       requiredness: "deferred",
+      validate: isHttpUrl,
+    },
+    {
+      path: "/services/api",
+      key: "VERY_VERIFY_URL",
+      requiredness: "deferred",
+      validate: isHttpUrl,
+    },
+    {
+      path: "/services/api",
+      key: "VERY_SESSIONS_URL",
+      requiredness: "deferred",
+      validate: isHttpUrl,
     },
     {
       path: "/services/api",
@@ -189,7 +222,7 @@ export const ENV_CONTRACT: EnvContract = {
     {
       path: "/services/api",
       key: "STORY_CONTRACT_OWNER_PRIVATE_KEY",
-      requiredness: "required_for_hosted",
+      requiredness: "deferred",
     },
     {
       path: "/services/api",

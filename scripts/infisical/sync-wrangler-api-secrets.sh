@@ -4,10 +4,15 @@ set -euo pipefail
 usage() {
   cat >&2 <<'EOF'
 Usage:
-  ./scripts/infisical/sync-wrangler-api-secrets.sh [--env-file PATH] [--worker-name NAME]
+  ./scripts/infisical/sync-wrangler-api-secrets.sh [--env-file PATH] [--worker-name NAME] [--wrangler-env ENV] [--profile PROFILE]
 
 If --env-file is omitted, the script reads from the current exported environment.
 If --worker-name is omitted, the script syncs the worker named in wrangler.jsonc.
+If --wrangler-env is omitted, the script targets Wrangler's top-level environment.
+PROFILE can be:
+  core        Core auth/control-plane/community-provisioning path
+  happy-path  Core plus Privy, Very, HNS, and Spaces verification
+  commerce    Happy path plus media/song/commerce runtime secrets
 
 Examples:
   ./scripts/infisical/sync-wrangler-api-secrets.sh \
@@ -18,16 +23,16 @@ Examples:
 
   ./scripts/infisical/sync-wrangler-api-secrets.sh \
     --env-file pirate-api/services/api/.dev.vars \
-    --worker-name pirate-api-staging
+    --worker-name pirate-api-staging \
+    --wrangler-env staging
 EOF
   exit 1
 }
 
-ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-API_DIR="$ROOT_DIR/pirate-api/services/api"
-WRANGLER="$API_DIR/node_modules/.bin/wrangler"
 ENV_FILE=""
 WORKER_NAME="pirate-api-core"
+WRANGLER_ENV=""
+PROFILE="happy-path"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -39,6 +44,14 @@ while [[ $# -gt 0 ]]; do
       WORKER_NAME="${2:-}"
       shift 2
       ;;
+    --wrangler-env)
+      WRANGLER_ENV="${2:-}"
+      shift 2
+      ;;
+    --profile)
+      PROFILE="${2:-}"
+      shift 2
+      ;;
     -h|--help)
       usage
       ;;
@@ -48,6 +61,19 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+API_DIR="$ROOT_DIR/pirate-api/services/api"
+WRANGLER="$API_DIR/node_modules/.bin/wrangler"
+
+case "$PROFILE" in
+  core|happy-path|commerce)
+    ;;
+  *)
+    echo "unknown profile: $PROFILE" >&2
+    usage
+    ;;
+esac
 
 if [[ ! -x "$WRANGLER" ]]; then
   echo "wrangler executable not found: $WRANGLER" >&2
@@ -65,35 +91,42 @@ if [[ -n "$ENV_FILE" ]]; then
   set +a
 fi
 
-required_names=(
+core_required_names=(
   AUTH_UPSTREAM_JWT_SHARED_SECRET
   CONTROL_PLANE_DATABASE_URL
-  FILEBASE_S3_ACCESS_KEY
-  FILEBASE_S3_SECRET_KEY
-  OPENROUTER_API_KEY
+  COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN
+  PIRATE_APP_JWT_PRIVATE_KEY
+  PIRATE_APP_JWT_PUBLIC_KEY
+  PRIVY_APP_SECRET
+  TURSO_COMMUNITY_DB_WRAP_KEY
+)
+
+happy_path_required_names=(
+  HNS_VERIFIER_AUTH_TOKEN
+  SPACES_VERIFIER_AUTH_TOKEN
+  VERY_API_KEY
+  VERY_APP_ID
+)
+
+commerce_required_names=(
   ACRCLOUD_ACCESS_KEY
   ACRCLOUD_ACCESS_SECRET
   ACRCLOUD_PERSONAL_ACCESS_TOKEN
   ELEVENLABS_API_KEY
-  PIRATE_APP_JWT_PRIVATE_KEY
-  PIRATE_APP_JWT_PUBLIC_KEY
-  PRIVY_APP_SECRET
-  STORY_CONTRACT_OWNER_PRIVATE_KEY
-  STORY_RUNTIME_PRIVATE_KEY
-  STORY_OPERATOR_PRIVATE_KEY
-  STORY_CDR_WRITER_PRIVATE_KEY
-  STORY_ACCESS_CONTROLLER_PRIVATE_KEY
+  FILEBASE_S3_ACCESS_KEY
+  FILEBASE_S3_SECRET_KEY
   MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY
+  OPENROUTER_API_KEY
   PIRATE_CHECKOUT_OPERATOR_PRIVATE_KEY
   PIRATE_CHECKOUT_RPC_URL
   PIRATE_CHECKOUT_SOURCE_CHAIN_ID
   PIRATE_CHECKOUT_USDC_TOKEN_ADDRESS
+  STORY_RUNTIME_PRIVATE_KEY
 )
 
 optional_names=(
   BASE_MAINNET_RPC_URL
   BASE_SEPOLIA_RPC_URL
-  COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN
   CONTROL_PLANE_AUTH_TOKEN
   ENDAOMENT_CHAIN_ID
   ENDAOMENT_PAYOUT_PRIVATE_KEY
@@ -110,9 +143,20 @@ optional_names=(
   SPACES_VERIFIER_BASE_URL
   SPACES_VERIFIER_AUTH_TOKEN
   SPACES_VERIFIER_CHALLENGE_DOMAIN
-  TURSO_COMMUNITY_DB_WRAP_KEY
   TURSO_CONTROL_PLANE_AUTH_TOKEN
+  VERY_API_URL
+  VERY_CALLBACK_SHARED_SECRET
+  VERY_SESSIONS_URL
+  VERY_VERIFY_URL
 )
+
+required_names=("${core_required_names[@]}")
+if [[ "$PROFILE" == "happy-path" || "$PROFILE" == "commerce" ]]; then
+  required_names+=("${happy_path_required_names[@]}")
+fi
+if [[ "$PROFILE" == "commerce" ]]; then
+  required_names+=("${commerce_required_names[@]}")
+fi
 
 for name in "${required_names[@]}"; do
   if [[ -z "${!name:-}" ]]; then
@@ -129,11 +173,12 @@ put_secret() {
   fi
   printf '%s' "$value" | (
     cd "$API_DIR"
-    "$WRANGLER" secret put "$name" --name "$WORKER_NAME" >/dev/null
+    "$WRANGLER" secret put "$name" --name "$WORKER_NAME" --env "$WRANGLER_ENV" >/dev/null
   )
 }
 
 echo "syncing API worker secrets to Cloudflare worker: $WORKER_NAME" >&2
+echo "profile: $PROFILE" >&2
 
 for name in "${required_names[@]}"; do
   put_secret "$name"
@@ -146,6 +191,8 @@ done
 cat <<EOF
 wrangler API secret sync complete
 worker_name: $WORKER_NAME
+wrangler_env: ${WRANGLER_ENV:-<top-level>}
+profile: $PROFILE
 required:
 $(printf '%s\n' "${required_names[@]}" | sed 's/^/- /')
 optional when present:

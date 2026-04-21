@@ -8,9 +8,12 @@ import {
 
 type Options = {
   env: string;
+  profile: Profile;
   connect: boolean;
   verbose: boolean;
 };
+
+type Profile = "all" | "core" | "happy-path" | "commerce";
 
 type CheckResult = {
   status: "ok" | "missing" | "empty" | "invalid" | "auth_failed" | "error" | "skip";
@@ -25,15 +28,53 @@ type SecretRead = {
 
 const HUMAN_SET_REQUIRED_PLACEHOLDER = "__HUMAN_SET_REQUIRED__";
 
+const CORE_SECRET_IDS = [
+  "CONTROL_PLANE_DATABASE_URL__/services/api",
+  "TURSO_COMMUNITY_DB_WRAP_KEY__/services/api",
+  "AUTH_UPSTREAM_JWT_SHARED_SECRET__/services/api",
+  "PIRATE_APP_JWT_PRIVATE_KEY__/services/api",
+  "PIRATE_APP_JWT_PUBLIC_KEY__/services/api",
+  "PRIVY_APP_SECRET__/services/api",
+  "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN__/services/api",
+  "CONTROL_PLANE_MIGRATOR_DATABASE_URL__/services/control-plane",
+  "TURSO_PLATFORM_API_TOKEN__/services/control-plane",
+  "TURSO_COMMUNITY_DB_WRAP_KEY__/services/control-plane",
+  "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN__/services/control-plane",
+] as const;
+
+const HAPPY_PATH_SECRET_IDS = [
+  "SPACES_VERIFIER_AUTH_TOKEN__/services/api",
+  "HNS_VERIFIER_AUTH_TOKEN__/services/api",
+  "VERY_APP_ID__/services/api",
+  "VERY_API_KEY__/services/api",
+] as const;
+
+const COMMERCE_SECRET_IDS = [
+  "FILEBASE_S3_ACCESS_KEY__/services/api",
+  "FILEBASE_S3_SECRET_KEY__/services/api",
+  "ACRCLOUD_ACCESS_KEY__/services/api",
+  "ACRCLOUD_ACCESS_SECRET__/services/api",
+  "ACRCLOUD_PERSONAL_ACCESS_TOKEN__/services/api",
+  "ELEVENLABS_API_KEY__/services/api",
+  "OPENROUTER_API_KEY__/services/api",
+  "STORY_RUNTIME_PRIVATE_KEY__/services/api",
+  "PIRATE_CHECKOUT_OPERATOR_PRIVATE_KEY__/services/api",
+  "PIRATE_CHECKOUT_RPC_URL__/services/api",
+  "PIRATE_CHECKOUT_SOURCE_CHAIN_ID__/services/api",
+  "PIRATE_CHECKOUT_USDC_TOKEN_ADDRESS__/services/api",
+] as const;
+
 function usage(): never {
   console.error(`Usage:
-  bun scripts/infisical/check-infisical-env.ts --env ENV [--connect] [--verbose]
+  bun scripts/infisical/check-infisical-env.ts --env ENV [--profile PROFILE] [--connect] [--verbose]
 
 Checks the Infisical environment against the secret contract defined in
 scripts/lib/infisical-env-contract.ts.
 
 Options:
   --env ENV       Infisical environment slug
+  --profile       Secret profile to validate: all, core, happy-path, commerce
+                  Default: all
   --connect       Validate database identity, host consistency, and privilege shape
                   for *_DATABASE_URL secrets. This checks that the secret contract is
                   met (correct roles, correct grants), not that the application works.
@@ -43,7 +84,7 @@ Options:
 }
 
 function parseArgs(argv: string[]): Options {
-  const options: Options = { env: "", connect: false, verbose: false };
+  const options: Options = { env: "", profile: "all", connect: false, verbose: false };
 
   for (let i = 0; i < argv.length; ) {
     const arg = argv[i];
@@ -51,6 +92,14 @@ function parseArgs(argv: string[]): Options {
     switch (arg) {
       case "--env":
         options.env = value ?? "";
+        i += 2;
+        break;
+      case "--profile":
+        if (!isProfile(value)) {
+          console.error(`invalid profile: ${value ?? ""}`);
+          usage();
+        }
+        options.profile = value;
         i += 2;
         break;
       case "--connect":
@@ -77,6 +126,30 @@ function parseArgs(argv: string[]): Options {
   }
 
   return options;
+}
+
+function isProfile(value: string | undefined): value is Profile {
+  return value === "all"
+    || value === "core"
+    || value === "happy-path"
+    || value === "commerce";
+}
+
+function secretId(path: string, key: string): string {
+  return `${key}__${path}`;
+}
+
+function profileSecretIds(profile: Profile): Set<string> | null {
+  if (profile === "all") return null;
+
+  const ids = new Set<string>(CORE_SECRET_IDS);
+  if (profile === "happy-path" || profile === "commerce") {
+    for (const id of HAPPY_PATH_SECRET_IDS) ids.add(id);
+  }
+  if (profile === "commerce") {
+    for (const id of COMMERCE_SECRET_IDS) ids.add(id);
+  }
+  return ids;
 }
 
 function runInfisical(args: string[]): { stdout: string; stderr: string; exitCode: number } {
@@ -242,36 +315,95 @@ async function checkMigratorCapabilities(url: string): Promise<CheckResult> {
 async function checkRuntimeRwCapabilities(url: string): Promise<CheckResult> {
   try {
     const sql = new Bun.SQL(url);
-    const privRows = await sql.unsafe(
-      "SELECT has_schema_privilege(current_user, 'public', 'CREATE') as can_create_schema, " +
-      "has_table_privilege(current_user, 'communities', 'INSERT') as can_insert, " +
-      "has_table_privilege(current_user, 'communities', 'SELECT') as can_select, " +
-      "has_table_privilege(current_user, 'communities', 'UPDATE') as can_update, " +
-      "has_table_privilege(current_user, 'communities', 'DELETE') as can_delete"
-    ) as Array<{ can_create_schema: boolean; can_insert: boolean; can_select: boolean; can_update: boolean; can_delete: boolean }>;
+    const requiredTables = [
+      "users",
+      "auth_provider_links",
+      "verification_sessions",
+      "user_attestations",
+      "communities",
+      "community_database_bindings",
+      "community_db_credentials",
+      "community_gate_rules",
+      "community_post_projections",
+      "comment_projections",
+      "namespace_verification_sessions",
+      "namespace_verifications",
+      "namespace_verification_evidence_bundles",
+      "namespace_verification_assertions",
+      "namespace_verification_capabilities",
+      "jobs",
+      "audit_log",
+      "user_agents",
+      "agent_handles",
+    ];
+    const values = requiredTables.map((tableName) => `('${tableName}')`).join(", ");
+    const privRows = await sql.unsafe(`
+      WITH required_tables(table_name) AS (VALUES ${values})
+      SELECT
+        table_name,
+        to_regclass(format('public.%I', table_name)) IS NOT NULL AS table_exists,
+        CASE
+          WHEN to_regclass(format('public.%I', table_name)) IS NULL THEN false
+          ELSE has_table_privilege(current_user, format('public.%I', table_name), 'SELECT')
+        END AS can_select,
+        CASE
+          WHEN to_regclass(format('public.%I', table_name)) IS NULL THEN false
+          ELSE has_table_privilege(current_user, format('public.%I', table_name), 'INSERT')
+        END AS can_insert,
+        CASE
+          WHEN to_regclass(format('public.%I', table_name)) IS NULL THEN false
+          ELSE has_table_privilege(current_user, format('public.%I', table_name), 'UPDATE')
+        END AS can_update,
+        CASE
+          WHEN to_regclass(format('public.%I', table_name)) IS NULL THEN false
+          ELSE has_table_privilege(current_user, format('public.%I', table_name), 'DELETE')
+        END AS can_delete
+      FROM required_tables
+      ORDER BY table_name
+    `) as Array<{
+      table_name: string;
+      table_exists: boolean;
+      can_select: boolean;
+      can_insert: boolean;
+      can_update: boolean;
+      can_delete: boolean;
+    }>;
+    const schemaRows = await sql.unsafe(
+      "SELECT has_schema_privilege(current_user, 'public', 'CREATE') as can_create_schema",
+    ) as Array<{ can_create_schema: boolean }>;
     await sql.end();
 
-    if (privRows.length === 0) {
+    if (schemaRows.length === 0 || privRows.length === 0) {
       return { status: "error", message: "could not query role privileges" };
     }
 
-    const privs = privRows[0];
-    if (privs.can_create_schema) {
+    if (schemaRows[0].can_create_schema) {
       return { status: "error", message: "runtime role has CREATE on public schema (expected DML-only)" };
     }
-    if (!privs.can_select) {
-      return { status: "error", message: "runtime role cannot SELECT" };
+
+    const missingTables = privRows
+      .filter((row) => !row.table_exists)
+      .map((row) => row.table_name);
+    if (missingTables.length > 0) {
+      return { status: "error", message: `runtime required tables missing: ${missingTables.join(", ")}` };
     }
-    if (!privs.can_insert) {
-      return { status: "error", message: "runtime role cannot INSERT" };
+
+    const missingDml = privRows
+      .filter((row) => !row.can_select || !row.can_insert || !row.can_update || !row.can_delete)
+      .map((row) => {
+        const missing = [
+          !row.can_select ? "SELECT" : null,
+          !row.can_insert ? "INSERT" : null,
+          !row.can_update ? "UPDATE" : null,
+          !row.can_delete ? "DELETE" : null,
+        ].filter(Boolean).join("/");
+        return `${row.table_name}(${missing})`;
+      });
+    if (missingDml.length > 0) {
+      return { status: "error", message: `runtime role lacks DML on ${missingDml.join(", ")}` };
     }
-    if (!privs.can_update) {
-      return { status: "error", message: "runtime role cannot UPDATE" };
-    }
-    if (!privs.can_delete) {
-      return { status: "error", message: "runtime role cannot DELETE" };
-    }
-    return { status: "ok", message: "runtime role has DML access (SELECT/INSERT/UPDATE/DELETE, no DDL)" };
+
+    return { status: "ok", message: "runtime role has DML on happy-path tables and no schema CREATE" };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return { status: "error", message: `runtime role check failed: ${message.slice(0, 120)}` };
@@ -285,6 +417,7 @@ let totalWarnings = 0;
 
 console.log(`\ninfisical environment doctor`);
 console.log(`env: ${options.env}`);
+console.log(`profile: ${options.profile}`);
 console.log(`connect: ${options.connect}`);
 console.log("");
 
@@ -324,8 +457,11 @@ console.log("");
 console.log("secrets:");
 
 const secretReads: SecretRead[] = [];
+const selectedSecretIds = profileSecretIds(options.profile);
 
 for (const spec of ENV_CONTRACT.secrets) {
+  if (selectedSecretIds && !selectedSecretIds.has(secretId(spec.path, spec.key))) continue;
+
   const applies = requirednessApplies(spec.requiredness, options.env);
   const label = requirednessLabel(spec.requiredness);
 
@@ -333,8 +469,6 @@ for (const spec of ENV_CONTRACT.secrets) {
 
   const value = readSecret(options.env, spec.path, spec.key);
   secretReads.push({ path: spec.path, key: spec.key, value });
-
-  const qualifiedKey = `${spec.key}__${spec.path}`;
 
   if (value === null) {
     if (applies) {
