@@ -96,6 +96,27 @@ It is only routing all second-level names under `pirate.` to one web entrypoint.
 Reserved app/service hosts such as `app.pirate.` and `api.pirate.` should be explicit records and
 must not be served by the public profile gateway.
 
+## Future Static Mirror Layer
+
+Keep the Cloudflare-backed SSR app as the canonical interactive surface. If censorship pressure
+requires more graceful degradation, add a separate read-only mirror layer instead of moving the full
+SSR/runtime stack to a VPS.
+
+Recommended shape:
+
+- `app.pirate` remains the interactive HNS entrypoint
+- `mirror.pirate` serves static community/profile/post snapshots from pinned artifacts
+- `manifest.pirate` publishes a signed mirror manifest with latest bundle hashes, IPFS CIDs, gateway
+  choices, and signing-key metadata
+- optional pretty hosts such as `<community>.pirate` redirect or proxy to mirror routes after reserved
+  hosts are excluded
+
+Mirror artifacts should include original content by default. UI localization can be bundled with the
+static mirror app, but translated user content should be optional signed sidecar data keyed by stable
+post/comment/profile IDs. Missing translated content falls back to the original text. Translation
+provenance must be visible enough to distinguish original text, author/community-approved
+translations, and machine translation.
+
 ## Gateway Rule
 
 The web gateway receives requests like:
