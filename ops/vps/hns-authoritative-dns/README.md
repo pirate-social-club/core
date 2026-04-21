@@ -50,8 +50,8 @@ That means:
 4. PowerDNS serves the zone
 5. `/verify-txt` verifies against that same authoritative child-zone data path
 
-For the `pirate.` root specifically, PowerDNS may also serve wildcard web-routing records for HNS-hosted public profile traffic.
-That should be one wildcard record for the root, not per-user records.
+For the `pirate.` and `clawitzer.` roots specifically, PowerDNS may also serve wildcard web-routing records for HNS-hosted public profile and agent traffic.
+That should be one wildcard record per root, not per-user or per-agent records.
 
 The corresponding HTTP origin for those wildcard records lives in:
 

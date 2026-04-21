@@ -24,8 +24,28 @@ type PublicProfileResolution = {
   resolved_handle_label: string;
 };
 
+type PublicAgentResolution = {
+  is_canonical: boolean;
+  requested_handle_label: string;
+  resolved_handle_label: string;
+  agent: {
+    agent_id: string;
+    display_name: string | null;
+    handle: { label_display: string };
+    ownership_provider: string | null;
+    created_at: string;
+    updated_at: string;
+  };
+  owner: {
+    user_id: string;
+    display_name: string | null;
+    global_handle: { label: string };
+  };
+};
+
 export type HnsPublicGatewayEnv = {
   HNS_PUBLIC_GATEWAY_ROOT_SUFFIX?: string;
+  HNS_PUBLIC_GATEWAY_AGENT_SUFFIX?: string;
   HNS_PUBLIC_GATEWAY_EXTERNAL_SCHEME?: string;
   HNS_PUBLIC_API_ORIGIN?: string;
   HNS_PUBLIC_APP_ORIGIN?: string;
@@ -258,6 +278,74 @@ function renderPage({
 </html>`;
 }
 
+function renderAgentPage({
+  appOrigin,
+  canonicalUrl,
+  host,
+  resolution,
+}: {
+  appOrigin: string;
+  canonicalUrl: string;
+  host: string;
+  resolution: PublicAgentResolution;
+}): Response {
+  const handle = resolution.agent.handle.label_display;
+  const displayName = resolution.agent.display_name?.trim() || handle;
+  const ownerHandle = resolution.owner.global_handle.label;
+  const safeDisplayName = escapeHtml(displayName);
+  const safeHandle = escapeHtml(handle);
+  const safeOwnerHandle = escapeHtml(ownerHandle);
+  const safeHost = escapeHtml(host);
+  const safeCanonicalUrl = escapeHtml(canonicalUrl);
+  const safeOpenHref = `${appOrigin}/a/${encodeURIComponent(handle)}`;
+
+  return new Response(
+    `<!doctype html>
+<html lang="en" class="dark" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#171717" />
+    <meta name="description" content="${safeHandle} is a Pirate agent owned by ${safeOwnerHandle}." />
+    <meta property="og:type" content="profile" />
+    <meta property="og:title" content="${safeDisplayName} • Pirate Agent" />
+    <meta property="og:description" content="${safeHandle} is owned by ${safeOwnerHandle}." />
+    <meta property="og:url" content="${safeCanonicalUrl}" />
+    <link rel="canonical" href="${safeCanonicalUrl}" />
+    <title>${safeDisplayName} • Pirate Agent</title>
+    <style>
+      :root{color-scheme:dark;--bg:#0e0f11;--card:#17191c;--line:rgba(255,255,255,.08);--text:#f4f4f5;--muted:#b3b6bd;--accent:#ff7a18;--radius:28px}
+      *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 20% 0%,rgba(255,122,24,.18),transparent 30%),var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,sans-serif}
+      .shell{width:min(880px,calc(100vw - 24px));margin:0 auto;padding:24px 0 56px}.masthead{display:flex;justify-content:space-between;color:var(--muted);font-size:16px;margin-bottom:18px}.brand{font-weight:700}
+      .card{border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));padding:28px;box-shadow:0 24px 80px rgba(0,0,0,.32)}
+      h1{font-size:clamp(38px,6vw,72px);line-height:.95;letter-spacing:-.06em;margin:0 0 12px}.handle{font-size:22px;color:var(--muted);margin-bottom:24px}.meta{display:flex;flex-wrap:wrap;gap:12px}.pill{border:1px solid var(--line);border-radius:999px;padding:12px 16px;color:var(--muted);font-size:16px}.pill strong{color:var(--text);margin-right:8px}
+      .cta{display:inline-flex;align-items:center;justify-content:center;min-height:48px;margin-top:26px;padding:0 18px;border-radius:999px;background:var(--accent);color:#180e04;font-weight:700;text-decoration:none}
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="masthead"><div class="brand">Pirate</div><div>${safeHost}</div></div>
+      <main class="card">
+        <h1>${safeDisplayName}</h1>
+        <div class="handle">${safeHandle}</div>
+        <div class="meta">
+          <div class="pill"><strong>${safeOwnerHandle}</strong>Owner</div>
+          <div class="pill"><strong>${escapeHtml(resolution.agent.ownership_provider ?? "agent")}</strong>Provider</div>
+        </div>
+        <a class="cta" href="${escapeHtml(safeOpenHref)}">Open in Pirate</a>
+      </main>
+    </div>
+  </body>
+</html>`,
+    {
+      headers: {
+        "cache-control": "public, max-age=60",
+        "content-type": "text/html; charset=utf-8",
+      },
+    },
+  );
+}
+
 function renderErrorPage(title: string, description: string, status = 500): Response {
   return new Response(
     `<!doctype html><html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${escapeHtml(title)}</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0e0f11;color:#f4f4f5;font-family:ui-sans-serif,system-ui,sans-serif;padding:24px}main{max-width:720px;text-align:center;border:1px solid rgba(255,255,255,.08);background:#17191c;border-radius:28px;padding:32px}h1{margin:0 0 12px;font-size:34px;letter-spacing:-.04em}p{margin:0;color:#b3b6bd;font-size:18px;line-height:1.6}</style></head><body><main><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p></main></body></html>`,
@@ -285,8 +373,16 @@ export async function handleRequest(
   }
 
   const rootSuffix = env.HNS_PUBLIC_GATEWAY_ROOT_SUFFIX?.trim() || "pirate";
+  const agentSuffix = env.HNS_PUBLIC_GATEWAY_AGENT_SUFFIX?.trim() || "clawitzer";
   const externalScheme = env.HNS_PUBLIC_GATEWAY_EXTERNAL_SCHEME?.trim() || "https";
-  const target = extractPublicProfileHost(url.hostname, rootSuffix);
+
+  let target = extractPublicProfileHost(url.hostname, rootSuffix);
+  let isAgent = false;
+
+  if (!target) {
+    target = extractPublicProfileHost(url.hostname, agentSuffix);
+    isAgent = true;
+  }
 
   if (!target) {
     return renderErrorPage(
@@ -298,8 +394,9 @@ export async function handleRequest(
 
   const apiOrigin = env.HNS_PUBLIC_API_ORIGIN?.trim() || "https://api.pirate.sc";
   const appOrigin = env.HNS_PUBLIC_APP_ORIGIN?.trim() || "https://pirate.sc";
+  const apiPath = isAgent ? "public-agents" : "public-profiles";
   const response = await fetchImpl(
-    `${apiOrigin}/public-profiles/${encodeURIComponent(target.handleLabel)}`,
+    `${apiOrigin}/${apiPath}/${encodeURIComponent(target.handleLabel)}`,
     {
       headers: { accept: "application/json" },
       redirect: "manual",
@@ -320,6 +417,24 @@ export async function handleRequest(
       "This public profile could not be loaded right now.",
       502,
     );
+  }
+
+  if (isAgent) {
+    const resolution = await response.json() as PublicAgentResolution;
+
+    if (!resolution.is_canonical) {
+      const nextUrl = new URL(request.url);
+      nextUrl.hostname = `${resolution.resolved_handle_label.replace(/\.clawitzer$/i, "")}.${target.hostSuffix}`;
+      nextUrl.protocol = `${externalScheme}:`;
+      return Response.redirect(nextUrl.toString(), 302);
+    }
+
+    return renderAgentPage({
+      appOrigin,
+      canonicalUrl: createCanonicalUrl(url, externalScheme),
+      host: url.hostname,
+      resolution,
+    });
   }
 
   const resolution = await response.json() as PublicProfileResolution;

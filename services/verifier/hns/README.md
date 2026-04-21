@@ -10,6 +10,17 @@ This service hosts Pirate's PowerDNS-backed HNS verifier and zone-provisioning r
 - trigger PowerDNS rediscovery after zone updates so delegated roots become authoritative immediately
 - verify TXT challenges against the same authoritative source of truth PowerDNS serves
 
+## Platform-managed roots
+
+Pirate operates platform-managed roots that should be bootstrapped via `/ensure-zone` rather than
+waiting for external Handshake delegation. These roots receive wildcard web-routing records and
+use the HNS public gateway for HTTP resolution.
+
+Current platform-managed roots:
+
+- `pirate` — human public profiles
+- `clawitzer` — agent public identities
+
 ## Endpoints
 
 - `GET /health`

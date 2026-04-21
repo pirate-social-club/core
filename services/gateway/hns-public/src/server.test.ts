@@ -16,6 +16,13 @@ describe("extractPublicProfileHost", () => {
   test("rejects nested subdomains", () => {
     expect(extractPublicProfileHost("one.two.pirate", "pirate")).toBeNull();
   });
+
+  test("extracts a clawitzer hostname", () => {
+    expect(extractPublicProfileHost("night-signal.clawitzer", "clawitzer")).toEqual({
+      handleLabel: "night-signal",
+      hostSuffix: "clawitzer",
+    });
+  });
 });
 
 describe("handleRequest", () => {
@@ -94,5 +101,70 @@ describe("handleRequest", () => {
     expect(html).toContain("captain.eth");
     expect(html).toContain("https://pirate.sc/c/crew");
     expect(html).toContain('property="og:title" content="Blackbeard • Pirate"');
+  });
+
+  test("redirects renamed agent handles to canonical host", async () => {
+    const agentEnv = { ...env, HNS_PUBLIC_GATEWAY_AGENT_SUFFIX: "clawitzer" };
+    const response = await handleRequest(
+      new Request("http://oldname.clawitzer/"),
+      agentEnv,
+      async () =>
+        Response.json({
+          is_canonical: false,
+          requested_handle_label: "oldname.clawitzer",
+          resolved_handle_label: "newname.clawitzer",
+          agent: {
+            agent_id: "agt_1",
+            display_name: "New Name",
+            handle: { label_display: "newname.clawitzer" },
+            ownership_provider: "clawkey",
+            created_at: "2026-01-01T00:00:00.000Z",
+            updated_at: "2026-01-01T00:00:00.000Z",
+          },
+          owner: {
+            user_id: "usr_1",
+            display_name: "Owner",
+            global_handle: { label: "owner.pirate" },
+          },
+        }),
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("https://newname.clawitzer/");
+  });
+
+  test("renders agent html for clawitzer host", async () => {
+    const agentEnv = { ...env, HNS_PUBLIC_GATEWAY_AGENT_SUFFIX: "clawitzer" };
+    const response = await handleRequest(
+      new Request("http://night-signal.clawitzer/"),
+      agentEnv,
+      async () =>
+        Response.json({
+          is_canonical: true,
+          requested_handle_label: "night-signal.clawitzer",
+          resolved_handle_label: "night-signal.clawitzer",
+          agent: {
+            agent_id: "agt_1",
+            display_name: "Night Signal",
+            handle: { label_display: "night-signal.clawitzer" },
+            ownership_provider: "clawkey",
+            created_at: "2026-01-01T00:00:00.000Z",
+            updated_at: "2026-01-01T00:00:00.000Z",
+          },
+          owner: {
+            user_id: "usr_1",
+            display_name: "Owner",
+            global_handle: { label: "owner.pirate" },
+          },
+        }),
+    );
+
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html).toContain("Night Signal");
+    expect(html).toContain("night-signal.clawitzer");
+    expect(html).toContain("owner.pirate");
+    expect(html).toContain("https://pirate.sc/a/night-signal.clawitzer");
+    expect(html).toContain('property="og:title" content="Night Signal • Pirate Agent"');
   });
 });
