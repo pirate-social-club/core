@@ -11,7 +11,7 @@ If --worker-name is omitted, the script syncs the worker named in wrangler.jsonc
 If --wrangler-env is omitted, the script targets Wrangler's top-level environment.
 PROFILE can be:
   core        Core auth/control-plane/community-provisioning path
-  happy-path  Core plus Privy, Very, HNS, and Spaces verification
+  happy-path  Core plus Privy, Very client id, HNS, and Spaces verification
   commerce    Happy path plus media/song/commerce runtime secrets
 
 Examples:
@@ -104,7 +104,6 @@ core_required_names=(
 happy_path_required_names=(
   HNS_VERIFIER_AUTH_TOKEN
   SPACES_VERIFIER_AUTH_TOKEN
-  VERY_API_KEY
   VERY_APP_ID
 )
 
@@ -144,6 +143,7 @@ optional_names=(
   SPACES_VERIFIER_AUTH_TOKEN
   SPACES_VERIFIER_CHALLENGE_DOMAIN
   TURSO_CONTROL_PLANE_AUTH_TOKEN
+  VERY_API_KEY
   VERY_API_URL
   VERY_CALLBACK_SHARED_SECRET
   VERY_SESSIONS_URL

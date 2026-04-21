@@ -46,7 +46,6 @@ const HAPPY_PATH_SECRET_IDS = [
   "SPACES_VERIFIER_AUTH_TOKEN__/services/api",
   "HNS_VERIFIER_AUTH_TOKEN__/services/api",
   "VERY_APP_ID__/services/api",
-  "VERY_API_KEY__/services/api",
 ] as const;
 
 const COMMERCE_SECRET_IDS = [

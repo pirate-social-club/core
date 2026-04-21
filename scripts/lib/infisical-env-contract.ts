@@ -150,11 +150,12 @@ export const ENV_CONTRACT: EnvContract = {
       path: "/services/api",
       key: "VERY_APP_ID",
       requiredness: "required_for_hosted",
+      validate: (value) => value.startsWith("very_") ? null : "expected Very client id beginning with very_",
     },
     {
       path: "/services/api",
       key: "VERY_API_KEY",
-      requiredness: "required_for_hosted",
+      requiredness: "deferred",
     },
     {
       path: "/services/api",
