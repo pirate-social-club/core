@@ -516,6 +516,9 @@ Post:
       type: string
       format: uri
       nullable: true
+    link_og_title:
+      type: string
+      nullable: true
     media_refs:
       type: array
       items:
