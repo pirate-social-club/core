@@ -47,12 +47,20 @@ This scales because DNS stays constant while the application resolves whether:
 
 For the `pirate.` HNS root, Pirate-managed authoritative DNS should serve:
 
+- `ns1.pirate.` A/AAAA records for the HNS-native authoritative nameserver
 - apex records for the root as needed
+- `app.pirate.` records for the main authenticated web app
+- `api.pirate.` records for the app API origin when the client must avoid ICANN DNS
 - `_pirate.pirate.` TXT for verification flows
 - wildcard web routing for profile traffic
 
 Recommended shape:
 
+- Handshake parent resource: `GLUE4 ns1.pirate. <authoritative-dns-ip>`
+- `pirate.` child zone NS: `ns1.pirate.`
+- `ns1.pirate.` -> authoritative DNS server
+- `app.pirate.` -> main Pirate web app origin
+- `api.pirate.` -> Pirate API origin
 - `*.pirate.` -> public profile gateway
 - optional apex `pirate.` -> app landing page or HNS landing page
 
@@ -61,8 +69,11 @@ Exact record type depends on the serving layer:
 - if terminating directly on a VPS: `A` / `AAAA`
 - if pointing at an external edge: `CNAME` / equivalent supported by the HNS serving stack
 
-The important rule is:
+The important rules are:
 
+- `app.pirate` is the main app host, not a profile host
+- `api.pirate` is reserved for API traffic
+- `pirate.` should delegate through HNS-native glue, not `ns1.pirate.sc.`
 - one wildcard web target for `*.pirate`
 - not millions of per-label records
 
@@ -81,6 +92,9 @@ That means:
 
 For the public profile path, PowerDNS is not resolving users individually.
 It is only routing all second-level names under `pirate.` to one web entrypoint.
+
+Reserved app/service hosts such as `app.pirate.` and `api.pirate.` should be explicit records and
+must not be served by the public profile gateway.
 
 ## Gateway Rule
 

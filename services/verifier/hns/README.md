@@ -39,9 +39,19 @@ Current platform-managed roots:
 - `PDNS_REDISCOVER_COMMAND`
 - `HNS_AUTHORITATIVE_NAMESERVERS`
 - `HNS_AUTHORITATIVE_TTL`
+- `HNS_AUTHORITATIVE_NAMESERVER_IPV4`
 - `HNS_AUTHORITATIVE_APEX_IPV4`
 - `HNS_AUTHORITATIVE_PROFILE_IPV4`
 - `HNS_AUTHORITATIVE_WILDCARD_IPV4`
+
+For the platform-owned `pirate.` root, prefer an HNS-native nameserver:
+
+- child zone NS: `ns1.pirate.`
+- child zone A: `ns1.pirate. -> <authoritative-dns-ip>`
+- parent Handshake resource: `GLUE4 ns1.pirate. <authoritative-dns-ip>`
+
+Do not rely on `ns1.pirate.sc.` for censorship-resistant resolution; that makes the Handshake
+parent delegation depend on ICANN DNS.
 
 ## Local Usage
 

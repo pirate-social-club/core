@@ -1,0 +1,18 @@
+app.pirate {
+  reverse_proxy 127.0.0.1:4050
+}
+
+api.pirate {
+  reverse_proxy 127.0.0.1:4051
+}
+
+*.pirate {
+  @reserved host app.pirate api.pirate
+  respond @reserved 404
+
+  reverse_proxy 127.0.0.1:4049
+}
+
+*.clawitzer {
+  reverse_proxy 127.0.0.1:4049
+}

@@ -30,12 +30,13 @@ const verifierPort = Number(Bun.env.HNS_VERIFIER_PORT || "4048");
 const verifierAuthToken = Bun.env.HNS_VERIFIER_AUTH_TOKEN?.trim() || null;
 
 const pdnsSqliteDatabase = Bun.env.PDNS_SQLITE_DATABASE?.trim() || "/srv/pirate-hns/authdns/data/pdns.sqlite3";
-const defaultSoaContent = Bun.env.PDNS_DEFAULT_SOA_CONTENT?.trim() || "ns1.pirate.sc dns.pirate.sc 0 3600 900 1209600 300";
+const defaultSoaContent = Bun.env.PDNS_DEFAULT_SOA_CONTENT?.trim() || "ns1.pirate dns.pirate 0 3600 900 1209600 300";
 const rediscoverCommand = Bun.env.PDNS_REDISCOVER_COMMAND?.trim() || "docker exec pirate-hns-authdns /usr/local/bin/pdns_control rediscover";
 
-const defaultNameservers = parseCsv(Bun.env.HNS_AUTHORITATIVE_NAMESERVERS) ?? ["ns1.pirate.sc."];
+const defaultNameservers = parseCsv(Bun.env.HNS_AUTHORITATIVE_NAMESERVERS) ?? ["ns1.pirate."];
 const defaultTtl = Number(Bun.env.HNS_AUTHORITATIVE_TTL || "300");
 const defaultApexIpv4 = Bun.env.HNS_AUTHORITATIVE_APEX_IPV4?.trim() || null;
+const defaultNameserverIpv4 = Bun.env.HNS_AUTHORITATIVE_NAMESERVER_IPV4?.trim() || defaultApexIpv4;
 const defaultProfileIpv4 = Bun.env.HNS_AUTHORITATIVE_PROFILE_IPV4?.trim() || defaultApexIpv4;
 const defaultWildcardIpv4 = Bun.env.HNS_AUTHORITATIVE_WILDCARD_IPV4?.trim() || defaultApexIpv4;
 
@@ -208,6 +209,7 @@ async function publishTxt(body: {
   const ensured = store.ensureZone({
     zoneName,
     nameservers,
+    nameserverIpv4: defaultNameserverIpv4,
     apexIpv4: body.apex_ipv4?.trim() || defaultApexIpv4,
     profileIpv4: body.profile_ipv4?.trim() || defaultProfileIpv4,
     wildcardIpv4: body.wildcard_ipv4?.trim() || defaultWildcardIpv4,
@@ -253,6 +255,7 @@ async function ensureZone(body: {
   const ensured = store.ensureZone({
     zoneName,
     nameservers,
+    nameserverIpv4: defaultNameserverIpv4,
     apexIpv4: body.apex_ipv4?.trim() || defaultApexIpv4,
     profileIpv4: body.profile_ipv4?.trim() || defaultProfileIpv4,
     wildcardIpv4: body.wildcard_ipv4?.trim() || defaultWildcardIpv4,

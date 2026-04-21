@@ -30,6 +30,7 @@ export type PowerDnsZoneSnapshot = {
 export type EnsureZoneInput = {
   zoneName: string;
   nameservers: string[];
+  nameserverIpv4?: string | null;
   apexIpv4?: string | null;
   profileIpv4?: string | null;
   wildcardIpv4?: string | null;
@@ -71,6 +72,16 @@ export class PowerDnsStore {
 
       this.replaceRecordSetForDomain(db, domain.id, input.zoneName, "SOA", input.ttl, [this.defaultSoaContent]);
       this.replaceRecordSetForDomain(db, domain.id, input.zoneName, "NS", input.ttl, input.nameservers);
+
+      if (input.nameserverIpv4) {
+        const zoneStorageName = toStorageName(input.zoneName);
+        for (const nameserver of input.nameservers) {
+          const normalizedNameserver = toStorageName(nameserver);
+          if (normalizedNameserver === zoneStorageName || normalizedNameserver.endsWith(`.${zoneStorageName}`)) {
+            this.replaceRecordSetForDomain(db, domain.id, normalizedNameserver, "A", input.ttl, [input.nameserverIpv4]);
+          }
+        }
+      }
 
       if (input.apexIpv4) {
         this.replaceRecordSetForDomain(db, domain.id, input.zoneName, "A", input.ttl, [input.apexIpv4]);

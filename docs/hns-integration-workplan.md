@@ -1,6 +1,6 @@
 # HNS Integration Workplan
 
-Ship a Freedom fork where `https://pirate/` works out of the box through a bundled Handshake stack. Pirate itself stays a normal website. The browser change is "make HNS-backed HTTPS work," not "add Pirate-specific routing."
+Ship a Freedom fork where `https://app.pirate/` works out of the box through a bundled Handshake stack. Pirate itself stays a normal website. The browser change is "make HNS-backed HTTPS work," not "add Pirate-specific routing."
 
 ## Architecture Decisions
 
@@ -10,7 +10,7 @@ Ship a Freedom fork where `https://pirate/` works out of the box through a bundl
 - **Node owns restart policy**: helper exits on fatal hnsd failure. `hns-manager.js` handles restart with bounded retries.
 - **Source ownership**: short-term extraction from `pirate-tui/fingertip`. Long-term move under `freedom-browser`.
 - **MVP platforms**: macOS + Linux only. Defer Windows.
-- **Home page**: replace with HNS bootstrap/status page that subscribes to service registry and auto-redirects to `https://pirate/` once ready. Do not make `homeUrl` dynamic.
+- **Home page**: replace with HNS bootstrap/status page that subscribes to service registry and auto-redirects to `https://app.pirate/` once ready. Do not make `homeUrl` dynamic.
 
 ## Revised Architecture
 
@@ -119,20 +119,20 @@ Depends on proxy strategy. With selective proxying:
 ### 7. Renderer Changes
 
 **`freedom-browser/src/renderer/lib/url-utils.js:45`:**
-- add `looksLikeSingleLabelHost(str)` — detects `pirate`, `pirate/`, `pirate/abc`
-- add `normalizeHnsHostInput(str)` — converts to `https://pirate/`, `https://pirate/abc`
+- add `looksLikeHnsHostInput(str)` — detects `app.pirate`, `app.pirate/`, `app.pirate/abc`, and other HNS-style host inputs
+- add `normalizeHnsHostInput(str)` — converts to `https://app.pirate/`, `https://app.pirate/abc`
 - both gated on HNS integration being enabled
 
 **`freedom-browser/src/renderer/lib/navigation.js:852` (submit handler):**
-- before ENS/BZZ/IPFS fallback, normalize single-label hostnames when HNS is enabled
-- `pirate` → `https://pirate/`
-- `pirate/abc` → `https://pirate/abc`
+- before ENS/BZZ/IPFS fallback, normalize HNS-style hostnames when HNS is enabled
+- `app.pirate` → `https://app.pirate/`
+- `app.pirate/abc` → `https://app.pirate/abc`
 
 **`freedom-browser/src/renderer/lib/navigation.js:487` (loadTarget):**
 - add the same normalization path for programmatic calls
 - otherwise raw `pirate` still gets dropped as invalid
 
-**Rejection criteria for single-label detection:**
+**Rejection criteria for HNS host detection:**
 - strings containing spaces
 - strings starting with uppercase or containing uppercase after first char
 - strings that are pure numbers
@@ -148,7 +148,7 @@ Replace the current home page with an HNS bootstrap/status page.
 - Behavior:
   - HNS disabled: show normal browser home or settings prompt
   - HNS starting/syncing: show status (block height, sync progress)
-  - HNS ready: auto-redirect to `https://pirate/`
+  - HNS ready: auto-redirect to `https://app.pirate/`
 - Do not make `homeUrl` in `page-urls.js` dynamic
 
 ### 9. Request Rewriter Interaction
@@ -205,7 +205,7 @@ Replace the current home page with an HNS bootstrap/status page.
 8. Replace startup/home with bootstrap status page
 9. Add UI status surface
 10. Run tests and package macOS/Linux
-11. Switch default startup target to `https://pirate/`
+11. Switch default startup target to `https://app.pirate/`
 
 ## Dependency Notes
 
@@ -217,8 +217,8 @@ Replace the current home page with an HNS bootstrap/status page.
 ## Milestones
 
 - **M1**: Helper runs, manager runs, browser sees HNS status
-- **M2**: `https://pirate/` loads manually in dev (typed as full URL)
-- **M3**: Typing `pirate/` works
+- **M2**: `https://app.pirate/` loads manually in dev (typed as full URL)
+- **M3**: Typing `app.pirate/` works
 - **M4**: Startup auto-redirect works
 - **M5**: Packaged macOS/Linux builds work
 
@@ -236,8 +236,8 @@ Replace the current home page with an HNS bootstrap/status page.
 ## Acceptance Criteria
 
 - Fresh install launches Freedom
-- Home/bootstrap page shows sync state, then redirects to `https://pirate/`
-- Typing `pirate/` in the address bar loads the site
+- Home/bootstrap page shows sync state, then redirects to `https://app.pirate/`
+- Typing `app.pirate/` in the address bar loads the site
 - Bee/IPFS/Radicle still work and are not proxied into HNS
 - Normal HTTPS browsing still uses default TLS verification
-- `https://pirate/` works without any special-case browser code in `pirate-web`
+- `https://app.pirate/` works without any special-case browser code in `pirate-web`
