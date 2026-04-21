@@ -41,13 +41,12 @@ jobs:
       # writes generated contracts into the standalone `pirate-api` sidecar.
       - name: Rebuild core-owned spec artifacts
         run: |
-          cd specs/api
-          bun run bundle
-          bun run bundle:implemented
-          bun run generate-reference-template-types
-          bun run typecheck-reference-template
-          bun run validate-provider-matrix
-          bun run validate-examples
+          bun specs/api/scripts/bundle-openapi.ts
+          bun specs/api/scripts/bundle-openapi-implemented.ts
+          bun specs/api/scripts/generate-reference-template-types.ts
+          bun run --cwd specs/api typecheck
+          bun specs/api/scripts/validate-provider-matrix.ts
+          bun specs/api/scripts/validate-openapi-examples.ts
 
       - name: Fail on uncommitted generated changes
         run: |
