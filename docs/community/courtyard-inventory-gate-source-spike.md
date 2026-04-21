@@ -77,6 +77,29 @@ Before broad production rollout, verify one of:
 
 Raw ERC-721 `balanceOf` and untrusted display metadata are not enough for `3 Charizards` or `5 Rolexes`.
 
+## Catalog-Backed Authoring Requirement
+
+The community creator and moderation UI must not accept freeform Courtyard asset text for production gate authoring. Values such as `brand`, `model`, `franchise`, `subject`, `set`, `year`, `grader`, `grade`, and `reference` must come from a Pirate backend catalog derived from an authoritative Courtyard source.
+
+The correct authoring path is:
+
+1. Ingest Courtyard assets from an official Courtyard API, partner export, signed metadata feed, or audited Pirate catalog source.
+2. Store normalized token facts keyed by `{ chain_namespace, contract_address, token_id }`, including source provenance and `last_seen_at`.
+3. Derive selectable facets from stored facts, not from frontend constants:
+   - category
+   - franchise / sport / brand
+   - subject / player / model / reference
+   - set / year / grader / grade / condition where available
+4. Expose Pirate-owned catalog endpoints for the UI:
+   - `GET /courtyard/catalog/categories`
+   - `GET /courtyard/catalog/facets?category=...`
+   - `GET /courtyard/catalog/search?category=...&q=...`
+   - `GET /courtyard/catalog/options?...`
+5. Store gate configs using catalog-selected normalized values or stable catalog option IDs. Do not let the client submit arbitrary matching strings as if they were verified catalog facets.
+6. Evaluate membership with the same normalized catalog facts used by the authoring UI. The evaluator and UI must not maintain separate string heuristics.
+
+Until that catalog exists, Courtyard gate authoring should remain unavailable in user-facing UI. Backend evaluation can remain fail-closed for controlled/internal gates, but creators should not be asked to type `Rolex`, `Submariner`, `Pokemon`, or `Charizard` into raw text fields.
+
 ## Spike Script
 
 The source discovery script lives in:
