@@ -266,7 +266,7 @@ export const ENV_CONTRACT: EnvContract = {
     {
       path: "/services/api",
       key: "ENDAOMENT_REGISTRY_ADDRESS",
-      requiredness: "required_for_hosted",
+      requiredness: "deferred",
       validate: isEvmAddress,
     },
     {
