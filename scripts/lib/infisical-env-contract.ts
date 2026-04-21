@@ -49,9 +49,38 @@ function isPostgresUrl(value: string): string | null {
   }
 }
 
+function isHttpUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    if (!["http:", "https:"].includes(url.protocol)) {
+      return `expected http(s):// URL, got ${url.protocol}//`;
+    }
+    if (!url.hostname) {
+      return "missing hostname";
+    }
+    return null;
+  } catch {
+    return "not a valid URL";
+  }
+}
+
 function is64CharHex(value: string): string | null {
   if (!/^[0-9a-f]{64}$/.test(value)) {
     return "expected 64-character lowercase hex string";
+  }
+  return null;
+}
+
+function isPositiveInteger(value: string): string | null {
+  if (!/^[1-9][0-9]*$/.test(value)) {
+    return "expected positive integer";
+  }
+  return null;
+}
+
+function isEvmAddress(value: string): string | null {
+  if (!/^0x[0-9a-fA-F]{40}$/.test(value)) {
+    return "expected 0x-prefixed EVM address";
   }
   return null;
 }
@@ -186,6 +215,88 @@ export const ENV_CONTRACT: EnvContract = {
       path: "/services/api",
       key: "MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY",
       requiredness: "deferred",
+    },
+    {
+      path: "/services/api",
+      key: "PIRATE_CHECKOUT_OPERATOR_PRIVATE_KEY",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "PIRATE_CHECKOUT_OPERATOR_ADDRESS",
+      requiredness: "deferred",
+      validate: isEvmAddress,
+    },
+    {
+      path: "/services/api",
+      key: "PIRATE_CHECKOUT_RPC_URL",
+      requiredness: "required_for_hosted",
+      validate: isHttpUrl,
+    },
+    {
+      path: "/services/api",
+      key: "PIRATE_CHECKOUT_SOURCE_CHAIN_ID",
+      requiredness: "required_for_hosted",
+      validate: isPositiveInteger,
+    },
+    {
+      path: "/services/api",
+      key: "PIRATE_CHECKOUT_USDC_TOKEN_ADDRESS",
+      requiredness: "required_for_hosted",
+      validate: isEvmAddress,
+    },
+    {
+      path: "/services/api",
+      key: "PIRATE_CHECKOUT_TX_WAIT_TIMEOUT_MS",
+      requiredness: "deferred",
+      validate: isPositiveInteger,
+    },
+    {
+      path: "/services/api",
+      key: "BASE_MAINNET_RPC_URL",
+      requiredness: "deferred",
+      validate: isHttpUrl,
+    },
+    {
+      path: "/services/api",
+      key: "BASE_SEPOLIA_RPC_URL",
+      requiredness: "deferred",
+      validate: isHttpUrl,
+    },
+    {
+      path: "/services/api",
+      key: "ENDAOMENT_REGISTRY_ADDRESS",
+      requiredness: "required_for_hosted",
+      validate: isEvmAddress,
+    },
+    {
+      path: "/services/api",
+      key: "ENDAOMENT_PAYOUT_PRIVATE_KEY",
+      requiredness: "deferred",
+    },
+    {
+      path: "/services/api",
+      key: "ENDAOMENT_RPC_URL",
+      requiredness: "deferred",
+      validate: isHttpUrl,
+    },
+    {
+      path: "/services/api",
+      key: "ENDAOMENT_CHAIN_ID",
+      requiredness: "deferred",
+      validate: isPositiveInteger,
+    },
+    {
+      path: "/services/api",
+      key: "ENDAOMENT_USDC_TOKEN_ADDRESS",
+      requiredness: "deferred",
+      validate: isEvmAddress,
+    },
+    {
+      path: "/services/api",
+      key: "ENDAOMENT_TX_WAIT_TIMEOUT_MS",
+      requiredness: "deferred",
+      validate: isPositiveInteger,
     },
     {
       path: "/services/control-plane",
