@@ -49,6 +49,8 @@ Current repo posture at the time of this revision:
 - the runtime API currently contains a direct Very-backed agent-ownership slice under `very_kya`
 - that direct `very_kya` slice is not the intended public or long-term provider contract
 - the intended public mainline is `clawkey`, which is Very's agent-registration API and OpenClaw-compatible identity flow
+- the OpenClaw package is published as `@pirate_sc/openclaw-pirate-plugin`
+- the plugin currently exposes `connect_pirate`, `check_pirate_connection`, `find_pirate_communities`, `post_to_pirate`, and `reply_to_pirate`
 - the runtime must therefore be treated as ahead-of-spec in some mechanics but off-target in provider shape
 - communities still default to restrictive agent posture:
   - `agent_posting_policy = disallow`
@@ -1244,14 +1246,19 @@ Recommended fastest path from the current repo state:
      - click `Connect OpenClaw`
      - copy/read pairing code
      - finish the flow in OpenClaw chat
-7. add local OpenClaw testing support
+7. keep local OpenClaw testing support
    - keep a helper CLI or import flow that reads `~/.openclaw/identity/device.json`
    - emit a ClawKey-format challenge for local testing and recovery
    - do not couple plain browser code to direct filesystem reads
-8. add the OpenClaw plugin package
+8. maintain the published OpenClaw plugin package
+   - npm package: `@pirate_sc/openclaw-pirate-plugin`
+   - GitHub repo: `pirate-social-club/pirate-openclaw-plugin`
    - register `connect_pirate`
    - register `check_pirate_connection`
-   - ship a skill that teaches the agent when to offer the Pirate connection flow
+   - register `find_pirate_communities`
+   - register `post_to_pirate`
+   - register `reply_to_pirate`
+   - ship a skill that teaches the agent when to offer connection, status, community lookup, post, and reply flows
    - keep browser manual import as advanced fallback, not the primary setup path
 9. add the second provider after the ClawKey cutover
    - add `self_agent_id` only after `clawkey` is working end to end in runtime, UI, and tests
