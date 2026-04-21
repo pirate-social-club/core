@@ -81,6 +81,42 @@ Raw ERC-721 `balanceOf` and untrusted display metadata are not enough for `3 Cha
 
 The community creator and moderation UI must not accept freeform Courtyard asset text for production gate authoring. Values such as `brand`, `model`, `franchise`, `subject`, `set`, `year`, `grader`, `grade`, and `reference` must come from a Pirate backend catalog derived from an authoritative Courtyard source.
 
+The canonical `erc721_inventory_match` gate config is:
+
+```json
+{
+  "contract_address": "0x251BE3A17Af4892035C37ebf5890F4a4D889dcAD",
+  "inventory_provider": "courtyard",
+  "min_quantity": 1,
+  "match": {
+    "category": "watch",
+    "brand": "rolex"
+  }
+}
+```
+
+`match` is the canonical field for new creator-wallet and admin-catalog flows. The legacy `asset_filter` field may still be read for existing gates, but new authoring surfaces should write `match`.
+
+Supported normalized match keys:
+
+```ts
+type CourtyardInventoryMatch = {
+  category: "trading_card" | "watch";
+  franchise?: string;
+  subject?: string;
+  brand?: string;
+  model?: string;
+  reference?: string;
+  set?: string;
+  year?: string;
+  grader?: string;
+  grade?: string;
+  condition?: string;
+}
+```
+
+All values are normalized with Unicode normalization, diacritic stripping, trimming, and lowercase comparison before storage/evaluation.
+
 The correct authoring path is:
 
 1. Ingest Courtyard assets from an official Courtyard API, partner export, signed metadata feed, or audited Pirate catalog source.
