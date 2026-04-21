@@ -1,6 +1,6 @@
 # Courtyard Inventory Gate Source Spike
 
-Status: phase-zero checkpoint partially passed. A public owner-to-asset facts path has been found, but API support/stability and final contract allowlisting are not verified.
+Status: limited-use implementation exists for Courtyard Polygon inventory gates. A public owner-to-asset facts path has been found and wired fail-closed, but Courtyard API stability and rate-limit guarantees are still not verified.
 
 ## Goal
 
@@ -69,7 +69,7 @@ The `Watches` query returned watch facts including `Category: Watches`, `Brand`,
 
 ## Audit Gate
 
-Before backend schema or enforcement changes, verify one of:
+Before broad production rollout, verify one of:
 
 1. Courtyard confirms `GET /index/ownership` or another endpoint is official enough for server-side eligibility enforcement, including rate limits and auth expectations.
 2. Courtyard provides signed metadata or another verifiable token-to-asset fact source.
@@ -132,6 +132,43 @@ This calls `/index/ownership` and normalizes sampled assets into:
 - Courtyard confirms the endpoint is stable and acceptable for server-side eligibility checks.
 - The authoritative chain/contract allowlist is resolved. Current sampled app data points to Polygon, not only the Ethereum registry.
 
-## Implementation Hold
+## Implemented Integration Contract
 
-Until the remaining pass criteria are met, do not add product-facing UI for Courtyard collectible gates and do not add join enforcement for `erc721_inventory_match`.
+The current `erc721_inventory_match` implementation depends on this observed `/index/ownership` response shape:
+
+- `chain` is `polygon`, mapped to `eip155:137`
+- `contract` is the allowlisted Courtyard Polygon registry
+- `token_id` identifies the ERC-721 token
+- `owner.address` is the owner returned by the endpoint
+- card/watch categorization is inferred from `collection`, `title`, and card grading attributes
+- card filters use `Category` as franchise and `Title/Subject` or `Title/PKMN` as subject
+- watch filters use `Brand` and `Model` or `Reference`
+
+Matching semantics are intentionally mixed:
+
+- `franchise` and `brand` are exact normalized matches
+- `subject` and `model` are normalized contains matches, so values like `Charizard` and `Submariner` match graded or variant titles
+
+The evaluator now:
+
+- queries only linked Polygon wallets (`eip155:137`)
+- deduplicates matches by `{ chain_namespace, contract_address, token_id }`
+- follows Courtyard pagination until `total` is reached
+- caches successful match counts briefly, defaulting to 60 seconds
+- does not cache provider failures
+- returns `token_inventory_unavailable` when the provider throws or returns an error
+
+Runtime overrides:
+
+```txt
+COURTYARD_API_URL
+COURTYARD_INVENTORY_CACHE_TTL_MS
+```
+
+`COURTYARD_INVENTORY_CACHE_TTL_MS` defaults to `60000`, accepts `0` to disable, and is capped at five minutes.
+
+## Known V0 Constraints
+
+- All gate rules are ANDed. The UI supports one Courtyard inventory gate at a time; `3 Charizards OR 5 Rolexes` needs a later gate grouping/operator model.
+- The normalization layer is coupled to Courtyard's current attribute names. CI has schema-drift tests for unknown category handling, but Courtyard can still break matching if they rename core fields without notice.
+- The endpoint still needs an explicit stability/rate-limit confirmation from Courtyard or a Pirate-maintained signed/catalog source before broad rollout.
