@@ -13,6 +13,8 @@ export type SecretSpec = {
   validate?: (value: string) => string | null;
 };
 
+export type SecretProfile = "all" | "core" | "happy-path" | "commerce";
+
 export type CrossPathCheckResult = {
   status: "ok" | "skip" | "fail";
   message?: string;
@@ -33,6 +35,8 @@ export type EnvContract = {
   secrets: SecretSpec[];
   crossPathChecks: CrossPathCheck[];
 };
+
+export const SECRET_PROFILES = ["all", "core", "happy-path", "commerce"] as const satisfies readonly SecretProfile[];
 
 function isPostgresUrl(value: string): string | null {
   try {
@@ -82,10 +86,6 @@ function isEvmAddress(value: string): string | null {
   if (!/^0x[0-9a-fA-F]{40}$/.test(value)) {
     return "expected 0x-prefixed EVM address";
   }
-  return null;
-}
-
-function isNonEmpty(_value: string): string | null {
   return null;
 }
 
@@ -154,11 +154,6 @@ export const ENV_CONTRACT: EnvContract = {
     },
     {
       path: "/services/api",
-      key: "VERY_API_KEY",
-      requiredness: "deferred",
-    },
-    {
-      path: "/services/api",
       key: "VERY_API_URL",
       requiredness: "deferred",
       validate: isHttpUrl,
@@ -166,12 +161,6 @@ export const ENV_CONTRACT: EnvContract = {
     {
       path: "/services/api",
       key: "VERY_VERIFY_URL",
-      requiredness: "deferred",
-      validate: isHttpUrl,
-    },
-    {
-      path: "/services/api",
-      key: "VERY_SESSIONS_URL",
       requiredness: "deferred",
       validate: isHttpUrl,
     },
@@ -222,33 +211,28 @@ export const ENV_CONTRACT: EnvContract = {
     },
     {
       path: "/services/api",
-      key: "STORY_CONTRACT_OWNER_PRIVATE_KEY",
-      requiredness: "deferred",
-    },
-    {
-      path: "/services/api",
       key: "STORY_RUNTIME_PRIVATE_KEY",
       requiredness: "required_for_hosted",
     },
     {
       path: "/services/api",
       key: "STORY_OPERATOR_PRIVATE_KEY",
-      requiredness: "deferred",
+      requiredness: "required_for_hosted",
     },
     {
       path: "/services/api",
       key: "STORY_CDR_WRITER_PRIVATE_KEY",
-      requiredness: "deferred",
+      requiredness: "required_for_hosted",
     },
     {
       path: "/services/api",
       key: "STORY_ACCESS_CONTROLLER_PRIVATE_KEY",
-      requiredness: "deferred",
+      requiredness: "required_for_hosted",
     },
     {
       path: "/services/api",
       key: "MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY",
-      requiredness: "deferred",
+      requiredness: "required_for_hosted",
     },
     {
       path: "/services/api",
@@ -482,6 +466,118 @@ export const ENV_CONTRACT: EnvContract = {
     },
   ],
 };
+
+export function isSecretProfile(value: string | undefined): value is SecretProfile {
+  return value === "all"
+    || value === "core"
+    || value === "happy-path"
+    || value === "commerce";
+}
+
+export function secretId(path: string, key: string): string {
+  return `${key}__${path}`;
+}
+
+export const CORE_SECRET_IDS = [
+  "CONTROL_PLANE_DATABASE_URL__/services/api",
+  "TURSO_COMMUNITY_DB_WRAP_KEY__/services/api",
+  "AUTH_UPSTREAM_JWT_SHARED_SECRET__/services/api",
+  "PIRATE_APP_JWT_PRIVATE_KEY__/services/api",
+  "PIRATE_APP_JWT_PUBLIC_KEY__/services/api",
+  "PRIVY_APP_SECRET__/services/api",
+  "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN__/services/api",
+  "CONTROL_PLANE_MIGRATOR_DATABASE_URL__/services/control-plane",
+  "TURSO_PLATFORM_API_TOKEN__/services/control-plane",
+  "TURSO_COMMUNITY_DB_WRAP_KEY__/services/control-plane",
+  "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN__/services/control-plane",
+] as const;
+
+export const HAPPY_PATH_SECRET_IDS = [
+  "SPACES_VERIFIER_AUTH_TOKEN__/services/api",
+  "HNS_VERIFIER_AUTH_TOKEN__/services/api",
+  "VERY_APP_ID__/services/api",
+] as const;
+
+export const COMMERCE_SECRET_IDS = [
+  "FILEBASE_S3_ACCESS_KEY__/services/api",
+  "FILEBASE_S3_SECRET_KEY__/services/api",
+  "ACRCLOUD_ACCESS_KEY__/services/api",
+  "ACRCLOUD_ACCESS_SECRET__/services/api",
+  "ACRCLOUD_PERSONAL_ACCESS_TOKEN__/services/api",
+  "ELEVENLABS_API_KEY__/services/api",
+  "OPENROUTER_API_KEY__/services/api",
+  "STORY_RUNTIME_PRIVATE_KEY__/services/api",
+  "STORY_OPERATOR_PRIVATE_KEY__/services/api",
+  "STORY_CDR_WRITER_PRIVATE_KEY__/services/api",
+  "STORY_ACCESS_CONTROLLER_PRIVATE_KEY__/services/api",
+  "MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY__/services/api",
+  "PIRATE_CHECKOUT_OPERATOR_PRIVATE_KEY__/services/api",
+  "PIRATE_CHECKOUT_RPC_URL__/services/api",
+  "PIRATE_CHECKOUT_SOURCE_CHAIN_ID__/services/api",
+  "PIRATE_CHECKOUT_USDC_TOKEN_ADDRESS__/services/api",
+] as const;
+
+export function profileSecretIds(profile: SecretProfile): Set<string> | null {
+  if (profile === "all") return null;
+
+  const ids = new Set<string>(CORE_SECRET_IDS);
+  if (profile === "happy-path" || profile === "commerce") {
+    for (const id of HAPPY_PATH_SECRET_IDS) ids.add(id);
+  }
+  if (profile === "commerce") {
+    for (const id of COMMERCE_SECRET_IDS) ids.add(id);
+  }
+  return ids;
+}
+
+export function wranglerApiRequiredSecretNames(profile: Exclude<SecretProfile, "all">): string[] {
+  const selectedSecretIds = profileSecretIds(profile);
+  if (!selectedSecretIds) return [];
+
+  return ENV_CONTRACT.secrets
+    .filter((spec) => spec.path === "/services/api" && selectedSecretIds.has(secretId(spec.path, spec.key)))
+    .map((spec) => spec.key);
+}
+
+export function wranglerApiOptionalSecretNames(profile: Exclude<SecretProfile, "all">): string[] {
+  const requiredNames = new Set(wranglerApiRequiredSecretNames(profile));
+
+  return ENV_CONTRACT.secrets
+    .filter((spec) => spec.path === "/services/api")
+    .filter((spec) => spec.requiredness === "deferred")
+    .map((spec) => spec.key)
+    .filter((key) => !requiredNames.has(key));
+}
+
+export const WRANGLER_MANAGED_CONFIG_NAMES = [
+  "AUTH_UPSTREAM_JWT_ENABLED",
+  "AUTH_UPSTREAM_JWT_ISSUER",
+  "AUTH_UPSTREAM_JWT_AUDIENCE",
+  "PIRATE_APP_JWT_ISSUER",
+  "PIRATE_APP_JWT_AUDIENCE",
+  "PIRATE_APP_JWT_TTL_SECONDS",
+  "PRIVY_APP_ID",
+  "PRIVY_API_URL",
+  "FILEBASE_MEDIA_BUCKET",
+  "FILEBASE_S3_ENDPOINT",
+  "FILEBASE_S3_REGION",
+  "OPENROUTER_BASE_URL",
+  "OPENROUTER_MODEL",
+  "ACRCLOUD_HOST",
+  "ACRCLOUD_IDENTIFY_PATH",
+  "ACRCLOUD_BUCKET_ID",
+  "ACRCLOUD_CONSOLE_BASE_URL",
+  "ELEVENLABS_FORCE_ALIGNMENT_URL",
+  "STORY_RPC_URL",
+  "STORY_RPC_FALLBACK_URLS",
+  "STORY_RUNTIME_SIGNER_MIN_BALANCE_WEI",
+  "STORY_RUNTIME_SIGNER_TARGET_BALANCE_WEI",
+  "IPFS_GATEWAY_URL",
+  "REGISTRY_PUBLISHER_URL",
+  "REGISTRY_PUBLISHER_TIMEOUT_MS",
+  "DEV_MEMORY_STORE_ENABLED",
+  "ENVIRONMENT",
+] as const;
 
 export function requirednessApplies(requiredness: Requiredness, env: string): boolean {
   const isProduction = env === "production" || env === "prod";

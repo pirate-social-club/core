@@ -2,18 +2,22 @@
 
 import {
   ENV_CONTRACT,
+  isSecretProfile,
+  profileSecretIds,
   requirednessApplies,
   requirednessLabel,
+  secretId,
+  type Requiredness,
+  type SecretProfile,
 } from "../lib/infisical-env-contract";
 
 type Options = {
   env: string;
-  profile: Profile;
+  profile: SecretProfile;
   connect: boolean;
   verbose: boolean;
+  allowExtra: boolean;
 };
-
-type Profile = "all" | "core" | "happy-path" | "commerce";
 
 type CheckResult = {
   status: "ok" | "missing" | "empty" | "invalid" | "auth_failed" | "error" | "skip";
@@ -28,44 +32,9 @@ type SecretRead = {
 
 const HUMAN_SET_REQUIRED_PLACEHOLDER = "__HUMAN_SET_REQUIRED__";
 
-const CORE_SECRET_IDS = [
-  "CONTROL_PLANE_DATABASE_URL__/services/api",
-  "TURSO_COMMUNITY_DB_WRAP_KEY__/services/api",
-  "AUTH_UPSTREAM_JWT_SHARED_SECRET__/services/api",
-  "PIRATE_APP_JWT_PRIVATE_KEY__/services/api",
-  "PIRATE_APP_JWT_PUBLIC_KEY__/services/api",
-  "PRIVY_APP_SECRET__/services/api",
-  "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN__/services/api",
-  "CONTROL_PLANE_MIGRATOR_DATABASE_URL__/services/control-plane",
-  "TURSO_PLATFORM_API_TOKEN__/services/control-plane",
-  "TURSO_COMMUNITY_DB_WRAP_KEY__/services/control-plane",
-  "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN__/services/control-plane",
-] as const;
-
-const HAPPY_PATH_SECRET_IDS = [
-  "SPACES_VERIFIER_AUTH_TOKEN__/services/api",
-  "HNS_VERIFIER_AUTH_TOKEN__/services/api",
-  "VERY_APP_ID__/services/api",
-] as const;
-
-const COMMERCE_SECRET_IDS = [
-  "FILEBASE_S3_ACCESS_KEY__/services/api",
-  "FILEBASE_S3_SECRET_KEY__/services/api",
-  "ACRCLOUD_ACCESS_KEY__/services/api",
-  "ACRCLOUD_ACCESS_SECRET__/services/api",
-  "ACRCLOUD_PERSONAL_ACCESS_TOKEN__/services/api",
-  "ELEVENLABS_API_KEY__/services/api",
-  "OPENROUTER_API_KEY__/services/api",
-  "STORY_RUNTIME_PRIVATE_KEY__/services/api",
-  "PIRATE_CHECKOUT_OPERATOR_PRIVATE_KEY__/services/api",
-  "PIRATE_CHECKOUT_RPC_URL__/services/api",
-  "PIRATE_CHECKOUT_SOURCE_CHAIN_ID__/services/api",
-  "PIRATE_CHECKOUT_USDC_TOKEN_ADDRESS__/services/api",
-] as const;
-
 function usage(): never {
   console.error(`Usage:
-  bun scripts/infisical/check-infisical-env.ts --env ENV [--profile PROFILE] [--connect] [--verbose]
+  bun scripts/infisical/check-infisical-env.ts --env ENV [--profile PROFILE] [--connect] [--verbose] [--allow-extra]
 
 Checks the Infisical environment against the secret contract defined in
 scripts/lib/infisical-env-contract.ts.
@@ -78,12 +47,14 @@ Options:
                   for *_DATABASE_URL secrets. This checks that the secret contract is
                   met (correct roles, correct grants), not that the application works.
   --verbose       Show deferred/optional secrets and skipped cross-path checks
+  --allow-extra   Do not fail on live Infisical folders/secrets outside this contract.
+                  Use only for one-off inventory, not production readiness gates.
   -h, --help      Show this help text`);
   process.exit(1);
 }
 
 function parseArgs(argv: string[]): Options {
-  const options: Options = { env: "", profile: "all", connect: false, verbose: false };
+  const options: Options = { env: "", profile: "all", connect: false, verbose: false, allowExtra: false };
 
   for (let i = 0; i < argv.length; ) {
     const arg = argv[i];
@@ -94,7 +65,7 @@ function parseArgs(argv: string[]): Options {
         i += 2;
         break;
       case "--profile":
-        if (!isProfile(value)) {
+        if (!isSecretProfile(value)) {
           console.error(`invalid profile: ${value ?? ""}`);
           usage();
         }
@@ -107,6 +78,10 @@ function parseArgs(argv: string[]): Options {
         break;
       case "--verbose":
         options.verbose = true;
+        i += 1;
+        break;
+      case "--allow-extra":
+        options.allowExtra = true;
         i += 1;
         break;
       case "-h":
@@ -125,30 +100,6 @@ function parseArgs(argv: string[]): Options {
   }
 
   return options;
-}
-
-function isProfile(value: string | undefined): value is Profile {
-  return value === "all"
-    || value === "core"
-    || value === "happy-path"
-    || value === "commerce";
-}
-
-function secretId(path: string, key: string): string {
-  return `${key}__${path}`;
-}
-
-function profileSecretIds(profile: Profile): Set<string> | null {
-  if (profile === "all") return null;
-
-  const ids = new Set<string>(CORE_SECRET_IDS);
-  if (profile === "happy-path" || profile === "commerce") {
-    for (const id of HAPPY_PATH_SECRET_IDS) ids.add(id);
-  }
-  if (profile === "commerce") {
-    for (const id of COMMERCE_SECRET_IDS) ids.add(id);
-  }
-  return ids;
 }
 
 function runInfisical(args: string[]): { stdout: string; stderr: string; exitCode: number } {
@@ -231,6 +182,28 @@ function readSecret(env: string, path: string, key: string): string | null {
   }
 }
 
+function listSecretKeys(env: string, path: string): string[] {
+  const { stdout, exitCode } = runInfisical([
+    "secrets",
+    "--env",
+    env,
+    "--path",
+    path,
+    "-o",
+    "json",
+  ]);
+  if (exitCode !== 0) return [];
+  try {
+    const parsed = JSON.parse(stdout);
+    return (Array.isArray(parsed) ? parsed : [])
+      .map((secret: { secretKey?: string }) => secret.secretKey ?? "")
+      .filter(Boolean)
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
 function isPlaceholderValue(value: string): boolean {
   return value === HUMAN_SET_REQUIRED_PLACEHOLDER;
 }
@@ -249,6 +222,19 @@ function buildFolderPathMap(env: string): Set<string> {
   }
 
   return paths;
+}
+
+function envAllowsLocalDevOnly(env: string): boolean {
+  return env === "dev";
+}
+
+function folderAllowedInEnv(requiredness: Requiredness, env: string): boolean {
+  return requirednessApplies(requiredness, env) || (envAllowsLocalDevOnly(env) && requiredness === "required_for_hosted");
+}
+
+function secretAllowedInEnv(requiredness: Requiredness, env: string): boolean {
+  if (envAllowsLocalDevOnly(env)) return true;
+  return requiredness === "deferred" || requirednessApplies(requiredness, env);
 }
 
 async function testDatabaseConnection(url: string): Promise<{
@@ -418,6 +404,7 @@ console.log(`\ninfisical environment doctor`);
 console.log(`env: ${options.env}`);
 console.log(`profile: ${options.profile}`);
 console.log(`connect: ${options.connect}`);
+console.log(`allow_extra: ${options.allowExtra}`);
 console.log("");
 
 // 1. Check environment exists
@@ -448,6 +435,22 @@ for (const folder of ENV_CONTRACT.folders) {
     totalErrors++;
   } else if (options.verbose) {
     console.log(`  --   ${folder.path} missing (${label})`);
+  }
+}
+
+if (!options.allowExtra) {
+  const allowedFolderPaths = new Set(
+    ENV_CONTRACT.folders
+      .filter((folder) => folderAllowedInEnv(folder.requiredness, options.env))
+      .map((folder) => folder.path),
+  );
+  const unexpectedFolders = Array.from(existingPaths)
+    .filter((path) => path !== "/" && !allowedFolderPaths.has(path))
+    .sort();
+
+  for (const path of unexpectedFolders) {
+    console.log(`FAIL  ${path} unexpected live folder for env '${options.env}'`);
+    totalErrors++;
   }
 }
 
@@ -516,7 +519,48 @@ for (const spec of ENV_CONTRACT.secrets) {
   console.log(`  ok   ${spec.path} ${spec.key}`);
 }
 
-// 4. Cross-path consistency checks
+// 4. Check live Infisical drift against the whole contract, not just the selected profile.
+if (!options.allowExtra) {
+  console.log("");
+  console.log("live drift:");
+
+  let driftCount = 0;
+  const declaredSecrets = new Map(
+    ENV_CONTRACT.secrets.map((spec) => [secretId(spec.path, spec.key), spec]),
+  );
+
+  const pathsToInspect = Array.from(existingPaths)
+    .filter((path) => path !== "/")
+    .sort();
+
+  for (const path of pathsToInspect) {
+    for (const key of listSecretKeys(options.env, path)) {
+      const spec = declaredSecrets.get(secretId(path, key));
+      if (!spec) {
+        console.log(`FAIL  ${path} ${key} undeclared live secret`);
+        totalErrors++;
+        driftCount++;
+        continue;
+      }
+
+      if (!secretAllowedInEnv(spec.requiredness, options.env)) {
+        console.log(`FAIL  ${path} ${key} not allowed in env '${options.env}' (${requirednessLabel(spec.requiredness)})`);
+        totalErrors++;
+        driftCount++;
+      }
+    }
+  }
+
+  if (driftCount === 0) {
+    console.log("  ok   no undeclared or disallowed live secrets");
+  }
+} else if (options.verbose) {
+  console.log("");
+  console.log("live drift:");
+  console.log("  --   skipped (--allow-extra)");
+}
+
+// 5. Cross-path consistency checks
 console.log("");
 console.log("cross-path checks:");
 
@@ -539,7 +583,7 @@ for (const check of ENV_CONTRACT.crossPathChecks) {
   }
 }
 
-// 5. --connect mode
+// 6. --connect mode
 if (options.connect) {
   console.log("");
   console.log("database connections:");

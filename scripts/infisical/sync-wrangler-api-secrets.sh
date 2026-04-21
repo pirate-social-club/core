@@ -14,6 +14,8 @@ PROFILE can be:
   happy-path  Core plus Privy, Very client id, HNS, and Spaces verification
   commerce    Happy path plus media/song/commerce runtime secrets
 
+Required and optional secret names come from scripts/lib/infisical-env-contract.ts.
+
 Examples:
   ./scripts/infisical/sync-wrangler-api-secrets.sh \
     --env-file pirate-api/services/api/.env.remote
@@ -91,72 +93,9 @@ if [[ -n "$ENV_FILE" ]]; then
   set +a
 fi
 
-core_required_names=(
-  AUTH_UPSTREAM_JWT_SHARED_SECRET
-  CONTROL_PLANE_DATABASE_URL
-  COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN
-  PIRATE_APP_JWT_PRIVATE_KEY
-  PIRATE_APP_JWT_PUBLIC_KEY
-  PRIVY_APP_SECRET
-  TURSO_COMMUNITY_DB_WRAP_KEY
-)
-
-happy_path_required_names=(
-  HNS_VERIFIER_AUTH_TOKEN
-  SPACES_VERIFIER_AUTH_TOKEN
-  VERY_APP_ID
-)
-
-commerce_required_names=(
-  ACRCLOUD_ACCESS_KEY
-  ACRCLOUD_ACCESS_SECRET
-  ACRCLOUD_PERSONAL_ACCESS_TOKEN
-  ELEVENLABS_API_KEY
-  FILEBASE_S3_ACCESS_KEY
-  FILEBASE_S3_SECRET_KEY
-  MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY
-  OPENROUTER_API_KEY
-  PIRATE_CHECKOUT_OPERATOR_PRIVATE_KEY
-  PIRATE_CHECKOUT_RPC_URL
-  PIRATE_CHECKOUT_SOURCE_CHAIN_ID
-  PIRATE_CHECKOUT_USDC_TOKEN_ADDRESS
-  STORY_RUNTIME_PRIVATE_KEY
-)
-
-optional_names=(
-  BASE_MAINNET_RPC_URL
-  BASE_SEPOLIA_RPC_URL
-  CONTROL_PLANE_AUTH_TOKEN
-  ENDAOMENT_CHAIN_ID
-  ENDAOMENT_PAYOUT_PRIVATE_KEY
-  ENDAOMENT_REGISTRY_ADDRESS
-  ENDAOMENT_RPC_URL
-  ENDAOMENT_TX_WAIT_TIMEOUT_MS
-  ENDAOMENT_USDC_TOKEN_ADDRESS
-  HNS_VERIFIER_AUTH_TOKEN
-  HNS_VERIFIER_BASE_URL
-  PIRATE_CHECKOUT_OPERATOR_ADDRESS
-  PIRATE_CHECKOUT_TX_WAIT_TIMEOUT_MS
-  PRIVY_JWT_VERIFICATION_KEY
-  REGISTRY_PUBLISHER_AUTH_TOKEN
-  SPACES_VERIFIER_BASE_URL
-  SPACES_VERIFIER_AUTH_TOKEN
-  SPACES_VERIFIER_CHALLENGE_DOMAIN
-  TURSO_CONTROL_PLANE_AUTH_TOKEN
-  VERY_API_KEY
-  VERY_API_URL
-  VERY_CALLBACK_SHARED_SECRET
-  VERY_SESSIONS_URL
-  VERY_VERIFY_URL
-)
-
-required_names=("${core_required_names[@]}")
-if [[ "$PROFILE" == "happy-path" || "$PROFILE" == "commerce" ]]; then
-  required_names+=("${happy_path_required_names[@]}")
-fi
-if [[ "$PROFILE" == "commerce" ]]; then
-  required_names+=("${commerce_required_names[@]}")
-fi
+mapfile -t required_names < <(rtk bun "$ROOT_DIR/scripts/infisical/print-wrangler-api-secret-names.ts" --profile "$PROFILE" --kind required)
+mapfile -t optional_names < <(rtk bun "$ROOT_DIR/scripts/infisical/print-wrangler-api-secret-names.ts" --profile "$PROFILE" --kind optional)
+mapfile -t managed_config_names < <(rtk bun "$ROOT_DIR/scripts/infisical/print-wrangler-api-secret-names.ts" --profile "$PROFILE" --kind managed-config)
 
 for name in "${required_names[@]}"; do
   if [[ -z "${!name:-}" ]]; then
@@ -198,31 +137,5 @@ $(printf '%s\n' "${required_names[@]}" | sed 's/^/- /')
 optional when present:
 $(printf '%s\n' "${optional_names[@]}" | sed 's/^/- /')
 managed outside secret sync:
-- AUTH_UPSTREAM_JWT_ENABLED
-- AUTH_UPSTREAM_JWT_ISSUER
-- AUTH_UPSTREAM_JWT_AUDIENCE
-- PIRATE_APP_JWT_ISSUER
-- PIRATE_APP_JWT_AUDIENCE
-- PIRATE_APP_JWT_TTL_SECONDS
-- PRIVY_APP_ID
-- PRIVY_API_URL
-- FILEBASE_MEDIA_BUCKET
-- FILEBASE_S3_ENDPOINT
-- FILEBASE_S3_REGION
-- OPENROUTER_BASE_URL
-- OPENROUTER_MODEL
-- ACRCLOUD_HOST
-- ACRCLOUD_IDENTIFY_PATH
-- ACRCLOUD_BUCKET_ID
-- ACRCLOUD_CONSOLE_BASE_URL
-- ELEVENLABS_FORCE_ALIGNMENT_URL
-- STORY_RPC_URL
-- STORY_RPC_FALLBACK_URLS
-- STORY_RUNTIME_SIGNER_MIN_BALANCE_WEI
-- STORY_RUNTIME_SIGNER_TARGET_BALANCE_WEI
-- IPFS_GATEWAY_URL
-- REGISTRY_PUBLISHER_URL
-- REGISTRY_PUBLISHER_TIMEOUT_MS
-- DEV_MEMORY_STORE_ENABLED
-- ENVIRONMENT
+$(printf '%s\n' "${managed_config_names[@]}" | sed 's/^/- /')
 EOF
