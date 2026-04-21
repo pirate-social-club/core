@@ -39,6 +39,12 @@ UserAgentStatus:
     - revoked
     - transferred
     - deregistered
+AgentHandleStatus:
+  type: string
+  enum:
+    - active
+    - redirect
+    - retired
 AgentOwnershipState:
   type: string
   enum:
@@ -390,6 +396,50 @@ AgentOwnershipSession:
     updated_at:
       type: string
       format: date-time
+AgentHandle:
+  type: object
+  additionalProperties: false
+  required:
+    - agent_handle_id
+    - agent_id
+    - label_normalized
+    - label_display
+    - status
+    - issued_at
+    - created_at
+    - updated_at
+  description: |
+    Canonical platform-issued handle for a user-owned agent under the managed `.clawitzer` root.
+    A user-owned agent may have one active handle. Replaced labels may remain as redirects.
+  properties:
+    agent_handle_id:
+      type: string
+    agent_id:
+      type: string
+    label_normalized:
+      type: string
+      description: Lowercase `.clawitzer` label without the root suffix.
+    label_display:
+      type: string
+      description: Display handle including the `.clawitzer` suffix.
+    status:
+      $ref: ./agents.yaml#/AgentHandleStatus
+    redirect_target_agent_handle_id:
+      type: string
+      nullable: true
+    issued_at:
+      type: string
+      format: date-time
+    replaced_at:
+      type: string
+      format: date-time
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
 UserAgent:
   type: object
   additionalProperties: false
@@ -410,6 +460,9 @@ UserAgent:
       type: string
     display_name:
       type: string
+    handle:
+      $ref: ./agents.yaml#/AgentHandle
+      nullable: true
     status:
       $ref: ./agents.yaml#/UserAgentStatus
     current_ownership_record_id:
@@ -509,3 +562,76 @@ UserAgentListResponse:
       type: array
       items:
         $ref: ./agents.yaml#/UserAgent
+UpdateUserAgentRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - display_name
+  properties:
+    display_name:
+      type: string
+      description: Requested display name for the user-owned agent.
+UpdateAgentHandleRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - desired_label
+  properties:
+    desired_label:
+      type: string
+      description: Desired `.clawitzer` label, accepted with or without the root suffix.
+PublicAgentResolution:
+  type: object
+  additionalProperties: false
+  required:
+    - is_canonical
+    - requested_handle_label
+    - resolved_handle_label
+    - agent
+    - owner
+  properties:
+    is_canonical:
+      type: boolean
+    requested_handle_label:
+      type: string
+    resolved_handle_label:
+      type: string
+    agent:
+      type: object
+      additionalProperties: false
+      required:
+        - agent_id
+        - handle
+        - created_at
+        - updated_at
+      properties:
+        agent_id:
+          type: string
+        display_name:
+          type: string
+          nullable: true
+        handle:
+          $ref: ./agents.yaml#/AgentHandle
+        ownership_provider:
+          $ref: ./agents.yaml#/AgentOwnershipProvider
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    owner:
+      type: object
+      additionalProperties: false
+      required:
+        - user_id
+        - global_handle
+      properties:
+        user_id:
+          type: string
+        display_name:
+          type: string
+          nullable: true
+        global_handle:
+          $ref: ./profiles.yaml#/GlobalHandle

@@ -63,10 +63,14 @@ paths:
     $ref: ./paths/agents.yaml#/agents
   /agents/{agent_id}:
     $ref: ./paths/agents.yaml#/agents_by_agent_id
+  /agents/{agent_id}/handle:
+    $ref: ./paths/agents.yaml#/agents_by_agent_id_handle
   /agents/{agent_id}/credential:
     $ref: ./paths/agents.yaml#/agents_by_agent_id_credential
   /agents/{agent_id}/credential/refresh:
     $ref: ./paths/agents.yaml#/agents_by_agent_id_credential_refresh
+  /public-agents/{handle_label}:
+    $ref: ./paths/agents.yaml#/public_agents_by_handle_label
   /namespace-verification-sessions:
     $ref: ./paths/verification.yaml#/namespace_verification_sessions
   /namespace-verification-sessions/{namespace_verification_session_id}:
@@ -396,6 +400,8 @@ components:
       $ref: ./components/schemas/agents.yaml#/AgentOwnershipSessionStatus
     UserAgentStatus:
       $ref: ./components/schemas/agents.yaml#/UserAgentStatus
+    AgentHandleStatus:
+      $ref: ./components/schemas/agents.yaml#/AgentHandleStatus
     AgentOwnershipState:
       $ref: ./components/schemas/agents.yaml#/AgentOwnershipState
     AgentChallenge:
@@ -448,6 +454,14 @@ components:
       $ref: ./components/schemas/agents.yaml#/UserAgent
     UserAgentListResponse:
       $ref: ./components/schemas/agents.yaml#/UserAgentListResponse
+    AgentHandle:
+      $ref: ./components/schemas/agents.yaml#/AgentHandle
+    UpdateAgentHandleRequest:
+      $ref: ./components/schemas/agents.yaml#/UpdateAgentHandleRequest
+    UpdateUserAgentRequest:
+      $ref: ./components/schemas/agents.yaml#/UpdateUserAgentRequest
+    PublicAgentResolution:
+      $ref: ./components/schemas/agents.yaml#/PublicAgentResolution
     Profile:
       $ref: ./components/schemas/profiles.yaml#/Profile
     GlobalHandle:
@@ -512,6 +526,8 @@ components:
       $ref: ./components/schemas/communities-community.yaml#/CommunityMoneyPolicy
     CommunityPurchaseFundingMode:
       $ref: ./components/schemas/communities-community.yaml#/CommunityPurchaseFundingMode
+    CommunityPurchaseSettlementMode:
+      $ref: ./components/schemas/communities-community.yaml#/CommunityPurchaseSettlementMode
     CommunityPurchaseQuotePreflightRequest:
       $ref: ./components/schemas/communities-community.yaml#/CommunityPurchaseQuotePreflightRequest
     CommunityPurchaseQuotePreflight:
