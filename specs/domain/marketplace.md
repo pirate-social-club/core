@@ -1,6 +1,6 @@
 # Marketplace
 
-Status: draft
+Status: Story royalty-native asset commerce implemented on testnet rails; buyer UX and mainnet rails remain explicit follow-ups
 
 Related docs:
 
@@ -126,6 +126,7 @@ Rules:
 - if `donation_opt_in = true`, then `donation_share_pct` must satisfy `0 < donation_share_pct <= 50`; see [donations.md](./donations.md)
 - if `donation_opt_in = false`, then `donation_share_pct = null` and `donation_partner_id_snapshot = null`
 - if the club's active pricing policy has `regional_pricing_enabled = false`, then listings in that club must not carry an active `regional_pricing_policy`
+- if an asset is derivative and commerce depends on Story-native royalty enforcement, the listing must not become active until the asset's required Story royalty registration state is complete
 
 ## Purchase Model
 
@@ -231,6 +232,7 @@ Implementation note:
 
 - the current expected royalty-native settlement path on Story is `WIP`
 - this is an implementation reality, not the primary user-facing pricing abstraction
+- native-value Story delivery settlement and royalty-native Story commerce settlement should be modeled as different execution modes even when both are Story-based
 
 ## Settlement And Purchase Access
 
@@ -255,6 +257,7 @@ In v0:
 - access control may be enforced through Pirate's content-access contracts and Story CDR-compatible condition flows when the asset is locked
 - public assets may still create a purchase entitlement even when the content preview was already visible
 - buyer identity and beneficiary wallet must be passed explicitly to settlement contracts; contracts must not infer them from `msg.sender` or `tx.origin`
+- if the sale uses Story Royalty Module, any listing-level charity leg is deducted from gross before net Story payment, and buyer entitlement is granted after the Story-side sale payment succeeds
 
 ## Routed Funding
 
@@ -301,7 +304,7 @@ Rules:
 - the purchase transaction routes value directly into the active payout waterfall
 - upstream royalty passthrough, if required, is handled as part of settlement
 - club and platform fees are routed immediately according to the active payout policy
-- creator-side donation sidecars, when enabled, route to the club's configured donation partner as part of settlement
+- creator-side donation sidecars, when enabled, route to the club's configured donation partner before net revenue enters Story settlement
 - no platform treasury should hold buyer funds pending manual release in v0
 - if a donation-enabled listing points to a paused or retired donation partner, the purchase must fail until the listing is refreshed or donation is disabled
 

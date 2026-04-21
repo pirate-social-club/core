@@ -88,6 +88,12 @@ AgentId:
   required: true
   schema:
     type: string
+HandleLabel:
+  in: path
+  name: handle_label
+  required: true
+  schema:
+    type: string
 NamespaceVerificationSessionId:
   in: path
   name: namespace_verification_session_id

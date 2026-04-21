@@ -1,5 +1,7 @@
 # Community Money Policy
 
+Status: default policy is testnet checkout to Story Aeneid. Mainnet source chains remain explicit opt-in after Story/CDR mainnet readiness.
+
 Status: draft
 
 Related docs:
@@ -180,6 +182,30 @@ Example honest phased posture:
 - `funding_preference = BTC`
 - current executable lane = routed EVM funding into Story settlement
 - future executable lane may later include a narrower Bitcoin-related source asset such as wrapped or bridged BTC, but Pirate should not imply raw Bitcoin-native purchase support before that path exists
+
+## Default Story Commerce Funding Lane
+
+Default Story commerce should not ask buyers to pay in WIP.
+
+Recommended default:
+
+- `funding_preference = USDC`
+- `accepted_funding_assets = [USDC on configured Pirate checkout chain]`
+- `accepted_source_chains = [configured Pirate checkout chain]`
+- `approved_route_providers = [pirate_checkout]`
+- `destination_settlement_chain = Story`
+- `destination_settlement_token = WIP`
+- `route_required = true`
+- `route_status_policy = fail`
+
+Interpretation:
+
+- buyer-facing checkout is USDC-centric
+- the approved checkout route receives USDC into the operator funding address
+- the operator pays net WIP into Story settlement after buyer funding is verified
+- WIP remains an internal Story royalty settlement token, not the buyer-facing currency
+
+Until Story CDR and the royalty settlement path move to mainnet, hosted commerce environments should use testnet checkout rails such as Base Sepolia plus Story Aeneid. Real Base mainnet USDC should not be used while the Story side is still Aeneid.
 
 ## Route Viability
 

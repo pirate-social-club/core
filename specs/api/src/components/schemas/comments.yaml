@@ -62,6 +62,9 @@ Comment:
     anonymous_label:
       type: string
       nullable: true
+    agent_handle_snapshot:
+      type: string
+      nullable: true
     agent_display_name_snapshot:
       type: string
       nullable: true

@@ -1,6 +1,6 @@
 # Monetization
 
-Status: draft
+Status: creator plus charity waterfall implemented for asset commerce; platform and community treasury legs remain future additive legs
 
 Related docs:
 
@@ -139,10 +139,11 @@ Rules:
 
 - donation is only available when the club has an active donation partner
 - donation participation is opt-in on the listing
-- `listing.donation_share_pct`, when set, is taken from creator-side proceeds
+- `listing.donation_share_pct`, when set, is taken from the gross resolved sale amount before net revenue enters Story's royalty graph
 - `listing.donation_partner_id_snapshot` is the destination reference used for settlement
-- donation must not reduce required upstream royalty passthrough
+- donation reduces the amount paid into the Story royalty graph for that listing
 - donation must not replace the normal club treasury share
+- if the sale is Story royalty-native, donation applies before the Story royalty graph resolves
 
 Interpretation:
 
@@ -203,7 +204,7 @@ Recommended v0 order:
 3. if `upstream_royalty_mode = passthrough`, required upstream royalties are paid
 4. if `upstream_royalty_mode = club_optional`, optional upstream share is paid when enabled
 5. remaining distributable amount is split between creator, club, and platform according to the active payout policy
-6. if the listing is donation-enabled, the configured donation share is routed from the creator-side proceeds to the snapped donation partner
+6. if the listing is donation-enabled, the configured donation share is routed from the gross sale amount to the snapped donation partner before net Story payment
 7. remaining creator payout is delivered
 
 This keeps upstream obligations ahead of club/platform economics.
@@ -211,7 +212,8 @@ This keeps upstream obligations ahead of club/platform economics.
 Settlement modeling rule:
 
 - quote creation should snapshot the resolved post-waterfall allocations that settlement will execute
-- the creator donation sidecar is represented as a charity allocation leg cut from creator-side proceeds, not as a recomputed special case during settlement
+- the creator donation sidecar is represented as a charity allocation leg cut from the gross sale amount, not as a recomputed special case during settlement
+- for Story royalty-native commerce, the creator donation sidecar reduces the net revenue paid into Story for that listing
 
 ## Livestream Revenue Boundary
 

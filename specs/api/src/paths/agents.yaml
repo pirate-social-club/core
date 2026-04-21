@@ -203,6 +203,78 @@ agents_by_agent_id:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
+agents_by_agent_id_handle:
+  get:
+    x-implemented: true
+    tags:
+      - Agents
+    summary: Get a user-owned agent handle
+    parameters:
+      - $ref: ../components/parameters.yaml#/AgentId
+    responses:
+      "200":
+        description: Active agent handle
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/agents.yaml#/AgentHandle
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  post:
+    x-implemented: true
+    tags:
+      - Agents
+    summary: Claim or rename a user-owned agent handle
+    description: |
+      Claims the canonical `.clawitzer` handle for an active user-owned agent. The authenticated
+      caller must own the agent. Existing active handles are preserved as redirects when renamed.
+    parameters:
+      - $ref: ../components/parameters.yaml#/AgentId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/agents.yaml#/UpdateAgentHandleRequest
+    responses:
+      "200":
+        description: Active agent handle
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/agents.yaml#/AgentHandle
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/Forbidden
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+public_agents_by_handle_label:
+  get:
+    x-implemented: true
+    tags:
+      - Agents
+    security: []
+    summary: Resolve a public `.clawitzer` agent handle
+    parameters:
+      - $ref: ../components/parameters.yaml#/HandleLabel
+    responses:
+      "200":
+        description: Public agent resolution
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/agents.yaml#/PublicAgentResolution
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
 agents_by_agent_id_credential:
   post:
     x-implemented: true

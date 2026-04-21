@@ -1,6 +1,6 @@
 # Purchase Quote Flow
 
-Status: draft
+Status: implemented for Story royalty-native asset commerce on testnet rails
 
 Related docs:
 
@@ -20,7 +20,7 @@ It covers:
 - how base USD listing prices become buyer-specific quotes
 - how verification-backed pricing tiers affect the quote
 - what data is fixed before onchain settlement
-- how the app-level quote maps to `MarketplaceSettlementV1`
+- how the app-level quote maps to the active Story royalty-native payment path
 - how the buyer's wallet path continues through Story-side entitlement unlock
 
 ## Core Principle
@@ -97,6 +97,7 @@ Recommended v0 app-level quote fields:
 - `settlement_chain`
 - `settlement_token`
 - `settlement_amount`
+- `settlement_mode`
 - `payout_destination`
 - `allocation_snapshot[]`
 - `entitlement_token_id`
@@ -126,6 +127,13 @@ Allocation snapshot rules:
 - total `share_bps` across the snapshot must equal `10000`
 - non-remainder legs round first; creator receives the remainder
 
+Settlement mode meanings:
+
+- `delivery_only_story_settlement`
+  Non-royalty asset delivery or future non-asset settlement path. This must not be used for sellable asset commerce.
+- `royalty_native_story_payment`
+  Story Royalty Module path using the Story-supported royalty payment token
+
 Minimum pricing-audit expectation:
 
 - `verification_snapshot_ref`, when present, should resolve to a snapshot that captures at least:
@@ -154,8 +162,23 @@ Recommended v0 flow:
    - `entitlement_token_id`
 12. Pirate creates a short-lived quote record.
 13. Buyer executes purchase using that quote.
-14. Pirate or the settlement operator calls `MarketplaceSettlementV1.settlePurchase(...)` with the resolved purchase reference and amount.
-15. Pirate records the canonical app-level `purchase` row from the successful settlement.
+14. Pirate or the settlement operator executes the sale on the active Story settlement path.
+15. If the sale is royalty-native and the quote contains charity, the charity leg is deducted from gross and the net amount is paid into Story.
+16. Buyer entitlement is granted after the Story-side sale payment succeeds; later creator claim continues asynchronously through Story.
+17. Pirate records the canonical app-level `purchase` row from the successful settlement.
+
+## Payment Token
+
+Royalty-native Story commerce should use the Story-supported royalty payment token.
+
+Rules:
+
+- royalty-native sales should settle in `WIP`
+- routed buyer funding should deliver the buyer-facing source asset, currently USDC, to Pirate checkout
+- Pirate checkout pays the net WIP amount into Story after buyer funding is verified
+- the current native-value settlement path should be treated as transitional and not reused implicitly for royalty-native commerce
+- sellable asset quotes must use `royalty_native_story_payment`
+- quote and purchase records should make the active settlement mode explicit so downstream services do not confuse delivery-only settlement with royalty-native settlement
 
 ## Buyer-Facing Wallet Path
 
@@ -171,13 +194,15 @@ Recommended v0 user-visible sequence:
 6. If the funding lane is executable, Pirate issues the quote and required Story-side settlement lane.
 7. Buyer completes any required routed-funding step.
 8. Pirate or the operator finalizes Story settlement using the resolved settlement wallet path.
-9. Pirate records the purchase and entitlement snapshot.
-10. The paid asset then moves from purchase-eligible to unlock-eligible for that buyer wallet path.
+9. If the quote uses the royalty-native Story path, charity is deducted from gross before net Story payment, and creator claim continues asynchronously.
+10. Pirate records the purchase and entitlement snapshot.
+11. The paid asset then moves from purchase-eligible to unlock-eligible for that buyer wallet path.
 
 Important user-facing rule:
 
 - the wallet used for Story settlement must remain legible to the buyer
 - if Pirate later supports explicit settlement-wallet selection, the chosen wallet must be shown before execution rather than inferred opaquely
+- if the quote uses the royalty-native Story path, the user should not be told that creator claim must complete before access unlocks
 
 ## Story CDR Unlock Path
 
@@ -287,8 +312,10 @@ Current contract boundary:
 Current implementation note:
 
 - `MarketplaceSettlementV1` is still a single-recipient settlement primitive
+- `MarketplaceSettlementV1` must not be used for sellable asset commerce
 - multi-leg app-level allocations may therefore contain legs that are not yet confirmed onchain in the same step
 - the quote snapshot remains canonical even when execution backends differ by allocation leg
+- `MarketplaceSettlementV1` should be treated as transitional for non-royalty delivery settlement only, not as the target primitive for Story Royalty Module commerce
 
 In other words:
 

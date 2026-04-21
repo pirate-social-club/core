@@ -1,5 +1,7 @@
 # Donations
 
+Status: community partner and listing-level allocation implemented; real Endaoment execution deferred until mainnet commerce.
+
 Status: draft
 
 Related docs:
@@ -39,7 +41,7 @@ Donation destination should be a community policy, not an arbitrary post-level b
 Recommended v0 model:
 
 - the club defines the approved donation partner
-- monetized creator content may opt into donating part of the creator-side proceeds
+- monetized creator content may opt into donating part of the gross sale price before net Story settlement
 - the donation destination does not vary per post in normal v0 flows
 
 This reduces scam surface area and keeps club identity coherent.
@@ -56,25 +58,25 @@ Fields:
 - `display_name` (TEXT NOT NULL)
 - `provider` (TEXT NOT NULL CHECK `endaoment`)
 - `provider_partner_ref` (TEXT)
+- `payout_destination_ref` (TEXT)
 - `image_url` (TEXT)
 - `review_status` (TEXT NOT NULL CHECK `pending` | `approved` | `rejected`)
 - `status` (TEXT NOT NULL CHECK `active` | `paused` | `retired`)
 - `created_at` (TEXT NOT NULL)
 - `updated_at` (TEXT NOT NULL)
 
-`payout_destination_ref` is not yet stored in v0; it resolves at payout time through the Endaoment integration.
-
 Rules:
 
 - v0 supports `provider = endaoment` only
 - only `review_status = approved` partners may be attached to communities in v0
 - the partner object, not the post or listing, owns provider-specific payout routing data
+- `payout_destination_ref` must be populated before donation-enabled quote issuance
 - partner approval is a platform-admin action in v0
 
 V0 Endaoment note:
 
 - for `provider = endaoment`, `provider_partner_ref` carries the Endaoment organization identifier
-- `payout_destination_ref` resolves through Pirate's Endaoment integration at actual payout time
+- `payout_destination_ref` is the settlement destination reference used by Pirate's Endaoment integration
 
 ## Community-Level Donation Partner
 
@@ -104,31 +106,30 @@ Rules:
 
 ## Creator-Side Donation Participation
 
-Monetized creator listings may opt into donating part of creator proceeds.
+Monetized creator listings may opt into donating part of the gross resolved sale price.
 
 Suggested v0 listing-level participation fields:
 
-- `donation_opt_in`
 - `donation_share_pct` nullable
-- `donation_partner_id_snapshot` nullable
+- `donation_partner_id` nullable
 
 Rules:
 
 - donation participation lives on the listing, not the asset row and not the club payout policy
 - donation participation is optional per monetized listing
-- `donation_opt_in` is a boolean in v0
-- donation share is taken from creator-side proceeds, not from upstream royalty obligations
+- a null `donation_partner_id` means donation is disabled for the listing
+- donation share is taken from the gross sale price before the net amount enters Story's royalty graph
 - donation share does not change the platform fee unless Pirate explicitly adds such a mode later
-- donation share does not change owed upstream royalty passthrough
+- donation reduces the net revenue paid into Story for this sale
 - `donation_share_pct` must satisfy `0 < donation_share_pct <= 50` in v0
-- when a creator enables donation on a listing, Pirate snapshots the current club donation partner into `donation_partner_id_snapshot`
-- if `donation_opt_in = true`, then `donation_share_pct` and `donation_partner_id_snapshot` must be non-null
-- if `donation_opt_in = false`, then `donation_share_pct = null` and `donation_partner_id_snapshot = null`
-- donation opt-in may only be true when the club donation policy allows it and `donation_partner_status = active`
+- when a creator enables donation on a listing, Pirate snapshots the current club donation partner into `donation_partner_id`
+- if `donation_partner_id` is non-null, then `donation_share_pct` must be non-null
+- if donation is disabled, then `donation_share_pct = null` and `donation_partner_id = null`
+- donation may only be enabled when the club donation policy allows it and `donation_partner_status = active`
 
 Interpretation:
 
-- the creator is sacrificing part of their own payout
+- the creator is choosing a listing-level charity tax on the sale
 - the donation goes to the listing's snapped club donation partner
 - the post itself is not choosing a new charity destination every time
 
@@ -179,22 +180,59 @@ This is a later extension and should not replace the simpler creator-side sideca
 
 ## Payout Interaction
 
-Donation sits inside the monetization waterfall after upstream obligations and before final creator payout.
+Donation sits inside the monetization waterfall before Story royalty-native settlement.
 
 Recommended v0 order:
 
 1. buyer pays
 2. external payment/network fees are removed
-3. required upstream royalties are paid when applicable
-4. platform and community policy shares are resolved
-5. if creator donation is enabled, the creator donation slice is routed from the creator-side proceeds
-6. remaining creator payout is delivered
+3. if creator donation is enabled, the charity slice is routed from the gross sale amount to the snapped donation partner
+4. the remaining net amount is paid into Story's Royalty Module
+5. required upstream royalties are resolved by Story when applicable
+6. remaining creator-side proceeds become claimable through Story
 
 Important boundary:
 
 - donation is not a substitute for club treasury contribution
 - club treasury routing and charity routing are separate destinations
-- donation does not alter required royalty-graph passthrough obligations
+- Story's royalty graph receives the post-donation net amount
+
+## Endaoment Execution
+
+Endaoment uses a real-money onchain entity donation path, so it is deferred while Pirate commerce runs on Story Aeneid and Base Sepolia testnet rails.
+
+When the whole commerce stack moves to mainnet, provider execution uses Endaoment's onchain entity donation path.
+
+Current testnet rule:
+
+- donation partners can be configured for policy and preview UX
+- donation-enabled listings and quotes require provider configuration when execution is attempted
+- hosted dev/staging/prod should not use real Endaoment payout keys while Story settlement is still Aeneid
+
+Rules:
+
+- `provider = endaoment` requires `payout_destination_ref` to be the Endaoment entity contract address
+- Pirate verifies the Endaoment entity is active through the configured Endaoment Registry before donation
+- Pirate donates USDC through the entity contract's `donate(uint256)` function
+- the backend payout signer must hold enough USDC on the configured Endaoment-supported chain
+- the provider settlement reference is the confirmed Endaoment donation transaction hash
+- provider receipt references may include chain/entity/transaction correlation
+- tax receipt references are nullable because Endaoment receipt generation may complete later
+
+Runtime configuration when enabled:
+
+- `ENDAOMENT_PAYOUT_PRIVATE_KEY`
+- `ENDAOMENT_RPC_URL`
+- `ENDAOMENT_CHAIN_ID`
+- `ENDAOMENT_USDC_TOKEN_ADDRESS`
+- `ENDAOMENT_REGISTRY_ADDRESS`
+
+Durability:
+
+- charity payout attempts are recorded in `purchase_settlement_effects`
+- retries reuse a confirmed charity effect instead of calling the provider again
+- the idempotency key is derived from quote id plus allocation identity
+- if the provider call fails before confirmation, the effect is marked failed and can be retried
 
 ## Relationship To Posts
 

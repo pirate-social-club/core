@@ -316,6 +316,7 @@ export type CommunityPurchase = {
   settlement_wallet_attachment_id: string;
   purchase_price_usd: number;
   pricing_tier?: string | null;
+  settlement_mode: CommunityPurchaseSettlementMode;
   settlement_chain: CommunityMoneyChainRef;
   settlement_token: string;
   settlement_tx_ref: string;
@@ -383,6 +384,7 @@ export type CommunityPurchaseQuote = {
   base_price_usd: number;
   pricing_tier?: string | null;
   final_price_usd: number;
+  settlement_mode: CommunityPurchaseSettlementMode;
   allocation_snapshot: Array<CommunitySaleAllocationSnapshot>;
   funding_mode: CommunityPurchaseFundingMode;
   funding_asset?: CommunityMoneyAssetRef | null;
@@ -393,6 +395,9 @@ export type CommunityPurchaseQuote = {
   policy_origin: CommunityPolicyOrigin;
   destination_settlement_chain: CommunityMoneyChainRef;
   destination_settlement_token: string;
+  destination_settlement_amount_atomic?: string | null;
+  destination_settlement_decimals?: number | null;
+  funding_destination_address?: string | null;
   treasury_denomination?: string | null;
   quote_ttl_seconds: number;
   route_required: boolean;
@@ -407,6 +412,7 @@ export type CommunityPurchaseQuote = {
 export type CommunityPurchaseSettlementRequest = {
   quote_id: string;
   settlement_wallet_attachment_id: string;
+  funding_tx_ref: string;
   settlement_tx_ref: string;
 };
 
@@ -421,6 +427,7 @@ export type CommunityPurchaseSettlement = {
   settlement_wallet_attachment_id: string;
   purchase_price_usd: number;
   pricing_tier?: string | null;
+  settlement_mode: CommunityPurchaseSettlementMode;
   settlement_chain: CommunityMoneyChainRef;
   settlement_chain_ref: string;
   settlement_token: string;
@@ -595,6 +602,7 @@ type Comment = {
   identity_mode: "public" | "anonymous";
   anonymous_scope: "community_stable" | "thread_stable" | null;
   anonymous_label: string | null;
+  agent_handle_snapshot?: string | null;
   agent_display_name_snapshot?: string | null;
   agent_owner_handle_snapshot?: string | null;
   agent_ownership_provider_snapshot?: AgentOwnershipProvider | null;
@@ -824,6 +832,8 @@ type CommunityProvenancePolicy = {
 
 type CommunityPurchaseFundingMode = "direct" | "routed";
 
+type CommunityPurchaseSettlementMode = "delivery_only_story_settlement" | "royalty_native_story_payment";
+
 type CommunityReferenceLinkMetadata = {
   display_name?: string | null;
   image_url?: string | null;
@@ -1051,6 +1061,7 @@ type Post = {
   identity_mode: "public" | "anonymous";
   anonymous_scope?: "community_stable" | "thread_stable" | "post_ephemeral" | null;
   anonymous_label?: string | null;
+  agent_handle_snapshot?: string | null;
   agent_display_name_snapshot?: string | null;
   agent_owner_handle_snapshot?: string | null;
   agent_ownership_provider_snapshot?: string | null;

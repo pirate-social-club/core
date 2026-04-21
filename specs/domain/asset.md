@@ -1,6 +1,6 @@
 # Asset
 
-Status: draft
+Status: Story royalty registration metadata implemented for current song commerce; broader media surfaces remain incremental
 
 Related docs:
 
@@ -73,6 +73,9 @@ Suggested v0 fields:
 - `access_mode`
 - `publication_state`
 - `story_ip_id` nullable
+- `story_royalty_policy_id` nullable
+- `story_derivative_parent_ip_ids` nullable
+- `story_royalty_registration_status` nullable
 - `story_nft_contract` nullable
 - `story_nft_token_id` nullable
 - `royalty_graph_id` nullable
@@ -110,6 +113,13 @@ Notes:
 - `rights_basis` is copied from the source post at asset creation time, becomes immutable on the asset row, and must match the source post's declared basis
 - `access_mode` is the source of truth for whether the full asset payload is public or gated
 - `story_nft_contract` and `story_nft_token_id` are populated only when the asset is minted and registered through a Story-compatible NFT collection
+- `story_royalty_policy_id` is populated when the asset is registered for royalty-native commerce on Story
+- `story_derivative_parent_ip_ids` records the upstream Story IP identifiers used for derivative registration when applicable
+- `story_royalty_registration_status`
+  - `none`
+  - `pending`
+  - `registered`
+  - `failed`
 - donation participation does not live on the asset row in v0; it is a listing-level commerce choice
 - `karaoke_ready` is meaningful mainly for song assets in v0
 - `karaoke_ready` should transition to `true` only when `karaoke_package_ref` contains all required refs (lyrics, instrumental track, vocal track); it is `false` by default and is not set by composer completeness
@@ -221,6 +231,12 @@ Recommended v0 rules:
 
 `story_ip_id` is nullable until publication succeeds.
 
+Royalty-native commerce rule:
+
+- a sellable Story-native commerce asset must not rely on `story_ip_id` alone
+- if the asset is intended for royalty-native commerce, Pirate must also track royalty policy attachment and derivative registration readiness
+- derivative assets must not become sellable until the required Story-native derivative linkage and royalty registration state is complete
+
 Publication should be asynchronous.
 
 Failure rules:
@@ -228,6 +244,7 @@ Failure rules:
 - Story publication failure must not delete the source post
 - Story publication failure should move the asset to `publication_state = story_failed`
 - the user may retry or abandon publication subject to later policy
+- if royalty-native commerce registration fails, the asset may remain published for delivery but must not become sellable until the royalty registration state is repaired
 
 ## Story Collection Strategy
 
@@ -316,6 +333,7 @@ This matters because:
 Recommended v0 rule:
 
 - only assets, not raw posts, attach directly to royalty graphs
+- a derivative asset that is expected to enforce Story-native royalty passthrough must carry the Story registration state needed to map accepted payout-relevant edges into Story-native enforcement
 
 ## Automated Analysis Relationship
 
@@ -338,6 +356,7 @@ Recommended v0 split:
 - Story publication is optional except where required by post type policy
 - Story identifiers are attached after publication succeeds
 - Story registration should use standard Story-compatible NFT collection flows
+- royalty-native commerce registration is stricter than basic Story publication and should be treated as a separate readiness step for commerce
 
 ## API Implications
 

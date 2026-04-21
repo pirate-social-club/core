@@ -442,6 +442,48 @@ Asset:
     story_ip_id:
       type: string
       nullable: true
+    story_ip_nft_contract:
+      type: string
+      nullable: true
+    story_ip_nft_token_id:
+      type: string
+      nullable: true
+    story_publish_model:
+      type: string
+      enum:
+        - pirate_v1
+        - story_ip_v1
+    story_license_terms_id:
+      type: string
+      nullable: true
+    story_license_template:
+      type: string
+      nullable: true
+    story_royalty_policy:
+      type: string
+      nullable: true
+    story_royalty_policy_id:
+      type: string
+      nullable: true
+    story_derivative_parent_ip_ids:
+      type: array
+      nullable: true
+      items:
+        type: string
+    story_derivative_registered_at:
+      type: string
+      format: date-time
+      nullable: true
+    story_revenue_token:
+      type: string
+      nullable: true
+    story_royalty_registration_status:
+      type: string
+      enum:
+        - none
+        - pending
+        - registered
+        - failed
     story_publish_tx_ref:
       type: string
       nullable: true

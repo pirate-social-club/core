@@ -13,11 +13,6 @@ CREATE TABLE listings (
         price_usd >= 0
     ),
     regional_pricing_policy_json TEXT,
-    donation_enabled INTEGER NOT NULL DEFAULT 0 CHECK (
-        donation_enabled IN (0, 1)
-    ),
-    donation_partner_id_snapshot TEXT,
-    donation_share_pct TEXT,
     created_by_user_id TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,

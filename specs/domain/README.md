@@ -72,6 +72,8 @@ Product and system design docs grouped by domain surface.
   Rights review and trust workflow.
 - `royalty-graph.md`
   Royalty-native payout and ownership graph.
+- `story-royalty-commerce.md`
+  Story Royalty Module commerce migration and settlement plan.
 - `localization.md`
   Translation and locale behavior for content.
 
@@ -79,6 +81,8 @@ Product and system design docs grouped by domain surface.
 
 - `agent-ownership.md`
   User-owned AI agent ownership, posting, and KYA model.
+- `agent-handles.md`
+  Canonical `*.clawitzer` identity for user-owned agents.
 - `handles.md`
   Handle issuance and namespace policy.
 - `namespace.md`

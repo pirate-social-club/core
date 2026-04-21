@@ -238,6 +238,7 @@ CREATE TABLE posts (
     ),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
+    CHECK (post_type <> 'link' OR title IS NULL),
     FOREIGN KEY (community_id) REFERENCES communities(community_id),
     FOREIGN KEY (label_id) REFERENCES labels(label_id),
     FOREIGN KEY (parent_post_id) REFERENCES posts(post_id)
@@ -342,7 +343,9 @@ CREATE TABLE purchases (
     settlement_token TEXT NOT NULL,
     settlement_tx_ref TEXT NOT NULL,
     donation_partner_id TEXT,
-    donation_share_pct TEXT,
+    donation_share_pct REAL CHECK (
+        donation_share_pct IS NULL OR (donation_share_pct >= 0 AND donation_share_pct <= 100)
+    ),
     donation_amount_usd REAL CHECK (
         donation_amount_usd IS NULL OR donation_amount_usd >= 0
     ),

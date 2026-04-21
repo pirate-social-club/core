@@ -7471,6 +7471,18 @@ components:
           $ref: "#/components/schemas/CommunityMoneyChainRef"
         destination_settlement_token:
           type: string
+        destination_settlement_amount_atomic:
+          type: string
+          nullable: true
+          description: Atomic amount of destination settlement token Pirate will pay into the Story royalty path after buyer funding and quote-time allocation are verified.
+        destination_settlement_decimals:
+          type: integer
+          nullable: true
+          minimum: 0
+        funding_destination_address:
+          type: string
+          nullable: true
+          description: Checkout operator address that must receive the buyer-facing funding asset for this quote.
         treasury_denomination:
           type: string
           nullable: true
@@ -9538,7 +9550,7 @@ components:
         - text: requires at least one of `title` or `body`; must not send `link_url`, `media_refs`, `song_artifact_bundle_id`, or `lyrics`
         - image: requires at least one item in `media_refs` (all items must be `image/*`); must not send `link_url`, `song_artifact_bundle_id`, or `lyrics`
         - video: requires at least one item in `media_refs` (at least one item must be `video/*`); must not send `link_url`, `song_artifact_bundle_id`, or `lyrics`
-        - link: requires `link_url`; must not send `media_refs`, `song_artifact_bundle_id`, or `lyrics`
+        - link: requires `link_url`; must not send `title`, `media_refs`, `song_artifact_bundle_id`, or `lyrics`
         - song: requires either `song_artifact_bundle_id` or both `media_refs` (at least one `audio/*`) and `lyrics`; must not send `link_url`; `identity_mode` must be `public`
       oneOf:
         - description: Text posts require at least one of `title` or `body`.
@@ -9579,6 +9591,9 @@ components:
               type: string
               enum:
                 - image
+            title:
+              type: string
+              nullable: true
             media_refs:
               type: array
               minItems: 1
@@ -9601,6 +9616,9 @@ components:
               type: string
               enum:
                 - video
+            title:
+              type: string
+              nullable: true
             media_refs:
               type: array
               minItems: 1
@@ -9623,8 +9641,14 @@ components:
               type: string
               enum:
                 - link
+            link_url:
+              type: string
+              format: uri
+              nullable: false
           not:
             anyOf:
+              - required:
+                  - title
               - required:
                   - media_refs
               - required:
@@ -9660,6 +9684,9 @@ components:
               enum:
                 - public
                 - locked
+            title:
+              type: string
+              nullable: true
             media_refs:
               type: array
               minItems: 1
@@ -9738,6 +9765,39 @@ components:
         label_id:
           type: string
           nullable: true
+        label_assignment_status:
+          type: string
+          enum:
+            - pending
+            - assigned
+            - failed
+            - skipped
+          nullable: true
+        label_assigned_by:
+          type: string
+          enum:
+            - moderator
+            - ai
+          nullable: true
+        label_assigned_at:
+          type: string
+          format: date-time
+          nullable: true
+        label_ai_confidence:
+          type: number
+          nullable: true
+          minimum: 0
+          maximum: 1
+        label_assignment_error:
+          type: string
+          nullable: true
+        label_assignment_model:
+          type: string
+          nullable: true
+        label_assignment_result_json:
+          type: object
+          additionalProperties: true
+          nullable: true
         post_type:
           type: string
           enum:
@@ -9746,9 +9806,6 @@ components:
             - video
             - link
             - song
-        title:
-          type: string
-          nullable: true
         body:
           type: string
           nullable: true
@@ -9759,7 +9816,7 @@ components:
           type: string
           format: uri
           nullable: true
-          description: Required when post_type is link. Must be null for all other post types.
+          description: Required when post_type is link. Must be absent for all other post types.
         media_refs:
           type: array
           items:
@@ -9953,6 +10010,10 @@ components:
           type: string
           nullable: true
         link_url:
+          type: string
+          format: uri
+          nullable: true
+        link_og_image_url:
           type: string
           format: uri
           nullable: true

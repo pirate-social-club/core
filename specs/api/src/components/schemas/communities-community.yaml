@@ -674,6 +674,7 @@ CommunityPurchase:
     - buyer_user_id
     - settlement_wallet_attachment_id
     - purchase_price_usd
+    - settlement_mode
     - settlement_chain
     - settlement_token
     - settlement_tx_ref
@@ -706,6 +707,8 @@ CommunityPurchase:
     pricing_tier:
       type: string
       nullable: true
+    settlement_mode:
+      $ref: ./communities-community.yaml#/CommunityPurchaseSettlementMode
     settlement_chain:
       $ref: ./communities-community.yaml#/CommunityMoneyChainRef
     settlement_token:
@@ -754,6 +757,11 @@ CommunityPurchaseFundingMode:
   enum:
     - direct
     - routed
+CommunityPurchaseSettlementMode:
+  type: string
+  enum:
+    - delivery_only_story_settlement
+    - royalty_native_story_payment
 CommunityPurchaseQuotePreflightRequest:
   type: object
   description: |
@@ -890,6 +898,7 @@ CommunityPurchaseQuote:
     - buyer_user_id
     - base_price_usd
     - final_price_usd
+    - settlement_mode
     - allocation_snapshot
     - funding_mode
     - route_policy_compliant
@@ -927,6 +936,8 @@ CommunityPurchaseQuote:
     final_price_usd:
       type: number
       minimum: 0
+    settlement_mode:
+      $ref: ./communities-community.yaml#/CommunityPurchaseSettlementMode
     allocation_snapshot:
       type: array
       items:
@@ -957,6 +968,18 @@ CommunityPurchaseQuote:
       $ref: ./communities-community.yaml#/CommunityMoneyChainRef
     destination_settlement_token:
       type: string
+    destination_settlement_amount_atomic:
+      type: string
+      nullable: true
+      description: Atomic amount of destination settlement token Pirate will pay into the Story royalty path after buyer funding and quote-time allocation are verified.
+    destination_settlement_decimals:
+      type: integer
+      nullable: true
+      minimum: 0
+    funding_destination_address:
+      type: string
+      nullable: true
+      description: Checkout operator address that must receive the buyer-facing funding asset for this quote.
     treasury_denomination:
       type: string
       nullable: true
@@ -989,6 +1012,7 @@ CommunityPurchaseSettlementRequest:
   required:
     - quote_id
     - settlement_wallet_attachment_id
+    - funding_tx_ref
     - settlement_tx_ref
   additionalProperties: false
   properties:
@@ -996,6 +1020,9 @@ CommunityPurchaseSettlementRequest:
       type: string
     settlement_wallet_attachment_id:
       type: string
+    funding_tx_ref:
+      type: string
+      description: Confirmed buyer funding transaction that delivered the quoted source funding asset to the checkout operator before Pirate executes downstream payout legs.
     settlement_tx_ref:
       type: string
 CommunityPurchaseSettlement:
@@ -1010,6 +1037,7 @@ CommunityPurchaseSettlement:
     - buyer_user_id
     - settlement_wallet_attachment_id
     - purchase_price_usd
+    - settlement_mode
     - settlement_chain
     - settlement_chain_ref
     - settlement_token
@@ -1045,6 +1073,8 @@ CommunityPurchaseSettlement:
     pricing_tier:
       type: string
       nullable: true
+    settlement_mode:
+      $ref: ./communities-community.yaml#/CommunityPurchaseSettlementMode
     settlement_chain:
       $ref: ./communities-community.yaml#/CommunityMoneyChainRef
     settlement_chain_ref:
