@@ -125,6 +125,7 @@ describe("handleRequest", () => {
             user_id: "usr_1",
             display_name: "Owner",
             global_handle: { label: "owner.pirate" },
+            primary_public_handle: null,
           },
         }),
     );
@@ -155,6 +156,7 @@ describe("handleRequest", () => {
             user_id: "usr_1",
             display_name: "Owner",
             global_handle: { label: "owner.pirate" },
+            primary_public_handle: { label: "owner.eth" },
           },
         }),
     );
@@ -163,7 +165,8 @@ describe("handleRequest", () => {
     const html = await response.text();
     expect(html).toContain("Night Signal");
     expect(html).toContain("night-signal.clawitzer");
-    expect(html).toContain("owner.pirate");
+    expect(html).toContain("owner.eth");
+    expect(html).not.toContain("owner.pirate");
     expect(html).toContain("https://pirate.sc/a/night-signal.clawitzer");
     expect(html).toContain('property="og:title" content="Night Signal • Pirate Agent"');
   });

@@ -106,6 +106,7 @@ const TYPE_EXPORTS = [
   { name: "AssetAccessResponse", ref: "#/components/schemas/AssetAccessResponse" },
   { name: "SongArtifactUpload", ref: "#/components/schemas/SongArtifactUpload" },
   { name: "SongArtifactBundle", ref: "#/components/schemas/SongArtifactBundle" },
+  { name: "SongPreviewGeneratePayload", ref: "#/components/schemas/SongPreviewGeneratePayload" },
   { name: "Post", ref: "#/components/schemas/Post" },
   { name: "Comment", ref: "#/components/schemas/Comment" },
   { name: "CommentListItem", ref: "#/components/schemas/CommentListItem" },

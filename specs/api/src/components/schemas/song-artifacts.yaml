@@ -102,6 +102,19 @@ SongPreviewWindow:
     duration_ms:
       type: integer
       minimum: 1
+SongPreviewGeneratePayload:
+  type: object
+  additionalProperties: false
+  properties:
+    song_artifact_bundle_id:
+      type: string
+      nullable: true
+    primary_audio_content_hash:
+      type: string
+      nullable: true
+    preview_window:
+      $ref: ./song-artifacts.yaml#/SongPreviewWindow
+      nullable: true
 CreateSongArtifactBundleRequest:
   type: object
   additionalProperties: false

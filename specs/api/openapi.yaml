@@ -5728,6 +5728,7 @@ components:
           required:
             - user_id
             - global_handle
+            - primary_public_handle
           properties:
             user_id:
               type: string
@@ -5736,6 +5737,9 @@ components:
               nullable: true
             global_handle:
               $ref: "#/components/schemas/GlobalHandle"
+            primary_public_handle:
+              $ref: "#/components/schemas/LinkedHandle"
+              nullable: true
     Profile:
       type: object
       required:

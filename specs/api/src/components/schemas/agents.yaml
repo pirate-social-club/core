@@ -627,6 +627,7 @@ PublicAgentResolution:
       required:
         - user_id
         - global_handle
+        - primary_public_handle
       properties:
         user_id:
           type: string
@@ -635,3 +636,6 @@ PublicAgentResolution:
           nullable: true
         global_handle:
           $ref: ./profiles.yaml#/GlobalHandle
+        primary_public_handle:
+          $ref: ./profiles.yaml#/LinkedHandle
+          nullable: true

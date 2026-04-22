@@ -40,6 +40,7 @@ type PublicAgentResolution = {
     user_id: string;
     display_name: string | null;
     global_handle: { label: string };
+    primary_public_handle: { label: string } | null;
   };
 };
 
@@ -68,6 +69,13 @@ const RESERVED_HOSTS = new Set([
 
 export function buildCommunityPath(communityId: string, routeSlug: string | null): string {
   return `/c/${encodeURIComponent(routeSlug || communityId)}`;
+}
+
+function getPublicIdentityHandleLabel(input: {
+  global_handle: { label: string };
+  primary_public_handle?: { label: string } | null;
+}): string {
+  return input.primary_public_handle?.label ?? input.global_handle.label;
 }
 
 function escapeHtml(value: string): string {
@@ -291,7 +299,7 @@ function renderAgentPage({
 }): Response {
   const handle = resolution.agent.handle.label_display;
   const displayName = resolution.agent.display_name?.trim() || handle;
-  const ownerHandle = resolution.owner.global_handle.label;
+  const ownerHandle = getPublicIdentityHandleLabel(resolution.owner);
   const safeDisplayName = escapeHtml(displayName);
   const safeHandle = escapeHtml(handle);
   const safeOwnerHandle = escapeHtml(ownerHandle);
