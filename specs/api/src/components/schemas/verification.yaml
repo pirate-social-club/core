@@ -92,12 +92,12 @@ VerificationRequirement:
   type: object
   required:
     - proof_type
-    - minimum_age
   properties:
     proof_type:
       type: string
       enum:
         - minimum_age
+        - sanctions_clear
     minimum_age:
       type: integer
       minimum: 18
@@ -466,7 +466,7 @@ SanctionsClearCapabilityState:
   required:
     - state
   description: |
-    Capability state for Human Passport-backed sanctions screening in v0.
+    Capability state for provider-backed sanctions screening in v0.
   properties:
     state:
       type: string
@@ -477,6 +477,7 @@ SanctionsClearCapabilityState:
     provider:
       type: string
       enum:
+        - self
         - passport
       nullable: true
     proof_type:
@@ -487,6 +488,8 @@ SanctionsClearCapabilityState:
     mechanism:
       type: string
       enum:
+        - self_ofac
+        - passport_clean_hands
         - CleanHands
       nullable: true
     verified_at:

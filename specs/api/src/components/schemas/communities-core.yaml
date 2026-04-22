@@ -484,8 +484,7 @@ ProofRequirement:
         - `nationality`: `self`
         - `gender`: `self` (document marker `M` / `F`)
         - `wallet_score`: `passport`
-        Deferred/admin-only combinations:
-        - `sanctions_clear`: `passport`
+        - `sanctions_clear`: `self` or `passport`
         Other modeled proof types such as `biometric_liveness`, `gov_id`, and `phone` remain
         intentionally unvalidated at the public-v0 provider-matrix layer until the product locks
         their accepted-provider rules.
@@ -498,6 +497,10 @@ ProofRequirement:
     accepted_mechanisms:
       type: array
       nullable: true
+      description: |
+        Optional mechanism allowlist for provider-backed proofs. Public-v0 sanctions mechanisms are
+        `self_ofac` for Self OFAC screening and `passport_clean_hands` for Human Passport Clean
+        Hands. `CleanHands` remains accepted as a legacy Passport mechanism value.
       items:
         type: string
     config:
