@@ -1391,6 +1391,27 @@ JoinEligibility:
         - unsupported
         - banned
       nullable: true
+    wallet_score_status:
+      type: object
+      nullable: true
+      description: |
+        Current authenticated user's Human Passport score state when the evaluated community
+        includes a wallet_score gate. Exposed only on user-specific eligibility/failure responses
+        so clients can explain current-vs-required remediation without exposing stamp details.
+      properties:
+        current_score:
+          type: number
+          nullable: true
+        required_score:
+          type: number
+          nullable: true
+        passing_score:
+          type: boolean
+          nullable: true
+        last_score_timestamp:
+          type: string
+          format: date-time
+          nullable: true
 GateFailureDetails:
   type: object
   properties:
@@ -1433,3 +1454,23 @@ GateFailureDetails:
         - unsupported
         - banned
       nullable: true
+    wallet_score_status:
+      type: object
+      nullable: true
+      description: |
+        Current authenticated user's Human Passport score state when a wallet_score gate blocked
+        a join attempt.
+      properties:
+        current_score:
+          type: number
+          nullable: true
+        required_score:
+          type: number
+          nullable: true
+        passing_score:
+          type: boolean
+          nullable: true
+        last_score_timestamp:
+          type: string
+          format: date-time
+          nullable: true
