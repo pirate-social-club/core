@@ -1172,6 +1172,12 @@ MembershipGateSummary:
       minimum: 18
       maximum: 125
       description: Minimum age threshold when gate_type is minimum_age
+    minimum_score:
+      type: number
+      nullable: true
+      minimum: 0
+      maximum: 100
+      description: Minimum Human Passport wallet score when gate_type is wallet_score
     chain_namespace:
       type: string
       nullable: true
@@ -1350,15 +1356,18 @@ JoinEligibility:
           - minimum_age
           - nationality
           - gender
+          - wallet_score
       description: |
         Missing capability keys for the evaluated join path. Public-v0 community remediation should
         surface only capability keys Pirate can remediate end to end for the current lane, including
-        `unique_human`, `age_over_18`, `nationality`, and `gender` for Self-backed flows.
+        `unique_human`, `age_over_18`, `nationality`, and `gender` for Self-backed flows and
+        `wallet_score` for Human Passport score checks.
     suggested_verification_provider:
       type: string
       enum:
         - self
         - very
+        - passport
       nullable: true
     suggested_verification_intent:
       type: string
@@ -1376,6 +1385,7 @@ JoinEligibility:
         - erc721_holding_required
         - erc721_inventory_match_required
         - token_inventory_unavailable
+        - wallet_score_too_low
         - unsupported
         - banned
       nullable: true
@@ -1399,6 +1409,7 @@ GateFailureDetails:
       enum:
         - self
         - very
+        - passport
       nullable: true
     suggested_verification_intent:
       type: string
@@ -1416,6 +1427,7 @@ GateFailureDetails:
         - erc721_holding_required
         - erc721_inventory_match_required
         - token_inventory_unavailable
+        - wallet_score_too_low
         - unsupported
         - banned
       nullable: true
