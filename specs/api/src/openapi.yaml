@@ -45,6 +45,8 @@ paths:
     $ref: ./paths/verification.yaml#/verification_sessions_by_verification_session_id
   /verification-sessions/{verification_session_id}/callback:
     $ref: ./paths/verification.yaml#/verification_sessions_by_verification_session_id_callback
+  /verification-sessions/{verification_session_id}/self-callback:
+    $ref: ./paths/verification.yaml#/verification_sessions_by_verification_session_id_self_callback
   /verification-sessions/{verification_session_id}/complete:
     $ref: ./paths/verification.yaml#/verification_sessions_by_verification_session_id_complete
   /agent-ownership-sessions:

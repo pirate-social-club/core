@@ -299,6 +299,52 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+  /verification-sessions/{verification_session_id}/self-callback:
+    post:
+      tags:
+        - Verification
+      x-implemented: true
+      security: []
+      summary: Receive a Self proof callback
+      description: |
+        Public callback endpoint used by Self QR/deeplink sessions. The backend verifies the SDK
+        proof payload against the server-authored session config before minting capabilities.
+      parameters:
+        - $ref: "#/components/parameters/VerificationSessionId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderVerificationCallbackRequest"
+            example:
+              provider: self
+              event_type: proof_submitted
+              attestation_id: "1"
+              payload:
+                attestationId: 1
+                proof: {}
+                publicSignals: []
+                userContextData: 0x...
+      responses:
+        "200":
+          description: Self callback processed
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - verification_session_id
+                properties:
+                  status:
+                    type: string
+                  verification_session_id:
+                    type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /verification-sessions/{verification_session_id}/complete:
     post:
       tags:
@@ -4650,17 +4696,26 @@ components:
           type: string
           nullable: true
         proof:
-          type: string
           nullable: true
+          oneOf:
+            - type: string
+            - type: object
+              additionalProperties: true
+            - type: array
+              items: {}
           description: |
             Provider proof material returned to the browser and forwarded to Pirate for final
-            verification. This is currently required for the working Very bridge flow.
+            verification. Self proof payloads are SDK-owned JSON; Very proof payloads are usually
+            string material returned by the provider bridge.
         proof_hash:
           type: string
           nullable: true
         provider_payload_ref:
-          type: string
           nullable: true
+          oneOf:
+            - type: string
+            - type: object
+              additionalProperties: true
           description: |
             Opaque server-side reference to provider callback payload or proof material already stored
             by the backend.
@@ -6668,7 +6723,8 @@ components:
             submitted gate rule must include explicit `proof_requirements`. `viewer`-scope gates and
             `posting`-scope gates are not supported in v0. The server should reject create requests
             containing gate rules that fall outside the public v0 scope.
-            Public v0 supports `sanctions_clear` only through Human Passport-backed capability state.
+            Public v0 supports `sanctions_clear` through Self OFAC screening and Human Passport-backed
+            capability state.
             Public v0 self-serve creation supports a narrow token-holding lane for Ethereum mainnet
             ERC-721 collection membership gates only. Other token-holding variants remain unsupported.
     GateRuleInput:
@@ -6820,6 +6876,7 @@ components:
         wallet_score:
           - passport
         sanctions_clear:
+          - self
           - passport
       x-unvalidated-proof-types:
         - biometric_liveness

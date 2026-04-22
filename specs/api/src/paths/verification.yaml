@@ -219,6 +219,52 @@ verification_sessions_by_verification_session_id_callback:
         $ref: ../components/responses.yaml#/BadRequest
       "404":
         $ref: ../components/responses.yaml#/NotFound
+verification_sessions_by_verification_session_id_self_callback:
+  post:
+    tags:
+      - Verification
+    x-implemented: true
+    security: []
+    summary: Receive a Self proof callback
+    description: |
+      Public callback endpoint used by Self QR/deeplink sessions. The backend verifies the SDK
+      proof payload against the server-authored session config before minting capabilities.
+    parameters:
+      - $ref: ../components/parameters.yaml#/VerificationSessionId
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/verification.yaml#/ProviderVerificationCallbackRequest
+          example:
+            provider: self
+            event_type: proof_submitted
+            attestation_id: "1"
+            payload:
+              attestationId: 1
+              proof: {}
+              publicSignals: []
+              userContextData: "0x..."
+    responses:
+      "200":
+        description: Self callback processed
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+                - verification_session_id
+              properties:
+                status:
+                  type: string
+                verification_session_id:
+                  type: string
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
 verification_sessions_by_verification_session_id_complete:
   post:
     tags:

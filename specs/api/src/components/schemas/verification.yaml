@@ -114,17 +114,26 @@ CompleteVerificationSessionRequest:
       type: string
       nullable: true
     proof:
-      type: string
       nullable: true
+      oneOf:
+        - type: string
+        - type: object
+          additionalProperties: true
+        - type: array
+          items: {}
       description: |
         Provider proof material returned to the browser and forwarded to Pirate for final
-        verification. This is currently required for the working Very bridge flow.
+        verification. Self proof payloads are SDK-owned JSON; Very proof payloads are usually
+        string material returned by the provider bridge.
     proof_hash:
       type: string
       nullable: true
     provider_payload_ref:
-      type: string
       nullable: true
+      oneOf:
+        - type: string
+        - type: object
+          additionalProperties: true
       description: |
         Opaque server-side reference to provider callback payload or proof material already stored
         by the backend.

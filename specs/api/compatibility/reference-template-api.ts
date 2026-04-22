@@ -18,9 +18,9 @@ export type VerifiedCapabilityState = {
 
 export type SanctionsClearCapabilityState = {
   state: "unverified" | "verified" | "expired";
-  provider?: "passport" | null;
+  provider?: "self" | "passport" | null;
   proof_type?: "sanctions_clear" | null;
-  mechanism?: "CleanHands" | null;
+  mechanism?: "self_ofac" | "passport_clean_hands" | "CleanHands" | null;
   verified_at?: string | null;
 };
 

@@ -5,7 +5,7 @@ export const PROVIDER_MATRIX = {
   nationality: ["self"],
   gender: ["self"],
   wallet_score: ["passport"],
-  sanctions_clear: ["passport"],
+  sanctions_clear: ["self", "passport"],
 } as const;
 
 export type ProofType = keyof typeof PROVIDER_MATRIX;
