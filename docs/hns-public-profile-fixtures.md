@@ -1,10 +1,12 @@
 # HNS Public Profile Fixtures
 
-Purpose: record stable live fixtures for Freedom/HNS public-profile verification so we always have one known-good handle and one known redirect case.
+Purpose: record the historical stable live fixtures for Freedom/HNS public-profile verification.
 
-These fixtures live in the production control-plane database.
+Current launch state:
 
-They are not local-only test data.
+- the production control-plane app data was reset before launch
+- these fixture rows no longer live in the production control-plane database
+- do not depend on these handles for production smoke tests until a new launch fixture is intentionally created
 
 ## Canonical Fixture
 
@@ -64,5 +66,6 @@ Expected result:
   1. `POST /auth/session/exchange`
   2. `PATCH /profiles/me`
   3. `POST /profiles/me/global-handle/rename`
-- These fixtures were seeded directly in prod control-plane data because the prod upstream JWT signing secret was not available in the local checkout.
+- These fixtures were originally seeded directly in prod control-plane data because the prod upstream JWT signing secret was not available in the local checkout.
+- They were removed during the pre-launch prod app-data reset.
 - Do not reuse these handles for general manual testing or demos that mutate profile state.

@@ -1,22 +1,23 @@
 # Production Infisical Human-Only Checklist
 
-Use this from a human-only shell that is not attached to Codex.
+This checklist is historical. The current fast path uses the repo-root Infisical
+project config and selects hosted production with `--env prod`.
 
 Do not paste secret values into chat.
 
 Current hosted shape:
 
-- non-prod Infisical project: `pirate-dev-staging`
-- prod Infisical project: `pirate-prod`
+- dev, staging, and prod secrets are in the same root Infisical project
 - hosted production environment slug: `prod`
-- repo root `.infisical.json`: non-prod only
-- `ops/prod/.infisical.json`: human-local prod only and must not be committed
+- repo root `.infisical.json`: current project config
+- `/services/api`: API runtime secrets and read-only inventory
+- `/services/control-plane`: migrator and maintenance secrets
 
 Current prod status:
 
-- `pirate-prod` already has the required folder tree
-- required prod secret keys already exist as placeholders with value `__HUMAN_SET_REQUIRED__`
-- production is not ready until every placeholder is replaced with a real value
+- production secrets are populated in Infisical `prod`
+- control-plane app data was fixture/probe contaminated during pre-launch testing
+- communities and community database bindings were empty before the launch reset
 
 ## Stop/Go Gate 0: Contract
 
@@ -44,24 +45,36 @@ Must stay excluded from normal hosted `prod`:
 
 Stop if this is not true.
 
-## Stop/Go Gate 1: Human-Only Shell and Prod Config
+## Stop/Go Gate 1: Current Prod Config
 
-Open a separate shell with no Codex attached.
+From the repo root:
 
 ```bash
-cd /home/t42/Documents/pirate-v2/ops/prod
-rtk infisical login
-rtk infisical init
+cd /home/t42/Documents/pirate-v2
+rtk infisical run --env prod --path /services/api -- \
+  rtk bun scripts/control-plane/inventory-control-plane.ts \
+  --database-url-env CONTROL_PLANE_DATABASE_URL \
+  --format text
 ```
-
-When `rtk infisical init` prompts for a project, select `pirate-prod`.
 
 Confirm:
 
-- `ops/prod/.infisical.json` now points at `pirate-prod`
-- `prod` environment exists
+- Infisical injects `/services/api` prod secrets
+- the database host is the intended Neon production host
+- table counts match the expected launch state
 
 Stop if `prod` does not exist.
+
+To reset app data while preserving migrations:
+
+```bash
+cd /home/t42/Documents/pirate-v2
+rtk infisical run --env prod --path /services/control-plane -- \
+  rtk bun scripts/control-plane/reset-control-plane-app-data.ts \
+  --database-url-env CONTROL_PLANE_MIGRATOR_DATABASE_URL \
+  --execute \
+  --confirm-reset prod-app-data
+```
 
 ## Step 1: Verify Current Scaffold
 

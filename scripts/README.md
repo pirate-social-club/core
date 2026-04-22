@@ -38,6 +38,8 @@ It is intentionally narrow:
   Apply owner-only hardening such as pgAudit, `schema_migrations` grants, and FORCE RLS.
 - `scripts/control-plane/inventory-control-plane.ts`
   Read-only inventory for control-plane state and likely fixture contamination.
+- `scripts/control-plane/reset-control-plane-app-data.ts`
+  Truncate control-plane app data while preserving `schema_migrations`; dry-run by default and requires explicit confirmation to execute.
 - `scripts/control-plane/reconcile-community-provisioning-state.ts`
   Promote valid `provisioning_state=error` communities back to `active`.
 
@@ -107,6 +109,25 @@ Validate non-prod Infisical:
 
 ```bash
 rtk bun scripts/infisical/check-infisical-env.ts --env staging --connect
+```
+
+Inventory prod control-plane data from the shared Infisical project:
+
+```bash
+rtk infisical run --env prod --path /services/api -- \
+  rtk bun scripts/control-plane/inventory-control-plane.ts \
+  --database-url-env CONTROL_PLANE_DATABASE_URL \
+  --format text
+```
+
+Reset prod control-plane app data before launch, preserving migrations:
+
+```bash
+rtk infisical run --env prod --path /services/control-plane -- \
+  rtk bun scripts/control-plane/reset-control-plane-app-data.ts \
+  --database-url-env CONTROL_PLANE_MIGRATOR_DATABASE_URL \
+  --execute \
+  --confirm-reset prod-app-data
 ```
 
 Bootstrap missing Story signer keys:
