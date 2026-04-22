@@ -13,6 +13,13 @@ describe("applyPostgresMigrations", () => {
     })).toBe("superseded by 0000_control_plane_baseline_postgres.sql");
   });
 
+  test("skips migrations represented by the current baseline snapshot", () => {
+    expect(supersessionSkipReason({
+      migrationName: "0046_control_plane_verification_requirements.sql",
+      existingMigrationNames: ["0000_control_plane_baseline_postgres.sql"],
+    })).toBe("superseded by 0000_control_plane_baseline_postgres.sql");
+  });
+
   test("skips the baseline when a superseded legacy migration is already recorded", () => {
     expect(supersessionSkipReason({
       migrationName: "0000_control_plane_baseline_postgres.sql",
@@ -22,7 +29,7 @@ describe("applyPostgresMigrations", () => {
 
   test("does not skip unrelated future migrations", () => {
     expect(supersessionSkipReason({
-      migrationName: "0034_future.sql",
+      migrationName: "0047_control_plane_notifications.sql",
       existingMigrationNames: ["0000_control_plane_baseline_postgres.sql"],
     })).toBeNull();
   });
@@ -35,6 +42,12 @@ describe("applyPostgresMigrations", () => {
   });
 
   test("accepts explicitly allowed historical checksums", () => {
+    expect(acceptsHistoricalChecksum({
+      migrationName: "0000_control_plane_baseline_postgres.sql",
+      existingChecksum: "8b61a91a715ddb8ea6e63c6caed3deb8265d7b1e1bfc80bdcba335f43e450364",
+      currentChecksum: "bfbd53fd10a3e4f57569cade0ae36fffa7b7a8e49bb82dd97d77ed58cb4e750e",
+    })).toBe(true);
+
     expect(acceptsHistoricalChecksum({
       migrationName: "0002_control_plane_communities.sql",
       existingChecksum: "8eb1ffcbe1e3259383015ff449f1f3ba8186ecafcc694a9241614bd4af2779ba",

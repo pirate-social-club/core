@@ -39,6 +39,11 @@ const LEGACY_MIGRATION_NAMES: Record<string, string[]> = {
 const ACCEPTED_HISTORICAL_CHECKSUMS: Record<string, string[]> = {
   "0000_control_plane_baseline_postgres.sql": [
     "74e8627d1ba7ff144713a49c8965110dfbfd8b5580443127418e7b29b0041593",
+    "e35a9832ed0699244f12d164f0fe87154ca58b87f0d7981f5b64a31a5261c779",
+    "b1d114fce40f3d60bfb904bbd5edc6451873257ee2ac373d611ce810b7494ad1",
+    "b3159f65df61bd390267d2bf6daa0e025adbe27b5cbb2ed0b823f119a8373f6e",
+    "6f7bc3b66ec654bf844c6aed2b295a38088cd59ebd890c9ccf431b17264a6e7c",
+    "8b61a91a715ddb8ea6e63c6caed3deb8265d7b1e1bfc80bdcba335f43e450364",
   ],
   "0002_control_plane_communities.sql": [
     "8eb1ffcbe1e3259383015ff449f1f3ba8186ecafcc694a9241614bd4af2779ba",
@@ -91,6 +96,19 @@ const SUPERSEDED_MIGRATIONS: Record<string, string[]> = {
     "0031_control_plane_registry_mutation_attempts.sql",
     "0032_control_plane_verification_session_metadata.sql",
     "0033_control_plane_namespace_verification_spaces.sql",
+    "0034_control_plane_communities_pending_namespace.sql",
+    "0035_control_plane_namespace_setup_nameservers.sql",
+    "0036_control_plane_linked_handles.sql",
+    "0037_control_plane_comment_projections.sql",
+    "0038_control_plane_post_feed_metrics.sql",
+    "0039_control_plane_post_visibility.sql",
+    "0040_control_plane_agent_ownership.sql",
+    "0041_control_plane_agent_action_replays.sql",
+    "0042_control_plane_clawkey_mainline.sql",
+    "0043_control_plane_agent_pairing_codes.sql",
+    "0044_control_plane_agent_handles.sql",
+    "0045_control_plane_agent_runtime_grants.sql",
+    "0046_control_plane_verification_requirements.sql",
   ],
 };
 

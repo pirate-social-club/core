@@ -214,8 +214,9 @@ checksum in `schema_migrations`, but the file on disk now hashes differently.
 
 Historical checksums recorded:
 
-- `0000_control_plane_baseline_postgres.sql`: `74e8627d...` (applied to dev/staging; current
-  file hashes to `41ad670e...`)
+- `0000_control_plane_baseline_postgres.sql`: `74e8627d...`, `e35a9832...`,
+  `b1d114fc...`, `b3159f65...`, `6f7bc3b...`, `8b61a91a...` (current file
+  hashes to `bfbd53fd...`)
 - `0002_control_plane_communities.sql`: `8eb1ffcb...` (applied to dev/staging; current file
   hashes differently)
 
