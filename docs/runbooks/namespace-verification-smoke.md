@@ -94,15 +94,12 @@ Verified namespace:
 - status: `verified`
 - `club_attach_allowed = true`
 
-Signing input clarification:
+Current flow note:
 
-- the successful signature was produced over the raw 32-byte challenge digest
-- helper used:
-  - `services/verifier/spaces/scripts/sign-digest.ts`
-- wallet path used:
-  - `/home/t42/Downloads/spaces/tmp-spaced-data/mainnet/wallets/default`
-- outpoint used:
-  - `d6b8d32ad304cd91a3e5bc6879e1e77e079e6ae3abe3733592cdec236730d58b:1`
+- Spaces verification now uses a Fabric publish check instead of a separate signature upload
+- the operator publishes `web`, `freedom`, and `pirate-verify` records with
+  `pirate-spaces-publisher`
+- Pirate completes verification after those records resolve from the VPS verifier
 
 Community creation result:
 
@@ -219,16 +216,16 @@ curl -sS -X POST https://api-staging.pirate.sc/namespace-verification-sessions \
   -d '{"family":"spaces","root_label":"@pirate"}'
 ```
 
-### Spaces digest signing
+### Spaces Fabric publish
 
 ```bash
-rtk bun services/verifier/spaces/scripts/sign-digest.ts \
-  --space @pirate \
-  --digest <challenge_payload.digest> \
-  --wallet-dir /home/t42/Downloads/spaces/tmp-spaced-data/mainnet/wallets/default \
-  --outpoint d6b8d32ad304cd91a3e5bc6879e1e77e079e6ae3abe3733592cdec236730d58b:1 \
-  --network mainnet \
-  --native-bin /home/t42/Documents/pirate-v2/services/verifier/spaces/native/target/debug/spaces-verifier-native
+git clone https://github.com/pirate-social-club/pirate-spaces-publisher.git
+cd pirate-spaces-publisher
+go run . publish @pirate \
+  --web <challenge_payload.web_url> \
+  --freedom <challenge_payload.freedom_url> \
+  --txt pirate-verify=<challenge_payload.txt_value> \
+  --wallet-export /path/to/wallet-export.json
 ```
 
 ### Spaces complete
@@ -236,13 +233,7 @@ rtk bun services/verifier/spaces/scripts/sign-digest.ts \
 ```bash
 curl -sS -X POST https://api-staging.pirate.sc/namespace-verification-sessions/<session-id>/complete \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <pirate-access-token>" \
-  -d '{
-    "signature_payload": {
-      "signature": "<signature-hex>",
-      "signer_pubkey": "<pubkey-hex>"
-    }
-  }'
+  -H "Authorization: Bearer <pirate-access-token>"
 ```
 
 ### Community create

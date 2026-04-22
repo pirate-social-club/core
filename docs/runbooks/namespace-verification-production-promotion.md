@@ -475,38 +475,30 @@ curl -sS -X POST https://<prod-api-origin>/namespace-verification-sessions \
 - [ ] Challenge payload returned
 
 Session ID: _______________________
-Digest: _______________________
+TXT value: _______________________
 
-### 7.2 Sign the challenge
+### 7.2 Publish the Fabric records
 
 ```bash
-# Use the same signing method proven on staging:
-#   rtk bun services/verifier/spaces/scripts/sign-digest.ts \
-#     --space <root> \
-#     --digest <challenge_payload.digest> \
-#     --wallet-dir <wallet-path> \
-#     --outpoint <outpoint> \
-#     --network mainnet \
-#     --native-bin <native-bin-path>
+git clone https://github.com/pirate-social-club/pirate-spaces-publisher.git
+cd pirate-spaces-publisher
+go run . publish <root> \
+  --web <challenge_payload.web_url> \
+  --freedom <challenge_payload.freedom_url> \
+  --txt pirate-verify=<challenge_payload.txt_value> \
+  --wallet-export /path/to/wallet-export.json
 ```
 
-- [ ] Signature produced
+- [ ] Publish succeeded
 
-Signature hex: _______________________
-Signer pubkey hex: _______________________
+Published outpoint: _______________________
 
 ### 7.3 Complete Spaces verification
 
 ```bash
 curl -sS -X POST https://<prod-api-origin>/namespace-verification-sessions/<session-id>/complete \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <production-access-token>" \
-  -d '{
-    "signature_payload": {
-      "signature": "<signature-hex>",
-      "signer_pubkey": "<pubkey-hex>"
-    }
-  }'
+  -H "Authorization: Bearer <production-access-token>"
 ```
 
 - [ ] Response: 200
