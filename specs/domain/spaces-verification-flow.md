@@ -63,7 +63,7 @@ The minimum accepted assertion set is:
 
 - `root_exists`
 - `root_key_proof_verified`
-- `live_signature_verified`
+- `fabric_publish_verified`
 
 Optional but useful derived assertions:
 
@@ -90,14 +90,14 @@ Naming convention:
 Spaces verification should prove two different facts:
 
 1. the submitted `@space` currently resolves to a particular on-chain public key under an accepted trust anchor
-2. the creator can produce a fresh signature with that same current key during the active Pirate session
+2. the creator can publish a fresh, session-bound TXT record to that root's Fabric zone
 
 Do not treat either fact as sufficient on its own.
 
 Rationale:
 
-- a Merkle proof without a fresh signature proves the state but not session-bound control
-- a signature without a verified proof proves key possession but not that the key is still the current owner of the root
+- a Merkle proof without a fresh Fabric publish proves the state but not session-bound control
+- a Fabric publish without a verified proof proves publish control but not that the root is anchored under the accepted trust policy
 
 ## Public V0 Dependencies
 
@@ -115,7 +115,7 @@ Recommended implementation shape:
 - verify the proof against one of the accepted anchors
 - extract the current root public key from the verified proof
 - issue a session-bound challenge
-- verify a Schnorr signature for that challenge using the extracted public key
+- verify the session-bound Fabric publish challenge
 
 ## Session Model
 
@@ -142,9 +142,9 @@ Meaning:
 - `challenge_required`
   Pirate has a valid current root proof and is ready to issue a session-bound signing challenge.
 - `challenge_pending`
-  Pirate issued a challenge and is waiting for the creator to return a signature.
+  Pirate issued a challenge and is waiting for the creator to publish the Fabric records.
 - `verifying`
-  Pirate is checking the returned signature, optionally rechecking proof freshness, and deriving accepted assertions and capabilities.
+  Pirate is checking the published Fabric records, optionally rechecking proof freshness, and deriving accepted assertions and capabilities.
 - `verified`
   Pirate accepted the evidence and issued `namespace_verification_id`.
 - `failed`
@@ -152,7 +152,7 @@ Meaning:
 - `expired`
   The challenge or accepted session aged out and must be redone.
 - `disputed`
-  Pirate has contradictory evidence such as a transferred root, stale-anchor contradiction, or signature mismatch on a supposedly fresh proof path.
+  Pirate has contradictory evidence such as a transferred root, stale-anchor contradiction, or Fabric record mismatch on a supposedly fresh proof path.
 
 Unlike HNS, Spaces verification should not require a `dns_setup_required` state.
 
@@ -172,7 +172,7 @@ Suggested Spaces verification-session fields:
 - `challenge_expires_at`
 - `root_exists`
 - `root_key_proof_verified`
-- `live_signature_verified`
+- `fabric_publish_verified`
 - `anchor_height`
 - `anchor_block_hash`
 - `anchor_root_hash`
@@ -204,7 +204,7 @@ Challenge convention:
 2. fetch anchors and a current proof for the root
 3. verify that proof and extract the current root public key
 4. issue a session-bound challenge
-5. verify a creator-provided signature against the extracted public key
+5. verify the creator-published Fabric challenge records
 6. issue `namespace_verification_id` if the remaining policy checks pass
 
 Rollout note:
@@ -233,7 +233,7 @@ Server actions:
 Frontend rule:
 
 - the Spaces start flow must never ask the user to set `NS`, `TXT`, or other DNS records
-- Spaces verification is a root-proof plus fresh-signature flow, not a DNS-delegation flow
+- Spaces verification is a root-proof plus fresh-Fabric-publish flow, not a DNS-delegation flow
 
 ### 2. Inspect Root
 
@@ -288,8 +288,8 @@ The creator signs the challenge using the current key that controls the verified
 
 Pirate should accept:
 
-- a compact Schnorr signature payload
-- optional client metadata describing which wallet or signer surface was used
+- a compact Fabric publish payload
+- optional client metadata describing which publisher surface was used
 
 Pirate should not trust client-reported public keys when verifying the session.
 
@@ -297,23 +297,23 @@ The public key used for verification must come from the previously verified root
 
 ### 5. Verify Signature Against Verified Root Key
 
-After receiving the signature, Pirate verifies:
+After the operator publishes the challenge records, Pirate verifies:
 
 - the session challenge has not expired
-- the signature is valid for the session digest
-- the signature matches the root public key extracted from the verified proof
+- the Fabric TXT record `pirate-verify` contains the session challenge
+- the Fabric `web` and `freedom` records point at the expected Pirate route
 - the proof is still acceptable inside the freshness policy
 
 Successful verification sets:
 
-- `live_signature_verified = true`
+- `fabric_publish_verified = true`
 
 If proof freshness or provider consistency requires non-trivial follow-up work, the session may enter `verifying` before acceptance. If the checks are immediate, the session may move directly to `verified` or `failed`.
 
 Failure should preserve inspectable context:
 
-- invalid signature
-- wrong signer
+- missing or mismatched `pirate-verify` record
+- mismatched `web` or `freedom` route
 - expired challenge
 - stale or contradictory proof
 - provider unavailable
@@ -321,18 +321,18 @@ Failure should preserve inspectable context:
 Recommended frontend completion sequence:
 
 1. start `family = spaces` namespace verification
-2. read the signing challenge from the session payload
-3. request a signature from the current Spaces root key
-4. call `POST /namespace-verification-sessions/{id}/complete` with `signature_payload`
+2. read the publish challenge from the session payload
+3. publish `web`, `freedom`, and `pirate-verify` Fabric TXT records for the current Spaces root
+4. call `POST /namespace-verification-sessions/{id}/complete`
 5. if the session challenge expires, call the same completion endpoint with `restart_challenge = true` to mint a fresh challenge
 
 ### 6. Evaluate Assertions
 
-After proof and signature checks succeed, Pirate evaluates the Spaces assertion set:
+After proof and Fabric publish checks succeed, Pirate evaluates the Spaces assertion set:
 
 - `root_exists`
 - `root_key_proof_verified`
-- `live_signature_verified`
+- `fabric_publish_verified`
 - optional `anchor_fresh_enough`
 - optional `owner_signed_updates_verified`
 
@@ -340,7 +340,7 @@ The minimum acceptance rule for public v0 is:
 
 - `root_exists = true`
 - `root_key_proof_verified = true`
-- `live_signature_verified = true`
+- `fabric_publish_verified = true`
 - creator identity policy for club creation is satisfied
 
 ### 7. Derive Capabilities
@@ -349,7 +349,7 @@ Pirate derives capability outputs from the accepted Spaces assertions.
 
 Public-v0 capability rules:
 
-- `club_attach_allowed = creator_unique_human_verified && root_key_proof_verified && live_signature_verified`
+- `club_attach_allowed = creator_unique_human_verified && root_key_proof_verified && fabric_publish_verified`
 - `owner_signed_record_updates_allowed = false` unless Pirate explicitly implements owner-signed update transport and verification
 - `pirate_subspace_issuance_allowed = false`
 
@@ -384,7 +384,7 @@ Recommended evidence components:
 - proof hash
 - derived current public key
 - challenge message or digest
-- returned signature
+- observed Fabric records
 - evidence hash
 
 Implementation convention:
@@ -399,7 +399,7 @@ Recommended evidence kinds:
 - `delegation_snapshot`
 - `anchor_snapshot`
 - `space_proof_snapshot`
-- `challenge_signature`
+- `fabric_publish`
 - `accepted_snapshot`
 - `revalidation_snapshot`
 
@@ -414,8 +414,8 @@ Suggested session failure reasons:
 - `proof_not_verifiable`
 - `proof_root_mismatch`
 - `challenge_not_signed`
-- `invalid_signature`
-- `wrong_signer`
+- `pirate_verify_record_mismatch`
+- `web_target_mismatch`
 - `creator_not_unique_human_verified`
 - `session_expired`
 - `contradictory_root_evidence`
@@ -443,7 +443,7 @@ The path family may stay shared with HNS, but the write model must preserve:
 The shared path shape is acceptable only if the frontend still branches hard by family:
 
 - HNS shows DNS or delegation setup
-- Spaces shows proof and signature UX
+- Spaces shows proof and publish UX
 
 ## Revalidation
 
@@ -461,7 +461,7 @@ Revalidation should inspect:
 
 - current root proof under current accepted anchors
 - whether the current public key still matches the accepted state
-- whether a fresh signature is required for the attempted action
+- whether a fresh Fabric publish is required for the attempted action
 
 ## After HNS
 
@@ -469,7 +469,7 @@ Recommended delivery sequence:
 
 1. make HNS work first with authoritative DNS, TXT verification, and native HNS routing
 2. keep the frontend family split explicit while HNS is the first live public-v0 path
-3. then enable Spaces on the same VPS using the proof-plus-signature verifier runtime
+3. then enable Spaces on the same VPS using the proof-plus-Fabric-publish verifier runtime
 4. keep the API surface shared where it is already shared, but preserve family-specific UX and evidence handling
 
 Recommended downgrade rules:
@@ -547,7 +547,7 @@ The following HNS-specific fixed columns should be treated as legacy denormaliza
 Important:
 
 - this applies to both `namespace_verification_sessions` and `namespace_verifications`
-- Spaces should not add sibling fixed columns such as `live_signature_verified` or `pirate_subspace_issuance_allowed` to those tables
+- Spaces should not add sibling fixed columns such as `fabric_publish_verified` or `pirate_subspace_issuance_allowed` to those tables
 
 ### Canonical Assertion and Capability Storage
 
@@ -564,7 +564,7 @@ Recommended merged `assertion_name` set:
 - `routing_enabled`
 - `pirate_dns_authority_verified`
 - `root_key_proof_verified`
-- `live_signature_verified`
+- `fabric_publish_verified`
 - `anchor_fresh_enough`
 - `owner_signed_updates_verified`
 
@@ -598,7 +598,7 @@ Recommended merged `evidence_kind` set:
 - `delegation_snapshot`
 - `anchor_snapshot`
 - `space_proof_snapshot`
-- `challenge_signature`
+- `fabric_publish`
 - `accepted_snapshot`
 - `revalidation_snapshot`
 
@@ -623,7 +623,7 @@ Challenge details should not stay in family-specific fixed columns.
 
 Recommended session shape:
 
-- `challenge_kind` such as `dns_txt` or `schnorr_sign`
+- `challenge_kind` such as `dns_txt` or `fabric_txt_publish`
 - `challenge_payload_json` for family-specific challenge material
 - `challenge_expires_at`
 

@@ -35,7 +35,7 @@ Do not collapse those into one monolithic `verified` state.
 Definitions:
 
 - `evidence`
-  Raw observed or verified facts such as a TXT challenge response, a Merkle proof, a signature, or an authoritative delegation snapshot.
+  Raw observed or verified facts such as a TXT challenge response, a Merkle proof, a Fabric publish, or an authoritative delegation snapshot.
 - `assertions`
   Derived claims Pirate accepts from that evidence, such as "the user currently controls this root" or "Pirate currently has DNS authority for subdomain lifecycle."
 - `capabilities`
@@ -168,14 +168,14 @@ Important:
 Recommended Spaces evidence flags:
 
 - `root_key_proof_verified`
-- `live_signature_verified`
+- `fabric_publish_verified`
 - `owner_signed_updates_verified`
 
 Do not introduce a Pirate-managed subordinate issuance evidence flag in v0.
 
 Rationale:
 
-- Spaces provides a stronger root proof path through trust anchors, Merkle proofs, and message signatures
+- Spaces provides a stronger root proof path through trust anchors, Merkle proofs, and Fabric records
 - the subordinate issuance and certificate surface is still conservative territory for Pirate product commitments
 
 No HNS-style expiry-horizon gate is defined for Spaces in v0.
@@ -189,7 +189,7 @@ Rationale:
 
 Derived Spaces capabilities:
 
-- `club_attach_allowed = creator_unique_human_verified && root_key_proof_verified && live_signature_verified`
+- `club_attach_allowed = creator_unique_human_verified && root_key_proof_verified && fabric_publish_verified`
 - `owner_signed_record_updates_allowed = club_attach_allowed && owner_signed_updates_verified`
 - `pirate_subspace_issuance_allowed = false`
 
@@ -232,7 +232,7 @@ Recommended copy atoms:
 - `Pirate DNS authority verified`
 - `Pirate subdomain issuance enabled`
 - `Root key proof verified`
-- `Live signature verified`
+- `Fabric publish verified`
 - `Owner-signed updates enabled`
 - `Stale`
 - `Disputed`
@@ -262,7 +262,7 @@ Each label should map to one evidence fact or one capability, never both.
 | Event | Evidence Change | Capability Change | User-Facing State |
 | --- | --- | --- | --- |
 | Root proof verified against accepted anchor | `root_key_proof_verified = true` | none until live control also verified | Root key proof verified |
-| Pirate challenge signed by proven key | `live_signature_verified = true` | `club_attach_allowed = true` if root key proof already verified | Live signature verified |
+| Pirate challenge published to Fabric by proven root | `fabric_publish_verified = true` | `club_attach_allowed = true` if root key proof already verified | Fabric publish verified |
 | Owner-signed record update path explicitly enabled and verified | `owner_signed_updates_verified = true` | `owner_signed_record_updates_allowed = true` if community attach already allowed | Owner-signed updates enabled |
 | Anchor freshness window exceeded without contradictory evidence | no flag forced false; mark assertion stale | no automatic club detach | Stale |
 | Fresh contradictory proof accepted | mark proof assertion disputed | disable attach-derived capabilities that rely on the contradicted proof | Disputed |
@@ -290,7 +290,7 @@ Recommended implementation order:
 3. HNS TXT-based root control proof
 4. HNS delegation classification
 5. Spaces root proof verification
-6. Spaces live signature verification
+6. Spaces Fabric publish verification
 7. Spaces owner-signed updates
 8. Pirate-managed Spaces subordinate issuance only after a separate explicit spec
 

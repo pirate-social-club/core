@@ -39,6 +39,8 @@ func runPublish(args []string) error {
 	devMode := fs.Bool("dev-mode", false, "Enable dev mode")
 	webURL := fs.String("web", "", "Canonical website URL")
 	freedomURL := fs.String("freedom", "", "Freedom-specific website URL")
+	var txtRecords stringListFlag
+	fs.Var(&txtRecords, "txt", "TXT record as key=value (repeatable)")
 	walletExportPath := fs.String("wallet-export", strings.TrimSpace(os.Getenv("SPACES_WALLET_EXPORT")), "Path to local wallet export JSON with private descriptor material")
 	secretKeyHex := fs.String("secret-key", strings.TrimSpace(os.Getenv("SPACES_SECRET_KEY_HEX")), "Pre-tweaked 32-byte hex secret key")
 	maxIndex := fs.Uint("max-index", defaultMaxDerivationIndex, "Maximum external derivation index to scan when using --wallet-export")
@@ -51,8 +53,8 @@ func runPublish(args []string) error {
 	if err != nil {
 		return err
 	}
-	if strings.TrimSpace(*webURL) == "" && strings.TrimSpace(*freedomURL) == "" {
-		return fmt.Errorf("publish requires at least one of --web or --freedom")
+	if strings.TrimSpace(*webURL) == "" && strings.TrimSpace(*freedomURL) == "" && len(txtRecords) == 0 {
+		return fmt.Errorf("publish requires at least one of --web, --freedom, or --txt")
 	}
 
 	client := newFabricClient(cliConfig{
@@ -84,6 +86,15 @@ func runPublish(args []string) error {
 	}
 	if trimmed := strings.TrimSpace(*freedomURL); trimmed != "" {
 		existing.txt["freedom"] = []string{trimmed}
+	}
+	for _, entry := range txtRecords {
+		key, value, ok := strings.Cut(entry, "=")
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		if !ok || key == "" || value == "" {
+			return fmt.Errorf("--txt must be key=value")
+		}
+		existing.txt[key] = append(existing.txt[key], value)
 	}
 
 	recordBytes, nextSeq, err := buildRecordSet(existing)

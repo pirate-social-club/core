@@ -13,6 +13,7 @@ Conventions:
 
 - `Txt("web", ["https://example.com/"])` is the canonical website target
 - `Txt("freedom", ["https://example/"])` is the Freedom-native override
+- `Txt("pirate-verify", ["pirate-space-verify=<session>:<nonce>"])` is the Pirate session challenge
 
 Primary local flow:
 
@@ -25,6 +26,7 @@ spaces-publisher inspect-wallet @pirate \
 spaces-publisher publish @pirate \
   --web https://pirate.sc/ \
   --freedom https://pirate/ \
+  --txt pirate-verify=pirate-space-verify=nvs_example:nonce \
   --max-index 10000
 ```
 
@@ -33,6 +35,7 @@ Safer first pass:
 ```bash
 spaces-publisher publish @pirate \
   --web https://pirate.sc/ \
+  --txt pirate-verify=pirate-space-verify=nvs_example:nonce \
   --dry-run
 ```
 

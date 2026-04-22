@@ -676,14 +676,6 @@ CompleteNamespaceVerificationSessionRequest:
       nullable: true
       description: |
         Optional hint to invalidate the current challenge and issue a new one if the creator wants to restart the proof flow.
-    signature_payload:
-      type: object
-      nullable: true
-      additionalProperties: true
-      description: |
-        Optional family-specific completion payload supplied by the client.
-        Spaces flows may use this to submit a Schnorr signature plus related signer metadata.
-        HNS flows normally leave this unset because completion is resolver-driven rather than signature-submission driven.
 NamespaceVerificationAssertions:
   type: object
   description: |
@@ -707,7 +699,7 @@ NamespaceVerificationAssertions:
     root_key_proof_verified:
       type: boolean
       nullable: true
-    live_signature_verified:
+    fabric_publish_verified:
       type: boolean
       nullable: true
     anchor_fresh_enough:
@@ -786,12 +778,12 @@ NamespaceVerificationSession:
       type: string
       enum:
         - dns_txt
-        - schnorr_sign
+        - fabric_txt_publish
       nullable: true
       description: |
         Family-specific challenge type for the current session.
         `dns_txt` is used by HNS-style TXT proof flows.
-        `schnorr_sign` is used by Spaces root-signature proof flows.
+        `fabric_txt_publish` is used by Spaces Fabric publish proof flows.
     challenge_host:
       type: string
       nullable: true

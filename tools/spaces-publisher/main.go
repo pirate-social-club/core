@@ -37,10 +37,10 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Println(`Usage:
+	fmt.Print(`Usage:
   spaces-publisher resolve @handle [--seeds url,url] [--trust-id hex] [--dev-mode]
   spaces-publisher inspect-wallet @handle --wallet-export ~/safe/wallet.json [--max-index 10000]
-  spaces-publisher publish @handle --web https://example.com [--freedom https://example/] [--wallet-export ~/safe/wallet.json | --secret-key hex] [--dry-run]
+  spaces-publisher publish @handle --web https://example.com [--freedom https://example/] [--txt key=value] [--wallet-export ~/safe/wallet.json | --secret-key hex] [--dry-run]
   spaces-publisher clear @handle --key web [--key freedom] [--wallet-export ~/safe/wallet.json | --secret-key hex] [--dry-run]
 
 Conventions:

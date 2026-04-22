@@ -6,11 +6,9 @@ the Cloudflare worker.
 ## Layout
 
 - `src/server.ts`
-  HTTP sidecar for `GET /inspect`, `POST /verify-signature`, and related verifier endpoints.
-- `scripts/sign-digest.ts`
-  Operator helper for signing a Pirate-issued digest with the current `@space` root key.
+  HTTP sidecar for `GET /inspect`, `GET /resolve`, and `POST /verify-publish`.
 - `native/`
-  Rust crate for proof inspection and Schnorr signature verification.
+  Rust crate for proof inspection.
 - `vendor/spacedb/`
   Vendored upstream dependency snapshot pinned to the native crate expectations.
 
@@ -27,12 +25,6 @@ Run the HTTP verifier from the repo root:
 
 ```bash
 rtk bun services/verifier/spaces/src/server.ts
-```
-
-Run the operator signing helper from the repo root:
-
-```bash
-rtk bun services/verifier/spaces/scripts/sign-digest.ts --space @pirate --digest <hex>
 ```
 
 The native crate still builds the `spaces-verifier-native` binary, and

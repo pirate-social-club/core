@@ -1,17 +1,9 @@
-use std::{env, fs, path::Path, process::ExitCode, str::FromStr};
+use std::{env, process::ExitCode, str::FromStr};
 
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde_json::json;
-use spaces_protocol::{bitcoin::OutPoint, slabel::SLabel};
+use spaces_protocol::slabel::SLabel;
 use spaces_veritas::{Value, Veritas};
-use spaces_wallet::{
-    SpacesWallet, WalletConfig, WalletDescriptors,
-    bitcoin::{
-        Network,
-        secp256k1::{Message, Secp256k1},
-    },
-    export::WalletExport,
-};
 
 fn normalize_hex(input: &str) -> &str {
     input
@@ -77,105 +69,10 @@ fn inspect(
     }))
 }
 
-fn verify_schnorr(
-    digest_hex: &str,
-    signature_hex: &str,
-    pubkey_hex: &str,
-) -> Result<serde_json::Value, String> {
-    let digest = decode_hex::<32>(digest_hex, "digest")?;
-    let signature = decode_hex::<64>(signature_hex, "signature")?;
-    let pubkey = decode_hex::<32>(pubkey_hex, "pubkey")?;
-
-    let verified = Veritas::new().verify_schnorr(&pubkey, &digest, &signature);
-
-    Ok(json!({
-        "valid_signature": verified,
-        "failure_reason": if verified { serde_json::Value::Null } else { json!("invalid_signature") },
-    }))
-}
-
-fn load_wallet(
-    wallet_dir: &Path,
-    wallet_json_path: &Path,
-    network_name: &str,
-) -> Result<SpacesWallet, String> {
-    let wallet_json = fs::read_to_string(wallet_json_path)
-        .map_err(|error| format!("failed to read wallet export: {error}"))?;
-    let export = serde_json::from_str::<WalletExport>(&wallet_json)
-        .map_err(|error| format!("failed to parse wallet export: {error}"))?;
-    let internal_descriptor = export
-        .change_descriptor()
-        .ok_or_else(|| String::from("wallet export is missing a change descriptor"))?;
-    let normalized_network = network_name.trim().to_ascii_lowercase();
-    let canonical_network = match normalized_network.as_str() {
-        "mainnet" => "bitcoin",
-        other => other,
-    };
-    let network = Network::from_str(canonical_network)
-        .map_err(|error| format!("invalid network: {error}"))?;
-
-    SpacesWallet::new(WalletConfig {
-        name: export.label.clone(),
-        data_dir: wallet_dir.to_path_buf(),
-        start_block: export.blockheight,
-        network,
-        genesis_hash: None,
-        space_descriptors: WalletDescriptors {
-            external: export.descriptor(),
-            internal: internal_descriptor,
-        },
-    })
-    .map_err(|error| format!("failed to load wallet: {error}"))
-}
-
-fn sign_digest(
-    wallet_dir: &str,
-    network_name: &str,
-    outpoint_str: &str,
-    digest_hex: &str,
-    wallet_json_path: Option<&str>,
-) -> Result<serde_json::Value, String> {
-    let outpoint =
-        OutPoint::from_str(outpoint_str).map_err(|error| format!("invalid outpoint: {error}"))?;
-    let digest = decode_hex::<32>(digest_hex, "digest")?;
-    let wallet_path = Path::new(wallet_dir);
-    let default_wallet_json_path;
-    let wallet_json_path = match wallet_json_path {
-        Some(path) => Path::new(path),
-        None => {
-            default_wallet_json_path = wallet_path.join("wallet.json");
-            default_wallet_json_path.as_path()
-        }
-    };
-    let mut wallet = load_wallet(wallet_path, wallet_json_path, network_name)?;
-    let utxo = wallet
-        .get_utxo(outpoint)
-        .ok_or_else(|| String::from("wallet does not control the requested root outpoint"))?;
-    let keypair = wallet
-        .get_taproot_keypair(utxo.keychain, utxo.derivation_index)
-        .map_err(|error| format!("could not derive taproot keypair: {error}"))?;
-    let inner_keypair = keypair.to_keypair();
-    let (pubkey, _) = inner_keypair.x_only_public_key();
-
-    let secp = Secp256k1::new();
-    let message = Message::from_digest(digest);
-    let signature = secp.sign_schnorr(&message, &inner_keypair);
-
-    Ok(json!({
-        "algorithm": "bip340_schnorr",
-        "digest": hex::encode(digest),
-        "outpoint": outpoint.to_string(),
-        "pubkey": hex::encode(pubkey.serialize()),
-        "signature": signature.to_string(),
-        "valid_signature": true,
-        "wallet_dir": wallet_path.display().to_string(),
-    }))
-}
-
 fn main() -> ExitCode {
     let mut args = env::args().skip(1);
     let Some(command) = args.next() else {
-        eprintln!("usage: spaces-verifier-native <inspect|verify-schnorr|sign-digest> ...");
+        eprintln!("usage: spaces-verifier-native inspect <root-label> <proof-base64> <anchor-hex>");
         return ExitCode::FAILURE;
     };
 
@@ -191,40 +88,6 @@ fn main() -> ExitCode {
                 return ExitCode::FAILURE;
             };
             inspect(&root_label, &proof_base64, &anchor_hex)
-        }
-        "verify-schnorr" => {
-            let Some(digest_hex) = args.next() else {
-                return ExitCode::FAILURE;
-            };
-            let Some(signature_hex) = args.next() else {
-                return ExitCode::FAILURE;
-            };
-            let Some(pubkey_hex) = args.next() else {
-                return ExitCode::FAILURE;
-            };
-            verify_schnorr(&digest_hex, &signature_hex, &pubkey_hex)
-        }
-        "sign-digest" => {
-            let Some(wallet_dir) = args.next() else {
-                return ExitCode::FAILURE;
-            };
-            let Some(network_name) = args.next() else {
-                return ExitCode::FAILURE;
-            };
-            let Some(outpoint) = args.next() else {
-                return ExitCode::FAILURE;
-            };
-            let Some(digest_hex) = args.next() else {
-                return ExitCode::FAILURE;
-            };
-            let wallet_json_path = args.next();
-            sign_digest(
-                &wallet_dir,
-                &network_name,
-                &outpoint,
-                &digest_hex,
-                wallet_json_path.as_deref(),
-            )
         }
         _ => Err(format!("unknown command: {command}")),
     };

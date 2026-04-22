@@ -36,12 +36,6 @@ type InspectNativeResult = {
   error?: string;
 };
 
-type VerifyNativeResult = {
-  valid_signature?: boolean;
-  failure_reason?: string | null;
-  error?: string;
-};
-
 type ResolveFabricRecordsResult = {
   canonical_handle?: string | null;
   web_url?: string | null;
@@ -67,6 +61,7 @@ type ResolveResponse =
       web_url: string | null;
       freedom_url: string | null;
       observation_provider: string | null;
+      records: Record<string, string[]>;
     }
   | {
       resolved: false;
@@ -130,6 +125,11 @@ function appendObservationProvider(base: string | null, addition: string | null)
     return base;
   }
   return base.includes(addition) ? base : `${base}+${addition}`;
+}
+
+function readStringArrayRecord(records: Record<string, string[]> | null | undefined, key: string): string[] {
+  const values = records?.[key] ?? [];
+  return Array.isArray(values) ? values.filter((value): value is string => typeof value === "string") : [];
 }
 
 function spacedRpc<T>(method: string, params: unknown[] = []): Promise<T> {
@@ -326,47 +326,83 @@ async function resolveHandle(handle: string): Promise<ResolveResponse> {
       typeof inspection.observation_provider === "string" ? inspection.observation_provider : null,
       fabricRecords != null ? "fabric_zone" : null,
     ),
+    records: fabricRecords?.records ?? {},
   };
 }
 
-async function verifySignature(body: {
-  digest?: string | null;
-  signature?: string | null;
-  root_pubkey?: string | null;
-  signer_pubkey?: string | null;
+async function verifyFabricPublish(body: {
+  root_label?: string | null;
+  txt_key?: string | null;
+  txt_value?: string | null;
+  web_url?: string | null;
+  freedom_url?: string | null;
 }) {
-  const digest = body.digest?.trim();
-  const signature = body.signature?.trim();
-  const rootPubkey = body.root_pubkey?.trim();
-  const signerPubkey = body.signer_pubkey?.trim() || null;
+  const rootLabel = normalizeRootLabel(body.root_label ?? "");
+  const txtKey = body.txt_key?.trim() || "pirate-verify";
+  const txtValue = body.txt_value?.trim();
+  const expectedWebUrl = body.web_url?.trim();
+  const expectedFreedomUrl = body.freedom_url?.trim();
 
-  if (!digest || !signature || !rootPubkey) {
+  if (!rootLabel || !txtKey || !txtValue || !expectedWebUrl || !expectedFreedomUrl) {
     return json(
       {
-        error: "digest, signature, and root_pubkey are required",
+        error: "root_label, txt_key, txt_value, web_url, and freedom_url are required",
       },
       { status: 400 },
     );
   }
 
-  if (signerPubkey && signerPubkey !== rootPubkey) {
-    return json({
-      valid_signature: false,
-      wrong_signer: true,
-      observation_provider: "spaces_verifier_native",
-      failure_reason: "wrong_signer",
-    });
-  }
-
-  const native = decodeNativeJson<VerifyNativeResult>(
-    runNative(nativeExecutionConfig, ["verify-schnorr", digest, signature, rootPubkey]),
-  );
+  const [inspection, fabricRecords] = await Promise.all([
+    inspectRoot(rootLabel),
+    resolveFabricRecords(`@${rootLabel}`),
+  ]);
+  const records = fabricRecords.records ?? {};
+  const observedTxtValues = readStringArrayRecord(records, txtKey);
+  const observedWebUrl = trimOptionalString(fabricRecords.web_url);
+  const observedFreedomUrl = trimOptionalString(fabricRecords.freedom_url);
+  const txtVerified = observedTxtValues.includes(txtValue);
+  const webVerified = observedWebUrl === expectedWebUrl;
+  const freedomVerified = observedFreedomUrl === expectedFreedomUrl;
+  const rootProofVerified = inspection.root_key_proof_verified === true;
+  const verified = rootProofVerified && txtVerified && webVerified && freedomVerified;
+  const failureReason = verified
+    ? null
+    : !inspection.root_exists
+      ? "root_not_found"
+      : !rootProofVerified
+        ? (typeof inspection.failure_reason === "string" ? inspection.failure_reason : "proof_not_verifiable")
+        : observedTxtValues.length === 0
+          ? "pirate_verify_record_missing"
+          : !txtVerified
+            ? "pirate_verify_record_mismatch"
+            : observedWebUrl == null
+              ? "web_target_missing"
+              : !webVerified
+                ? "web_target_mismatch"
+                : observedFreedomUrl == null
+                  ? "freedom_target_missing"
+                  : "freedom_target_mismatch";
 
   return json({
-    valid_signature: native.valid_signature === true,
-    wrong_signer: false,
-    observation_provider: "spaces_verifier_native",
-    failure_reason: native.failure_reason ?? null,
+    fabric_publish_verified: verified,
+    root_key_proof_verified: rootProofVerified,
+    web_target_verified: webVerified,
+    freedom_target_verified: freedomVerified,
+    observed_web_url: observedWebUrl,
+    observed_freedom_url: observedFreedomUrl,
+    observed_txt_values: observedTxtValues,
+    records,
+    accepted_anchor_height: typeof inspection.accepted_anchor_height === "number" ? inspection.accepted_anchor_height : null,
+    accepted_anchor_block_hash:
+      typeof inspection.accepted_anchor_block_hash === "string" ? inspection.accepted_anchor_block_hash : null,
+    accepted_anchor_root_hash:
+      typeof inspection.accepted_anchor_root_hash === "string" ? inspection.accepted_anchor_root_hash : null,
+    proof_root_hash: typeof inspection.proof_root_hash === "string" ? inspection.proof_root_hash : null,
+    observation_provider: appendObservationProvider(
+      typeof inspection.observation_provider === "string" ? inspection.observation_provider : null,
+      "fabric_zone",
+    ),
+    failure_reason: failureReason,
   });
 }
 
@@ -436,22 +472,23 @@ Bun.serve({
       }
     }
 
-    if (url.pathname === "/verify-signature") {
+    if (url.pathname === "/verify-publish") {
       if (request.method !== "POST") {
         return new Response("Method Not Allowed", { status: 405 });
       }
 
       try {
         const body = await request.json() as {
-          digest?: string | null;
-          signature?: string | null;
-          root_pubkey?: string | null;
-          signer_pubkey?: string | null;
+          root_label?: string | null;
+          txt_key?: string | null;
+          txt_value?: string | null;
+          web_url?: string | null;
+          freedom_url?: string | null;
         };
-        return await verifySignature(body);
+        return await verifyFabricPublish(body);
       } catch (error) {
         return json({
-          error: error instanceof Error ? error.message : "signature verification failed",
+          error: error instanceof Error ? error.message : "publish verification failed",
         }, { status: 500 });
       }
     }
