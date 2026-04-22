@@ -956,7 +956,7 @@ type GateRule = {
   community_id: string;
   scope: "membership" | "viewer" | "posting";
   gate_family: "token_holding" | "identity_proof";
-  gate_type: "unique_human" | "age_over_18" | "minimum_age" | "nationality" | "gender" | "sanctions_clear" | "wallet_score" | "erc721_holding";
+  gate_type: "unique_human" | "age_over_18" | "minimum_age" | "nationality" | "gender" | "sanctions_clear" | "wallet_score" | "erc721_holding" | "erc721_inventory_match";
   proof_requirements?: Array<ProofRequirement> | null;
   chain_namespace?: string | null;
   gate_config?: (Record<string, unknown>) | null;

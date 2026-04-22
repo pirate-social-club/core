@@ -5061,7 +5061,7 @@ components:
             submitted gate rule must include explicit `proof_requirements`. `viewer`-scope gates and
             `posting`-scope gates are not supported in v0. The server should reject create requests
             containing gate rules that fall outside the public v0 scope.
-            Public v0 self-serve creation should still reject `sanctions_clear` identity gates; those remain deferred or operator-controlled until their end-to-end request and policy semantics are fully locked.
+            Public v0 supports `sanctions_clear` only through Human Passport-backed capability state.
             Public v0 self-serve creation supports a narrow token-holding lane for Ethereum mainnet
             ERC-721 collection membership gates only. Other token-holding variants remain unsupported.
     GateRuleInput:
