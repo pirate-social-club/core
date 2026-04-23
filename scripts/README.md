@@ -103,7 +103,7 @@ community-id based, while the organization slug makes prod/staging/dev visually 
 | --- | --- |
 | Dev | `pirate-dev` |
 | Staging | `pirate-staging` |
-| Production | `pirate-prod` |
+| Production | `pirate-social` |
 
 Operator env files should set both `TURSO_ORGANIZATION_SLUG` and
 `EXPECTED_TURSO_ORGANIZATION_SLUG` to the environment's slug. The env runner refuses to start
