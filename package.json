@@ -3,10 +3,16 @@
   "private": true,
   "license": "AGPL-3.0-or-later",
   "type": "module",
+  "scripts": {
+    "tinybird:info": "tinybird info",
+    "tinybird:deploy": "tinybird deploy",
+    "tinybird:generate": "tinybird generate --output-dir /tmp/pirate-v2-tinybird-generated"
+  },
   "dependencies": {
     "@keystonehq/bc-ur-registry-eth": "^0.22.1",
     "@libsql/client": "^0.17.2",
     "@ngraveio/bc-ur": "^1.1.13",
+    "@tinybirdco/sdk": "^0.0.66",
     "ethers": "^6.16.0",
     "qrcode": "^1.5.4"
   }

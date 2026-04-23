@@ -280,12 +280,38 @@ Published endpoints:
 
 ## Validation
 
-Before wiring API or web instrumentation, validate this project with Tinybird CLI in an environment
-that has `tb` installed:
+Before wiring more API or web instrumentation, validate this project with the Tinybird SDK CLI. The
+root repo is main-only, so `tinybird build` in branch mode is intentionally blocked on `main`; use
+`tinybird deploy` for the main workspace or switch to a temporary non-project branch only for branch
+preview work.
 
 ```bash
-rtk tb check --folder analytics/tinybird
+rtk infisical run --env dev --path /services/api -- \
+  rtk ./node_modules/.bin/tinybird info
+
+rtk infisical run --env dev --path /services/api -- \
+  rtk ./node_modules/.bin/tinybird deploy
 ```
 
-Then push to a development workspace and ingest `analytics/tinybird/fixtures/analytics_events_raw.ndjson`
-against `analytics_events_raw` before testing endpoints.
+The dev Tinybird workspace is `pirate_dev` in US East:
+
+```text
+https://api.us-east.aws.tinybird.co
+```
+
+Secrets live in Infisical under `/services/api` for `dev`:
+
+- `TINYBIRD_TOKEN`
+- `TINYBIRD_URL`
+- `TINYBIRD_INGEST_TOKEN`
+- `TINYBIRD_HOST`
+- `TINYBIRD_EVENTS_DATASOURCE`
+- `ANALYTICS_ENABLED`
+- `ANALYTICS_HMAC_SECRET`
+
+The SDK entrypoint is `lib/tinybird.ts`, configured by `tinybird.config.mjs`. The native Tinybird
+datafiles under `analytics/tinybird` remain useful for review and fixtures, but SDK deploys use the
+TypeScript definitions.
+
+After deployment, ingest `analytics/tinybird/fixtures/analytics_events_raw.ndjson` against
+`analytics_events_raw` before testing endpoints.

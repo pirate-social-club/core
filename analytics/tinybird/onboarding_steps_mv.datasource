@@ -12,5 +12,4 @@ SCHEMA >
 ENGINE "MergeTree"
 ENGINE_PARTITION_KEY "toYYYYMM(event_time)"
 ENGINE_SORTING_KEY "environment, event_time, step_order, user_id_hash, event_id"
-ENGINE_TTL "event_time + toIntervalDay(365)"
-
+ENGINE_TTL "toDateTime(event_time) + toIntervalDay(365)"
