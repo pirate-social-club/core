@@ -9672,7 +9672,7 @@ components:
         - text: requires at least one of `title` or `body`; must not send `link_url`, `media_refs`, `song_artifact_bundle_id`, or `lyrics`
         - image: requires at least one item in `media_refs` (all items must be `image/*`); must not send `link_url`, `song_artifact_bundle_id`, or `lyrics`
         - video: requires at least one item in `media_refs` (at least one item must be `video/*`); must not send `link_url`, `song_artifact_bundle_id`, or `lyrics`
-        - link: requires `link_url`; must not send `title`, `media_refs`, `song_artifact_bundle_id`, or `lyrics`
+        - link: requires `link_url`; may send `title` and `body`; must not send `media_refs`, `song_artifact_bundle_id`, or `lyrics`
         - song: requires either `song_artifact_bundle_id` or both `media_refs` (at least one `audio/*`) and `lyrics`; must not send `link_url`; `identity_mode` must be `public`
       oneOf:
         - description: Text posts require at least one of `title` or `body`.
@@ -9763,14 +9763,18 @@ components:
               type: string
               enum:
                 - link
+            title:
+              type: string
+              nullable: true
+            body:
+              type: string
+              nullable: true
             link_url:
               type: string
               format: uri
               nullable: false
           not:
             anyOf:
-              - required:
-                  - title
               - required:
                   - media_refs
               - required:
