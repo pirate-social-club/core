@@ -34,9 +34,9 @@ These production surfaces should not accumulate here as permanent homes:
 
 Those belong in their own repositories under `pirate-social-club`.
 
-`openclaw-pirate-plugin/` is currently tracked in `core` even though it is repo-shaped. It should be
-extracted to a standalone repo, or moved under `tools/` if it is deliberately maintained as core
-helper material.
+`openclaw-pirate-plugin/` has been extracted to `pirate-social-club/pirate-openclaw-plugin`. Local
+copies may exist as ignored sidecars, but plugin source, tests, CI, and release metadata no longer
+belong in `core`.
 
 ## Local Workspace Sidecars
 
@@ -47,6 +47,7 @@ Runtime repos may still appear inside this working directory:
 - `pirate-contracts/`
 - `pirate-tui/`
 - `pirate-desktop/`
+- `openclaw-pirate-plugin/`
 
 They are not tracked by `core`. They are local sidecar checkouts of the standalone repos:
 

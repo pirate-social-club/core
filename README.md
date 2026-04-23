@@ -16,6 +16,7 @@ Local sidecar checkouts may still exist at:
 - `pirate-web/` -> `pirate-social-club/web`
 - `pirate-contracts/` -> `pirate-social-club/contracts`
 - `pirate-desktop/` -> `pirate-social-club/desktop`
+- `openclaw-pirate-plugin/` -> `pirate-social-club/pirate-openclaw-plugin`
 
 Those sidecars are not tracked by `core`.
 

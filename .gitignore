@@ -13,6 +13,7 @@ pirate-desktop/
 pirate-android/
 pirate-analytics/
 freedom-browser/
+openclaw-pirate-plugin/
 
 # Deploy manifests
 deployments/

@@ -33,6 +33,7 @@ These roots may exist locally for convenience, but they are not part of tracked 
 - `pirate-android/`
 - `pirate-analytics/`
 - `freedom-browser/`
+- `openclaw-pirate-plugin/`
 
 They are sidecar checkouts of the standalone runtime repos.
 
@@ -60,10 +61,8 @@ Do not add new top-level roots in `core` for:
 
 Those belong in their own repos under `pirate-social-club`.
 
-`openclaw-pirate-plugin/` is currently tracked in `core` but is repo-shaped: it has its own
-`package.json`, plugin manifest, tests, and release workflow. It should either be extracted to a
-standalone repo such as `pirate-social-club/openclaw-pirate-plugin`, or collapsed under `tools/` if
-it is intentionally core-owned helper material.
+`openclaw-pirate-plugin/` has been extracted to `pirate-social-club/pirate-openclaw-plugin`. Local
+checkouts should be treated as ignored sidecars, not tracked `core` content.
 
 ## Long-Term Shape
 
