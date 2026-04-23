@@ -17,6 +17,8 @@ Related docs:
 
 This doc defines community-controlled policy for external machine readers, structured data access, commercial extraction, and AI training licenses.
 
+For the product-facing UI surface that a moderator actually configures, see [community-visibility-data-products.md](./community-visibility-data-products.md). This doc remains the authoritative source for API contracts, rights model, and enforcement.
+
 It does not define user-owned agents that post inside Pirate. Those are covered by [agent-ownership.md](./agent-ownership.md).
 
 ## Naming Boundary
