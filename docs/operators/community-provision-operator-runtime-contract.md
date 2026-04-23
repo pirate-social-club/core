@@ -21,6 +21,7 @@ The private operator expects:
 - `CONTROL_PLANE_DATABASE_URL`
 - `TURSO_PLATFORM_API_TOKEN`
 - `TURSO_ORGANIZATION_SLUG`
+- `EXPECTED_TURSO_ORGANIZATION_SLUG`
 - `TURSO_COMMUNITY_DB_WRAP_KEY`
 - `TURSO_COMMUNITY_DB_WRAP_KEY_VERSION`
 - `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN`
@@ -32,6 +33,8 @@ Rules:
 - the public worker must not hold `TURSO_PLATFORM_API_TOKEN`
 - the operator must require bearer auth on private routes
 - the worker and operator share the same bearer secret value through `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN`
+- `TURSO_ORGANIZATION_SLUG` is the environment boundary; set `EXPECTED_TURSO_ORGANIZATION_SLUG`
+  to the same value so the env runner catches a dev/staging/prod mismatch before startup
 
 ## Implemented Operator Surface
 

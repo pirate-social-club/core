@@ -54,8 +54,11 @@ Required operator env:
 - `CONTROL_PLANE_DATABASE_URL`
 - `TURSO_PLATFORM_API_TOKEN`
 - `TURSO_ORGANIZATION_SLUG`
+- `EXPECTED_TURSO_ORGANIZATION_SLUG`
 - `TURSO_COMMUNITY_DB_WRAP_KEY`
 - `TURSO_COMMUNITY_DB_WRAP_KEY_VERSION`
+
+For staging validation, both Turso organization variables should be `pirate-staging`.
 
 Required staging API env:
 - `CONTROL_PLANE_DATABASE_URL`
@@ -204,6 +207,7 @@ Check:
 - `namespace_verifications.club_attach_allowed = 1`
 - the namespace verification belongs to the expected creator user
 - `TURSO_PLATFORM_API_TOKEN` and `TURSO_ORGANIZATION_SLUG` are correct
+- `EXPECTED_TURSO_ORGANIZATION_SLUG` matches `TURSO_ORGANIZATION_SLUG`
 
 ### `doctor` reports binding or credential findings
 

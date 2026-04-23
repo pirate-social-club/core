@@ -35,10 +35,29 @@ The contract must stay stable even if the implementation medium changes.
 Stable naming is mandatory.
 Normalize `community_id` for Turso resource names by lowercasing and converting underscores to dashes.
 
+- Turso organization slug: the environment boundary
 - community Turso group name: `club-<normalized community_id>`
 - primary database name: `main-<normalized community_id>`
 - primary database binding role: `primary`
 - database token name: `worker-<community_id>-v<rotation_number>`
+
+Expected organization slugs:
+
+| Environment | Turso organization slug |
+| --- | --- |
+| Dev | `pirate-dev` |
+| Staging | `pirate-staging` |
+| Production | `pirate-prod` |
+
+Day-to-day resource identity should read as:
+
+```text
+<environment org> / club-<community_id> / main-<community_id>
+```
+
+For example, `pirate-prod / club-cmt-alpha / main-cmt-alpha` is production. A group named
+`club-cmt-alpha` in `pirate-staging` is staging. Environment prefixes should not be added to
+group or database names because the group is the future community transfer/sovereignty unit.
 
 Do not derive group or database names from:
 

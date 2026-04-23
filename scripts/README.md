@@ -96,6 +96,19 @@ The active paid-song mainline uses direct private keys from Infisical `/services
 `STORY_CONTRACT_OWNER_PRIVATE_KEY` stays local and operator-only. The usual local file is
 `scripts/.env.operator-dev`, which remains untracked on purpose.
 
+Turso uses the organization as the environment boundary. Community group/database names stay
+community-id based, while the organization slug makes prod/staging/dev visually distinct:
+
+| Environment | Turso organization slug |
+| --- | --- |
+| Dev | `pirate-dev` |
+| Staging | `pirate-staging` |
+| Production | `pirate-prod` |
+
+Operator env files should set both `TURSO_ORGANIZATION_SLUG` and
+`EXPECTED_TURSO_ORGANIZATION_SLUG` to the environment's slug. The env runner refuses to start
+when those values differ.
+
 ## Examples
 
 Start the private Turso operator:

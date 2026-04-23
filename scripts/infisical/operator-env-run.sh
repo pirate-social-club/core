@@ -132,4 +132,9 @@ for name in "${REQUIRED_VARS[@]}"; do
   fi
 done
 
+if [[ -n "${EXPECTED_TURSO_ORGANIZATION_SLUG:-}" && -n "${TURSO_ORGANIZATION_SLUG:-}" && "$TURSO_ORGANIZATION_SLUG" != "$EXPECTED_TURSO_ORGANIZATION_SLUG" ]]; then
+  echo "TURSO_ORGANIZATION_SLUG mismatch after sourcing $ENV_FILE: expected $EXPECTED_TURSO_ORGANIZATION_SLUG, received $TURSO_ORGANIZATION_SLUG" >&2
+  exit 1
+fi
+
 exec "$@"

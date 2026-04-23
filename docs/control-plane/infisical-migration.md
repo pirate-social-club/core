@@ -110,6 +110,7 @@ It must not be present in the public API worker runtime.
 Non-secret Turso config stays outside Infisical:
 
 - `TURSO_ORGANIZATION_SLUG`
+- `EXPECTED_TURSO_ORGANIZATION_SLUG`
 - naming conventions for groups and databases
 
 Bootstrap these through the unified command:
@@ -179,6 +180,7 @@ Operator env management:
   - `/services/api` -> `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN` (must match `/services/control-plane`)
 - keep non-secrets outside Infisical:
   - `TURSO_ORGANIZATION_SLUG`
+  - `EXPECTED_TURSO_ORGANIZATION_SLUG`
   - `TURSO_COMMUNITY_DB_WRAP_KEY_VERSION`
   - `COMMUNITY_PROVISION_OPERATOR_HOST`
   - `COMMUNITY_PROVISION_OPERATOR_PORT`
