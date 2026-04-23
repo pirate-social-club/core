@@ -11,7 +11,7 @@ import { TursoPlatformClient, type TursoPlatformFetch } from "./turso-platform";
 import {
   decryptCommunityDbCredential,
   encryptCommunityDbCredential,
-} from "../../pirate-api/services/api/src/lib/communities/community-db-credential-crypto";
+} from "./shared/community-db-credential-crypto";
 
 type CommunityRow = {
   community_id: string;

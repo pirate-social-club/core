@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
 import { createClient } from "@libsql/client";
 import { seedControlPlaneFixtures } from "./control-plane-fixtures";
-import { splitSqlStatements, toSqliteCompatibleStatement } from "../../pirate-api/services/api/shared/sql-migration";
+import { splitSqlStatements, toSqliteCompatibleStatement } from "./shared/sql-migration";
 
 type Cleanup = () => Promise<void>;
 

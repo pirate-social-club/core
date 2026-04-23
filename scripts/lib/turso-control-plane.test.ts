@@ -5,8 +5,8 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { createClient } from "@libsql/client";
 import { doctorControlPlane, provisionCommunity, rotateCommunityToken } from "./turso-control-plane";
 import { seedControlPlaneFixtures } from "./control-plane-fixtures";
-import { decryptCommunityDbCredential } from "../../pirate-api/services/api/src/lib/communities/community-db-credential-crypto";
-import { splitSqlStatements, toSqliteCompatibleStatement } from "../../pirate-api/services/api/shared/sql-migration";
+import { decryptCommunityDbCredential } from "./shared/community-db-credential-crypto";
+import { splitSqlStatements, toSqliteCompatibleStatement } from "./shared/sql-migration";
 
 type Cleanup = () => Promise<void>;
 
