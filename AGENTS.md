@@ -143,11 +143,11 @@ The interface should feel credible and sharp, not playful or over-explained.
 ### Aesthetic Direction
 Dark-first, community-feed shell chrome with Pirate branding only.
 Navigation can borrow familiar interaction patterns, but never third-party logos or copied brand marks.
-Use orange as the primary accent, keep the rest of the palette restrained, and avoid decorative status UI that adds noise.
+Use the app's existing theme tokens and product/context colors sparingly, and avoid decorative status UI that adds noise.
 
 ### Design Principles
 1. Keep imported-user flows visually familiar without copying third-party branding.
 2. Prioritize fast scanning and decision-making over explanatory copy.
 3. Treat mobile as a first-class context, with thumb-friendly top and bottom navigation.
-4. Use strong contrast and a restrained orange accent instead of adding more UI elements.
+4. Use strong contrast and restrained accents instead of adding more UI elements.
 5. Keep onboarding structure stable: progress above the card, card content focused, no redundant labels.
