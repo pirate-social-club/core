@@ -32,7 +32,6 @@ The control-plane scrobble pipeline is designed and migrated:
 - `scrobble_ingest_events` table with idempotency, anchor status tracking, wallet resolution
 - `scrobble_anchor_batches` and `scrobble_anchor_batch_items` for batch onchain publication
 - `track_anchor_state` for track registration lifecycle
-- `projection_outbox` for materialized read models
 
 Source: `db/control-plane/migrations/0003_control_plane_scrobbles.sql`
 

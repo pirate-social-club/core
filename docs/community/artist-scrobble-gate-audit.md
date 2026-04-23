@@ -245,7 +245,7 @@ Why this should be materialized:
 - posting gates are also latency-sensitive
 - scanning raw `scrobble_ingest_events` plus track joins at request time is the wrong cost profile
 
-The existing control-plane [projection_outbox](../../pirate-api/db/control-plane/migrations/0003_control_plane_scrobbles.sql) is the natural maintenance mechanism for this aggregate. The aggregate should be updated incrementally from projection jobs rather than rebuilt ad hoc in the community gate path.
+The aggregate should be updated incrementally by the scrobble worker rather than rebuilt ad hoc in the community gate path.
 
 ### 3. Add new control-plane migrations
 

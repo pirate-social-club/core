@@ -515,27 +515,6 @@ CREATE INDEX idx_track_anchor_state_not_registered
     ON track_anchor_state(registration_status)
     WHERE registration_status = 'not_registered';
 
-CREATE TABLE projection_outbox (
-    outbox_id TEXT PRIMARY KEY,
-    target_scope TEXT NOT NULL CHECK (
-        target_scope IN ('club', 'global')
-    ),
-    target_id TEXT NOT NULL,
-    projection_kind TEXT NOT NULL,
-    payload_json JSONB NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (
-        status IN ('pending', 'running', 'done', 'failed')
-    ),
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL
-);
-
-CREATE INDEX idx_projection_outbox_status
-    ON projection_outbox(status, created_at);
-
-CREATE INDEX idx_projection_outbox_target
-    ON projection_outbox(target_scope, target_id);
-
 CREATE TABLE jobs (
     job_id TEXT PRIMARY KEY,
     job_type TEXT NOT NULL,
@@ -805,39 +784,6 @@ CREATE INDEX idx_namespace_verification_assertions_session
 CREATE INDEX idx_namespace_verification_assertions_verification
     ON namespace_verification_assertions(namespace_verification_id, assertion_name, status);
 
-CREATE TABLE namespace_verification_revalidation_events (
-    revalidation_event_id TEXT PRIMARY KEY,
-    namespace_verification_id TEXT NOT NULL,
-    trigger TEXT NOT NULL CHECK (
-        trigger IN (
-            'manual_refresh',
-            'scheduled_refresh',
-            'create_time_recheck',
-            'delegation_change',
-            'expiry_change',
-            'suspected_transfer',
-            'contradiction_detected'
-        )
-    ),
-    old_assertions_json JSONB,
-    new_assertions_json JSONB,
-    old_capabilities_json JSONB,
-    new_capabilities_json JSONB,
-    old_status TEXT CHECK (
-        old_status IS NULL OR old_status IN ('verified', 'stale', 'expired', 'disputed')
-    ),
-    new_status TEXT NOT NULL CHECK (
-        new_status IN ('verified', 'stale', 'expired', 'disputed')
-    ),
-    source_evidence_bundle_id TEXT,
-    created_at TIMESTAMPTZ NOT NULL,
-    FOREIGN KEY (namespace_verification_id) REFERENCES namespace_verifications(namespace_verification_id),
-    FOREIGN KEY (source_evidence_bundle_id) REFERENCES namespace_verification_evidence_bundles(evidence_bundle_id)
-);
-
-CREATE INDEX idx_namespace_verification_revalidation_events_verification
-    ON namespace_verification_revalidation_events(namespace_verification_id, created_at DESC);
-
 CREATE INDEX idx_communities_namespace_verification
     ON communities(namespace_verification_id)
     WHERE namespace_verification_id IS NOT NULL;
@@ -927,31 +873,6 @@ CREATE TABLE external_reputation_snapshots (
 
 CREATE INDEX idx_external_reputation_snapshots_user_source_created
     ON external_reputation_snapshots(user_id, source_platform, created_at DESC);
-
-CREATE TABLE claim_market_bindings (
-    claim_market_binding_id TEXT PRIMARY KEY,
-    normalized_claim_hash TEXT NOT NULL,
-    normalized_claim_text TEXT NOT NULL,
-    provider_key TEXT NOT NULL,
-    provider_market_id TEXT NOT NULL,
-    provider_event_id TEXT,
-    question TEXT NOT NULL,
-    market_url TEXT NOT NULL,
-    resolve_date TEXT,
-    snapshot_payload_json JSONB,
-    snapshot_at TIMESTAMPTZ,
-    status TEXT NOT NULL CHECK (
-        status IN ('active', 'archived')
-    ),
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL
-);
-
-CREATE UNIQUE INDEX idx_claim_market_bindings_claim_provider_market
-    ON claim_market_bindings(normalized_claim_hash, provider_key, provider_market_id);
-
-CREATE INDEX idx_claim_market_bindings_claim_status
-    ON claim_market_bindings(normalized_claim_hash, status, updated_at DESC);
 
 CREATE TABLE community_money_policies (
     community_id TEXT PRIMARY KEY,
@@ -1114,33 +1035,6 @@ CREATE INDEX idx_community_registry_table_refs_namespace_table
     ON community_registry_table_refs(club_namespace_table_name)
     WHERE club_namespace_table_name IS NOT NULL;
 
-CREATE TABLE device_sessions (
-    device_session_id TEXT PRIMARY KEY,
-    device_code TEXT NOT NULL,
-    user_code TEXT NOT NULL,
-    authorized_user_id TEXT,
-    status TEXT NOT NULL CHECK (
-        status IN ('pending', 'authorized', 'completed', 'expired')
-    ),
-    client_name TEXT,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
-    expires_at TIMESTAMPTZ NOT NULL,
-    authorized_at TIMESTAMPTZ,
-    completed_at TIMESTAMPTZ,
-    FOREIGN KEY (authorized_user_id) REFERENCES users(user_id)
-);
-
-CREATE UNIQUE INDEX idx_device_sessions_device_code
-    ON device_sessions(device_code);
-
-CREATE UNIQUE INDEX idx_device_sessions_user_code_active
-    ON device_sessions(user_code)
-    WHERE status IN ('pending', 'authorized');
-
-CREATE INDEX idx_device_sessions_status_expires
-    ON device_sessions(status, expires_at);
-
 CREATE TABLE community_gate_rules (
     gate_rule_id TEXT PRIMARY KEY,
     community_id TEXT NOT NULL,
@@ -1164,22 +1058,6 @@ CREATE TABLE community_gate_rules (
 
 CREATE INDEX idx_community_gate_rules_community_scope_status
     ON community_gate_rules(community_id, scope, status, created_at DESC);
-
-CREATE TABLE wallet_attachment_provider_state (
-    wallet_attachment_id TEXT PRIMARY KEY,
-    provider TEXT NOT NULL,
-    provider_wallet_id TEXT NOT NULL,
-    provider_chain_type TEXT NOT NULL,
-    public_key_hex TEXT NOT NULL,
-    external_wallet_ref TEXT,
-    metadata_json JSONB,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
-    FOREIGN KEY (wallet_attachment_id) REFERENCES wallet_attachments(wallet_attachment_id)
-);
-
-CREATE UNIQUE INDEX idx_wallet_attachment_provider_state_wallet
-    ON wallet_attachment_provider_state(provider, provider_wallet_id);
 
 CREATE TABLE dvpn_feature_entitlements (
     dvpn_feature_entitlement_id TEXT PRIMARY KEY,

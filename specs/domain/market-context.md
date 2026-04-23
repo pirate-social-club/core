@@ -381,13 +381,10 @@ Suggested object:
 
 Suggested purpose:
 
-- map a normalized claim hash to one or more provider market identifiers
-- cache shared market snapshots or lookup hints
-- allow new posts about the same claim to reuse a prior binding when still fresh enough
+- keep shared market lookup caches out of the control-plane schema until the worker has a concrete reuse strategy
 
 Scope:
 
-- `claim_market_bindings` should be global, keyed by normalized claim hash rather than by `community_id`
 - community policy still applies when deciding how many of those globally bound markets, if any, should attach to a given post
 
 Rules:
@@ -404,7 +401,6 @@ Recommended v1 storage:
 
 - `post_market_contexts`
 - `post_market_context_markets`
-- optional `claim_market_bindings`
 
 ### `post_market_contexts`
 

@@ -55,16 +55,6 @@ Recommended row values:
 - `subject_type = post`
 - `subject_id = post_id`
 
-### Control-Plane Cache
-
-The worker may also read and write the global `claim_market_bindings` cache in the control-plane database.
-
-Reason:
-
-- the same normalized claim may appear across multiple communities
-- the cache reduces repeated provider search calls
-- per-post attachment state still remains community-local
-
 ## End-To-End Flow
 
 Recommended v1 flow:
@@ -75,11 +65,10 @@ Recommended v1 flow:
 4. Build structured extraction input.
 5. Call OpenRouter with strict JSON Schema output.
 6. If extraction abstains, write `post_market_context.status = no_match`.
-7. Check `claim_market_bindings` for fresh reusable bindings.
-8. Search provider APIs for unresolved claim candidates not satisfied by cache.
-9. Normalize provider market rows into a common shape.
-10. Score candidate markets.
-11. Attach up to `max_markets_per_post` markets if they clear thresholds.
+7. Search provider APIs for claim candidates.
+8. Normalize provider market rows into a common shape.
+9. Score candidate markets.
+10. Attach up to `max_markets_per_post` markets if they clear thresholds.
 12. Persist post-local attachment rows and refresh global bindings.
 
 ## Eligibility Rules
@@ -599,7 +588,6 @@ On success:
 3. write `claim_summary`
 4. write `matching_evidence_json`
 5. upsert `post_market_context_markets`
-6. refresh `claim_market_bindings`
 
 ### When No Match
 

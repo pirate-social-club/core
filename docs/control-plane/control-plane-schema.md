@@ -150,36 +150,7 @@ Notes:
 - `wallet_address_display` preserves the preferred checksum or display form
 - `source_provider` may be `privy`, `external`, or another upstream custody source later
 - `attachment_kind` should distinguish at least `embedded` vs `external` in v0
-- provider-specific signing metadata such as the Privy wallet id or wallet public key should live in `wallet_attachment_provider_state`, not on the canonical wallet attachment row
-
-### `wallet_attachment_provider_state`
-
-Purpose:
-
-- provider-specific sidecar state for a canonical wallet attachment
-- lazy-created Sentinel wallet metadata needed for future signing
-
-Columns:
-
-- `wallet_attachment_id` text primary key
-- `provider` text not null
-- `provider_wallet_id` text not null
-- `provider_chain_type` text not null
-- `public_key_hex` text not null
-- `external_wallet_ref` text nullable
-- `metadata_json` jsonb nullable
-- `created_at` timestamptz not null
-- `updated_at` timestamptz not null
-
-Constraints and indexes:
-
-- foreign key `wallet_attachment_id -> wallet_attachments.wallet_attachment_id`
-- unique index on `(provider, provider_wallet_id)`
-
-Notes:
-
-- this table is the recommended place to persist Privy Cosmos wallet metadata for Sentinel dVPN
-- Pirate should create rows here only after the user has a paid dVPN entitlement and the lazy wallet ensure flow runs
+- provider-specific signing metadata should be introduced with the concrete vertical that needs it, not pre-provisioned on the core wallet schema
 
 ### `auth_provider_links`
 
@@ -462,37 +433,6 @@ Constraints and indexes:
 Notes:
 
 - assertions stay normalized so drift and contradiction can be audited independently of the accepted verification summary row
-
-### `namespace_verification_revalidation_events`
-
-Purpose:
-
-- explicit history of namespace-verification drift and capability changes after acceptance
-
-Columns:
-
-- `revalidation_event_id` text primary key
-- `namespace_verification_id` text not null
-- `trigger` text not null
-- `old_assertions_json` text nullable
-- `new_assertions_json` text nullable
-- `old_capabilities_json` text nullable
-- `new_capabilities_json` text nullable
-- `old_status` text nullable
-- `new_status` text not null
-- `source_evidence_bundle_id` text nullable
-- `created_at` timestamptz not null
-
-Constraints and indexes:
-
-- foreign key `namespace_verification_id -> namespace_verifications.namespace_verification_id`
-- foreign key `source_evidence_bundle_id -> namespace_verification_evidence_bundles.evidence_bundle_id`
-- index on `(namespace_verification_id, created_at desc)`
-
-Notes:
-
-- this table is how the control plane explains why a root moved from `verified` to `stale`, `expired`, or `disputed`
-- create-time rechecks may emit revalidation events when they materially downgrade a previously accepted verification
 
 ### `global_handles`
 
@@ -875,39 +815,6 @@ Notes:
 - `registration_status` should support at least `not_registered`, `registering`, and `registered`
 - this table is an optimization and durable cache, not a substitute for authoritative onchain checks
 - the anchor worker should still tolerate the `TrackAlreadyRegistered` race and treat it as concurrent success
-
-### `projection_outbox`
-
-Purpose:
-
-- durable projection work queue for scrobble-derived central and community read models
-
-Reference DDL:
-
-```sql
-CREATE TABLE projection_outbox (
-    outbox_id TEXT PRIMARY KEY,
-    target_scope TEXT NOT NULL,
-    target_id TEXT NOT NULL,
-    projection_kind TEXT NOT NULL,
-    payload_json JSONB NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL
-);
-
-CREATE INDEX idx_outbox_status
-    ON projection_outbox(status, created_at);
-
-CREATE INDEX idx_outbox_target
-    ON projection_outbox(target_scope, target_id);
-```
-
-Notes:
-
-- `target_scope` should distinguish at least `club` and `global`
-- `projection_kind` may include `recent_listeners`, `club_charts`, `user_scrobble_count`, and `track_listener_count`
-- this follows the same central-projection pattern already used for community post projections
 
 ### Anchor Worker Claim Pattern
 

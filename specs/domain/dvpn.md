@@ -49,7 +49,6 @@ Current persistence shape:
 
 - `dvpn_feature_entitlements`
 - `wallet_attachments`
-- `wallet_attachment_provider_state`
 - `sentinel_subscriptions`
 - `sentinel_sessions`
 

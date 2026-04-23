@@ -44,7 +44,7 @@ Typical review triggers include:
 
 ## Canonical Object
 
-Suggested v0 `rights_review_cases` shape:
+This is not currently provisioned in the community-template schema. If the rights-review workflow is built, add a fresh migration for a `rights_review_cases` shape like:
 
 - `rights_review_case_id`
 - `subject_type`
