@@ -37,8 +37,8 @@ These roots may exist locally for convenience, but they are not part of tracked 
 
 They are sidecar checkouts of the standalone runtime repos.
 
-Do not move these sidecars out of the `core` checkout until the remaining path dependencies are
-removed. Some operational scripts and runbooks still assume the current sibling layout.
+These sidecars can move out of the `core` checkout once local operators set checkout variables for
+the repos they need. The preferred sibling workspace is `/home/t42/Documents/pirate-workspace`.
 
 Before moving sidecars:
 
@@ -52,6 +52,8 @@ Before moving sidecars:
 Completed decoupling:
 
 - `scripts/lib/*` no longer imports source from ignored sidecars such as `pirate-api/`.
+- API contract generation and Wrangler secret sync are path-configurable.
+- Active runbook commands use checkout variables for API and web repo paths.
 - `openclaw-pirate-plugin/` has been extracted from tracked `core`.
 
 ## Avoid Adding

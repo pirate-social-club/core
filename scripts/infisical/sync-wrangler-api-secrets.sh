@@ -6,7 +6,7 @@ usage() {
 Usage:
   ./scripts/infisical/sync-wrangler-api-secrets.sh [--api-dir PATH] [--env-file PATH] [--worker-name NAME] [--wrangler-env ENV] [--profile PROFILE]
 
-If --api-dir is omitted, the script uses API_DIR or defaults to pirate-api/services/api.
+If --api-dir is omitted, the script uses API_DIR or the first available API checkout.
 If --env-file is omitted, the script reads from the current exported environment.
 If --worker-name is omitted, the script syncs the worker named in wrangler.jsonc.
 If --wrangler-env is omitted, the script targets Wrangler's top-level environment.
@@ -20,12 +20,13 @@ Required and optional secret names come from scripts/lib/infisical-env-contract.
 Examples:
   ./scripts/infisical/sync-wrangler-api-secrets.sh \
     --api-dir ../pirate-workspace/api/services/api \
-    --env-file pirate-api/services/api/.env.remote
+    --env-file ../pirate-workspace/api/services/api/.env.remote
 
   rtk infisical run --env staging --path /services/api -- \
     ./scripts/infisical/sync-wrangler-api-secrets.sh
 
   ./scripts/infisical/sync-wrangler-api-secrets.sh \
+    --api-dir pirate-api/services/api \
     --env-file pirate-api/services/api/.dev.vars \
     --worker-name pirate-api-staging \
     --wrangler-env staging
@@ -73,10 +74,22 @@ done
 
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 if [[ -z "$API_DIR" ]]; then
-  API_DIR="$ROOT_DIR/pirate-api/services/api"
+  for candidate in "$ROOT_DIR/pirate-api/services/api" "$ROOT_DIR/../pirate-workspace/api/services/api"; do
+    if [[ -d "$candidate" ]]; then
+      API_DIR="$candidate"
+      break
+    fi
+  done
 elif [[ "$API_DIR" != /* ]]; then
   API_DIR="$ROOT_DIR/$API_DIR"
 fi
+
+if [[ -z "$API_DIR" || ! -d "$API_DIR" ]]; then
+  echo "API checkout not found. Set API_DIR or pass --api-dir." >&2
+  exit 1
+fi
+
+API_DIR="$(cd "$API_DIR" && pwd)"
 WRANGLER="$API_DIR/node_modules/.bin/wrangler"
 
 case "$PROFILE" in
