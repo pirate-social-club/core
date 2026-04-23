@@ -1,0 +1,63 @@
+NODE endpoint
+SQL >
+    %
+    WITH
+        toDateTime64('1970-01-01 00:00:00', 3, 'UTC') AS empty_at,
+        cohort AS (
+            SELECT
+                user_id_hash,
+                minIf(event_time, step_name = 'auth_started') AS auth_started_at,
+                minIf(event_time, step_name = 'auth_session_exchanged') AS auth_exchanged_at,
+                minIf(event_time, step_name = 'unique_human_verification_started') AS human_verify_started_at,
+                minIf(event_time, step_name = 'unique_human_verification_succeeded') AS human_verify_succeeded_at,
+                minIf(event_time, step_name = 'reddit_verification_started') AS reddit_verify_started_at,
+                minIf(event_time, step_name = 'reddit_verification_code_generated') AS reddit_code_generated_at,
+                minIf(event_time, step_name = 'reddit_verification_succeeded') AS reddit_verify_succeeded_at,
+                minIf(event_time, step_name = 'reddit_import_queued') AS reddit_import_queued_at,
+                minIf(event_time, step_name = 'reddit_import_started') AS reddit_import_started_at,
+                minIf(event_time, step_name = 'reddit_import_succeeded') AS reddit_import_succeeded_at,
+                minIf(event_time, step_name = 'handle_claim_started') AS handle_claim_started_at,
+                minIf(event_time, step_name = 'handle_claim_succeeded') AS handle_claim_succeeded_at,
+                minIf(event_time, step_name = 'onboarding_completed') AS onboarding_completed_at,
+                minIf(event_time, step_name = 'onboarding_skipped') AS onboarding_skipped_at
+            FROM onboarding_steps_mv
+            WHERE environment = {{String(environment, required=true)}}
+            GROUP BY user_id_hash
+            HAVING auth_started_at > empty_at
+            % if defined(cohort_start)
+            AND auth_started_at >= parseDateTime64BestEffort({{String(cohort_start)}}, 3, 'UTC')
+            % end
+            % if defined(cohort_end)
+            AND auth_started_at < parseDateTime64BestEffort({{String(cohort_end)}}, 3, 'UTC')
+            % end
+        ),
+        funnel AS (
+            SELECT 10 AS step_order, 'auth_started' AS step_name, countIf(auth_started_at > empty_at) AS users FROM cohort
+            UNION ALL SELECT 20, 'auth_session_exchanged', countIf(auth_exchanged_at > empty_at) FROM cohort
+            UNION ALL SELECT 30, 'unique_human_verification_started', countIf(human_verify_started_at > empty_at) FROM cohort
+            UNION ALL SELECT 40, 'unique_human_verification_succeeded', countIf(human_verify_succeeded_at > empty_at) FROM cohort
+            UNION ALL SELECT 50, 'reddit_verification_started', countIf(reddit_verify_started_at > empty_at) FROM cohort
+            UNION ALL SELECT 60, 'reddit_verification_code_generated', countIf(reddit_code_generated_at > empty_at) FROM cohort
+            UNION ALL SELECT 70, 'reddit_verification_succeeded', countIf(reddit_verify_succeeded_at > empty_at) FROM cohort
+            UNION ALL SELECT 80, 'reddit_import_queued', countIf(reddit_import_queued_at > empty_at) FROM cohort
+            UNION ALL SELECT 90, 'reddit_import_started', countIf(reddit_import_started_at > empty_at) FROM cohort
+            UNION ALL SELECT 100, 'reddit_import_succeeded', countIf(reddit_import_succeeded_at > empty_at) FROM cohort
+            UNION ALL SELECT 110, 'handle_claim_started', countIf(handle_claim_started_at > empty_at) FROM cohort
+            UNION ALL SELECT 120, 'handle_claim_succeeded', countIf(handle_claim_succeeded_at > empty_at) FROM cohort
+            UNION ALL SELECT 130, 'onboarding_completed', countIf(onboarding_completed_at > empty_at) FROM cohort
+            UNION ALL SELECT 140, 'onboarding_skipped', countIf(onboarding_skipped_at > empty_at) FROM cohort
+        ),
+        baseline AS (
+            SELECT maxIf(users, step_name = 'auth_started') AS started_users
+            FROM funnel
+        )
+    SELECT
+        step_order,
+        step_name,
+        users,
+        round(users / nullIf(started_users, 0), 4) AS rate_from_start
+    FROM funnel
+    CROSS JOIN baseline
+    ORDER BY step_order ASC
+
+TYPE endpoint

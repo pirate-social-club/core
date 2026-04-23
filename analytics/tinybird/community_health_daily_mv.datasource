@@ -1,0 +1,17 @@
+SCHEMA >
+    `day` Date,
+    `community_id` String,
+    `environment` LowCardinality(String),
+    `total_events` SimpleAggregateFunction(sum, UInt64),
+    `views` SimpleAggregateFunction(sum, UInt64),
+    `follows` SimpleAggregateFunction(sum, UInt64),
+    `posts` SimpleAggregateFunction(sum, UInt64),
+    `comments` SimpleAggregateFunction(sum, UInt64),
+    `votes` SimpleAggregateFunction(sum, UInt64),
+    `active_users_state` AggregateFunction(uniq, String)
+
+ENGINE "AggregatingMergeTree"
+ENGINE_PARTITION_KEY "toYYYYMM(day)"
+ENGINE_SORTING_KEY "day, environment, community_id"
+ENGINE_TTL "day + toIntervalDay(365)"
+

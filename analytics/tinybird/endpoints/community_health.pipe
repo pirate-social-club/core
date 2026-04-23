@@ -1,0 +1,29 @@
+NODE endpoint
+SQL >
+    %
+    SELECT
+        day,
+        community_id,
+        sum(total_events) AS total_events,
+        sum(views) AS views,
+        sum(follows) AS follows,
+        sum(posts) AS posts,
+        sum(comments) AS comments,
+        sum(votes) AS votes,
+        uniqMerge(active_users_state) AS active_users
+    FROM community_health_daily_mv
+    WHERE environment = {{String(environment, required=true)}}
+    % if defined(community_id)
+    AND community_id = {{String(community_id)}}
+    % end
+    % if defined(start_date)
+    AND day >= toDate({{String(start_date)}})
+    % end
+    % if defined(end_date)
+    AND day < toDate({{String(end_date)}})
+    % end
+    GROUP BY day, community_id
+    ORDER BY day DESC, community_id ASC
+    LIMIT {{Int32(limit, default=100)}}
+
+TYPE endpoint

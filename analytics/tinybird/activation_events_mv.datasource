@@ -1,0 +1,15 @@
+SCHEMA >
+    `event_id` String,
+    `event_time` DateTime64(3, 'UTC'),
+    `environment` LowCardinality(String),
+    `source` LowCardinality(String),
+    `user_id_hash` String,
+    `session_id` String,
+    `community_id` String,
+    `activation_name` LowCardinality(String)
+
+ENGINE "MergeTree"
+ENGINE_PARTITION_KEY "toYYYYMM(event_time)"
+ENGINE_SORTING_KEY "environment, event_time, activation_name, user_id_hash, community_id, event_id"
+ENGINE_TTL "event_time + toIntervalDay(365)"
+

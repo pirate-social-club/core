@@ -1,0 +1,23 @@
+NODE mv_activation_cohorts
+SQL >
+    SELECT
+        event_id,
+        event_time,
+        environment,
+        source,
+        user_id_hash,
+        session_id,
+        community_id,
+        event_name AS activation_name
+    FROM analytics_events_raw
+    WHERE event_name IN (
+        'post_created',
+        'comment_created',
+        'post_voted',
+        'comment_voted',
+        'community_followed'
+    )
+    AND source != 'backfill'
+
+TYPE materialized
+DATASOURCE activation_events_mv

@@ -1,0 +1,62 @@
+NODE endpoint
+SQL >
+    %
+    WITH
+        cohort_users AS (
+            SELECT
+                user_id_hash,
+                toDate(min(event_time)) AS cohort_day
+            FROM onboarding_steps_mv
+            WHERE environment = {{String(environment, required=true)}}
+            AND step_name = 'auth_session_exchanged'
+            % if defined(cohort_start)
+            AND event_time >= parseDateTime64BestEffort({{String(cohort_start)}}, 3, 'UTC')
+            % end
+            % if defined(cohort_end)
+            AND event_time < parseDateTime64BestEffort({{String(cohort_end)}}, 3, 'UTC')
+            % end
+            GROUP BY user_id_hash
+        ),
+        cohort_sizes AS (
+            SELECT
+                cohort_day,
+                count() AS cohort_size
+            FROM cohort_users
+            GROUP BY cohort_day
+        ),
+        activity_days AS (
+            SELECT
+                user_id_hash,
+                toDate(event_time) AS activity_day
+            FROM analytics_events_raw
+            WHERE environment = {{String(environment, required=true)}}
+            AND event_name IN (
+                'home_feed_viewed',
+                'community_viewed',
+                'community_followed',
+                'post_created',
+                'comment_created',
+                'post_voted',
+                'comment_voted',
+                'thread_viewed',
+                'purchase_confirmed'
+            )
+            AND source != 'backfill'
+            GROUP BY user_id_hash, activity_day
+        )
+    SELECT
+        c.cohort_day,
+        dateDiff('day', c.cohort_day, a.activity_day) AS age_day,
+        s.cohort_size,
+        uniqExact(c.user_id_hash) AS retained_users,
+        round(retained_users / nullIf(s.cohort_size, 0), 4) AS retention_rate
+    FROM cohort_users AS c
+    INNER JOIN activity_days AS a USING user_id_hash
+    INNER JOIN cohort_sizes AS s USING cohort_day
+    WHERE a.activity_day >= c.cohort_day
+    AND age_day <= {{Int32(max_age_days, default=30)}}
+    GROUP BY c.cohort_day, age_day, s.cohort_size
+    ORDER BY c.cohort_day ASC, age_day ASC
+
+TYPE endpoint
+

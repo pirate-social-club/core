@@ -1,0 +1,20 @@
+NODE mv_community_health_daily
+SQL >
+    SELECT
+        toDate(event_time) AS day,
+        community_id,
+        environment,
+        toUInt64(count()) AS total_events,
+        toUInt64(countIf(event_name = 'community_viewed')) AS views,
+        toUInt64(countIf(event_name = 'community_followed')) AS follows,
+        toUInt64(countIf(event_name = 'post_created')) AS posts,
+        toUInt64(countIf(event_name = 'comment_created')) AS comments,
+        toUInt64(countIf(event_name IN ('post_voted', 'comment_voted'))) AS votes,
+        uniqStateIf(user_id_hash, user_id_hash != '') AS active_users_state
+    FROM analytics_events_raw
+    WHERE community_id != ''
+    AND source != 'backfill'
+    GROUP BY day, community_id, environment
+
+TYPE materialized
+DATASOURCE community_health_daily_mv

@@ -1,0 +1,19 @@
+SCHEMA >
+    `day` Date,
+    `community_id` String,
+    `environment` LowCardinality(String),
+    `quotes_requested` SimpleAggregateFunction(sum, UInt64),
+    `quotes_created` SimpleAggregateFunction(sum, UInt64),
+    `checkouts_started` SimpleAggregateFunction(sum, UInt64),
+    `purchases_submitted` SimpleAggregateFunction(sum, UInt64),
+    `purchases_confirmed` SimpleAggregateFunction(sum, UInt64),
+    `purchases_failed` SimpleAggregateFunction(sum, UInt64),
+    `entitlements_granted` SimpleAggregateFunction(sum, UInt64),
+    `quote_users_state` AggregateFunction(uniq, String),
+    `purchase_users_state` AggregateFunction(uniq, String)
+
+ENGINE "AggregatingMergeTree"
+ENGINE_PARTITION_KEY "toYYYYMM(day)"
+ENGINE_SORTING_KEY "day, environment, community_id"
+ENGINE_TTL "day + toIntervalDay(365)"
+
