@@ -12,6 +12,7 @@ Related docs:
 - [karma.md](./karma.md)
 - [questions.md](./questions.md)
 - [localization.md](./localization.md)
+- [community-machine-access.md](./community-machine-access.md)
 
 ## Purpose
 
@@ -45,6 +46,8 @@ Pirate should distinguish between:
 
 The global front page is a Pirate product surface.
 Community ranking may become club-governed later, but starts simple in v0.
+
+Human feed distribution is orthogonal to machine-reader licensing. Inclusion in `Home`, `Your Communities`, or a community-scoped feed must not imply permission for structured external-reader access, bulk export, commercial extraction, or AI training. See [community-machine-access.md](./community-machine-access.md).
 
 ## Top-Level Feed Surfaces
 

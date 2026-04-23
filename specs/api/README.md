@@ -20,6 +20,8 @@
   Shared response objects.
 - `src/components/schemas/*.yaml`
   Schemas grouped by bounded context.
+- `community-machine-access.md`
+  Planned API surface for community-controlled machine-reader access, data licenses, and x402 payment before the OpenAPI paths are implemented.
 
 ## Commands
 

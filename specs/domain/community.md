@@ -16,6 +16,7 @@ Related docs:
 - [identity-presentation.md](./identity-presentation.md)
 - [onboarding.md](./onboarding.md)
 - [monetization.md](./monetization.md)
+- [community-machine-access.md](./community-machine-access.md)
 - [donations.md](./donations.md)
 - [karma.md](./karma.md)
 - [questions.md](./questions.md)
@@ -120,6 +121,7 @@ V0 fields for `communities`:
 - `civility_policy`
 - `provenance_policy`
 - `promotion_policy`
+- `machine_access_policy`
 - `community_agent_user_id` nullable
 - `civic_scale_tier`
 - `donation_partner_id` nullable
@@ -150,6 +152,7 @@ V0 fields for `communities`:
 - `civility_policy` is a structured community setting that governs group-directed demeaning language, targeted insults, harassment, and related legal-but-disputed conduct categories above the platform floor.
 - `provenance_policy` is a structured community setting that governs required creator-relation claims and the consequence posture for false ownership claims.
 - `promotion_policy` is a structured community setting that governs whether communities allow self-promotional posts and what disclosure or participation rules apply.
+- `machine_access_policy` is a structured community setting for external machine readers, data licensing, and AI-training rights. It is separate from `agent_posting_policy`, which only governs verified user-owned posting agents.
 - `donation_partner_id` points to the community's approved donation beneficiary when donation sidecars are enabled.
 - `donation_partner_status` describes whether the community's attachment to that partner is currently usable for new donation-enabled listings.
 - Namespace rows point to communities. See [namespace.md](./namespace.md) for the canonical namespace model.
@@ -1093,7 +1096,7 @@ Structured community content policy should be deferred from the public v0 create
 
 Rules:
 
-- public `POST /communities` may omit `agent_posting_policy`, `agent_posting_scope`, `content_authenticity_policy`, `source_policy`, `capture_edit_policy`, `adult_content_policy`, `graphic_content_policy`, `motion_media_policy`, `language_policy`, `civility_policy`, `provenance_policy`, and `promotion_policy`
+- public `POST /communities` may omit `agent_posting_policy`, `agent_posting_scope`, `content_authenticity_policy`, `source_policy`, `capture_edit_policy`, `adult_content_policy`, `graphic_content_policy`, `motion_media_policy`, `language_policy`, `civility_policy`, `provenance_policy`, `promotion_policy`, and `machine_access_policy`
 - public `POST /communities` may also omit `content_authenticity_detection_policy`
 - if omitted, the community may still transition to or remain `active` according to the normal lifecycle rules
 - upload enforcement must always evaluate the effective resolved policy, not the raw nullable stored field
@@ -1108,7 +1111,7 @@ Structured community content-policy changes should be prospective by default.
 
 Rules:
 
-- updating `agent_posting_policy`, `agent_posting_scope`, `content_authenticity_policy`, `source_policy`, `capture_edit_policy`, `adult_content_policy`, `graphic_content_policy`, `motion_media_policy`, `language_policy`, `civility_policy`, `provenance_policy`, or `promotion_policy` applies to new posts and new moderation decisions after the change
+- updating `agent_posting_policy`, `agent_posting_scope`, `content_authenticity_policy`, `source_policy`, `capture_edit_policy`, `adult_content_policy`, `graphic_content_policy`, `motion_media_policy`, `language_policy`, `civility_policy`, `provenance_policy`, `promotion_policy`, or `machine_access_policy` applies to new posts, new machine-readable responses, new paid quotes, and new moderation decisions after the change
 - existing posts keep the `analysis_state`, `content_safety_state`, age-gate result, and disclosure snapshot they had when published unless moderators take a new explicit action
 - communities should not automatically reclassify all historical posts when policy flips from `human_first` to `ai_allowed` or vice versa
 - if Pirate later adds a bulk review tool for policy migrations, that should be modeled as a moderator workflow rather than an implicit side effect of settings updates

@@ -29,6 +29,8 @@ Product and system design docs grouped by domain surface.
   Community funding preference, route constraints, and settlement-lane policy.
 - `community-pricing-policy.md`
   Community-controlled regional pricing, nationality-tier mapping, and quote-pricing audit policy.
+- `community-machine-access.md`
+  Community-controlled machine-reader access, data licensing, and AI-training rights.
 - `public-v0-club-enforcement.md`
   Backend enforcement checklist for the locked public v0 club contract.
 - `governance-backends.md`
