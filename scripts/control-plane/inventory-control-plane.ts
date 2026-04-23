@@ -56,7 +56,6 @@ type InventoryReport = {
     total: number;
     statusCounts: Array<{ key: string; count: number }>;
     provisioningCounts: Array<{ key: string; count: number }>;
-    registryCounts: Array<{ key: string; count: number }> | null;
     rows: CommunityBindingRow[];
   };
   assessment: {
@@ -159,19 +158,6 @@ async function tableExists(db: Bun.SQL, tableName: string): Promise<boolean> {
       FROM information_schema.tables
       WHERE table_schema = 'public'
         AND table_name = ${tableName}
-    ) AS exists
-  `;
-  return Boolean(rows[0]?.exists);
-}
-
-async function columnExists(db: Bun.SQL, tableName: string, columnName: string): Promise<boolean> {
-  const rows = await db<{ exists: boolean }[]>`
-    SELECT EXISTS (
-      SELECT 1
-      FROM information_schema.columns
-      WHERE table_schema = 'public'
-        AND table_name = ${tableName}
-        AND column_name = ${columnName}
     ) AS exists
   `;
   return Boolean(rows[0]?.exists);
@@ -434,7 +420,6 @@ async function collectCommunities(
       total: 0,
       statusCounts: [],
       provisioningCounts: [],
-      registryCounts: null,
       rows: [],
     };
   }
@@ -443,11 +428,6 @@ async function collectCommunities(
     SELECT COUNT(*)::bigint AS count
     FROM communities
   `;
-
-  const hasRegistryPublicationState = await columnExists(db, "communities", "registry_publication_state");
-  const registryCounts = hasRegistryPublicationState
-    ? await collectGroupedCounts(db, "communities", "registry_publication_state")
-    : null;
 
   const rowsSql = `
     SELECT
@@ -478,7 +458,6 @@ async function collectCommunities(
     total: countValue(totalRows[0]?.count),
     statusCounts: await collectGroupedCounts(db, "communities", "status"),
     provisioningCounts: await collectGroupedCounts(db, "communities", "provisioning_state"),
-    registryCounts,
     rows,
   };
 }
@@ -561,11 +540,6 @@ function printText(report: InventoryReport) {
   }
   for (const entry of report.communities.provisioningCounts) {
     console.log(`  provisioning.${entry.key}: ${entry.count}`);
-  }
-  if (report.communities.registryCounts) {
-    for (const entry of report.communities.registryCounts) {
-      console.log(`  registry.${entry.key}: ${entry.count}`);
-    }
   }
   for (const row of report.communities.rows) {
     console.log(

@@ -58,6 +58,7 @@ const ACCEPTED_HISTORICAL_CHECKSUMS: Record<string, string[]> = {
     "8b61a91a715ddb8ea6e63c6caed3deb8265d7b1e1bfc80bdcba335f43e450364",
     "38c52fb748fb623d6a6b4e06133df5023e22591ac9109746a70dd3ca43d4b709",
     "6c1702790e1be659cdda7ade833d36beccad7cd805a96d534a1edc858bb49d8c",
+    "08df6e0388cdc5ad6a193349bf373b33a491d2502502f03b597c2e480ec349ec",
   ],
   "0002_control_plane_communities.sql": [
     "8eb1ffcbe1e3259383015ff449f1f3ba8186ecafcc694a9241614bd4af2779ba",

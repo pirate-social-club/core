@@ -71,7 +71,6 @@ Community creation result:
 - community state after success:
   - `status = active`
   - `provisioning_state = active`
-  - `registry_publication_state = published`
 - bound namespace:
   - `namespace_verification_id = nv_6d90612f2873416fa01b7328a9ce3209`
 
@@ -109,7 +108,6 @@ Community creation result:
 - community state after success:
   - `status = active`
   - `provisioning_state = active`
-  - `registry_publication_state = published`
 - bound namespace:
   - `namespace_verification_id = nv_e891b6fb92e34bf88885565e9a8a5d75`
 

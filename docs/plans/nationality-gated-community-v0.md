@@ -900,10 +900,10 @@ No backend change is required to unblock `provider: "self", requested_capabiliti
 
 **File:** `pirate-api/services/api/src/lib/auth/control-plane-auth-serializers.ts:52-65`
 
-In `serializeUser`, remove line 62:
+In `serializeUser`, the old top-level row field was removed:
 
 ```ts
-    nationality: row.nationality,
+    // removed: nationality was folded into verification_capabilities.nationality
 ```
 
 The `User` type from the regenerated contracts will no longer have `nationality` after Part 1E/1G, so the TypeScript compiler will catch this if you forget to remove it.
@@ -1718,7 +1718,7 @@ After regenerating, `User` type no longer has `nationality`.
 
 ### 5C. Serializer (done in Part 2H)
 
-`pirate-api/services/api/src/lib/auth/control-plane-auth-serializers.ts` — `nationality: row.nationality` removed from `serializeUser`.
+`pirate-api/services/api/src/lib/auth/control-plane-auth-serializers.ts` — top-level nationality removed from `serializeUser`.
 
 ### 5D. Web usage
 
@@ -1726,7 +1726,7 @@ Search `pirate-web/` for any code reading `user.nationality` and replace with `u
 
 ### 5E. Database column
 
-Leave the `users.nationality` column in the database unchanged. No migration. The canonical source is `verification_capabilities_json.nationality.value`.
+The `users.nationality` database column was removed after the API stopped exposing top-level `User.nationality`. The canonical source is `verification_capabilities_json.nationality.value`.
 
 ---
 
@@ -1761,7 +1761,7 @@ Do not edit these files directly. Verify that regeneration produces the expected
 | `pirate-api/services/api/src/lib/communities/community-service.ts` | Add nationality validation in `assertCreateRequest`; add `getCommunityPreview`, `getJoinEligibility`; update `joinCommunity` with diagnostic errors; add `buildGateSummary` helper |
 | `pirate-api/services/api/src/lib/communities/community-membership-store.ts` | Add `MembershipGateEvaluation` type, `evaluateMembershipGateRules` function |
 | `pirate-api/services/api/src/routes/communities.ts` | Add preview and join-eligibility routes |
-| `pirate-api/services/api/src/lib/auth/control-plane-auth-serializers.ts:62` | Remove `nationality: row.nationality` from `serializeUser` |
+| `pirate-api/services/api/src/lib/auth/control-plane-auth-serializers.ts:62` | Remove top-level nationality from `serializeUser` |
 | `pirate-api/services/contracts/src/index.ts` | Regenerated from specs (do not edit directly) |
 | Tests (new or extended) | 12 tests described in Part 2I |
 

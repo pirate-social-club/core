@@ -18,9 +18,9 @@ Live columns:
 - `created_at`
 - `updated_at`
 
-Drift:
+Removed drift:
 
-- `nationality` is dead as a standalone storage column. Runtime gates, commerce pricing, and serialization use `verification_capabilities_json.nationality`; the standalone column is only selected/inserted as legacy shape.
+- `nationality` was dead as a standalone storage column and was removed by `0053_control_plane_drop_dead_columns.sql`. Runtime gates, commerce pricing, and serialization use `verification_capabilities_json.nationality`.
 
 ## `communities`
 
@@ -40,11 +40,9 @@ Live columns:
 - `created_at`
 - `updated_at`
 
-Drift:
+Removed drift:
 
-- `registry_publication_state` is only read by `scripts/control-plane/inventory-control-plane.ts`.
-- `registry_attempt_id`, `registry_published_at`, `registry_publication_job_id`, `registry_error_code`, and `registry_last_mutation_published_at` have no live service/script references.
-- `projected_member_count` and `projected_qualified_member_count` have no live service/script references.
+- `registry_publication_state`, `registry_attempt_id`, `registry_published_at`, `registry_publication_job_id`, `registry_error_code`, `registry_last_mutation_published_at`, `projected_member_count`, and `projected_qualified_member_count` were removed by `0053_control_plane_drop_dead_columns.sql`.
 
 ## `verification_sessions`
 

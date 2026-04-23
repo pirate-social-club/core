@@ -208,7 +208,6 @@ export async function seedControlPlaneFixtures(
           capability_provider,
           verification_capabilities_json,
           verified_at,
-          nationality,
           current_verification_session_id,
           created_at,
           updated_at
@@ -219,7 +218,6 @@ export async function seedControlPlaneFixtures(
           'self',
           ${capabilitiesJson},
           ${nowIso},
-          NULL,
           NULL,
           ${nowIso},
           ${nowIso}

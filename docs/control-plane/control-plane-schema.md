@@ -99,7 +99,6 @@ Columns:
 - `capability_provider` text nullable
 - `verification_capabilities_json` jsonb not null
 - `verified_at` timestamptz nullable
-- `nationality` text nullable
 - `current_verification_session_id` text nullable
 - `created_at` timestamptz not null
 - `updated_at` timestamptz not null

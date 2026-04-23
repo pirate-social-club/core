@@ -434,7 +434,6 @@ curl -sS -X POST https://<prod-api-origin>/communities \
 
 - [ ] Response: 202
 - [ ] `community.provisioning_state = "active"`
-- [ ] `community.registry_publication_state = "published"`
 - [ ] `community.namespace_verification_id` matches
 
 HNS community_id: _______________________
@@ -448,7 +447,6 @@ curl -sS https://<prod-api-origin>/communities/<hns-community-id> \
 ```
 
 - [ ] `provisioning_state = "active"`
-- [ ] `registry_publication_state = "published"`
 - [ ] `namespace_verification_id` bound correctly
 
 ### Step 6 pass criteria
@@ -525,7 +523,6 @@ curl -sS -X POST https://<prod-api-origin>/communities \
 
 - [ ] Response: 202
 - [ ] `community.provisioning_state = "active"`
-- [ ] `community.registry_publication_state = "published"`
 - [ ] `community.namespace_verification_id` matches
 
 Spaces community_id: _______________________
@@ -539,7 +536,6 @@ curl -sS https://<prod-api-origin>/communities/<spaces-community-id> \
 ```
 
 - [ ] `provisioning_state = "active"`
-- [ ] `registry_publication_state = "published"`
 - [ ] `namespace_verification_id` bound correctly
 
 ### Step 7 pass criteria
