@@ -558,10 +558,10 @@ curl -sS https://<prod-api-origin>/communities/<spaces-community-id> \
 # Check the Turso platform for duplicate groups/databases
 # List groups for the production org:
 #   turso group list <org>
-# Look for any groups matching club-cmt-* that are duplicates
+# Groups should be region pools named region-<location>; look for duplicate community databases instead.
 ```
 
-- [ ] No duplicate Turso groups for any production community
+- [ ] Turso groups are region pools, not per-community groups
 - [ ] No duplicate databases for any production community
 
 ### 8.2 Verify retry behavior

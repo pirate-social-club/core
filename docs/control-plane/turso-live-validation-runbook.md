@@ -72,7 +72,7 @@ Use one stable staging fixture so the control-plane rows, Turso resources, and a
 - `community_id = cmt_infinity_01`
 - `creator_user_id = usr_infinity_01`
 - `namespace_verification_id = nv_infinity_usr_infinity_01`
-- `group_name = club-cmt-infinity-01`
+- `group_name = region-aws-us-east-1`
 - `database_name = main-cmt-infinity-01`
 - `route ref = infinity`
 
@@ -110,7 +110,7 @@ Expected result:
 - user exists
 - verified attachable namespace verification exists for `infinity`
 
-### 2. Provision the Turso sovereignty unit
+### 2. Provision the community Turso database
 
 ```bash
 rtk ./scripts/infisical/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FILE" --profile turso-provision -- \
@@ -125,7 +125,7 @@ rtk ./scripts/infisical/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FIL
 ```
 
 Expected result:
-- Turso group exists: `club-cmt-infinity-01`
+- Turso group exists: `region-aws-us-east-1`
 - Turso DB exists: `main-cmt-infinity-01`
 - one active primary binding row exists
 - one active encrypted credential row exists

@@ -34,9 +34,10 @@ The contract must stay stable even if the implementation medium changes.
 
 Stable naming is mandatory.
 Normalize `community_id` for Turso resource names by lowercasing and converting underscores to dashes.
+Normalize `group_location` for Turso group names the same way.
 
 - Turso organization slug: the environment boundary
-- community Turso group name: `club-<normalized community_id>`
+- region-pool Turso group name: `region-<normalized group_location>`
 - primary database name: `main-<normalized community_id>`
 - primary database binding role: `primary`
 - database token name: `worker-<community_id>-v<rotation_number>`
@@ -52,12 +53,13 @@ Expected organization slugs:
 Day-to-day resource identity should read as:
 
 ```text
-<environment org> / club-<community_id> / main-<community_id>
+<environment org> / region-<group_location> / main-<community_id>
 ```
 
-For example, `pirate-prod / club-cmt-alpha / main-cmt-alpha` is production. A group named
-`club-cmt-alpha` in `pirate-staging` is staging. Environment prefixes should not be added to
-group or database names because the group is the future community transfer/sovereignty unit.
+For example, `pirate-prod / region-aws-ap-south-1 / main-cmt-alpha` is a production
+community database in the India region pool. A group named `region-aws-ap-south-1` in
+`pirate-dev` is dev. Environment prefixes should not be added to group or database names because
+the organization already carries the environment boundary.
 
 Do not derive group or database names from:
 
@@ -101,7 +103,7 @@ Central `communities.transfer_state` should use:
 
 Purpose:
 
-- create the Turso sovereignty unit for a new club
+- create the community database in the selected Turso region pool
 
 Input:
 
@@ -125,8 +127,8 @@ Steps:
 
 1. Create or confirm a central `communities` row with `provisioning_state = requested`.
 2. Transition the row to `provisioning`.
-3. Create Turso group `club-<normalized community_id>`.
-4. Create primary database `main-<normalized community_id>` in that group.
+3. Create or reuse Turso group `region-<normalized group_location>`.
+4. Create primary database `main-<normalized community_id>` in that region group.
 5. Mint a database-scoped runtime token for that database.
 6. Encrypt that token with `TURSO_COMMUNITY_DB_WRAP_KEY`.
 7. Write `community_database_bindings` and `community_db_credentials`.
@@ -209,11 +211,11 @@ Rules:
 - this is a data migration
 - do not mix token rotation and wrap-key rotation in the same step unless necessary for incident response
 
-## Transfer Community Group
+## Transfer Community Database
 
 Purpose:
 
-- hand a community's Turso sovereignty unit to another organization
+- hand a community database to another organization
 
 Input:
 
@@ -233,7 +235,7 @@ Steps:
 2. Freeze structural mutations for that community.
 3. Drain or pause projection jobs for that community.
 4. Confirm the receiving organization and operator contacts.
-5. Transfer the Turso group.
+5. Transfer the community database if Turso supports the target workflow, or export/import it.
 6. Mint fresh credentials under the receiving organization.
 7. Update `community_database_bindings` and `community_db_credentials`.
 8. Resume according to `post_transfer_mode`.

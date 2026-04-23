@@ -84,7 +84,7 @@ Success response shape:
 
 Purpose:
 
-- create or reconcile one community Turso sovereignty unit and return the runtime DB credential the worker must persist encrypted
+- create or reconcile one community Turso database in the selected region group and return the runtime DB credential the worker must persist encrypted
 
 Request body:
 
@@ -116,7 +116,7 @@ Success response:
   "binding_id": "cdb_01",
   "credential_id": "cdc_01",
   "organization_slug": "pirate-social",
-  "group_name": "club-cmt-01",
+  "group_name": "region-aws-us-east-1",
   "group_id": "grp_01",
   "database_name": "main-cmt-01",
   "database_id": "db_01",

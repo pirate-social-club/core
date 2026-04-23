@@ -75,8 +75,8 @@ Base deployment is out of scope for the current contract surface. Avoid copying 
 Pirate's Turso architecture uses:
 
 - one central control-plane database
-- one Turso group per community
-- one primary community database per group in v0
+- one Turso group per supported region/location pool
+- one primary database per community inside the selected region group
 
 That secret surface should be introduced deliberately.
 

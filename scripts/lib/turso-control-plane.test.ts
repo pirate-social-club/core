@@ -88,7 +88,7 @@ describe("turso control-plane provision-community", () => {
         if (text.includes("/groups") && String(init?.method ?? "GET") === "POST") {
           return Response.json({
             group: {
-              name: "club-cmt-turso-01",
+              name: "region-iad",
               uuid: "grp_01",
               locations: ["iad"],
               primary: "iad",
@@ -99,7 +99,7 @@ describe("turso control-plane provision-community", () => {
         if (text.endsWith("/groups")) {
           return Response.json({ groups: [] });
         }
-        if (text.includes("/databases?group=club-cmt-turso-01")) {
+        if (text.includes("/databases?group=region-iad")) {
           return Response.json({ databases: [] });
         }
         if (text.endsWith("/databases")) {
@@ -108,7 +108,7 @@ describe("turso control-plane provision-community", () => {
               name: "main-cmt-turso-01",
               db_id: "db_01",
               hostname: "main-cmt-turso-01-pirate-org.iad.turso.io",
-              group: "club-cmt-turso-01",
+              group: "region-iad",
               primary_region: "iad",
               regions: ["iad"],
             },
@@ -134,7 +134,7 @@ describe("turso control-plane provision-community", () => {
     });
 
     expect(result.communityId).toBe("cmt_turso_01");
-    expect(result.groupName).toBe("club-cmt-turso-01");
+    expect(result.groupName).toBe("region-iad");
     expect(result.databaseName).toBe("main-cmt-turso-01");
     expect(result.tokenName).toBe("worker-cmt_turso_01-v1");
     expect(result.rotationNumber).toBe(1);
@@ -178,7 +178,7 @@ describe("turso control-plane provision-community", () => {
       args: [result.communityDatabaseBindingId],
     });
     expect(bindings.rows[0]?.organization_slug).toBe("pirate-org");
-    expect(bindings.rows[0]?.group_name).toBe("club-cmt-turso-01");
+    expect(bindings.rows[0]?.group_name).toBe("region-iad");
     expect(bindings.rows[0]?.database_name).toBe("main-cmt-turso-01");
     expect(bindings.rows[0]?.database_url).toBe("libsql://main-cmt-turso-01-pirate-org.iad.turso.io");
     expect(bindings.rows[0]?.status).toBe("active");
@@ -218,8 +218,8 @@ describe("turso control-plane provision-community", () => {
     expect(requests).toEqual([
       "GET https://api.turso.tech/v1/organizations/pirate-org/groups",
       "POST https://api.turso.tech/v1/organizations/pirate-org/groups",
-      "PATCH https://api.turso.tech/v1/organizations/pirate-org/groups/club-cmt-turso-01/configuration",
-      "GET https://api.turso.tech/v1/organizations/pirate-org/databases?group=club-cmt-turso-01",
+      "PATCH https://api.turso.tech/v1/organizations/pirate-org/groups/region-iad/configuration",
+      "GET https://api.turso.tech/v1/organizations/pirate-org/databases?group=region-iad",
       "POST https://api.turso.tech/v1/organizations/pirate-org/databases",
       "PATCH https://api.turso.tech/v1/organizations/pirate-org/databases/main-cmt-turso-01/configuration",
       "POST https://api.turso.tech/v1/organizations/pirate-org/databases/main-cmt-turso-01/auth/tokens?authorization=full-access",
@@ -254,7 +254,7 @@ describe("turso control-plane provision-community", () => {
         if (text.includes("/groups") && String(init?.method ?? "GET") === "POST") {
           return Response.json({
             group: {
-              name: "club-cmt-turso-no-namespace",
+              name: "region-iad",
               uuid: "grp_no_namespace",
               locations: ["iad"],
               primary: "iad",
@@ -265,7 +265,7 @@ describe("turso control-plane provision-community", () => {
         if (text.endsWith("/groups")) {
           return Response.json({ groups: [] });
         }
-        if (text.includes("/databases?group=club-cmt-turso-no-namespace")) {
+        if (text.includes("/databases?group=region-iad")) {
           return Response.json({ databases: [] });
         }
         if (text.endsWith("/databases")) {
@@ -274,7 +274,7 @@ describe("turso control-plane provision-community", () => {
               name: "main-cmt-turso-no-namespace",
               db_id: "db_no_namespace",
               hostname: "main-cmt-turso-no-namespace-pirate-org.iad.turso.io",
-              group: "club-cmt-turso-no-namespace",
+              group: "region-iad",
               primary_region: "iad",
               regions: ["iad"],
             },
@@ -330,6 +330,129 @@ describe("turso control-plane provision-community", () => {
     expect(communities.rows[0]?.provisioning_state).toBe("active");
   });
 
+  test("reuses a region pool group while creating a separate database per community", async () => {
+    const db = await createControlPlaneTestDatabase();
+    cleanup = db.cleanup;
+
+    const firstFixture = await seedControlPlaneFixtures({
+      databaseUrl: db.databaseUrl,
+      userId: "usr_region_pool_01",
+      subject: "region-pool-user-01",
+      handle: "regionpoolone",
+      namespaceLabel: "region-pool-one",
+    });
+    const secondFixture = await seedControlPlaneFixtures({
+      databaseUrl: db.databaseUrl,
+      userId: "usr_region_pool_02",
+      subject: "region-pool-user-02",
+      handle: "regionpooltwo",
+      namespaceLabel: "region-pool-two",
+    });
+
+    const requests: string[] = [];
+    const fetch: typeof globalThis.fetch = async (url, init) => {
+      const method = String(init?.method ?? "GET");
+      const text = String(url);
+      requests.push(`${method} ${text}`);
+
+      if (text.endsWith("/groups")) {
+        return Response.json({
+          groups: [
+            {
+              name: "region-aws-ap-south-1",
+              uuid: "grp_india",
+              locations: ["aws-ap-south-1"],
+              primary: "aws-ap-south-1",
+              delete_protection: true,
+            },
+          ],
+        });
+      }
+      if (text.includes("/databases?group=region-aws-ap-south-1")) {
+        return Response.json({ databases: [] });
+      }
+      if (text.endsWith("/databases")) {
+        const rawBody = typeof init?.body === "string" ? init.body : "{}";
+        const body = JSON.parse(rawBody) as { name?: string; group?: string };
+        return Response.json({
+          database: {
+            name: body.name,
+            db_id: `db_${body.name}`,
+            hostname: `${body.name}-pirate-org.aws-ap-south-1.turso.io`,
+            group: body.group,
+            primary_region: "aws-ap-south-1",
+            regions: ["aws-ap-south-1"],
+            delete_protection: true,
+          },
+        });
+      }
+      if (text.includes("/auth/tokens")) {
+        return Response.json({ jwt: `token-${text.split("/databases/")[1]?.split("/")[0]}` });
+      }
+      return new Response("not found", { status: 404 });
+    };
+
+    const baseInput = {
+      controlPlaneDatabaseUrl: db.databaseUrl,
+      tursoPlatformApiToken: "platform-token",
+      tursoOrganizationSlug: "pirate-org",
+      tursoCommunityDbWrapKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      tursoCommunityDbWrapKeyVersion: 1,
+      groupLocation: "aws-ap-south-1",
+      fetch,
+      bootstrapCommunityDatabaseFn: async (input: Parameters<NonNullable<Parameters<typeof provisionCommunity>[0]["bootstrapCommunityDatabaseFn"]>>[0]) => ({
+        databaseUrl: input.databaseUrl,
+        communityId: input.communityId,
+        namespaceId: `ns_${input.communityId}`,
+      }),
+    };
+
+    const first = await provisionCommunity({
+      ...baseInput,
+      communityId: "cmt_region_pool_01",
+      creatorUserId: firstFixture.userId,
+      displayName: "Region Pool One",
+      namespaceVerificationId: firstFixture.namespaceVerificationId,
+    });
+    const second = await provisionCommunity({
+      ...baseInput,
+      communityId: "cmt_region_pool_02",
+      creatorUserId: secondFixture.userId,
+      displayName: "Region Pool Two",
+      namespaceVerificationId: secondFixture.namespaceVerificationId,
+    });
+
+    expect(first.groupName).toBe("region-aws-ap-south-1");
+    expect(second.groupName).toBe("region-aws-ap-south-1");
+    expect(first.databaseName).toBe("main-cmt-region-pool-01");
+    expect(second.databaseName).toBe("main-cmt-region-pool-02");
+    expect(requests.filter((request) => request === "POST https://api.turso.tech/v1/organizations/pirate-org/groups")).toHaveLength(0);
+
+    const bindings = await db.client.execute({
+      sql: `
+        SELECT community_id, group_name, database_name, location
+        FROM community_database_bindings
+        WHERE community_id IN (?1, ?2)
+        ORDER BY community_id ASC
+      `,
+      args: ["cmt_region_pool_01", "cmt_region_pool_02"],
+    });
+    expect(bindings.rows).toEqual([
+      {
+        community_id: "cmt_region_pool_01",
+        group_name: "region-aws-ap-south-1",
+        database_name: "main-cmt-region-pool-01",
+        location: "aws-ap-south-1",
+      },
+      {
+        community_id: "cmt_region_pool_02",
+        group_name: "region-aws-ap-south-1",
+        database_name: "main-cmt-region-pool-02",
+        location: "aws-ap-south-1",
+      },
+    ]);
+  });
+
   test("passes membership-scope unique-human gate bootstrap input through provisioning", async () => {
     const db = await createControlPlaneTestDatabase();
     cleanup = db.cleanup;
@@ -361,7 +484,7 @@ describe("turso control-plane provision-community", () => {
         if (text.includes("/groups") && String(init?.method ?? "GET") === "POST") {
           return Response.json({
             group: {
-              name: "club-cmt-join-gate-01",
+              name: "region-iad",
               uuid: "grp_join",
               locations: ["iad"],
               primary: "iad",
@@ -372,7 +495,7 @@ describe("turso control-plane provision-community", () => {
         if (text.endsWith("/groups")) {
           return Response.json({ groups: [] });
         }
-        if (text.includes("/databases?group=club-cmt-join-gate-01")) {
+        if (text.includes("/databases?group=region-iad")) {
           return Response.json({ databases: [] });
         }
         if (text.endsWith("/databases")) {
@@ -381,7 +504,7 @@ describe("turso control-plane provision-community", () => {
               name: "main-cmt-join-gate-01",
               db_id: "db_join",
               hostname: "main-cmt-join-gate-01-pirate-org.iad.turso.io",
-              group: "club-cmt-join-gate-01",
+              group: "region-iad",
               primary_region: "iad",
               regions: ["iad"],
             },
@@ -442,7 +565,7 @@ describe("turso control-plane rotate-community-token", () => {
         if (text.includes("/groups") && String(init?.method ?? "GET") === "POST") {
           return Response.json({
             group: {
-              name: "club-cmt-rotate-01",
+              name: "region-iad",
               uuid: "grp_rotate_01",
               locations: ["iad"],
               primary: "iad",
@@ -453,7 +576,7 @@ describe("turso control-plane rotate-community-token", () => {
         if (text.endsWith("/groups")) {
           return Response.json({ groups: [] });
         }
-        if (text.includes("/databases?group=club-cmt-rotate-01")) {
+        if (text.includes("/databases?group=region-iad")) {
           return Response.json({ databases: [] });
         }
         if (text.endsWith("/databases")) {
@@ -462,7 +585,7 @@ describe("turso control-plane rotate-community-token", () => {
               name: "main-cmt-rotate-01",
               db_id: "db_rotate_01",
               hostname: "main-cmt-rotate-01-pirate-org.iad.turso.io",
-              group: "club-cmt-rotate-01",
+              group: "region-iad",
               primary_region: "iad",
               regions: ["iad"],
             },
@@ -594,7 +717,7 @@ describe("turso control-plane doctor", () => {
         if (text.includes("/groups") && String(init?.method ?? "GET") === "POST") {
           return Response.json({
             group: {
-              name: "club-cmt-doctor-ok-01",
+              name: "region-iad",
               uuid: "grp_doctor_ok_01",
               locations: ["iad"],
               primary: "iad",
@@ -605,7 +728,7 @@ describe("turso control-plane doctor", () => {
         if (text.endsWith("/groups")) {
           return Response.json({ groups: [] });
         }
-        if (text.includes("/databases?group=club-cmt-doctor-ok-01")) {
+        if (text.includes("/databases?group=region-iad")) {
           return Response.json({ databases: [] });
         }
         if (text.endsWith("/databases")) {
@@ -614,7 +737,7 @@ describe("turso control-plane doctor", () => {
               name: "main-cmt-doctor-ok-01",
               db_id: "db_doctor_ok_01",
               hostname: "main-cmt-doctor-ok-01-pirate-org.iad.turso.io",
-              group: "club-cmt-doctor-ok-01",
+              group: "region-iad",
               primary_region: "iad",
               regions: ["iad"],
             },
@@ -681,7 +804,7 @@ describe("turso control-plane doctor", () => {
         if (text.includes("/groups") && String(init?.method ?? "GET") === "POST") {
           return Response.json({
             group: {
-              name: "club-cmt-doctor-bad-01",
+              name: "region-iad",
               uuid: "grp_doctor_bad_01",
               locations: ["iad"],
               primary: "iad",
@@ -692,7 +815,7 @@ describe("turso control-plane doctor", () => {
         if (text.endsWith("/groups")) {
           return Response.json({ groups: [] });
         }
-        if (text.includes("/databases?group=club-cmt-doctor-bad-01")) {
+        if (text.includes("/databases?group=region-iad")) {
           return Response.json({ databases: [] });
         }
         if (text.endsWith("/databases")) {
@@ -701,7 +824,7 @@ describe("turso control-plane doctor", () => {
               name: "main-cmt-doctor-bad-01",
               db_id: "db_doctor_bad_01",
               hostname: "main-cmt-doctor-bad-01-pirate-org.iad.turso.io",
-              group: "club-cmt-doctor-bad-01",
+              group: "region-iad",
               primary_region: "iad",
               regions: ["iad"],
             },
@@ -799,7 +922,7 @@ describe("turso control-plane doctor", () => {
         if (text.includes("/groups") && String(init?.method ?? "GET") === "POST") {
           return Response.json({
             group: {
-              name: "club-cmt-doctor-schema-01",
+              name: "region-iad",
               uuid: "grp_doctor_schema_01",
               locations: ["iad"],
               primary: "iad",
@@ -810,7 +933,7 @@ describe("turso control-plane doctor", () => {
         if (text.endsWith("/groups")) {
           return Response.json({ groups: [] });
         }
-        if (text.includes("/databases?group=club-cmt-doctor-schema-01")) {
+        if (text.includes("/databases?group=region-iad")) {
           return Response.json({ databases: [] });
         }
         if (text.endsWith("/databases")) {
@@ -819,7 +942,7 @@ describe("turso control-plane doctor", () => {
               name: "main-cmt-doctor-schema-01",
               db_id: "db_doctor_schema_01",
               hostname: "main-cmt-doctor-schema-01-pirate-org.iad.turso.io",
-              group: "club-cmt-doctor-schema-01",
+              group: "region-iad",
               primary_region: "iad",
               regions: ["iad"],
             },
@@ -887,7 +1010,7 @@ describe("turso control-plane doctor", () => {
         if (text.includes("/groups") && String(init?.method ?? "GET") === "POST") {
           return Response.json({
             group: {
-              name: "club-cmt-doctor-collision-01",
+              name: "region-iad",
               uuid: "grp_doctor_collision_01",
               locations: ["iad"],
               primary: "iad",
@@ -898,7 +1021,7 @@ describe("turso control-plane doctor", () => {
         if (text.endsWith("/groups")) {
           return Response.json({ groups: [] });
         }
-        if (text.includes("/databases?group=club-cmt-doctor-collision-01")) {
+        if (text.includes("/databases?group=region-iad")) {
           return Response.json({ databases: [] });
         }
         if (text.endsWith("/databases")) {
@@ -907,7 +1030,7 @@ describe("turso control-plane doctor", () => {
               name: "main-cmt-doctor-collision-01",
               db_id: "db_doctor_collision_01",
               hostname: "main-cmt-doctor-collision-01-pirate-org.iad.turso.io",
-              group: "club-cmt-doctor-collision-01",
+              group: "region-iad",
               primary_region: "iad",
               regions: ["iad"],
             },

@@ -36,7 +36,7 @@ Use stable identifiers:
 
 - `community_id = cmt_infinity_01`
 - `route ref = infinity`
-- `group name = club-cmt-infinity-01`
+- `group name = region-aws-us-east-1`
 - `database name = main-cmt-infinity-01`
 - `binding role = primary`
 
@@ -134,7 +134,7 @@ rtk ./scripts/infisical/operator-env-run.sh --env-file "$PIRATE_OPERATOR_ENV_FIL
     --issuer pirate-dev-upstream
 ```
 
-### 4. Create the Turso sovereignty unit
+### 4. Create the community Turso database
 
 Preferred path:
 
@@ -160,7 +160,7 @@ Required env for that command:
 
 What it already does:
 
-1. creates or reuses Turso group `club-cmt-infinity-01`
+1. creates or reuses Turso group `region-aws-us-east-1`
 2. creates or reuses database `main-cmt-infinity-01`
 3. mints a database token
 4. bootstraps the remote community DB

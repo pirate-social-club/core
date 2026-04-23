@@ -1,8 +1,11 @@
 # Turso Sovereignty ADR
 
-Status: accepted
+Status: accepted, amended
 
 Partially superseded by [control-plane-neon-adr.md](./control-plane-neon-adr.md) for the central control-plane database.
+Amended by the April 2026 Turso quota review: Turso groups are region pools, not community
+boundaries, because production plans expose many databases per org but a small fixed number of
+groups/locations.
 
 ## Decision
 
@@ -10,8 +13,9 @@ Pirate v2 will use Turso/libSQL for community relational storage instead of D1.
 
 The multitenant unit is:
 
-- one Turso group per community
-- one primary database per community group in v0
+- one Turso organization per environment
+- one Turso group per supported region/location pool
+- one primary Turso database per community inside the selected region group
 
 Pirate keeps the central control-plane database on Neon Postgres.
 
@@ -46,9 +50,11 @@ Relevant D1 docs:
 
 ### Transferability
 
-Turso documents group transfer explicitly. That means the clean sovereignty boundary is a group, not a single shared central database and not an ad hoc export-only story.
-
-Pirate should therefore treat the community Turso group as the operational handoff unit.
+Turso documents group transfer explicitly, but Turso plan limits make group-per-community too small
+for hundreds of communities. Pirate therefore treats the community database as the isolation unit and
+the region group as shared infrastructure. A future sovereignty handoff should use database transfer
+if Turso supports the required workflow for the target account, or fall back to export/import with a
+controlled write freeze.
 
 ## Resulting Topology
 
@@ -72,8 +78,8 @@ One central Pirate database stores:
 
 Each community gets:
 
-- one Turso group under the Pirate organization
-- one primary database in that group in v0
+- one primary database under the Pirate environment organization
+- placement in the Turso group for the selected data region
 
 The community database stores community-owned durable state such as:
 
@@ -109,20 +115,24 @@ This decision does not mean:
 - no community database is the canonical source of truth for global user identity
 - no platform-wide secret is copied into every community database
 - blobs and large media remain off-database
-- community database names and group names derive from stable Pirate IDs, not mutable routes or display names
+- community database names derive from stable Pirate IDs, not mutable routes or display names
+- Turso group names derive from stable region/location keys, not community IDs
 
 ## Naming
 
 Recommended v0 naming:
 
-- group name: `club-<community_id>`
-- primary database name: `main`
+- organization slug: `pirate-dev` or `pirate-prod`
+- group name: `region-<group_location>`
+- primary database name: `main-<community_id>`
 
 Reasoning:
 
+- the organization is the environment boundary
+- the group is the region quota boundary
 - `community_id` is stable
 - route and display name changes do not force DB migration
-- transfer workflows stay auditable
+- database-level isolation keeps hundreds of communities viable on current Turso plans
 
 ## Transfer Model
 
@@ -131,20 +141,22 @@ When a community becomes sovereign, the intended handoff path is:
 1. Freeze structural mutations for that community.
 2. Drain projection and job backlogs for that community.
 3. Confirm the receiving Turso organization exists and has the correct admins.
-4. Transfer the Turso group to the receiving organization.
-5. Mint fresh database or group tokens in the receiving organization.
+4. Transfer or export/import the community database to the receiving organization.
+5. Mint fresh database tokens in the receiving organization.
 6. Update Pirate routing and connection metadata to the new org-owned endpoints and tokens.
 7. Rotate or invalidate old tokens.
 8. Resume writes under the new ownership boundary.
 
-Turso currently documents that existing URLs and tokens may continue to work after group transfer, but applications should move to the new URL and token as soon as possible. Pirate should treat that continuity as a temporary migration grace period, not a long-term steady state.
+Any continuity of old URLs or tokens during transfer should be treated as a temporary migration grace
+period, not a long-term steady state.
 
 ## Consequences
 
 Good consequences:
 
 - sovereignty is a first-class storage boundary
-- community handoff has a concrete operational unit
+- community isolation has a concrete database unit
+- current Turso group/location quotas can support hundreds of communities
 - local development remains SQLite-friendly
 - vendor lock-in is reduced relative to a D1-bound design
 
@@ -154,6 +166,7 @@ Costs:
 - there is no convenient cross-tenant live SQL join model
 - token management becomes a real control-plane problem
 - community creation requires database provisioning orchestration
+- community handoff is more involved than a simple group transfer
 
 ## Explicitly Avoided Designs
 

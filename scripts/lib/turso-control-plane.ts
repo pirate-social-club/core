@@ -38,6 +38,7 @@ type BindingRow = {
   group_name: string;
   database_name: string;
   database_url: string;
+  location: string | null;
   status: string;
 };
 
@@ -220,8 +221,8 @@ function normalizeTursoName(value: string): string {
   return value.trim().toLowerCase().replace(/_/g, "-");
 }
 
-function buildCommunityGroupName(communityId: string): string {
-  return `club-${normalizeTursoName(communityId)}`;
+function buildRegionPoolGroupName(groupLocation: string): string {
+  return `region-${normalizeTursoName(groupLocation)}`;
 }
 
 function buildCommunityDatabaseName(communityId: string): string {
@@ -417,6 +418,7 @@ async function getPrimaryBindingByCommunityId(
       group_name,
       database_name,
       database_url,
+      location,
       status
     FROM community_database_bindings
     WHERE community_id = ${communityId}
@@ -439,6 +441,7 @@ async function getActivePrimaryBindingsByCommunityId(
       group_name,
       database_name,
       database_url,
+      location,
       status
     FROM community_database_bindings
     WHERE community_id = ${communityId}
@@ -657,7 +660,7 @@ export async function provisionCommunity(
   const groupLocation = requireText(input.groupLocation, "groupLocation");
   const databaseTokenExpiration = input.databaseTokenExpiration?.trim() || null;
   const databaseName = buildCommunityDatabaseName(communityId);
-  const groupName = buildCommunityGroupName(communityId);
+  const groupName = buildRegionPoolGroupName(groupLocation);
   const bindingIdFallback = `cdb_${communityId}_primary`;
   const bootstrapFn = input.bootstrapCommunityDatabaseFn ?? bootstrapCommunityDatabase;
   const timestamp = nowIso(input.now ?? new Date());
@@ -882,7 +885,7 @@ export async function provisionCommunity(
           ${databaseName},
           ${database.dbId},
           ${databaseUrl},
-          ${database.primaryRegion ?? groupLocation},
+          ${groupLocation},
           'active',
           NULL,
           ${timestamp},
@@ -972,7 +975,7 @@ export async function provisionCommunity(
       databaseName,
       databaseId: database.dbId ?? null,
       databaseUrl,
-      location: database.primaryRegion ?? groupLocation,
+      location: groupLocation,
       tokenName,
       plaintextToken,
       issuedAt: timestamp,
@@ -1051,7 +1054,7 @@ export async function provisionCommunityRuntime(
   const groupLocation = requireText(input.groupLocation, "groupLocation");
   const databaseTokenExpiration = input.databaseTokenExpiration?.trim() || null;
   const databaseName = buildCommunityDatabaseName(communityId);
-  const groupName = buildCommunityGroupName(communityId);
+  const groupName = buildRegionPoolGroupName(groupLocation);
   const bootstrapFn = input.bootstrapCommunityDatabaseFn ?? bootstrapCommunityDatabase;
   const timestamp = nowIso(input.now ?? new Date());
   let db: ControlPlaneDatabase | null = null;
@@ -1155,7 +1158,7 @@ export async function provisionCommunityRuntime(
       databaseName,
       databaseId: database.dbId ?? null,
       databaseUrl,
-      location: database.primaryRegion ?? groupLocation,
+      location: groupLocation,
       tokenName,
       plaintextToken,
       issuedAt: timestamp,
@@ -1401,14 +1404,16 @@ export async function doctorControlPlane(
         });
       }
 
-      const expectedGroupName = buildCommunityGroupName(community.community_id);
+      const expectedGroupName = binding.location ? buildRegionPoolGroupName(binding.location) : null;
       if (binding.group_name !== expectedGroupName) {
         findings.push({
           severity: "error",
           code: "binding_group_name_mismatch",
           communityId: community.community_id,
           communityDatabaseBindingId: binding.community_database_binding_id,
-          message: `binding group_name must equal ${expectedGroupName}`,
+          message: expectedGroupName
+            ? `binding group_name must equal ${expectedGroupName}`
+            : "binding location is required to validate region-pool group_name",
         });
       }
 

@@ -42,7 +42,7 @@ describe("turso platform client", () => {
         capturedBody = String(init?.body ?? null);
         return response({
           group: {
-            name: "club-cmt_01",
+            name: "region-iad",
             uuid: "grp_01",
             locations: ["aws-us-east-1"],
             primary: "us-east-1",
@@ -55,17 +55,17 @@ describe("turso platform client", () => {
     await expect(
       client.createGroup({
         organizationSlug: "demo-org",
-        groupName: "club-cmt_01",
+        groupName: "region-iad",
         location: "iad",
       }),
     ).resolves.toMatchObject({
-      name: "club-cmt_01",
+      name: "region-iad",
       uuid: "grp_01",
       locations: ["aws-us-east-1"],
       primary: "us-east-1",
       deleteProtection: false,
     });
-    expect(capturedBody).toBe(JSON.stringify({ name: "club-cmt_01", location: "iad" }));
+    expect(capturedBody).toBe(JSON.stringify({ name: "region-iad", location: "iad" }));
   });
 
   test("normalizes database hostnames into libsql urls", async () => {
@@ -76,8 +76,8 @@ describe("turso platform client", () => {
           database: {
             Name: "main",
             DbId: "db_01",
-            Hostname: "club-cmt_01-demo-org.turso.io",
-            group: "club-cmt_01",
+            Hostname: "region-iad-demo-org.turso.io",
+            group: "region-iad",
             primaryRegion: "iad",
             regions: ["iad"],
             delete_protection: false,
@@ -89,13 +89,13 @@ describe("turso platform client", () => {
       client.createDatabase({
         organizationSlug: "demo-org",
         databaseName: "main",
-        groupName: "club-cmt_01",
+        groupName: "region-iad",
       }),
     ).resolves.toMatchObject({
       name: "main",
       dbId: "db_01",
-      hostname: "club-cmt_01-demo-org.turso.io",
-      libsqlUrl: "libsql://club-cmt_01-demo-org.turso.io",
+      hostname: "region-iad-demo-org.turso.io",
+      libsqlUrl: "libsql://region-iad-demo-org.turso.io",
       deleteProtection: false,
     });
   });
@@ -115,14 +115,14 @@ describe("turso platform client", () => {
     await expect(
       client.updateGroupConfiguration({
         organizationSlug: "demo-org",
-        groupName: "club-cmt_01",
+        groupName: "region-iad",
         deleteProtection: true,
       }),
     ).resolves.toMatchObject({
       deleteProtection: true,
     });
     expect(capturedUrl).toBe(
-      "https://api.turso.tech/v1/organizations/demo-org/groups/club-cmt_01/configuration",
+      "https://api.turso.tech/v1/organizations/demo-org/groups/region-iad/configuration",
     );
     expect(capturedBody).toBe(JSON.stringify({ delete_protection: true }));
   });
@@ -220,12 +220,12 @@ describe("turso platform client", () => {
     await expect(
       client.deleteGroup({
         organizationSlug: "demo-org",
-        groupName: "club-cmt_01",
+        groupName: "region-iad",
       }),
     ).resolves.toBeUndefined();
     expect(requests).toEqual([
       {
-        url: "https://api.turso.tech/v1/organizations/demo-org/groups/club-cmt_01",
+        url: "https://api.turso.tech/v1/organizations/demo-org/groups/region-iad",
         method: "DELETE",
       },
     ]);
@@ -236,7 +236,7 @@ describe("turso platform client", () => {
       apiToken: "token",
       fetch: async () =>
         response({
-          name: "club-cmt_01",
+          name: "region-iad",
           uuid: "grp_01",
           locations: ["aws-us-east-1"],
           primary: "us-east-1",
@@ -247,11 +247,11 @@ describe("turso platform client", () => {
     await expect(
       client.transferGroup({
         organizationSlug: "demo-org",
-        groupName: "club-cmt_01",
+        groupName: "region-iad",
         targetOrganizationSlug: "new-org",
       }),
     ).resolves.toMatchObject({
-      name: "club-cmt_01",
+      name: "region-iad",
       uuid: "grp_01",
     });
   });
