@@ -1,8 +1,8 @@
 /**
  * Tinybird analytics definitions.
  *
- * This mirrors the committed datafiles under analytics/tinybird while exposing a
- * typed SDK client for server-side ingestion and endpoint queries.
+ * This is the mainline Tinybird definition surface for deployment and the typed
+ * SDK client for server-side ingestion and endpoint queries.
  */
 
 import {

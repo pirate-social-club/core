@@ -254,20 +254,20 @@ Events carry additional context in `properties_json`. Key property schemas:
 
 ## Tinybird data model
 
-The Tinybird project keeps one raw append-only source and derived materialized datasources:
+The Tinybird project keeps one raw append-only source and derived materialized datasources. These
+resources are defined in `lib/tinybird.ts`.
 
-| File | Purpose |
+| Resource | Purpose |
 |------|---------|
-| `analytics_events_raw.datasource` | Raw NDJSON ingest source. |
-| `events_hourly_mv.datasource` | Hourly event rollups for volume and quality dashboards. |
-| `onboarding_steps_mv.datasource` | Narrow row-level onboarding events for funnel endpoints. |
-| `activation_events_mv.datasource` | Narrow row-level activation events for cohort endpoints. |
-| `community_health_daily_mv.datasource` | Daily community activity rollups. |
-| `commerce_funnel_daily_mv.datasource` | Daily commerce funnel rollups. |
-| `import_quality_daily_mv.datasource` | Daily Reddit verification/import rollups. |
+| `analytics_events_raw` | Raw NDJSON ingest source. |
+| `events_hourly_mv` | Hourly event rollups for volume and quality dashboards. |
+| `onboarding_steps_mv` | Narrow row-level onboarding events for funnel endpoints. |
+| `activation_events_mv` | Narrow row-level activation events for cohort endpoints. |
+| `community_health_daily_mv` | Daily community activity rollups. |
+| `commerce_funnel_daily_mv` | Daily commerce funnel rollups. |
+| `import_quality_daily_mv` | Daily Reddit verification/import rollups. |
 
-Materialized pipes write to those destination datasources. `DATASOURCE` in a Tinybird materialized
-pipe is the destination table, not the source table.
+Materialized views write to those destination datasources.
 
 Published endpoints:
 
@@ -309,9 +309,10 @@ Secrets live in Infisical under `/services/api` for `dev`:
 - `ANALYTICS_ENABLED`
 - `ANALYTICS_HMAC_SECRET`
 
-The SDK entrypoint is `lib/tinybird.ts`, configured by `tinybird.config.mjs`. The native Tinybird
-datafiles under `analytics/tinybird` remain useful for review and fixtures, but SDK deploys use the
-TypeScript definitions.
+The SDK entrypoint is `lib/tinybird.ts`, configured by `tinybird.config.mjs`. This is the only
+mainline Tinybird definition surface. Do not add `.datasource` or `.pipe` files under
+`analytics/tinybird`; generated Tinybird files should stay outside the repo or in a temporary
+directory.
 
 After deployment, ingest `analytics/tinybird/fixtures/analytics_events_raw.ndjson` against
 `analytics_events_raw` before testing endpoints.
