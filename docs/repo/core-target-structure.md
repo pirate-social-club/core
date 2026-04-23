@@ -42,12 +42,17 @@ removed. Some operational scripts and runbooks still assume the current sibling 
 
 Before moving sidecars:
 
-1. Remove `scripts/lib/*` imports from `pirate-api/services/api/**` by extracting shared helpers into
-   `scripts/lib/` or `lib/`.
+1. Keep generated API contract output path-configurable through `API_CONTRACTS_DIR` or
+   `API_CONTRACTS_OUTPUT_FILE`.
 2. Keep scripts that need the API checkout path-configurable, usually through `API_DIR`.
 3. Move any local database or env-file references out of sidecar-private `.local` paths.
 4. Replace runbook links that require sidecars in this exact directory with plain repo/path
    references or documented checkout variables.
+
+Completed decoupling:
+
+- `scripts/lib/*` no longer imports source from ignored sidecars such as `pirate-api/`.
+- `openclaw-pirate-plugin/` has been extracted from tracked `core`.
 
 ## Avoid Adding
 

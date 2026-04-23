@@ -65,11 +65,17 @@ content.
 
 Known coupling to remove first:
 
-- `scripts/lib/*` must not import helpers from ignored sidecars such as `pirate-api/`.
 - scripts that need a runtime checkout must accept a path variable such as `API_DIR`.
 - local env examples and operator runbooks must not require sidecar-private `.local` paths.
 - markdown links into sidecars should be treated as cross-repo references, not proof that the sidecar
   must live inside `core`.
+
+Completed decoupling:
+
+- `scripts/lib/*` no longer imports helpers from ignored sidecars such as `pirate-api/`.
+- API contract generation and typechecking can be redirected with `API_CONTRACTS_DIR` or
+  `API_CONTRACTS_OUTPUT_FILE`.
+- `openclaw-pirate-plugin/` has been extracted from tracked `core`.
 
 ## Target Model
 
