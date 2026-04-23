@@ -37,6 +37,7 @@ target/
 !.env.*.example
 scripts/.env.operator-*
 !scripts/.env.operator-*.example
+scripts/.local/
 ops/prod/.infisical.json
 ops/prod/.env*
 !ops/prod/.env*.example

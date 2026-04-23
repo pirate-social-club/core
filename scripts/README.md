@@ -109,6 +109,24 @@ Operator env files should set both `TURSO_ORGANIZATION_SLUG` and
 `EXPECTED_TURSO_ORGANIZATION_SLUG` to the environment's slug. The env runner refuses to start
 when those values differ.
 
+Local operator env files such as `scripts/.env.operator-dev` are intentionally untracked. Keep any
+local SQLite or libSQL files under `scripts/.local/` instead of sidecar-private paths such as
+`pirate-api/services/api/.local/`.
+
+If you need to reuse an existing sidecar DB during the transition, copy it into the core-local
+scratch directory:
+
+```bash
+rtk mkdir -p scripts/.local
+rtk cp pirate-api/services/api/.local/turso-live-smoke-control-plane.db scripts/.local/
+```
+
+Then point the local operator env at:
+
+```text
+CONTROL_PLANE_DATABASE_URL=file:./scripts/.local/turso-live-smoke-control-plane.db
+```
+
 ## Examples
 
 Start the private Turso operator:
