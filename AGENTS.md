@@ -30,6 +30,14 @@
 
 - When in doubt, remove it. If cutting text or an element doesn't lose decision value, it shouldn't be there.
 
+## Code Cleanliness
+
+- Do not duplicate helpers, validators, signing/config logic, or route auth patterns; extract shared code on the second real caller.
+- Keep modules focused by concern. If a file starts bundling unrelated workflows or grows past easy review size, split along existing interface boundaries.
+- Preserve behavior during cleanup: move code mechanically first, then improve it in a separate small commit.
+- Avoid no-op wrappers, compatibility shims, and pass-through functions unless they have a dated TODO and an owner.
+- Add the smallest targeted check that proves the refactor path, and prefer typecheck plus focused tests over broad runs.
+
 ## Multi-Repo Workflow
 
 This parent folder contains multiple separate Git repos.
