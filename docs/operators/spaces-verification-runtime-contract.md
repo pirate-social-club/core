@@ -4,6 +4,7 @@ Status: current runtime contract for public-v0 Spaces namespace verification
 
 Related:
 
+- [docs/operators/spaces-repository-map.md](./spaces-repository-map.md)
 - [specs/domain/spaces-verification-flow.md](../../specs/domain/spaces-verification-flow.md)
 - [specs/domain/namespace-root-control.md](../../specs/domain/namespace-root-control.md)
 - [docs/operators/spaces-operator-publish-contract.md](./spaces-operator-publish-contract.md)

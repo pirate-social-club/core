@@ -4,6 +4,7 @@ Status: current public-v0 Spaces verification contract
 
 Related:
 
+- [docs/operators/spaces-repository-map.md](./spaces-repository-map.md)
 - [docs/operators/spaces-verification-runtime-contract.md](./spaces-verification-runtime-contract.md)
 - [specs/domain/spaces-verification-flow.md](../../specs/domain/spaces-verification-flow.md)
 - [services/verifier/spaces/src/server.ts](../../services/verifier/spaces/src/server.ts)
@@ -67,6 +68,9 @@ The durable assertion for the publish-control proof is `fabric_publish_verified`
 The public helper repo is:
 
 - `https://github.com/pirate-social-club/pirate-spaces-publisher`
+
+`pirate-spaces-publisher` is the active public repo name. Treat `spaces-publisher` as superseded and
+archive it after confirming no release or deploy process still reads from it.
 
 The source in this workspace lives at:
 

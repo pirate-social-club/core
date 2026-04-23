@@ -4,6 +4,7 @@ Status: production shape for the VPS-hosted Spaces verifier at `spaces.pirate.sc
 
 Related:
 
+- [docs/operators/spaces-repository-map.md](./spaces-repository-map.md)
 - [docs/operators/spaces-verification-runtime-contract.md](./spaces-verification-runtime-contract.md)
 - [docs/operators/spaces-operator-publish-contract.md](./spaces-operator-publish-contract.md)
 - [services/verifier/spaces/README.md](../../services/verifier/spaces/README.md)
@@ -24,6 +25,14 @@ The VPS-hosted slice provides:
 - a public HTTPS verifier endpoint for Pirate API
 
 `pirate-api` remains separately deployed. Its only cross-boundary contract is the verifier HTTP API.
+
+## Repository Name
+
+The live verifier source currently stays in `core` under [services/verifier/spaces](../../services/verifier/spaces).
+If it is extracted into a standalone GitHub repo, use `pirate-spaces-verifier`.
+
+Do not use `pirate-verifier` for this service. That name is too broad and should be treated as a
+legacy archive target.
 
 ## Boundary
 
