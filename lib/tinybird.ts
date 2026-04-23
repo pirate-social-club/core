@@ -788,6 +788,227 @@ export const eventQuality = defineEndpoint("event_quality", {
 export type EventQualityParams = InferParams<typeof eventQuality>
 export type EventQualityOutput = InferOutputRow<typeof eventQuality>
 
+export const conversionOverview = defineEndpoint("conversion_overview", {
+  description: "Operator overview for visitor-to-user and verification conversion.",
+  params: {
+    environment: p.string(),
+    start_time: p.dateTime64().optional("1970-01-01 00:00:00.000"),
+    end_time: p.dateTime64().optional("2100-01-01 00:00:00.000"),
+  },
+  nodes: [
+    node({
+      name: "endpoint",
+      sql: `
+        SELECT
+          page_views,
+          unique_visitors,
+          auth_started,
+          users_created,
+          human_verification_started,
+          human_verification_succeeded,
+          human_verification_failed,
+          reddit_import_started,
+          reddit_import_succeeded,
+          reddit_import_failed,
+          onboarding_completed,
+          ifNull(round(users_created / nullIf(unique_visitors, 0), 4), 0) AS visitor_to_user_rate,
+          ifNull(round(human_verification_succeeded / nullIf(human_verification_started, 0), 4), 0) AS human_verification_success_rate,
+          ifNull(round(human_verification_failed / nullIf(human_verification_started, 0), 4), 0) AS human_verification_failure_rate,
+          ifNull(round(onboarding_completed / nullIf(auth_started, 0), 4), 0) AS onboarding_completion_rate
+        FROM (
+          SELECT
+            countIf(event_name = 'page_viewed') AS page_views,
+            uniqExactIf(anonymous_id, event_name = 'page_viewed' AND anonymous_id != '') AS unique_visitors,
+            countIf(event_name = 'auth_started') AS auth_started,
+            uniqExactIf(user_id_hash, event_name = 'auth_session_exchanged' AND user_id_hash != '') AS users_created,
+            countIf(event_name = 'unique_human_verification_started') AS human_verification_started,
+            countIf(event_name = 'unique_human_verification_succeeded') AS human_verification_succeeded,
+            countIf(event_name = 'unique_human_verification_failed') AS human_verification_failed,
+            countIf(event_name = 'reddit_import_started') AS reddit_import_started,
+            countIf(event_name = 'reddit_import_succeeded') AS reddit_import_succeeded,
+            countIf(event_name = 'reddit_import_failed') AS reddit_import_failed,
+            countIf(event_name = 'onboarding_completed') AS onboarding_completed
+          FROM analytics_events_raw
+          WHERE environment = {{String(environment)}}
+          AND event_time >= {{DateTime64(start_time)}}
+          AND event_time < {{DateTime64(end_time)}}
+        )
+      `,
+    }),
+  ],
+  output: {
+    page_views: t.uint64(),
+    unique_visitors: t.uint64(),
+    auth_started: t.uint64(),
+    users_created: t.uint64(),
+    human_verification_started: t.uint64(),
+    human_verification_succeeded: t.uint64(),
+    human_verification_failed: t.uint64(),
+    reddit_import_started: t.uint64(),
+    reddit_import_succeeded: t.uint64(),
+    reddit_import_failed: t.uint64(),
+    onboarding_completed: t.uint64(),
+    visitor_to_user_rate: t.float64(),
+    human_verification_success_rate: t.float64(),
+    human_verification_failure_rate: t.float64(),
+    onboarding_completion_rate: t.float64(),
+  },
+})
+
+export type ConversionOverviewParams = InferParams<typeof conversionOverview>
+export type ConversionOverviewOutput = InferOutputRow<typeof conversionOverview>
+
+export const verificationFailures = defineEndpoint("verification_failures", {
+  description: "Recent unique human verification failures for operator triage.",
+  params: {
+    environment: p.string(),
+    start_time: p.dateTime64().optional("1970-01-01 00:00:00.000"),
+    end_time: p.dateTime64().optional("2100-01-01 00:00:00.000"),
+    limit: p.int32().optional(100),
+  },
+  nodes: [
+    node({
+      name: "endpoint",
+      sql: `
+        SELECT
+          event_time,
+          source,
+          app_surface,
+          session_id,
+          anonymous_id,
+          user_id_hash,
+          request_id,
+          JSONExtractString(properties_json, 'provider') AS provider,
+          JSONExtractString(properties_json, 'failure_code') AS failure_code,
+          JSONExtractString(properties_json, 'provider_error_code') AS provider_error_code,
+          toUInt32OrZero(JSONExtractString(properties_json, 'attempt_number')) AS attempt_number,
+          toUInt32OrZero(JSONExtractString(properties_json, 'latency_ms')) AS latency_ms
+        FROM analytics_events_raw
+        WHERE environment = {{String(environment)}}
+        AND event_name = 'unique_human_verification_failed'
+        AND event_time >= {{DateTime64(start_time)}}
+        AND event_time < {{DateTime64(end_time)}}
+        ORDER BY event_time DESC
+        LIMIT {{Int32(limit, 100)}}
+      `,
+    }),
+  ],
+  output: {
+    event_time: t.dateTime64(3, "UTC"),
+    source: t.string(),
+    app_surface: t.string(),
+    session_id: t.string(),
+    anonymous_id: t.string(),
+    user_id_hash: t.string(),
+    request_id: t.string(),
+    provider: t.string(),
+    failure_code: t.string(),
+    provider_error_code: t.string(),
+    attempt_number: t.uint32(),
+    latency_ms: t.uint32(),
+  },
+})
+
+export type VerificationFailuresParams = InferParams<typeof verificationFailures>
+export type VerificationFailuresOutput = InferOutputRow<typeof verificationFailures>
+
+export const communityImportHealth = defineEndpoint("community_import_health", {
+  description: "Community creation, namespace, provisioning, and import health by TLD.",
+  params: {
+    environment: p.string(),
+    start_time: p.dateTime64().optional("1970-01-01 00:00:00.000"),
+    end_time: p.dateTime64().optional("2100-01-01 00:00:00.000"),
+    limit: p.int32().optional(100),
+  },
+  nodes: [
+    node({
+      name: "endpoint",
+      sql: `
+        SELECT
+          day,
+          tld,
+          community_create_started,
+          community_create_submitted,
+          namespace_verification_started,
+          namespace_verification_succeeded,
+          namespace_verification_failed,
+          provisioning_requested,
+          provisioning_succeeded,
+          provisioning_failed,
+          registry_publication_succeeded,
+          registry_publication_failed,
+          reddit_import_started,
+          reddit_import_succeeded,
+          reddit_import_failed,
+          round(provisioning_failed / nullIf(provisioning_requested, 0), 4) AS provisioning_failure_rate,
+          round(reddit_import_failed / nullIf(reddit_import_started, 0), 4) AS reddit_import_failure_rate
+        FROM (
+          SELECT
+            toDate(event_time) AS day,
+            if(JSONExtractString(properties_json, 'tld') = '', 'unknown', JSONExtractString(properties_json, 'tld')) AS tld,
+            countIf(event_name = 'community_create_started') AS community_create_started,
+            countIf(event_name = 'community_create_submitted') AS community_create_submitted,
+            countIf(event_name = 'namespace_verification_started') AS namespace_verification_started,
+            countIf(event_name = 'namespace_verification_succeeded') AS namespace_verification_succeeded,
+            countIf(event_name = 'namespace_verification_failed') AS namespace_verification_failed,
+            countIf(event_name = 'community_provisioning_requested') AS provisioning_requested,
+            countIf(event_name = 'community_provisioning_succeeded') AS provisioning_succeeded,
+            countIf(event_name = 'community_provisioning_failed') AS provisioning_failed,
+            countIf(event_name = 'registry_publication_succeeded') AS registry_publication_succeeded,
+            countIf(event_name = 'registry_publication_failed') AS registry_publication_failed,
+            countIf(event_name = 'reddit_import_started') AS reddit_import_started,
+            countIf(event_name = 'reddit_import_succeeded') AS reddit_import_succeeded,
+            countIf(event_name = 'reddit_import_failed') AS reddit_import_failed
+          FROM analytics_events_raw
+          WHERE environment = {{String(environment)}}
+          AND event_time >= {{DateTime64(start_time)}}
+          AND event_time < {{DateTime64(end_time)}}
+          AND event_name IN (
+            'community_create_started',
+            'community_create_submitted',
+            'namespace_verification_started',
+            'namespace_verification_succeeded',
+            'namespace_verification_failed',
+            'community_provisioning_requested',
+            'community_provisioning_succeeded',
+            'community_provisioning_failed',
+            'registry_publication_succeeded',
+            'registry_publication_failed',
+            'reddit_import_started',
+            'reddit_import_succeeded',
+            'reddit_import_failed'
+          )
+          GROUP BY day, tld
+        )
+        ORDER BY day DESC, tld ASC
+        LIMIT {{Int32(limit, 100)}}
+      `,
+    }),
+  ],
+  output: {
+    day: t.date(),
+    tld: t.string(),
+    community_create_started: t.uint64(),
+    community_create_submitted: t.uint64(),
+    namespace_verification_started: t.uint64(),
+    namespace_verification_succeeded: t.uint64(),
+    namespace_verification_failed: t.uint64(),
+    provisioning_requested: t.uint64(),
+    provisioning_succeeded: t.uint64(),
+    provisioning_failed: t.uint64(),
+    registry_publication_succeeded: t.uint64(),
+    registry_publication_failed: t.uint64(),
+    reddit_import_started: t.uint64(),
+    reddit_import_succeeded: t.uint64(),
+    reddit_import_failed: t.uint64(),
+    provisioning_failure_rate: t.float64(),
+    reddit_import_failure_rate: t.float64(),
+  },
+})
+
+export type CommunityImportHealthParams = InferParams<typeof communityImportHealth>
+export type CommunityImportHealthOutput = InferOutputRow<typeof communityImportHealth>
+
 export const datasources = {
   analyticsEventsRaw,
   eventsHourlyMv,
@@ -811,6 +1032,9 @@ export const pipes = {
   commerceFunnel,
   retentionCohorts,
   eventQuality,
+  conversionOverview,
+  verificationFailures,
+  communityImportHealth,
 }
 
 export const tinybird = new Tinybird({

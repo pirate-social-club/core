@@ -75,6 +75,7 @@ verification context.
 
 | Event                                      | Source type          | Owner          | Ver |
 |--------------------------------------------|----------------------|----------------|-----|
+| `page_viewed`                              | client               | pirate-web     | 1   |
 | `auth_started`                             | client               | pirate-web     | 1   |
 | `auth_session_exchanged`                   | server_authoritative | pirate-api     | 1   |
 | `unique_human_verification_started`        | client               | pirate-web     | 1   |
@@ -163,6 +164,16 @@ verification context.
 ## Per-event properties
 
 Events carry additional context in `properties_json`. Key property schemas:
+
+### page_viewed (v1)
+```json
+{
+  "pathname": "/",
+  "referrer_host": "example.com",
+  "utm_source": "string",
+  "utm_campaign": "string"
+}
+```
 
 ### auth_started (v1)
 ```json
@@ -271,12 +282,15 @@ Materialized views write to those destination datasources.
 
 Published endpoints:
 
+- `conversion_overview`
 - `onboarding_funnel`
 - `activation_funnel`
 - `community_health`
 - `commerce_funnel`
 - `retention_cohorts`
 - `event_quality`
+- `verification_failures`
+- `community_import_health`
 
 ## Validation
 
