@@ -55,7 +55,7 @@ Use the directories themselves as the authoritative source:
   Current community-template sequence starts at `1001_...` and continues through the latest checked-in migration.
 
 For Postgres control-plane runs, the migration runner treats `0000_control_plane_baseline_postgres.sql`
-as a fresh-database snapshot that supersedes the historical `0001_...0033_...` chain.
+as a fresh-database snapshot that supersedes the historical `0001_...0046_...` chain.
 It will:
 
 - apply the baseline on fresh Postgres targets

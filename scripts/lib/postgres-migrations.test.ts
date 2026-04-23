@@ -39,6 +39,11 @@ describe("applyPostgresMigrations", () => {
       "0018_control_plane_device_sessions.sql",
       "0016_control_plane_device_sessions.sql",
     ]);
+
+    expect(candidateMigrationNames("0017a_control_plane_registry_table_refs.sql")).toEqual([
+      "0017a_control_plane_registry_table_refs.sql",
+      "0017_control_plane_registry_table_refs.sql",
+    ]);
   });
 
   test("accepts explicitly allowed historical checksums", () => {

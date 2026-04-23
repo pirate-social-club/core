@@ -1,5 +1,5 @@
 -- Fresh Postgres baseline for the control plane.
--- This supersedes the historical 0001-0033 migration chain on new Neon targets.
+-- This supersedes the historical 0001-0046 migration chain on new Neon targets.
 
 CREATE TABLE users (
     user_id TEXT PRIMARY KEY,
@@ -1165,28 +1165,6 @@ CREATE TABLE community_gate_rules (
 CREATE INDEX idx_community_gate_rules_community_scope_status
     ON community_gate_rules(community_id, scope, status, created_at DESC);
 
-CREATE TABLE community_membership_requests (
-    membership_request_id TEXT PRIMARY KEY,
-    community_id TEXT NOT NULL,
-    applicant_user_id TEXT NOT NULL,
-    status TEXT NOT NULL CHECK (
-        status IN ('pending', 'approved', 'rejected', 'canceled', 'expired')
-    ),
-    note TEXT,
-    reviewed_by_user_id TEXT,
-    review_reason TEXT,
-    resolved_at TIMESTAMPTZ,
-    expires_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
-    FOREIGN KEY (community_id) REFERENCES communities(community_id),
-    FOREIGN KEY (applicant_user_id) REFERENCES users(user_id)
-);
-
-CREATE UNIQUE INDEX idx_community_membership_requests_pending
-    ON community_membership_requests(community_id, applicant_user_id)
-    WHERE status = 'pending';
-
 CREATE TABLE wallet_attachment_provider_state (
     wallet_attachment_id TEXT PRIMARY KEY,
     provider TEXT NOT NULL,
@@ -1379,110 +1357,6 @@ CREATE UNIQUE INDEX idx_namespace_verification_capabilities_session_name_status_
 CREATE UNIQUE INDEX idx_namespace_verification_capabilities_verification_name_status_unique
     ON namespace_verification_capabilities(namespace_verification_id, capability_name, status)
     WHERE namespace_verification_id IS NOT NULL;
-
-CREATE TABLE user_reddit_subreddit_affinities (
-    affinity_id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    source_snapshot_id TEXT NOT NULL,
-    subreddit TEXT NOT NULL,
-    post_count INTEGER NOT NULL,
-    comment_count INTEGER NOT NULL,
-    post_score INTEGER NOT NULL,
-    comment_score INTEGER NOT NULL,
-    total_score INTEGER NOT NULL,
-    first_seen_at TIMESTAMPTZ,
-    last_seen_at TIMESTAMPTZ,
-    weight DOUBLE PRECISION NOT NULL,
-    feature_version TEXT NOT NULL,
-    derived_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
-    FOREIGN KEY (source_snapshot_id) REFERENCES external_reputation_snapshots(external_reputation_snapshot_id),
-    UNIQUE (user_id, source_snapshot_id, subreddit)
-);
-
-CREATE INDEX idx_user_reddit_subreddit_affinities_user_score
-    ON user_reddit_subreddit_affinities(user_id, total_score DESC, subreddit);
-
-CREATE INDEX idx_user_reddit_subreddit_affinities_snapshot
-    ON user_reddit_subreddit_affinities(source_snapshot_id, total_score DESC);
-
-CREATE TABLE user_interest_tags (
-    interest_tag_id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    source_snapshot_id TEXT NOT NULL,
-    tag TEXT NOT NULL,
-    source TEXT NOT NULL CHECK (
-        source IN ('taxonomy', 'llm')
-    ),
-    confidence DOUBLE PRECISION NOT NULL,
-    weight DOUBLE PRECISION NOT NULL,
-    evidence_json JSONB,
-    feature_version TEXT NOT NULL,
-    derived_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
-    FOREIGN KEY (source_snapshot_id) REFERENCES external_reputation_snapshots(external_reputation_snapshot_id),
-    UNIQUE (user_id, source_snapshot_id, tag, source)
-);
-
-CREATE INDEX idx_user_interest_tags_user_tag
-    ON user_interest_tags(user_id, tag, confidence DESC);
-
-CREATE INDEX idx_user_interest_tags_snapshot
-    ON user_interest_tags(source_snapshot_id, source, confidence DESC);
-
-CREATE TABLE user_audience_segments (
-    audience_segment_id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    source_snapshot_id TEXT NOT NULL,
-    segment_key TEXT NOT NULL,
-    source TEXT NOT NULL CHECK (
-        source IN ('deterministic', 'llm', 'hybrid')
-    ),
-    confidence DOUBLE PRECISION NOT NULL,
-    eligibility_state TEXT NOT NULL CHECK (
-        eligibility_state IN ('eligible', 'ineligible', 'suppressed')
-    ),
-    evidence_json JSONB,
-    derivation_version TEXT NOT NULL,
-    derived_at TIMESTAMPTZ NOT NULL,
-    expires_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
-    FOREIGN KEY (source_snapshot_id) REFERENCES external_reputation_snapshots(external_reputation_snapshot_id),
-    UNIQUE (user_id, source_snapshot_id, segment_key, source)
-);
-
-CREATE INDEX idx_user_audience_segments_segment
-    ON user_audience_segments(segment_key, eligibility_state, confidence DESC);
-
-CREATE INDEX idx_user_audience_segments_user
-    ON user_audience_segments(user_id, segment_key, confidence DESC);
-
-CREATE TABLE user_reddit_feature_profiles (
-    feature_profile_id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    source_snapshot_id TEXT NOT NULL,
-    source TEXT NOT NULL CHECK (
-        source IN ('llm')
-    ),
-    profile_json JSONB NOT NULL,
-    confidence DOUBLE PRECISION NOT NULL,
-    feature_version TEXT NOT NULL,
-    derived_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
-    FOREIGN KEY (source_snapshot_id) REFERENCES external_reputation_snapshots(external_reputation_snapshot_id),
-    UNIQUE (user_id, source_snapshot_id, source, feature_version)
-);
-
-CREATE INDEX idx_user_reddit_feature_profiles_user
-    ON user_reddit_feature_profiles(user_id, derived_at DESC);
 
 ALTER TABLE users
     ADD CONSTRAINT fk_users_primary_wallet_attachment

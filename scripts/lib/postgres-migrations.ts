@@ -25,11 +25,23 @@ const LEGACY_MIGRATION_NAMES: Record<string, string[]> = {
   "0017_control_plane_json_text_to_jsonb.sql": [
     "0015_control_plane_json_text_to_jsonb.sql",
   ],
+  "0017a_control_plane_registry_table_refs.sql": [
+    "0017_control_plane_registry_table_refs.sql",
+  ],
+  "0017b_control_plane_song_artifact_bundle_preview_window.sql": [
+    "0017_control_plane_song_artifact_bundle_preview_window.sql",
+  ],
   "0018_control_plane_device_sessions.sql": [
     "0016_control_plane_device_sessions.sql",
   ],
+  "0018a_control_plane_song_artifact_bundle_preview_status.sql": [
+    "0018_control_plane_song_artifact_bundle_preview_status.sql",
+  ],
   "0019_control_plane_text_timestamps_to_timestamptz.sql": [
     "0016_control_plane_text_timestamps_to_timestamptz.sql",
+  ],
+  "0019a_control_plane_verification_session_wallet.sql": [
+    "0019_control_plane_verification_session_wallet.sql",
   ],
   "0033_control_plane_namespace_verification_spaces.sql": [
     "0026_control_plane_namespace_verification_spaces.sql",
@@ -44,9 +56,13 @@ const ACCEPTED_HISTORICAL_CHECKSUMS: Record<string, string[]> = {
     "b3159f65df61bd390267d2bf6daa0e025adbe27b5cbb2ed0b823f119a8373f6e",
     "6f7bc3b66ec654bf844c6aed2b295a38088cd59ebd890c9ccf431b17264a6e7c",
     "8b61a91a715ddb8ea6e63c6caed3deb8265d7b1e1bfc80bdcba335f43e450364",
+    "38c52fb748fb623d6a6b4e06133df5023e22591ac9109746a70dd3ca43d4b709",
   ],
   "0002_control_plane_communities.sql": [
     "8eb1ffcbe1e3259383015ff449f1f3ba8186ecafcc694a9241614bd4af2779ba",
+  ],
+  "0050_control_plane_analytics_outbox.sql": [
+    "6dcb6ffb06c7768668ec262a2ef2666a35ca7f64fbd92fdded45d2870eb9a6c6",
   ],
 };
 // These historical checksums exist because the baseline migration file was modified
@@ -76,11 +92,11 @@ const SUPERSEDED_MIGRATIONS: Record<string, string[]> = {
     "0015_control_plane_song_artifact_bundle_enrichment.sql",
     "0016_control_plane_community_pricing_policies.sql",
     "0017_control_plane_json_text_to_jsonb.sql",
-    "0017_control_plane_registry_table_refs.sql",
-    "0017_control_plane_song_artifact_bundle_preview_window.sql",
+    "0017a_control_plane_registry_table_refs.sql",
+    "0017b_control_plane_song_artifact_bundle_preview_window.sql",
     "0018_control_plane_device_sessions.sql",
-    "0018_control_plane_song_artifact_bundle_preview_status.sql",
-    "0019_control_plane_verification_session_wallet.sql",
+    "0018a_control_plane_song_artifact_bundle_preview_status.sql",
+    "0019a_control_plane_verification_session_wallet.sql",
     "0019_control_plane_text_timestamps_to_timestamptz.sql",
     "0020_control_plane_community_gate_rules.sql",
     "0021_control_plane_reddit_targeting_features.sql",
