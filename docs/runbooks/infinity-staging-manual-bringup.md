@@ -96,7 +96,8 @@ Bootstrap the staging Infisical paths from the current local staging env values:
 ```bash
 cd /home/t42/Documents/pirate-v2
 set -a
-source pirate-api/services/api/.env.staging
+PIRATE_API_DIR="${PIRATE_API_DIR:-pirate-api/services/api}"
+source "$PIRATE_API_DIR/.env.staging"
 source scripts/.env.operator-staging
 set +a
 INFISICAL_ENV=staging rtk bun scripts/infisical/bootstrap-infisical.ts --env staging

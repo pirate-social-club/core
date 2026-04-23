@@ -294,7 +294,9 @@ credentials encrypted by one cannot be decrypted by the other.
 ### 4.1 Confirm the exact revision to deploy
 
 ```bash
-cd /home/t42/Documents/pirate-v2/pirate-api
+PIRATE_CORE_REPO="${PIRATE_CORE_REPO:-/home/t42/Documents/pirate-v2}"
+PIRATE_API_REPO="${PIRATE_API_REPO:-$PIRATE_CORE_REPO/pirate-api}"
+cd "$PIRATE_API_REPO"
 git log --oneline -1
 ```
 
@@ -620,7 +622,9 @@ Decision: _______________________
 ### 10.1 Review git status
 
 ```bash
-cd /home/t42/Documents/pirate-v2/pirate-api
+PIRATE_CORE_REPO="${PIRATE_CORE_REPO:-/home/t42/Documents/pirate-v2}"
+PIRATE_API_REPO="${PIRATE_API_REPO:-$PIRATE_CORE_REPO/pirate-api}"
+cd "$PIRATE_API_REPO"
 git status
 git diff --stat
 ```
@@ -639,8 +643,8 @@ The final diff should contain:
 
 Important repo boundary note:
 
-- `services/api/...` lives in `/home/t42/Documents/pirate-v2/pirate-api`
-- `docs/runbooks/...` lives in the parent monorepo `/home/t42/Documents/pirate-v2`
+- `services/api/...` lives in the API repo checkout, set with `PIRATE_API_REPO`
+- `docs/runbooks/...` lives in the parent monorepo, set with `PIRATE_CORE_REPO`
 
 So do **not** run one `git add` command from `pirate-api/` that tries to stage `docs/runbooks/...`.
 Either:
@@ -650,13 +654,15 @@ Either:
 
 ```bash
 # Code repo
-cd /home/t42/Documents/pirate-v2/pirate-api
+PIRATE_CORE_REPO="${PIRATE_CORE_REPO:-/home/t42/Documents/pirate-v2}"
+PIRATE_API_REPO="${PIRATE_API_REPO:-$PIRATE_CORE_REPO/pirate-api}"
+cd "$PIRATE_API_REPO"
 git add services/api/src/lib/communities/community-service.ts \
        services/api/tests/community-routes.test.ts
 git commit -m "harden community provisioning retry logic for production rollout"
 
 # Parent monorepo docs
-cd /home/t42/Documents/pirate-v2
+cd "$PIRATE_CORE_REPO"
 git add docs/runbooks/namespace-verification-smoke.md \
        docs/runbooks/namespace-verification-production-promotion.md
 git commit -m "document namespace verification production promotion"
