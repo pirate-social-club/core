@@ -10,6 +10,8 @@ The browser never receives a Tinybird token. The React app calls `/api/dashboard
 rtk infisical run --env dev --path /services/api -- rtk bun run dev
 ```
 
+Open `http://127.0.0.1:8788`.
+
 ## Deploy
 
 Protect the deployed app with Cloudflare Access. Then set secrets:
