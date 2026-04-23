@@ -13,6 +13,22 @@ CreateCommunityRequestBase:
     description:
       type: string
       nullable: true
+    database_region:
+      type: string
+      nullable: true
+      enum:
+        - auto
+        - aws-us-east-1
+        - aws-us-east-2
+        - aws-us-west-2
+        - aws-eu-west-1
+        - aws-ap-south-1
+        - aws-ap-northeast-1
+      description: |
+        Create-time primary Turso group location for the community database. `auto` or omission
+        lets the server use its configured default. Explicit values must be present in the
+        server-side allowed location list and should be treated as difficult to change after
+        creation because the region choice defines the community's initial data-residency boundary.
     localized_text:
       $ref: ./communities-core.yaml#/CommunityTextLocalization
       nullable: true

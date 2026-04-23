@@ -132,6 +132,21 @@ function narrowImplementedCreateAndPostSchemas(schemas: unknown): Record<string,
       display_name: {
         type: "string",
       },
+      database_region: {
+        type: "string",
+        nullable: true,
+        enum: [
+          "auto",
+          "aws-us-east-1",
+          "aws-us-east-2",
+          "aws-us-west-2",
+          "aws-eu-west-1",
+          "aws-ap-south-1",
+          "aws-ap-northeast-1",
+        ],
+        description:
+          "Create-time primary Turso group location for the community database. Omit or set auto to use the server default.",
+      },
       avatar_ref: {
         type: "string",
         nullable: true,

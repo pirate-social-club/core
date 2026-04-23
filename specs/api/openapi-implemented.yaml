@@ -4824,6 +4824,18 @@ components:
         description:
           type: string
           nullable: true
+        database_region:
+          type: string
+          nullable: true
+          enum:
+            - auto
+            - aws-us-east-1
+            - aws-us-east-2
+            - aws-us-west-2
+            - aws-eu-west-1
+            - aws-ap-south-1
+            - aws-ap-northeast-1
+          description: Create-time primary Turso group location for the community database. Omit or set auto to use the server default.
         localized_text:
           $ref: "#/components/schemas/CommunityTextLocalization"
           nullable: true
@@ -8505,6 +8517,15 @@ components:
         link_og_title:
           type: string
           nullable: true
+        embeds:
+          type: array
+          items:
+            $ref: "#/components/schemas/PostEmbed"
+          nullable: true
+          description: |
+            Structured embeds hydrated from supported link providers. Generic link previews remain
+            represented by `link_og_title` and `link_og_image_url`; this array is reserved for
+            provider-backed embeds whose official rendering or availability must be tracked.
         media_refs:
           type: array
           items:
