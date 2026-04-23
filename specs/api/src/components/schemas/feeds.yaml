@@ -47,6 +47,9 @@ HomeFeedCommunitySummary:
     member_count:
       type: integer
       nullable: true
+    follower_count:
+      type: integer
+      nullable: true
     updated_at:
       type: string
       format: date-time

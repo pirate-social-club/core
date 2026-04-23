@@ -1202,6 +1202,43 @@ communities_by_community_id_join:
         $ref: ../components/responses.yaml#/AuthError
       "403":
         $ref: ../components/responses.yaml#/GateFailed
+communities_by_community_id_follow:
+  put:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Follow a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community follow state updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-core.yaml#/CommunityFollowResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  delete:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Unfollow a community
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community follow state updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-core.yaml#/CommunityFollowResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
 communities_by_community_id_preview:
   get:
     tags:

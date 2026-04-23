@@ -1146,6 +1146,19 @@ MembershipResult:
         - joined
         - requested
         - left
+CommunityFollowResponse:
+  type: object
+  required:
+    - community_id
+    - following
+  properties:
+    community_id:
+      type: string
+    following:
+      type: boolean
+    follower_count:
+      type: integer
+      nullable: true
 MembershipGateSummary:
   type: object
   required:
@@ -1302,6 +1315,9 @@ CommunityPreview:
     member_count:
       type: integer
       nullable: true
+    follower_count:
+      type: integer
+      nullable: true
     donation_policy_mode:
       type: string
       enum:
@@ -1328,6 +1344,9 @@ CommunityPreview:
         - member
         - not_member
         - banned
+      nullable: true
+    viewer_following:
+      type: boolean
       nullable: true
     created_at:
       type: string

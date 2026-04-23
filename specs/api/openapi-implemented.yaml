@@ -1451,6 +1451,41 @@ paths:
           $ref: "#/components/responses/AuthError"
         "403":
           $ref: "#/components/responses/GateFailed"
+  /communities/{community_id}/follow:
+    put:
+      tags:
+        - Communities
+      summary: Follow a community
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      responses:
+        "200":
+          description: Community follow state updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityFollowResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags:
+        - Communities
+      summary: Unfollow a community
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      responses:
+        "200":
+          description: Community follow state updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityFollowResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /communities/{community_id}/preview:
     get:
       tags:
@@ -7335,6 +7370,19 @@ components:
             - joined
             - requested
             - left
+    CommunityFollowResponse:
+      type: object
+      required:
+        - community_id
+        - following
+      properties:
+        community_id:
+          type: string
+        following:
+          type: boolean
+        follower_count:
+          type: integer
+          nullable: true
     CreateCommunityDonationPolicyInput:
       type: object
       description: |
