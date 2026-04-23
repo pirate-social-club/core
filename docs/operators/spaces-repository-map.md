@@ -15,7 +15,7 @@ This keeps Pirate ownership and the Spaces product boundary visible from the rep
 | --- | --- | --- |
 | Live VPS verifier API | `pirate-spaces-verifier` | Active name if extracted; current source lives in `core` |
 | Fabric record publisher | `pirate-spaces-publisher` | Active |
-| Local digest-signing helper | `pirate-spaces-signer` | Active only if the digest-signing flow is still used |
+| Superseded digest-signing helper | `pirate-spaces-signer` | Archive |
 | Superseded Fabric publisher | `spaces-publisher` | Archive |
 | Broad legacy verifier repo | `pirate-verifier` | Archive |
 
@@ -34,17 +34,20 @@ lives at:
 
 - [tools/spaces-publisher](../../tools/spaces-publisher)
 
-The `pirate-spaces-signer` repo is not the verifier service. Keep it only if the local digest-signing
-flow still exists, and keep its README header explicit:
+The `pirate-spaces-signer` repo is not the verifier service. It belongs to the superseded digest
+signature flow and should be archived with an explicit README header:
 
 ```text
-Not the verifier service. This is a local CLI helper for signing verification digests.
+Deprecated. Not the verifier service. Spaces verification now uses Fabric publish verification.
 ```
 
 ## Archive Targets
 
 Archive `spaces-publisher` because the missing `pirate-` prefix makes it look like upstream or
 community tooling, and `pirate-spaces-publisher` is the active name.
+
+Archive `pirate-spaces-signer` because the digest-signing flow was replaced by Fabric publish
+verification.
 
 Archive `pirate-verifier` because the name is too broad and overlaps the verifier, publisher, and
 signer concepts.
