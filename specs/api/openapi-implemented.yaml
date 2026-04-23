@@ -8729,6 +8729,171 @@ components:
         duration_ms:
           type: integer
           nullable: true
+    PostEmbed:
+      oneOf:
+        - $ref: "#/components/schemas/XPostEmbed"
+        - $ref: "#/components/schemas/YouTubeVideoEmbed"
+    XEmbedPreview:
+      type: object
+      additionalProperties: false
+      properties:
+        author_name:
+          type: string
+          nullable: true
+        author_url:
+          type: string
+          format: uri
+          nullable: true
+        text:
+          type: string
+          nullable: true
+        has_media:
+          type: boolean
+        media_url:
+          type: string
+          format: uri
+          nullable: true
+        created_at:
+          type: string
+          nullable: true
+    XPostEmbed:
+      type: object
+      additionalProperties: false
+      required:
+        - embed_id
+        - embed_key
+        - provider
+        - canonical_url
+        - original_url
+        - state
+      properties:
+        embed_id:
+          type: string
+        embed_key:
+          type: string
+        provider:
+          type: string
+          enum:
+            - x
+        provider_ref:
+          type: string
+          nullable: true
+        canonical_url:
+          type: string
+          format: uri
+        original_url:
+          type: string
+          format: uri
+        state:
+          type: string
+          enum:
+            - pending
+            - preview
+            - embed
+            - unavailable
+        preview:
+          $ref: "#/components/schemas/XEmbedPreview"
+          nullable: true
+        oembed_html:
+          type: string
+          nullable: true
+        oembed_cache_age:
+          type: integer
+          nullable: true
+        unavailable_reason:
+          type: string
+          enum:
+            - deleted
+            - withheld
+            - private
+            - unsupported
+            - unknown
+          nullable: true
+        last_checked_at:
+          type: string
+          format: date-time
+          nullable: true
+    YouTubeEmbedPreview:
+      type: object
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          nullable: true
+        author_name:
+          type: string
+          nullable: true
+        author_url:
+          type: string
+          format: uri
+          nullable: true
+        thumbnail_url:
+          type: string
+          format: uri
+          nullable: true
+        thumbnail_width:
+          type: integer
+          nullable: true
+        thumbnail_height:
+          type: integer
+          nullable: true
+    YouTubeVideoEmbed:
+      type: object
+      additionalProperties: false
+      required:
+        - embed_id
+        - embed_key
+        - provider
+        - canonical_url
+        - original_url
+        - state
+      properties:
+        embed_id:
+          type: string
+        embed_key:
+          type: string
+        provider:
+          type: string
+          enum:
+            - youtube
+        provider_ref:
+          type: string
+          nullable: true
+        canonical_url:
+          type: string
+          format: uri
+        original_url:
+          type: string
+          format: uri
+        state:
+          type: string
+          enum:
+            - pending
+            - preview
+            - embed
+            - unavailable
+        preview:
+          $ref: "#/components/schemas/YouTubeEmbedPreview"
+          nullable: true
+        oembed_html:
+          type: string
+          nullable: true
+        oembed_cache_age:
+          type: integer
+          nullable: true
+        unavailable_reason:
+          type: string
+          enum:
+            - deleted
+            - withheld
+            - private
+            - unsupported
+            - unknown
+          nullable: true
+        last_checked_at:
+          type: string
+          format: date-time
+          nullable: true
     Question:
       type: object
       required:

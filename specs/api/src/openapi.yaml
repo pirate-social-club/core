@@ -660,6 +660,16 @@ components:
       $ref: ./components/schemas/posts.yaml#/LocalizedPostResponse
     MediaDescriptor:
       $ref: ./components/schemas/posts.yaml#/MediaDescriptor
+    PostEmbed:
+      $ref: ./components/schemas/posts.yaml#/PostEmbed
+    XEmbedPreview:
+      $ref: ./components/schemas/posts.yaml#/XEmbedPreview
+    XPostEmbed:
+      $ref: ./components/schemas/posts.yaml#/XPostEmbed
+    YouTubeEmbedPreview:
+      $ref: ./components/schemas/posts.yaml#/YouTubeEmbedPreview
+    YouTubeVideoEmbed:
+      $ref: ./components/schemas/posts.yaml#/YouTubeVideoEmbed
     Question:
       $ref: ./components/schemas/questions.yaml#/Question
     CreateQuestionRequest:

@@ -172,7 +172,17 @@ const SCHEMA_GROUPS: Record<string, readonly string[]> = {
     "SongArtifactUpload",
     "SongArtifactBundle",
   ],
-  posts: ["CreatePostRequest", "Post", "LocalizedPostResponse", "MediaDescriptor"],
+  posts: [
+    "CreatePostRequest",
+    "Post",
+    "LocalizedPostResponse",
+    "MediaDescriptor",
+    "PostEmbed",
+    "XEmbedPreview",
+    "XPostEmbed",
+    "YouTubeEmbedPreview",
+    "YouTubeVideoEmbed",
+  ],
   questions: ["Question", "CreateQuestionRequest", "QuestionAnswer"],
   feeds: ["FeedResponse", "FeedItem"],
   tracks: [
