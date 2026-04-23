@@ -77,9 +77,11 @@ class HttpError extends Error {
 
 function authorize(request: Request, env: Env) {
   const requireAccess = env.REQUIRE_ACCESS !== "false"
+  const hostname = new URL(request.url).hostname
+  const isLocalhost = hostname === "127.0.0.1" || hostname === "localhost"
   const email = request.headers.get("Cf-Access-Authenticated-User-Email")?.toLowerCase() ?? ""
 
-  if (requireAccess && !email) {
+  if (requireAccess && !isLocalhost && !email) {
     throw new HttpError(401, "Cloudflare Access identity is required")
   }
 
