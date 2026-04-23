@@ -30,7 +30,7 @@ Do not treat `.env.dev.example` or `.env.production.example` as proof of the liv
 Unauthenticated route-surface check:
 
 ```bash
-PIRATE_WEB_DIR="${PIRATE_WEB_DIR:-pirate-web}"
+PIRATE_WEB_DIR="${PIRATE_WEB_DIR:-/home/t42/Documents/pirate-workspace/web}"
 cd "$PIRATE_WEB_DIR"
 rtk bun run smoke:onboarding -- --url <api-base-url>
 ```
@@ -44,7 +44,7 @@ This verifies:
 Optional authenticated check:
 
 ```bash
-PIRATE_WEB_DIR="${PIRATE_WEB_DIR:-pirate-web}"
+PIRATE_WEB_DIR="${PIRATE_WEB_DIR:-/home/t42/Documents/pirate-workspace/web}"
 cd "$PIRATE_WEB_DIR"
 rtk bun run smoke:onboarding -- --url <api-base-url> --token <pirate-access-token>
 ```

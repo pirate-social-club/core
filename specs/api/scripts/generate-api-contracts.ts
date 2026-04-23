@@ -5,13 +5,19 @@ import { loadSourceSchemas, type BundleSpec, TypeGenerator } from "./_typegen";
 
 const SOURCE_SCHEMA_DIR = "specs/api/src/components/schemas";
 function defaultApiContractsDir(): string {
+  if (existsSync("../pirate-workspace/api/services/contracts")) {
+    return "../pirate-workspace/api/services/contracts";
+  }
+  if (existsSync("../../../pirate-workspace/api/services/contracts")) {
+    return "../../../pirate-workspace/api/services/contracts";
+  }
   if (existsSync("pirate-api/services/contracts")) {
     return "pirate-api/services/contracts";
   }
   if (existsSync("../../pirate-api/services/contracts")) {
     return "../../pirate-api/services/contracts";
   }
-  return "pirate-api/services/contracts";
+  return "../pirate-workspace/api/services/contracts";
 }
 
 const API_CONTRACTS_DIR = process.env.API_CONTRACTS_DIR || defaultApiContractsDir();

@@ -40,7 +40,8 @@ belong in `core`.
 
 ## Local Workspace Sidecars
 
-Runtime repos may still appear inside this working directory:
+Runtime repos now live in `/home/t42/Documents/pirate-workspace` on this machine. These legacy roots
+may still appear inside the `core` working directory on older checkouts:
 
 - `pirate-api/`
 - `pirate-web/`
@@ -49,7 +50,7 @@ Runtime repos may still appear inside this working directory:
 - `pirate-desktop/`
 - `openclaw-pirate-plugin/`
 
-They are not tracked by `core`. They are local sidecar checkouts of the standalone repos:
+They must not be tracked by `core`. They are local sidecar checkouts of the standalone repos:
 
 - `pirate-social-club/web`
 - `pirate-social-club/contracts`
@@ -57,7 +58,8 @@ They are not tracked by `core`. They are local sidecar checkouts of the standalo
 - `pirate-social-club/tui`
 - `pirate-social-club/desktop`
 
-This keeps the workspace convenient without turning `core` into a shadow monorepo.
+The canonical local workspace now keeps those repos beside `core`, not inside it. This keeps the
+workspace convenient without turning `core` into a shadow monorepo.
 
 These sidecars can now move to a sibling workspace such as `/home/t42/Documents/pirate-workspace`.
 Scripts and active runbooks that need sidecar paths should use checkout variables instead of assuming

@@ -6,7 +6,7 @@
 
 `specs/api/openapi-implemented.yaml` is the generated SDK-facing artifact that keeps only operations explicitly marked `x-implemented: true`.
 
-`pirate-api/services/contracts/src/index.ts` is the generated shared contract package consumed by the worker and CLI. It is rebuilt from `specs/api/openapi-implemented.yaml`.
+`/home/t42/Documents/pirate-workspace/api/services/contracts/src/index.ts` is the generated shared contract package consumed by the worker and CLI. It is rebuilt from `specs/api/openapi-implemented.yaml`.
 
 ## Layout
 
@@ -42,9 +42,9 @@
 - `rtk bun specs/api/scripts/generate-reference-template-types.ts`
   Rewrites `specs/api/compatibility/reference-template-api.ts`, the surviving compatibility artifact from the retired reference template.
 - `cd specs/api && bun run generate-api-contracts`
-  Regenerates the shared API contracts package consumed by `pirate-api/services/api` and `pirate-api/services/cli`.
+  Regenerates the shared API contracts package consumed by the API worker and CLI.
 - `rtk bun specs/api/scripts/generate-api-contracts.ts`
-  Rewrites `pirate-api/services/contracts/src/index.ts` from the implemented OpenAPI bundle.
+  Rewrites the API sidecar contracts package from the implemented OpenAPI bundle. Set `API_CONTRACTS_DIR` to target a non-default checkout.
 - `cd specs/api && bun run typecheck-api-contracts`
   Typechecks the generated API contracts package with its pinned local TypeScript dependency.
 - `cd specs/api && bun run verify`
@@ -65,5 +65,5 @@
 
 1. Edit files under `specs/api/src/`.
 2. Run `rtk bun specs/api/scripts/verify-openapi.ts`.
-3. Review the resulting diff in `specs/api/openapi.yaml`, `specs/api/openapi-implemented.yaml`, `specs/api/compatibility/reference-template-api.ts`, and `pirate-api/services/contracts/src/index.ts`.
+3. Review the resulting diff in `specs/api/openapi.yaml`, `specs/api/openapi-implemented.yaml`, `specs/api/compatibility/reference-template-api.ts`, and the API sidecar contracts package.
 4. Use `specs/api/openapi-implemented.yaml` as the generated-client and SDK input surface.

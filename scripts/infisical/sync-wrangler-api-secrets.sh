@@ -26,8 +26,8 @@ Examples:
     ./scripts/infisical/sync-wrangler-api-secrets.sh
 
   ./scripts/infisical/sync-wrangler-api-secrets.sh \
-    --api-dir pirate-api/services/api \
-    --env-file pirate-api/services/api/.dev.vars \
+    --api-dir ../pirate-workspace/api/services/api \
+    --env-file ../pirate-workspace/api/services/api/.dev.vars \
     --worker-name pirate-api-staging \
     --wrangler-env staging
 EOF
@@ -74,7 +74,7 @@ done
 
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 if [[ -z "$API_DIR" ]]; then
-  for candidate in "$ROOT_DIR/pirate-api/services/api" "$ROOT_DIR/../pirate-workspace/api/services/api"; do
+  for candidate in "$ROOT_DIR/../pirate-workspace/api/services/api" "$ROOT_DIR/pirate-api/services/api"; do
     if [[ -d "$candidate" ]]; then
       API_DIR="$candidate"
       break

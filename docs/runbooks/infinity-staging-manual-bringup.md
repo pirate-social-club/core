@@ -26,8 +26,8 @@ Bring up one operator-managed Infinity community on staging with:
 - operator provisioning implementation in [scripts/lib/turso-control-plane.ts](../../scripts/lib/turso-control-plane.ts)
 - operator HTTP surface in [scripts/turso/turso-control-plane-operator.ts](../../scripts/turso/turso-control-plane-operator.ts)
 - operator validation command in [scripts/turso/turso-control-plane.ts](../../scripts/turso/turso-control-plane.ts)
-- runtime remote community DB read path in [community-db-factory.ts](../../pirate-api/services/api/src/lib/communities/community-db-factory.ts)
-- credential encryption in [community-db-credential-crypto.ts](../../pirate-api/services/api/src/lib/communities/community-db-credential-crypto.ts)
+- runtime remote community DB read path in `services/api/src/lib/communities/community-db-factory.ts`
+- credential encryption in `services/api/src/lib/communities/community-db-credential-crypto.ts`
 - control-plane tables for `community_database_bindings` and `community_db_credentials`
 
 ## Required Inputs
@@ -42,7 +42,7 @@ Use stable identifiers:
 
 You also need:
 
-- API staging runtime env in [pirate-api/services/api/.env.staging.example](../../pirate-api/services/api/.env.staging.example)
+- API staging runtime env in `$PIRATE_API_DIR/.env.staging.example`
 - operator staging env in [scripts/infisical/.env.operator-staging.example](../../scripts/infisical/.env.operator-staging.example)
 - operator env wrapper in [scripts/infisical/operator-env-run.sh](../../scripts/infisical/operator-env-run.sh)
 - a Turso organization slug
@@ -55,6 +55,8 @@ Set the shared command variables once:
 cd /home/t42/Documents/pirate-v2
 
 export PIRATE_OPERATOR_ENV_FILE=scripts/.env.operator-staging
+export PIRATE_API_DIR=/home/t42/Documents/pirate-workspace/api/services/api
+export PIRATE_WEB_DIR=/home/t42/Documents/pirate-workspace/web
 export PIRATE_COMMUNITY_ID=cmt_infinity_01
 export PIRATE_CREATOR_USER_ID=usr_infinity_01
 export PIRATE_NAMESPACE_VERIFICATION_ID=nv_infinity_usr_infinity_01
@@ -96,7 +98,7 @@ Bootstrap the staging Infisical paths from the current local staging env values:
 ```bash
 cd /home/t42/Documents/pirate-v2
 set -a
-PIRATE_API_DIR="${PIRATE_API_DIR:-pirate-api/services/api}"
+PIRATE_API_DIR="${PIRATE_API_DIR:-/home/t42/Documents/pirate-workspace/api/services/api}"
 source "$PIRATE_API_DIR/.env.staging"
 source scripts/.env.operator-staging
 set +a
@@ -186,7 +188,7 @@ If the operator command cannot be used, the remaining sections describe the unde
 
 ### 5. Understand the credential step
 
-Encrypt the Turso database token with `TURSO_COMMUNITY_DB_WRAP_KEY` using [encryptCommunityDbCredential](../../pirate-api/services/api/src/lib/communities/community-db-credential-crypto.ts).
+Encrypt the Turso database token with `TURSO_COMMUNITY_DB_WRAP_KEY` using `encryptCommunityDbCredential` in `services/api/src/lib/communities/community-db-credential-crypto.ts`.
 
 The output is the `encrypted_token` value stored in the control plane.
 
@@ -231,8 +233,8 @@ The community DB bootstrap logic already exists in the local path. Reuse that pa
 
 Use the staging runtime env files and confirm the API is reading the Neon control plane plus the Turso binding:
 
-- `pirate-api/services/api/.env.staging`
-- `pirate-web/.env.staging`
+- `$PIRATE_API_DIR/.env.staging`
+- `$PIRATE_WEB_DIR/.env.staging`
 
 Do not put `TURSO_PLATFORM_API_TOKEN` in the API runtime env.
 

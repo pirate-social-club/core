@@ -295,7 +295,7 @@ credentials encrypted by one cannot be decrypted by the other.
 
 ```bash
 PIRATE_CORE_REPO="${PIRATE_CORE_REPO:-/home/t42/Documents/pirate-v2}"
-PIRATE_API_REPO="${PIRATE_API_REPO:-$PIRATE_CORE_REPO/pirate-api}"
+PIRATE_API_REPO="${PIRATE_API_REPO:-/home/t42/Documents/pirate-workspace/api}"
 cd "$PIRATE_API_REPO"
 git log --oneline -1
 ```
@@ -623,7 +623,7 @@ Decision: _______________________
 
 ```bash
 PIRATE_CORE_REPO="${PIRATE_CORE_REPO:-/home/t42/Documents/pirate-v2}"
-PIRATE_API_REPO="${PIRATE_API_REPO:-$PIRATE_CORE_REPO/pirate-api}"
+PIRATE_API_REPO="${PIRATE_API_REPO:-/home/t42/Documents/pirate-workspace/api}"
 cd "$PIRATE_API_REPO"
 git status
 git diff --stat
@@ -655,7 +655,7 @@ Either:
 ```bash
 # Code repo
 PIRATE_CORE_REPO="${PIRATE_CORE_REPO:-/home/t42/Documents/pirate-v2}"
-PIRATE_API_REPO="${PIRATE_API_REPO:-$PIRATE_CORE_REPO/pirate-api}"
+PIRATE_API_REPO="${PIRATE_API_REPO:-/home/t42/Documents/pirate-workspace/api}"
 cd "$PIRATE_API_REPO"
 git add services/api/src/lib/communities/community-service.ts \
        services/api/tests/community-routes.test.ts

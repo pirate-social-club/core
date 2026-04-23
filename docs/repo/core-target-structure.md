@@ -24,7 +24,8 @@ These roots belong in `core`:
 
 ## Local Sidecars
 
-These roots may exist locally for convenience, but they are not part of tracked `core` state:
+These legacy roots may exist locally for convenience on older checkouts, but they are not part of
+tracked `core` state:
 
 - `pirate-api/`
 - `pirate-web/`
@@ -35,7 +36,8 @@ These roots may exist locally for convenience, but they are not part of tracked 
 - `freedom-browser/`
 - `openclaw-pirate-plugin/`
 
-They are sidecar checkouts of the standalone runtime repos.
+They are sidecar checkouts of the standalone runtime repos. On this machine, the canonical local
+workspace is now `/home/t42/Documents/pirate-workspace`.
 
 These sidecars can move out of the `core` checkout once local operators set checkout variables for
 the repos they need. The preferred sibling workspace is `/home/t42/Documents/pirate-workspace`.
