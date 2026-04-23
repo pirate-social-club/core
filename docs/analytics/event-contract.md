@@ -186,7 +186,10 @@ Events carry additional context in `properties_json`. Key property schemas:
 ```json
 {
   "provider": "self" | "very",
-  "failure_code": "expired" | "invalid_proof" | "provider_error" | "unknown"
+  "failure_code": "expired" | "invalid_proof" | "provider_error" | "unknown",
+  "provider_error_code": "string",
+  "attempt_number": 1,
+  "latency_ms": 1234
 }
 ```
 
