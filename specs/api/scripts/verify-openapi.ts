@@ -113,9 +113,8 @@ async function main() {
     "API contracts generation",
   );
   runStep(
-    "./node_modules/.bin/tsc --noEmit",
+    `${BUN_COMMAND} specs/api/scripts/typecheck-api-contracts.ts`,
     "API contracts typecheck",
-    "pirate-api/services/contracts",
   );
   const providerMatrixSummary = runJsonStep<{
     validated_proof_types: string[];

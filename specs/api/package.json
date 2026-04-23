@@ -9,7 +9,7 @@
     "bundle:implemented": "bun scripts/bundle-openapi-implemented.ts",
     "generate-api-contracts": "bun scripts/generate-api-contracts.ts",
     "generate-reference-template-types": "bun scripts/generate-reference-template-types.ts",
-    "typecheck-api-contracts": "../../pirate-api/services/contracts/node_modules/.bin/tsc --noEmit -p ../../pirate-api/services/contracts/tsconfig.json",
+    "typecheck-api-contracts": "bun scripts/typecheck-api-contracts.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "verify": "bun scripts/verify-openapi.ts",
     "validate-provider-matrix": "bun scripts/validate-provider-matrix.ts",

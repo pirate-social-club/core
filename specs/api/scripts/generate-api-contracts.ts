@@ -1,9 +1,21 @@
+import { existsSync } from "node:fs";
 import { parse } from "yaml";
 import { IMPLEMENTED_BUNDLE_FILE } from "./_shared";
 import { loadSourceSchemas, type BundleSpec, TypeGenerator } from "./_typegen";
 
 const SOURCE_SCHEMA_DIR = "specs/api/src/components/schemas";
-const OUTPUT_FILE = process.env.API_CONTRACTS_OUTPUT_FILE || "pirate-api/services/contracts/src/index.ts";
+function defaultApiContractsDir(): string {
+  if (existsSync("pirate-api/services/contracts")) {
+    return "pirate-api/services/contracts";
+  }
+  if (existsSync("../../pirate-api/services/contracts")) {
+    return "../../pirate-api/services/contracts";
+  }
+  return "pirate-api/services/contracts";
+}
+
+const API_CONTRACTS_DIR = process.env.API_CONTRACTS_DIR || defaultApiContractsDir();
+const OUTPUT_FILE = process.env.API_CONTRACTS_OUTPUT_FILE || `${API_CONTRACTS_DIR}/src/index.ts`;
 
 const TYPE_EXPORTS = [
   { name: "ErrorResponse", ref: "#/components/schemas/Error" },
