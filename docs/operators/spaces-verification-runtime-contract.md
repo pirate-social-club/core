@@ -88,7 +88,7 @@ Sidecar endpoints:
 
 - `GET /health`
 - `GET /inspect?root_label=@space`
-- `GET /resolve?root_label=@space`
+- `GET /resolve?handle=@space`
 - `POST /verify-publish`
 
 `POST /verify-publish` checks:
@@ -163,10 +163,10 @@ Failure mapping guidance:
 - stale anchor set: `anchor_set_stale`
 - proof failure: `proof_not_verifiable`
 - proof/root mismatch: `proof_root_mismatch`
-- missing TXT record: `fabric_verify_record_not_found`
-- wrong TXT value: `fabric_verify_record_mismatch`
-- wrong web target: `fabric_web_target_mismatch`
-- wrong Freedom target: `fabric_freedom_target_mismatch`
+- missing TXT record: `pirate_verify_record_missing`
+- wrong TXT value: `pirate_verify_record_mismatch`
+- wrong web target: `web_target_mismatch`
+- wrong Freedom target: `freedom_target_mismatch`
 - challenge expired: `session_expired`
 - creator lacks `unique_human`: `creator_not_unique_human_verified`
 
