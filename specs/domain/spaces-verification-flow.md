@@ -140,7 +140,7 @@ Meaning:
 - `inspecting`
   Pirate is normalizing the submitted root, loading anchors, fetching a proof, and checking whether the root exists under an accepted anchor.
 - `challenge_required`
-  Pirate has a valid current root proof and is ready to issue a session-bound signing challenge.
+  Pirate has a valid current root proof and is ready to issue a session-bound Fabric publish challenge.
 - `challenge_pending`
   Pirate issued a challenge and is waiting for the creator to publish the Fabric records.
 - `verifying`
@@ -192,10 +192,10 @@ Suggested Spaces verification-session fields:
 
 Challenge convention:
 
-- shared session storage should not hardcode HNS TXT-only fields or Spaces digest-only fields
+- shared session storage should not hardcode HNS TXT-only fields or Spaces publish-only fields
 - use `challenge_kind` plus `challenge_payload_json` for family-specific challenge material
 - HNS challenge details such as `challenge_host` and `challenge_txt_value` become HNS payload fields
-- Spaces challenge details such as message, digest, and signing-domain metadata become Spaces payload fields
+- Spaces challenge details such as `pirate-verify`, `web`, and `freedom` target values become Spaces payload fields
 - existing HNS rows may still carry `challenge_host` and `challenge_txt_value` as legacy denormalized fields until HNS writers are migrated
 
 ## Recommended Public V0 Order
@@ -251,7 +251,7 @@ Outcomes:
 
 - if the root does not exist, fail the session
 - if anchors cannot be fetched or the proof does not verify, fail closed
-- if inspection succeeds, set `root_exists = true`, `root_key_proof_verified = true`, and issue a signing challenge
+- if inspection succeeds, set `root_exists = true`, `root_key_proof_verified = true`, and issue a Fabric publish challenge
 
 Important:
 
@@ -259,14 +259,16 @@ Important:
 - recommend accepting anchors only when the newest accepted anchor used for the proof is roughly within a 4-to-24-hour freshness window relative to verification time
 - the exact threshold remains implementation-tunable, but Pirate should reject obviously stale provider snapshots
 
-### 3. Issue Signing Challenge
+### 3. Issue Fabric Publish Challenge
 
-Pirate issues a session-bound signing challenge for the current root key.
+Pirate issues a session-bound Fabric publish challenge for the current root.
 
 The challenge should include:
 
-- a human-readable challenge message
-- the exact digest Pirate expects to be signed
+- the TXT key `pirate-verify`
+- the exact TXT value Pirate expects to resolve
+- the expected `web` target
+- the expected `freedom` target
 - challenge expiration time
 
 Recommended value shape:
@@ -280,22 +282,22 @@ Rationale:
 - a static challenge is replayable
 - Pirate needs fresh creator-bound proof for the current session
 
-The frontend should display the challenge payload returned by the API and ask the user to sign that exact message or digest with the current root key.
+The frontend should display the publish command generated from the challenge payload and ask the user to run it with the wallet that controls the current root.
 
-### 4. Receive Signature
+### 4. Receive Publish Check
 
-The creator signs the challenge using the current key that controls the verified Spaces root.
+After the creator runs the publisher command, Pirate checks the current Fabric zone for the expected records.
 
 Pirate should accept:
 
-- a compact Fabric publish payload
+- the completion request for the active challenge
 - optional client metadata describing which publisher surface was used
 
-Pirate should not trust client-reported public keys when verifying the session.
+Pirate should not trust client-reported records when verifying the session.
 
-The public key used for verification must come from the previously verified root proof.
+The records used for verification must come from the verifier's current Fabric resolution path.
 
-### 5. Verify Signature Against Verified Root Key
+### 5. Verify Fabric Publish Against Verified Root
 
 After the operator publishes the challenge records, Pirate verifies:
 
@@ -383,7 +385,7 @@ Recommended evidence components:
 - raw or referenced proof payload
 - proof hash
 - derived current public key
-- challenge message or digest
+- challenge TXT value and expected route targets
 - observed Fabric records
 - evidence hash
 
@@ -413,9 +415,10 @@ Suggested session failure reasons:
 - `anchor_set_stale`
 - `proof_not_verifiable`
 - `proof_root_mismatch`
-- `challenge_not_signed`
+- `pirate_verify_record_missing`
 - `pirate_verify_record_mismatch`
 - `web_target_mismatch`
+- `freedom_target_mismatch`
 - `creator_not_unique_human_verified`
 - `session_expired`
 - `contradictory_root_evidence`
@@ -430,7 +433,7 @@ Minimum operations:
 
 1. start Spaces namespace verification session
 2. inspect Spaces namespace verification session
-3. complete or refresh Spaces namespace verification session after the creator signs the issued challenge
+3. complete or refresh Spaces namespace verification session after the creator publishes the issued challenge
 4. inspect accepted verification by `namespace_verification_id`
 
 The path family may stay shared with HNS, but the write model must preserve:
@@ -630,7 +633,7 @@ Recommended session shape:
 Examples:
 
 - HNS payload includes record host and TXT value
-- Spaces payload includes human-readable challenge message, digest, and any signing-domain metadata Pirate requires
+- Spaces payload includes `pirate-verify`, `web`, and `freedom` target values
 - the old `challenge_host` and `challenge_txt_value` columns become legacy HNS compatibility fields rather than the target write path
 
 ### Denormalization Rule
@@ -663,7 +666,7 @@ This flow does not define:
 - Pirate-managed `name@space` issuance
 - delegated-handle certificate acceptance
 - public sale or claim of subspaces
-- multisig or DAO-specific Spaces signing UX
+- multisig or DAO-specific Spaces publishing UX
 - message-bundle verification for owner-signed off-chain records
 
 Those can be layered later without changing the core phase-1 goal:
