@@ -4,8 +4,9 @@ set -euo pipefail
 usage() {
   cat >&2 <<'EOF'
 Usage:
-  ./scripts/infisical/sync-wrangler-api-secrets.sh [--env-file PATH] [--worker-name NAME] [--wrangler-env ENV] [--profile PROFILE]
+  ./scripts/infisical/sync-wrangler-api-secrets.sh [--api-dir PATH] [--env-file PATH] [--worker-name NAME] [--wrangler-env ENV] [--profile PROFILE]
 
+If --api-dir is omitted, the script uses API_DIR or defaults to pirate-api/services/api.
 If --env-file is omitted, the script reads from the current exported environment.
 If --worker-name is omitted, the script syncs the worker named in wrangler.jsonc.
 If --wrangler-env is omitted, the script targets Wrangler's top-level environment.
@@ -18,6 +19,7 @@ Required and optional secret names come from scripts/lib/infisical-env-contract.
 
 Examples:
   ./scripts/infisical/sync-wrangler-api-secrets.sh \
+    --api-dir ../pirate-workspace/api/services/api \
     --env-file pirate-api/services/api/.env.remote
 
   rtk infisical run --env staging --path /services/api -- \
@@ -32,12 +34,17 @@ EOF
 }
 
 ENV_FILE=""
+API_DIR="${API_DIR:-}"
 WORKER_NAME="pirate-api-core"
 WRANGLER_ENV=""
 PROFILE="happy-path"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --api-dir)
+      API_DIR="${2:-}"
+      shift 2
+      ;;
     --env-file)
       ENV_FILE="${2:-}"
       shift 2
@@ -65,7 +72,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-API_DIR="$ROOT_DIR/pirate-api/services/api"
+if [[ -z "$API_DIR" ]]; then
+  API_DIR="$ROOT_DIR/pirate-api/services/api"
+elif [[ "$API_DIR" != /* ]]; then
+  API_DIR="$ROOT_DIR/$API_DIR"
+fi
 WRANGLER="$API_DIR/node_modules/.bin/wrangler"
 
 case "$PROFILE" in
