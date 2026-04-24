@@ -10,6 +10,7 @@ import {
   defineDatasource,
   defineEndpoint,
   defineMaterializedView,
+  defineToken,
   engine,
   node,
   p,
@@ -18,6 +19,8 @@ import {
   type InferParams,
   type InferRow,
 } from "@tinybirdco/sdk"
+
+export const analyticsIngestToken = defineToken("analytics_ingest")
 
 export const analyticsEventsRaw = defineDatasource("analytics_events_raw", {
   description: "Raw append-only Pirate analytics events.",
@@ -49,6 +52,7 @@ export const analyticsEventsRaw = defineDatasource("analytics_events_raw", {
     sortingKey: ["event_time", "event_name", "user_id_hash", "event_id"],
     ttl: "toDateTime(event_time) + toIntervalDay(365)",
   }),
+  tokens: [{ token: analyticsIngestToken, scope: "APPEND" }],
 })
 
 export type AnalyticsEventRow = InferRow<typeof analyticsEventsRaw>
@@ -82,6 +86,7 @@ export const onboardingStepsMv = defineDatasource("onboarding_steps_mv", {
     environment: t.string().lowCardinality(),
     source: t.string().lowCardinality(),
     user_id_hash: t.string(),
+    anonymous_id: t.string(),
     session_id: t.string(),
     step_name: t.string().lowCardinality(),
     step_order: t.uint8(),
@@ -89,7 +94,7 @@ export const onboardingStepsMv = defineDatasource("onboarding_steps_mv", {
   },
   engine: engine.mergeTree({
     partitionKey: "toYYYYMM(event_time)",
-    sortingKey: ["environment", "event_time", "step_order", "user_id_hash", "event_id"],
+    sortingKey: ["environment", "event_time", "step_order", "user_id_hash", "anonymous_id", "event_id"],
     ttl: "toDateTime(event_time) + toIntervalDay(365)",
   }),
 })
@@ -209,14 +214,15 @@ export const mvOnboardingSteps = defineMaterializedView("mv_onboarding_steps", {
     node({
       name: "materialize_onboarding_steps",
       sql: `
-        SELECT
-          event_id,
-          event_time,
-          environment,
-          source,
-          user_id_hash,
-          session_id,
-          event_name AS step_name,
+          SELECT
+            event_id,
+            event_time,
+            environment,
+            source,
+            user_id_hash,
+            anonymous_id,
+            session_id,
+            event_name AS step_name,
           multiIf(
             event_name = 'auth_started', 10,
             event_name = 'auth_session_exchanged', 20,
@@ -282,6 +288,7 @@ export const mvActivationCohorts = defineMaterializedView("mv_activation_cohorts
           event_name AS activation_name
         FROM analytics_events_raw
         WHERE event_name IN (
+          'community_join_succeeded',
           'post_created',
           'comment_created',
           'post_voted',
@@ -399,9 +406,36 @@ export const onboardingFunnel = defineEndpoint("onboarding_funnel", {
       name: "endpoint",
       sql: `
         WITH
+          identity_map AS (
+            SELECT
+              anonymous_id,
+              any(user_id_hash) AS mapped_user_id_hash
+            FROM onboarding_steps_mv
+            WHERE environment = {{String(environment)}}
+            AND anonymous_id != ''
+            AND user_id_hash != ''
+            GROUP BY anonymous_id
+          ),
+          stitched_steps AS (
+            SELECT
+              if(
+                s.user_id_hash != '',
+                s.user_id_hash,
+                ifNull(nullIf(m.mapped_user_id_hash, ''), s.anonymous_id)
+              ) AS actor_id,
+              s.step_name,
+              s.event_time
+            FROM onboarding_steps_mv AS s
+            LEFT JOIN identity_map AS m USING anonymous_id
+            WHERE s.environment = {{String(environment)}}
+            AND (
+              s.user_id_hash != ''
+              OR s.anonymous_id != ''
+            )
+          ),
           cohort AS (
             SELECT
-              user_id_hash,
+              actor_id,
               minIf(event_time, step_name = 'auth_started') AS auth_started_at,
               minIf(event_time, step_name = 'auth_session_exchanged') AS auth_exchanged_at,
               minIf(event_time, step_name = 'unique_human_verification_started') AS human_verify_started_at,
@@ -416,9 +450,8 @@ export const onboardingFunnel = defineEndpoint("onboarding_funnel", {
               minIf(event_time, step_name = 'handle_claim_succeeded') AS handle_claim_succeeded_at,
               minIf(event_time, step_name = 'onboarding_completed') AS onboarding_completed_at,
               minIf(event_time, step_name = 'onboarding_skipped') AS onboarding_skipped_at
-            FROM onboarding_steps_mv
-            WHERE environment = {{String(environment)}}
-            GROUP BY user_id_hash
+            FROM stitched_steps
+            GROUP BY actor_id
             HAVING auth_started_at > toDateTime64('1970-01-01 00:00:00', 3, 'UTC')
             AND auth_started_at >= {{DateTime64(cohort_start)}}
             AND auth_started_at < {{DateTime64(cohort_end)}}
@@ -447,7 +480,7 @@ export const onboardingFunnel = defineEndpoint("onboarding_funnel", {
           step_order,
           step_name,
           users,
-          round(users / nullIf(started_users, 0), 4) AS rate_from_start
+          ifNull(round(users / nullIf(started_users, 0), 4), 0) AS rate_from_start
         FROM funnel
         CROSS JOIN baseline
         ORDER BY step_order ASC
@@ -464,6 +497,77 @@ export const onboardingFunnel = defineEndpoint("onboarding_funnel", {
 
 export type OnboardingFunnelParams = InferParams<typeof onboardingFunnel>
 export type OnboardingFunnelOutput = InferOutputRow<typeof onboardingFunnel>
+
+export const communityJoinFunnel = defineEndpoint("community_join_funnel", {
+  description: "Community join funnel across views, join intent, verification, and successful membership.",
+  params: {
+    environment: p.string(),
+    start_time: p.dateTime64().optional("1970-01-01 00:00:00.000"),
+    end_time: p.dateTime64().optional("2100-01-01 00:00:00.000"),
+    community_id: p.string().optional(""),
+  },
+  nodes: [
+    node({
+      name: "endpoint",
+      sql: `
+        WITH
+          scoped_events AS (
+            SELECT
+              event_name,
+              event_time,
+              if(user_id_hash != '', user_id_hash, anonymous_id) AS actor_id,
+              community_id,
+              properties_json
+            FROM analytics_events_raw
+            WHERE environment = {{String(environment)}}
+            AND event_time >= {{DateTime64(start_time)}}
+            AND event_time < {{DateTime64(end_time)}}
+            AND event_name IN (
+              'community_viewed',
+              'community_join_requested',
+              'unique_human_verification_started',
+              'unique_human_verification_succeeded',
+              'community_join_succeeded'
+            )
+            AND if(user_id_hash != '', user_id_hash, anonymous_id) != ''
+            AND (
+              {{String(community_id)}} = ''
+              OR community_id = {{String(community_id)}}
+              OR event_name IN ('unique_human_verification_started', 'unique_human_verification_succeeded')
+            )
+          ),
+          funnel AS (
+            SELECT 10 AS step_order, 'community_viewed' AS step_name, uniqExactIf(actor_id, event_name = 'community_viewed') AS users FROM scoped_events
+            UNION ALL SELECT 20, 'community_join_requested', uniqExactIf(actor_id, event_name = 'community_join_requested') FROM scoped_events
+            UNION ALL SELECT 30, 'join_verification_started', uniqExactIf(actor_id, event_name = 'unique_human_verification_started' AND JSONExtractString(properties_json, 'intent') = 'community_join') FROM scoped_events
+            UNION ALL SELECT 40, 'join_verification_succeeded', uniqExactIf(actor_id, event_name = 'unique_human_verification_succeeded' AND JSONExtractString(properties_json, 'intent') = 'community_join') FROM scoped_events
+            UNION ALL SELECT 50, 'community_join_succeeded', uniqExactIf(actor_id, event_name = 'community_join_succeeded') FROM scoped_events
+          ),
+          baseline AS (
+            SELECT maxIf(users, step_name = 'community_viewed') AS viewed_users
+            FROM funnel
+          )
+        SELECT
+          step_order,
+          step_name,
+          users,
+          ifNull(round(users / nullIf(viewed_users, 0), 4), 0) AS rate_from_start
+        FROM funnel
+        CROSS JOIN baseline
+        ORDER BY step_order ASC
+      `,
+    }),
+  ],
+  output: {
+    step_order: t.uint8(),
+    step_name: t.string(),
+    users: t.uint64(),
+    rate_from_start: t.float64(),
+  },
+})
+
+export type CommunityJoinFunnelParams = InferParams<typeof communityJoinFunnel>
+export type CommunityJoinFunnelOutput = InferOutputRow<typeof communityJoinFunnel>
 
 export const activationFunnel = defineEndpoint("activation_funnel", {
   description: "Activation by auth-session cohort week.",
@@ -1027,6 +1131,7 @@ export const pipes = {
   mvCommerceFunnelDaily,
   mvImportQualityDaily,
   onboardingFunnel,
+  communityJoinFunnel,
   activationFunnel,
   communityHealth,
   commerceFunnel,

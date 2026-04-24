@@ -183,6 +183,43 @@ export const ENV_CONTRACT: EnvContract = {
     },
     {
       path: "/services/api",
+      key: "ANALYTICS_ENABLED",
+      requiredness: "deferred",
+    },
+    {
+      path: "/services/api",
+      key: "ANALYTICS_HMAC_SECRET",
+      requiredness: "deferred",
+    },
+    {
+      path: "/services/api",
+      key: "TINYBIRD_INGEST_TOKEN",
+      requiredness: "deferred",
+    },
+    {
+      path: "/services/api",
+      key: "TINYBIRD_TOKEN",
+      requiredness: "deferred",
+    },
+    {
+      path: "/services/api",
+      key: "TINYBIRD_URL",
+      requiredness: "deferred",
+      validate: isHttpUrl,
+    },
+    {
+      path: "/services/api",
+      key: "TINYBIRD_HOST",
+      requiredness: "deferred",
+      validate: isHttpUrl,
+    },
+    {
+      path: "/services/api",
+      key: "TINYBIRD_EVENTS_DATASOURCE",
+      requiredness: "deferred",
+    },
+    {
+      path: "/services/api",
       key: "OPENROUTER_API_KEY",
       requiredness: "required_for_hosted",
     },
@@ -498,6 +535,11 @@ export const COMMERCE_SECRET_IDS = [
   "PIRATE_CHECKOUT_USDC_TOKEN_ADDRESS__/services/api",
 ] as const;
 
+const NON_WRANGLER_API_SECRET_NAMES = new Set([
+  "TINYBIRD_TOKEN",
+  "TINYBIRD_URL",
+]);
+
 export function profileSecretIds(profile: SecretProfile): Set<string> | null {
   if (profile === "all") return null;
 
@@ -517,6 +559,7 @@ export function wranglerApiRequiredSecretNames(profile: Exclude<SecretProfile, "
 
   return ENV_CONTRACT.secrets
     .filter((spec) => spec.path === "/services/api" && selectedSecretIds.has(secretId(spec.path, spec.key)))
+    .filter((spec) => !NON_WRANGLER_API_SECRET_NAMES.has(spec.key))
     .map((spec) => spec.key);
 }
 
@@ -527,6 +570,7 @@ export function wranglerApiOptionalSecretNames(profile: Exclude<SecretProfile, "
     .filter((spec) => spec.path === "/services/api")
     .filter((spec) => spec.requiredness === "deferred")
     .map((spec) => spec.key)
+    .filter((key) => !NON_WRANGLER_API_SECRET_NAMES.has(key))
     .filter((key) => !requiredNames.has(key));
 }
 
