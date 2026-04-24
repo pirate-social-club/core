@@ -182,9 +182,9 @@ ssh <prod-vps-host> "cd /srv/pirate-spaces/app && git log --oneline -1 scripts/l
 
 Compare the revision or file contents against the known-good source in:
 
-- `/home/t42/Documents/pirate-v2/scripts/lib/turso-control-plane.ts`
-- `/home/t42/Documents/pirate-v2/scripts/lib/community-bootstrap.ts`
-- `/home/t42/Documents/pirate-v2/scripts/lib/turso-platform.ts`
+- `/home/t42/Documents/pirate-workspace/core/scripts/lib/turso-control-plane.ts`
+- `/home/t42/Documents/pirate-workspace/core/scripts/lib/community-bootstrap.ts`
+- `/home/t42/Documents/pirate-workspace/core/scripts/lib/turso-platform.ts`
 
 - [ ] Operator code matches staging (same revision)
 
@@ -294,7 +294,7 @@ credentials encrypted by one cannot be decrypted by the other.
 ### 4.1 Confirm the exact revision to deploy
 
 ```bash
-PIRATE_CORE_REPO="${PIRATE_CORE_REPO:-/home/t42/Documents/pirate-v2}"
+PIRATE_CORE_REPO="${PIRATE_CORE_REPO:-/home/t42/Documents/pirate-workspace/core}"
 PIRATE_API_REPO="${PIRATE_API_REPO:-/home/t42/Documents/pirate-workspace/api}"
 cd "$PIRATE_API_REPO"
 git log --oneline -1
@@ -622,7 +622,7 @@ Decision: _______________________
 ### 10.1 Review git status
 
 ```bash
-PIRATE_CORE_REPO="${PIRATE_CORE_REPO:-/home/t42/Documents/pirate-v2}"
+PIRATE_CORE_REPO="${PIRATE_CORE_REPO:-/home/t42/Documents/pirate-workspace/core}"
 PIRATE_API_REPO="${PIRATE_API_REPO:-/home/t42/Documents/pirate-workspace/api}"
 cd "$PIRATE_API_REPO"
 git status
@@ -654,7 +654,7 @@ Either:
 
 ```bash
 # Code repo
-PIRATE_CORE_REPO="${PIRATE_CORE_REPO:-/home/t42/Documents/pirate-v2}"
+PIRATE_CORE_REPO="${PIRATE_CORE_REPO:-/home/t42/Documents/pirate-workspace/core}"
 PIRATE_API_REPO="${PIRATE_API_REPO:-/home/t42/Documents/pirate-workspace/api}"
 cd "$PIRATE_API_REPO"
 git add services/api/src/lib/communities/community-service.ts \

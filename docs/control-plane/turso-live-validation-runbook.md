@@ -79,7 +79,7 @@ Use one stable staging fixture so the control-plane rows, Turso resources, and a
 Set the operator variables once for the whole session:
 
 ```bash
-cd /home/t42/Documents/pirate-v2
+cd /home/t42/Documents/pirate-workspace/core
 
 export PIRATE_OPERATOR_ENV_FILE=scripts/.env.operator-staging
 export PIRATE_COMMUNITY_ID=cmt_infinity_01

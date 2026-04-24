@@ -50,7 +50,7 @@ Stop if this is not true.
 From the repo root:
 
 ```bash
-cd /home/t42/Documents/pirate-v2
+cd /home/t42/Documents/pirate-workspace/core
 rtk infisical run --env prod --path /services/api -- \
   rtk bun scripts/control-plane/inventory-control-plane.ts \
   --database-url-env CONTROL_PLANE_DATABASE_URL \
@@ -68,7 +68,7 @@ Stop if `prod` does not exist.
 To reset app data while preserving migrations:
 
 ```bash
-cd /home/t42/Documents/pirate-v2
+cd /home/t42/Documents/pirate-workspace/core
 rtk infisical run --env prod --path /services/control-plane -- \
   rtk bun scripts/control-plane/reset-control-plane-app-data.ts \
   --database-url-env CONTROL_PLANE_MIGRATOR_DATABASE_URL \
@@ -81,7 +81,7 @@ rtk infisical run --env prod --path /services/control-plane -- \
 From `ops/prod`, confirm the current placeholder state:
 
 ```bash
-cd /home/t42/Documents/pirate-v2/ops/prod
+cd /home/t42/Documents/pirate-workspace/core/ops/prod
 rtk bun ../../scripts/infisical/check-infisical-env.ts --env prod
 ```
 
@@ -106,7 +106,7 @@ export CONTROL_PLANE_OWNER_DATABASE_URL='postgresql://...'
 Run:
 
 ```bash
-cd /home/t42/Documents/pirate-v2/ops/prod
+cd /home/t42/Documents/pirate-workspace/core/ops/prod
 rtk bun ../../scripts/control-plane/split-control-plane-roles.ts \
   --infisical-env prod \
   --skip-infisical \
@@ -158,7 +158,7 @@ Go only if all required shell vars are set.
 Set `/services/api`:
 
 ```bash
-cd /home/t42/Documents/pirate-v2/ops/prod
+cd /home/t42/Documents/pirate-workspace/core/ops/prod
 rtk infisical secrets set \
   CONTROL_PLANE_DATABASE_URL="$CONTROL_PLANE_DATABASE_URL" \
   TURSO_COMMUNITY_DB_WRAP_KEY="$TURSO_COMMUNITY_DB_WRAP_KEY" \
@@ -176,7 +176,7 @@ rtk infisical secrets set \
 Set the Pirate app JWT PEMs from files:
 
 ```bash
-cd /home/t42/Documents/pirate-v2/ops/prod
+cd /home/t42/Documents/pirate-workspace/core/ops/prod
 rtk infisical secrets set \
   PIRATE_APP_JWT_PRIVATE_KEY=@/tmp/pirate-app-jwt-private.pem \
   PIRATE_APP_JWT_PUBLIC_KEY=@/tmp/pirate-app-jwt-public.pem \
@@ -188,7 +188,7 @@ Set `/services/control-plane`:
 `TURSO_COMMUNITY_DB_WRAP_KEY` and `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN` must exactly match `/services/api`.
 
 ```bash
-cd /home/t42/Documents/pirate-v2/ops/prod
+cd /home/t42/Documents/pirate-workspace/core/ops/prod
 rtk infisical secrets set \
   CONTROL_PLANE_MIGRATOR_DATABASE_URL="$CONTROL_PLANE_MIGRATOR_DATABASE_URL" \
   TURSO_PLATFORM_API_TOKEN="$TURSO_PLATFORM_API_TOKEN" \
@@ -202,7 +202,7 @@ rtk infisical secrets set \
 First do the non-connect doctor:
 
 ```bash
-cd /home/t42/Documents/pirate-v2/ops/prod
+cd /home/t42/Documents/pirate-workspace/core/ops/prod
 rtk bun ../../scripts/infisical/check-infisical-env.ts --env prod
 rtk bun ../../scripts/infisical/check-infisical-env.ts --env prod --profile commerce
 ```
@@ -210,7 +210,7 @@ rtk bun ../../scripts/infisical/check-infisical-env.ts --env prod --profile comm
 Then do the live DB-connect doctor:
 
 ```bash
-cd /home/t42/Documents/pirate-v2/ops/prod
+cd /home/t42/Documents/pirate-workspace/core/ops/prod
 rtk bun ../../scripts/infisical/check-infisical-env.ts --env prod --profile commerce --connect
 ```
 
@@ -237,7 +237,7 @@ This must verify:
 Run the control-plane migrations using the prod config boundary:
 
 ```bash
-cd /home/t42/Documents/pirate-v2/ops/prod
+cd /home/t42/Documents/pirate-workspace/core/ops/prod
 rtk infisical run --project-config-dir=. --env prod -- \
   rtk bun ../../scripts/control-plane/apply-postgres-migrations.ts \
   --database-url-env CONTROL_PLANE_MIGRATOR_DATABASE_URL \

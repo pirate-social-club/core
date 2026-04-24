@@ -52,7 +52,7 @@ You also need:
 Set the shared command variables once:
 
 ```bash
-cd /home/t42/Documents/pirate-v2
+cd /home/t42/Documents/pirate-workspace/core
 
 export PIRATE_OPERATOR_ENV_FILE=scripts/.env.operator-staging
 export PIRATE_API_DIR=/home/t42/Documents/pirate-workspace/api/services/api
@@ -96,7 +96,7 @@ That operator env should contain:
 Bootstrap the staging Infisical paths from the current local staging env values:
 
 ```bash
-cd /home/t42/Documents/pirate-v2
+cd /home/t42/Documents/pirate-workspace/core
 set -a
 PIRATE_API_DIR="${PIRATE_API_DIR:-/home/t42/Documents/pirate-workspace/api/services/api}"
 source "$PIRATE_API_DIR/.env.staging"
@@ -108,7 +108,7 @@ INFISICAL_ENV=staging rtk bun scripts/infisical/bootstrap-infisical.ts --env sta
 Sync the current API runtime secret surface into the single remote Cloudflare worker:
 
 ```bash
-cd /home/t42/Documents/pirate-v2
+cd /home/t42/Documents/pirate-workspace/core
 rtk infisical run --env staging --path /services/api -- \
   rtk ./scripts/infisical/sync-wrangler-api-secrets.sh
 ```
