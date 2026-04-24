@@ -125,7 +125,7 @@ export type RedditImportSummary = {
   reddit_username: string;
   imported_at: string;
   account_age_days?: number | null;
-  global_karma?: number | null;
+  imported_reddit_score?: number | null;
   top_subreddits: Array<{
     subreddit: string;
     karma?: number | null;

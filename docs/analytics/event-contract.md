@@ -207,6 +207,26 @@ Events carry additional context in `properties_json`. Key property schemas:
 }
 ```
 
+### reddit_import_succeeded (v1)
+```json
+{
+  "imported_reddit_score_bucket": "unknown" | "under_1k" | "1k_10k" | "10k_50k" | "50k_100k" | "100k_plus",
+  "top_subreddit_count": 3,
+  "suggested_community_count": 0,
+  "has_imported_reddit_score": true
+}
+```
+
+### handle_claim_succeeded (v1)
+```json
+{
+  "source": "free_cleanup_rename" | "verified_reddit_username" | "reddit_verified_claim" | "paid_upgrade" | "admin_grant",
+  "tier": "generated" | "standard" | "premium",
+  "handle_length": 7,
+  "shorter_by": 1
+}
+```
+
 ### community_provisioning_failed (v1)
 ```json
 {

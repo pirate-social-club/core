@@ -6824,7 +6824,7 @@ components:
         account_age_days:
           type: integer
           nullable: true
-        global_karma:
+        imported_reddit_score:
           type: integer
           nullable: true
         top_subreddits:

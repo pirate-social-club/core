@@ -635,7 +635,7 @@ Suggested meanings:
 Suggested Reddit `snapshot_payload` contents:
 
 - `account_age_days: number`
-- `global_karma: number | null`
+- `imported_reddit_score: number | null`
 - `subreddit_karma: Array<{ subreddit: string; karma: number }>`
 - `moderator_of: string[]`
 

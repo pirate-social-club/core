@@ -170,7 +170,7 @@ export async function seedControlPlaneFixtures(
     account_age_days: 4320,
     post_karma: 18420,
     comment_karma: 25780,
-    global_karma: 44200,
+    imported_reddit_score: 44200,
     top_subreddits: [
       { subreddit: "electronicmusic", karma: 12400, posts: 84, rank_source: "karma" },
       { subreddit: "ableton", karma: 9100, posts: 61, rank_source: "karma" },
