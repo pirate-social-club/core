@@ -15,7 +15,7 @@ async function createControlPlaneTestDatabase(): Promise<{
   client: ReturnType<typeof createClient>;
   cleanup: Cleanup;
 }> {
-  const databasePath = join(tmpdir(), `pirate-v2-control-plane-fixtures-${Date.now()}.db`);
+  const databasePath = join(tmpdir(), `pirate-core-control-plane-fixtures-${Date.now()}.db`);
   const client = createClient({
     url: `file:${databasePath}`,
   });

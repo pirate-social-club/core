@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pirate-v2/config/lit-families.schema.json",
+  "$id": "https://pirate.sc/config/lit-families.schema.json",
   "title": "Pirate V2 Lit Families",
   "type": "object",
   "additionalProperties": false,

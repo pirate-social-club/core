@@ -1,4 +1,4 @@
-// Extracted from pirate-api/services/api/shared/sql-migration.ts.
+// Extracted from api/services/api/shared/sql-migration.ts.
 // Duplicated here so core scripts can decouple from the ignored pirate-api sidecar checkout.
 // TODO: unify into a shared package once sidecars are moved out of the core workspace.
 export function splitSqlStatements(sql: string): string[] {

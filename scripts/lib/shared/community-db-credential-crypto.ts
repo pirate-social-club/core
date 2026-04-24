@@ -1,4 +1,4 @@
-// Extracted from pirate-api/services/api/src/lib/communities/community-db-credential-crypto.ts.
+// Extracted from api/services/api/src/lib/communities/community-db-credential-crypto.ts.
 // Duplicated here so core scripts can decouple from the ignored pirate-api sidecar checkout.
 // TODO: unify into a shared package once sidecars are moved out of the core workspace.
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
