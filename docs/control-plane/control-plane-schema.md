@@ -2,11 +2,11 @@
 
 Defines the first concrete relational schema for Pirate's central control-plane database.
 
-This is the logical schema spec for Pirate's Neon-backed root-of-trust control plane. See [control-plane-neon-adr.md](../control-plane-neon-adr.md).
+This is the logical schema spec for Pirate's Neon-backed root-of-trust control plane. See [control-plane-neon-adr.md](../adr/control-plane-neon-adr.md).
 
 Related:
 
-- [turso-sovereignty-adr.md](../turso-sovereignty-adr.md)
+- [turso-sovereignty-adr.md](../adr/turso-sovereignty-adr.md)
 - [turso-data-boundaries.md](./turso-data-boundaries.md)
 - [turso-secret-contract.md](./turso-secret-contract.md)
 - [turso-provisioning-contract.md](./turso-provisioning-contract.md)

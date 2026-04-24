@@ -93,10 +93,10 @@ Current state:
 
 Current implementation files:
 
-- `pirate-api/services/api/src/lib/story/story-publish-service.ts`
-- `pirate-api/services/api/src/lib/story/story-royalty-registration-service.ts`
-- `pirate-api/services/api/src/lib/story/story-royalty-settlement-service.ts`
-- `pirate-api/services/api/src/lib/communities/community-commerce-settlement-service.ts`
+- `api/services/api/src/lib/story/story-publish-service.ts`
+- `api/services/api/src/lib/story/story-royalty-registration-service.ts`
+- `api/services/api/src/lib/story/story-royalty-settlement-service.ts`
+- `api/services/api/src/lib/communities/community-commerce-settlement-service.ts`
 
 While Story CDR is still on Aeneid, all executable commerce environments should remain testnet. Real-money provider rails such as Endaoment mainnet execution stay deferred until the Story/CDR settlement path is also mainnet.
 

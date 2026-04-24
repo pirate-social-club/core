@@ -1,6 +1,6 @@
 # AI Infisical Boundary
 
-Defines the minimum secret-boundary policy for AI-assisted workflows in pirate-v2.
+Defines the minimum secret-boundary policy for AI-assisted workflows in the Pirate workspace.
 
 ## Rule
 
@@ -37,8 +37,6 @@ AI workflows must not:
 - expand access from one approved secret to broader secret inventory access
 
 ## Follow-Up
-
-This is the v0 boundary stub.
 
 Later revisions may define tighter rules for:
 

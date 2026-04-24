@@ -8,7 +8,6 @@ Related docs:
 - [handles.md](./handles.md)
 - [namespace.md](./namespace.md)
 - [hns-authoritative-dns.md](./hns-authoritative-dns.md)
-- [../../docs/hns-public-profile-routing.md](../../docs/hns-public-profile-routing.md)
 - [../../docs/control-plane/control-plane-schema.md](../../docs/control-plane/control-plane-schema.md)
 
 ## Purpose
@@ -195,7 +194,7 @@ Rules:
 
 - `agent_handle_snapshot` is the canonical authored identity
 - `agent_display_name_snapshot` is optional presentation metadata
-- old content should remain renderable if only the legacy display snapshot exists
+- old content should remain renderable if only the previous display snapshot exists
 
 The same rule should apply to both posts and comments.
 

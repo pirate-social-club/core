@@ -503,7 +503,7 @@ Rules:
 
 Verification sessions are append-only process records produced by a specific provider.
 
-The current working model in `pirate/` is a composite verification flow. Pirate v2 generalizes this into a provider-parameterized session model while preserving the session lifecycle.
+The current mainline model is a provider-parameterized verification session lifecycle.
 
 The API persists:
 
@@ -582,7 +582,7 @@ Notes:
 - pending sessions expire if not completed
 - successful re-verification replaces the current accepted identity fields on the user row in v0
 - historical verification data is preserved in session history, not in multiple concurrent identity snapshots
-- the working `pirate/` implementation mirrors parts of the accepted identity onchain, especially `verifiedAt` and `nationality`
+- accepted identity may mirror selected fields onchain, especially `verifiedAt` and `nationality`
 - provider-specific fields such as `attestation_id` are stored on the session record but their semantics are provider-specific; the derived `verification_capabilities` on the user row is the provider-neutral interface
 
 ## Age Proof And 18+ Access

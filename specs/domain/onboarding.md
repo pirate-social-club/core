@@ -9,7 +9,6 @@ Related docs:
 - [community.md](./community.md)
 - [feed.md](./feed.md)
 - [handles.md](./handles.md)
-- [onboarding-reddit-bootstrap-storybook.md](./onboarding-reddit-bootstrap-storybook.md)
 
 ## Purpose
 
@@ -82,10 +81,6 @@ This gives every new user a "sailor without a home" identity before they join an
 ## Reddit Bootstrap Import
 
 Reddit import should be optional.
-
-Detailed UI and Storybook handoff for this step lives in
-[onboarding-reddit-bootstrap-storybook.md](./onboarding-reddit-bootstrap-storybook.md).
-
 It is best understood as a bootstrap step for:
 
 - interests
@@ -197,4 +192,4 @@ Rules:
 - the user may skip Reddit bootstrap entirely
 - the user may continue while Reddit import is queued or running
 - Pirate may surface the same module later as a post-signup "improve my feed" step for users who skipped it
-- the onboarding-first UI structure for this flow is defined in [onboarding-reddit-bootstrap-storybook.md](./onboarding-reddit-bootstrap-storybook.md)
+- the onboarding-first UI structure should stay focused on one optional Reddit bootstrap step inside the main flow

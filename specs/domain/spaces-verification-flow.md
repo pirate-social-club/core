@@ -196,7 +196,7 @@ Challenge convention:
 - use `challenge_kind` plus `challenge_payload_json` for family-specific challenge material
 - HNS challenge details such as `challenge_host` and `challenge_txt_value` become HNS payload fields
 - Spaces challenge details such as `pirate-verify`, `web`, and `freedom` target values become Spaces payload fields
-- existing HNS rows may still carry `challenge_host` and `challenge_txt_value` as legacy denormalized fields until HNS writers are migrated
+- existing HNS rows may still carry `challenge_host` and `challenge_txt_value` as HNS compatibility fields until HNS writers are migrated
 
 ## Recommended Public V0 Order
 
@@ -391,7 +391,7 @@ Recommended evidence components:
 
 Implementation convention:
 
-- `resolver_path_json` and `raw_response_json` in the current evidence-bundle table are legacy HNS-shaped names
+- `resolver_path_json` and `raw_response_json` in the current evidence-bundle table are HNS-shaped compatibility names
 - Spaces evidence may still use those generic JSON fields for provider path metadata, anchor data, proof data, and raw verifier payloads
 
 Recommended evidence kinds:
@@ -538,7 +538,7 @@ After generalization, both `namespace_verification_sessions` and `namespace_veri
 - on `namespace_verifications`, `root_exists` should still be populated for every accepted row
 - for Spaces rows, set `root_exists = true` when the accepted `root_exists` assertion is true
 
-The following HNS-specific fixed columns should be treated as legacy denormalization to retire in a future migration rather than patterns to extend:
+The following HNS-specific fixed columns should be treated as HNS denormalization to retire in a future migration rather than patterns to extend:
 
 - `root_control_verified`
 - `expiry_horizon_sufficient`
@@ -634,7 +634,7 @@ Examples:
 
 - HNS payload includes record host and TXT value
 - Spaces payload includes `pirate-verify`, `web`, and `freedom` target values
-- the old `challenge_host` and `challenge_txt_value` columns become legacy HNS compatibility fields rather than the target write path
+- the old `challenge_host` and `challenge_txt_value` columns become HNS compatibility fields rather than the target write path
 
 ### Denormalization Rule
 
@@ -649,7 +649,7 @@ The same rule may apply to `club_attach_allowed`.
 
 Backfill convention:
 
-- existing HNS accepted verifications may be backfilled into the canonical capability table from legacy fixed columns
+- existing HNS accepted verifications may be backfilled into the canonical capability table from fixed compatibility columns
 - new Spaces writes should use the canonical capability table from day one rather than introducing new fixed verification columns
 
 ## Open Questions

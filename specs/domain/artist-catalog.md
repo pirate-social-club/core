@@ -101,7 +101,7 @@ Use Pirate as:
 
 ## Track Identity
 
-Pirate should keep the working 3-kind track identity model already proven in `pirate/`.
+Pirate should keep the current 3-kind track identity model.
 
 Recommended identity kinds:
 

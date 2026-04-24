@@ -4,7 +4,7 @@ Status: draft
 
 Related docs:
 
-- [../domain/club.md](../domain/club.md)
+- [../domain/community.md](../domain/community.md)
 - [../domain/namespace.md](../domain/namespace.md)
 - [../domain/artist-identity.md](../domain/artist-identity.md)
 - [../domain/handles.md](../domain/handles.md)

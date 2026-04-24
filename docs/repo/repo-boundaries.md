@@ -2,7 +2,7 @@
 
 This repository is the canonical `pirate-social-club/core` repo.
 
-Its purpose is to hold shared system definition and integration work across the Pirate Social Club surfaces. It is not intended to become a second copy of the entire GitHub organization.
+Its purpose is to hold shared system definition and integration work across Pirate Social Club surfaces. It is not a runtime repo and should not become a second copy of the GitHub organization.
 
 ## What Belongs In `core`
 
@@ -20,25 +20,21 @@ These roots fit the `core` role and should remain here:
 - `ops/`
 - `references/`
 
-These directories define system behavior, migrations, control-plane operations, shared config, deployment assets, and non-canonical reference material.
+These directories define system behavior, migrations, control-plane operations, shared config, deployment assets, and reference material used by active specs or runbooks.
 
-## What Does Not Belong In `core` Long-Term
+## What Does Not Belong In `core`
 
-These production surfaces should not accumulate here as permanent homes:
+These production surfaces belong in standalone repos:
 
-- Android app code
-- iOS app code
-- Desktop app code
-- Production backend service repos
-- Standalone plugin packages with their own release workflow
+- backend API services
+- web UI
+- contracts workspace
+- Android app
+- iOS app
+- desktop app
+- standalone plugin packages with their own release workflow
 
-Those belong in their own repositories under `pirate-social-club`.
-
-`openclaw-pirate-plugin/` has been extracted to `pirate-social-club/pirate-openclaw-plugin`. Local
-copies may exist as ignored sidecars, but plugin source, tests, CI, and release metadata no longer
-belong in `core`.
-
-## Local Workspace Sidecars
+## Canonical Local Workspace
 
 Runtime repos live beside `core` in the canonical local workspace:
 
@@ -52,89 +48,40 @@ Runtime repos live beside `core` in the canonical local workspace:
   android/
 ```
 
-They must not be tracked by `core`. They are local checkouts of standalone repos such as
-`pirate-social-club/api`, `pirate-social-club/web`, `pirate-social-club/contracts`,
-`pirate-social-club/desktop`, and `pirate-social-club/android`.
+They must not be tracked by `core`. They are local checkouts of standalone repos such as `pirate-social-club/api`, `pirate-social-club/web`, `pirate-social-club/contracts`, `pirate-social-club/desktop`, and `pirate-social-club/android`.
 
-Older checkouts may still have legacy in-core sidecar directories such as `pirate-api/`,
-`pirate-web/`, `pirate-contracts/`, `pirate-tui/`, `pirate-desktop/`, or
-`openclaw-pirate-plugin/`. Treat those as obsolete local layout artifacts, not canonical paths.
-
-Scripts and active runbooks that need sidecar paths should use checkout variables instead of assuming
-the repos live under `core`.
+Scripts and active runbooks that need sidecar paths should use checkout variables instead of assuming the repos live under `core`.
 
 Rules for sidecar-aware material:
 
 - scripts that need a runtime checkout must accept a path variable such as `API_DIR`.
 - local env examples and operator runbooks must not require sidecar-private `.local` paths.
-- markdown links into sidecars should be treated as cross-repo references, not proof that the sidecar
-  must live inside `core`.
+- markdown links into sidecars should be treated as cross-repo references, not proof that the sidecar must live inside `core`.
 
-Completed decoupling:
+## Completed Decoupling
 
-- `scripts/lib/*` no longer imports helpers from ignored sidecars such as `pirate-api/`.
-- API contract generation and typechecking can be redirected with `API_CONTRACTS_DIR` or
-  `API_CONTRACTS_OUTPUT_FILE`.
-- Wrangler secret sync resolves the sibling `pirate-workspace/api`
-  path, and also accepts `API_DIR` or `--api-dir`.
-- Active runbooks use `PIRATE_API_DIR`, `PIRATE_API_REPO`, `PIRATE_WEB_DIR`, or `PIRATE_CORE_REPO` for
-  checkout-specific commands.
-- `openclaw-pirate-plugin/` has been extracted from tracked `core`.
+- `scripts/lib/*` no longer imports helpers from runtime repos.
+- API contract generation and typechecking can be redirected with `API_CONTRACTS_DIR` or `API_CONTRACTS_OUTPUT_FILE`.
+- Wrangler secret sync resolves the sibling `pirate-workspace/api` path, and also accepts `API_DIR` or `--api-dir`.
+- Active runbooks use `PIRATE_API_DIR`, `PIRATE_API_REPO`, `PIRATE_WEB_DIR`, or `PIRATE_CORE_REPO` for checkout-specific commands.
+- Plugin source has been extracted from tracked `core`.
 
-## Target Model
+## Target Ownership
 
-Canonical ownership should eventually look like this:
+Canonical ownership:
 
-- `pirate-social-club/core`
-  - `specs/`
-  - `db/`
-  - `config/`
-  - `docs/`
-  - `scripts/`
-  - `lit-actions/`
-  - `ops/`
-  - `references/`
-- `pirate-social-club/web`
-  - web UI, Storybook, and future app runtime
-- `pirate-social-club/contracts`
-  - contract workspaces and tests
-- `pirate-social-club/api`
-  - production backend services
-- `pirate-social-club/tui`
-  - terminal client
-- `pirate-social-club/android`
-  - production Android app
-- `pirate-social-club/ios`
-  - production iOS app
-- `pirate-social-club/desktop`
-  - production desktop app
-
-## Rules Going Forward
-
-Use these rules to keep the repo clean:
-
-1. `core` owns system definition, not every runtime.
-2. New production app surfaces should not be added as new top-level roots here.
-3. `pirate-tui/` should remain a sidecar checkout and should not be reintroduced as tracked `core` runtime code.
-4. Specs live in Git and GitHub. They are first-class source material, not throwaway notes.
-5. Sensitive operational documents can remain private in `core`.
-6. Public-facing runtime repos should implement against `core` specs instead of duplicating them.
-7. Operational deployment assets that are part of shared infrastructure belong under `ops/`.
-
-## Extraction Status
-
-The repo boundary is healthy when all of the following are true:
-
-- `pirate-social-club/web` is the canonical home of web code
-- `pirate-social-club/contracts` is the canonical home of contract code
-- `core` no longer tracks runtime code under `pirate-web/` or `pirate-contracts/`
-- `core` no longer tracks runtime code under `pirate-api/`
-- `core` no longer tracks runtime code under `pirate-tui/`
-- `core` no longer tracks runtime code under `pirate-desktop/`
-- any local copies at those paths are treated as workspace checkouts only
+- `pirate-social-club/core`: specs, migrations, config, docs, scripts, Lit actions, ops, and references.
+- `pirate-social-club/api`: production backend services.
+- `pirate-social-club/web`: web UI and browser runtime.
+- `pirate-social-club/contracts`: contract workspaces and tests.
+- `pirate-social-club/android`: production Android app.
+- `pirate-social-club/ios`: production iOS app.
+- `pirate-social-club/desktop`: production desktop app.
 
 ## Rules Going Forward
 
 1. Make runtime changes in the standalone repos, not in `core`.
 2. Keep `core/specs`, `core/docs`, `core/config`, `core/db`, `core/scripts`, `core/lit-actions`, and `core/ops` as the shared source of truth.
-3. If local sidecar repos are checked out inside this workspace, keep them ignored by `core`.
+3. Keep sibling runtime repos ignored by `core`.
+4. Specs live in Git and GitHub. They are first-class source material, not throwaway notes.
+5. Sensitive operational documents can remain private in `core`.

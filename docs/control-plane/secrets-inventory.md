@@ -11,7 +11,7 @@ This file is the single source of truth for "what secrets exist." It does not co
 - **Version control stores public config.** Contract addresses, PKP addresses, action CIDs, bucket names, RPC URLs, and tuning knobs are not secrets. They live in repo config files.
 - **The normal hosted Infisical contract has only two path families:** `/services` for hosted runtime/provisioning secrets and `/local` for local-dev-only convenience/break-glass material.
 - **A small number of shared secrets are intentionally duplicated across service paths.** When the same value appears in `/services/api` and `/services/control-plane`, the doctor contract must enforce equality.
-- **AI environments must not have Infisical auth.** See `docs/control-plane/ai-infisical-boundary.md` (to be written for pirate-v2; policy carried from pirate/).
+- **AI environments must not have Infisical auth.** See `docs/control-plane/ai-infisical-boundary.md`.
 
 ## Type Definitions
 
@@ -42,7 +42,7 @@ This file is the single source of truth for "what secrets exist." It does not co
 If you still use the hot-key Story Foundry deploy path locally, treat it as an operator-local env
 var only. Do not store it in hosted Infisical environments.
 
-Current `pirate-v2` runtime model:
+Current runtime model:
 
 - owner key stays local and operator-only
 - direct Story runtime signer private keys live in `/services/api`

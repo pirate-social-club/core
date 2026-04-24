@@ -13,7 +13,6 @@ Related:
 - [control-plane-schema.md](./control-plane-schema.md)
 - [turso-provisioning-contract.md](./turso-provisioning-contract.md)
 - [secrets-inventory.md](./secrets-inventory.md)
-- [infisical-migration.md](./infisical-migration.md)
 
 ## Model
 

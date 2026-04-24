@@ -646,7 +646,7 @@ Important repo boundary note:
 - `services/api/...` lives in the API repo checkout, set with `PIRATE_API_REPO`
 - `docs/runbooks/...` lives in the parent monorepo, set with `PIRATE_CORE_REPO`
 
-So do **not** run one `git add` command from `pirate-api/` that tries to stage `docs/runbooks/...`.
+So do **not** run one `git add` command from the API repo that tries to stage `docs/runbooks/...`.
 Either:
 
 - commit code changes from `pirate-api`, and docs from the parent monorepo separately

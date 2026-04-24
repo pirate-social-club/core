@@ -4,7 +4,7 @@ Defines the control-plane contract for creating, rotating, and transferring comm
 
 Related:
 
-- [turso-sovereignty-adr.md](../turso-sovereignty-adr.md)
+- [turso-sovereignty-adr.md](../adr/turso-sovereignty-adr.md)
 - [control-plane-schema.md](./control-plane-schema.md)
 - [turso-secret-contract.md](./turso-secret-contract.md)
 - [turso-data-boundaries.md](./turso-data-boundaries.md)

@@ -1,13 +1,6 @@
 # Sentinel Operator Runtime Contract
 
-Status: draft
-
-Related docs:
-
-- [dVPN Domain Spec](../specs/domain/dvpn.md)
-- 
-- 
-- 
+Status: current private runtime contract
 
 ## Purpose
 
@@ -39,12 +32,6 @@ Current repo status:
 - timeout handling is implemented on the worker side
 - end-session special handling for `404 {"code":"not_found"}` and `409 {"code":"already_ended"}` is implemented
 - the operator itself is not implemented in this repo
-
-Current worker entry points:
-
-- 
-- 
-- 
 
 Important current constraint:
 

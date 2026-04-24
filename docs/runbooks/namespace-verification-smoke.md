@@ -154,7 +154,7 @@ Created manually:
 - `community_db_credentials`
 - `audit_log`
 
-Also repaired one legacy bad row:
+Also repaired one bad historical row:
 
 - updated the empty-string `community_db_credential_id` on the Spaces community to a real `cdc_*` id
 

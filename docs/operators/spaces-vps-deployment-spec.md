@@ -10,7 +10,7 @@ Related:
 - [services/verifier/spaces/README.md](../../services/verifier/spaces/README.md)
 - [services/verifier/spaces/src/server.ts](../../services/verifier/spaces/src/server.ts)
 - [ops/vps/spaces-verifier/README.md](../../ops/vps/spaces-verifier/README.md)
-- [pirate-api/services/api/src/lib/verification/spaces-verifier.ts](../../pirate-api/services/api/src/lib/verification/spaces-verifier.ts)
+- `api/services/api/src/lib/verification/spaces-verifier.ts` in the sibling API repo
 
 ## Goal
 
@@ -32,7 +32,7 @@ The live verifier source currently stays in `core` under [services/verifier/spac
 If it is extracted into a standalone GitHub repo, use `pirate-spaces-verifier`.
 
 Do not use `pirate-verifier` for this service. That name is too broad and should be treated as a
-legacy archive target.
+archive target.
 
 ## Boundary
 

@@ -11,7 +11,7 @@ Related:
 - [db/control-plane/migrations/0033_control_plane_namespace_verification_spaces.sql](../../db/control-plane/migrations/0033_control_plane_namespace_verification_spaces.sql)
 - [db/control-plane/migrations/0048_control_plane_spaces_fabric_publish_verification.sql](../../db/control-plane/migrations/0048_control_plane_spaces_fabric_publish_verification.sql)
 - [services/verifier/spaces/src/server.ts](../../services/verifier/spaces/src/server.ts)
-- [pirate-api/services/api/src/lib/verification/spaces-verifier.ts](../../pirate-api/services/api/src/lib/verification/spaces-verifier.ts)
+- `api/services/api/src/lib/verification/spaces-verifier.ts` in the sibling API repo
 
 ## Goal
 
@@ -79,7 +79,7 @@ challenge has not expired, the session remains `challenge_pending`.
 
 Runtime Spaces proof and Fabric resolution stay behind the provider layer:
 
-- [pirate-api/services/api/src/lib/verification/spaces-verifier.ts](../../pirate-api/services/api/src/lib/verification/spaces-verifier.ts)
+- `api/services/api/src/lib/verification/spaces-verifier.ts` in the sibling API repo
 
 The HTTP sidecar lives at:
 

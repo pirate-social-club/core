@@ -28,7 +28,7 @@ No Lit control-plane details live here. See `config/lit-families.json` for execu
 | Allowed methods | `setPublishPresentationAsDelegate`, `setPublishKaraokeAsDelegate`, `setCanonicalPublish`, `setLyrics`, `overwriteLyrics`, `fulfill`, `publishAssetVersion(...)` |
 | Required on-chain grants | `isOperator(...)` on CanonicalLyricsRegistryV1 and StudySetRegistryV1; presentation delegate is per-publish, not a global role; `isPublishOperator(...)` on `AssetPublishCoordinatorV1` |
 | Funding requirement | Yes — gas for on-chain txs. See `docs/product/funds-ledger.md` |
-| Fallback status | Re-keyed in pirate-v2 after Lit control-plane drift on the inherited `0xA994...` operator PKP. No direct-key fallback. |
+| Fallback status | Re-keyed after Lit control-plane drift on the inherited `0xA994...` operator PKP. No direct-key fallback. |
 
 ### story-access-controller
 
@@ -42,7 +42,7 @@ No Lit control-plane details live here. See `config/lit-families.json` for execu
 | Allowed methods | Offchain EIP-712 `AccessProof` signatures verified by `SignedAccessConditionV1` |
 | Required on-chain grants | Must be activated in `PirateSignerRegistry`; no purchase-time `grantAccess(...)` role should exist in v2 |
 | Funding requirement | No — proof signing only. This family should not be pre-funded in `docs/product/funds-ledger.md` |
-| Fallback status | None. pirate/ had no legacy direct key for this family. |
+| Fallback status | None. No direct-key fallback exists for this family. |
 
 ### story-cdr-writer
 
@@ -56,7 +56,7 @@ No Lit control-plane details live here. See `config/lit-families.json` for execu
 | Allowed methods | `allocate(...)`, `write(...)` |
 | Required on-chain grants | None beyond owning/funding the PKP for CDR fee-bearing txs; the signer is constrained by Lit action to the CDR contract and those methods only |
 | Funding requirement | Yes — gas plus CDR allocate/write fees. See `docs/product/funds-ledger.md` |
-| Fallback status | None. This must stay PKP-only in pirate-v2. |
+| Fallback status | None. This must stay PKP-only. |
 
 ### story-scrobble-operator
 
@@ -64,7 +64,7 @@ No Lit control-plane details live here. See `config/lit-families.json` for execu
 |---|---|
 | Chain | Story Aeneid (1315) |
 | Signer kind | `direct-key` |
-| Canonical signer address | TBD — new direct-key for the pirate-v2 batch publisher. pirate/ scrobble addresses are not carried forward. |
+| Canonical signer address | TBD - direct-key batch publisher for the current scrobble anchor worker. |
 | Purpose | Delegated scrobble anchoring via `registerTracks(...)` then `scrobbleBatch(...)` |
 | Allowed contracts | `ScrobbleV1` |
 | Allowed methods | `registerTrack(...)`, `registerTracks(...)`, `scrobble(...)`, `scrobbleBatch(...)` |
@@ -84,13 +84,13 @@ Batch publish flow:
 |---|---|
 | Chain | Story Aeneid (1315) |
 | Signer kind | `pkp` |
-| Canonical signer address | TBD — migrate from pirate/ `0x273D8e3E63B01cc8d1359033E516d1334B796083` after audit |
+| Canonical signer address | TBD - confirm `0x273D8e3E63B01cc8d1359033E516d1334B796083` after audit |
 | Purpose | Register post-story IP IDs and translation refs on FeedV2 |
 | Allowed contracts | `FeedV2` |
 | Allowed methods | `setPostStoryIpId(bytes32,address)`, `setPostTranslationRef(bytes32,string)` |
 | Required on-chain grants | `STORY_REGISTRAR_ROLE` and `TRANSLATION_UPDATER_ROLE` on FeedV2 |
 | Funding requirement | Yes — gas for on-chain txs. See `docs/product/funds-ledger.md` |
-| Fallback status | None. pirate/ had no legacy direct key for this family. |
+| Fallback status | None. No direct-key fallback exists for this family. |
 
 ### story-settlement
 
@@ -104,7 +104,7 @@ Batch publish flow:
 | Allowed methods | `settlePurchase(...)`; future upgrade path may add `approve(...)`, `payRoyaltyOnBehalf(...)`, `claimRevenueOnBehalf(...)`, `transferToVault(...)` |
 | Required on-chain grants | `isSettlementOperator(...)` on `MarketplaceSettlementV1`; `PurchaseEntitlementToken.isSettlementMinter(MarketplaceSettlementV1)` must be true so settlement can mint entitlements indirectly |
 | Funding requirement | Yes — gas + may hold WIP temporarily. See `docs/product/funds-ledger.md` |
-| Fallback status | pirate/ had `MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY` as legacy fallback. Must not be migrated as a fallback. Migrate as PKP-only. |
+| Fallback status | Do not configure a direct-key fallback. Migrate as PKP-only. |
 
 ### story-sponsor
 
@@ -112,13 +112,13 @@ Batch publish flow:
 |---|---|
 | Chain | Story Aeneid (1315) |
 | Signer kind | `pkp` |
-| Canonical signer address | TBD — migrate from pirate/ `0xd05207094f1fae08839418eae4bd279dbce6663b` after audit |
+| Canonical signer address | TBD - confirm `0xd05207094f1fae08839418eae4bd279dbce6663b` after audit |
 | Purpose | Sponsor-router IP registration and vault bootstrap via StorySponsorRouterV1 |
 | Allowed contracts | `StorySponsorRouterV1` |
 | Allowed methods | Router operations for register-original, register-derivative, vault-bootstrap |
 | Required on-chain grants | Authorized signer in StorySponsorRouterV1 |
 | Funding requirement | Yes — gas for sponsored txs. See `docs/product/funds-ledger.md` |
-| Fallback status | None. Always PKP in pirate/. |
+| Fallback status | None. Always PKP. |
 
 ### story-backend-signer
 
@@ -126,13 +126,13 @@ Batch publish flow:
 |---|---|
 | Chain | Story Aeneid (1315) |
 | Signer kind | `pkp` |
-| Canonical signer address | TBD — migrate from pirate/ `0xd2caab14a27496a1e1340f4caf18b1b1f001b102` after audit |
+| Canonical signer address | TBD - confirm `0xd2caab14a27496a1e1340f4caf18b1b1f001b102` after audit |
 | Purpose | Backend approval for register-original, register-derivative, vault-bootstrap on the two-PKP router |
 | Allowed contracts | `StorySponsorRouterV1` |
 | Allowed methods | Router backend-signer operations for register-original, register-derivative, vault-bootstrap |
 | Required on-chain grants | Authorized backend signer in StorySponsorRouterV1 |
 | Funding requirement | Yes — gas for approval txs. See `docs/product/funds-ledger.md` |
-| Fallback status | None. Always PKP in pirate/. |
+| Fallback status | None. Always PKP. |
 
 ### base-treasury
 
@@ -140,13 +140,13 @@ Batch publish flow:
 |---|---|
 | Chain | Base Sepolia (84532) |
 | Signer kind | `pkp` |
-| Canonical signer address | TBD — migrate from pirate/ `0x0F15ED21B347dA747400755d5354Fd0Ae2e9AF38` after audit |
+| Canonical signer address | TBD - confirm `0x0F15ED21B347dA747400755d5354Fd0Ae2e9AF38` after audit |
 | Purpose | Base USDC donation approve + donate, refund transfers |
 | Allowed contracts | Base USDC token, donation contract |
 | Allowed methods | `approve(...)`, `donate(...)`, `transfer(...)` |
 | Required on-chain grants | No explicit role grant required. Standard ERC-20 approval and caller semantics. |
 | Funding requirement | Yes — gas + may hold USDC temporarily. See `docs/product/funds-ledger.md` |
-| Fallback status | pirate/ had `MUSIC_PURCHASE_BASE_TREASURY_PRIVATE_KEY` as legacy fallback. Must not be migrated as a fallback. Migrate as PKP-only. |
+| Fallback status | Do not configure a direct-key fallback. Migrate as PKP-only. |
 
 ### base-sponsor
 
@@ -154,13 +154,13 @@ Batch publish flow:
 |---|---|
 | Chain | Base Sepolia (84532) |
 | Signer kind | `pkp` |
-| Canonical signer address | TBD — migrate from pirate/ `0x514d1bE37A393dE47Be255e8EaA1B3C323d87920` after audit |
+| Canonical signer address | TBD - confirm `0x514d1bE37A393dE47Be255e8EaA1B3C323d87920` after audit |
 | Purpose | VerificationMirrorV1 sponsor execution for Self.xyz verification |
 | Allowed contracts | `VerificationMirrorV1` |
 | Allowed methods | `mirror(...)` |
 | Required on-chain grants | `sponsor()` on VerificationMirrorV1 must return this address |
 | Funding requirement | Yes — gas for mirror txs. See `docs/product/funds-ledger.md` |
-| Fallback status | None. Always PKP in pirate/. |
+| Fallback status | None. Always PKP. |
 
 ### story-contract-owner
 
@@ -182,7 +182,7 @@ Batch publish flow:
 |---|---|
 | Chain | Base Sepolia (84532) |
 | Signer kind | `direct-key` (migration target: `multisig`) |
-| Canonical signer address | TBD — likely same address as story-contract-owner in pirate/. Audit and decide whether to split. |
+| Canonical signer address | TBD - audit and decide whether to match `story-contract-owner` or split. |
 | Purpose | Contract deployment, role grants, emergency owner actions |
 | Allowed contracts | All deployed Base contracts |
 | Allowed methods | Owner-restricted methods |
@@ -196,7 +196,7 @@ Batch publish flow:
 |---|---|
 | Chain | N/A (Arweave) |
 | Signer kind | `direct-key` |
-| Canonical signer address | TBD — migrate from pirate/ `0xf1a70de5a579d6164db8d3c609037180137044fc` after audit |
+| Canonical signer address | TBD - confirm `0xf1a70de5a579d6164db8d3c609037180137044fc` after audit |
 | Purpose | Sign and pay for Arweave Turbo ANS-104 uploads for non-CDR artifacts such as lyrics and study-set data |
 | Allowed contracts | Arweave Turbo upload endpoint |
 | Allowed methods | ANS-104 upload |
@@ -204,10 +204,10 @@ Batch publish flow:
 | Funding requirement | Yes — Turbo balance for uploads. See `docs/product/funds-ledger.md` |
 | Fallback status | None. Direct key, no PKP migration planned yet. |
 
-## Migration Notes
+## Audit Notes
 
-Addresses above are marked TBD until each one is audited against the pirate/ deployment state and confirmed correct for pirate-v2. The pirate/ addresses are included for cross-reference during migration, not as canonical values. The `story-scrobble-operator` family is a deliberate exception: pirate/ scrobble addresses are not migrated forward because pirate-v2 uses a new direct-key batch publisher on `ScrobbleV1`.
+Addresses marked TBD must be audited before use. The `story-scrobble-operator` family uses a dedicated direct-key batch publisher on `ScrobbleV1`.
 
-The contract-owner address `0xBAFB9D9e...` was used as both the Story deployer and the Base deployer in pirate/. It was also the legacy settlement and treasury signer before PKP migration. In pirate-v2, this address should only be the contract owner. All signing responsibilities must move to dedicated PKP families.
+The contract-owner address `0xBAFB9D9e...` should only be the contract owner. Signing responsibilities belong to the dedicated signer families above.
 
-The `story-access-controller` family name is a carryover from pirate/. In pirate-v2 it should be interpreted as the temporary-access proof signer for CDR reads, not as a funded contract caller that writes `grantAccess(...)` rows on purchase.
+The `story-access-controller` family signs temporary-access proofs for CDR reads. It is not a funded contract caller and must not write `grantAccess(...)` rows on purchase.

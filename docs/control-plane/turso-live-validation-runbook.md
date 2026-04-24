@@ -48,7 +48,7 @@ Operator env file:
 - [scripts/infisical/.env.operator-staging.example](../../scripts/infisical/.env.operator-staging.example:1)
 
 API staging env file:
-- [pirate-api/services/api/.env.staging.example](../../pirate-api/services/api/.env.staging.example:1)
+- `api/services/api/.env.staging.example` in the sibling API repo
 
 Required operator env:
 - `CONTROL_PLANE_DATABASE_URL`
@@ -224,7 +224,7 @@ Check:
 - `schema_migrations` exists in the remote DB
 - the remote DB was bootstrapped through the checked-in community bootstrap path
 - no undocumented schema or data hotfixes exist outside the checked-in migration/history record
-- any live staging DB intervention is recorded in [staging-neon-hotfix-log.md](./staging-neon-hotfix-log.md)
+- any live staging DB intervention is recorded in the current deployment notes before it is repeated
 
 ### staging API reads fail after successful operator commands
 

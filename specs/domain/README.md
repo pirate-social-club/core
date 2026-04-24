@@ -110,19 +110,8 @@ Product and system design docs grouped by domain surface.
   General onboarding flow.
 - `composer.md`
   Composer flows and creation UX.
-- `dvpn.md`
-  Paid dVPN activation, lazy Sentinel wallet creation, and TUI gating rules.
 - `purchase-quote-flow.md`
   Purchase quote and buyer confirmation flow.
-
-UI handoff and runtime-specific docs live outside this index:
-
-- [docs/ux/onboarding-reddit-bootstrap-storybook.md](../../docs/ux/onboarding-reddit-bootstrap-storybook.md)
-  Storybook-specific onboarding component notes.
-- [docs/tui/tui-auth-home.md](../../docs/tui/tui-auth-home.md)
-  TUI auth and home-shell contract for the standalone terminal client.
-- [docs/tui/tui-refactor-checklist.md](../../docs/tui/tui-refactor-checklist.md)
-  Active implementation checklist for the current TUI refactor.
 
 ## System And Policy
 

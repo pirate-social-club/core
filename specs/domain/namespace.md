@@ -288,8 +288,8 @@ Within one route family:
 
 V0 assumes a greenfield route system.
 
-- no legacy route migration is required by this spec
-- if legacy routes appear later, migration rules should be added in a separate transition note
+- no route migration is required by this spec
+- if route transitions appear later, migration rules should be added in a separate transition note
 
 ## Search And Discovery
 

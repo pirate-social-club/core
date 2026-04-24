@@ -60,7 +60,7 @@ Important consequence:
 
 - Pirate already distinguishes human verification from KYA in the spec layer
 - Pirate must keep those two systems separate in the runtime layer as well
-- Pirate should not carry a legacy direct-Very ownership path forward simply because no users or data exist yet
+- Pirate should not carry the old direct-Very ownership path forward simply because no users or data exist yet
 - this doc therefore treats "replace with the right mainline provider shape" as the correct sequencing choice, not a migration burden
 - this doc therefore treats implementation sequencing and auditability as first-class concerns, not only product semantics
 
@@ -1272,9 +1272,9 @@ Recommended review gate:
   - delegated credential issuance
   - post and reply signing
   - community enforcement
-- because Pirate has no users or legacy data to preserve, "public-ready" should mean:
+- because Pirate has no users or data to preserve, "public-ready" should mean:
   - `clawkey` is the only mainline Very-backed ownership path
-  - no legacy direct-Very ownership-provider logic remains in the product contract
+  - no direct-Very ownership-provider logic remains in the product contract
   - the OpenClaw setup path no longer requires Pirate bearer-token copying in the primary UX
 
 ## Open Questions

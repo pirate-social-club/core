@@ -17,7 +17,7 @@ This keeps Pirate ownership and the Spaces product boundary visible from the rep
 | Fabric record publisher | `pirate-spaces-publisher` | Active |
 | Superseded digest-signing helper | `pirate-spaces-signer` | Archive |
 | Superseded Fabric publisher | `spaces-publisher` | Archive |
-| Broad legacy verifier repo | `pirate-verifier` | Archive |
+| Broad verifier repo | `pirate-verifier` | Archive |
 
 ## Active Runtime Ownership
 
