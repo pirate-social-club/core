@@ -102,6 +102,8 @@ paths:
     $ref: ./paths/verification.yaml#/namespace_verifications_by_namespace_verification_id
   /onboarding/status:
     $ref: ./paths/onboarding.yaml#/onboarding_status
+  /onboarding/dismiss:
+    $ref: ./paths/onboarding.yaml#/onboarding_dismiss
   /onboarding/reddit-verification:
     $ref: ./paths/onboarding.yaml#/onboarding_reddit_verification
   /onboarding/reddit-imports:

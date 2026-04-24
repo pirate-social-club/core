@@ -14,13 +14,40 @@ Profile:
     avatar_ref:
       type: string
       nullable: true
+    avatar_source:
+      type: string
+      enum:
+        - ens
+        - upload
+        - none
+      nullable: true
     cover_ref:
       type: string
+      nullable: true
+    cover_source:
+      type: string
+      enum:
+        - ens
+        - upload
+        - none
       nullable: true
     bio:
       type: string
       nullable: true
+    bio_source:
+      type: string
+      enum:
+        - ens
+        - manual
+        - none
+      nullable: true
     preferred_locale:
+      type: string
+      nullable: true
+    display_verified_nationality_badge:
+      type: boolean
+      nullable: true
+    nationality_badge_country:
       type: string
       nullable: true
     linked_handles:
@@ -72,6 +99,10 @@ LinkedHandle:
         - verified
         - unverified
         - stale
+    metadata:
+      type: object
+      additionalProperties: true
+      nullable: true
 GlobalHandle:
   type: object
   required:

@@ -13,6 +13,21 @@ onboarding_status:
               $ref: ../components/schemas/onboarding.yaml#/OnboardingStatus
       "401":
         $ref: ../components/responses.yaml#/AuthError
+onboarding_dismiss:
+  post:
+    tags:
+      - Onboarding
+    x-implemented: true
+    summary: Dismiss onboarding for the current user
+    responses:
+      "200":
+        description: Updated onboarding state
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/onboarding.yaml#/OnboardingStatus
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
 onboarding_reddit_verification:
   post:
     tags:

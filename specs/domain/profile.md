@@ -60,9 +60,15 @@ Suggested v0 fields:
 - `global_handle_tier`
 - `display_name` nullable
 - `avatar_ref` nullable
+- `avatar_source` nullable enum: `ens`, `upload`, `none`
 - `banner_ref` nullable
+- `cover_ref` nullable
+- `cover_source` nullable enum: `ens`, `upload`, `none`
 - `bio` nullable
+- `bio_source` nullable enum: `ens`, `manual`, `none`
 - `preferred_locale` nullable
+- `linked_handles` read projection
+- `primary_public_handle` nullable
 - `links_json` nullable
 - `created_at`
 - `updated_at`
@@ -75,11 +81,67 @@ Notes:
   - `standard`
   - `premium`
 - `display_name` is user-facing and editable
+- `avatar_source`, `cover_source`, and `bio_source` describe the field-level source of the currently rendered Pirate profile value
 - `preferred_locale` is the user's persisted app-locale preference used by SSR and localized read surfaces
 - `global_handle` is the stable default identity surface before the user joins or claims community-local handles
 - every user should have exactly one active `global_handle` in v0
 - the initial generated `.pirate` handle should be a safe fallback identity, not a premium allocation
 - in early-stage communities where community-local handles are not yet enabled, the user's global `.pirate` handle remains their default public identity inside those communities
+
+### Profile Field Sources
+
+Pirate-owned profile fields and ENS-imported profile fields must remain distinguishable.
+
+Rules:
+
+- uploading an avatar or cover changes the Pirate profile only; it does not write to ENS
+- editing the bio changes the Pirate profile only; it does not write to ENS
+- choosing `avatar_source = ens`, `cover_source = ens`, or `bio_source = ens` means Pirate should render the value from the currently verified ENS linked handle metadata
+- choosing source `none` means the user intentionally wants no value for that field, even if ENS metadata is available
+- first ENS sync may fill an empty field only when both the field value and source are null
+- later ENS sync may refresh a field only when that field's source is `ens`
+- later ENS sync must not overwrite `upload`, `manual`, or `none` fields
+- `bio_source = manual` is the text equivalent of media `upload`: it indicates a Pirate-owned user edit
+
+Recommended UI language:
+
+- source labels should make the active source visible, for example `Using ENS avatar from alice.eth` or `Uploaded avatar`
+- settings should make clear that Pirate uploads and edits do not update ENS records
+- if ENS metadata exists and the active source is not `ens`, settings should offer an explicit way to use the ENS value again
+
+### Linked Handles And Primary Public Handle
+
+Linked handles represent verified external identity labels associated with the user.
+
+V0 linked handle kinds:
+
+- `pirate`: synthetic projection of the active global `.pirate` handle
+- `ens`: reverse-and-forward verified ENS name for the user's eligible Ethereum wallet
+
+Rules:
+
+- every profile should have a Pirate handle fallback
+- ENS handles are external linked handles; Pirate does not mint or update ENS names
+- `primary_public_handle` controls public byline and profile routing only
+- media and bio source selection is independent from `primary_public_handle`
+- a user may choose an ENS name as primary public handle while using uploaded Pirate avatar/media
+- stale or unverified ENS handles must not be selectable as primary public handles
+- if a selected ENS primary handle becomes stale, Pirate should clear `primary_public_handle` and fall back to the active `.pirate` handle
+- profile and post/comment renderers should resolve public labels through the same primary-public-handle rule
+
+ENS metadata import:
+
+- Pirate may import ENS `avatar`, `header`, `description`, `url`, and recognized social text records into linked-handle metadata
+- imported image refs must be normalized to safe renderable refs before storage or serialization
+- imported URL and social records must be normalized and validated before any UI renders them as links
+- arbitrary ENS text records should not become trusted UI links by default
+- if Pirate later renders ENS social links publicly, the serializer should expose typed normalized fields so clients do not each re-implement validation
+
+Freshness:
+
+- profile `updated_at` is not ENS freshness metadata because it changes on unrelated profile writes
+- if the product needs freshness UI, it should add explicit linked-handle or ENS metadata freshness fields such as `last_synced_at`
+- synchronous sync is acceptable for the current small ENS read path, but broader ENS or EFP graph refresh should be considered for background/asynchronous refresh if latency grows
 
 ### Profile Read-Model Extensions
 

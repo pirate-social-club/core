@@ -173,6 +173,7 @@ const ROUTE_EXPORTS = [
   { name: "authSessionExchange", path: "/auth/session/exchange" },
   { name: "usersMe", path: "/users/me" },
   { name: "onboardingStatus", path: "/onboarding/status" },
+  { name: "onboardingDismiss", path: "/onboarding/dismiss" },
   { name: "onboardingRedditVerification", path: "/onboarding/reddit-verification" },
   { name: "onboardingRedditImports", path: "/onboarding/reddit-imports" },
   { name: "onboardingRedditImportsLatest", path: "/onboarding/reddit-imports/latest" },

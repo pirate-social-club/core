@@ -122,6 +122,10 @@ OnboardingStatus:
       type: boolean
     cleanup_rename_available:
       type: boolean
+    onboarding_dismissed_at:
+      type: string
+      format: date-time
+      nullable: true
     unique_human_verification_status:
       type: string
       enum:

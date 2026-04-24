@@ -95,9 +95,14 @@ export type Profile = {
   user_id: string;
   display_name?: string | null;
   avatar_ref?: string | null;
+  avatar_source?: "ens" | "upload" | "none" | null;
   cover_ref?: string | null;
+  cover_source?: "ens" | "upload" | "none" | null;
   bio?: string | null;
+  bio_source?: "ens" | "manual" | "none" | null;
   preferred_locale?: string | null;
+  display_verified_nationality_badge?: boolean | null;
+  nationality_badge_country?: string | null;
   linked_handles?: Array<LinkedHandle> | null;
   primary_public_handle?: LinkedHandle | null;
   primary_wallet_address?: string | null;
@@ -140,6 +145,7 @@ export type RedditImportSummary = {
 export type OnboardingStatus = {
   generated_handle_assigned: boolean;
   cleanup_rename_available: boolean;
+  onboarding_dismissed_at?: string | null;
   unique_human_verification_status: "not_started" | "pending" | "verified" | "expired" | "failed";
   namespace_verification_status: "not_started" | "pending" | "verified" | "stale" | "expired" | "disputed" | "failed";
   community_creation_ready: boolean;
@@ -974,6 +980,7 @@ type LinkedHandle = {
   label: string;
   kind: "pirate" | "ens";
   verification_state: "verified" | "unverified" | "stale";
+  metadata?: (Record<string, unknown>) | null;
 };
 
 type MajeurGovernanceBackend = {

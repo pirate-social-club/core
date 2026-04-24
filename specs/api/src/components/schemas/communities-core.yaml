@@ -1332,6 +1332,11 @@ CommunityPreview:
     donation_partner:
       $ref: ./communities-community.yaml#/DonationPartnerSummary
       nullable: true
+    reference_links:
+      type: array
+      nullable: true
+      items:
+        $ref: ./communities-community.yaml#/CommunityReferenceLinkPublic
     membership_gate_summaries:
       type: array
       items:

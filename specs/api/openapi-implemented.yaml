@@ -735,6 +735,20 @@ paths:
                 $ref: "#/components/schemas/OnboardingStatus"
         "401":
           $ref: "#/components/responses/AuthError"
+  /onboarding/dismiss:
+    post:
+      tags:
+        - Onboarding
+      summary: Dismiss onboarding for the current user
+      responses:
+        "200":
+          description: Updated onboarding state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingStatus"
+        "401":
+          $ref: "#/components/responses/AuthError"
   /onboarding/reddit-verification:
     post:
       tags:
@@ -4230,13 +4244,40 @@ components:
         avatar_ref:
           type: string
           nullable: true
+        avatar_source:
+          type: string
+          enum:
+            - ens
+            - upload
+            - none
+          nullable: true
         cover_ref:
           type: string
+          nullable: true
+        cover_source:
+          type: string
+          enum:
+            - ens
+            - upload
+            - none
           nullable: true
         bio:
           type: string
           nullable: true
+        bio_source:
+          type: string
+          enum:
+            - ens
+            - manual
+            - none
+          nullable: true
         preferred_locale:
+          type: string
+          nullable: true
+        display_verified_nationality_badge:
+          type: boolean
+          nullable: true
+        nationality_badge_country:
           type: string
           nullable: true
         linked_handles:
@@ -4831,6 +4872,10 @@ components:
           type: boolean
         cleanup_rename_available:
           type: boolean
+        onboarding_dismissed_at:
+          type: string
+          format: date-time
+          nullable: true
         unique_human_verification_status:
           type: string
           enum:
