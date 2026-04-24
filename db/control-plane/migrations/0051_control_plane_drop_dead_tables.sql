@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS analytics_outbox;
 DROP TABLE IF EXISTS community_membership_requests;
 DROP TABLE IF EXISTS user_reddit_feature_profiles;
 DROP TABLE IF EXISTS user_audience_segments;
