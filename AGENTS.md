@@ -108,7 +108,7 @@ Tool roles:
 Rules:
 
 - do not push just to find out whether CI passes if `agent-ci` can run the same workflow locally
-- do not treat `docs/ci/*.yml` as executable CI once a repo has a real `.github/workflows/*.yml`
+- do not add shared CI planning stubs once a child repo has a real `.github/workflows/*.yml`
 - the real workflow file in the child repo is the source of truth for local `agent-ci` runs and remote Blacksmith runs
 - if a repo does not yet have a real workflow file, use targeted repo-native local checks until that workflow exists
 

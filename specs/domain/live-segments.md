@@ -1,6 +1,6 @@
 # Live Segments
 
-Status: draft
+Status: current working spec
 
 Related docs:
 

@@ -7,7 +7,7 @@ Use it together with the runtime code in
 
 Deployment assumption:
 
-- the VPS keeps a full `pirate-v2` checkout at `/srv/pirate-spaces/app`
+- the VPS keeps a full `core` checkout at `/srv/pirate-spaces/app`
 - deployment must preserve the repo tree under `services/` and `ops/`
 - do not flatten the verifier files into ad hoc top-level paths such as `scripts/spaces-verifier.ts`
 

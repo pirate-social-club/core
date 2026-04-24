@@ -1,6 +1,6 @@
 # Lit Actions
 
-Repo-local Lit Action source and stamped outputs for `pirate-v2`.
+Repo-local Lit Action source and stamped outputs for the current Pirate control plane.
 
 Principles:
 

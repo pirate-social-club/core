@@ -1,6 +1,6 @@
 # Database Migrations
 
-Pirate v2 now has two relational migration roots:
+Pirate has two relational migration roots:
 
 - `db/control-plane/migrations/`
   Central Pirate-owned control-plane schema for identity, auth links, verification, community routing, encrypted community credentials, global scrobble and track anchor state, projections, jobs, and audit.
@@ -10,7 +10,7 @@ Pirate v2 now has two relational migration roots:
 Runtime note:
 
 - `db/` is the canonical migration source for operational docs and bootstrap commands.
-- The API test suite (`pirate-api/services/api/tests/helpers.ts`) uses a SQLite-compatible baseline snapshot (`pirate-api/services/api/tests/fixtures/control-plane-baseline-sqlite.sql`) derived from the canonical Postgres schema. The historical migration chain in `db/control-plane/migrations/` is PostgreSQL-first and cannot be replayed against SQLite/libSQL. When the canonical schema changes, the test fixture must be regenerated.
+- The API test suite (`api/services/api/tests/helpers.ts`) uses a SQLite-compatible baseline snapshot (`api/services/api/tests/fixtures/control-plane-baseline-sqlite.sql`) derived from the canonical Postgres schema. The historical migration chain in `db/control-plane/migrations/` is PostgreSQL-first and cannot be replayed against SQLite/libSQL. When the canonical schema changes, the test fixture must be regenerated.
 - Keep the community-template trees in sync.
 
 Related docs:

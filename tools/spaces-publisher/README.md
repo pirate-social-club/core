@@ -58,7 +58,7 @@ The tool currently depends on sibling clones at:
 - `/home/t42/Documents/fabric-go`
 - `/home/t42/Documents/libveritas-go`
 
-via the `replace` directives in [go.mod](/home/t42/Documents/pirate-v2/tools/spaces-publisher/go.mod).
+via the `replace` directives in [go.mod](./go.mod).
 
 ### Temporary `fabric-go` patch
 

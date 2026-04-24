@@ -1,6 +1,6 @@
 # Agent Ownership
 
-Status: draft
+Status: current working spec
 
 Related docs:
 

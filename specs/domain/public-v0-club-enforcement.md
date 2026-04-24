@@ -9,7 +9,7 @@ This doc is not a new product spec. It translates the existing public v0 decisio
 Public v0 now has a clear product contract:
 
 - HNS is the only live external namespace family
-- Spaces is coming soon and must not enter the live public create flow
+- Spaces is not in the live public create flow
 - public community creation is centralized-only
 - public club membership modes are `open` or `gated`
 - new public communities start with a `standard` handle policy while public namespace claims and sales remain disabled

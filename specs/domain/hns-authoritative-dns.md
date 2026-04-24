@@ -1,6 +1,6 @@
 # HNS Authoritative DNS
 
-Status: draft
+Status: current working spec
 
 Related docs:
 

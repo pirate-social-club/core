@@ -1,6 +1,6 @@
 # Namespace Root Control
 
-Status: draft
+Status: current working spec
 
 Related docs:
 

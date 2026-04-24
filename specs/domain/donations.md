@@ -2,8 +2,6 @@
 
 Status: community partner and listing-level allocation implemented; real Endaoment execution deferred until mainnet commerce.
 
-Status: draft
-
 Related docs:
 
 - [community.md](./community.md)

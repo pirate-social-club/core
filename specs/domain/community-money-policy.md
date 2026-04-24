@@ -2,7 +2,7 @@
 
 Status: default policy is testnet checkout to Story Aeneid. Mainnet source chains remain explicit opt-in after Story/CDR mainnet readiness.
 
-Status: draft
+Status: current working spec
 
 Related docs:
 

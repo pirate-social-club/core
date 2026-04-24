@@ -1,6 +1,6 @@
 # Agent Action Proof
 
-Status: draft
+Status: current working spec
 
 This document defines Pirate's mainline `AgentActionProof` canonical request hashing contract.
 

@@ -1,6 +1,6 @@
 # Market Context
 
-Status: draft
+Status: current working spec
 
 Related docs:
 

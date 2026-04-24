@@ -23,9 +23,7 @@ That requires:
 PowerDNS fits that model better than file-oriented DNS servers.
 
 For public web/profile routing, this should remain a wildcard-at-root model, not one DNS record per user handle.
-See:
-
-- [docs/hns-public-profile-routing.md](../../../docs/hns-public-profile-routing.md)
+See [hns-authoritative-dns.md](../../../specs/domain/hns-authoritative-dns.md).
 
 ## Recommended Stack
 
