@@ -1,6 +1,6 @@
 # MPP
 
-Status: draft
+Status: active reference
 
 Related docs:
 

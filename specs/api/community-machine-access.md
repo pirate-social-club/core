@@ -1,6 +1,6 @@
 # Community Machine Access API
 
-Status: draft
+Status: active reference
 
 Related docs:
 

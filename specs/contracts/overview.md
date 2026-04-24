@@ -1,6 +1,6 @@
 # Contracts Overview
 
-Status: draft
+Status: active reference
 
 Related docs:
 
@@ -41,7 +41,7 @@ The current Story Aeneid delivery deployment is recorded in:
 
 - [story-aeneid-delivery.json](../../config/story-aeneid-delivery.json)
 
-That file is the checked-in source of truth for the active dev delivery addresses. The shell manifest produced by the deploy script remains local operational output under `pirate-contracts/story/delivery/deployments/`, but repo-owned docs and tooling should prefer the JSON file above.
+That file is the checked-in source of truth for the active dev delivery addresses. The shell manifest produced by the deploy script remains local operational output under `contracts/story/delivery/deployments/`, but repo-owned docs and tooling should prefer the JSON file above.
 
 ## Core Principle
 
@@ -88,7 +88,7 @@ Reasoning:
 - scrobbles are valuable music-club reputation and activity data
 - track registration and scrobble history benefit from shared onchain visibility
 - scrobble thresholds can later drive audience segments, unlocks, and club recognition
-- this is already a proven pattern in `pirate/` via `ScrobbleV4` (`pirate-v2` uses `ScrobbleV1` as the batch anchor contract)
+- this is already a proven pattern in `pirate/` via `ScrobbleV4` (`contracts/story/scrobble` uses `ScrobbleV1` as the batch anchor contract)
 
 Recommended v0 shape:
 
@@ -306,7 +306,7 @@ Pirate should avoid building dedicated v0 contracts for:
 
 Based on the existing `pirate/` Story stack, the most sensible v0 contract inventory is:
 
-Current concrete contract names implemented in `pirate-v2`:
+Current concrete contract names implemented in `contracts/`:
 
 - `ScrobbleV1`
 - `AssetPublishCoordinatorV1`
@@ -326,8 +326,8 @@ Role:
 
 Notes:
 
-- this is already validated by `ScrobbleV4` in `pirate/` (`pirate-v2` uses `ScrobbleV1` for this role)
-- it is the strongest candidate for a first-class Pirate v2 contract outside direct marketplace settlement
+- this is already validated by `ScrobbleV4` in `pirate/` (`contracts/story/scrobble` uses `ScrobbleV1` for this role)
+- it is the strongest candidate for a first-class Pirate contract outside direct marketplace settlement
 
 ### 2. Asset Publish Coordinator
 
@@ -424,4 +424,4 @@ These are later upgrades, not v0 requirements.
 - Should v0 marketplace execution and payout routing live in one Story contract or be split into separate contracts?
 - Does v0 need an onchain buyer receipt, or is an app-level purchase record enough?
 - At what governance threshold should handle issuance or payout policy move onchain?
-- Which `pirate/` Story contracts should be migrated forward mostly intact versus rewritten for Pirate v2?
+- Which `pirate/` Story contracts should be migrated forward mostly intact versus rewritten for Pirate?

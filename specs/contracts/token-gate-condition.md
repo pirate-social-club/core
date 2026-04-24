@@ -1,6 +1,6 @@
 # Token Gate Condition
 
-Status: draft
+Status: active reference
 
 Related docs:
 

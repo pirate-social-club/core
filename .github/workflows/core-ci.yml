@@ -37,6 +37,9 @@ jobs:
         working-directory: specs/api
         run: bun install --frozen-lockfile
 
+      - name: Run repo hygiene checks
+        run: npm run check
+
       # Full `bun run verify` is intentionally excluded here because it writes
       # generated contracts into the standalone API sidecar when available.
       - name: Rebuild core-owned spec artifacts

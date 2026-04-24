@@ -1,6 +1,6 @@
 # Locked Asset Delivery
 
-Status: draft
+Status: active reference
 
 Related docs:
 
@@ -226,7 +226,7 @@ Pirate should avoid using signed proofs for ordinary purchased ownership when a 
 
 The old signed condition used a namespace derived from track identity alone.
 
-That is too coarse for Pirate v2 if vault rotation or asset-version rotation matters.
+That is too coarse for Pirate if vault rotation or asset-version rotation matters.
 
 Recommended v0 rule:
 
@@ -262,7 +262,7 @@ This preserves the main operational benefits Pirate already wanted:
 
 If Pirate goes full CDR for locked assets, the sensible locked-delivery contract inventory is:
 
-Current concrete contract names implemented in `pirate-v2`:
+Current concrete contract names implemented in `contracts/`:
 
 - `AssetPublishCoordinatorV1`
 - `MarketplaceSettlementV1`
@@ -383,7 +383,7 @@ The signer and funding inventories should treat this delivery decision as author
 
 ## Recommendation
 
-Pirate v2 should adopt full CDR for locked assets.
+Pirate should adopt full CDR for locked assets.
 
 Concrete recommendation:
 

@@ -1,6 +1,6 @@
 # Scrobble V1
 
-Status: draft
+Status: active reference
 
 Related docs:
 
@@ -9,7 +9,7 @@ Related docs:
 
 ## Purpose
 
-This doc defines the minimal Story-side scrobble contract for Pirate v2.
+This doc defines the minimal Story-side scrobble contract for Pirate.
 
 It covers:
 
@@ -34,7 +34,7 @@ It should not become a general-purpose music metadata registry, playlist system,
 - supporting direct user submission
 - supporting trusted operator-assisted submission
 
-In Pirate v2, the normal production path is delegated batch anchoring:
+In Pirate, the normal production path is delegated batch anchoring:
 
 1. the API accepts a scrobble offchain
 2. the anchor worker ensures referenced tracks are registered
@@ -108,7 +108,7 @@ Semantics:
 - `club_id = bytes32(0)` means no club context
 - `credited_duration_ms` is the only listen-duration field carried onchain in v1
 - `playback_position_ms` is intentionally omitted from v1 because it is not required for canonical event identity
-- under Pirate v2 batch anchoring, `submission_mode` reflects the chain submitter path, not the original app-side provenance
+- under Pirate batch anchoring, `submission_mode` reflects the chain submitter path, not the original app-side provenance
 - this means batch-published scrobbles normally emit `submission_mode = delegated`
 
 ## Enums
@@ -140,7 +140,7 @@ Initial v1 constant:
 
 - `MAX_BATCH = 200`
 
-Operational constraints for Pirate v2:
+Operational constraints for Pirate:
 
 - `registerTracks(...)` and `scrobbleBatch(...)` are separate transactions
 - if a track in `registerTracks(...)` already exists, the entire transaction reverts

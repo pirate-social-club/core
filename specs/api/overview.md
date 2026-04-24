@@ -1,6 +1,6 @@
 # API Overview
 
-Status: draft
+Status: active reference
 
 Related docs:
 

@@ -1,6 +1,6 @@
 # Purchase Entitlement Token
 
-Status: draft
+Status: active reference
 
 Related docs:
 

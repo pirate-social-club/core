@@ -4,6 +4,7 @@
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
+    "check": "node scripts/check-repo-hygiene.mjs",
     "tinybird:info": "tinybird info",
     "tinybird:deploy": "tinybird deploy",
     "tinybird:generate": "tinybird generate --output-dir /tmp/pirate-core-tinybird-generated"
