@@ -30,7 +30,9 @@ Product and system design docs grouped by domain surface.
 - `community-pricing-policy.md`
   Community-controlled regional pricing, nationality-tier mapping, and quote-pricing audit policy.
 - `community-machine-access.md`
-  Community-controlled machine-reader access, data licensing, and AI-training rights.
+  Structured agent-readable surfaces, per-surface opt-out, and v0 machine-access guardrails.
+- `agent-discovery.md`
+  Site-level agent discovery, well-known metadata, markdown negotiation, OAuth metadata, and traversal-link rules.
 - `public-v0-club-enforcement.md`
   Backend enforcement checklist for the locked public v0 club contract.
 - `governance-backends.md`
@@ -140,13 +142,15 @@ UI handoff and runtime-specific docs live outside this index:
 If you are starting fresh, read in this order:
 
 1. `community.md`
-2. `public-v0-club-enforcement.md`
-3. `namespace-root-control.md`
-4. `hns-verification-flow.md`
-5. `spaces-verification-flow.md`
-6. `hns-authoritative-dns.md`
-7. `governance-backends.md`
-8. `asset.md`
-9. `marketplace.md`
-10. `scrobbles.md`
-11. `onboarding.md`
+2. `community-machine-access.md`
+3. `agent-discovery.md`
+4. `public-v0-club-enforcement.md`
+5. `namespace-root-control.md`
+6. `hns-verification-flow.md`
+7. `spaces-verification-flow.md`
+8. `hns-authoritative-dns.md`
+9. `governance-backends.md`
+10. `asset.md`
+11. `marketplace.md`
+12. `scrobbles.md`
+13. `onboarding.md`

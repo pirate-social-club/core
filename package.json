@@ -12,6 +12,7 @@
     "@keystonehq/bc-ur-registry-eth": "^0.22.1",
     "@libsql/client": "^0.17.2",
     "@ngraveio/bc-ur": "^1.1.13",
+    "@openai/codex": "^0.124.0",
     "@tinybirdco/sdk": "^0.0.66",
     "ethers": "^6.16.0",
     "qrcode": "^1.5.4"

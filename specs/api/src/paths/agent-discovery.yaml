@@ -1,0 +1,205 @@
+well_known_api_catalog:
+  get:
+    tags:
+      - Agent Discovery
+    x-implemented: false
+    security: []
+    summary: Discover Pirate API catalogs
+    description: |
+      Bootstrap entrypoint for agents. Returns the machine-readable API catalog linking public and authenticated service descriptions, OAuth metadata, MCP discovery, and Agent Skills.
+    responses:
+      "200":
+        description: Agent API catalog
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+        content:
+          application/linkset+json:
+            schema:
+              $ref: ../components/schemas/agent-discovery.yaml#/AgentApiCatalog
+          application/json:
+            schema:
+              $ref: ../components/schemas/agent-discovery.yaml#/AgentApiCatalog
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+well_known_public_openapi:
+  get:
+    tags:
+      - Agent Discovery
+    x-implemented: false
+    security: []
+    summary: Discover public OpenAPI service description
+    description: |
+      Public service description for agent-readable unauthenticated routes. Planned routes may be present only when marked as not implemented.
+    responses:
+      "200":
+        description: Public OpenAPI document
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+        content:
+          application/vnd.oai.openapi+json:
+            schema:
+              type: object
+              additionalProperties: true
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+well_known_mcp_server_card:
+  get:
+    tags:
+      - Agent Discovery
+    x-implemented: false
+    security: []
+    summary: Discover Pirate MCP Server Card
+    description: |
+      MCP Server Card for Pirate's optional MCP wrapper. MCP must not expose a broader surface than the structured HTTP API.
+    responses:
+      "200":
+        description: MCP Server Card
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/agent-discovery.yaml#/McpServerCard
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+well_known_agent_skills:
+  get:
+    tags:
+      - Agent Discovery
+    x-implemented: false
+    security: []
+    summary: Discover Pirate Agent Skills
+    description: |
+      High-level first-party skills that point agents to API catalog entries or service descriptions.
+    responses:
+      "200":
+        description: Agent Skills index
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/agent-discovery.yaml#/AgentSkillIndex
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+well_known_oauth_authorization_server:
+  get:
+    tags:
+      - Agent Discovery
+    x-implemented: false
+    security: []
+    summary: Discover OAuth authorization server metadata
+    responses:
+      "200":
+        description: OAuth authorization server metadata
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/agent-discovery.yaml#/WellKnownMetadata
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+well_known_oauth_protected_resource:
+  get:
+    tags:
+      - Agent Discovery
+    x-implemented: false
+    security: []
+    summary: Discover OAuth protected resource metadata
+    description: |
+      Protected-resource metadata for same-origin APIs, including member-only structured reads that require ordinary Pirate auth.
+    responses:
+      "200":
+        description: OAuth protected resource metadata
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/agent-discovery.yaml#/WellKnownMetadata
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+well_known_openid_configuration:
+  get:
+    tags:
+      - Agent Discovery
+    x-implemented: false
+    security: []
+    summary: Discover OpenID configuration
+    responses:
+      "200":
+        description: OpenID Connect discovery metadata
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/agent-discovery.yaml#/WellKnownMetadata
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+robots_txt:
+  get:
+    tags:
+      - Agent Discovery
+    x-implemented: false
+    security: []
+    summary: Discover crawl and sitemap hints
+    description: |
+      Public robots document. Robots and content signals are hints; server authorization remains authoritative.
+    responses:
+      "200":
+        description: Robots document
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+        content:
+          text/plain:
+            schema:
+              type: string
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+sitemap_xml:
+  get:
+    tags:
+      - Agent Discovery
+    x-implemented: false
+    security: []
+    summary: Discover public human-visible pages
+    description: |
+      Public sitemap index for human-visible public pages. Sitemap inclusion does not imply structured API inclusion if a community opts out of a surface.
+    responses:
+      "200":
+        description: Public sitemap
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+        content:
+          application/xml:
+            schema:
+              type: string
+          text/xml:
+            schema:
+              type: string
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited

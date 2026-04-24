@@ -23,6 +23,7 @@ const SCHEMA_GROUPS: Record<string, readonly string[]> = {
     "SelfVerificationDisclosures",
     "SelfVerificationLaunch",
     "VeryWidgetLaunch",
+    "VerySessionBinding",
     "VerificationSessionLaunch",
     "VerificationSession",
   ],

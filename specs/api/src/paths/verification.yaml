@@ -70,10 +70,15 @@ verification_sessions:
                               to: "2043436800"
                         options:
                           expiredAtLowerBound: "1743436800"
-                          externalNullifier: pirate-community-creation
+                          externalNullifier: pirate-unique-human-v0
                           equalCheckId: "0"
-                          pseudonym: "0"
+                          pseudonym: "ver_sess_01HVERYWIDGETEXAMPLE.7f9f0e6b"
                       verify_url: https://verify.very.org/api/v1/verify
+                      session_binding:
+                        uniqueness_domain: pirate-unique-human-v0
+                        binding_value: "ver_sess_01HVERYWIDGETEXAMPLE.7f9f0e6b"
+                        binding_field: pseudonym
+                        challenge_expires_at: "2026-04-10T12:15:00Z"
                   callback_path: /verification-sessions/ver_sess_01HVERYWIDGETEXAMPLE/complete
                   created_at: "2026-04-10T12:00:00Z"
                   expires_at: "2026-04-10T12:15:00Z"

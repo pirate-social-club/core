@@ -1,0 +1,113 @@
+AgentApiCatalog:
+  type: object
+  additionalProperties: true
+  description: |
+    Top-level machine-readable API catalog. The exact linkset shape may evolve, but entries must identify href, media type, and auth requirements where applicable.
+  required:
+    - links
+  properties:
+    links:
+      type: array
+      items:
+        $ref: ./agent-discovery.yaml#/AgentApiCatalogLink
+AgentApiCatalogLink:
+  type: object
+  additionalProperties: false
+  required:
+    - href
+    - rel
+    - type
+  properties:
+    href:
+      type: string
+    rel:
+      type: string
+    type:
+      type: string
+    title:
+      type: string
+      nullable: true
+    auth_required:
+      type: boolean
+      default: false
+AgentSkillIndex:
+  type: object
+  additionalProperties: false
+  required:
+    - skills
+  properties:
+    skills:
+      type: array
+      items:
+        $ref: ./agent-discovery.yaml#/AgentSkill
+AgentSkill:
+  type: object
+  additionalProperties: false
+  required:
+    - id
+    - title
+    - description
+    - links
+  properties:
+    id:
+      type: string
+    title:
+      type: string
+    description:
+      type: string
+    auth_required:
+      type: boolean
+      default: false
+    links:
+      type: array
+      items:
+        $ref: ./agent-discovery.yaml#/AgentApiCatalogLink
+McpServerCard:
+  type: object
+  additionalProperties: true
+  description: |
+    MCP Server Card discovery document. Pirate treats this as discovery metadata for an optional MCP wrapper over the structured HTTP read layer.
+  required:
+    - version
+    - protocolVersion
+    - serverInfo
+    - transport
+    - capabilities
+  properties:
+    version:
+      type: string
+    protocolVersion:
+      type: string
+    serverInfo:
+      type: object
+      additionalProperties: true
+      required:
+        - name
+        - version
+      properties:
+        name:
+          type: string
+        title:
+          type: string
+        version:
+          type: string
+    description:
+      type: string
+    transport:
+      type: object
+      additionalProperties: true
+      required:
+        - type
+        - endpoint
+      properties:
+        type:
+          type: string
+        endpoint:
+          type: string
+    capabilities:
+      type: object
+      additionalProperties: true
+WellKnownMetadata:
+  type: object
+  additionalProperties: true
+  description: Generic well-known metadata document for OAuth, OIDC, and protected-resource discovery.

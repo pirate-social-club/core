@@ -21,7 +21,7 @@
 - `src/components/schemas/*.yaml`
   Schemas grouped by bounded context.
 - `community-machine-access.md`
-  Planned API surface for community-controlled machine-reader access, data licenses, and x402 payment before the OpenAPI paths are implemented.
+  Planned API surface for structured agent-readable community access, per-surface opt-out, traversal links, and v0 operational guardrails before the OpenAPI paths are implemented.
 
 ## Commands
 

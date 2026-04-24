@@ -1,0 +1,206 @@
+communities_by_community_id_machine_access_policy:
+  get:
+    tags:
+      - Communities
+    x-implemented: false
+    summary: Get community machine-access policy
+    description: |
+      Returns the resolved effective structured-access policy. When no explicit policy exists, the server returns the default resolved policy rather than null.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community machine-access policy
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityMachineAccessPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+  patch:
+    tags:
+      - Communities
+    x-implemented: false
+    summary: Update community machine-access policy
+    description: |
+      Stores an explicit moderator policy. The policy may narrow or disable structured convenience, but must not broaden human visibility.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/CommunityMachineAccessPolicyPatch
+    responses:
+      "200":
+        description: Community machine-access policy
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityMachineAccessPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+public_communities_by_community_id:
+  get:
+    tags:
+      - Communities
+    x-implemented: false
+    security: []
+    summary: Get structured public community
+    description: |
+      Returns public community identity, included structured surfaces, omitted-surface metadata, and traversal links. If a child surface is opted out, the parent response remains `200` and lists the omitted surface.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Structured public community
+        headers:
+          Link:
+            schema:
+              type: string
+            description: HTTP traversal and discovery links where practical.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/StructuredPublicCommunityResponse
+          text/markdown:
+            schema:
+              type: string
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+public_communities_by_community_id_posts:
+  get:
+    tags:
+      - Communities
+    x-implemented: false
+    security: []
+    summary: List structured public community posts
+    description: |
+      Returns structured thread cards and, when allowed, thread bodies. If `thread_bodies` is opted out, cards remain available and `omitted_surfaces` explains the omission. If `thread_cards` is disabled, direct requests return `structured_surface_disabled`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/Cursor
+      - $ref: ../components/parameters.yaml#/Limit
+    responses:
+      "200":
+        description: Structured public post list
+        headers:
+          Link:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/StructuredPublicPostListResponse
+      "403":
+        $ref: ../components/responses.yaml#/StructuredSurfaceDisabled
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+public_posts_by_post_id:
+  get:
+    tags:
+      - Posts
+    x-implemented: false
+    security: []
+    summary: Get structured public post
+    description: |
+      Returns a structured public post card and, when allowed, body/media metadata. Traversal links point to canonical HTML, markdown, community, and top comments when enabled.
+    parameters:
+      - $ref: ../components/parameters.yaml#/PostId
+    responses:
+      "200":
+        description: Structured public post
+        headers:
+          Link:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/StructuredPublicPostResponse
+          text/markdown:
+            schema:
+              type: string
+      "403":
+        $ref: ../components/responses.yaml#/StructuredSurfaceDisabled
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+public_posts_by_post_id_top_comments:
+  get:
+    tags:
+      - Comments
+    x-implemented: false
+    security: []
+    summary: Get structured public top comments
+    description: |
+      Returns only the top N comments for a public thread. Full comment-tree access is not a v0 API guarantee. If top comments are disabled, direct requests return `structured_surface_disabled`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/PostId
+    responses:
+      "200":
+        description: Structured top comments
+        headers:
+          Link:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/StructuredTopCommentsResponse
+      "403":
+        $ref: ../components/responses.yaml#/StructuredSurfaceDisabled
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+public_events_by_community_id:
+  get:
+    tags:
+      - Communities
+    x-implemented: false
+    security: []
+    summary: List structured public community events
+    description: |
+      Returns structured event cards when the community includes events in structured reads. If events are disabled, direct requests return `structured_surface_disabled`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/Cursor
+      - $ref: ../components/parameters.yaml#/Limit
+    responses:
+      "200":
+        description: Structured public event cards
+        headers:
+          Link:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/StructuredPublicEventsResponse
+      "403":
+        $ref: ../components/responses.yaml#/StructuredSurfaceDisabled
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited

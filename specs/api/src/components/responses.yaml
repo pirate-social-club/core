@@ -23,6 +23,37 @@ Forbidden:
     application/json:
       schema:
         $ref: ./schemas/common.yaml#/Error
+StructuredSurfaceDisabled:
+  description: The underlying resource is visible, but this structured surface is disabled by community or platform policy
+  content:
+    application/json:
+      schema:
+        type: object
+        additionalProperties: false
+        required:
+          - code
+          - message
+        properties:
+          code:
+            type: string
+            enum:
+              - structured_surface_disabled
+          message:
+            type: string
+          retryable:
+            type: boolean
+            default: false
+          details:
+            type: object
+            nullable: true
+            additionalProperties: true
+      examples:
+        default:
+          summary: Structured surface disabled
+          value:
+            code: structured_surface_disabled
+            message: This structured surface is disabled for this community.
+            retryable: false
 PaymentRequired:
   description: Payment is required before the resource can be accessed
   headers:

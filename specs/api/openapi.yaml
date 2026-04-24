@@ -13,6 +13,7 @@ servers:
 security:
   - bearerAuth: []
 tags:
+  - name: Agent Discovery
   - name: Auth
   - name: Verification
   - name: Agents
@@ -34,6 +35,211 @@ tags:
   - name: Notifications
   - name: Jobs
 paths:
+  /.well-known/api-catalog:
+    get:
+      tags:
+        - Agent Discovery
+      x-implemented: false
+      security: []
+      summary: Discover Pirate API catalogs
+      description: |
+        Bootstrap entrypoint for agents. Returns the machine-readable API catalog linking public and authenticated service descriptions, OAuth metadata, MCP discovery, and Agent Skills.
+      responses:
+        "200":
+          description: Agent API catalog
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            application/linkset+json:
+              schema:
+                $ref: "#/components/schemas/AgentApiCatalog"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentApiCatalog"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /.well-known/service-desc/public.openapi.json:
+    get:
+      tags:
+        - Agent Discovery
+      x-implemented: false
+      security: []
+      summary: Discover public OpenAPI service description
+      description: |
+        Public service description for agent-readable unauthenticated routes. Planned routes may be present only when marked as not implemented.
+      responses:
+        "200":
+          description: Public OpenAPI document
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            application/vnd.oai.openapi+json:
+              schema:
+                type: object
+                additionalProperties: true
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /.well-known/mcp/server-card.json:
+    get:
+      tags:
+        - Agent Discovery
+      x-implemented: false
+      security: []
+      summary: Discover Pirate MCP Server Card
+      description: |
+        MCP Server Card for Pirate's optional MCP wrapper. MCP must not expose a broader surface than the structured HTTP API.
+      responses:
+        "200":
+          description: MCP Server Card
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/McpServerCard"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /.well-known/agent-skills/index.json:
+    get:
+      tags:
+        - Agent Discovery
+      x-implemented: false
+      security: []
+      summary: Discover Pirate Agent Skills
+      description: |
+        High-level first-party skills that point agents to API catalog entries or service descriptions.
+      responses:
+        "200":
+          description: Agent Skills index
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSkillIndex"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /.well-known/oauth-authorization-server:
+    get:
+      tags:
+        - Agent Discovery
+      x-implemented: false
+      security: []
+      summary: Discover OAuth authorization server metadata
+      responses:
+        "200":
+          description: OAuth authorization server metadata
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WellKnownMetadata"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /.well-known/oauth-protected-resource:
+    get:
+      tags:
+        - Agent Discovery
+      x-implemented: false
+      security: []
+      summary: Discover OAuth protected resource metadata
+      description: |
+        Protected-resource metadata for same-origin APIs, including member-only structured reads that require ordinary Pirate auth.
+      responses:
+        "200":
+          description: OAuth protected resource metadata
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WellKnownMetadata"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /.well-known/openid-configuration:
+    get:
+      tags:
+        - Agent Discovery
+      x-implemented: false
+      security: []
+      summary: Discover OpenID configuration
+      responses:
+        "200":
+          description: OpenID Connect discovery metadata
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WellKnownMetadata"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /robots.txt:
+    get:
+      tags:
+        - Agent Discovery
+      x-implemented: false
+      security: []
+      summary: Discover crawl and sitemap hints
+      description: |
+        Public robots document. Robots and content signals are hints; server authorization remains authoritative.
+      responses:
+        "200":
+          description: Robots document
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            text/plain:
+              schema:
+                type: string
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /sitemap.xml:
+    get:
+      tags:
+        - Agent Discovery
+      x-implemented: false
+      security: []
+      summary: Discover public human-visible pages
+      description: |
+        Public sitemap index for human-visible public pages. Sitemap inclusion does not imply structured API inclusion if a community opts out of a surface.
+      responses:
+        "200":
+          description: Public sitemap
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            application/xml:
+              schema:
+                type: string
+            text/xml:
+              schema:
+                type: string
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /auth/session/exchange:
     post:
       tags:
@@ -192,10 +398,15 @@ paths:
                                 to: "2043436800"
                           options:
                             expiredAtLowerBound: "1743436800"
-                            externalNullifier: pirate-community-creation
+                            externalNullifier: pirate-unique-human-v0
                             equalCheckId: "0"
-                            pseudonym: "0"
+                            pseudonym: ver_sess_01HVERYWIDGETEXAMPLE.7f9f0e6b
                         verify_url: https://verify.very.org/api/v1/verify
+                        session_binding:
+                          uniqueness_domain: pirate-unique-human-v0
+                          binding_value: ver_sess_01HVERYWIDGETEXAMPLE.7f9f0e6b
+                          binding_field: pseudonym
+                          challenge_expires_at: 2026-04-10T12:15:00Z
                     callback_path: /verification-sessions/ver_sess_01HVERYWIDGETEXAMPLE/complete
                     created_at: 2026-04-10T12:00:00Z
                     expires_at: 2026-04-10T12:15:00Z
@@ -1921,6 +2132,63 @@ paths:
           $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /communities/{community_id}/machine-access-policy:
+    get:
+      tags:
+        - Communities
+      x-implemented: false
+      summary: Get community machine-access policy
+      description: |
+        Returns the resolved effective structured-access policy. When no explicit policy exists, the server returns the default resolved policy rather than null.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      responses:
+        "200":
+          description: Community machine-access policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityMachineAccessPolicy"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+    patch:
+      tags:
+        - Communities
+      x-implemented: false
+      summary: Update community machine-access policy
+      description: |
+        Stores an explicit moderator policy. The policy may narrow or disable structured convenience, but must not broaden human visibility.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommunityMachineAccessPolicyPatch"
+      responses:
+        "200":
+          description: Community machine-access policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityMachineAccessPolicy"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /communities/{community_id}/listings:
     get:
       tags:
@@ -3411,6 +3679,155 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
+  /public-communities/{community_id}:
+    get:
+      tags:
+        - Communities
+      x-implemented: false
+      security: []
+      summary: Get structured public community
+      description: |
+        Returns public community identity, included structured surfaces, omitted-surface metadata, and traversal links. If a child surface is opted out, the parent response remains `200` and lists the omitted surface.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      responses:
+        "200":
+          description: Structured public community
+          headers:
+            Link:
+              schema:
+                type: string
+              description: HTTP traversal and discovery links where practical.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredPublicCommunityResponse"
+            text/markdown:
+              schema:
+                type: string
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /public-communities/{community_id}/posts:
+    get:
+      tags:
+        - Communities
+      x-implemented: false
+      security: []
+      summary: List structured public community posts
+      description: |
+        Returns structured thread cards and, when allowed, thread bodies. If `thread_bodies` is opted out, cards remain available and `omitted_surfaces` explains the omission. If `thread_cards` is disabled, direct requests return `structured_surface_disabled`.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Structured public post list
+          headers:
+            Link:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredPublicPostListResponse"
+        "403":
+          $ref: "#/components/responses/StructuredSurfaceDisabled"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /public-posts/{post_id}:
+    get:
+      tags:
+        - Posts
+      x-implemented: false
+      security: []
+      summary: Get structured public post
+      description: |
+        Returns a structured public post card and, when allowed, body/media metadata. Traversal links point to canonical HTML, markdown, community, and top comments when enabled.
+      parameters:
+        - $ref: "#/components/parameters/PostId"
+      responses:
+        "200":
+          description: Structured public post
+          headers:
+            Link:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredPublicPostResponse"
+            text/markdown:
+              schema:
+                type: string
+        "403":
+          $ref: "#/components/responses/StructuredSurfaceDisabled"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /public-posts/{post_id}/top-comments:
+    get:
+      tags:
+        - Comments
+      x-implemented: false
+      security: []
+      summary: Get structured public top comments
+      description: |
+        Returns only the top N comments for a public thread. Full comment-tree access is not a v0 API guarantee. If top comments are disabled, direct requests return `structured_surface_disabled`.
+      parameters:
+        - $ref: "#/components/parameters/PostId"
+      responses:
+        "200":
+          description: Structured top comments
+          headers:
+            Link:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredTopCommentsResponse"
+        "403":
+          $ref: "#/components/responses/StructuredSurfaceDisabled"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /public-events/{community_id}:
+    get:
+      tags:
+        - Communities
+      x-implemented: false
+      security: []
+      summary: List structured public community events
+      description: |
+        Returns structured event cards when the community includes events in structured reads. If events are disabled, direct requests return `structured_surface_disabled`.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Structured public event cards
+          headers:
+            Link:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredPublicEventsResponse"
+        "403":
+          $ref: "#/components/responses/StructuredSurfaceDisabled"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /posts/{post_id}/vote:
     post:
       tags:
@@ -4342,7 +4759,9 @@ components:
     User:
       type: object
       description: |
-        Public user read model. Sensitive verified-identity fields that may exist on the canonical user row, such as `date_of_birth`, `age_at_verification`, `identity_nullifier_hash`, and `verification_session_id`, are intentionally omitted from this schema in v0.
+        Public user read model. Sensitive verified-identity fields that may exist in canonical storage,
+        such as `date_of_birth`, `age_at_verification`, provider nullifiers, and
+        `verification_session_id`, are intentionally omitted from this schema in v0.
       required:
         - user_id
         - verification_state
@@ -4566,7 +4985,10 @@ components:
       required:
         - state
       description: |
-        Capability state for provider-backed sanctions screening in v0.
+        Capability state for provider-backed sanctions screening in v0. Public v0 currently accepts
+        Human Passport-backed sanctions state only. Self OFAC support remains deferred until Pirate has
+        pinned the Self launch config, backend verification config, response polarity, and fail-closed
+        parser tests.
       properties:
         state:
           type: string
@@ -4577,7 +4999,6 @@ components:
         provider:
           type: string
           enum:
-            - self
             - passport
           nullable: true
         proof_type:
@@ -4588,7 +5009,6 @@ components:
         mechanism:
           type: string
           enum:
-            - self_ofac
             - passport_clean_hands
             - CleanHands
           nullable: true
@@ -4906,6 +5326,7 @@ components:
         - type_id
         - query
         - verify_url
+        - session_binding
       properties:
         app_id:
           type: string
@@ -4921,8 +5342,42 @@ components:
             pass this through to the provider widget rather than constructing or mutating it.
             Example shape may include `conditions` plus `options` such as
             `expiredAtLowerBound`, `externalNullifier`, `equalCheckId`, and `pseudonym`.
+            For unique-human verification, the server must use a stable Pirate uniqueness domain for
+            `externalNullifier` and a per-session binding value for `pseudonym` or an equivalent
+            proof-bound field, then verify both values before minting capabilities.
         verify_url:
           type: string
+        session_binding:
+          $ref: "#/components/schemas/VerySessionBinding"
+    VerySessionBinding:
+      type: object
+      required:
+        - uniqueness_domain
+        - binding_value
+        - challenge_expires_at
+      description: |
+        Server-authored binding material that the Very proof must cover. This separates the stable
+        nullifier domain used for one-person-one-account enforcement from the per-session value used
+        to prevent proof replay across verification sessions. For wallet-related flows this does not
+        replace wallet-signature ownership proof; it only binds the Very proof to the current Pirate
+        verification ceremony.
+      properties:
+        uniqueness_domain:
+          type: string
+          description: Stable Very external-nullifier domain for the Pirate capability being minted.
+        binding_value:
+          type: string
+          description: Server-generated per-session challenge, nonce, or hash included in the Very proof.
+        binding_field:
+          type: string
+          enum:
+            - pseudonym
+            - challenge
+          nullable: true
+          description: Provider field used to carry the binding value.
+        challenge_expires_at:
+          type: string
+          format: date-time
     VerificationSessionLaunch:
       type: object
       required:
@@ -6772,8 +7227,9 @@ components:
             submitted gate rule must include explicit `proof_requirements`. `viewer`-scope gates and
             `posting`-scope gates are not supported in v0. The server should reject create requests
             containing gate rules that fall outside the public v0 scope.
-            Public v0 supports `sanctions_clear` through Self OFAC screening and Human Passport-backed
-            capability state.
+            Public v0 supports `sanctions_clear` through Human Passport-backed capability state. Self
+            OFAC remains deferred until its verifier response polarity and fail-closed parser behavior
+            are pinned by tests.
             Public v0 self-serve creation supports a narrow token-holding lane for Ethereum mainnet
             ERC-721 collection membership gates only. Other token-holding variants remain unsupported.
     GateRuleInput:
@@ -6925,7 +7381,6 @@ components:
         wallet_score:
           - passport
         sanctions_clear:
-          - self
           - passport
       x-unvalidated-proof-types:
         - biometric_liveness
@@ -6957,7 +7412,9 @@ components:
             - `nationality`: `self`
             - `gender`: `self` (document marker `M` / `F`)
             - `wallet_score`: `passport`
-            - `sanctions_clear`: `self` or `passport`
+            - `sanctions_clear`: `passport`
+            Self OFAC-backed `sanctions_clear` is intentionally not public-v0 until launch config,
+            backend verification config, response polarity, and parser tests are pinned.
             Other modeled proof types such as `biometric_liveness`, `gov_id`, and `phone` remain
             intentionally unvalidated at the public-v0 provider-matrix layer until the product locks
             their accepted-provider rules.
@@ -6972,8 +7429,8 @@ components:
           nullable: true
           description: |
             Optional mechanism allowlist for provider-backed proofs. Public-v0 sanctions mechanisms are
-            `self_ofac` for Self OFAC screening and `passport_clean_hands` for Human Passport Clean
-            Hands. `CleanHands` remains accepted as a legacy Passport mechanism value.
+            `passport_clean_hands` for Human Passport Clean Hands. `CleanHands` remains accepted as a
+            legacy Passport mechanism value.
           items:
             type: string
         config:

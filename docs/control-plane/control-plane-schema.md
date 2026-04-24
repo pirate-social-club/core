@@ -64,9 +64,11 @@ Canonical relational sources:
 - `wallet_attachments` is the source of truth for linked wallets
 - `auth_provider_links` is the source of truth for upstream auth identities
 - `verification_sessions` and `user_attestations` are the workflow and attestation sources of truth for verification
+- `identity_nullifiers` is the source of truth for provider-keyed personhood uniqueness enforcement
 - `namespace_verification_sessions`, `namespace_verifications`, and their evidence tables are the source of truth for external namespace root proof and accepted namespace-attachment authority
 - `communities` is the source of truth for club-to-database routing
 - `community_money_policies` is the source of truth for explicit attached community funding policy overrides
+- `machine_access_overrides` is the source of truth for platform-level machine-access abuse controls
 - `community_database_bindings` and `community_db_credentials` are the source of truth for active community database connection metadata
 - `scrobble_ingest_events` is the source of truth for accepted scrobble ingest rows
 - `track_anchor_state` is the source of truth for Pirate's confirmed view of global onchain track registration state
@@ -113,6 +115,41 @@ Notes:
 
 - `verification_capabilities_json` stores the provider-neutral capability read model from [user.md](../../specs/domain/user.md)
 - sensitive provider fields such as raw nullifiers or full DOB are not duplicated here unless the user spec explicitly requires them on the canonical row
+
+### `identity_nullifiers`
+
+Purpose:
+
+- provider-keyed uniqueness guard for biometric or nullifier-backed personhood proofs
+
+Columns:
+
+- `identity_nullifier_id` text primary key
+- `user_id` text not null
+- `provider` text not null
+- `mechanism` text not null
+- `nullifier_hash` text not null
+- `source_verification_session_id` text nullable
+- `source_user_attestation_id` text nullable
+- `status` text not null
+- `first_seen_at` timestamptz not null
+- `revoked_at` timestamptz nullable
+- `created_at` timestamptz not null
+- `updated_at` timestamptz not null
+
+Constraints and indexes:
+
+- foreign key `user_id -> users.user_id`
+- foreign key `source_verification_session_id -> verification_sessions.verification_session_id`
+- foreign key `source_user_attestation_id -> user_attestations.user_attestation_id`
+- unique active index on `(provider, mechanism, nullifier_hash)` where `status = 'active'`
+- index on `(user_id, status, first_seen_at desc)`
+
+Notes:
+
+- nullifier uniqueness is provider- and mechanism-scoped; Self and Very may use different nullifier domains
+- raw nullifier values must be hashed before storage
+- a duplicate active nullifier attempting to map to a different `user_id` must be rejected or routed to audited review before `unique_human` is minted
 
 ### `wallet_attachments`
 
@@ -571,6 +608,42 @@ Notes:
 - this table is intentionally attached to `communities` rather than expanding the community core row into a route object
 - when no row exists, the API/runtime resolves the platform default money policy with `policy_origin = default`
 - stored JSON fields are attached policy payloads, not replacements for the canonical `community_id` ownership relationship
+
+### `machine_access_overrides`
+
+Purpose:
+
+- platform-owned kill switches for structured machine access during abuse response
+
+Columns:
+
+- `machine_access_override_id` text primary key
+- `community_id` text not null
+- `surface` text not null
+- `effect` text not null
+- `reason_code` text not null
+- `note` text nullable
+- `created_by_user_id` text nullable
+- `created_at` timestamptz not null
+- `expires_at` timestamptz nullable
+- `revoked_at` timestamptz nullable
+- `revoked_by_user_id` text nullable
+- `revoked_reason` text nullable
+
+Constraints and indexes:
+
+- foreign key `community_id -> communities.community_id`
+- foreign key `created_by_user_id -> users.user_id`
+- foreign key `revoked_by_user_id -> users.user_id`
+- check `surface in ('all', 'community_stats', 'thread_cards', 'thread_bodies', 'top_comments', 'events')`
+- check `effect in ('disable')`
+- partial index on `(community_id, surface, created_at desc)` where `revoked_at is null`
+
+Notes:
+
+- moderator-owned machine-access policy stays in the community DB; this table is an operator override layer
+- active rows override community policy immediately and surface to clients as `platform_disabled`
+- `expires_at` is optional so incident response can use temporary or manual-revoke controls
 
 ### `community_db_credentials`
 

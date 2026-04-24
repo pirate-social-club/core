@@ -85,6 +85,9 @@ Pirate must not store raw OFAC inputs, name, DOB, passport number, or watchlist 
 
 ## Recommendation
 
+Current API contracts should not advertise Self-backed `sanctions_clear` as public-v0 capable.
+Human Passport-backed `sanctions_clear` may remain available while Self OFAC stays deferred.
+
 Proceed with code only after one of these is done:
 
 1. Add an integration script that calls the configured Self verifier endpoint with a known mock

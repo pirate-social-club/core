@@ -102,8 +102,9 @@ Rules:
 
 At the app layer, not only the contract layer:
 
-- one active `identity_nullifier_hash` may map to only one active `user_id`
+- one active provider-keyed nullifier tuple may map to only one active `user_id`
 - the nullifier model depends on providers that expose a stable uniqueness primitive such as a biometric or nullifier-backed proof; in v0 this includes `self` and may include `very` where product policy accepts it
+- uniqueness must be scoped by `(provider, mechanism, nullifier_hash)` rather than by a bare hash value
 - if a user rotates wallets, the verified identity follows the `user_id`, not a fresh account
 - reverification updates the same user record
 - a duplicate nullifier attempting to create or attach to another `user_id` must be rejected or flagged for review

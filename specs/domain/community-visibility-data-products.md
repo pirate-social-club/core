@@ -1,4 +1,4 @@
-# Community Visibility And Data Products
+# Community Visibility And Structured Agent Access
 
 Status: draft
 
@@ -6,318 +6,249 @@ Related docs:
 
 - [community.md](./community.md)
 - [community-machine-access.md](./community-machine-access.md)
+- [agent-discovery.md](./agent-discovery.md)
 - [post.md](./post.md)
 - [feed.md](./feed.md)
 - [monetization.md](./monetization.md)
-- [community-money-policy.md](./community-money-policy.md)
 
 ## Purpose
 
-This doc defines how a community controls what is visible to whom, and what costs money when accessed by machines at scale.
+This doc defines the moderator-facing product model for community visibility and structured agent access.
 
-It replaces the abstract policy-knob model with two product-facing layers:
+It replaces the earlier commerce-first "data products" framing with a simpler v0 question:
 
-1. visibility: who can see what
-2. data products: what structured access costs
+- what is already visible to humans
+- what Pirate exposes as a structured read surface for agents
+- what exceptions a moderator may apply
+
+Discovery, well-known metadata, markdown negotiation, and traversal links are defined separately in [agent-discovery.md](./agent-discovery.md).
 
 ## Core Principle
 
-Every piece of community content has a visibility class. Some visibility classes have an optional price.
+Pirate should not design a store first.
 
-A moderator should not configure protocol fields. A moderator should answer:
+Pirate should design a faucet first.
 
-- what can anyone see for free?
-- what can machines see for free?
-- what costs money?
-- how much?
+For public content, agents can already read the page by scraping HTML. The value Pirate adds is a clean structured surface, not the basic permission to read.
+
+So the moderator is mostly deciding:
+
+- whether Pirate offers structured convenience for a surface
+- or makes agents scrape the page instead
+
+## Default Rule
+
+For public communities, public human-visible surfaces are structured-readable by default.
+
+This means most communities do not need to touch this tab.
+
+The tab exists mainly for exceptions:
+
+- exclude stats
+- exclude thread bodies
+- exclude top comments
+- exclude events
 
 ## Surface Classes
 
-Pirate communities have these distinct content surfaces:
+The v0 moderator-facing surface classes are:
 
-### Community identity
+- community identity
+- community stats
+- discussion threads
+- top comments
+- events
 
-Always public in v0:
+Interpretation:
 
-- name
-- slug
-- description
-- join requirements
-- created date
+- `community identity`
+  - name
+  - slug
+  - description
+  - join requirements
+  - created date
+- `community stats`
+  - member count
+  - post count
+  - recent activity
+- `discussion threads`
+  - thread cards and bodies for public threads
+- `top comments`
+  - the top N comments for a thread, not the full tree
+- `events`
+  - event cards such as title, host, time, and status
 
-This is not configurable. It is the minimum catalog entry for any community on Pirate.
-
-### Community stats
-
-Separately controlled because member counts and activity metrics are more sensitive than a name:
-
-- member count
-- post count
-- recent activity
-
-Default: coarse public.
-
-### Discussion threads
-
-The main social surface. Split into two levels:
-
-- thread card: title, author, timestamp, vote counts, reply count
-- thread body: full post content, comments, media, structured text
-
-Default: cards visible to members, bodies visible to members.
-
-### Events
-
-Scheduled livestreams, karaoke sessions, and similar time-bounded activities:
-
-- event card: title, host, start time, status
-- event content: live stream, replay, chat
-
-Default: event cards public. Event content follows the event's own access rules.
-
-### Listings and assets
-
-Items for sale or with attached rights-bearing assets:
-
-- listing card: title, price, preview image, seller
-- asset payload: full media, download, license
-
-Default: listing cards public. Asset payloads gated to buyers.
-
-### Exports
-
-Bulk structured access that does not map to a single content item:
-
-- discussion feed export
-- archive export
-- analytics snapshot
-
-Default: disabled until explicitly enabled and priced.
+Community identity is always public in v0 and is not configurable here.
 
 ## Visibility Levels
 
-Each surface class can be at one of these visibility levels:
+Moderator-facing v0 choices should stay simple:
 
-- `public`: visible to anyone, including unauthenticated visitors and machine readers
-- `members_only`: visible to community members who have passed join gates
-- `paid`: visible to anyone who pays, regardless of membership
+- `Public`
+- `Members only`
 
-Not every level applies to every surface:
+Meaning:
 
-- community identity is always public
-- community stats can be public or members_only
-- thread cards can be public, members_only, or paid
-- thread bodies can be members_only or paid
-- event cards can be public or members_only
-- listing cards are always public
-- exports are always paid when enabled
+- `Public`
+  - humans may view it without joining
+  - Pirate exposes it in the structured read layer by default unless the community opts out
+- `Members only`
+  - only community members who satisfy the same gates as humans may view it
+  - structured access follows the same membership and gate rules
 
-## Community Defaults
+Payment does not bypass gates.
 
-Moderators set default visibility per surface class. Posts inherit these defaults.
+## Defaults
 
 Suggested v0 defaults:
 
 ```ts
-type CommunityVisibilityDefaults = {
-  community_stats: "public" | "members_only"
-  thread_cards: "public" | "members_only"
-  thread_bodies: "members_only"
-  event_cards: "public"
-  listing_cards: "public"
+type CommunityStructuredAccessDefaults = {
+  community_stats: "public"
+  discussion_threads: "public"
+  top_comments: "public"
+  events: "public"
 }
 ```
 
-Default when unset:
+This is intentionally generous because Pirate wants assistants to be useful early.
 
-```ts
-{
-  community_stats: "public",
-  thread_cards: "members_only",
-  thread_bodies: "members_only",
-  event_cards: "public",
-  listing_cards: "public",
-}
-```
+## Top Comments Scope
 
-Thread cards defaulting to members_only means a machine reader scraping the community page without joining sees the community identity and stats, but not thread titles or vote counts.
+Top comments need a narrow v0 rule.
 
-## Post-Level Overrides
+Rule:
 
-Posts should not carry 20 visibility knobs. In v0, a post inherits its surface-class default from the community.
+- top comments are included in structured reads by default for public threads
+- full comment-tree access is deferred
+- the count `N` is an operational server setting, not a moderator-controlled number
 
-If a community allows it, a post may override visibility in narrow cases:
+This supports assistant summaries such as:
 
-- a scheduled event can be forced public even in a members_only community
-- a sale listing is always public-card by nature
+- "the top comment says ..."
+- "this reply got 3k upvotes"
 
-These overrides are per-post-type, not a general visibility picker. Authors should not become licensing lawyers.
+without committing Pirate to heavy full-thread export behavior in v0.
 
-## Data Products
+## Member-Only Communities
 
-Visibility controls what is free. Data products control what costs money.
+Member-only handling is straightforward:
 
-A data product is a bundle of structured access at a defined price. The unit of sale is the community data product, not the individual post.
+- the same surface classes may exist in the structured layer
+- the same membership and gate rules apply
+- only eligible authenticated agents may read them
+- payment does not override membership, role, or other access rules
 
-### v0 data products
+## Structured Access Modes
 
-```ts
-type CommunityDataProduct = {
-  product_key: string
-  enabled: boolean
-  price_usd: number | null
-  description: string
-}
+There are only two meaningful v0 modes:
 
-type CommunityDataProducts = {
-  items: CommunityDataProduct[]
-}
-```
+- `Structured API`
+- `Structured API + enhanced limits` (reserved for later)
 
-Suggested v0 products:
+There is no priced product picker in v0.
 
-- `discussion_feed`: structured feed of discussion thread cards and bodies
-  - enabled: false
-  - price: null
-- `archive_export`: full historical export of posts and comments
-  - enabled: false
-  - price: null
-- `analytics_snapshot`: aggregated activity, engagement, and membership stats
-  - enabled: false
-  - price: null
-
-When a product is enabled, the moderator must set a price in USD. When disabled, no price is required.
-
-Enabling a data product does not grant AI training rights. Training is a separate right governed by allowed uses, not by buying a product.
-
-### Future products
-
-- `training_license`: separate product for AI training access
-  - requires explicit community opt-in
-  - requires poster-visible consent before historical content is included
-  - not available in v0
+If Pirate later introduces pricing, it should attach to enhanced access after real bottlenecks are observed, not before.
 
 ## Allowed Uses
 
-Separate from visibility and separate from pricing. Buying a data product grants read access, not unrestricted use.
+Allowed uses are intentionally small in v0:
 
-v0 allowed uses:
+- summaries: allowed
+- analytics: allowed
+- AI training: prohibited
 
-```ts
-type CommunityDataAllowedUses = {
-  summarization: boolean
-  analytics: boolean
-  ai_training: "prohibited" | "paid_license" | "allowed"
-}
-```
+AI training is not configurable in v0. It is a static prohibition.
 
-Default:
+This keeps the tab centered on assistant usefulness rather than training-company licensing.
 
-```ts
-{
-  summarization: true,
-  analytics: true,
-  ai_training: "prohibited",
-}
-```
+## Payment
 
-Meaning:
+Payment is deferred in v0.
 
-- buying a discussion feed export allows the buyer to read and summarize those threads
-- buying an analytics snapshot allows the buyer to analyze the data
-- buying any product does not allow training AI models on the data
-- AI training is prohibited by default and is a contractual restriction, not a technical DRM guarantee
+Rationale:
 
-If AI training becomes available later, it is a separate product with a separate price, not a checkbox on an existing product.
+- public structured access is more valuable for adoption than early charging
+- Pirate should first learn which surfaces and patterns are actually expensive
+- if Pirate later gets hammered, payment can target the real bottleneck:
+  - rate
+  - depth
+  - history window
+  - bulk polling
+  - export size
 
-## Revenue
+Until then, Pirate should use operational limits rather than productized pricing.
 
-v0 revenue settlement:
+## Operational Limits
 
-- all data product revenue settles to Pirate's platform operations wallet
-- this is stated plainly in the moderation UI
-- community treasury settlement is deferred until a real treasury exists
-- this mirrors the `platform_default` mode in [monetization.md](./monetization.md)
+Pirate should ship operational guardrails from day one:
 
-When community treasury payout becomes available, existing data products continue to sell under the same terms. The settlement destination changes, not the product or price.
+- anonymous rate limits
+- authenticated rate limits
+- bounded pagination
+- bounded lookback windows
+- response-size caps
+- cache controls
+- per-community kill switches
+- per-surface kill switches
 
-## Moderation UI
+These are not moderator pricing controls. They are platform controls.
 
-The moderation tab should have three sections:
+## Moderator UI
 
-1. Visibility
-2. Data products
-3. Allowed uses
+The moderation tab should be simple.
 
-Revenue information is a read-only notice, not a section.
+### Section 1: Agent access
 
-### Visibility section
+- `Structured API`
+- `Structured API + enhanced limits` (future-facing)
 
-Plain-language controls:
+### Section 2: Included surfaces
 
-- Community stats: Public / Members only
-- Discussion threads: Public / Members only
-- Event cards: Public / Members only
+Per surface:
 
-No protocol language. No "metadata_only" or "preview."
+- Community stats
+- Discussion threads
+- Top comments
+- Event cards
 
-### Data products section
+Each one:
 
-Each product is a row:
+- included in structured API
+- excluded from structured API
 
-- product name
-- one-line description of what the buyer gets
-- enabled toggle
-- price input in USD (required when enabled)
-
-Products:
-
-- Discussion feed export
-- Archive export
-- Analytics snapshot
-
-### Allowed uses section
-
-Short checklist:
+### Section 3: Allowed uses
 
 - Summaries allowed
 - Analytics allowed
-- AI training: prohibited (with a plain-english note that this is contractual)
+- AI training: Prohibited
 
-### Revenue notice
+### Static notice
 
-Read-only, always visible:
+- operational limits are platform-managed
+- payment is not active in v0
+- if enhanced access later introduces settlement, Pirate may initially route it to the platform wallet until a better treasury model exists
 
-> Revenue from data products currently settles to Pirate's platform wallet. Community treasury payout is not available yet.
+## What This Tab Is For
 
-## Policy Change Semantics
+This tab is for exceptions.
 
-Visibility and data product changes apply prospectively:
+It is not there to make every community consciously opt into agent readability.
 
-- changing thread_cards from public to members_only hides new cards from non-members going forward
-- enabling a data product starts selling access to new data; it does not retroactively license old exports
-- AI training policy changes are prospective by default; historical content is not retroactively relicensed
+If public did not imply structured-readable by default, most communities would never configure the tab, and assistants would just scrape HTML instead.
 
-## Relationship To community-machine-access.md
+That would make the feature mostly pointless.
 
-The domain spec at [community-machine-access.md](./community-machine-access.md) remains the authoritative source for:
+So the intended usage is:
 
-- naming boundaries (no agent_ namespace collisions)
-- rights model (access, discovery, extraction, commercial, training)
-- settlement progression
-- enforcement model
-- API shape
+- default behavior works without moderator action
+- moderators only visit the tab when they want to narrow structured convenience
 
-This doc translates that domain model into a product-facing surface that a moderator can actually configure. When the two conflict on field names or defaults, this doc wins for UI and moderator-facing behavior. The machine-access doc wins for API contracts and backend enforcement.
+## Deferred Questions
 
-## Storybook States
+These questions are deferred until Pirate sees real production demand:
 
-Required stories:
-
-- default inherited: stats public, threads members-only, no products enabled, training prohibited
-- all public: stats and threads public, no products
-- one product enabled: discussion feed at $0.10/100 posts
-- multiple products: feed + archive, different prices
-- ai training notice: training prohibited with contractual note
-- settlement notice: platform wallet, treasury not available
-- mobile layout
+- whether enhanced access should require auth, API keys, payment, or some combination
+- whether full comment-tree reads should be available at all
+- whether long-horizon history windows should be free or enhanced-only
+- whether special export or analytics products are worth naming separately later

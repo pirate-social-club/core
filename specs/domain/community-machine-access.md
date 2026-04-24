@@ -1,62 +1,123 @@
-# Community Machine Access And Data Licensing
+# Community Machine Access
 
 Status: draft
 
 Related docs:
 
 - [community.md](./community.md)
+- [agent-discovery.md](./agent-discovery.md)
+- [community-visibility-data-products.md](./community-visibility-data-products.md)
 - [feed.md](./feed.md)
 - [post.md](./post.md)
 - [agent-ownership.md](./agent-ownership.md)
-- [community-money-policy.md](./community-money-policy.md)
-- [community-pricing-policy.md](./community-pricing-policy.md)
-- [monetization.md](./monetization.md)
 - [moderation.md](./moderation.md)
 
 ## Purpose
 
-This doc defines community-controlled policy for external machine readers, structured data access, commercial extraction, and AI training licenses.
+This doc defines Pirate's technical and policy model for machine-readable community access.
 
-For the product-facing UI surface that a moderator actually configures, see [community-visibility-data-products.md](./community-visibility-data-products.md). This doc remains the authoritative source for API contracts, rights model, and enforcement.
+It answers:
 
-It does not define user-owned agents that post inside Pirate. Those are covered by [agent-ownership.md](./agent-ownership.md).
+- when Pirate offers a structured read surface instead of forcing HTML scraping
+- how structured reads relate to agent discovery and traversal
+- how structured reads follow human visibility rules
+- what communities may opt out of
+- what operational guardrails apply in v0
+
+It does not define user-owned posting agents. Those remain in [agent-ownership.md](./agent-ownership.md).
 
 ## Naming Boundary
 
-The `agent_*` namespace is already owned by KYA-backed user-owned posting agents.
+The `agent_*` namespace is already reserved for KYA-backed user-owned agents acting on behalf of verified humans.
 
-Machine-reading and data-licensing fields must use `machine_access_*`, `external_reader_*`, or `data_license_*` names.
+Machine-readable access for crawlers, assistants, and external readers must use `machine_access_*`, `structured_access_*`, or similar names.
+
+## Core Reframe
+
+For public Pirate pages, the question is not whether agents can read.
+
+They already can, by scraping HTML.
+
+The real product question is:
+
+- does Pirate provide a clean structured read surface
+- or make agents scrape the page
+
+So the moderator is not primarily deciding whether bots may see a public community.
+
+The moderator is deciding whether Pirate offers structured convenience for that community, and for which surfaces.
+
+## Default Rule
+
+Public human-visible content is structured-readable by default.
 
 Rules:
 
-- `agent_posting_policy` remains about verified human-owned delegated actors posting in a community
-- `machine_access_policy` is about external machine readers fetching or licensing community data
-- UI copy should prefer "Machine access" or "External data access" rather than "Agents" for this moderation surface
-- API fields must not introduce new `agent_*` policy names for scraping, indexing, licensing, or bulk reads
+- if a surface is public to unauthenticated humans on Pirate, Pirate may expose that same surface in a structured API by default
+- communities may opt out per surface
+- opting out removes Pirate's structured convenience layer for that surface; it does not retroactively make the public web page private
 
-## Core Principle
+This default exists because otherwise assistants fall back to scraping, which defeats the point of a structured read layer.
 
-Community policy is authoritative for machine-readable access.
+Discovery and traversal details live in [agent-discovery.md](./agent-discovery.md). That doc defines robots, sitemaps, markdown negotiation, well-known metadata, API catalog, OAuth metadata, MCP discovery, and response links.
 
-Popularity, trending rank, or inclusion in a global human feed must never upgrade a community's content into a broader machine-readable or licensable state.
+## Member-Only Rule
 
-## Rights Model
+Member-only content remains member-only for machine readers.
 
-Pirate should keep these rights separate:
+Rules:
 
-- access right: whether an external machine reader may read content at all
-- discovery right: whether machine-readable catalogs may reveal the community and previews
-- structured extraction right: whether full structured feeds, archives, or exports may be fetched
-- commercial-use right: whether fetched data may be used for paid products, analytics, resale, or services
-- training right: whether fetched data may be used to train, fine-tune, distill, evaluate, or build model datasets
+- structured reads for member-only surfaces require authenticated readers that satisfy the same membership and gate requirements as humans
+- payment does not bypass community gates
+- role-limited or private surfaces follow the same rule: structured access may exist, but only for already eligible readers
 
-Payment for one right does not imply another.
+## Surface Classes
 
-Examples:
+The relevant v0 machine-readable surfaces are:
 
-- paid archive access may allow analytics but still prohibit AI training
-- public machine discovery may expose metadata without exposing full post bodies
-- human-visible public pages may remain browsable while structured high-volume extraction is paid
+- community identity
+- community stats
+- thread cards
+- thread bodies
+- top comments
+- events
+
+Interpretation:
+
+- `community identity`
+  - name
+  - slug
+  - description
+  - join requirements
+  - created date
+- `community stats`
+  - member count
+  - post count
+  - recent activity
+- `thread card`
+  - title
+  - author handle when visible
+  - timestamp
+  - vote counts when visible
+  - reply count
+- `thread body`
+  - full post body and attached public media metadata
+- `top comments`
+  - only the top N comments for a thread, not the full tree
+- `events`
+  - event card data such as title, host, schedule, and status
+
+## Comments Scope
+
+Comments need an explicit v0 boundary.
+
+Rule:
+
+- public communities expose top comments in structured reads by default
+- full comment-tree access is deferred
+- top-comment count `N` is an operational server control, not a moderator pricing control
+
+This gives assistants enough context to summarize "what people are saying" without immediately opening the heaviest read path.
 
 ## Policy Shape
 
@@ -66,28 +127,26 @@ Suggested v0 resolved policy:
 type CommunityMachineAccessPolicy = {
   community_id: string
   policy_origin: "default" | "explicit"
-  machine_discovery: "hidden" | "metadata_only" | "preview"
-  machine_structured_access: "disabled" | "free_limited" | "paid"
-  machine_indexing: "none" | "metadata" | "full"
-  data_license_uses: {
-    search_indexing: boolean
-    summarization: boolean
-    analytics: boolean
-    commercial_use: "prohibited" | "paid_license"
-    ai_training: "prohibited" | "paid_license" | "allowed"
-    resale: boolean
+  access_mode: "structured_api" | "structured_api_enhanced"
+  included_surfaces: {
+    community_identity: true
+    community_stats: boolean
+    thread_cards: boolean
+    thread_bodies: boolean
+    top_comments: boolean
+    events: boolean
   }
-  data_license_pricing: {
-    read_price_usd: number | null
-    archive_price_usd: number | null
-    training_license_price_usd: number | null
+  allowed_uses: {
+    summarization: true
+    analytics: true
+    ai_training: "prohibited"
   }
-  settlement_policy: {
-    mode: "platform_default" | "club_override" | "governance_controlled"
-    settlement_destination: "platform_ops_wallet" | "community_treasury"
-    community_money_policy_version: string | null
+  operational_limits: {
+    anonymous_rate_tier: "low"
+    authenticated_rate_tier: "standard"
+    top_comments_limit: number
+    max_lookback_window: string
   }
-  applies_to_posts: "future_only"
   updated_at: string
 }
 ```
@@ -97,188 +156,171 @@ Default v0:
 ```ts
 {
   policy_origin: "default",
-  machine_discovery: "metadata_only",
-  machine_structured_access: "paid",
-  machine_indexing: "metadata",
-  data_license_uses: {
-    search_indexing: false,
+  access_mode: "structured_api",
+  included_surfaces: {
+    community_identity: true,
+    community_stats: true,
+    thread_cards: true,
+    thread_bodies: true,
+    top_comments: true,
+    events: true,
+  },
+  allowed_uses: {
     summarization: true,
     analytics: true,
-    commercial_use: "paid_license",
     ai_training: "prohibited",
-    resale: false,
   },
-  data_license_pricing: {
-    read_price_usd: null,
-    archive_price_usd: null,
-    training_license_price_usd: null,
-  },
-  settlement_policy: {
-    mode: "platform_default",
-    settlement_destination: "platform_ops_wallet",
-    community_money_policy_version: null,
-  },
-  applies_to_posts: "future_only",
 }
 ```
 
-## Discovery Levels
+Notes:
 
-`machine_discovery` controls unpaid machine-readable discovery.
+- community identity is always included in v0
+- `structured_api_enhanced` is a future operational tier, not a priced product in v0
+- there is no per-post licensing model in v0
 
-Meanings:
+## Opt-Out Granularity
 
-- `hidden`: exclude the community from machine-readable catalogs, except minimum legal or protocol metadata required by Pirate
-- `metadata_only`: expose community name, slug, description, public URL, rules, and coarse counts
-- `preview`: expose metadata plus limited public post previews, such as title, snippet, timestamp, and URL
-
-This setting controls machine discovery only. It does not by itself change human feed distribution.
-
-## Structured Access
-
-`machine_structured_access` controls full structured reads, archive access, export formats, and high-volume access.
-
-Meanings:
-
-- `disabled`: no structured external-reader access beyond the selected discovery level
-- `free_limited`: small, rate-limited structured access for non-bulk use
-- `paid`: structured reads require a data license and payment
-
-Structured access should cover:
-
-- full community feed JSON
-- post and comment structured bodies when allowed by viewing policy
-- historical archive pages
-- JSONL exports
-- analytics snapshots
-
-## Human Feed Orthogonality
-
-Machine-access policy is orthogonal to human feed distribution.
+Communities may opt out per surface.
 
 Rules:
 
-- `machine_discovery = hidden` does not automatically remove a community from human `Home`, `Your Communities`, or community-scoped feeds
-- `machine_structured_access = paid` does not make human-visible pages paid
-- `machine_indexing = none` does not by itself make the community private to humans
-- human feed eligibility remains governed by feed, membership, safety, moderation, and community distribution policy
-- machine-readable global catalogs must respect machine-access policy even when a human-facing global feed includes the same community
+- opt-out is per surface class, not only global
+- a moderator should be able to say:
+  - include thread cards, exclude top comments
+  - include events, exclude stats
+  - include stats, exclude thread bodies
+- a community-level kill switch may disable all structured reads for that community if abuse requires it
 
-If Pirate later adds a unified community distribution policy, that policy may feed both human and machine surfaces explicitly. Until then, machine access must not be inferred from human-feed popularity.
+This keeps the structured layer useful by default while giving communities narrow exception controls.
 
-## Counts And Ranking Fields
+## Agent Traversal
 
-Free machine metadata may include coarse count fields when the community allows metadata discovery:
+Structured access should be easy to traverse.
 
-- approximate member count
-- approximate post count
-- approximate recent activity bucket
-- public reply count for previewed posts
+Rules:
 
-Free machine metadata should not include:
+- structured responses should include typed links to adjacent resources
+- agents should be able to move from community identity to posts, post detail, top comments, events, canonical HTML, and markdown without constructing URL templates
+- links to opted-out surfaces should be omitted
+- parent resources should still be readable when only a child surface is opted out
+- direct requests for opted-out structured surfaces should return a typed disabled-surface response
 
-- raw ranking scores
-- vote velocity
-- per-user vote state
-- detailed membership graph
-- moderation queue signals
-- anti-abuse or eligibility signals
+The API response contract for links and omitted surfaces lives in [../api/community-machine-access.md](../api/community-machine-access.md).
 
-Paid structured access may include richer aggregates only when the data license permits that use.
+## Human Visibility Orthogonality
 
-## AI Training
+Structured access is downstream of human visibility, not a separate privacy regime.
 
-AI training is a separate right.
+Rules:
 
-V0 rule:
+- structured access must never make a human-private surface public
+- structured access may be narrower than the public web surface if the community opts out for convenience reasons
+- structured access defaults follow human visibility, but community exceptions are allowed
 
-- AI training is prohibited by default
-- paid reads and archive access do not grant AI training rights
-- training licenses are not enabled until Pirate supports explicit community opt-in and poster-visible consent semantics
+## Allowed Uses
 
-Future training-license rule:
+Allowed use policy is intentionally minimal in v0.
 
-- community policy alone is not enough for historical post inclusion unless the community clearly had the training policy enabled when the post was created
-- changing from `ai_training = prohibited` to a training-enabled mode applies prospectively by default
-- retroactive inclusion requires a separate consent or migration workflow
+Locked-in v0 defaults:
 
-## Poster Consent
+- summarization: allowed
+- analytics: allowed
+- AI training: prohibited
 
-For v0, paid structured reads are a community policy decision and do not require a per-post consent field because AI training is prohibited.
+AI training is not a configurable v0 product surface. It is a static prohibition.
 
-Composer UX should show a concise policy line when machine data access is enabled:
+The point of v0 machine access is assistant usefulness, not training-data licensing.
 
-> This community allows paid machine data access. AI training is prohibited.
+## Payment
 
-If training licenses ship later, composer and post storage must capture a post-level or author-level training-consent snapshot before content can enter a training-licensed dataset.
+Payment is deferred in v0.
 
-## Settlement
+Rules:
 
-Machine-access revenue should reuse the community monetization governance progression rather than define a parallel payout path.
+- Pirate does not price structured access in the initial rollout
+- Pirate should first learn where the real operational bottlenecks are
+- if structured access later becomes expensive to serve at scale, Pirate may introduce enhanced or paid tiers targeting the specific bottlenecks observed in production
 
-Modes:
+This means v0 is not a store. It is a structured faucet with guardrails.
 
-- `platform_default`
-  - v0 launch mode
-  - machine-access revenue settles to the Pirate platform ops wallet
-  - UI must state this plainly
-  - community treasury share is deferred because no real community treasury exists
-- `club_override`
-  - enabled after a credible multisig or equivalent club treasury destination exists
-  - data-access settlement uses the active community money policy for funding rails and settlement constraints
-- `governance_controlled`
-  - enabled after DAO or governance-managed settlement exists
-  - data-access settlement destination is the governance-controlled treasury or settlement backend
+## API Keys
 
-This mirrors [monetization.md](./monetization.md). It intentionally avoids presenting a creator-controlled placeholder wallet as a real community treasury.
+API keys are also deferred in v0.
 
-Pricing amounts for data access are a separate product quote surface, but settlement rails and route constraints should reuse [community-money-policy.md](./community-money-policy.md) where possible.
+Rules:
 
-## Enforcement Model
+- v0 should rely on normal auth where auth is already required
+- public structured reads should not require separate agent API keys
+- per-client API keys may be added later if telemetry and rate-limit tuning require them
 
-Pirate can technically enforce:
+Rationale:
 
-- whether an API response is returned
-- whether x402 payment was presented
-- request rate and volume limits
-- which fields are included in structured responses
-- whether API credentials or payment receipts are revoked
+- keys add friction to the "let my assistant read this community" use case
+- Pirate can get useful early telemetry from request metadata, auth context, and rate-limit events before introducing keys
 
-Pirate cannot technically prevent all downstream AI training once data leaves Pirate.
+## Operational Guardrails
 
-`data_license_uses.ai_training = prohibited` is therefore a contractual and policy restriction, supported by audit logs, license terms, receipts, and enforcement against known clients. UI and API docs must not imply perfect technical prevention.
+Operational control matters more than pricing in v0.
+
+Pirate should ship:
+
+- anonymous rate limits
+- authenticated rate limits
+- bounded pagination
+- bounded lookback windows
+- response-size caps
+- cache headers and server-side caching where appropriate
+- per-surface kill switches
+- per-community kill switches
+- observability for request volume and hot surfaces
+
+These are server controls, not moderator pricing controls.
+
+## Kill Switches
+
+Pirate should be able to disable structured access quickly when abuse appears.
+
+Required kill-switch levels:
+
+- platform-wide
+- per community
+- per surface within a community
+
+The kill switch removes the structured convenience layer. It does not redefine the underlying web visibility.
 
 ## Moderation UI
 
-Add a new moderation item under the existing Access section:
+The moderation surface should focus on exceptions, not the default.
 
-- label: `Machine access`
-- route segment: `machine-access`
-- icon: use a non-robot data/network icon if available; avoid reusing the `Agents` tab visual language
+Default story:
 
-Do not merge this into the existing `Agents` tab. That tab remains about user-owned agent posting policy.
+- public surfaces are structured-readable
+- top comments are included by default
+- AI training is prohibited
+- no payment settings are shown
 
-Storybook should start with the moderation sidebar/tab state before backend wiring.
+Moderator controls should focus on:
 
-Required story states:
+- access mode
+  - `Structured API`
+  - `Structured API + enhanced limits` (future-facing, optional to expose later)
+- included surfaces
+  - community stats
+  - thread cards
+  - thread bodies
+  - top comments
+  - events
+- a static AI-training prohibition note
+- a plain operational/revenue notice if Pirate later introduces enhanced tiers
 
-- default inherited policy: metadata-only discovery, paid structured access, AI training prohibited
-- explicit disabled policy: machine discovery hidden and structured access disabled
-- explicit paid policy: paid structured reads enabled with training prohibited
-- mixed policy: preview discovery plus free-limited structured access
-- settlement notice: platform ops wallet mode with community treasury disabled
-- transition warning: disabled to paid, showing future-only application
-- inherited versus explicit policy origin
+This keeps the tab about structured convenience and exceptions, not about commerce.
 
-## Policy Change Semantics
+## Open Questions
 
-Machine-access policy changes apply prospectively by default.
+The main open questions after this spec are operational, not conceptual:
 
-Rules:
-
-- changes affect new paid quotes, new machine-readable responses, and new posts after the change
-- existing successful paid exports keep the license snapshot attached to their receipt
-- historical posts are not automatically relicensed for AI training
-- if a community changes from disabled to paid, UI must state that the setting applies to future access and future posts unless a separate historical export policy is configured
-- bulk historical export requires an explicit quote and license snapshot at export time
-
+- what exact anonymous and authenticated rate tiers should v0 start with
+- what exact top-comment count should the server return by default
+- what lookback window should public structured reads expose by default
+- whether full thread bodies should remain included by default for all public communities or be a narrower opt-in surface

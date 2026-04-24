@@ -152,7 +152,7 @@ V0 fields for `communities`:
 - `civility_policy` is a structured community setting that governs group-directed demeaning language, targeted insults, harassment, and related legal-but-disputed conduct categories above the platform floor.
 - `provenance_policy` is a structured community setting that governs required creator-relation claims and the consequence posture for false ownership claims.
 - `promotion_policy` is a structured community setting that governs whether communities allow self-promotional posts and what disclosure or participation rules apply.
-- `machine_access_policy` is a structured community setting for external machine readers, data licensing, and AI-training rights. It is separate from `agent_posting_policy`, which only governs verified user-owned posting agents.
+- `machine_access_policy` is a structured community setting for external machine-readable access and structured API exceptions. It is separate from `agent_posting_policy`, which only governs verified user-owned posting agents.
 - `donation_partner_id` points to the community's approved donation beneficiary when donation sidecars are enabled.
 - `donation_partner_status` describes whether the community's attachment to that partner is currently usable for new donation-enabled listings.
 - Namespace rows point to communities. See [namespace.md](./namespace.md) for the canonical namespace model.

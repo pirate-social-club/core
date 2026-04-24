@@ -287,6 +287,7 @@ VeryWidgetLaunch:
     - type_id
     - query
     - verify_url
+    - session_binding
   properties:
     app_id:
       type: string
@@ -302,8 +303,42 @@ VeryWidgetLaunch:
         pass this through to the provider widget rather than constructing or mutating it.
         Example shape may include `conditions` plus `options` such as
         `expiredAtLowerBound`, `externalNullifier`, `equalCheckId`, and `pseudonym`.
+        For unique-human verification, the server must use a stable Pirate uniqueness domain for
+        `externalNullifier` and a per-session binding value for `pseudonym` or an equivalent
+        proof-bound field, then verify both values before minting capabilities.
     verify_url:
       type: string
+    session_binding:
+      $ref: ./verification.yaml#/VerySessionBinding
+VerySessionBinding:
+  type: object
+  required:
+    - uniqueness_domain
+    - binding_value
+    - challenge_expires_at
+  description: |
+    Server-authored binding material that the Very proof must cover. This separates the stable
+    nullifier domain used for one-person-one-account enforcement from the per-session value used
+    to prevent proof replay across verification sessions. For wallet-related flows this does not
+    replace wallet-signature ownership proof; it only binds the Very proof to the current Pirate
+    verification ceremony.
+  properties:
+    uniqueness_domain:
+      type: string
+      description: Stable Very external-nullifier domain for the Pirate capability being minted.
+    binding_value:
+      type: string
+      description: Server-generated per-session challenge, nonce, or hash included in the Very proof.
+    binding_field:
+      type: string
+      enum:
+        - pseudonym
+        - challenge
+      nullable: true
+      description: Provider field used to carry the binding value.
+    challenge_expires_at:
+      type: string
+      format: date-time
 VerificationSessionLaunch:
   type: object
   required:
@@ -475,7 +510,10 @@ SanctionsClearCapabilityState:
   required:
     - state
   description: |
-    Capability state for provider-backed sanctions screening in v0.
+    Capability state for provider-backed sanctions screening in v0. Public v0 currently accepts
+    Human Passport-backed sanctions state only. Self OFAC support remains deferred until Pirate has
+    pinned the Self launch config, backend verification config, response polarity, and fail-closed
+    parser tests.
   properties:
     state:
       type: string
@@ -486,7 +524,6 @@ SanctionsClearCapabilityState:
     provider:
       type: string
       enum:
-        - self
         - passport
       nullable: true
     proof_type:
@@ -497,7 +534,6 @@ SanctionsClearCapabilityState:
     mechanism:
       type: string
       enum:
-        - self_ofac
         - passport_clean_hands
         - CleanHands
       nullable: true

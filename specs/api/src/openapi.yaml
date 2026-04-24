@@ -12,6 +12,7 @@ servers:
 security:
   - bearerAuth: []
 tags:
+  - name: Agent Discovery
   - name: Auth
   - name: Verification
   - name: Agents
@@ -33,6 +34,24 @@ tags:
   - name: Notifications
   - name: Jobs
 paths:
+  /.well-known/api-catalog:
+    $ref: ./paths/agent-discovery.yaml#/well_known_api_catalog
+  /.well-known/service-desc/public.openapi.json:
+    $ref: ./paths/agent-discovery.yaml#/well_known_public_openapi
+  /.well-known/mcp/server-card.json:
+    $ref: ./paths/agent-discovery.yaml#/well_known_mcp_server_card
+  /.well-known/agent-skills/index.json:
+    $ref: ./paths/agent-discovery.yaml#/well_known_agent_skills
+  /.well-known/oauth-authorization-server:
+    $ref: ./paths/agent-discovery.yaml#/well_known_oauth_authorization_server
+  /.well-known/oauth-protected-resource:
+    $ref: ./paths/agent-discovery.yaml#/well_known_oauth_protected_resource
+  /.well-known/openid-configuration:
+    $ref: ./paths/agent-discovery.yaml#/well_known_openid_configuration
+  /robots.txt:
+    $ref: ./paths/agent-discovery.yaml#/robots_txt
+  /sitemap.xml:
+    $ref: ./paths/agent-discovery.yaml#/sitemap_xml
   /auth/session/exchange:
     $ref: ./paths/auth.yaml#/auth_session_exchange
   /verification-sessions:
@@ -149,6 +168,8 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_money_policy
   /communities/{community_id}/pricing-policy:
     $ref: ./paths/communities.yaml#/communities_by_community_id_pricing_policy
+  /communities/{community_id}/machine-access-policy:
+    $ref: ./paths/community-machine-access.yaml#/communities_by_community_id_machine_access_policy
   /communities/{community_id}/listings:
     $ref: ./paths/communities.yaml#/communities_by_community_id_listings
   /communities/{community_id}/listings/{listing_id}:
@@ -231,6 +252,16 @@ paths:
     $ref: ./paths/handles.yaml#/namespaces_by_namespace_id_handles_claims
   /posts/{post_id}:
     $ref: ./paths/posts.yaml#/posts_by_post_id
+  /public-communities/{community_id}:
+    $ref: ./paths/community-machine-access.yaml#/public_communities_by_community_id
+  /public-communities/{community_id}/posts:
+    $ref: ./paths/community-machine-access.yaml#/public_communities_by_community_id_posts
+  /public-posts/{post_id}:
+    $ref: ./paths/community-machine-access.yaml#/public_posts_by_post_id
+  /public-posts/{post_id}/top-comments:
+    $ref: ./paths/community-machine-access.yaml#/public_posts_by_post_id_top_comments
+  /public-events/{community_id}:
+    $ref: ./paths/community-machine-access.yaml#/public_events_by_community_id
   /posts/{post_id}/vote:
     $ref: ./paths/posts.yaml#/posts_by_post_id_vote
   /posts/{post_id}/reactions:
@@ -394,6 +425,8 @@ components:
       $ref: ./components/schemas/verification.yaml#/SelfVerificationLaunch
     VeryWidgetLaunch:
       $ref: ./components/schemas/verification.yaml#/VeryWidgetLaunch
+    VerySessionBinding:
+      $ref: ./components/schemas/verification.yaml#/VerySessionBinding
     VerificationSessionLaunch:
       $ref: ./components/schemas/verification.yaml#/VerificationSessionLaunch
     AgentOwnershipProvider:

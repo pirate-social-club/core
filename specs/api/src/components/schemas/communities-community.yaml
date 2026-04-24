@@ -2900,3 +2900,368 @@ CommunityDonationPolicyPublicMutationResponse:
             - unconfigured
             - active
             - paused
+StructuredAccessLink:
+  type: object
+  additionalProperties: false
+  required:
+    - href
+    - type
+  properties:
+    href:
+      type: string
+    type:
+      type: string
+      enum:
+        - application/json
+        - text/html
+        - text/markdown
+    auth_required:
+      type: boolean
+      default: false
+StructuredAccessLinks:
+  type: object
+  additionalProperties:
+    $ref: ./communities-community.yaml#/StructuredAccessLink
+  description: |
+    Typed traversal links for structured community responses. Clients should follow links instead of constructing Pirate URL templates from IDs.
+OmittedStructuredSurface:
+  type: object
+  additionalProperties: false
+  required:
+    - surface
+    - reason
+  properties:
+    surface:
+      type: string
+      enum:
+        - community_stats
+        - thread_cards
+        - thread_bodies
+        - top_comments
+        - events
+    reason:
+      type: string
+      description: |
+        Versioned reason string. Current values include `community_opt_out`, `platform_disabled`, `not_visible`, and `not_in_v0`; clients must treat unknown values as non-fatal unavailable-surface explanations.
+      enum:
+        - community_opt_out
+        - platform_disabled
+        - not_visible
+        - not_in_v0
+CommunityMachineAccessIncludedSurfaces:
+  type: object
+  additionalProperties: false
+  required:
+    - community_identity
+    - community_stats
+    - thread_cards
+    - thread_bodies
+    - top_comments
+    - events
+  properties:
+    community_identity:
+      type: boolean
+      enum:
+        - true
+    community_stats:
+      type: boolean
+    thread_cards:
+      type: boolean
+    thread_bodies:
+      type: boolean
+    top_comments:
+      type: boolean
+    events:
+      type: boolean
+CommunityMachineAccessAllowedUses:
+  type: object
+  additionalProperties: false
+  required:
+    - summarization
+    - analytics
+    - ai_training
+  properties:
+    summarization:
+      type: boolean
+      enum:
+        - true
+    analytics:
+      type: boolean
+      enum:
+        - true
+    ai_training:
+      type: string
+      enum:
+        - prohibited
+CommunityMachineAccessOperationalLimits:
+  type: object
+  additionalProperties: false
+  required:
+    - anonymous_rate_tier
+    - authenticated_rate_tier
+    - top_comments_limit
+    - max_lookback_window
+  properties:
+    anonymous_rate_tier:
+      type: string
+      enum:
+        - low
+    authenticated_rate_tier:
+      type: string
+      enum:
+        - standard
+    top_comments_limit:
+      type: integer
+      minimum: 0
+    max_lookback_window:
+      type: string
+CommunityMachineAccessPolicy:
+  type: object
+  additionalProperties: false
+  required:
+    - community_id
+    - policy_origin
+    - access_mode
+    - included_surfaces
+    - allowed_uses
+    - operational_limits
+    - updated_at
+  properties:
+    community_id:
+      type: string
+    policy_origin:
+      type: string
+      enum:
+        - default
+        - explicit
+    access_mode:
+      type: string
+      enum:
+        - structured_api
+        - structured_api_enhanced
+      description: |
+        `structured_api_enhanced` is reserved for later operational tiers and is not a paid v0 mode.
+    included_surfaces:
+      $ref: ./communities-community.yaml#/CommunityMachineAccessIncludedSurfaces
+    allowed_uses:
+      $ref: ./communities-community.yaml#/CommunityMachineAccessAllowedUses
+    operational_limits:
+      $ref: ./communities-community.yaml#/CommunityMachineAccessOperationalLimits
+    updated_at:
+      type: string
+      format: date-time
+CommunityMachineAccessPolicyPatch:
+  type: object
+  additionalProperties: false
+  properties:
+    access_mode:
+      type: string
+      enum:
+        - structured_api
+        - structured_api_enhanced
+    included_surfaces:
+      type: object
+      additionalProperties: false
+      properties:
+        community_stats:
+          type: boolean
+        thread_cards:
+          type: boolean
+        thread_bodies:
+          type: boolean
+        top_comments:
+          type: boolean
+        events:
+          type: boolean
+PublicCommunityIdentity:
+  type: object
+  additionalProperties: false
+  required:
+    - community_id
+    - slug
+    - name
+  properties:
+    community_id:
+      type: string
+    slug:
+      type: string
+    name:
+      type: string
+    description:
+      type: string
+      nullable: true
+    join_requirements:
+      type: array
+      items:
+        type: string
+    created_at:
+      type: string
+      format: date-time
+      nullable: true
+PublicCommunityStats:
+  type: object
+  additionalProperties: false
+  properties:
+    member_count:
+      type: integer
+      minimum: 0
+    post_count:
+      type: integer
+      minimum: 0
+    recent_activity:
+      type: string
+      nullable: true
+StructuredPublicCommunityResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - community
+    - omitted_surfaces
+    - links
+  properties:
+    community:
+      $ref: ./communities-community.yaml#/PublicCommunityIdentity
+    stats:
+      $ref: ./communities-community.yaml#/PublicCommunityStats
+    omitted_surfaces:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/OmittedStructuredSurface
+    links:
+      $ref: ./communities-community.yaml#/StructuredAccessLinks
+StructuredPostCard:
+  type: object
+  additionalProperties: false
+  required:
+    - post_id
+    - community_id
+    - title
+    - created_at
+    - reply_count
+    - links
+  properties:
+    post_id:
+      type: string
+    community_id:
+      type: string
+    title:
+      type: string
+    author_handle:
+      type: string
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+    vote_count:
+      type: integer
+      nullable: true
+    reply_count:
+      type: integer
+      minimum: 0
+    body:
+      type: string
+      nullable: true
+      description: Present only when `thread_bodies` is included.
+    media:
+      type: array
+      items:
+        type: object
+        additionalProperties: true
+    links:
+      $ref: ./communities-community.yaml#/StructuredAccessLinks
+StructuredPublicPostListResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - items
+    - omitted_surfaces
+    - links
+  properties:
+    items:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/StructuredPostCard
+    omitted_surfaces:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/OmittedStructuredSurface
+    links:
+      $ref: ./communities-community.yaml#/StructuredAccessLinks
+StructuredPublicPostResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - post
+    - omitted_surfaces
+    - links
+  properties:
+    post:
+      $ref: ./communities-community.yaml#/StructuredPostCard
+    omitted_surfaces:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/OmittedStructuredSurface
+    links:
+      $ref: ./communities-community.yaml#/StructuredAccessLinks
+StructuredTopCommentsResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - items
+    - top_comments_limit
+    - links
+  properties:
+    items:
+      type: array
+      items:
+        $ref: ./comments.yaml#/CommentListItem
+    top_comments_limit:
+      type: integer
+      minimum: 0
+    links:
+      $ref: ./communities-community.yaml#/StructuredAccessLinks
+StructuredEventCard:
+  type: object
+  additionalProperties: false
+  required:
+    - event_id
+    - community_id
+    - title
+    - status
+    - links
+  properties:
+    event_id:
+      type: string
+    community_id:
+      type: string
+    title:
+      type: string
+    host:
+      type: string
+      nullable: true
+    starts_at:
+      type: string
+      format: date-time
+      nullable: true
+    status:
+      type: string
+    links:
+      $ref: ./communities-community.yaml#/StructuredAccessLinks
+StructuredPublicEventsResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - items
+    - omitted_surfaces
+    - links
+  properties:
+    items:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/StructuredEventCard
+    omitted_surfaces:
+      type: array
+      items:
+        $ref: ./communities-community.yaml#/OmittedStructuredSurface
+    links:
+      $ref: ./communities-community.yaml#/StructuredAccessLinks

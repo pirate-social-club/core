@@ -44,6 +44,7 @@ const TYPE_EXPORTS = [
   { name: "VerificationSession", ref: "#/components/schemas/VerificationSession" },
   { name: "VerificationSessionLaunch", ref: "#/components/schemas/VerificationSessionLaunch" },
   { name: "VeryWidgetLaunch", ref: "#/components/schemas/VeryWidgetLaunch" },
+  { name: "VerySessionBinding", ref: "#/components/schemas/VerySessionBinding" },
   { name: "RequestedVerificationCapability", ref: "#/components/schemas/RequestedVerificationCapability" },
   { name: "VerificationRequirement", ref: "#/components/schemas/VerificationRequirement" },
   { name: "VerificationIntent", ref: "#/components/schemas/VerificationIntent" },

@@ -73,7 +73,7 @@ Suggested v0 fields:
 - `date_of_birth` nullable
 - `age_at_verification` nullable
 - `nationality` nullable
-- `identity_nullifier_hash` nullable
+- `identity_nullifiers` relation
 - `verification_session_id` nullable
 - `created_at`
 - `updated_at`
@@ -102,12 +102,13 @@ Notes:
 - `verification_capabilities` is also the v0 source of truth for eligible disclosed identity claims; see [identity-presentation.md](./identity-presentation.md)
 - per-capability `provider` fields inside `verification_capabilities` are authoritative when different capabilities originate from different providers; `capability_provider` is only a convenience summary
 - `user_attestations` is the durable source layer for provider-backed facts that do not belong in the small core `verification_capabilities` read model, but it should be modeled as a related collection owned by [attestations.md](./attestations.md), not as an inline user-row column
-- `date_of_birth`, `age_at_verification`, `nationality`, and `identity_nullifier_hash` reflect the user's current accepted verified identity in v0
-- some sensitive verified-identity fields such as `date_of_birth`, `age_at_verification`, `identity_nullifier_hash`, and `verification_session_id` may remain server-side in v0 even when they exist on the canonical user model; public API schemas may expose only the derived or lower-sensitivity subset they need
+- `date_of_birth`, `age_at_verification`, and `nationality` reflect the user's current accepted verified identity in v0
+- identity nullifier hashes are stored in the provider-keyed `identity_nullifiers` relation, not as an editable user-row field
+- some sensitive verified-identity fields such as `date_of_birth`, `age_at_verification`, provider nullifiers, and `verification_session_id` may remain server-side in v0 even when they exist on the canonical user model; public API schemas may expose only the derived or lower-sensitivity subset they need
 - `verification_session_id` points to the session that produced the current accepted verified identity
 - `age_at_verification` is intentionally stored in v0 to preserve the exact age that was proven at verification time, even though current age can later be recomputed from `date_of_birth`
-- `identity_nullifier_hash` is for uniqueness enforcement only; it must never be used as the seed for anonymous label derivation — see [community.md](./community.md) for anonymous identity rules
-- `identity_nullifier_hash` is currently produced only by the `self` provider; if other providers later offer equivalent uniqueness primitives, the nullifier model must be extended at that time
+- identity nullifiers are for uniqueness enforcement only; they must never be used as the seed for anonymous label derivation — see [community.md](./community.md) for anonymous identity rules
+- the active nullifier uniqueness constraint must be scoped by `(provider, mechanism, nullifier_hash)` so Self, Very, and future providers do not collide across distinct nullifier domains
 
 ### Verification Capabilities
 
@@ -226,6 +227,7 @@ Recommended v0 product posture:
   - `nationality`
   - `gender` as a Self document-marker gate
 - `sanctions_clear` should remain a canonical capability rather than a provider-specific Self toggle, and public-v0 community UX should not expose raw Self `ofac` or `excluded_countries` settings as direct user-facing knobs
+- Self OFAC-backed `sanctions_clear` is deferred until Pirate pins the verifier response polarity and fail-closed parser behavior; public v0 should rely on Human Passport-backed sanctions state only
 
 ### Capability Shape
 

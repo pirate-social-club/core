@@ -1,7 +1,9 @@
 User:
   type: object
   description: |
-    Public user read model. Sensitive verified-identity fields that may exist on the canonical user row, such as `date_of_birth`, `age_at_verification`, `identity_nullifier_hash`, and `verification_session_id`, are intentionally omitted from this schema in v0.
+    Public user read model. Sensitive verified-identity fields that may exist in canonical storage,
+    such as `date_of_birth`, `age_at_verification`, provider nullifiers, and
+    `verification_session_id`, are intentionally omitted from this schema in v0.
   required:
     - user_id
     - verification_state
