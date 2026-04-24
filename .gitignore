@@ -5,6 +5,11 @@ node_modules/
 .codex
 references/upstream/majeur/
 references/upstream/multisig/
+api/
+web/
+contracts/
+desktop/
+android/
 pirate-api/
 pirate-web/
 pirate-contracts/

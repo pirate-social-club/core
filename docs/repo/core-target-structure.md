@@ -24,25 +24,26 @@ These roots belong in `core`:
 
 ## Local Sidecars
 
-These legacy roots may exist locally for convenience on older checkouts, but they are not part of
-tracked `core` state:
+On this machine, the canonical local workspace is:
 
-- `pirate-api/`
-- `pirate-web/`
-- `pirate-contracts/`
-- `pirate-desktop/`
-- `pirate-android/`
-- `pirate-analytics/`
-- `freedom-browser/`
-- `openclaw-pirate-plugin/`
+```text
+/home/t42/Documents/pirate-workspace/
+  core/
+  api/
+  web/
+  contracts/
+  desktop/
+  android/
+```
 
-They are sidecar checkouts of the standalone runtime repos. On this machine, the canonical local
-workspace is now `/home/t42/Documents/pirate-workspace`.
+The runtime directories are sibling checkouts of standalone repos. They are not part of tracked
+`core` state.
 
-These sidecars can move out of the `core` checkout once local operators set checkout variables for
-the repos they need. The preferred sibling workspace is `/home/t42/Documents/pirate-workspace`.
+Legacy roots such as `pirate-api/`, `pirate-web/`, `pirate-contracts/`, `pirate-desktop/`,
+`pirate-android/`, `pirate-analytics/`, `freedom-browser/`, and `openclaw-pirate-plugin/` may exist
+inside older `core` checkouts. Treat them as obsolete local layout artifacts.
 
-Before moving sidecars:
+For sidecar-aware scripts:
 
 1. Keep generated API contract output path-configurable through `API_CONTRACTS_DIR` or
    `API_CONTRACTS_OUTPUT_FILE`.

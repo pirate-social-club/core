@@ -10,15 +10,19 @@ It currently tracks:
 - `ops/` for tracked operational deployment assets
 - `references/` for upstream, prototype, and template material
 
-Local sidecar checkouts may still exist at:
+Canonical local workspace layout:
 
-- `pirate-api/` -> `pirate-social-club/api`
-- `pirate-web/` -> `pirate-social-club/web`
-- `pirate-contracts/` -> `pirate-social-club/contracts`
-- `pirate-desktop/` -> `pirate-social-club/desktop`
-- `openclaw-pirate-plugin/` -> `pirate-social-club/pirate-openclaw-plugin`
+```text
+/home/t42/Documents/pirate-workspace/
+  core/       -> pirate-social-club/core
+  api/        -> pirate-social-club/api
+  web/        -> pirate-social-club/web
+  contracts/  -> pirate-social-club/contracts
+  desktop/    -> pirate-social-club/desktop
+  android/    -> pirate-social-club/android
+```
 
-Those sidecars are not tracked by `core`.
+Those sibling repos are not tracked by `core`.
 
 The long-term goal is for `core` to stay focused on shared definitions and operational assets while runtime surfaces live in their own repos.
 

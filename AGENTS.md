@@ -1,4 +1,4 @@
-# Pirate V2 — Agent Style Guidelines
+# Pirate Workspace — Agent Style Guidelines
 
 ## Typography
 
@@ -40,31 +40,40 @@
 
 ## Multi-Repo Workflow
 
-This parent folder contains multiple separate Git repos.
-They are sibling repos in one workspace, not Git submodules:
+The canonical local workspace is:
 
-- `pirate-api/`
-- `pirate-web/`
-- `pirate-contracts/`
+```text
+/home/t42/Documents/pirate-workspace/
+  core/
+  api/
+  web/
+  contracts/
+  desktop/
+  android/
+```
 
-Work from the parent folder when reading shared context across repos.
+These are sibling Git repos in one workspace, not Git submodules. `core/` is this repo.
+
+Work from `/home/t42/Documents/pirate-workspace` when reading shared context across repos.
 Before editing, decide which repo owns the change.
 
 Typical ownership:
 
-- backend/API work -> `pirate-api/`
-- frontend/browser UI -> `pirate-web/`
-- contract/protocol work -> `pirate-contracts/`
-- shared docs/scripts/root config -> parent repo
+- shared docs/specs/scripts/root config -> `core/`
+- backend/API work -> `api/`
+- frontend/browser UI -> `web/`
+- contract/protocol work -> `contracts/`
+- desktop runtime work -> `desktop/`
+- Android runtime work -> `android/`
 
 Repo boundary rules:
 
-- the parent `core` repo must ignore all four child repo roots
-- do not add or keep parent-repo tracked files under `pirate-api/`, `pirate-web/`, or `pirate-contracts/`
-- if parent `git status` shows child-repo paths, treat that as a boundary violation and fix the parent `.gitignore` or parent index before continuing
+- the `core` repo must not contain runtime repo checkouts
+- do not add or keep `core`-tracked files under `api/`, `web/`, `contracts/`, `desktop/`, or `android/`
+- if `core` `git status` shows sibling repo paths, treat that as a boundary violation and fix the checkout layout, `.gitignore`, or parent index before continuing
 - do not use or expect `.gitmodules`; these repos are independent sidecar checkouts
 
-If a child repo has its own `AGENTS.md`, follow the root file for workspace/repo selection and follow the child file for repo-local workflows, validation, and product constraints.
+If a sibling repo has its own `AGENTS.md`, follow this file for workspace/repo selection and follow the sibling file for repo-local workflows, validation, and product constraints.
 
 ## Branch Workflow
 
@@ -76,7 +85,7 @@ All work commits directly to `main`. No feature branches, no task branches.
 
 When a task belongs to a child repo:
 
-- `cd` into the owning child repo before committing
+- `cd` into the owning sibling repo before committing
 - do not keep coding in the wrong repo after discovering the ownership is elsewhere. Stop, switch to the correct repo, and commit there
 
 Read-only Git commands are fine for inspection, including `git status`, `git diff`, `git log`, and `git show`.
@@ -122,7 +131,7 @@ Rules:
 - After using a background process I started, clean it up promptly unless the user asked to keep it alive.
 - If the machine appears overloaded, stop spawning more work and switch to inspection, static review, or code changes until load is reduced.
 - For web work especially, assume builds/watchers can freeze the machine. Start with static analysis, narrow tests, and existing-process reuse before any heavy frontend command.
-- In `pirate-web`, do not default to `rtk bun run build`. That full build can freeze the machine.
+- In `web/`, do not default to `rtk bun run build`. That full build can freeze the machine.
 - Prefer this escalation order for frontend verification:
   - `rtk bun run types`
   - `rtk bun run locales:generate`

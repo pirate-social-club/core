@@ -169,15 +169,13 @@ This matters because `pirate-desktop` should not reinvent canonical room creatio
 ## Recommended workspace shape
 
 ```text
-pirate-v2/
-  docs/
-  specs/
-  scripts/
-  pirate-api/          # sidecar repo
-  pirate-contracts/    # sidecar repo
-  pirate-web/          # sidecar repo
-  pirate-tui/          # sidecar repo, retirement path
-  pirate-desktop/      # new sidecar repo
+pirate-workspace/
+  core/       # specs, docs, scripts
+  api/        # backend/API repo
+  contracts/  # contract repo
+  web/        # web app repo
+  desktop/    # desktop runtime repo
+  android/    # Android runtime repo
 ```
 
 ## Ownership

@@ -40,28 +40,26 @@ belong in `core`.
 
 ## Local Workspace Sidecars
 
-Runtime repos now live in `/home/t42/Documents/pirate-workspace` on this machine. These legacy roots
-may still appear inside the `core` working directory on older checkouts:
+Runtime repos live beside `core` in the canonical local workspace:
 
-- `pirate-api/`
-- `pirate-web/`
-- `pirate-contracts/`
-- `pirate-tui/`
-- `pirate-desktop/`
-- `openclaw-pirate-plugin/`
+```text
+/home/t42/Documents/pirate-workspace/
+  core/
+  api/
+  web/
+  contracts/
+  desktop/
+  android/
+```
 
-They must not be tracked by `core`. They are local sidecar checkouts of the standalone repos:
+They must not be tracked by `core`. They are local checkouts of standalone repos such as
+`pirate-social-club/api`, `pirate-social-club/web`, `pirate-social-club/contracts`,
+`pirate-social-club/desktop`, and `pirate-social-club/android`.
 
-- `pirate-social-club/web`
-- `pirate-social-club/contracts`
-- `pirate-social-club/api`
-- `pirate-social-club/tui`
-- `pirate-social-club/desktop`
+Older checkouts may still have legacy in-core sidecar directories such as `pirate-api/`,
+`pirate-web/`, `pirate-contracts/`, `pirate-tui/`, `pirate-desktop/`, or
+`openclaw-pirate-plugin/`. Treat those as obsolete local layout artifacts, not canonical paths.
 
-The canonical local workspace now keeps those repos beside `core`, not inside it. This keeps the
-workspace convenient without turning `core` into a shadow monorepo.
-
-These sidecars can now move to a sibling workspace such as `/home/t42/Documents/pirate-workspace`.
 Scripts and active runbooks that need sidecar paths should use checkout variables instead of assuming
 the repos live under `core`.
 
@@ -77,7 +75,7 @@ Completed decoupling:
 - `scripts/lib/*` no longer imports helpers from ignored sidecars such as `pirate-api/`.
 - API contract generation and typechecking can be redirected with `API_CONTRACTS_DIR` or
   `API_CONTRACTS_OUTPUT_FILE`.
-- Wrangler secret sync resolves either the old in-core sidecar path or the new `pirate-workspace/api`
+- Wrangler secret sync resolves the sibling `pirate-workspace/api`
   path, and also accepts `API_DIR` or `--api-dir`.
 - Active runbooks use `PIRATE_API_DIR`, `PIRATE_API_REPO`, `PIRATE_WEB_DIR`, or `PIRATE_CORE_REPO` for
   checkout-specific commands.
