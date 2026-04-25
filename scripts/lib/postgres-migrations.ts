@@ -46,6 +46,9 @@ const LEGACY_MIGRATION_NAMES: Record<string, string[]> = {
   "0033_control_plane_namespace_verification_spaces.sql": [
     "0026_control_plane_namespace_verification_spaces.sql",
   ],
+  "0058_control_plane_communities_projected_follower_count_column.sql": [
+    "0058_control_plane_community_follower_count_backfill.sql",
+  ],
 };
 
 const ACCEPTED_HISTORICAL_CHECKSUMS: Record<string, string[]> = {

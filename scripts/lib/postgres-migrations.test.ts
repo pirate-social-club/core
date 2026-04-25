@@ -44,6 +44,11 @@ describe("applyPostgresMigrations", () => {
       "0017a_control_plane_registry_table_refs.sql",
       "0017_control_plane_registry_table_refs.sql",
     ]);
+
+    expect(candidateMigrationNames("0058_control_plane_communities_projected_follower_count_column.sql")).toEqual([
+      "0058_control_plane_communities_projected_follower_count_column.sql",
+      "0058_control_plane_community_follower_count_backfill.sql",
+    ]);
   });
 
   test("accepts explicitly allowed historical checksums", () => {
