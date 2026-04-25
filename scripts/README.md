@@ -60,6 +60,8 @@ It is intentionally narrow:
   Write the current secret contract into Infisical.
 - `scripts/infisical/check-infisical-env.ts`
   Validate the Infisical contract, with optional live DB checks.
+- `scripts/infisical/check-wrangler-api-secrets.ts`
+  Audit the deployed API worker secret names against the intended Wrangler secret surface.
 - `scripts/infisical/operator-env-run.sh`
   Source a checked operator env file and run a command under a named profile.
 - `scripts/infisical/sync-wrangler-api-secrets.sh`
