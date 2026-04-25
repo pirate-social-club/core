@@ -53,13 +53,16 @@ Advanced fallback:
 - `--secret-key` expects the already tap-tweaked 32-byte BIP-340 secret key.
 - It does not accept an xprv or untweaked child key.
 
-Install flow:
+Public install flow:
 
 ```bash
-git clone https://github.com/pirate-social-club/pirate-spaces-publisher.git
-cd pirate-spaces-publisher
-go run . --help
+go version
+go run github.com/pirate-social-club/pirate-spaces-publisher@v0.1.0 --help
 ```
+
+If `go version` prints `command not found`, install Go from https://go.dev/dl/ and reopen Terminal.
+The public web flow should use the versioned `go run ...@v0.1.0` command directly, without a clone
+or `cd` step.
 
 The repository uses upstream `libveritas-go` and includes a small checked-in `fabric-go`
 compatibility copy until upstream `fabric-go` tags compile against `libveritas-go v0.2.0`.

@@ -217,13 +217,12 @@ curl -sS -X POST https://api-staging.pirate.sc/namespace-verification-sessions \
 ### Spaces Fabric publish
 
 ```bash
-git clone https://github.com/pirate-social-club/pirate-spaces-publisher.git
-cd pirate-spaces-publisher
-go run . publish @pirate \
+go version
+go run github.com/pirate-social-club/pirate-spaces-publisher@v0.1.0 publish @pirate \
+  --wallet-export /path/to/wallet-export.json \
   --web <challenge_payload.web_url> \
   --freedom <challenge_payload.freedom_url> \
-  --txt pirate-verify=<challenge_payload.txt_value> \
-  --wallet-export /path/to/wallet-export.json
+  --txt pirate-verify=<challenge_payload.txt_value>
 ```
 
 ### Spaces complete

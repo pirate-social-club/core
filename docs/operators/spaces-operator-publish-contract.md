@@ -20,25 +20,26 @@ Spaces flow.
 
 ## Operator Flow
 
-Pirate shows three commands:
+Pirate shows one preflight command and one publish command:
 
 ```bash
-git clone https://github.com/pirate-social-club/pirate-spaces-publisher.git
+go version
 ```
 
-```bash
-cd pirate-spaces-publisher
-```
+If Go is not installed, the operator installs it from https://go.dev/dl/ and reopens Terminal.
 
 ```bash
-go run . publish @pirate \
+go run github.com/pirate-social-club/pirate-spaces-publisher@v0.1.0 publish @pirate \
+  --wallet-export /path/to/wallet-export.json \
   --web https://pirate.sc/c/@pirate \
   --freedom https://pirate.sc/c/@pirate \
-  --txt pirate-verify=pirate-space-verify=<session-id>:<nonce> \
-  --wallet-export /path/to/wallet-export.json
+  --txt pirate-verify=pirate-space-verify=<session-id>:<nonce>
 ```
 
 After the publish succeeds, the operator clicks **Check setup** in Pirate.
+
+For nontechnical operators, the wallet export path should be a local file path copied or dragged
+into Terminal. The file must not be uploaded to Pirate.
 
 ## Published Records
 
@@ -79,7 +80,7 @@ The source in this workspace lives at:
 The helper supports repeatable generic TXT records:
 
 ```bash
-go run . publish @pirate --txt key=value --txt other=value --wallet-export /path/to/wallet-export.json
+go run github.com/pirate-social-club/pirate-spaces-publisher@v0.1.0 publish @pirate --wallet-export /path/to/wallet-export.json --txt key=value --txt other=value
 ```
 
 For Pirate verification, use the first-class `pirate-verify` TXT convention shown above.

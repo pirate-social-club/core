@@ -480,13 +480,12 @@ TXT value: _______________________
 ### 7.2 Publish the Fabric records
 
 ```bash
-git clone https://github.com/pirate-social-club/pirate-spaces-publisher.git
-cd pirate-spaces-publisher
-go run . publish <root> \
+go version
+go run github.com/pirate-social-club/pirate-spaces-publisher@v0.1.0 publish <root> \
+  --wallet-export /path/to/wallet-export.json \
   --web <challenge_payload.web_url> \
   --freedom <challenge_payload.freedom_url> \
-  --txt pirate-verify=<challenge_payload.txt_value> \
-  --wallet-export /path/to/wallet-export.json
+  --txt pirate-verify=<challenge_payload.txt_value>
 ```
 
 - [ ] Publish succeeded
