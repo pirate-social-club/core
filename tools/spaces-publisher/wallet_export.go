@@ -91,9 +91,17 @@ func extractTaprootKey(scriptPubKey []byte) ([]byte, error) {
 }
 
 func loadWalletExport(path string) (*walletExport, error) {
-	payload, err := os.ReadFile(path)
+	resolvedPath, err := normalizeWalletExportPath(path)
 	if err != nil {
-		return nil, fmt.Errorf("read wallet export: %w", err)
+		return nil, err
+	}
+
+	payload, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("wallet export file not found at %q; pass the real export file path with --wallet-export, for example --wallet-export \"$HOME/safe/pirate-wallet.json\"", resolvedPath)
+		}
+		return nil, fmt.Errorf("read wallet export %q: %w", resolvedPath, err)
 	}
 
 	var export walletExport
@@ -105,6 +113,27 @@ func loadWalletExport(path string) (*walletExport, error) {
 	}
 
 	return &export, nil
+}
+
+func normalizeWalletExportPath(path string) (string, error) {
+	trimmed := strings.Trim(strings.TrimSpace(path), `"'`)
+	if trimmed == "" {
+		return "", errors.New("wallet export path is empty")
+	}
+	if trimmed == "~" || strings.HasPrefix(trimmed, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil || home == "" {
+			return "", errors.New("could not expand ~ in wallet export path")
+		}
+		if trimmed == "~" {
+			return home, nil
+		}
+		return home + string(os.PathSeparator) + strings.TrimPrefix(trimmed, "~/"), nil
+	}
+	if strings.HasPrefix(trimmed, "~") {
+		return "", errors.New("wallet export path uses unsupported ~user syntax; use an absolute path or $HOME")
+	}
+	return trimmed, nil
 }
 
 func parseWalletDescriptor(raw string) (*parsedWalletDescriptor, error) {
