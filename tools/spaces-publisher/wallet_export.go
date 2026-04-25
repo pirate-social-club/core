@@ -58,12 +58,12 @@ func resolveHandleContext(client *fabric.Fabric, handle string) (*resolvedHandle
 		return nil, fmt.Errorf("resolve %s: %w", handle, err)
 	}
 
-	rootPubKey, err := extractTaprootKey(resolved.Zone.ScriptPubkey)
+	rootPubKey, err := extractTaprootKey(resolved.ScriptPubkey)
 	if err != nil {
 		return nil, err
 	}
 
-	canonicalHandle := resolved.Zone.Canonical
+	canonicalHandle := resolved.Canonical
 	if canonicalHandle == "" {
 		canonicalHandle = handle
 	}
@@ -71,8 +71,8 @@ func resolveHandleContext(client *fabric.Fabric, handle string) (*resolvedHandle
 	return &resolvedHandleContext{
 		Handle:          handle,
 		CanonicalHandle: canonicalHandle,
-		Roots:           resolved.Roots,
-		Zone:            resolved.Zone,
+		Roots:           []string{hex.EncodeToString(resolved.AnchorHash)},
+		Zone:            *resolved,
 		RootPubKey:      rootPubKey,
 	}, nil
 }

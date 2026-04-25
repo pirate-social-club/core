@@ -53,24 +53,14 @@ Advanced fallback:
 - `--secret-key` expects the already tap-tweaked 32-byte BIP-340 secret key.
 - It does not accept an xprv or untweaked child key.
 
-The tool currently depends on sibling clones at:
+Install flow:
 
-- `/home/t42/Documents/fabric-go`
-- `/home/t42/Documents/libveritas-go`
-
-via the `replace` directives in [go.mod](./go.mod).
-
-### Temporary `fabric-go` patch
-
-The current upstream `fabric-go` clone needs one local compatibility fix for the current `libveritas-go` API:
-
-```diff
-- rs := libveritas.NewRecordSet(*z.Records)
-+ rs := libveritas.NewRecordSet(z.Records)
+```bash
+git clone https://github.com/pirate-social-club/pirate-spaces-publisher.git
+cd pirate-spaces-publisher
+go run . --help
 ```
 
-Location:
-
-- `/home/t42/Documents/fabric-go/fabric.go`
-
-This should be upstreamed or removed once `fabric-go` is updated to the latest `libveritas-go`.
+The repository uses upstream `libveritas-go` and includes a small checked-in `fabric-go`
+compatibility copy until upstream `fabric-go` tags compile against `libveritas-go v0.2.0`.
+It does not require sibling `fabric-go` or `libveritas-go` checkouts.
