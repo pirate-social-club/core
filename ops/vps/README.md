@@ -17,5 +17,7 @@ Current slices:
   PowerDNS-based authoritative DNS deployment assets for Pirate-managed HNS roots.
 - `hns-verifier/`
   Deployment assets and env templates for the PowerDNS-backed HNS verifier/provisioner.
+- `community-provision-operator/`
+  Deployment assets and env templates for the private Turso community provision operator.
 - `spaces-verifier/`
   Deployment assets and env templates for the VPS-hosted Spaces verifier stack.
