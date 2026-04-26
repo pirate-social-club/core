@@ -86,9 +86,9 @@ verification context.
 | `reddit_verification_succeeded`            | server_authoritative | pirate-api     | 1   |
 | `reddit_verification_failed`               | server_authoritative | pirate-api     | 1   |
 | `reddit_import_queued`                     | server_authoritative | pirate-api     | 1   |
-| `reddit_import_started`                    | job_authoritative    | job worker     | 1   |
-| `reddit_import_succeeded`                  | job_authoritative    | job worker     | 1   |
-| `reddit_import_failed`                     | job_authoritative    | job worker     | 1   |
+| `reddit_import_started`                    | server_authoritative | pirate-api     | 1   |
+| `reddit_import_succeeded`                  | server_authoritative | pirate-api     | 1   |
+| `reddit_import_failed`                     | server_authoritative | pirate-api     | 1   |
 | `handle_claim_started`                     | client               | pirate-web     | 1   |
 | `handle_claim_succeeded`                   | server_authoritative | pirate-api     | 1   |
 | `onboarding_completed`                     | server_authoritative | pirate-api     | 1   |
@@ -159,11 +159,55 @@ verification context.
 | `notification_generated`    | server_authoritative | pirate-api | 1   |
 | `notification_inbox_viewed` | client               | pirate-web | 1   |
 | `notification_opened`       | client               | pirate-web | 1   |
-| `notification_marked_read`  | client               | pirate-web | 1   |
+| `notification_marked_read`  | client + server_authoritative | pirate-web + pirate-api | 1   |
+| `notification_task_dismissed` | server_authoritative | pirate-api | 1   |
+
+### PWA Install
+
+| Event                          | Source type | Owner      | Ver |
+|--------------------------------|-------------|------------|-----|
+| `pwa_install_promo_viewed`     | client      | pirate-web | 1   |
+| `pwa_install_prompt_opened`    | client      | pirate-web | 1   |
+| `pwa_install_prompt_accepted`  | client      | pirate-web | 1   |
+| `pwa_install_prompt_dismissed` | client      | pirate-web | 1   |
+| `pwa_install_promo_dismissed`  | client      | pirate-web | 1   |
+| `pwa_installed`                | client      | pirate-web | 1   |
 
 ## Per-event properties
 
 Events carry additional context in `properties_json`. Key property schemas:
+
+### pwa_install_promo_viewed (v1)
+```json
+{
+  "surface": "inbox" | "settings" | "snackbar",
+  "trigger": "unread_count" | "manual",
+  "unread_count_bucket": "0" | "1" | "2_5" | "6_20" | "20_plus"
+}
+```
+
+### pwa_install_prompt_opened (v1)
+```json
+{
+  "surface": "inbox" | "settings" | "snackbar",
+  "platform": "chromium" | "ios_manual"
+}
+```
+
+### pwa_install_prompt_accepted / pwa_install_prompt_dismissed / pwa_installed (v1)
+```json
+{
+  "surface": "inbox" | "settings" | "snackbar"
+}
+```
+
+### pwa_install_promo_dismissed (v1)
+```json
+{
+  "surface": "inbox" | "settings" | "snackbar",
+  "dismiss_reason": "not_now" | "close" | "native_dismissed" | "dont_show_again"
+}
+```
 
 ### page_viewed (v1)
 ```json
@@ -275,7 +319,43 @@ Events carry additional context in `properties_json`. Key property schemas:
 ### notification_generated (v1)
 ```json
 {
-  "notification_type": "comment_reply" | "post_reply" | "mention" | "follow" | "purchase" | "moderation"
+  "notification_kind": "task" | "activity",
+  "notification_type": "namespace_verification_required" | "membership_review" | "comment_reply" | "post_commented" | "royalty_earned",
+  "task_type": "namespace_verification_required" | "membership_review" | null,
+  "task_persistence": "persisted" | null
+}
+```
+
+### notification_opened (v1)
+```json
+{
+  "notification_kind": "task" | "activity",
+  "notification_type": "comment_reply" | "post_commented" | null,
+  "task_type": "unique_human_verification_required" | "profile_completion_suggested" | "global_handle_cleanup_suggested" | "namespace_verification_required" | "membership_review" | null,
+  "task_persistence": "synthetic" | "persisted" | null,
+  "open_surface": "inbox",
+  "task_auto_cleared_on_open": true
+}
+```
+
+### notification_marked_read (v1)
+```json
+{
+  "notification_kind": "activity",
+  "notification_type": "comment_reply" | "post_commented" | "royalty_earned",
+  "read_mode": "auto_visible_load" | "explicit_ids" | "mark_all",
+  "open_surface": "inbox",
+  "count": 2
+}
+```
+
+### notification_task_dismissed (v1)
+```json
+{
+  "notification_kind": "task",
+  "task_type": "namespace_verification_required" | "membership_review" | "profile_completion_suggested" | "global_handle_cleanup_suggested",
+  "task_persistence": "persisted",
+  "dismiss_surface": "inbox"
 }
 ```
 
@@ -297,6 +377,7 @@ resources are defined in `lib/tinybird.ts`.
 | `events_hourly_mv` | Hourly event rollups for volume and quality dashboards. |
 | `onboarding_steps_mv` | Narrow row-level onboarding events for funnel endpoints. |
 | `activation_events_mv` | Narrow row-level activation events for cohort endpoints. |
+| `notification_events_mv` | Narrow row-level notification lifecycle events for inbox funnel endpoints. |
 | `community_health_daily_mv` | Daily community activity rollups. |
 | `commerce_funnel_daily_mv` | Daily commerce funnel rollups. |
 | `import_quality_daily_mv` | Daily Reddit verification/import rollups. |
@@ -308,6 +389,8 @@ Published endpoints:
 - `conversion_overview`
 - `onboarding_funnel`
 - `activation_funnel`
+- `notification_task_funnel`
+- `notification_activity_funnel`
 - `community_health`
 - `commerce_funnel`
 - `retention_cohorts`

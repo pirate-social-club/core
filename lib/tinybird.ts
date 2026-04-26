@@ -119,6 +119,47 @@ export const activationEventsMv = defineDatasource("activation_events_mv", {
   }),
 })
 
+export const notificationEventsMv = defineDatasource("notification_events_mv", {
+  description: "Row-level notification lifecycle events used by inbox funnel endpoints.",
+  jsonPaths: false,
+  schema: {
+    event_id: t.string(),
+    event_time: t.dateTime64(3, "UTC"),
+    environment: t.string().lowCardinality(),
+    source: t.string().lowCardinality(),
+    user_id_hash: t.string(),
+    anonymous_id: t.string(),
+    session_id: t.string(),
+    community_id: t.string(),
+    post_id: t.string(),
+    comment_id: t.string(),
+    notification_event_name: t.string().lowCardinality(),
+    notification_kind: t.string().lowCardinality(),
+    notification_type: t.string().lowCardinality(),
+    task_type: t.string().lowCardinality(),
+    task_persistence: t.string().lowCardinality(),
+    open_surface: t.string().lowCardinality(),
+    dismiss_surface: t.string().lowCardinality(),
+    read_mode: t.string().lowCardinality(),
+    event_count: t.uint32(),
+  },
+  engine: engine.mergeTree({
+    partitionKey: "toYYYYMM(event_time)",
+    sortingKey: [
+      "environment",
+      "event_time",
+      "notification_event_name",
+      "notification_kind",
+      "notification_type",
+      "task_type",
+      "user_id_hash",
+      "anonymous_id",
+      "event_id",
+    ],
+    ttl: "toDateTime(event_time) + toIntervalDay(365)",
+  }),
+})
+
 export const communityHealthDailyMv = defineDatasource("community_health_daily_mv", {
   description: "Daily community activity rollups.",
   jsonPaths: false,
@@ -294,6 +335,49 @@ export const mvActivationCohorts = defineMaterializedView("mv_activation_cohorts
           'post_voted',
           'comment_voted',
           'community_followed'
+        )
+        AND source != 'backfill'
+      `,
+    }),
+  ],
+})
+
+export const mvNotificationEvents = defineMaterializedView("mv_notification_events", {
+  datasource: notificationEventsMv,
+  nodes: [
+    node({
+      name: "materialize_notification_events",
+      sql: `
+        SELECT
+          event_id,
+          event_time,
+          environment,
+          source,
+          user_id_hash,
+          anonymous_id,
+          session_id,
+          community_id,
+          post_id,
+          comment_id,
+          event_name AS notification_event_name,
+          ifNull(nullIf(JSONExtractString(properties_json, 'notification_kind'), ''), '') AS notification_kind,
+          ifNull(nullIf(JSONExtractString(properties_json, 'notification_type'), ''), '') AS notification_type,
+          ifNull(nullIf(JSONExtractString(properties_json, 'task_type'), ''), '') AS task_type,
+          ifNull(nullIf(JSONExtractString(properties_json, 'task_persistence'), ''), '') AS task_persistence,
+          ifNull(nullIf(JSONExtractString(properties_json, 'open_surface'), ''), '') AS open_surface,
+          ifNull(nullIf(JSONExtractString(properties_json, 'dismiss_surface'), ''), '') AS dismiss_surface,
+          ifNull(nullIf(JSONExtractString(properties_json, 'read_mode'), ''), '') AS read_mode,
+          multiIf(
+            event_name = 'notification_marked_read',
+            greatest(toUInt32OrZero(JSONExtractString(properties_json, 'count')), 1),
+            1
+          ) AS event_count
+        FROM analytics_events_raw
+        WHERE event_name IN (
+          'notification_generated',
+          'notification_opened',
+          'notification_marked_read',
+          'notification_task_dismissed'
         )
         AND source != 'backfill'
       `,
@@ -635,6 +719,138 @@ export const activationFunnel = defineEndpoint("activation_funnel", {
     follow_rate: t.float64(),
   },
 })
+
+export const notificationTaskFunnel = defineEndpoint("notification_task_funnel", {
+  description: "Task notification funnel across generation, open, and dismiss lifecycle steps.",
+  params: {
+    environment: p.string(),
+    start_time: p.dateTime64().optional("1970-01-01 00:00:00.000"),
+    end_time: p.dateTime64().optional("2100-01-01 00:00:00.000"),
+    task_type: p.string().optional(""),
+  },
+  nodes: [
+    node({
+      name: "endpoint",
+      sql: `
+        WITH
+          scoped_events AS (
+            SELECT
+              event_time,
+              if(user_id_hash != '', user_id_hash, session_id) AS actor_id,
+              task_type,
+              if(task_persistence = '', 'unknown', task_persistence) AS task_persistence,
+              notification_event_name
+            FROM notification_events_mv
+            WHERE environment = {{String(environment)}}
+            AND event_time >= {{DateTime64(start_time)}}
+            AND event_time < {{DateTime64(end_time)}}
+            AND notification_kind = 'task'
+            AND if(user_id_hash != '', user_id_hash, session_id) != ''
+            AND (
+              {{String(task_type)}} = ''
+              OR task_type = {{String(task_type)}}
+            )
+          ),
+          grouped AS (
+            SELECT
+              task_type,
+              task_persistence,
+              uniqExactIf(actor_id, notification_event_name = 'notification_generated') AS generated_users,
+              uniqExactIf(actor_id, notification_event_name = 'notification_opened') AS opened_users,
+              uniqExactIf(actor_id, notification_event_name = 'notification_task_dismissed') AS dismissed_users
+            FROM scoped_events
+            GROUP BY task_type, task_persistence
+          )
+        SELECT
+          task_type,
+          task_persistence,
+          generated_users,
+          opened_users,
+          dismissed_users,
+          ifNull(round(opened_users / nullIf(generated_users, 0), 4), 0) AS open_rate_from_generated,
+          ifNull(round(dismissed_users / nullIf(generated_users, 0), 4), 0) AS dismiss_rate_from_generated
+        FROM grouped
+        ORDER BY generated_users DESC, task_type ASC, task_persistence ASC
+      `,
+    }),
+  ],
+  output: {
+    task_type: t.string(),
+    task_persistence: t.string(),
+    generated_users: t.uint64(),
+    opened_users: t.uint64(),
+    dismissed_users: t.uint64(),
+    open_rate_from_generated: t.float64(),
+    dismiss_rate_from_generated: t.float64(),
+  },
+})
+
+export type NotificationTaskFunnelParams = InferParams<typeof notificationTaskFunnel>
+export type NotificationTaskFunnelOutput = InferOutputRow<typeof notificationTaskFunnel>
+
+export const notificationActivityFunnel = defineEndpoint("notification_activity_funnel", {
+  description: "Activity notification funnel across generation, open, and mark-read lifecycle steps.",
+  params: {
+    environment: p.string(),
+    start_time: p.dateTime64().optional("1970-01-01 00:00:00.000"),
+    end_time: p.dateTime64().optional("2100-01-01 00:00:00.000"),
+    notification_type: p.string().optional(""),
+  },
+  nodes: [
+    node({
+      name: "endpoint",
+      sql: `
+        WITH
+          scoped_events AS (
+            SELECT
+              if(user_id_hash != '', user_id_hash, session_id) AS actor_id,
+              notification_type,
+              notification_event_name,
+              event_count
+            FROM notification_events_mv
+            WHERE environment = {{String(environment)}}
+            AND event_time >= {{DateTime64(start_time)}}
+            AND event_time < {{DateTime64(end_time)}}
+            AND notification_kind = 'activity'
+            AND if(user_id_hash != '', user_id_hash, session_id) != ''
+            AND (
+              {{String(notification_type)}} = ''
+              OR notification_type = {{String(notification_type)}}
+            )
+          ),
+          grouped AS (
+            SELECT
+              notification_type,
+              uniqExactIf(actor_id, notification_event_name = 'notification_generated') AS generated_users,
+              uniqExactIf(actor_id, notification_event_name = 'notification_opened') AS opened_users,
+              sumIf(event_count, notification_event_name = 'notification_marked_read') AS marked_read_events
+            FROM scoped_events
+            GROUP BY notification_type
+          )
+        SELECT
+          notification_type,
+          generated_users,
+          opened_users,
+          marked_read_events,
+          ifNull(round(opened_users / nullIf(generated_users, 0), 4), 0) AS open_rate_from_generated,
+          ifNull(round(marked_read_events / nullIf(generated_users, 0), 4), 0) AS marked_read_per_generated_user
+        FROM grouped
+        ORDER BY generated_users DESC, notification_type ASC
+      `,
+    }),
+  ],
+  output: {
+    notification_type: t.string(),
+    generated_users: t.uint64(),
+    opened_users: t.uint64(),
+    marked_read_events: t.uint64(),
+    open_rate_from_generated: t.float64(),
+    marked_read_per_generated_user: t.float64(),
+  },
+})
+
+export type NotificationActivityFunnelParams = InferParams<typeof notificationActivityFunnel>
+export type NotificationActivityFunnelOutput = InferOutputRow<typeof notificationActivityFunnel>
 
 export type ActivationFunnelParams = InferParams<typeof activationFunnel>
 export type ActivationFunnelOutput = InferOutputRow<typeof activationFunnel>
@@ -1118,6 +1334,7 @@ export const datasources = {
   eventsHourlyMv,
   onboardingStepsMv,
   activationEventsMv,
+  notificationEventsMv,
   communityHealthDailyMv,
   commerceFunnelDailyMv,
   importQualityDailyMv,
@@ -1127,12 +1344,15 @@ export const pipes = {
   mvEventsHourly,
   mvOnboardingSteps,
   mvActivationCohorts,
+  mvNotificationEvents,
   mvCommunityHealthDaily,
   mvCommerceFunnelDaily,
   mvImportQualityDaily,
   onboardingFunnel,
   communityJoinFunnel,
   activationFunnel,
+  notificationTaskFunnel,
+  notificationActivityFunnel,
   communityHealth,
   commerceFunnel,
   retentionCohorts,
