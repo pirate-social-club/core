@@ -183,6 +183,11 @@ export const ENV_CONTRACT: EnvContract = {
     },
     {
       path: "/services/api",
+      key: "PIRATE_ADMIN_TOKEN",
+      requiredness: "required_for_production",
+    },
+    {
+      path: "/services/api",
       key: "ANALYTICS_ENABLED",
       requiredness: "deferred",
     },

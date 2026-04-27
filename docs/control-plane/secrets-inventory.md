@@ -81,6 +81,7 @@ The API worker cannot start without these. The sync script (`scripts/infisical/s
 | `ACRCLOUD_ACCESS_SECRET` | `api-key` | ACRCloud access secret for song audio identification signing |
 | `ELEVENLABS_API_KEY` | `api-key` | ElevenLabs API key for song forced alignment |
 | `CONTROL_PLANE_DATABASE_URL` | `database-credential` | Runtime connection string for the Neon control-plane database |
+| `PIRATE_ADMIN_TOKEN` | `worker-secret` | Production admin/operator token for namespace attach, manifest apply, and launch seed operations |
 | `STORY_RUNTIME_PRIVATE_KEY` | `private-key` | Shared Story Aeneid runtime fallback signer |
 | `STORY_OPERATOR_PRIVATE_KEY` | `private-key` | Story asset publish/register signer |
 | `STORY_CDR_WRITER_PRIVATE_KEY` | `private-key` | Story CDR writer signer |
