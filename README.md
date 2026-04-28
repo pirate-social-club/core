@@ -1,6 +1,6 @@
-# Pirate Social Club Core
+# Pirate Core
 
-`core` is the shared system-definition repo for Pirate Social Club.
+`core` is the shared system-definition repo for Pirate.
 
 It currently tracks:
 
@@ -14,12 +14,12 @@ Canonical local workspace layout:
 
 ```text
 /home/t42/Documents/pirate-workspace/
-  core/       -> pirate-social-club/core
-  api/        -> pirate-social-club/api
-  web/        -> pirate-social-club/web
-  contracts/  -> pirate-social-club/contracts
-  desktop/    -> pirate-social-club/desktop
-  android/    -> pirate-social-club/android
+  core/       -> pirate/core
+  api/        -> pirate/api
+  web/        -> pirate/web
+  contracts/  -> pirate/contracts
+  desktop/    -> pirate/desktop
+  android/    -> pirate/android
 ```
 
 Those sibling repos are not tracked by `core`.

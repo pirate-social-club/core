@@ -29,7 +29,7 @@ go version
 If Go is not installed, the operator installs it from https://go.dev/dl/ and reopens Terminal.
 
 ```bash
-go run github.com/pirate-social-club/pirate-spaces-publisher@v0.1.0 publish @pirate \
+go run github.com/pirate/pirate-spaces-publisher@v0.1.0 publish @pirate \
   --wallet-export /path/to/wallet-export.json \
   --web https://pirate.sc/c/@pirate \
   --freedom https://pirate.sc/c/@pirate \
@@ -68,7 +68,7 @@ The durable assertion for the publish-control proof is `fabric_publish_verified`
 
 The public helper repo is:
 
-- `https://github.com/pirate-social-club/pirate-spaces-publisher`
+- `https://github.com/pirate/pirate-spaces-publisher`
 
 `pirate-spaces-publisher` is the active public repo name. Treat `spaces-publisher` as superseded and
 archive it after confirming no release or deploy process still reads from it.
@@ -80,7 +80,7 @@ The source in this workspace lives at:
 The helper supports repeatable generic TXT records:
 
 ```bash
-go run github.com/pirate-social-club/pirate-spaces-publisher@v0.1.0 publish @pirate --wallet-export /path/to/wallet-export.json --txt key=value --txt other=value
+go run github.com/pirate/pirate-spaces-publisher@v0.1.0 publish @pirate --wallet-export /path/to/wallet-export.json --txt key=value --txt other=value
 ```
 
 For Pirate verification, use the first-class `pirate-verify` TXT convention shown above.

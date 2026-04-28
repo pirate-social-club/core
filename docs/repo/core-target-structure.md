@@ -1,6 +1,6 @@
 # Core Target Structure
 
-This document defines the steady-state structure for `pirate-social-club/core`.
+This document defines the steady-state structure for `pirate/core`.
 
 ## Goal
 
@@ -64,4 +64,4 @@ Do not add new top-level roots in `core` for:
 - `desktop/`
 - standalone plugin packages with their own release lifecycle
 
-Those belong in their own repos under `pirate-social-club`.
+Those belong in their own repos under `pirate`.

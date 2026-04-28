@@ -481,7 +481,7 @@ TXT value: _______________________
 
 ```bash
 go version
-go run github.com/pirate-social-club/pirate-spaces-publisher@v0.1.0 publish <root> \
+go run github.com/pirate/pirate-spaces-publisher@v0.1.0 publish <root> \
   --wallet-export /path/to/wallet-export.json \
   --web <challenge_payload.web_url> \
   --freedom <challenge_payload.freedom_url> \

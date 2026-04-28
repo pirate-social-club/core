@@ -57,7 +57,7 @@ Public install flow:
 
 ```bash
 go version
-go run github.com/pirate-social-club/pirate-spaces-publisher@v0.1.0 --help
+go run github.com/pirate/pirate-spaces-publisher@v0.1.0 --help
 ```
 
 If `go version` prints `command not found`, install Go from https://go.dev/dl/ and reopen Terminal.

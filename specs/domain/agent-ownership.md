@@ -1252,7 +1252,7 @@ Recommended fastest path from the current repo state:
    - do not couple plain browser code to direct filesystem reads
 8. maintain the published OpenClaw plugin package
    - npm package: `@pirate_sc/openclaw-pirate-plugin`
-   - GitHub repo: `pirate-social-club/pirate-openclaw-plugin`
+   - GitHub repo: `pirate/pirate-openclaw-plugin`
    - register `connect_pirate`
    - register `check_pirate_connection`
    - register `find_pirate_communities`

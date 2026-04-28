@@ -1,8 +1,8 @@
 # Repo Boundaries
 
-This repository is the canonical `pirate-social-club/core` repo.
+This repository is the canonical `pirate/core` repo.
 
-Its purpose is to hold shared system definition and integration work across Pirate Social Club surfaces. It is not a runtime repo and should not become a second copy of the GitHub organization.
+Its purpose is to hold shared system definition and integration work across Pirate surfaces. It is not a runtime repo and should not become a second copy of the GitHub organization.
 
 ## What Belongs In `core`
 
@@ -48,7 +48,7 @@ Runtime repos live beside `core` in the canonical local workspace:
   android/
 ```
 
-They must not be tracked by `core`. They are local checkouts of standalone repos such as `pirate-social-club/api`, `pirate-social-club/web`, `pirate-social-club/contracts`, `pirate-social-club/desktop`, and `pirate-social-club/android`.
+They must not be tracked by `core`. They are local checkouts of standalone repos such as `pirate/api`, `pirate/web`, `pirate/contracts`, `pirate/desktop`, and `pirate/android`.
 
 Scripts and active runbooks that need sidecar paths should use checkout variables instead of assuming the repos live under `core`.
 
@@ -70,13 +70,13 @@ Rules for sidecar-aware material:
 
 Canonical ownership:
 
-- `pirate-social-club/core`: specs, migrations, config, docs, scripts, Lit actions, ops, and references.
-- `pirate-social-club/api`: production backend services.
-- `pirate-social-club/web`: web UI and browser runtime.
-- `pirate-social-club/contracts`: contract workspaces and tests.
-- `pirate-social-club/android`: production Android app.
-- `pirate-social-club/ios`: production iOS app.
-- `pirate-social-club/desktop`: production desktop app.
+- `pirate/core`: specs, migrations, config, docs, scripts, Lit actions, ops, and references.
+- `pirate/api`: production backend services.
+- `pirate/web`: web UI and browser runtime.
+- `pirate/contracts`: contract workspaces and tests.
+- `pirate/android`: production Android app.
+- `pirate/ios`: production iOS app.
+- `pirate/desktop`: production desktop app.
 
 ## Rules Going Forward
 

@@ -218,7 +218,7 @@ curl -sS -X POST https://api-staging.pirate.sc/namespace-verification-sessions \
 
 ```bash
 go version
-go run github.com/pirate-social-club/pirate-spaces-publisher@v0.1.0 publish @pirate \
+go run github.com/pirate/pirate-spaces-publisher@v0.1.0 publish @pirate \
   --wallet-export /path/to/wallet-export.json \
   --web <challenge_payload.web_url> \
   --freedom <challenge_payload.freedom_url> \
