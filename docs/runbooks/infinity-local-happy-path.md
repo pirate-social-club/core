@@ -26,7 +26,7 @@ After this runbook:
 ```bash
 PIRATE_API_DIR="${PIRATE_API_DIR:-/home/t42/Documents/pirate-workspace/api/services/api}"
 cd "$PIRATE_API_DIR"
-rtk bun run bruno:prepare:local
+rtk bun run dev:local:reset -- --yes
 ```
 
 This recreates:
