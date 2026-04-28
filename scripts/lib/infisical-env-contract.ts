@@ -510,6 +510,7 @@ export const CORE_SECRET_IDS = [
   "PIRATE_APP_JWT_PUBLIC_KEY__/services/api",
   "PRIVY_APP_SECRET__/services/api",
   "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN__/services/api",
+  "PIRATE_ADMIN_TOKEN__/services/api",
   "CONTROL_PLANE_MIGRATOR_DATABASE_URL__/services/control-plane",
   "TURSO_PLATFORM_API_TOKEN__/services/control-plane",
   "TURSO_COMMUNITY_DB_WRAP_KEY__/services/control-plane",

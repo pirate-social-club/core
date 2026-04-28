@@ -80,6 +80,7 @@ export type ProvisionCommunityInput = {
   handlePolicyTemplate?: "standard" | "premium" | "membership_gated" | "custom";
   handlePricingModel?: string | null;
   namespaceLabel?: string | null;
+  initialSettings?: Record<string, unknown> | null;
   databaseTokenExpiration?: string | null;
   fetch?: TursoPlatformFetch;
   bootstrapCommunityDatabaseFn?: (
@@ -846,6 +847,7 @@ export async function provisionCommunity(
       handlePolicyTemplate: input.handlePolicyTemplate ?? "standard",
       handlePricingModel: input.handlePricingModel ?? null,
       namespaceLabel,
+      initialSettings: input.initialSettings ?? null,
       now: input.now ?? new Date(),
     });
 
@@ -1142,6 +1144,7 @@ export async function provisionCommunityRuntime(
       handlePolicyTemplate: input.handlePolicyTemplate ?? "standard",
       handlePricingModel: input.handlePricingModel ?? null,
       namespaceLabel,
+      initialSettings: input.initialSettings ?? null,
       now: input.now ?? new Date(),
     });
 

@@ -47,6 +47,8 @@ It is intentionally narrow:
 
 - `scripts/community/apply-sqlite-migrations.sh`
   Apply `db/community-template/migrations` to a SQLite or libSQL target.
+- `scripts/community/apply-remote-community-migrations.ts`
+  Dry-run or apply pending community-template migrations to active remote Turso/libSQL community DBs.
 - `scripts/community/bootstrap-community-db.sh`
   Bootstrap a local community DB from the community template.
 - `scripts/community/bootstrap-community-slice.ts`

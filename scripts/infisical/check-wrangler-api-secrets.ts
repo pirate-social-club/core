@@ -2,7 +2,10 @@
 
 import { resolve } from "node:path";
 import {
+  ENV_CONTRACT,
   isSecretProfile,
+  requirednessApplies,
+  secretId,
   WRANGLER_MANAGED_CONFIG_NAMES,
   wranglerApiOptionalSecretNames,
   wranglerApiRequiredSecretNames,
@@ -129,6 +132,23 @@ function sorted(values: Iterable<string>): string[] {
 
 const options = parseArgs(process.argv.slice(2));
 const requiredNames = new Set(wranglerApiRequiredSecretNames(options.profile));
+const secretProfileIds = new Set(
+  [
+    ...(wranglerApiRequiredSecretNames(options.profile).map((key) => secretId("/services/api", key))),
+    ...(wranglerApiOptionalSecretNames(options.profile).map((key) => secretId("/services/api", key))),
+  ],
+);
+const auditEnv = options.wranglerEnv || "production";
+for (const spec of ENV_CONTRACT.secrets) {
+  if (
+    spec.path === "/services/api"
+    && requirednessApplies(spec.requiredness, auditEnv)
+    && spec.requiredness === "required_for_production"
+    && (options.profile === "commerce" || secretProfileIds.has(secretId(spec.path, spec.key)))
+  ) {
+    requiredNames.add(spec.key);
+  }
+}
 const optionalNames = new Set(wranglerApiOptionalSecretNames(options.profile));
 const managedConfigNames = new Set<string>(WRANGLER_MANAGED_CONFIG_NAMES);
 const allowedNames = new Set([...requiredNames, ...optionalNames]);

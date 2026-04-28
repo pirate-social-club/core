@@ -36,6 +36,7 @@ type ProvisionRouteBody = {
     handle_policy_template?: "standard" | "premium" | "membership_gated" | "custom";
     handle_pricing_model?: string | null;
     namespace_label?: string | null;
+    initial_settings?: Record<string, unknown> | null;
   } | null;
 };
 
@@ -219,6 +220,7 @@ export function createTursoControlPlaneOperatorHandler(
           handlePolicyTemplate: body.bootstrap_payload?.handle_policy_template ?? "standard",
           handlePricingModel: body.bootstrap_payload?.handle_pricing_model ?? null,
           namespaceLabel: body.bootstrap_payload?.namespace_label ?? null,
+          initialSettings: body.bootstrap_payload?.initial_settings ?? null,
           databaseTokenExpiration: trim(body.database_token_expiration ?? "") || null,
         });
         return json(mapProvisionResponse(result));

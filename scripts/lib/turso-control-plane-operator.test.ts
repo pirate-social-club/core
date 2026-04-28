@@ -86,6 +86,14 @@ describe("turso control-plane operator handler", () => {
           handle_policy_template: "standard",
           handle_pricing_model: null,
           namespace_label: "infinity",
+          initial_settings: {
+            human_verification_lane: "very",
+            agent_posting_policy: "allow",
+            agent_posting_scope: "top_level_and_replies",
+            agent_daily_post_cap: 10,
+            agent_daily_reply_cap: 50,
+            accepted_agent_ownership_providers: ["clawkey"],
+          },
         },
       }),
     }));
@@ -109,6 +117,14 @@ describe("turso control-plane operator handler", () => {
       postingUniqueHumanProvider: "very",
       handlePolicyTemplate: "standard",
       namespaceLabel: "infinity",
+      initialSettings: {
+        human_verification_lane: "very",
+        agent_posting_policy: "allow",
+        agent_posting_scope: "top_level_and_replies",
+        agent_daily_post_cap: 10,
+        agent_daily_reply_cap: 50,
+        accepted_agent_ownership_providers: ["clawkey"],
+      },
     });
 
     const body = await response.json() as Record<string, unknown>;

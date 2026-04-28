@@ -25,12 +25,24 @@ export type BootstrapCommunityDatabaseInput = {
   handlePolicyTemplate: "standard" | "premium" | "membership_gated" | "custom";
   handlePricingModel?: string | null;
   namespaceLabel?: string | null;
+  initialSettings?: Record<string, unknown> | null;
   now?: Date;
 };
 
 export type CommunityTemplateMigrationChecksum = {
   migrationName: string;
   checksum: string;
+};
+
+export type CommunityTemplateMigrationState = {
+  missingMigrationNames: string[];
+  mismatchedMigrationNames: string[];
+  unexpectedMigrationNames: string[];
+};
+
+export type ApplyCommunityTemplateMigrationsResult = {
+  applied: number;
+  skipped: number;
 };
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -253,8 +265,60 @@ export async function listExpectedCommunityMigrationChecksums(): Promise<Communi
   return results;
 }
 
-async function applyCommunityMigrations(sql: CommunityBootstrapSql): Promise<void> {
+async function readSchemaMigrationChecksums(sql: CommunityBootstrapSql): Promise<Map<string, string>> {
   await ensureSchemaMigrationsTable(sql);
+
+  const rows = await sql.execute<{ migration_name: string; checksum: string }>(
+    "SELECT migration_name, checksum FROM schema_migrations ORDER BY migration_name ASC",
+  );
+  return new Map(
+    rows
+      .map((row) => [String(row.migration_name ?? "").trim(), String(row.checksum ?? "").trim()] as const)
+      .filter(([migrationName]) => migrationName.length > 0),
+  );
+}
+
+export async function inspectCommunityTemplateMigrations(input: {
+  databaseUrl: string;
+  databaseAuthToken?: string | null;
+}): Promise<CommunityTemplateMigrationState> {
+  const sql = communityBootstrapSql(input);
+
+  try {
+    const expectedMigrations = await listExpectedCommunityMigrationChecksums();
+    const actualByName = await readSchemaMigrationChecksums(sql);
+    const expectedNames = new Set(expectedMigrations.map((migration) => migration.migrationName));
+
+    const missingMigrationNames: string[] = [];
+    const mismatchedMigrationNames: string[] = [];
+    for (const expected of expectedMigrations) {
+      const actualChecksum = actualByName.get(expected.migrationName);
+      if (!actualChecksum) {
+        missingMigrationNames.push(expected.migrationName);
+      } else if (actualChecksum !== expected.checksum) {
+        mismatchedMigrationNames.push(expected.migrationName);
+      }
+    }
+
+    const unexpectedMigrationNames = Array.from(actualByName.keys())
+      .filter((migrationName) => !expectedNames.has(migrationName))
+      .sort();
+
+    return {
+      missingMigrationNames,
+      mismatchedMigrationNames,
+      unexpectedMigrationNames,
+    };
+  } finally {
+    await sql.close();
+  }
+}
+
+async function applyCommunityMigrations(sql: CommunityBootstrapSql): Promise<ApplyCommunityTemplateMigrationsResult> {
+  await ensureSchemaMigrationsTable(sql);
+
+  let applied = 0;
+  let skipped = 0;
 
   for (const filePath of await listMigrationFiles()) {
     const migrationName = filePath.split("/").at(-1) ?? filePath;
@@ -270,6 +334,7 @@ async function applyCommunityMigrations(sql: CommunityBootstrapSql): Promise<voi
       if (existingChecksum !== checksum) {
         throw new Error(`schema_migration_checksum_mismatch:${migrationName}`);
       }
+      skipped += 1;
       continue;
     }
 
@@ -286,6 +351,22 @@ async function applyCommunityMigrations(sql: CommunityBootstrapSql): Promise<voi
         [migrationName, "community-template", checksum],
       );
     });
+    applied += 1;
+  }
+
+  return { applied, skipped };
+}
+
+export async function applyCommunityTemplateMigrations(input: {
+  databaseUrl: string;
+  databaseAuthToken?: string | null;
+}): Promise<ApplyCommunityTemplateMigrationsResult> {
+  const sql = communityBootstrapSql(input);
+
+  try {
+    return await applyCommunityMigrations(sql);
+  } finally {
+    await sql.close();
   }
 }
 
@@ -320,6 +401,9 @@ export async function bootstrapCommunityDatabase(
         accepted_providers: [input.postingUniqueHumanProvider],
       }])
     : null;
+  const initialSettingsJson = input.initialSettings && Object.keys(input.initialSettings).length > 0
+    ? JSON.stringify(input.initialSettings)
+    : null;
   const postingGateConfig = input.postingUniqueHumanProvider
     ? JSON.stringify({
         post_types: ["text"],
@@ -351,7 +435,7 @@ export async function bootstrapCommunityDatabase(
            created_by_user_id,
            created_at,
            updated_at
-         ) VALUES (?, ?, ?, 'active', NULL, 'fan_run', ?, ?, 0, NULL, NULL, 'none', 'unconfigured', 'centralized', NULL, ?, ?, ?)
+         ) VALUES (?, ?, ?, 'active', NULL, 'fan_run', ?, ?, 0, NULL, NULL, 'none', 'unconfigured', 'centralized', ?, ?, ?, ?)
          ON CONFLICT(community_id) DO UPDATE SET
            display_name = excluded.display_name,
            description = excluded.description,
@@ -367,6 +451,7 @@ export async function bootstrapCommunityDatabase(
           input.description ?? null,
           input.membershipMode,
           input.defaultAgeGatePolicy,
+          initialSettingsJson,
           input.userId,
           timestamp,
           timestamp,

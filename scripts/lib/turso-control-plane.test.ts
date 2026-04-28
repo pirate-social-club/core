@@ -155,6 +155,7 @@ describe("turso control-plane provision-community", () => {
       handlePolicyTemplate: "standard",
       handlePricingModel: null,
       namespaceLabel: "turso-root",
+      initialSettings: null,
       now: new Date("2026-04-12T00:00:00.000Z"),
     });
 
@@ -315,6 +316,7 @@ describe("turso control-plane provision-community", () => {
       handlePolicyTemplate: "standard",
       handlePricingModel: null,
       namespaceLabel: null,
+      initialSettings: null,
       now: new Date("2026-04-18T00:00:00.000Z"),
     });
 
@@ -479,6 +481,14 @@ describe("turso control-plane provision-community", () => {
       groupLocation: "iad",
       membershipMode: "gated",
       membershipUniqueHumanProvider: "very",
+      initialSettings: {
+        human_verification_lane: "very",
+        agent_posting_policy: "allow",
+        agent_posting_scope: "top_level_and_replies",
+        agent_daily_post_cap: 10,
+        agent_daily_reply_cap: 50,
+        accepted_agent_ownership_providers: ["clawkey"],
+      },
       fetch: async (url, init) => {
         const text = String(url);
         if (text.includes("/groups") && String(init?.method ?? "GET") === "POST") {
@@ -532,6 +542,14 @@ describe("turso control-plane provision-community", () => {
       membershipMode: "gated",
       membershipUniqueHumanProvider: "very",
       postingUniqueHumanProvider: null,
+      initialSettings: {
+        human_verification_lane: "very",
+        agent_posting_policy: "allow",
+        agent_posting_scope: "top_level_and_replies",
+        agent_daily_post_cap: 10,
+        agent_daily_reply_cap: 50,
+        accepted_agent_ownership_providers: ["clawkey"],
+      },
     });
   });
 });
