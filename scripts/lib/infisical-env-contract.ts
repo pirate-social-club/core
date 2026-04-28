@@ -235,6 +235,11 @@ export const ENV_CONTRACT: EnvContract = {
     },
     {
       path: "/services/api",
+      key: "PASSPORT_API_KEY",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
       key: "JINA_API_KEY",
       requiredness: "deferred",
     },
@@ -515,6 +520,7 @@ export const CORE_SECRET_IDS = [
   "PIRATE_APP_JWT_PUBLIC_KEY__/services/api",
   "PRIVY_APP_SECRET__/services/api",
   "OPENAI_API_KEY__/services/api",
+  "PASSPORT_API_KEY__/services/api",
   "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN__/services/api",
   "PIRATE_ADMIN_TOKEN__/services/api",
   "CONTROL_PLANE_MIGRATOR_DATABASE_URL__/services/control-plane",
@@ -607,6 +613,8 @@ export const WRANGLER_MANAGED_CONFIG_NAMES = [
   "OPENAI_MODERATION_TIMEOUT_MS",
   "OPENROUTER_BASE_URL",
   "OPENROUTER_MODEL",
+  "PASSPORT_API_URL",
+  "PASSPORT_SCORER_ID",
   "ACRCLOUD_HOST",
   "ACRCLOUD_IDENTIFY_PATH",
   "ACRCLOUD_BUCKET_ID",
