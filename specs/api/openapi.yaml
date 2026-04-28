@@ -1310,6 +1310,36 @@ paths:
                 $ref: "#/components/schemas/Profile"
         "401":
           $ref: "#/components/responses/AuthError"
+  /profiles/me/xmtp-inbox:
+    post:
+      tags:
+        - Profiles
+      x-implemented: true
+      summary: Publish or rotate the current profile's XMTP inbox ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - xmtp_inbox_id
+              properties:
+                xmtp_inbox_id:
+                  type: string
+                  nullable: true
+                  description: Current XMTP inbox ID for this browser-local chat identity, or null to clear a stale value.
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
   /profiles/me/global-handle/rename:
     post:
       tags:
@@ -1431,6 +1461,48 @@ paths:
                 $ref: "#/components/schemas/Profile"
         "401":
           $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /public-profiles/by-wallet/{wallet_address}:
+    get:
+      tags:
+        - Profiles
+      x-implemented: true
+      summary: Resolve a public profile by active wallet address
+      parameters:
+        - name: wallet_address
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public profile resolution
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicProfileResolution"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /public-profiles/{handle_label}:
+    get:
+      tags:
+        - Profiles
+      x-implemented: true
+      summary: Resolve a public profile by Pirate or primary linked handle
+      parameters:
+        - name: handle_label
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public profile resolution
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicProfileResolution"
         "404":
           $ref: "#/components/responses/NotFound"
   /communities:
@@ -2490,6 +2562,85 @@ paths:
           $ref: "#/components/responses/AuthError"
         "403":
           $ref: "#/components/responses/GateFailed"
+  /communities/{community_id}/membership-requests:
+    get:
+      tags:
+        - Communities
+      x-implemented: true
+      summary: List pending membership requests
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Membership requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MembershipRequestListResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/membership-requests/{membership_request_id}/approve:
+    post:
+      tags:
+        - Communities
+      x-implemented: true
+      summary: Approve a membership request
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - in: path
+          name: membership_request_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Membership request approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MembershipRequestSummary"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /communities/{community_id}/membership-requests/{membership_request_id}/reject:
+    post:
+      tags:
+        - Communities
+      x-implemented: true
+      summary: Reject a membership request
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - in: path
+          name: membership_request_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Membership request rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MembershipRequestSummary"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /communities/{community_id}/follow:
     put:
       tags:
@@ -6312,6 +6463,10 @@ components:
           type: string
           nullable: true
           description: Public primary wallet address when Pirate product policy exposes wallet-linked identity on profile.
+        xmtp_inbox_id:
+          type: string
+          nullable: true
+          description: Optional published XMTP inbox ID for direct profile messaging. This is populated only after the user opts in to encrypted chat identity publication.
         verification_capabilities:
           allOf:
             - $ref: "#/components/schemas/VerificationCapabilities"
@@ -6827,6 +6982,11 @@ components:
         imported_reddit_score:
           type: integer
           nullable: true
+        global_karma:
+          type: integer
+          nullable: true
+          deprecated: true
+          description: Use `imported_reddit_score`.
         top_subreddits:
           type: array
           items:
@@ -7936,6 +8096,9 @@ components:
         - client_estimated_hop_count
       additionalProperties: false
       properties:
+        listing_id:
+          type: string
+          nullable: true
         funding_asset:
           $ref: "#/components/schemas/CommunityMoneyAssetRef"
           nullable: true
@@ -8015,6 +8178,21 @@ components:
         route_hop_tolerance:
           type: integer
           minimum: 0
+        base_price_usd:
+          type: number
+          nullable: true
+        viewer_price_usd:
+          type: number
+          nullable: true
+        best_verified_price_usd:
+          type: number
+          nullable: true
+        max_self_discount_percent:
+          type: number
+          nullable: true
+        verification_required_provider:
+          $ref: "#/components/schemas/CommunityPricingVerificationProvider"
+          nullable: true
         quoted_at:
           type: string
           format: date-time
@@ -9990,6 +10168,7 @@ components:
             - canvas_video
             - instrumental_audio
             - vocal_audio
+            - primary_video
         mime_type:
           type: string
         filename:
@@ -10038,6 +10217,7 @@ components:
             - canvas_video
             - instrumental_audio
             - vocal_audio
+            - primary_video
         status:
           type: string
           enum:
@@ -10224,9 +10404,9 @@ components:
         Subtype validation rules enforced by this schema:
         - text: requires at least one of `title` or `body`; must not send `link_url`, `media_refs`, `song_artifact_bundle_id`, or `lyrics`
         - image: requires at least one item in `media_refs` (all items must be `image/*`); must not send `link_url`, `song_artifact_bundle_id`, or `lyrics`
-        - video: requires at least one item in `media_refs` (at least one item must be `video/*`); must not send `link_url`, `song_artifact_bundle_id`, or `lyrics`
+        - video: requires at least one item in `media_refs` (at least one item must be `video/*`); commerce videos may send `access_mode`; locked videos require `license_preset`; must not send `link_url`, `song_artifact_bundle_id`, or `lyrics`
         - link: requires `link_url`; may send `title` and `body`; must not send `media_refs`, `song_artifact_bundle_id`, or `lyrics`
-        - song: requires either `song_artifact_bundle_id` or both `media_refs` (at least one `audio/*`) and `lyrics`; must not send `link_url`; `identity_mode` must be `public`
+        - song: requires either `song_artifact_bundle_id` or both `media_refs` (at least one `audio/*`) and `lyrics`; must not send `link_url`; `identity_mode` must be `public`; original songs require `license_preset`
       oneOf:
         - description: Text posts require at least one of `title` or `body`.
           required:
@@ -10282,7 +10462,10 @@ components:
                   - song_artifact_bundle_id
               - required:
                   - lyrics
-        - description: Video posts require at least one video in `media_refs`.
+        - description: |
+            Video posts require at least one video in `media_refs`. When `access_mode` is present,
+            the first video media ref must resolve to an uploaded `primary_video` artifact and the
+            server creates a video commerce asset. Identity must be public for commerce video posts.
           required:
             - post_type
             - media_refs
@@ -10293,6 +10476,23 @@ components:
                 - video
             title:
               type: string
+              nullable: true
+            access_mode:
+              type: string
+              enum:
+                - public
+                - locked
+            license_preset:
+              type: string
+              enum:
+                - non-commercial
+                - commercial-use
+                - commercial-remix
+              nullable: true
+            commercial_rev_share_pct:
+              type: integer
+              minimum: 0
+              maximum: 100
               nullable: true
             media_refs:
               type: array
@@ -10363,6 +10563,18 @@ components:
               enum:
                 - public
                 - locked
+            license_preset:
+              type: string
+              enum:
+                - non-commercial
+                - commercial-use
+                - commercial-remix
+              nullable: true
+            commercial_rev_share_pct:
+              type: integer
+              minimum: 0
+              maximum: 100
+              nullable: true
             title:
               type: string
               nullable: true
@@ -10526,7 +10738,8 @@ components:
         access_mode:
           type: string
           description: |
-            Song-only asset access mode. `public` keeps the source audio public. `locked` creates a locked asset and requires `song_artifact_bundle_id`.
+            Asset access mode for commerce-backed song and video posts. `public` keeps the source payload public.
+            `locked` creates a locked asset and gates the full payload through the asset access flow.
           enum:
             - public
             - locked
@@ -10564,6 +10777,23 @@ components:
             Server-side validation requires at least one entry when `rights_basis = derivative` or `song_mode = remix`.
             The server must verify these assets exist and belong to the same community or a public-accessible scope.
             This conditional requirement is enforced server-side because OpenAPI cannot express cross-field dependencies.
+        license_preset:
+          type: string
+          enum:
+            - non-commercial
+            - commercial-use
+            - commercial-remix
+          nullable: true
+          description: |
+            Required for original song posts and locked original video posts. Selects the Story PIL flavor for the newly published asset.
+            Remix/derivative posts inherit/accept source terms separately and must not send outbound license terms in v0.
+        commercial_rev_share_pct:
+          type: integer
+          minimum: 0
+          maximum: 100
+          nullable: true
+          description: |
+            Required only when `license_preset = commercial-remix`. This is the share derivative revenue owes back to the original asset.
         lyrics:
           type: string
           nullable: true
@@ -10734,9 +10964,9 @@ components:
         access_mode:
           type: string
           description: |
-            Song-only asset access mode for the rendered post. `public` keeps the source audio public.
+            Asset access mode for the rendered post. `public` keeps the source payload public.
             `locked` means the post is backed by a locked asset and should expose only preview-safe
-            media in ordinary reads.
+            media or metadata in ordinary reads.
           enum:
             - public
             - locked
@@ -10905,6 +11135,24 @@ components:
           type: string
           nullable: true
         duration_ms:
+          type: integer
+          nullable: true
+        poster_ref:
+          type: string
+          nullable: true
+        poster_mime_type:
+          type: string
+          nullable: true
+        poster_size_bytes:
+          type: integer
+          nullable: true
+        poster_width:
+          type: integer
+          nullable: true
+        poster_height:
+          type: integer
+          nullable: true
+        poster_frame_ms:
           type: integer
           nullable: true
     PostEmbed:
@@ -12019,7 +12267,12 @@ components:
       enum:
         - namespace_verification_required
         - namespace_verification_pending
+        - unique_human_verification_required
+        - profile_completion_suggested
+        - global_handle_cleanup_suggested
         - payout_setup_required
+        - royalty_claim_available
+        - membership_review
     UserTaskStatus:
       type: string
       enum:
@@ -12034,6 +12287,8 @@ components:
         - mention
         - mod_event
         - community_update
+        - xmtp_message
+        - royalty_earned
     UserTask:
       type: object
       required:
@@ -12195,6 +12450,186 @@ components:
       properties:
         task_id:
           type: string
+    ClaimableRoyaltyItem:
+      type: object
+      required:
+        - ip_id
+        - claimable_wip_wei
+        - asset_id
+        - community_id
+        - title
+      properties:
+        ip_id:
+          type: string
+        claimable_wip_wei:
+          type: string
+        asset_id:
+          type: string
+        community_id:
+          type: string
+        title:
+          type: string
+          nullable: true
+    ClaimableRoyaltiesResponse:
+      type: object
+      required:
+        - items
+        - total_claimable_wip_wei
+        - checked_at
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClaimableRoyaltyItem"
+        total_claimable_wip_wei:
+          type: string
+        checked_at:
+          type: string
+          format: date-time
+    RoyaltyActivityItem:
+      type: object
+      required:
+        - event_id
+        - community_id
+        - asset_id
+        - title
+        - story_ip_id
+        - amount_wip_wei
+        - buyer_wallet_address
+        - tx_hash
+        - purchase_id
+        - created_at
+        - read_at
+      properties:
+        event_id:
+          type: string
+        community_id:
+          type: string
+        asset_id:
+          type: string
+        title:
+          type: string
+          nullable: true
+        story_ip_id:
+          type: string
+        amount_wip_wei:
+          type: string
+        buyer_wallet_address:
+          type: string
+          nullable: true
+        tx_hash:
+          type: string
+          nullable: true
+        purchase_id:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
+    RoyaltyActivityResponse:
+      type: object
+      required:
+        - items
+        - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoyaltyActivityItem"
+        next_cursor:
+          type: string
+          nullable: true
+    RoyaltyClaimRecordRequest:
+      type: object
+      required:
+        - tx_hash
+        - wallet_address
+        - chain_id
+        - claimable_wip_wei_at_submission
+        - ip_ids
+        - auto_unwrap_ip_tokens
+      properties:
+        tx_hash:
+          type: string
+        wallet_address:
+          type: string
+        chain_id:
+          type: integer
+        claimable_wip_wei_at_submission:
+          type: string
+        ip_ids:
+          type: array
+          items:
+            type: string
+        auto_unwrap_ip_tokens:
+          type: boolean
+    RoyaltyClaimRecord:
+      type: object
+      required:
+        - claim_id
+        - user_id
+        - tx_hash
+        - wallet_address
+        - chain_id
+        - claimable_wip_wei_at_submission
+        - ip_ids
+        - auto_unwrap_ip_tokens
+        - status
+        - verified_at
+        - verification_error
+        - claimed_at
+        - created_at
+      properties:
+        claim_id:
+          type: string
+        user_id:
+          type: string
+        tx_hash:
+          type: string
+        wallet_address:
+          type: string
+        chain_id:
+          type: integer
+        claimable_wip_wei_at_submission:
+          type: string
+        ip_ids:
+          type: array
+          items:
+            type: string
+        auto_unwrap_ip_tokens:
+          type: boolean
+        status:
+          type: string
+          enum:
+            - pending
+            - confirmed
+            - failed
+        verified_at:
+          type: string
+          format: date-time
+          nullable: true
+        verification_error:
+          type: string
+          nullable: true
+        claimed_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+    RoyaltyClaimHistoryResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoyaltyClaimRecord"
     MppChallenge:
       type: object
       required:

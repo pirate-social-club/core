@@ -771,6 +771,9 @@ CommunityPurchaseQuotePreflightRequest:
     - client_estimated_hop_count
   additionalProperties: false
   properties:
+    listing_id:
+      type: string
+      nullable: true
     funding_asset:
       $ref: ./communities-community.yaml#/CommunityMoneyAssetRef
       nullable: true
@@ -850,6 +853,21 @@ CommunityPurchaseQuotePreflight:
     route_hop_tolerance:
       type: integer
       minimum: 0
+    base_price_usd:
+      type: number
+      nullable: true
+    viewer_price_usd:
+      type: number
+      nullable: true
+    best_verified_price_usd:
+      type: number
+      nullable: true
+    max_self_discount_percent:
+      type: number
+      nullable: true
+    verification_required_provider:
+      $ref: ./communities-community.yaml#/CommunityPricingVerificationProvider
+      nullable: true
     quoted_at:
       type: string
       format: date-time

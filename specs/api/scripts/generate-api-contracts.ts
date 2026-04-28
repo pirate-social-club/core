@@ -147,6 +147,9 @@ const TYPE_EXPORTS = [
   { name: "MembershipGateSummary", ref: "#/components/schemas/MembershipGateSummary" },
   { name: "CommunityPreview", ref: "#/components/schemas/CommunityPreview" },
   { name: "JoinEligibility", ref: "#/components/schemas/JoinEligibility" },
+  { name: "MembershipRequestStatus", ref: "#/components/schemas/MembershipRequestStatus" },
+  { name: "MembershipRequestSummary", ref: "#/components/schemas/MembershipRequestSummary" },
+  { name: "MembershipRequestListResponse", ref: "#/components/schemas/MembershipRequestListResponse" },
   { name: "GateFailureDetails", ref: "#/components/schemas/GateFailureDetails" },
   { name: "HomeFeedCommunitySummary", ref: "#/components/schemas/HomeFeedCommunitySummary" },
   { name: "HomeFeedItem", ref: "#/components/schemas/FeedItem" },
@@ -167,6 +170,13 @@ const TYPE_EXPORTS = [
   { name: "NotificationTasksResponse", ref: "#/components/schemas/NotificationTasksResponse" },
   { name: "MarkNotificationsReadRequest", ref: "#/components/schemas/MarkNotificationsReadRequest" },
   { name: "DismissTaskRequest", ref: "#/components/schemas/DismissTaskRequest" },
+  { name: "ClaimableRoyaltyItem", ref: "#/components/schemas/ClaimableRoyaltyItem" },
+  { name: "ClaimableRoyaltiesResponse", ref: "#/components/schemas/ClaimableRoyaltiesResponse" },
+  { name: "RoyaltyActivityItem", ref: "#/components/schemas/RoyaltyActivityItem" },
+  { name: "RoyaltyActivityResponse", ref: "#/components/schemas/RoyaltyActivityResponse" },
+  { name: "RoyaltyClaimRecordRequest", ref: "#/components/schemas/RoyaltyClaimRecordRequest" },
+  { name: "RoyaltyClaimRecord", ref: "#/components/schemas/RoyaltyClaimRecord" },
+  { name: "RoyaltyClaimHistoryResponse", ref: "#/components/schemas/RoyaltyClaimHistoryResponse" },
 ] as const;
 
 const ROUTE_EXPORTS = [
@@ -223,6 +233,16 @@ const ROUTE_EXPORTS = [
   { name: "communityModerationCaseActions", path: "/communities/{community_id}/moderation/cases/{moderation_case_id}/actions" },
   { name: "communityPreview", path: "/communities/{community_id}/preview" },
   { name: "communityJoinEligibility", path: "/communities/{community_id}/join-eligibility" },
+  { name: "communityJoin", path: "/communities/{community_id}/join" },
+  { name: "communityMembershipRequests", path: "/communities/{community_id}/membership-requests" },
+  {
+    name: "communityMembershipRequestApprove",
+    path: "/communities/{community_id}/membership-requests/{membership_request_id}/approve",
+  },
+  {
+    name: "communityMembershipRequestReject",
+    path: "/communities/{community_id}/membership-requests/{membership_request_id}/reject",
+  },
   { name: "communitySongArtifactUploads", path: "/communities/{community_id}/song-artifact-uploads" },
   {
     name: "communitySongArtifactUploadContent",

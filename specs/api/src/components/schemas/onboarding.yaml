@@ -58,6 +58,11 @@ RedditImportSummary:
     imported_reddit_score:
       type: integer
       nullable: true
+    global_karma:
+      type: integer
+      nullable: true
+      deprecated: true
+      description: Use `imported_reddit_score`.
     top_subreddits:
       type: array
       items:

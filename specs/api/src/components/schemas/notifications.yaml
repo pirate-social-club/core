@@ -3,7 +3,12 @@ UserTaskType:
   enum:
     - namespace_verification_required
     - namespace_verification_pending
+    - unique_human_verification_required
+    - profile_completion_suggested
+    - global_handle_cleanup_suggested
     - payout_setup_required
+    - royalty_claim_available
+    - membership_review
 
 UserTaskStatus:
   type: string
@@ -20,6 +25,8 @@ NotificationEventType:
     - mention
     - mod_event
     - community_update
+    - xmtp_message
+    - royalty_earned
 
 UserTask:
   type: object
@@ -190,3 +197,190 @@ DismissTaskRequest:
   properties:
     task_id:
       type: string
+
+ClaimableRoyaltyItem:
+  type: object
+  required:
+    - ip_id
+    - claimable_wip_wei
+    - asset_id
+    - community_id
+    - title
+  properties:
+    ip_id:
+      type: string
+    claimable_wip_wei:
+      type: string
+    asset_id:
+      type: string
+    community_id:
+      type: string
+    title:
+      type: string
+      nullable: true
+
+ClaimableRoyaltiesResponse:
+  type: object
+  required:
+    - items
+    - total_claimable_wip_wei
+    - checked_at
+  properties:
+    items:
+      type: array
+      items:
+        $ref: ./notifications.yaml#/ClaimableRoyaltyItem
+    total_claimable_wip_wei:
+      type: string
+    checked_at:
+      type: string
+      format: date-time
+
+RoyaltyActivityItem:
+  type: object
+  required:
+    - event_id
+    - community_id
+    - asset_id
+    - title
+    - story_ip_id
+    - amount_wip_wei
+    - buyer_wallet_address
+    - tx_hash
+    - purchase_id
+    - created_at
+    - read_at
+  properties:
+    event_id:
+      type: string
+    community_id:
+      type: string
+    asset_id:
+      type: string
+    title:
+      type: string
+      nullable: true
+    story_ip_id:
+      type: string
+    amount_wip_wei:
+      type: string
+    buyer_wallet_address:
+      type: string
+      nullable: true
+    tx_hash:
+      type: string
+      nullable: true
+    purchase_id:
+      type: string
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+    read_at:
+      type: string
+      format: date-time
+      nullable: true
+
+RoyaltyActivityResponse:
+  type: object
+  required:
+    - items
+    - next_cursor
+  properties:
+    items:
+      type: array
+      items:
+        $ref: ./notifications.yaml#/RoyaltyActivityItem
+    next_cursor:
+      type: string
+      nullable: true
+
+RoyaltyClaimRecordRequest:
+  type: object
+  required:
+    - tx_hash
+    - wallet_address
+    - chain_id
+    - claimable_wip_wei_at_submission
+    - ip_ids
+    - auto_unwrap_ip_tokens
+  properties:
+    tx_hash:
+      type: string
+    wallet_address:
+      type: string
+    chain_id:
+      type: integer
+    claimable_wip_wei_at_submission:
+      type: string
+    ip_ids:
+      type: array
+      items:
+        type: string
+    auto_unwrap_ip_tokens:
+      type: boolean
+
+RoyaltyClaimRecord:
+  type: object
+  required:
+    - claim_id
+    - user_id
+    - tx_hash
+    - wallet_address
+    - chain_id
+    - claimable_wip_wei_at_submission
+    - ip_ids
+    - auto_unwrap_ip_tokens
+    - status
+    - verified_at
+    - verification_error
+    - claimed_at
+    - created_at
+  properties:
+    claim_id:
+      type: string
+    user_id:
+      type: string
+    tx_hash:
+      type: string
+    wallet_address:
+      type: string
+    chain_id:
+      type: integer
+    claimable_wip_wei_at_submission:
+      type: string
+    ip_ids:
+      type: array
+      items:
+        type: string
+    auto_unwrap_ip_tokens:
+      type: boolean
+    status:
+      type: string
+      enum:
+        - pending
+        - confirmed
+        - failed
+    verified_at:
+      type: string
+      format: date-time
+      nullable: true
+    verification_error:
+      type: string
+      nullable: true
+    claimed_at:
+      type: string
+      format: date-time
+    created_at:
+      type: string
+      format: date-time
+
+RoyaltyClaimHistoryResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: ./notifications.yaml#/RoyaltyClaimRecord

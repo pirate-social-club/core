@@ -63,6 +63,10 @@ Profile:
       type: string
       nullable: true
       description: Public primary wallet address when Pirate product policy exposes wallet-linked identity on profile.
+    xmtp_inbox_id:
+      type: string
+      nullable: true
+      description: Optional published XMTP inbox ID for direct profile messaging. This is populated only after the user opts in to encrypted chat identity publication.
     verification_capabilities:
       allOf:
         - $ref: ./verification.yaml#/VerificationCapabilities
@@ -76,6 +80,42 @@ Profile:
     updated_at:
       type: string
       format: date-time
+PublicProfileResolution:
+  type: object
+  required:
+    - profile
+    - requested_handle_label
+    - resolved_handle_label
+    - is_canonical
+    - created_communities
+  properties:
+    profile:
+      $ref: ./profiles.yaml#/Profile
+    requested_handle_label:
+      type: string
+    resolved_handle_label:
+      type: string
+    is_canonical:
+      type: boolean
+    created_communities:
+      type: array
+      items:
+        type: object
+        required:
+          - community_id
+          - display_name
+          - created_at
+        properties:
+          community_id:
+            type: string
+          display_name:
+            type: string
+          route_slug:
+            type: string
+            nullable: true
+          created_at:
+            type: string
+            format: date-time
 LinkedHandle:
   type: object
   required:

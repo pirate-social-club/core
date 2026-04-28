@@ -1202,6 +1202,85 @@ communities_by_community_id_join:
         $ref: ../components/responses.yaml#/AuthError
       "403":
         $ref: ../components/responses.yaml#/GateFailed
+communities_by_community_id_membership_requests:
+  get:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: List pending membership requests
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/Cursor
+      - $ref: ../components/parameters.yaml#/Limit
+    responses:
+      "200":
+        description: Membership requests
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-core.yaml#/MembershipRequestListResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_membership_requests_by_membership_request_id_approve:
+  post:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Approve a membership request
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - in: path
+        name: membership_request_id
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Membership request approved
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-core.yaml#/MembershipRequestSummary
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+communities_by_community_id_membership_requests_by_membership_request_id_reject:
+  post:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Reject a membership request
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - in: path
+        name: membership_request_id
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Membership request rejected
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-core.yaml#/MembershipRequestSummary
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
 communities_by_community_id_follow:
   put:
     tags:

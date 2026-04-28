@@ -381,6 +381,74 @@ Transitional rule:
 
 - existing rename UI may remain temporarily, but it should be treated as non-canonical
 
+## Implementation Status
+
+Status as of 2026-04-27:
+
+- app-layer `.clawitzer` support exists
+- public agent lookup exists through `GET /public-agents/:handleLabel`
+- wildcard-routing support exists in the public worker and HNS public gateway
+- Freedom's HNS hostname detection was updated to treat `*.clawitzer` like `*.pirate`
+
+Operational status:
+
+- the live Handshake `clawitzer` root update is confirmed on-chain
+- wallet tx hash: `53bf543809b31eb67908a77ef6f548a9b9c551493bb18b9ee84c0849aa552012`
+- confirmed parent-side Handshake resource:
+  - `GLUE4 ns1.pirate. 173.199.93.117`
+  - `NS ns1.pirate.`
+- wallet tx status now shows:
+  - `height = 326973`
+  - `confirmations = 6`
+- the wallet resource for `clawitzer` now returns only the `ns1.pirate.` delegation data
+- prod namespace verification has now completed successfully:
+  - `namespace_verification_session_id = nvs_ad7953e7095240329a7093ee33aecf05`
+  - `namespace_verification_id = nv_991acd5e36684b43bd19b4b9fc81f38c`
+  - `status = verified`
+  - `challenge_host = _pirate.clawitzer`
+  - `observation_provider = powerdns_sqlite`
+  - `pirate_subdomain_issuance_allowed = true`
+
+Important:
+
+- the Handshake parent-side delegation is no longer the blocker
+- the Pirate-managed `clawitzer.` child zone is now provisioned
+- do not assume public native `name.clawitzer` routing is live everywhere until the post-confirmation Handshake tree lag has cleared and an actual prod agent handle is tested end to end
+- a real prod agent has now been seeded for end-to-end verification:
+  - `agent_id = agt_418b916ad77e4ffa926b438476790288`
+  - `handle = night-signal.clawitzer`
+  - `GET https://api.pirate.sc/public-agents/night-signal` resolves canonically to that agent
+- the VPS wildcard path has now been repaired:
+  - `/srv/pirate-hns/app/services/gateway/hns-public/src/server.ts` was updated on the VPS to the current `.clawitzer`-aware version
+  - `/etc/caddy/Caddyfile` now includes a live `*.clawitzer` site block proxying to `127.0.0.1:4049`
+  - `/etc/caddy/certs/pirate.crt` was regenerated to include `DNS:clawitzer` and `DNS:*.clawitzer` in addition to the existing `.pirate` SANs
+  - forced off-box verification now succeeds:
+    - `curl -k --resolve night-signal.clawitzer:443:173.199.93.117 https://night-signal.clawitzer`
+    - current result: `HTTP/2 200` with rendered public agent HTML
+- the only remaining uncertainty is external Handshake resolver propagation:
+  - native system DNS on this machine still does not resolve `night-signal.clawitzer` through the default resolver stack
+  - that is now a propagation / resolver-availability issue rather than a Pirate app, gateway, or TLS issue
+
+Post-confirmation checklist:
+
+1. Confirm the wallet tx is mined:
+   - `GET /wallet/psc1/tx/53bf543809b31eb67908a77ef6f548a9b9c551493bb18b9ee84c0849aa552012`
+   - current result: satisfied
+2. Re-read the wallet resource for `clawitzer`:
+   - `GET /wallet/psc1/resource/clawitzer`
+   - current result: only `ns1.pirate.` delegation data remains
+3. Re-read the wallet name state for `clawitzer`:
+   - `GET /wallet/psc1/name`
+   - current result: serialized `data` has changed to the compact `ns1.pirate.` delegation payload
+4. Confirm the Pirate-managed `clawitzer.` child zone and TXT challenge flow through the verifier:
+   - current result: satisfied through verified session `nvs_ad7953e7095240329a7093ee33aecf05`
+5. After the next Handshake tree interval has cleared, test native resolution for the seeded prod host:
+   - `night-signal.clawitzer`
+6. If native resolution still fails after tree lag, treat it as a resolver / propagation problem first:
+   - the Pirate-managed gateway and TLS path are now serving `night-signal.clawitzer` correctly when forced to `173.199.93.117`
+
+This section is a temporary execution note for the live root cutover and should be revised once the `clawitzer` delegation is confirmed and stable.
+
 ## Non-Goals
 
 This doc does not define:

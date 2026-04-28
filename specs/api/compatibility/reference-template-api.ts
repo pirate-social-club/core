@@ -106,6 +106,7 @@ export type Profile = {
   linked_handles?: Array<LinkedHandle> | null;
   primary_public_handle?: LinkedHandle | null;
   primary_wallet_address?: string | null;
+  xmtp_inbox_id?: string | null;
   verification_capabilities?: VerificationCapabilities | null;
   global_handle: GlobalHandle;
   created_at: string;
@@ -126,6 +127,7 @@ export type RedditImportSummary = {
   imported_at: string;
   account_age_days?: number | null;
   imported_reddit_score?: number | null;
+  global_karma?: number | null;
   top_subreddits: Array<{
     subreddit: string;
     karma?: number | null;
@@ -345,6 +347,7 @@ export type CommunityPurchaseListResponse = {
 };
 
 export type CommunityPurchaseQuotePreflightRequest = {
+  listing_id?: string | null;
   funding_asset?: CommunityMoneyAssetRef | null;
   source_chain?: CommunityMoneyChainRef | null;
   route_provider?: string | null;
@@ -370,6 +373,11 @@ export type CommunityPurchaseQuotePreflight = {
   route_required: boolean;
   route_status_policy: CommunityFundingRouteStatusPolicy;
   route_hop_tolerance: number;
+  base_price_usd?: number | null;
+  viewer_price_usd?: number | null;
+  best_verified_price_usd?: number | null;
+  max_self_discount_percent?: number | null;
+  verification_required_provider?: CommunityPricingVerificationProvider | null;
   quoted_at: string;
   expires_at: string;
 };
@@ -627,6 +635,7 @@ type Comment = {
   last_reply_at: string | null;
   content_hash: string | null;
   swarm_body_ref: string | null;
+  idempotency_key: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -1030,6 +1039,12 @@ type MediaDescriptor = {
   size_bytes?: number | null;
   content_hash?: string | null;
   duration_ms?: number | null;
+  poster_ref?: string | null;
+  poster_mime_type?: string | null;
+  poster_size_bytes?: number | null;
+  poster_width?: number | null;
+  poster_height?: number | null;
+  poster_frame_ms?: number | null;
 };
 
 type ModerationActionType = "dismiss" | "hide" | "remove" | "restore" | "age_gate";

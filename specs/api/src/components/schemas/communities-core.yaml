@@ -1312,6 +1312,23 @@ CommunityPreview:
         - open
         - request
         - gated
+    allow_anonymous_identity:
+      type: boolean
+    anonymous_identity_scope:
+      type: string
+      enum:
+        - community_stable
+        - thread_stable
+        - post_ephemeral
+      nullable: true
+    allowed_disclosed_qualifiers:
+      type: array
+      items:
+        type: string
+      nullable: true
+    allow_qualifiers_on_anonymous_posts:
+      type: boolean
+      nullable: true
     human_verification_lane:
       $ref: ./communities-core.yaml#/HumanVerificationLane
     member_count:
@@ -1386,6 +1403,7 @@ JoinEligibility:
       enum:
         - joinable
         - requestable
+        - pending_request
         - verification_required
         - gate_failed
         - already_joined
@@ -1459,6 +1477,55 @@ JoinEligibility:
           type: string
           format: date-time
           nullable: true
+MembershipRequestStatus:
+  type: string
+  enum:
+    - pending
+    - approved
+    - rejected
+    - expired
+MembershipRequestSummary:
+  type: object
+  required:
+    - membership_request_id
+    - community_id
+    - applicant_user_id
+    - status
+    - created_at
+  properties:
+    membership_request_id:
+      type: string
+    community_id:
+      type: string
+    applicant_user_id:
+      type: string
+    applicant_handle:
+      type: string
+      nullable: true
+    applicant_avatar_ref:
+      type: string
+      nullable: true
+    status:
+      $ref: ./communities-core.yaml#/MembershipRequestStatus
+    note:
+      type: string
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+MembershipRequestListResponse:
+  type: object
+  required:
+    - items
+    - next_cursor
+  properties:
+    items:
+      type: array
+      items:
+        $ref: ./communities-core.yaml#/MembershipRequestSummary
+    next_cursor:
+      type: string
+      nullable: true
 GateFailureDetails:
   type: object
   properties:

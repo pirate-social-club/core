@@ -48,6 +48,36 @@ profiles_me:
               $ref: ../components/schemas/profiles.yaml#/Profile
       "401":
         $ref: ../components/responses.yaml#/AuthError
+profiles_me_xmtp_inbox:
+  post:
+    tags:
+      - Profiles
+    x-implemented: true
+    summary: Publish or rotate the current profile's XMTP inbox ID
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - xmtp_inbox_id
+            properties:
+              xmtp_inbox_id:
+                type: string
+                nullable: true
+                description: Current XMTP inbox ID for this browser-local chat identity, or null to clear a stale value.
+    responses:
+      "200":
+        description: Updated profile
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/profiles.yaml#/Profile
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
 profiles_me_global_handle_rename:
   post:
     tags:
@@ -169,5 +199,47 @@ profiles_by_user_id:
               $ref: ../components/schemas/profiles.yaml#/Profile
       "401":
         $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+public_profiles_by_wallet_address:
+  get:
+    tags:
+      - Profiles
+    x-implemented: true
+    summary: Resolve a public profile by active wallet address
+    parameters:
+      - name: wallet_address
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Public profile resolution
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/profiles.yaml#/PublicProfileResolution
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+public_profiles_by_handle_label:
+  get:
+    tags:
+      - Profiles
+    x-implemented: true
+    summary: Resolve a public profile by Pirate or primary linked handle
+    parameters:
+      - name: handle_label
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Public profile resolution
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/profiles.yaml#/PublicProfileResolution
       "404":
         $ref: ../components/responses.yaml#/NotFound

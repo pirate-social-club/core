@@ -22,6 +22,7 @@ Comment:
     - last_reply_at
     - content_hash
     - swarm_body_ref
+    - idempotency_key
     - created_at
     - updated_at
   properties:
@@ -106,6 +107,9 @@ Comment:
     swarm_body_ref:
       type: string
       nullable: true
+    idempotency_key:
+      type: string
+      nullable: true
     created_at:
       type: string
       format: date-time
@@ -119,6 +123,12 @@ CreateCommentRequest:
   required:
     - body
   properties:
+    idempotency_key:
+      type: string
+      nullable: true
+      description: |
+        Optional client-supplied idempotency key. Reusing the same key for the same author
+        and community returns the already-created comment.
     body:
       type: string
     authorship_mode:

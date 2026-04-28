@@ -117,11 +117,12 @@ Rules:
 - Treat the user's machine as resource-constrained by default. Prefer the slow path over aggressive parallelism.
 - Before starting any dev server, build, watcher, browser automation session, Bruno run, or long test run, check for existing project processes first with `rtk ps -ef` and avoid stacking a second copy on top of an active one.
 - Do not start multiple background processes for the same repo at once. Reuse the existing process if possible.
+- Keep at most one `agent-browser` session active per repo. Do not run multiple browser sessions, tabs, screenshots, or snapshots in parallel.
 - If a long-running process is already active, do not start another heavy process in parallel unless it is clearly necessary and unlikely to increase load materially.
 - Prefer one heavy operation at a time:
   - one dev server, or
   - one build, or
-  - one end-to-end/Bruno run
+  - one browser automation/end-to-end/Bruno run
 - Avoid concurrent combinations like `dev server + build`, `dev server + browser automation`, or `multiple dev servers` unless the user explicitly asks for that tradeoff.
 - Prefer targeted checks over full runs:
   - run the smallest relevant test file first

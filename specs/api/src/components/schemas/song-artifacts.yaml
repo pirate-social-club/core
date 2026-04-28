@@ -161,6 +161,7 @@ CreateSongArtifactUploadRequest:
         - canvas_video
         - instrumental_audio
         - vocal_audio
+        - primary_video
     mime_type:
       type: string
     filename:
@@ -209,6 +210,7 @@ SongArtifactUpload:
         - canvas_video
         - instrumental_audio
         - vocal_audio
+        - primary_video
     status:
       type: string
       enum:
@@ -411,12 +413,16 @@ Asset:
     song_artifact_bundle_id:
       type: string
       nullable: true
+    display_title:
+      type: string
+      nullable: true
     creator_user_id:
       type: string
     asset_kind:
       type: string
       enum:
         - song_audio
+        - video_file
     rights_basis:
       type: string
       enum:
@@ -429,6 +435,18 @@ Asset:
       enum:
         - public
         - locked
+    license_preset:
+      type: string
+      nullable: true
+      enum:
+        - non-commercial
+        - commercial-use
+        - commercial-remix
+    commercial_rev_share_pct:
+      type: integer
+      minimum: 0
+      maximum: 100
+      nullable: true
     primary_content_ref:
       type: string
     primary_content_hash:

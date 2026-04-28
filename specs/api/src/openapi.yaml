@@ -122,6 +122,8 @@ paths:
     $ref: ./paths/sentinel.yaml#/sentinel_session_by_id
   /profiles/me:
     $ref: ./paths/profiles.yaml#/profiles_me
+  /profiles/me/xmtp-inbox:
+    $ref: ./paths/profiles.yaml#/profiles_me_xmtp_inbox
   /profiles/me/global-handle/rename:
     $ref: ./paths/profiles.yaml#/profiles_me_global_handle_rename
   /profiles/me/global-handle/upgrade-quote:
@@ -132,6 +134,10 @@ paths:
     $ref: ./paths/profiles.yaml#/profiles_me_primary_public_handle
   /profiles/{user_id}:
     $ref: ./paths/profiles.yaml#/profiles_by_user_id
+  /public-profiles/by-wallet/{wallet_address}:
+    $ref: ./paths/profiles.yaml#/public_profiles_by_wallet_address
+  /public-profiles/{handle_label}:
+    $ref: ./paths/profiles.yaml#/public_profiles_by_handle_label
   /communities:
     $ref: ./paths/communities.yaml#/communities
   /communities/{community_id}:
@@ -190,6 +196,12 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_purchase_settlement_failures
   /communities/{community_id}/join:
     $ref: ./paths/communities.yaml#/communities_by_community_id_join
+  /communities/{community_id}/membership-requests:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_membership_requests
+  /communities/{community_id}/membership-requests/{membership_request_id}/approve:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_membership_requests_by_membership_request_id_approve
+  /communities/{community_id}/membership-requests/{membership_request_id}/reject:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_membership_requests_by_membership_request_id_reject
   /communities/{community_id}/follow:
     $ref: ./paths/communities.yaml#/communities_by_community_id_follow
   /communities/{community_id}/preview:
@@ -809,6 +821,20 @@ components:
       $ref: ./components/schemas/notifications.yaml#/MarkNotificationsReadRequest
     DismissTaskRequest:
       $ref: ./components/schemas/notifications.yaml#/DismissTaskRequest
+    ClaimableRoyaltyItem:
+      $ref: ./components/schemas/notifications.yaml#/ClaimableRoyaltyItem
+    ClaimableRoyaltiesResponse:
+      $ref: ./components/schemas/notifications.yaml#/ClaimableRoyaltiesResponse
+    RoyaltyActivityItem:
+      $ref: ./components/schemas/notifications.yaml#/RoyaltyActivityItem
+    RoyaltyActivityResponse:
+      $ref: ./components/schemas/notifications.yaml#/RoyaltyActivityResponse
+    RoyaltyClaimRecordRequest:
+      $ref: ./components/schemas/notifications.yaml#/RoyaltyClaimRecordRequest
+    RoyaltyClaimRecord:
+      $ref: ./components/schemas/notifications.yaml#/RoyaltyClaimRecord
+    RoyaltyClaimHistoryResponse:
+      $ref: ./components/schemas/notifications.yaml#/RoyaltyClaimHistoryResponse
     MppChallenge:
       $ref: ./components/schemas/mpp.yaml#/MppChallenge
     PaymentFailure:

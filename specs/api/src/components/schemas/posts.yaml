@@ -213,9 +213,9 @@ CreatePostRequest:
     Subtype validation rules enforced by this schema:
     - text: requires at least one of `title` or `body`; must not send `link_url`, `media_refs`, `song_artifact_bundle_id`, or `lyrics`
     - image: requires at least one item in `media_refs` (all items must be `image/*`); must not send `link_url`, `song_artifact_bundle_id`, or `lyrics`
-    - video: requires at least one item in `media_refs` (at least one item must be `video/*`); must not send `link_url`, `song_artifact_bundle_id`, or `lyrics`
+    - video: requires at least one item in `media_refs` (at least one item must be `video/*`); commerce videos may send `access_mode`; locked videos require `license_preset`; must not send `link_url`, `song_artifact_bundle_id`, or `lyrics`
     - link: requires `link_url`; may send `title` and `body`; must not send `media_refs`, `song_artifact_bundle_id`, or `lyrics`
-    - song: requires either `song_artifact_bundle_id` or both `media_refs` (at least one `audio/*`) and `lyrics`; must not send `link_url`; `identity_mode` must be `public`
+    - song: requires either `song_artifact_bundle_id` or both `media_refs` (at least one `audio/*`) and `lyrics`; must not send `link_url`; `identity_mode` must be `public`; original songs require `license_preset`
   oneOf:
     - description: Text posts require at least one of `title` or `body`.
       required:
@@ -271,7 +271,10 @@ CreatePostRequest:
               - song_artifact_bundle_id
           - required:
               - lyrics
-    - description: Video posts require at least one video in `media_refs`.
+    - description: |
+        Video posts require at least one video in `media_refs`. When `access_mode` is present,
+        the first video media ref must resolve to an uploaded `primary_video` artifact and the
+        server creates a video commerce asset. Identity must be public for commerce video posts.
       required:
         - post_type
         - media_refs
@@ -282,6 +285,23 @@ CreatePostRequest:
             - video
         title:
           type: string
+          nullable: true
+        access_mode:
+          type: string
+          enum:
+            - public
+            - locked
+        license_preset:
+          type: string
+          enum:
+            - non-commercial
+            - commercial-use
+            - commercial-remix
+          nullable: true
+        commercial_rev_share_pct:
+          type: integer
+          minimum: 0
+          maximum: 100
           nullable: true
         media_refs:
           type: array
@@ -352,6 +372,18 @@ CreatePostRequest:
           enum:
             - public
             - locked
+        license_preset:
+          type: string
+          enum:
+            - non-commercial
+            - commercial-use
+            - commercial-remix
+          nullable: true
+        commercial_rev_share_pct:
+          type: integer
+          minimum: 0
+          maximum: 100
+          nullable: true
         title:
           type: string
           nullable: true
@@ -515,7 +547,8 @@ CreatePostRequest:
     access_mode:
       type: string
       description: |
-        Song-only asset access mode. `public` keeps the source audio public. `locked` creates a locked asset and requires `song_artifact_bundle_id`.
+        Asset access mode for commerce-backed song and video posts. `public` keeps the source payload public.
+        `locked` creates a locked asset and gates the full payload through the asset access flow.
       enum:
         - public
         - locked
@@ -553,6 +586,23 @@ CreatePostRequest:
         Server-side validation requires at least one entry when `rights_basis = derivative` or `song_mode = remix`.
         The server must verify these assets exist and belong to the same community or a public-accessible scope.
         This conditional requirement is enforced server-side because OpenAPI cannot express cross-field dependencies.
+    license_preset:
+      type: string
+      enum:
+        - non-commercial
+        - commercial-use
+        - commercial-remix
+      nullable: true
+      description: |
+        Required for original song posts and locked original video posts. Selects the Story PIL flavor for the newly published asset.
+        Remix/derivative posts inherit/accept source terms separately and must not send outbound license terms in v0.
+    commercial_rev_share_pct:
+      type: integer
+      minimum: 0
+      maximum: 100
+      nullable: true
+      description: |
+        Required only when `license_preset = commercial-remix`. This is the share derivative revenue owes back to the original asset.
     lyrics:
       type: string
       nullable: true
@@ -723,9 +773,9 @@ Post:
     access_mode:
       type: string
       description: |
-        Song-only asset access mode for the rendered post. `public` keeps the source audio public.
+        Asset access mode for the rendered post. `public` keeps the source payload public.
         `locked` means the post is backed by a locked asset and should expose only preview-safe
-        media in ordinary reads.
+        media or metadata in ordinary reads.
       enum:
         - public
         - locked
@@ -896,6 +946,24 @@ MediaDescriptor:
     duration_ms:
       type: integer
       nullable: true
+    poster_ref:
+      type: string
+      nullable: true
+    poster_mime_type:
+      type: string
+      nullable: true
+    poster_size_bytes:
+      type: integer
+      nullable: true
+    poster_width:
+      type: integer
+      nullable: true
+    poster_height:
+      type: integer
+      nullable: true
+    poster_frame_ms:
+      type: integer
+      nullable: true
 ImageMediaDescriptor:
   type: object
   description: |
@@ -926,7 +994,9 @@ VideoMediaDescriptor:
   type: object
   description: |
     Media descriptor constrained to video MIME types for video posts. The server should reject
-    any item whose `mime_type` does not start with `video/`.
+    any item whose `mime_type` does not start with `video/`. `poster_*` fields describe a
+    public poster image derived from a selected video frame; locked video posts may expose
+    poster fields while omitting the raw video storage reference from read models.
   required:
     - storage_ref
     - mime_type
@@ -949,6 +1019,25 @@ VideoMediaDescriptor:
       type: integer
       nullable: true
     height:
+      type: integer
+      nullable: true
+    poster_ref:
+      type: string
+      nullable: true
+    poster_mime_type:
+      type: string
+      nullable: true
+      pattern: "^image/"
+    poster_size_bytes:
+      type: integer
+      nullable: true
+    poster_width:
+      type: integer
+      nullable: true
+    poster_height:
+      type: integer
+      nullable: true
+    poster_frame_ms:
       type: integer
       nullable: true
 AudioMediaDescriptor:
