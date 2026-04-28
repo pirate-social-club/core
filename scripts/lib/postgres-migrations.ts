@@ -15,69 +15,6 @@ export type ApplyPostgresMigrationsResult = {
   skipped: number;
 };
 
-const LEGACY_MIGRATION_NAMES: Record<string, string[]> = {
-  "0015_control_plane_song_artifact_bundle_enrichment.sql": [
-    "0014_control_plane_song_artifact_bundle_enrichment.sql",
-  ],
-  "0016_control_plane_community_pricing_policies.sql": [
-    "0015_control_plane_community_pricing_policies.sql",
-  ],
-  "0017_control_plane_json_text_to_jsonb.sql": [
-    "0015_control_plane_json_text_to_jsonb.sql",
-  ],
-  "0017a_control_plane_registry_table_refs.sql": [
-    "0017_control_plane_registry_table_refs.sql",
-  ],
-  "0017b_control_plane_song_artifact_bundle_preview_window.sql": [
-    "0017_control_plane_song_artifact_bundle_preview_window.sql",
-  ],
-  "0018_control_plane_device_sessions.sql": [
-    "0016_control_plane_device_sessions.sql",
-  ],
-  "0018a_control_plane_song_artifact_bundle_preview_status.sql": [
-    "0018_control_plane_song_artifact_bundle_preview_status.sql",
-  ],
-  "0019_control_plane_text_timestamps_to_timestamptz.sql": [
-    "0016_control_plane_text_timestamps_to_timestamptz.sql",
-  ],
-  "0019a_control_plane_verification_session_wallet.sql": [
-    "0019_control_plane_verification_session_wallet.sql",
-  ],
-  "0033_control_plane_namespace_verification_spaces.sql": [
-    "0026_control_plane_namespace_verification_spaces.sql",
-  ],
-  "0058_control_plane_communities_projected_follower_count_column.sql": [
-    "0058_control_plane_community_follower_count_backfill.sql",
-  ],
-};
-
-const ACCEPTED_HISTORICAL_CHECKSUMS: Record<string, string[]> = {
-  "0000_control_plane_baseline_postgres.sql": [
-    "74e8627d1ba7ff144713a49c8965110dfbfd8b5580443127418e7b29b0041593",
-    "e35a9832ed0699244f12d164f0fe87154ca58b87f0d7981f5b64a31a5261c779",
-    "b1d114fce40f3d60bfb904bbd5edc6451873257ee2ac373d611ce810b7494ad1",
-    "b3159f65df61bd390267d2bf6daa0e025adbe27b5cbb2ed0b823f119a8373f6e",
-    "6f7bc3b66ec654bf844c6aed2b295a38088cd59ebd890c9ccf431b17264a6e7c",
-    "8b61a91a715ddb8ea6e63c6caed3deb8265d7b1e1bfc80bdcba335f43e450364",
-    "38c52fb748fb623d6a6b4e06133df5023e22591ac9109746a70dd3ca43d4b709",
-    "6c1702790e1be659cdda7ade833d36beccad7cd805a96d534a1edc858bb49d8c",
-    "08df6e0388cdc5ad6a193349bf373b33a491d2502502f03b597c2e480ec349ec",
-  ],
-  "0002_control_plane_communities.sql": [
-    "8eb1ffcbe1e3259383015ff449f1f3ba8186ecafcc694a9241614bd4af2779ba",
-  ],
-  "0050_control_plane_analytics_outbox.sql": [
-    "6dcb6ffb06c7768668ec262a2ef2666a35ca7f64fbd92fdded45d2870eb9a6c6",
-  ],
-};
-// These historical checksums exist because the baseline migration file was modified
-// after dev/staging had already applied an earlier version. The databases carry the
-// original checksum in schema_migrations; the file on disk now hashes differently.
-// Do not add new entries here without documenting the root cause in
-// docs/control-plane/infisical-migration.md. Baseline migration files must not be
-// mutated after any environment has applied them — if a schema change is needed, it
-// belongs in a new numbered migration.
-
 const SUPERSEDED_MIGRATIONS: Record<string, string[]> = {
   "0000_control_plane_baseline_postgres.sql": [
     "0001_control_plane_identity.sql",
@@ -97,39 +34,39 @@ const SUPERSEDED_MIGRATIONS: Record<string, string[]> = {
     "0015_control_plane_song_artifact_bundle_enrichment.sql",
     "0016_control_plane_community_pricing_policies.sql",
     "0017_control_plane_json_text_to_jsonb.sql",
-    "0017a_control_plane_registry_table_refs.sql",
-    "0017b_control_plane_song_artifact_bundle_preview_window.sql",
-    "0018_control_plane_device_sessions.sql",
-    "0018a_control_plane_song_artifact_bundle_preview_status.sql",
-    "0019a_control_plane_verification_session_wallet.sql",
-    "0019_control_plane_text_timestamps_to_timestamptz.sql",
-    "0020_control_plane_community_gate_rules.sql",
-    "0021_control_plane_reddit_targeting_features.sql",
-    "0022_control_plane_membership_requests.sql",
-    "0023_control_plane_communities_membership_mode_backfill.sql",
-    "0024_control_plane_wallet_attachment_provider_state.sql",
-    "0025_control_plane_dvpn_feature_entitlements.sql",
-    "0026_control_plane_sentinel_subscriptions.sql",
-    "0027_control_plane_sentinel_sessions.sql",
-    "0028_control_plane_sentinel_session_uniqueness.sql",
-    "0029_control_plane_sentinel_session_lifecycle.sql",
-    "0030_control_plane_sentinel_subscription_uniqueness.sql",
-    "0031_control_plane_registry_mutation_attempts.sql",
-    "0032_control_plane_verification_session_metadata.sql",
-    "0033_control_plane_namespace_verification_spaces.sql",
-    "0034_control_plane_communities_pending_namespace.sql",
-    "0035_control_plane_namespace_setup_nameservers.sql",
-    "0036_control_plane_linked_handles.sql",
-    "0037_control_plane_comment_projections.sql",
-    "0038_control_plane_post_feed_metrics.sql",
-    "0039_control_plane_post_visibility.sql",
-    "0040_control_plane_agent_ownership.sql",
-    "0041_control_plane_agent_action_replays.sql",
-    "0042_control_plane_clawkey_mainline.sql",
-    "0043_control_plane_agent_pairing_codes.sql",
-    "0044_control_plane_agent_handles.sql",
-    "0045_control_plane_agent_runtime_grants.sql",
-    "0046_control_plane_verification_requirements.sql",
+    "0018_control_plane_registry_table_refs.sql",
+    "0019_control_plane_song_artifact_bundle_preview_window.sql",
+    "0020_control_plane_device_sessions.sql",
+    "0021_control_plane_song_artifact_bundle_preview_status.sql",
+    "0022_control_plane_text_timestamps_to_timestamptz.sql",
+    "0023_control_plane_verification_session_wallet.sql",
+    "0024_control_plane_community_gate_rules.sql",
+    "0025_control_plane_reddit_targeting_features.sql",
+    "0026_control_plane_membership_requests.sql",
+    "0027_control_plane_communities_membership_mode_backfill.sql",
+    "0028_control_plane_wallet_attachment_provider_state.sql",
+    "0029_control_plane_dvpn_feature_entitlements.sql",
+    "0030_control_plane_sentinel_subscriptions.sql",
+    "0031_control_plane_sentinel_sessions.sql",
+    "0032_control_plane_sentinel_session_uniqueness.sql",
+    "0033_control_plane_sentinel_session_lifecycle.sql",
+    "0034_control_plane_sentinel_subscription_uniqueness.sql",
+    "0035_control_plane_registry_mutation_attempts.sql",
+    "0036_control_plane_verification_session_metadata.sql",
+    "0037_control_plane_namespace_verification_spaces.sql",
+    "0038_control_plane_communities_pending_namespace.sql",
+    "0039_control_plane_namespace_setup_nameservers.sql",
+    "0040_control_plane_linked_handles.sql",
+    "0041_control_plane_comment_projections.sql",
+    "0042_control_plane_post_feed_metrics.sql",
+    "0043_control_plane_post_visibility.sql",
+    "0044_control_plane_agent_ownership.sql",
+    "0045_control_plane_agent_action_replays.sql",
+    "0046_control_plane_clawkey_mainline.sql",
+    "0047_control_plane_agent_pairing_codes.sql",
+    "0048_control_plane_agent_handles.sql",
+    "0049_control_plane_agent_runtime_grants.sql",
+    "0050_control_plane_verification_requirements.sql",
   ],
 };
 
@@ -147,10 +84,10 @@ function migrationPrefix(migrationName: string): string | null {
 }
 
 export function candidateMigrationNames(migrationName: string): string[] {
-  return [migrationName, ...(LEGACY_MIGRATION_NAMES[migrationName] ?? [])];
+  return [migrationName];
 }
 
-export function acceptsHistoricalChecksum(input: {
+export function migrationChecksumMatches(input: {
   migrationName: string;
   existingChecksum: string;
   currentChecksum: string;
@@ -159,7 +96,7 @@ export function acceptsHistoricalChecksum(input: {
     return true;
   }
 
-  return (ACCEPTED_HISTORICAL_CHECKSUMS[input.migrationName] ?? []).includes(input.existingChecksum);
+  return false;
 }
 
 function supersededByAppliedBaseline(
@@ -293,7 +230,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
       const existingChecksum = existingName ? existingMigrations.get(existingName) ?? "" : "";
 
       if (existingChecksum) {
-        if (!acceptsHistoricalChecksum({
+        if (!migrationChecksumMatches({
           migrationName,
           existingChecksum,
           currentChecksum: migrationChecksum,
