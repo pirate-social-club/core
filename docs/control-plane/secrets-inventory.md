@@ -76,6 +76,7 @@ The API worker cannot start without these. The sync script (`scripts/infisical/s
 | `PRIVY_APP_SECRET` | `api-key` | Privy server-side secret for access token verification |
 | `FILEBASE_S3_ACCESS_KEY` | `api-key` | Filebase S3 access key for community media uploads |
 | `FILEBASE_S3_SECRET_KEY` | `api-key` | Filebase S3 secret key for community media uploads |
+| `OPENAI_API_KEY` | `api-key` | OpenAI moderation key for `/v1/moderations` with `omni-moderation-latest`; the endpoint is free, but the OpenAI project still needs usable billing/limits |
 | `OPENROUTER_API_KEY` | `api-key` | OpenRouter API key for song lyrics age-gate classification |
 | `ACRCLOUD_ACCESS_KEY` | `api-key` | ACRCloud access key for song audio identification |
 | `ACRCLOUD_ACCESS_SECRET` | `api-key` | ACRCloud access secret for song audio identification signing |
@@ -113,6 +114,7 @@ These are read by the API worker but are public config, not secrets. They live i
 - `DEV_MEMORY_STORE_ENABLED`, `ENVIRONMENT`
 - `LOCAL_COMMUNITY_DB_ROOT`
 - `FILEBASE_MEDIA_BUCKET`, `FILEBASE_S3_ENDPOINT`, `FILEBASE_S3_REGION`
+- `OPENAI_MODERATION_BASE_URL`, `OPENAI_MODERATION_MODEL`, `OPENAI_MODERATION_TIMEOUT_MS`
 - `OPENROUTER_BASE_URL`, `OPENROUTER_MODEL`, `OPENROUTER_TIMEOUT_MS`
 - `ACRCLOUD_HOST`, `ACRCLOUD_IDENTIFY_PATH`, `ACRCLOUD_TIMEOUT_MS`
 - `ELEVENLABS_FORCE_ALIGNMENT_URL`, `ELEVENLABS_TIMEOUT_MS`

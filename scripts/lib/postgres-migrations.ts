@@ -15,61 +15,6 @@ export type ApplyPostgresMigrationsResult = {
   skipped: number;
 };
 
-const SUPERSEDED_MIGRATIONS: Record<string, string[]> = {
-  "0000_control_plane_baseline_postgres.sql": [
-    "0001_control_plane_identity.sql",
-    "0002_control_plane_communities.sql",
-    "0003_control_plane_scrobbles.sql",
-    "0004_control_plane_jobs_and_audit.sql",
-    "0005_control_plane_namespace_verification.sql",
-    "0006_control_plane_community_create_idempotency.sql",
-    "0007_control_plane_registry_publication.sql",
-    "0008_control_plane_reddit_onboarding_and_profiles.sql",
-    "0009_control_plane_market_context_bindings.sql",
-    "0010_control_plane_community_money_policies.sql",
-    "0011_control_plane_song_artifact_bundles.sql",
-    "0012_control_plane_song_artifact_uploads.sql",
-    "0013_control_plane_song_artifact_upload_storage_metadata.sql",
-    "0014_control_plane_community_discovery_projection.sql",
-    "0015_control_plane_song_artifact_bundle_enrichment.sql",
-    "0016_control_plane_community_pricing_policies.sql",
-    "0017_control_plane_json_text_to_jsonb.sql",
-    "0018_control_plane_registry_table_refs.sql",
-    "0019_control_plane_song_artifact_bundle_preview_window.sql",
-    "0020_control_plane_device_sessions.sql",
-    "0021_control_plane_song_artifact_bundle_preview_status.sql",
-    "0022_control_plane_text_timestamps_to_timestamptz.sql",
-    "0023_control_plane_verification_session_wallet.sql",
-    "0024_control_plane_community_gate_rules.sql",
-    "0025_control_plane_reddit_targeting_features.sql",
-    "0026_control_plane_membership_requests.sql",
-    "0027_control_plane_communities_membership_mode_backfill.sql",
-    "0028_control_plane_wallet_attachment_provider_state.sql",
-    "0029_control_plane_dvpn_feature_entitlements.sql",
-    "0030_control_plane_sentinel_subscriptions.sql",
-    "0031_control_plane_sentinel_sessions.sql",
-    "0032_control_plane_sentinel_session_uniqueness.sql",
-    "0033_control_plane_sentinel_session_lifecycle.sql",
-    "0034_control_plane_sentinel_subscription_uniqueness.sql",
-    "0035_control_plane_registry_mutation_attempts.sql",
-    "0036_control_plane_verification_session_metadata.sql",
-    "0037_control_plane_namespace_verification_spaces.sql",
-    "0038_control_plane_communities_pending_namespace.sql",
-    "0039_control_plane_namespace_setup_nameservers.sql",
-    "0040_control_plane_linked_handles.sql",
-    "0041_control_plane_comment_projections.sql",
-    "0042_control_plane_post_feed_metrics.sql",
-    "0043_control_plane_post_visibility.sql",
-    "0044_control_plane_agent_ownership.sql",
-    "0045_control_plane_agent_action_replays.sql",
-    "0046_control_plane_clawkey_mainline.sql",
-    "0047_control_plane_agent_pairing_codes.sql",
-    "0048_control_plane_agent_handles.sql",
-    "0049_control_plane_agent_runtime_grants.sql",
-    "0050_control_plane_verification_requirements.sql",
-  ],
-};
-
 function checksum(contents: string): string {
   return createHash("sha256").update(contents).digest("hex");
 }
@@ -83,10 +28,6 @@ function migrationPrefix(migrationName: string): string | null {
   return match?.[1] ?? null;
 }
 
-export function candidateMigrationNames(migrationName: string): string[] {
-  return [migrationName];
-}
-
 export function migrationChecksumMatches(input: {
   migrationName: string;
   existingChecksum: string;
@@ -97,50 +38,6 @@ export function migrationChecksumMatches(input: {
   }
 
   return false;
-}
-
-function supersededByAppliedBaseline(
-  migrationName: string,
-  existingMigrationNames: Set<string>,
-): string | null {
-  for (const [baselineName, supersededNames] of Object.entries(SUPERSEDED_MIGRATIONS)) {
-    if (supersededNames.includes(migrationName) && existingMigrationNames.has(baselineName)) {
-      return baselineName;
-    }
-  }
-
-  return null;
-}
-
-function representedByAppliedLegacyMigration(
-  migrationName: string,
-  existingMigrationNames: Set<string>,
-): string | null {
-  for (const legacyName of SUPERSEDED_MIGRATIONS[migrationName] ?? []) {
-    if (existingMigrationNames.has(legacyName)) {
-      return legacyName;
-    }
-  }
-
-  return null;
-}
-
-export function supersessionSkipReason(input: {
-  migrationName: string;
-  existingMigrationNames: Iterable<string>;
-}): string | null {
-  const existingMigrationNames = new Set(input.existingMigrationNames);
-  const appliedBaseline = supersededByAppliedBaseline(input.migrationName, existingMigrationNames);
-  if (appliedBaseline) {
-    return `superseded by ${appliedBaseline}`;
-  }
-
-  const appliedLegacy = representedByAppliedLegacyMigration(input.migrationName, existingMigrationNames);
-  if (appliedLegacy) {
-    return `current schema already represented by ${appliedLegacy}`;
-  }
-
-  return null;
 }
 
 function logDuplicateMigrationPrefixes(input: {
@@ -214,20 +111,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
       const migrationSql = normalizeSql(rawSql);
       const migrationChecksum = checksum(rawSql);
 
-      const skipReason = supersessionSkipReason({
-        migrationName,
-        existingMigrationNames: existingMigrations.keys(),
-      });
-      if (skipReason) {
-        log(`skip  ${migrationName} (${skipReason})`);
-        skippedCount += 1;
-        continue;
-      }
-
-      const existingName = candidateMigrationNames(migrationName).find((name) =>
-        existingMigrations.has(name),
-      );
-      const existingChecksum = existingName ? existingMigrations.get(existingName) ?? "" : "";
+      const existingChecksum = existingMigrations.get(migrationName) ?? "";
 
       if (existingChecksum) {
         if (!migrationChecksumMatches({
@@ -236,15 +120,11 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
           currentChecksum: migrationChecksum,
         })) {
           throw new Error(
-            `checksum mismatch for already applied migration: ${migrationName} (matched ${existingName})`,
+            `checksum mismatch for already applied migration: ${migrationName}`,
           );
         }
 
-        if (existingName && existingName !== migrationName) {
-          log(`skip  ${migrationName} (already applied as ${existingName})`);
-        } else {
-          log(`skip  ${migrationName}`);
-        }
+        log(`skip  ${migrationName}`);
         skippedCount += 1;
         continue;
       }

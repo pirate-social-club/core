@@ -1090,9 +1090,9 @@ describe("turso control-plane doctor", () => {
         )
       `,
       args: [
-        "cmt_doctor_collision_legacy",
+        "cmt_doctor_collision_existing",
         fixture.userId,
-        "Doctor Collision Legacy",
+        "Doctor Collision Existing",
         "infinity",
         null,
         "2026-04-12T04:30:00.000Z",
@@ -1116,13 +1116,13 @@ describe("turso control-plane doctor", () => {
           created_at,
           updated_at
         ) VALUES (
-          ?1, ?2, 'primary', 'local-dev', 'club-cmt_doctor_collision_legacy', NULL, 'main', NULL,
-          'file:///tmp/pirate-community-dbs/community-cmt_doctor_collision_legacy.db', 'local', 'active', NULL, ?3, ?3
+          ?1, ?2, 'primary', 'local-dev', 'club-cmt_doctor_collision_existing', NULL, 'main', NULL,
+          'file:///tmp/pirate-community-dbs/community-cmt_doctor_collision_existing.db', 'local', 'active', NULL, ?3, ?3
         )
       `,
       args: [
-        "cdb_doctor_collision_legacy_primary",
-        "cmt_doctor_collision_legacy",
+        "cdb_doctor_collision_existing_primary",
+        "cmt_doctor_collision_existing",
         "2026-04-12T04:30:00.000Z",
       ],
     });
@@ -1133,14 +1133,14 @@ describe("turso control-plane doctor", () => {
         WHERE community_id = ?1
       `,
       args: [
-        "cmt_doctor_collision_legacy",
-        "cdb_doctor_collision_legacy_primary",
+        "cmt_doctor_collision_existing",
+        "cdb_doctor_collision_existing_primary",
       ],
     });
 
     const result = await doctorControlPlane({
       controlPlaneDatabaseUrl: db.databaseUrl,
-      communityId: "cmt_doctor_collision_legacy",
+      communityId: "cmt_doctor_collision_existing",
     });
 
     expect(result.findings.map((finding) => finding.code)).toContain("route_slug_namespace_collision");

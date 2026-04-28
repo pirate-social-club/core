@@ -299,7 +299,7 @@ await db.begin(async (tx) => {
       'running',
       ${JSON.stringify({
         namespace_verification_id: options.namespaceVerificationId,
-        mode: "local_stub",
+        mode: "local_dev",
         community_db_path: communityDbPath,
       })},
       NULL,
@@ -369,7 +369,7 @@ if (bootstrap.exitCode !== 0) {
     await tx`
       UPDATE jobs
       SET status = 'failed',
-          error_code = 'local_stub_bootstrap_failed',
+          error_code = 'local_dev_bootstrap_failed',
           result_ref = NULL,
           updated_at = ${completionTime}
       WHERE job_id = ${jobId}
@@ -397,7 +397,7 @@ if (bootstrap.exitCode !== 0) {
         ${failureAuditId},
         'system',
         NULL,
-        'community.local_stub.bootstrap_failed',
+        'community.local_dev.bootstrap_failed',
         'community',
         ${options.communityId},
         ${options.communityId},
@@ -429,6 +429,7 @@ await db.begin(async (tx) => {
       database_id,
       database_url,
       location,
+      requires_credentials,
       status,
       transferred_at,
       created_at,
@@ -444,6 +445,7 @@ await db.begin(async (tx) => {
       NULL,
       ${databaseUrlForBinding},
       'local',
+      0,
       'active',
       NULL,
       ${createdAt},
@@ -489,7 +491,7 @@ await db.begin(async (tx) => {
       ${successAuditId},
       'system',
       NULL,
-      'community.local_stub.bootstrap_succeeded',
+      'community.local_dev.bootstrap_succeeded',
       'community',
       ${options.communityId},
       ${options.communityId},
