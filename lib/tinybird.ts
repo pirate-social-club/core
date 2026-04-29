@@ -276,13 +276,14 @@ export const mvOnboardingSteps = defineMaterializedView("mv_onboarding_steps", {
             event_name = 'reddit_import_started', 90,
             event_name = 'reddit_import_succeeded', 100,
             event_name = 'handle_claim_started', 110,
+            event_name = 'handle_claim_failed', 115,
             event_name = 'handle_claim_succeeded', 120,
             event_name = 'onboarding_completed', 130,
             event_name = 'onboarding_skipped', 140,
             255
           ) AS step_order,
           multiIf(
-            event_name IN ('unique_human_verification_failed', 'reddit_verification_failed', 'reddit_import_failed'), 'failed',
+            event_name IN ('unique_human_verification_failed', 'reddit_verification_failed', 'reddit_import_failed', 'handle_claim_failed'), 'failed',
             event_name = 'onboarding_skipped', 'skipped',
             event_name IN ('unique_human_verification_succeeded', 'reddit_verification_succeeded', 'reddit_import_succeeded', 'handle_claim_succeeded', 'onboarding_completed'), 'succeeded',
             'started'
@@ -303,6 +304,7 @@ export const mvOnboardingSteps = defineMaterializedView("mv_onboarding_steps", {
           'reddit_import_succeeded',
           'reddit_import_failed',
           'handle_claim_started',
+          'handle_claim_failed',
           'handle_claim_succeeded',
           'onboarding_completed',
           'onboarding_skipped'
@@ -531,6 +533,7 @@ export const onboardingFunnel = defineEndpoint("onboarding_funnel", {
               minIf(event_time, step_name = 'reddit_import_started') AS reddit_import_started_at,
               minIf(event_time, step_name = 'reddit_import_succeeded') AS reddit_import_succeeded_at,
               minIf(event_time, step_name = 'handle_claim_started') AS handle_claim_started_at,
+              minIf(event_time, step_name = 'handle_claim_failed') AS handle_claim_failed_at,
               minIf(event_time, step_name = 'handle_claim_succeeded') AS handle_claim_succeeded_at,
               minIf(event_time, step_name = 'onboarding_completed') AS onboarding_completed_at,
               minIf(event_time, step_name = 'onboarding_skipped') AS onboarding_skipped_at
@@ -552,6 +555,7 @@ export const onboardingFunnel = defineEndpoint("onboarding_funnel", {
             UNION ALL SELECT 90, 'reddit_import_started', countIf(reddit_import_started_at > toDateTime64('1970-01-01 00:00:00', 3, 'UTC')) FROM cohort
             UNION ALL SELECT 100, 'reddit_import_succeeded', countIf(reddit_import_succeeded_at > toDateTime64('1970-01-01 00:00:00', 3, 'UTC')) FROM cohort
             UNION ALL SELECT 110, 'handle_claim_started', countIf(handle_claim_started_at > toDateTime64('1970-01-01 00:00:00', 3, 'UTC')) FROM cohort
+            UNION ALL SELECT 115, 'handle_claim_failed', countIf(handle_claim_failed_at > toDateTime64('1970-01-01 00:00:00', 3, 'UTC')) FROM cohort
             UNION ALL SELECT 120, 'handle_claim_succeeded', countIf(handle_claim_succeeded_at > toDateTime64('1970-01-01 00:00:00', 3, 'UTC')) FROM cohort
             UNION ALL SELECT 130, 'onboarding_completed', countIf(onboarding_completed_at > toDateTime64('1970-01-01 00:00:00', 3, 'UTC')) FROM cohort
             UNION ALL SELECT 140, 'onboarding_skipped', countIf(onboarding_skipped_at > toDateTime64('1970-01-01 00:00:00', 3, 'UTC')) FROM cohort
@@ -1141,9 +1145,9 @@ export const conversionOverview = defineEndpoint("conversion_overview", {
             uniqExactIf(anonymous_id, event_name = 'page_viewed' AND anonymous_id != '') AS unique_visitors,
             countIf(event_name = 'auth_started') AS auth_started,
             uniqExactIf(user_id_hash, event_name = 'auth_session_exchanged' AND user_id_hash != '') AS users_created,
-            countIf(event_name = 'unique_human_verification_started') AS human_verification_started,
-            countIf(event_name = 'unique_human_verification_succeeded') AS human_verification_succeeded,
-            countIf(event_name = 'unique_human_verification_failed') AS human_verification_failed,
+            uniqExactIf(if(user_id_hash != '', user_id_hash, anonymous_id), event_name = 'unique_human_verification_started' AND if(user_id_hash != '', user_id_hash, anonymous_id) != '') AS human_verification_started,
+            uniqExactIf(if(user_id_hash != '', user_id_hash, anonymous_id), event_name = 'unique_human_verification_succeeded' AND if(user_id_hash != '', user_id_hash, anonymous_id) != '') AS human_verification_succeeded,
+            uniqExactIf(if(user_id_hash != '', user_id_hash, anonymous_id), event_name = 'unique_human_verification_failed' AND if(user_id_hash != '', user_id_hash, anonymous_id) != '') AS human_verification_failed,
             countIf(event_name = 'reddit_import_started') AS reddit_import_started,
             countIf(event_name = 'reddit_import_succeeded') AS reddit_import_succeeded,
             countIf(event_name = 'reddit_import_failed') AS reddit_import_failed,

@@ -76,9 +76,9 @@ verification context.
 | Event                                      | Source type          | Owner          | Ver |
 |--------------------------------------------|----------------------|----------------|-----|
 | `page_viewed`                              | client               | pirate-web     | 1   |
-| `auth_started`                             | client               | pirate-web     | 1   |
+| `auth_started`                             | client + server      | pirate-web + pirate-api | 1   |
 | `auth_session_exchanged`                   | server_authoritative | pirate-api     | 1   |
-| `unique_human_verification_started`        | client               | pirate-web     | 1   |
+| `unique_human_verification_started`        | server_authoritative | pirate-api     | 1   |
 | `unique_human_verification_succeeded`      | server_authoritative | pirate-api     | 1   |
 | `unique_human_verification_failed`         | server_authoritative | pirate-api     | 1   |
 | `reddit_verification_started`              | client               | pirate-web     | 1   |
@@ -90,6 +90,7 @@ verification context.
 | `reddit_import_succeeded`                  | server_authoritative | pirate-api     | 1   |
 | `reddit_import_failed`                     | server_authoritative | pirate-api     | 1   |
 | `handle_claim_started`                     | client               | pirate-web     | 1   |
+| `handle_claim_failed`                      | client               | pirate-web     | 1   |
 | `handle_claim_succeeded`                   | server_authoritative | pirate-api     | 1   |
 | `onboarding_completed`                     | server_authoritative | pirate-api     | 1   |
 | `onboarding_skipped`                       | server_authoritative | pirate-api     | 1   |
@@ -226,6 +227,10 @@ Events carry additional context in `properties_json`. Key property schemas:
 }
 ```
 
+`privy` is emitted by the web client when the user opens the auth flow. `jwt_based_auth` is emitted
+by the API after a trusted upstream JWT resolves to a Pirate user, so the event can carry the same
+hashed user identity as the exchange event.
+
 ### unique_human_verification_failed (v1)
 ```json
 {
@@ -268,6 +273,16 @@ Events carry additional context in `properties_json`. Key property schemas:
   "tier": "generated" | "standard" | "premium",
   "handle_length": 7,
   "shorter_by": 1
+}
+```
+
+### handle_claim_failed (v1)
+```json
+{
+  "surface": "onboarding",
+  "source": "free_cleanup_rename" | "verified_reddit_username" | "reddit_verified_claim" | "paid_upgrade" | "admin_grant",
+  "handle_length": 7,
+  "failure_code": "string"
 }
 ```
 
