@@ -93,6 +93,7 @@ export const ENV_CONTRACT: EnvContract = {
   folders: [
     { path: "/services", requiredness: "required_now" },
     { path: "/services/api", requiredness: "required_now" },
+    { path: "/services/bot-runner", requiredness: "deferred" },
     { path: "/services/control-plane", requiredness: "required_now" },
     { path: "/local", requiredness: "required_for_local_dev" },
     { path: "/local/control-plane", requiredness: "required_for_local_dev" },
@@ -349,6 +350,28 @@ export const ENV_CONTRACT: EnvContract = {
       key: "ENDAOMENT_TX_WAIT_TIMEOUT_MS",
       requiredness: "deferred",
       validate: isPositiveInteger,
+    },
+    {
+      path: "/services/bot-runner",
+      key: "BOT_WALLET_MASTER_SECRET",
+      requiredness: "deferred",
+      validate: is64CharHex,
+    },
+    {
+      path: "/services/bot-runner",
+      key: "BOT_XMTP_DB_ENCRYPTION_SECRET",
+      requiredness: "deferred",
+      validate: is64CharHex,
+    },
+    {
+      path: "/services/bot-runner",
+      key: "PIRATE_ADMIN_TOKEN",
+      requiredness: "deferred",
+    },
+    {
+      path: "/services/bot-runner",
+      key: "OPENROUTER_API_KEY",
+      requiredness: "deferred",
     },
     {
       path: "/services/control-plane",

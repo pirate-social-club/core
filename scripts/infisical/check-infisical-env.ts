@@ -229,6 +229,7 @@ function envAllowsLocalDevOnly(env: string): boolean {
 }
 
 function folderAllowedInEnv(requiredness: Requiredness, env: string): boolean {
+  if (requiredness === "deferred") return true;
   return requirednessApplies(requiredness, env) || (envAllowsLocalDevOnly(env) && requiredness === "required_for_hosted");
 }
 

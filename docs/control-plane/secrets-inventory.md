@@ -130,6 +130,22 @@ Secrets consumed by private provisioning tooling, not the API worker.
 | `TURSO_COMMUNITY_DB_WRAP_KEY` | `worker-secret` | Envelope-encryption key for per-community Turso DB credentials |
 | `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN` | `worker-secret` | Bearer token for the private Turso provision operator |
 
+### dev:/services/bot-runner
+
+Secrets consumed by hosted or local bot runner processes. The bot runner is not the API worker
+and should not receive the full `/services/api` secret surface.
+
+| Name | Type | Purpose |
+|---|---|---|
+| `BOT_WALLET_MASTER_SECRET` | `worker-secret` | Root key material for deterministic per-bot EOA wallet derivation |
+| `BOT_XMTP_DB_ENCRYPTION_SECRET` | `worker-secret` | Root key material for deterministic per-bot XMTP local database encryption keys |
+| `PIRATE_ADMIN_TOKEN` | `worker-secret` | Temporary v1 admin capability for bot provisioning and bot token minting until a narrower bot-runner token exists |
+| `OPENROUTER_API_KEY` | `api-key` | LLM generation key for bot actions |
+
+Do not store one private key per bot in Infisical. Bot wallet keys are high-cardinality generated
+tenant credentials: derive them from `BOT_WALLET_MASTER_SECRET` with handle-scoped HKDF labels,
+store only the derived address in the control-plane DB, and keep private keys in memory only.
+
 ### dev:/local/control-plane
 
 Break-glass control-plane credentials kept outside normal service paths.
@@ -147,6 +163,8 @@ Dev is local-only. The API worker is run via `bun run dev:local` with secrets fr
 Hosted environments use `/services` only.
 
 - `staging` and `prod` should not use `/local`
+- `/services/bot-runner` is optional until a bot runner is deployed; when present, it is a
+  separate least-privilege secret boundary for bot automation
 - `CONTROL_PLANE_OWNER_DATABASE_URL` may still exist operationally for hosted databases, but it is break-glass material and should not be part of the normal hosted Infisical contract
 - Lit/PKP secret paths are out of the current hosted mainline
 - `REGISTRY_PUBLISHER_AUTH_TOKEN` is out of the hosted mainline until `REGISTRY_PUBLISHER_URL` is configured deliberately
