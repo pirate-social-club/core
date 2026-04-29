@@ -113,6 +113,11 @@ rtk bun ../../scripts/control-plane/split-control-plane-roles.ts \
   --allow-missing-pgaudit
 ```
 
+`--allow-missing-pgaudit` is expected on the current Neon plan. pgAudit is an Enterprise/higher-tier
+Neon feature, so a `permission denied to create extension "pgaudit"` result is not a production launch
+blocker. The required launch hardening here is role separation, grants, `schema_migrations` visibility,
+and FORCE RLS on crown-jewel tables.
+
 Capture from output:
 
 - `runtime_url`

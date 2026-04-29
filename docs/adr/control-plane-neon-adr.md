@@ -114,20 +114,25 @@ The control plane needs both database-level auditability and semantic applicatio
 
 Required:
 
-- enable `pgAudit` for write-class statements at minimum
 - export database logs outside the database account boundary
 - alert on break-glass role use, failed auth spikes, and DDL in production
 - keep an append-only application audit table for semantic events
 - tie every sensitive mutation to `actor_type`, `actor_id`, `request_id`, and target identifiers
+
+Not required for the current Neon plan:
+
+- `pgAudit`. Neon exposes `pgAudit` only on higher-tier/Enterprise configurations, so Pirate's current
+  production baseline does not depend on it. The hardening scripts may attempt it when an owner-capable
+  connection is available, but `permission denied to create extension "pgaudit"` is expected on the
+  current plan and is not a launch blocker.
 
 Important distinction:
 
 - `pgAudit` explains what SQL executed
 - Pirate's `audit_log` explains why the product changed state
 
-Both are required.
-
-The database audit trail must not be the only source, and the app audit table must not be the only source.
+For the current launch, the application `audit_log`, Cloudflare logs, Neon connection/auth logs, and
+operator logs are the required audit surfaces. Add `pgAudit` later only if the Neon plan supports it.
 
 ## Branching Rules
 
@@ -172,7 +177,8 @@ Recommended sequence:
 1. Freeze further schema drift in the Turso control-plane model.
 2. Translate the control-plane schema from SQLite assumptions to explicit Postgres DDL.
 3. Create roles, grants, and RLS policies before first production data load.
-4. Enable `pgAudit` and external log export before cutover.
+4. Configure available Neon/Cloudflare/operator log export before cutover. Enable `pgAudit` only if the
+   Neon plan supports it.
 5. Backfill or replay existing control-plane data into Neon.
 6. Cut API runtime traffic to Neon using least-privilege runtime credentials.
 7. Retire the old central Turso control-plane credential and remove it from runtime secret paths.
