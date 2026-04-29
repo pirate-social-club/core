@@ -122,7 +122,7 @@ This decision does not mean:
 
 Recommended v0 naming:
 
-- organization slug: `pirate-dev` or `pirate-social`
+- organization slug: `pirate-dev` or `pirate-prod`
 - group name: `region-<group_location>`
 - primary database name: `main-<community_id>`
 

@@ -8,13 +8,21 @@ import {
 const baseEnv = {
   CONTROL_PLANE_DATABASE_URL: "file:/tmp/control-plane.db",
   TURSO_PLATFORM_API_TOKEN: "platform-token",
-  TURSO_ORGANIZATION_SLUG: "pirate-social",
+  TURSO_ORGANIZATION_SLUG: "pirate-prod",
+  EXPECTED_TURSO_ORGANIZATION_SLUG: "pirate-prod",
   TURSO_COMMUNITY_DB_WRAP_KEY: "11".repeat(32),
   TURSO_COMMUNITY_DB_WRAP_KEY_VERSION: "7",
   COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN: "operator-shared-token",
 } as const;
 
 describe("turso control-plane operator handler", () => {
+  test("refuses to start when the Turso organization does not match the expected slug", () => {
+    expect(() => createTursoControlPlaneOperatorHandler({
+      ...baseEnv,
+      TURSO_ORGANIZATION_SLUG: "pirate-social",
+    })).toThrow("TURSO_ORGANIZATION_SLUG mismatch: expected pirate-prod, got pirate-social");
+  });
+
   test("health endpoint is readable without auth", async () => {
     const handler = createTursoControlPlaneOperatorHandler(baseEnv);
     const response = await handler(new Request("http://operator.test/health"));
@@ -49,12 +57,12 @@ describe("turso control-plane operator handler", () => {
           jobId: "job_01",
           communityDatabaseBindingId: "cdb_01",
           communityDbCredentialId: "cdc_01",
-          organizationSlug: "pirate-social",
+          organizationSlug: "pirate-prod",
           groupName: "region-aws-us-east-1",
           groupId: "grp_01",
           databaseName: "main-cmt-01",
           databaseId: "db_01",
-          databaseUrl: "libsql://main-cmt-01-pirate-social.aws-us-east-1.turso.io",
+          databaseUrl: "libsql://main-cmt-01-pirate-prod.aws-us-east-1.turso.io",
           location: "aws-us-east-1",
           tokenName: "worker-cmt_01-v1",
           plaintextToken: "db-token-01",
@@ -130,12 +138,12 @@ describe("turso control-plane operator handler", () => {
     const body = await response.json() as Record<string, unknown>;
     expect(body).toMatchObject({
       community_id: "cmt_01",
-      organization_slug: "pirate-social",
+      organization_slug: "pirate-prod",
       group_name: "region-aws-us-east-1",
       group_id: "grp_01",
       database_name: "main-cmt-01",
       database_id: "db_01",
-      database_url: "libsql://main-cmt-01-pirate-social.aws-us-east-1.turso.io",
+      database_url: "libsql://main-cmt-01-pirate-prod.aws-us-east-1.turso.io",
       location: "aws-us-east-1",
       token_name: "worker-cmt_01-v1",
       plaintext_token: "db-token-01",
@@ -153,12 +161,12 @@ describe("turso control-plane operator handler", () => {
           jobId: "job_no_namespace",
           communityDatabaseBindingId: "cdb_no_namespace",
           communityDbCredentialId: "cdc_no_namespace",
-          organizationSlug: "pirate-social",
+          organizationSlug: "pirate-prod",
           groupName: "region-aws-us-east-1",
           groupId: "grp_no_namespace",
           databaseName: "main-cmt-no-namespace",
           databaseId: "db_no_namespace",
-          databaseUrl: "libsql://main-cmt-no-namespace-pirate-social.aws-us-east-1.turso.io",
+          databaseUrl: "libsql://main-cmt-no-namespace-pirate-prod.aws-us-east-1.turso.io",
           location: "aws-us-east-1",
           tokenName: "worker-cmt_no_namespace-v1",
           plaintextToken: "db-token-no-namespace",

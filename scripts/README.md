@@ -35,9 +35,12 @@ It is intentionally narrow:
 - `scripts/control-plane/split-control-plane-roles.ts`
   Split runtime and migrator roles and optionally write the resulting URLs to Infisical.
 - `scripts/control-plane/harden-control-plane-postgres.ts`
-  Apply owner-only hardening such as pgAudit, `schema_migrations` grants, and FORCE RLS.
+  Apply control-plane hardening such as `schema_migrations` grants and FORCE RLS. It can attempt
+  pgAudit when the Neon plan supports it, but pgAudit is not part of the current launch baseline.
 - `scripts/control-plane/inventory-control-plane.ts`
   Read-only inventory for control-plane state and likely fixture contamination.
+- `scripts/control-plane/inspect-control-plane-migration-ledger.ts`
+  Read-only comparison of a control-plane `schema_migrations` ledger against the checked Postgres migration root.
 - `scripts/control-plane/reset-control-plane-app-data.ts`
   Truncate control-plane app data while preserving `schema_migrations`; dry-run by default and requires explicit confirmation to execute.
 - `scripts/control-plane/reconcile-community-provisioning-state.ts`
@@ -49,6 +52,10 @@ It is intentionally narrow:
   Apply `db/community-template/migrations` to a SQLite or libSQL target.
 - `scripts/community/apply-remote-community-migrations.ts`
   Dry-run or apply pending community-template migrations to active remote Turso/libSQL community DBs.
+- `scripts/community/inspect-remote-community-migration-ledger.ts`
+  Read-only inspection of one remote community DB migration ledger, including checksum-based rename candidates.
+- `scripts/community/reconcile-remote-community-migration-ledgers.ts`
+  Dry-run or apply checksum-proven `schema_migrations` ledger renames for active remote community DBs. It does not apply missing migrations.
 - `scripts/community/bootstrap-community-db.sh`
   Bootstrap a local community DB from the community template.
 - `scripts/community/bootstrap-community-slice.ts`
@@ -107,10 +114,10 @@ community-id based, while the organization slug makes prod/staging/dev visually 
 | --- | --- |
 | Dev | `pirate-dev` |
 | Staging | `pirate-staging` |
-| Production | `pirate-social` |
+| Production | `pirate-prod` |
 
 Operator env files should set both `TURSO_ORGANIZATION_SLUG` and
-`EXPECTED_TURSO_ORGANIZATION_SLUG` to the environment's slug. The env runner refuses to start
+`EXPECTED_TURSO_ORGANIZATION_SLUG` to the environment's slug. The operator refuses to start
 when those values differ.
 
 Local operator env files such as `scripts/.env.operator-dev` are intentionally untracked. Keep any

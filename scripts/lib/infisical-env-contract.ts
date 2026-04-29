@@ -629,6 +629,7 @@ export const WRANGLER_MANAGED_CONFIG_NAMES = [
   "REGISTRY_PUBLISHER_TIMEOUT_MS",
   "DEV_MEMORY_STORE_ENABLED",
   "ENVIRONMENT",
+  "COMMUNITY_PROVISION_EXPECTED_ORGANIZATION_SLUG",
 ] as const;
 
 export function requirednessApplies(requiredness: Requiredness, env: string): boolean {

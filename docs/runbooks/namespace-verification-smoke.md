@@ -77,7 +77,7 @@ Community creation result:
 Control-plane confirmation:
 
 - `community_database_binding_id = cdb_25d88fd9f7d84699be7f385278088b6d`
-- active `database_url = libsql://main-cmt-e093d673aba54ff79bce9b11977ea58f-pirate-social.aws-us-east-1.turso.io`
+- active `database_url = libsql://main-cmt-e093d673aba54ff79bce9b11977ea58f-pirate-prod.aws-us-east-1.turso.io`
 - active credential:
   - `community_db_credential_id = cdc_2c142ac9e1534a10828e0886556c213a`
 
@@ -114,7 +114,7 @@ Community creation result:
 Control-plane confirmation:
 
 - `community_database_binding_id = cdb_e0955612ec65490db38e617c19fda8b8`
-- active `database_url = libsql://main-cmt-11274b9e442f49ee831c479d31b9ce23-pirate-social.aws-us-east-1.turso.io`
+- active `database_url = libsql://main-cmt-11274b9e442f49ee831c479d31b9ce23-pirate-prod.aws-us-east-1.turso.io`
 - active credential:
   - `community_db_credential_id = cdc_7ca7c7198b97451490e4f68cab21f0cb`
 

@@ -48,7 +48,7 @@ Expected organization slugs:
 | --- | --- |
 | Dev | `pirate-dev` |
 | Staging | `pirate-staging` |
-| Production | `pirate-social` |
+| Production | `pirate-prod` |
 
 Day-to-day resource identity should read as:
 
@@ -56,7 +56,7 @@ Day-to-day resource identity should read as:
 <environment org> / region-<group_location> / main-<community_id>
 ```
 
-For example, `pirate-social / region-aws-ap-south-1 / main-cmt-alpha` is a production
+For example, `pirate-prod / region-aws-ap-south-1 / main-cmt-alpha` is a production
 community database in the India region pool. A group named `region-aws-ap-south-1` in
 `pirate-dev` is dev. Environment prefixes should not be added to group or database names because
 the organization already carries the environment boundary.

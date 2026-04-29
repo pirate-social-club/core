@@ -14,6 +14,7 @@ The public API worker expects:
 - `COMMUNITY_PROVISION_OPERATOR_BASE_URL`
 - `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN`
 - `COMMUNITY_PROVISION_OPERATOR_TIMEOUT_MS`
+- `COMMUNITY_PROVISION_EXPECTED_ORGANIZATION_SLUG`
 - `COMMUNITY_PROVISION_DEFAULT_GROUP_LOCATION`
 
 The private operator expects:
@@ -34,7 +35,9 @@ Rules:
 - the operator must require bearer auth on private routes
 - the worker and operator share the same bearer secret value through `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN`
 - `TURSO_ORGANIZATION_SLUG` is the environment boundary; set `EXPECTED_TURSO_ORGANIZATION_SLUG`
-  to the same value so the env runner catches a dev/staging/prod mismatch before startup
+  to the same value so the operator catches a dev/staging/prod mismatch before startup
+- the worker must set `COMMUNITY_PROVISION_EXPECTED_ORGANIZATION_SLUG` to the same environment
+  slug and reject operator responses from any other Turso organization
 
 ## Implemented Operator Surface
 
@@ -76,7 +79,8 @@ Success response shape:
   "ok": true,
   "bind_host": "127.0.0.1",
   "bind_port": 8789,
-  "requires_bearer_auth": true
+  "requires_bearer_auth": true,
+  "turso_organization_slug": "pirate-prod"
 }
 ```
 
@@ -115,12 +119,12 @@ Success response:
   "job_id": "job_01",
   "binding_id": "cdb_01",
   "credential_id": "cdc_01",
-  "organization_slug": "pirate-social",
+  "organization_slug": "pirate-prod",
   "group_name": "region-aws-us-east-1",
   "group_id": "grp_01",
   "database_name": "main-cmt-01",
   "database_id": "db_01",
-  "database_url": "libsql://main-cmt-01-pirate-social.aws-us-east-1.turso.io",
+  "database_url": "libsql://main-cmt-01-pirate-prod.aws-us-east-1.turso.io",
   "location": "aws-us-east-1",
   "token_name": "worker-cmt_01-v1",
   "plaintext_token": "turso-db-token",

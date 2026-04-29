@@ -13,6 +13,7 @@ export type TursoControlPlaneOperatorEnv = {
   TURSO_CONTROL_PLANE_AUTH_TOKEN?: string;
   TURSO_PLATFORM_API_TOKEN?: string;
   TURSO_ORGANIZATION_SLUG?: string;
+  EXPECTED_TURSO_ORGANIZATION_SLUG?: string;
   TURSO_COMMUNITY_DB_WRAP_KEY?: string;
   TURSO_COMMUNITY_DB_WRAP_KEY_VERSION?: string;
   COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN?: string;
@@ -87,6 +88,15 @@ function requirePositiveIntString(value: string | null | undefined, label: strin
   return parsed;
 }
 
+function requireExpectedTursoOrganizationSlug(env: TursoControlPlaneOperatorEnv): string {
+  const actual = requireText(env.TURSO_ORGANIZATION_SLUG, "TURSO_ORGANIZATION_SLUG");
+  const expected = requireText(env.EXPECTED_TURSO_ORGANIZATION_SLUG, "EXPECTED_TURSO_ORGANIZATION_SLUG");
+  if (actual !== expected) {
+    throw new Error(`TURSO_ORGANIZATION_SLUG mismatch: expected ${expected}, got ${actual}`);
+  }
+  return actual;
+}
+
 async function readJson<T>(request: Request): Promise<T> {
   try {
     return await request.json() as T;
@@ -118,7 +128,7 @@ function requireOperatorRuntime(env: TursoControlPlaneOperatorEnv): {
     controlPlaneDatabaseUrl: requireText(env.CONTROL_PLANE_DATABASE_URL, "CONTROL_PLANE_DATABASE_URL"),
     controlPlaneAuthToken: trim(env.TURSO_CONTROL_PLANE_AUTH_TOKEN) || null,
     tursoPlatformApiToken: requireText(env.TURSO_PLATFORM_API_TOKEN, "TURSO_PLATFORM_API_TOKEN"),
-    tursoOrganizationSlug: requireText(env.TURSO_ORGANIZATION_SLUG, "TURSO_ORGANIZATION_SLUG"),
+    tursoOrganizationSlug: requireExpectedTursoOrganizationSlug(env),
     tursoCommunityDbWrapKey: requireText(env.TURSO_COMMUNITY_DB_WRAP_KEY, "TURSO_COMMUNITY_DB_WRAP_KEY"),
     tursoCommunityDbWrapKeyVersion: requirePositiveIntString(
       env.TURSO_COMMUNITY_DB_WRAP_KEY_VERSION,
@@ -176,6 +186,7 @@ export function createTursoControlPlaneOperatorHandler(
   env: TursoControlPlaneOperatorEnv,
   deps: OperatorDeps = {},
 ): (request: Request) => Promise<Response> {
+  const expectedTursoOrganizationSlug = requireExpectedTursoOrganizationSlug(env);
   const provisionCommunityFn = deps.provisionCommunityFn ?? provisionCommunityRuntime;
   const rotateCommunityTokenFn = deps.rotateCommunityTokenFn ?? rotateCommunityToken;
   const doctorControlPlaneFn = deps.doctorControlPlaneFn ?? doctorControlPlane;
@@ -189,6 +200,7 @@ export function createTursoControlPlaneOperatorHandler(
         bind_host: trim(env.COMMUNITY_PROVISION_OPERATOR_HOST) || "127.0.0.1",
         bind_port: Number(trim(env.COMMUNITY_PROVISION_OPERATOR_PORT) || "8789"),
         requires_bearer_auth: Boolean(trim(env.COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN)),
+        turso_organization_slug: expectedTursoOrganizationSlug,
       });
     }
 

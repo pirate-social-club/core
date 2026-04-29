@@ -30,6 +30,7 @@ const env = process.env as TursoControlPlaneOperatorEnv;
 requireEnv("CONTROL_PLANE_DATABASE_URL");
 requireEnv("TURSO_PLATFORM_API_TOKEN");
 requireEnv("TURSO_ORGANIZATION_SLUG");
+requireEnv("EXPECTED_TURSO_ORGANIZATION_SLUG");
 requireEnv("TURSO_COMMUNITY_DB_WRAP_KEY");
 requireEnv("COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN");
 requirePositiveIntEnv("TURSO_COMMUNITY_DB_WRAP_KEY_VERSION");
