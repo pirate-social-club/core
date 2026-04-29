@@ -418,6 +418,41 @@ paths:
     get:
       tags:
         - Verification
+      x-implemented: true
+      summary: Get the current wallet score capability
+      description: |
+        Read the current Human Passport-derived wallet-score capability for the authenticated user.
+        This is a server-owned score read, not an interactive verification session.
+      responses:
+        "200":
+          description: Current wallet score capability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletScoreCapabilityState"
+              example:
+                state: verified
+                provider: passport
+                proof_type: wallet_score
+                mechanism: stamps-api-v2
+                verified_at: 2026-04-10T12:00:00Z
+                score: 28.4
+                score_threshold: 20
+                passing_score: true
+                last_score_timestamp: 2026-04-10T11:59:30Z
+                expiration_timestamp: 2026-05-10T12:00:00Z
+                stamps:
+                  - stamp_name: Gitcoin Passport
+                    stamp_score: 18.4
+                  - stamp_name: ENS
+                    stamp_score: 10
+        "401":
+          $ref: "#/components/responses/AuthError"
+  /verification/passport-wallet-score:
+    get:
+      tags:
+        - Verification
+      x-implemented: true
       summary: Get the current wallet score capability
       description: |
         Read the current Human Passport-derived wallet-score capability for the authenticated user.
@@ -1583,6 +1618,20 @@ paths:
           $ref: "#/components/responses/AuthError"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /communities/admin/health:
+    get:
+      tags:
+        - Communities
+      x-implemented: true
+      summary: Check community admin service health
+      responses:
+        "200":
+          description: Community admin service health
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
   /communities/{community_id}:
     get:
       tags:
@@ -4985,7 +5034,6 @@ components:
         - minimum_age
         - nationality
         - gender
-        - sanctions_clear
         - wallet_score
       properties:
         unique_human:
@@ -5045,8 +5093,6 @@ components:
               enum:
                 - gender
               nullable: true
-        sanctions_clear:
-          $ref: "#/components/schemas/SanctionsClearCapabilityState"
         wallet_score:
           $ref: "#/components/schemas/WalletScoreCapabilityState"
       description: |
@@ -5409,9 +5455,6 @@ components:
         expiry_date:
           type: boolean
           nullable: true
-        ofac:
-          type: boolean
-          nullable: true
         excluded_countries:
           type: array
           nullable: true
@@ -5492,7 +5535,6 @@ components:
         - type_id
         - query
         - verify_url
-        - session_binding
       properties:
         app_id:
           type: string
@@ -7464,7 +7506,6 @@ components:
             - minimum_age
             - nationality
             - gender
-            - sanctions_clear
             - wallet_score
             - erc721_holding
             - erc721_inventory_match
@@ -7530,7 +7571,6 @@ components:
             - minimum_age
             - nationality
             - gender
-            - sanctions_clear
             - wallet_score
             - erc721_holding
             - erc721_inventory_match
@@ -7586,8 +7626,6 @@ components:
           - self
         wallet_score:
           - passport
-        sanctions_clear:
-          - passport
       x-unvalidated-proof-types:
         - biometric_liveness
         - gov_id
@@ -7604,7 +7642,6 @@ components:
             - minimum_age
             - nationality
             - gender
-            - sanctions_clear
             - phone
         accepted_providers:
           type: array
@@ -10242,7 +10279,7 @@ components:
           nullable: true
           enum:
             - filebase
-            - local_stub
+            - local_dev_file_storage
         storage_bucket:
           type: string
           nullable: true
@@ -11050,6 +11087,12 @@ components:
       properties:
         post:
           $ref: "#/components/schemas/Post"
+        author_community_role:
+          type: string
+          enum:
+            - owner
+            - moderator
+          nullable: true
         thread_snapshot:
           $ref: "#/components/schemas/CommentThreadSnapshot"
           nullable: true

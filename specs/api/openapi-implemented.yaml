@@ -198,6 +198,72 @@ paths:
           $ref: "#/components/responses/AuthError"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /verification/wallet-score:
+    get:
+      tags:
+        - Verification
+      summary: Get the current wallet score capability
+      description: |
+        Read the current Human Passport-derived wallet-score capability for the authenticated user.
+        This is a server-owned score read, not an interactive verification session.
+      responses:
+        "200":
+          description: Current wallet score capability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletScoreCapabilityState"
+              example:
+                state: verified
+                provider: passport
+                proof_type: wallet_score
+                mechanism: stamps-api-v2
+                verified_at: 2026-04-10T12:00:00Z
+                score: 28.4
+                score_threshold: 20
+                passing_score: true
+                last_score_timestamp: 2026-04-10T11:59:30Z
+                expiration_timestamp: 2026-05-10T12:00:00Z
+                stamps:
+                  - stamp_name: Gitcoin Passport
+                    stamp_score: 18.4
+                  - stamp_name: ENS
+                    stamp_score: 10
+        "401":
+          $ref: "#/components/responses/AuthError"
+  /verification/passport-wallet-score:
+    get:
+      tags:
+        - Verification
+      summary: Get the current wallet score capability
+      description: |
+        Read the current Human Passport-derived wallet-score capability for the authenticated user.
+        This is a server-owned score read, not an interactive verification session.
+      responses:
+        "200":
+          description: Current wallet score capability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletScoreCapabilityState"
+              example:
+                state: verified
+                provider: passport
+                proof_type: wallet_score
+                mechanism: stamps-api-v2
+                verified_at: 2026-04-10T12:00:00Z
+                score: 28.4
+                score_threshold: 20
+                passing_score: true
+                last_score_timestamp: 2026-04-10T11:59:30Z
+                expiration_timestamp: 2026-05-10T12:00:00Z
+                stamps:
+                  - stamp_name: Gitcoin Passport
+                    stamp_score: 18.4
+                  - stamp_name: ENS
+                    stamp_score: 10
+        "401":
+          $ref: "#/components/responses/AuthError"
   /verification-sessions/{verification_session_id}:
     get:
       tags:
@@ -1144,6 +1210,19 @@ paths:
           $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /communities/admin/health:
+    get:
+      tags:
+        - Communities
+      summary: Check community admin service health
+      responses:
+        "200":
+          description: Community admin service health
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
   /communities/{community_id}:
     get:
       tags:
@@ -2960,7 +3039,6 @@ components:
         - minimum_age
         - nationality
         - gender
-        - sanctions_clear
         - wallet_score
       properties:
         unique_human:
@@ -3020,8 +3098,6 @@ components:
               enum:
                 - gender
               nullable: true
-        sanctions_clear:
-          $ref: "#/components/schemas/SanctionsClearCapabilityState"
         wallet_score:
           $ref: "#/components/schemas/WalletScoreCapabilityState"
       description: |
@@ -3384,9 +3460,6 @@ components:
         expiry_date:
           type: boolean
           nullable: true
-        ofac:
-          type: boolean
-          nullable: true
         excluded_countries:
           type: array
           nullable: true
@@ -3467,7 +3540,6 @@ components:
         - type_id
         - query
         - verify_url
-        - session_binding
       properties:
         app_id:
           type: string
@@ -5434,7 +5506,6 @@ components:
             - minimum_age
             - nationality
             - gender
-            - sanctions_clear
             - wallet_score
             - erc721_holding
             - erc721_inventory_match
@@ -5500,7 +5571,6 @@ components:
             - minimum_age
             - nationality
             - gender
-            - sanctions_clear
             - wallet_score
             - erc721_holding
             - erc721_inventory_match
@@ -5556,8 +5626,6 @@ components:
           - self
         wallet_score:
           - passport
-        sanctions_clear:
-          - passport
       x-unvalidated-proof-types:
         - biometric_liveness
         - gov_id
@@ -5574,7 +5642,6 @@ components:
             - minimum_age
             - nationality
             - gender
-            - sanctions_clear
             - phone
         accepted_providers:
           type: array
@@ -8196,7 +8263,7 @@ components:
           nullable: true
           enum:
             - filebase
-            - local_stub
+            - local_dev_file_storage
         storage_bucket:
           type: string
           nullable: true
@@ -9004,6 +9071,12 @@ components:
       properties:
         post:
           $ref: "#/components/schemas/Post"
+        author_community_role:
+          type: string
+          enum:
+            - owner
+            - moderator
+          nullable: true
         thread_snapshot:
           $ref: "#/components/schemas/CommentThreadSnapshot"
           nullable: true
@@ -10440,6 +10513,150 @@ components:
         checked_at:
           type: string
           format: date-time
+    RoyaltyActivityItem:
+      type: object
+      required:
+        - event_id
+        - community_id
+        - asset_id
+        - title
+        - story_ip_id
+        - amount_wip_wei
+        - buyer_wallet_address
+        - tx_hash
+        - purchase_id
+        - created_at
+        - read_at
+      properties:
+        event_id:
+          type: string
+        community_id:
+          type: string
+        asset_id:
+          type: string
+        title:
+          type: string
+          nullable: true
+        story_ip_id:
+          type: string
+        amount_wip_wei:
+          type: string
+        buyer_wallet_address:
+          type: string
+          nullable: true
+        tx_hash:
+          type: string
+          nullable: true
+        purchase_id:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
+    RoyaltyActivityResponse:
+      type: object
+      required:
+        - items
+        - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoyaltyActivityItem"
+        next_cursor:
+          type: string
+          nullable: true
+    RoyaltyClaimRecordRequest:
+      type: object
+      required:
+        - tx_hash
+        - wallet_address
+        - chain_id
+        - claimable_wip_wei_at_submission
+        - ip_ids
+        - auto_unwrap_ip_tokens
+      properties:
+        tx_hash:
+          type: string
+        wallet_address:
+          type: string
+        chain_id:
+          type: integer
+        claimable_wip_wei_at_submission:
+          type: string
+        ip_ids:
+          type: array
+          items:
+            type: string
+        auto_unwrap_ip_tokens:
+          type: boolean
+    RoyaltyClaimRecord:
+      type: object
+      required:
+        - claim_id
+        - user_id
+        - tx_hash
+        - wallet_address
+        - chain_id
+        - claimable_wip_wei_at_submission
+        - ip_ids
+        - auto_unwrap_ip_tokens
+        - status
+        - verified_at
+        - verification_error
+        - claimed_at
+        - created_at
+      properties:
+        claim_id:
+          type: string
+        user_id:
+          type: string
+        tx_hash:
+          type: string
+        wallet_address:
+          type: string
+        chain_id:
+          type: integer
+        claimable_wip_wei_at_submission:
+          type: string
+        ip_ids:
+          type: array
+          items:
+            type: string
+        auto_unwrap_ip_tokens:
+          type: boolean
+        status:
+          type: string
+          enum:
+            - pending
+            - confirmed
+            - failed
+        verified_at:
+          type: string
+          format: date-time
+          nullable: true
+        verification_error:
+          type: string
+          nullable: true
+        claimed_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+    RoyaltyClaimHistoryResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoyaltyClaimRecord"
     MppChallenge:
       type: object
       required:

@@ -97,7 +97,6 @@ VerificationRequirement:
       type: string
       enum:
         - minimum_age
-        - sanctions_clear
     minimum_age:
       type: integer
       minimum: 18
@@ -137,6 +136,41 @@ CompleteVerificationSessionRequest:
       description: |
         Opaque server-side reference to provider callback payload or proof material already stored
         by the backend.
+RefreshPassportWalletScoreRequest:
+  type: object
+  properties:
+    wallet_attachment_id:
+      type: string
+      nullable: true
+    community_id:
+      type: string
+      nullable: true
+RefreshPassportWalletScoreResponse:
+  type: object
+  required:
+    - wallet_score
+  properties:
+    wallet_score:
+      $ref: ./verification.yaml#/WalletScoreCapabilityState
+    wallet_score_status:
+      type: object
+      nullable: true
+      properties:
+        current_score:
+          type: number
+          nullable: true
+        required_score:
+          type: number
+          nullable: true
+        passing_score:
+          type: boolean
+          nullable: true
+        last_score_timestamp:
+          type: string
+          nullable: true
+    join_eligibility:
+      $ref: ./communities-core.yaml#/JoinEligibility
+      nullable: true
 ProviderVerificationCallbackRequest:
   type: object
   description: |
@@ -202,9 +236,6 @@ SelfVerificationDisclosures:
       type: boolean
       nullable: true
     expiry_date:
-      type: boolean
-      nullable: true
-    ofac:
       type: boolean
       nullable: true
     excluded_countries:
@@ -287,7 +318,6 @@ VeryWidgetLaunch:
     - type_id
     - query
     - verify_url
-    - session_binding
   properties:
     app_id:
       type: string
@@ -365,7 +395,6 @@ VerificationCapabilities:
     - minimum_age
     - nationality
     - gender
-    - sanctions_clear
     - wallet_score
   properties:
     unique_human:
@@ -425,8 +454,6 @@ VerificationCapabilities:
           enum:
             - gender
           nullable: true
-    sanctions_clear:
-      $ref: ./verification.yaml#/SanctionsClearCapabilityState
     wallet_score:
       $ref: ./verification.yaml#/WalletScoreCapabilityState
   description: |

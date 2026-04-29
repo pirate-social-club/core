@@ -76,6 +76,20 @@ communities:
         $ref: ../components/responses.yaml#/AuthError
       "429":
         $ref: ../components/responses.yaml#/RateLimited
+communities_admin_health:
+  get:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Check community admin service health
+    responses:
+      "200":
+        description: Community admin service health
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
 communities_by_community_id:
   get:
     tags:

@@ -58,6 +58,8 @@ paths:
     $ref: ./paths/verification.yaml#/verification_sessions
   /verification/wallet-score:
     $ref: ./paths/verification.yaml#/verification_wallet_score
+  /verification/passport-wallet-score:
+    $ref: ./paths/verification.yaml#/verification_wallet_score
   /verification/wallet-score/refresh:
     $ref: ./paths/verification.yaml#/verification_wallet_score_refresh
   /verification-sessions/{verification_session_id}:
@@ -140,6 +142,8 @@ paths:
     $ref: ./paths/profiles.yaml#/public_profiles_by_handle_label
   /communities:
     $ref: ./paths/communities.yaml#/communities
+  /communities/admin/health:
+    $ref: ./paths/communities.yaml#/communities_admin_health
   /communities/{community_id}:
     $ref: ./paths/communities.yaml#/communities_by_community_id
   /communities/{community_id}/attach-governance:

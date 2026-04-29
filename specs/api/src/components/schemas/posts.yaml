@@ -859,6 +859,12 @@ LocalizedPostResponse:
   properties:
     post:
       $ref: ./posts.yaml#/Post
+    author_community_role:
+      type: string
+      enum:
+        - owner
+        - moderator
+      nullable: true
     thread_snapshot:
       $ref: ./comments.yaml#/CommentThreadSnapshot
       nullable: true

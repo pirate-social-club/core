@@ -235,7 +235,7 @@ SongArtifactUpload:
       nullable: true
       enum:
         - filebase
-        - local_stub
+        - local_dev_file_storage
     storage_bucket:
       type: string
       nullable: true

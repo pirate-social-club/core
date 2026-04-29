@@ -90,6 +90,7 @@ verification_wallet_score:
   get:
     tags:
       - Verification
+    x-implemented: true
     summary: Get the current wallet score capability
     description: |
       Read the current Human Passport-derived wallet-score capability for the authenticated user.

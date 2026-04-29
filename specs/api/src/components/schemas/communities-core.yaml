@@ -348,7 +348,6 @@ GateRuleInput:
         - minimum_age
         - nationality
         - gender
-        - sanctions_clear
         - wallet_score
         - erc721_holding
         - erc721_inventory_match
@@ -414,7 +413,6 @@ GateRule:
         - minimum_age
         - nationality
         - gender
-        - sanctions_clear
         - wallet_score
         - erc721_holding
         - erc721_inventory_match
@@ -470,8 +468,6 @@ ProofRequirement:
       - self
     wallet_score:
       - passport
-    sanctions_clear:
-      - passport
   x-unvalidated-proof-types:
     - biometric_liveness
     - gov_id
@@ -488,7 +484,6 @@ ProofRequirement:
         - minimum_age
         - nationality
         - gender
-        - sanctions_clear
         - phone
     accepted_providers:
       type: array
@@ -1175,7 +1170,6 @@ MembershipGateSummary:
         - age_over_18
         - minimum_age
         - wallet_score
-        - sanctions_clear
         - erc721_holding
         - erc721_inventory_match
     accepted_providers:
@@ -1279,6 +1273,32 @@ CommunityTextLocalizationItem:
       nullable: true
     source_hash:
       type: string
+CommunityRoleSummary:
+  type: object
+  required:
+    - user_id
+    - display_name
+    - handle
+    - role
+  properties:
+    user_id:
+      type: string
+    display_name:
+      type: string
+    handle:
+      type: string
+    avatar_ref:
+      type: string
+      nullable: true
+    nationality_badge_country:
+      type: string
+      nullable: true
+    role:
+      type: string
+      enum:
+        - owner
+        - admin
+        - moderator
 CommunityPreview:
   type: object
   required:
@@ -1286,6 +1306,7 @@ CommunityPreview:
     - display_name
     - membership_mode
     - human_verification_lane
+    - moderators
     - membership_gate_summaries
     - rules
     - created_at
@@ -1349,6 +1370,13 @@ CommunityPreview:
     donation_partner:
       $ref: ./communities-community.yaml#/DonationPartnerSummary
       nullable: true
+    owner:
+      $ref: ./communities-core.yaml#/CommunityRoleSummary
+      nullable: true
+    moderators:
+      type: array
+      items:
+        $ref: ./communities-core.yaml#/CommunityRoleSummary
     reference_links:
       type: array
       nullable: true
@@ -1423,12 +1451,11 @@ JoinEligibility:
           - nationality
           - gender
           - wallet_score
-          - sanctions_clear
       description: |
         Missing capability keys for the evaluated join path. Public-v0 community remediation should
         surface only capability keys Pirate can remediate end to end for the current lane, including
         `unique_human`, `age_over_18`, `nationality`, and `gender` for Self-backed flows and
-        `wallet_score` and `sanctions_clear` for Human Passport checks.
+        `wallet_score` for Human Passport checks.
     suggested_verification_provider:
       type: string
       enum:
