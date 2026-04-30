@@ -5936,6 +5936,8 @@ components:
       type: object
       additionalProperties: false
       required:
+        - id
+        - object
         - agent
         - owner_user
         - current_ownership_record
@@ -5949,6 +5951,14 @@ components:
         agent. Public v0 should prefer opaque bearer tokens over long-lived self-contained JWTs so
         refresh denial remains the primary revocation chokepoint.
       properties:
+        id:
+          type: string
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - agent_delegated_credential
         agent:
           type: string
         owner_user:
