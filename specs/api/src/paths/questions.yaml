@@ -57,10 +57,10 @@ communities_by_community_id_questions_daily_answers:
           schema:
             type: object
             required:
-              - question_id
+              - question
               - selected_answer_ref
             properties:
-              question_id:
+              question:
                 type: string
               selected_answer_ref:
                 type: integer

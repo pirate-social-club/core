@@ -7,6 +7,13 @@ info:
     Contract-first API surface for Pirate v2.
     This modular source carries the broader planned v0 design surface alongside the first executable slice.
     Operations marked `x-implemented: true` are filtered into `specs/api/openapi-implemented.yaml`, which is the strict generated surface for SDKs and other implementation-bound tooling.
+
+    Resource identifiers are opaque strings with stable type prefixes. Public resource responses
+    should expose a canonical `id` field plus an `object` discriminator as schemas are migrated:
+    `com_` for communities, `post_` for posts, `cmt_` for comments, `usr_` for users, `vs_` for
+    verification sessions, `aos_` for agent ownership sessions, `agt_` for agents, `lst_` for
+    listings, `pur_` for purchases, `pq_` for purchase quotes, `job_` for jobs, and `gh_` for
+    global handles.
 servers:
   - url: https://api.pirate.example
     description: Placeholder production server
@@ -133,8 +140,9 @@ paths:
                 self_qr_launch:
                   summary: Self verification session launch
                   value:
-                    verification_session_id: ver_sess_01HSELFQREXAMPLE
-                    user_id: usr_01HUSEREXAMPLE
+                    id: ver_sess_01HSELFQREXAMPLE
+                    object: verification_session
+                    user: usr_01HUSEREXAMPLE
                     provider: self
                     provider_mode: qr_deeplink
                     requested_capabilities:
@@ -155,13 +163,14 @@ paths:
                           minimum_age: null
                           gender: false
                     callback_path: /verification-sessions/ver_sess_01HSELFQREXAMPLE/callback
-                    created_at: 2026-04-10T12:00:00Z
-                    expires_at: 2026-04-10T12:15:00Z
+                    created: 1775822400
+                    expires_at: 1775823300
                 very_widget_launch:
                   summary: Very widget verification session launch
                   value:
-                    verification_session_id: ver_sess_01HVERYWIDGETEXAMPLE
-                    user_id: usr_01HUSEREXAMPLE
+                    id: ver_sess_01HVERYWIDGETEXAMPLE
+                    object: verification_session
+                    user: usr_01HUSEREXAMPLE
                     provider: very
                     provider_mode: widget
                     requested_capabilities:
@@ -190,10 +199,10 @@ paths:
                           uniqueness_domain: pirate-unique-human-v0
                           binding_value: ver_sess_01HVERYWIDGETEXAMPLE.7f9f0e6b
                           binding_field: pseudonym
-                          challenge_expires_at: 2026-04-10T12:15:00Z
+                          challenge_expires_at: 1775823300
                     callback_path: /verification-sessions/ver_sess_01HVERYWIDGETEXAMPLE/complete
-                    created_at: 2026-04-10T12:00:00Z
-                    expires_at: 2026-04-10T12:15:00Z
+                    created: 1775822400
+                    expires_at: 1775823300
         "401":
           $ref: "#/components/responses/AuthError"
         "429":
@@ -218,17 +227,17 @@ paths:
                 provider: passport
                 proof_type: wallet_score
                 mechanism: stamps-api-v2
-                verified_at: 2026-04-10T12:00:00Z
-                score: 28.4
-                score_threshold: 20
+                verified_at: 1775822400
+                score_decimal: "28.4"
+                score_threshold_decimal: "20"
                 passing_score: true
-                last_score_timestamp: 2026-04-10T11:59:30Z
-                expiration_timestamp: 2026-05-10T12:00:00Z
+                last_scored_at: 1775822370
+                expires_at: 1778414400
                 stamps:
                   - stamp_name: Gitcoin Passport
-                    stamp_score: 18.4
+                    stamp_score_decimal: "18.4"
                   - stamp_name: ENS
-                    stamp_score: 10
+                    stamp_score_decimal: "10"
         "401":
           $ref: "#/components/responses/AuthError"
   /verification/passport-wallet-score:
@@ -251,17 +260,17 @@ paths:
                 provider: passport
                 proof_type: wallet_score
                 mechanism: stamps-api-v2
-                verified_at: 2026-04-10T12:00:00Z
-                score: 28.4
-                score_threshold: 20
+                verified_at: 1775822400
+                score_decimal: "28.4"
+                score_threshold_decimal: "20"
                 passing_score: true
-                last_score_timestamp: 2026-04-10T11:59:30Z
-                expiration_timestamp: 2026-05-10T12:00:00Z
+                last_scored_at: 1775822370
+                expires_at: 1778414400
                 stamps:
                   - stamp_name: Gitcoin Passport
-                    stamp_score: 18.4
+                    stamp_score_decimal: "18.4"
                   - stamp_name: ENS
-                    stamp_score: 10
+                    stamp_score_decimal: "10"
         "401":
           $ref: "#/components/responses/AuthError"
   /verification-sessions/{verification_session_id}:
@@ -341,11 +350,11 @@ paths:
                 type: object
                 required:
                   - status
-                  - verification_session_id
+                  - verification_session
                 properties:
                   status:
                     type: string
-                  verification_session_id:
+                  verification_session:
                     type: string
         "400":
           $ref: "#/components/responses/BadRequest"
@@ -572,6 +581,31 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
+    post:
+      tags:
+        - Agents
+      summary: Update a user-owned agent
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserAgentRequest"
+      responses:
+        "200":
+          description: User-owned agent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserAgent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /agents/{agent_id}/handle:
     get:
       tags:
@@ -655,7 +689,7 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
-  /agents/{agent_id}/credential/refresh:
+  /agents/{agent_id}/refresh_credential:
     post:
       tags:
         - Agents
@@ -948,7 +982,7 @@ paths:
                 $ref: "#/components/schemas/Profile"
         "401":
           $ref: "#/components/responses/AuthError"
-    patch:
+    post:
       tags:
         - Profiles
       summary: Update editable profile fields
@@ -994,9 +1028,9 @@ paths:
             schema:
               type: object
               required:
-                - xmtp_inbox_id
+                - xmtp_inbox
               properties:
-                xmtp_inbox_id:
+                xmtp_inbox:
                   type: string
                   nullable: true
                   description: Current XMTP inbox ID for this browser-local chat identity, or null to clear a stale value.
@@ -1011,7 +1045,7 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/AuthError"
-  /profiles/me/global-handle/rename:
+  /profiles/me/rename_global_handle:
     post:
       tags:
         - Profiles
@@ -1042,7 +1076,7 @@ paths:
           $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/RateLimited"
-  /profiles/me/global-handle/upgrade-quote:
+  /profiles/me/quote_handle_upgrade:
     post:
       tags:
         - Profiles
@@ -1071,7 +1105,7 @@ paths:
           $ref: "#/components/responses/EligibilityFailed"
         "429":
           $ref: "#/components/responses/RateLimited"
-  /profiles/me/linked-handles/sync:
+  /profiles/me/sync_linked_handles:
     post:
       tags:
         - Profiles
@@ -1085,7 +1119,7 @@ paths:
                 $ref: "#/components/schemas/Profile"
         "401":
           $ref: "#/components/responses/AuthError"
-  /profiles/me/primary-public-handle:
+  /profiles/me/set_primary_public_handle:
     post:
       tags:
         - Profiles
@@ -1097,7 +1131,7 @@ paths:
             schema:
               type: object
               properties:
-                linked_handle_id:
+                linked_handle:
                   type: string
                   nullable: true
       responses:
@@ -1177,7 +1211,7 @@ paths:
       description: |
         Creates a community once all create-time prerequisites are already satisfied.
 
-        When `namespace` is provided, the server must consume the accepted namespace-verification resource referenced by `namespace.namespace_verification_id`, not just the raw identifier string. Before writing any community state, the server must re-check:
+        When `namespace` is provided, the server must consume the accepted namespace-verification resource referenced by `namespace.namespace_verification`, not just the raw identifier string. Before writing any community state, the server must re-check:
 
         - the accepted namespace verification exists
         - it belongs to the requesting creator
@@ -1261,7 +1295,7 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
-    patch:
+    post:
       tags:
         - Communities
       summary: Configure or update the money policy for a community
@@ -1312,7 +1346,7 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
-    patch:
+    post:
       tags:
         - Communities
       summary: Configure or update the pricing policy for a community
@@ -1407,7 +1441,7 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
-    patch:
+    post:
       tags:
         - Communities
       summary: Update a community listing
@@ -1562,7 +1596,7 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
-  /communities/{community_id}/purchase-settlements/fail:
+  /communities/{community_id}/fail_purchase_settlement:
     post:
       tags:
         - Communities
@@ -1695,7 +1729,7 @@ paths:
         "409":
           $ref: "#/components/responses/Conflict"
   /communities/{community_id}/follow:
-    put:
+    post:
       tags:
         - Communities
       summary: Follow a community
@@ -1712,7 +1746,8 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
-    delete:
+  /communities/{community_id}/unfollow:
+    post:
       tags:
         - Communities
       summary: Unfollow a community
@@ -1872,7 +1907,7 @@ paths:
                   title: Harbor Lights
                   song_mode: original
                   rights_basis: original
-                  song_artifact_bundle_id: sab_01HSONGBUNDLE001
+                  song_artifact_bundle: sab_01HSONGBUNDLE001
               song_inline_remix:
                 summary: Inline remix song post with audio, lyrics, and upstream attribution
                 value:
@@ -2259,117 +2294,15 @@ paths:
         - $ref: "#/components/parameters/SongArtifactBundleId"
       responses:
         "200":
-          "401":
-            $ref: "#/components/responses/AuthError"
-          "404":
-            $ref: "#/components/responses/NotFound"
           description: Song artifact bundle
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/SongArtifactBundle"
-    communities_by_community_id_provenance_policy:
-      get:
-        tags:
-          - Communities
-        summary: Get the active provenance policy for a community
-        description: |
-          Returns the resolved effective provenance policy. When the community has not explicitly configured a provenance policy yet, the server must return the restrictive default policy with `policy_origin = default`.
-        parameters:
-          - $ref: "#/components/parameters/CommunityId"
-        responses:
-          "200":
-            description: Community provenance policy
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/CommunityProvenancePolicy"
-          "401":
-            $ref: "#/components/responses/AuthError"
-          "404":
-            $ref: "#/components/responses/NotFound"
-      patch:
-        tags:
-          - Communities
-        summary: Configure or update the provenance policy for a community
-        description: |
-          Stores an explicit community provenance policy for creator-relation claims and false-claim-of-ownership enforcement. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
-        parameters:
-          - $ref: "#/components/parameters/CommunityId"
-        requestBody:
-          required: true
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UpdateCommunityProvenancePolicyRequest"
-        responses:
-          "200":
-            description: Community provenance policy updated
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/CommunityProvenancePolicy"
-          "401":
-            $ref: "#/components/responses/AuthError"
-          "403":
-            $ref: "#/components/responses/EligibilityFailed"
-          "404":
-            $ref: "#/components/responses/NotFound"
-          "409":
-            $ref: "#/components/responses/Conflict"
-          "429":
-            $ref: "#/components/responses/RateLimited"
-    communities_by_community_id_promotion_policy:
-      get:
-        tags:
-          - Communities
-        summary: Get the active promotion policy for a community
-        description: |
-          Returns the resolved effective promotion policy. When the community has not explicitly configured a promotion policy yet, the server must return the default policy with `policy_origin = default`.
-        parameters:
-          - $ref: "#/components/parameters/CommunityId"
-        responses:
-          "200":
-            description: Community promotion policy
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/CommunityPromotionPolicy"
-          "401":
-            $ref: "#/components/responses/AuthError"
-          "404":
-            $ref: "#/components/responses/NotFound"
-      patch:
-        tags:
-          - Communities
-        summary: Configure or update the promotion policy for a community
-        description: |
-          Stores an explicit community promotion policy for self-promotion, affiliation disclosure, and participation-ratio enforcement. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
-        parameters:
-          - $ref: "#/components/parameters/CommunityId"
-        requestBody:
-          required: true
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UpdateCommunityPromotionPolicyRequest"
-        responses:
-          "200":
-            description: Community promotion policy updated
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/CommunityPromotionPolicy"
-          "401":
-            $ref: "#/components/responses/AuthError"
-          "403":
-            $ref: "#/components/responses/EligibilityFailed"
-          "404":
-            $ref: "#/components/responses/NotFound"
-          "409":
-            $ref: "#/components/responses/Conflict"
-          "429":
-            $ref: "#/components/responses/RateLimited"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /posts/{post_id}:
     get:
       tags:
@@ -2431,8 +2364,8 @@ paths:
           $ref: "#/components/responses/VerificationRequired"
         "429":
           $ref: "#/components/responses/RateLimited"
-  /comments/{comment_id}:
-    delete:
+  /comments/{comment_id}/remove:
+    post:
       tags:
         - Comments
       summary: Tombstone a comment
@@ -2983,25 +2916,31 @@ components:
         such as `date_of_birth`, `age_at_verification`, provider nullifiers, and
         `verification_session_id`, are intentionally omitted from this schema in v0.
       required:
-        - user_id
+        - id
+        - object
         - verification_state
         - verification_capabilities
-        - created_at
-        - updated_at
+        - created
       properties:
-        user_id:
+        id:
           type: string
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - user
         community_posting_state:
           type: object
           nullable: true
           properties:
             community_ref:
               type: string
-            community_id:
+            community:
               type: string
             has_created_text_post:
               type: boolean
-        primary_wallet_attachment_id:
+        primary_wallet_attachment:
           type: string
           nullable: true
         verification_state:
@@ -3022,15 +2961,12 @@ components:
         verification_capabilities:
           $ref: "#/components/schemas/VerificationCapabilities"
         verified_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     VerificationCapabilities:
       type: object
       required:
@@ -3158,8 +3094,8 @@ components:
           type: string
           nullable: true
         verified_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
     VerifiedCapabilityState:
       type: object
@@ -3194,8 +3130,8 @@ components:
           type: string
           nullable: true
         verified_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
     SanctionsClearCapabilityState:
       type: object
@@ -3230,8 +3166,8 @@ components:
             - CleanHands
           nullable: true
         verified_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
     WalletScoreCapabilityState:
       type: object
@@ -3260,25 +3196,25 @@ components:
             - stamps-api-v2
           nullable: true
         verified_at:
+          type: integer
+          format: int64
+          nullable: true
+        score_decimal:
           type: string
-          format: date-time
+          pattern: ^\d+(\.\d+)?$
           nullable: true
-        score:
-          type: number
-          nullable: true
-        score_threshold:
-          type: number
+        score_threshold_decimal:
+          type: string
+          pattern: ^\d+(\.\d+)?$
           nullable: true
         passing_score:
           type: boolean
           nullable: true
-        last_score_timestamp:
-          type: string
-          format: date-time
+        last_scored_at:
+          type: integer
           nullable: true
-        expiration_timestamp:
-          type: string
-          format: date-time
+        expires_at:
+          type: integer
           nullable: true
         stamps:
           type: array
@@ -3288,8 +3224,9 @@ components:
             properties:
               stamp_name:
                 type: string
-              stamp_score:
-                type: number
+              stamp_score_decimal:
+                type: string
+                pattern: ^\d+(\.\d+)?$
     StartVerificationSessionRequest:
       type: object
       required:
@@ -3343,7 +3280,7 @@ components:
             Additional typed verifier constraints for the requested capability set. Public v0 uses this
             to request a Self-backed `minimum_age` proof such as 21+ without encoding provider-specific
             verifier configuration in the client.
-        wallet_attachment_id:
+        wallet_attachment:
           type: string
           nullable: true
         verification_intent:
@@ -3352,7 +3289,7 @@ components:
           description: |
             Product-flow identifier such as `profile_verification`, `community_creation`,
             `commerce_pricing`, or `qualifier_disclosure`.
-        policy_id:
+        policy:
           type: string
           nullable: true
           description: |
@@ -3366,7 +3303,7 @@ components:
         Fields are optional because some providers complete asynchronously while others return proof
         material to the frontend first.
       properties:
-        attestation_id:
+        attestation:
           type: string
           nullable: true
         proof:
@@ -3407,7 +3344,7 @@ components:
         event_type:
           type: string
           nullable: true
-        attestation_id:
+        attestation:
           type: string
           nullable: true
         proof_hash:
@@ -3589,8 +3526,8 @@ components:
           nullable: true
           description: Provider field used to carry the binding value.
         challenge_expires_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
     VerificationSessionLaunch:
       type: object
       required:
@@ -3668,7 +3605,7 @@ components:
       type: object
       additionalProperties: false
       required:
-        - device_id
+        - device
         - public_key
         - message
         - signature
@@ -3680,7 +3617,7 @@ components:
         verifies a fresh Ed25519 signature over the raw UTF-8 `message` bytes and rejects stale or
         future-skewed challenges outside the server freshness window.
       properties:
-        device_id:
+        device:
           type: string
           description: Stable device or agent identifier used by the ownership provider.
         public_key:
@@ -3720,8 +3657,8 @@ components:
         nonce:
           type: string
         signed_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
         canonical_request_hash:
           type: string
           description: |
@@ -3748,16 +3685,16 @@ components:
       type: object
       additionalProperties: false
       required:
-        - session_id
+        - session
         - registration_url
       properties:
-        session_id:
+        session:
           type: string
         registration_url:
           type: string
         expires_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
     AgentOwnershipSessionLaunch:
       type: object
@@ -3795,7 +3732,7 @@ components:
           $ref: "#/components/schemas/AgentOwnershipSessionKind"
         ownership_provider:
           $ref: "#/components/schemas/AgentOwnershipProvider"
-        agent_id:
+        agent:
           type: string
           nullable: true
         display_name:
@@ -3804,7 +3741,7 @@ components:
           description: |
             Optional requested display name for `register`. Servers may ignore this field for
             `refresh` and `deregister` unless the provider flow requires name continuity or review.
-        policy_id:
+        policy:
           type: string
           nullable: true
           description: |
@@ -3817,7 +3754,7 @@ components:
       type: object
       additionalProperties: false
       properties:
-        attestation_id:
+        attestation:
           type: string
           nullable: true
         proof_hash:
@@ -3842,7 +3779,7 @@ components:
         event_type:
           type: string
           nullable: true
-        attestation_id:
+        attestation:
           type: string
           nullable: true
         proof_hash:
@@ -3856,26 +3793,32 @@ components:
       type: object
       additionalProperties: false
       required:
-        - agent_ownership_record_id
-        - agent_id
-        - owner_user_id
+        - id
+        - object
+        - agent
+        - owner_user
         - ownership_provider
         - ownership_state
-        - created_at
-        - updated_at
+        - created
       properties:
-        agent_ownership_record_id:
+        id:
           type: string
-        agent_id:
+          readOnly: true
+        object:
           type: string
-        owner_user_id:
+          readOnly: true
+          enum:
+            - agent_ownership_record
+        agent:
+          type: string
+        owner_user:
           type: string
         ownership_provider:
           $ref: "#/components/schemas/AgentOwnershipProvider"
-        provider_subject_id:
+        provider_subject:
           type: string
           nullable: true
-        device_id:
+        device:
           type: string
           nullable: true
         public_key:
@@ -3883,33 +3826,30 @@ components:
           nullable: true
         ownership_state:
           $ref: "#/components/schemas/AgentOwnershipState"
-        source_session_id:
+        source_session:
           type: string
           nullable: true
           description: |
             Internal audit anchor for the ownership session that created or last transitioned this
             record. This may be null on legacy or backfilled records.
         verified_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         expires_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         ended_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         evidence_ref:
           type: string
           nullable: true
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     AgentOwnershipSession:
       type: object
       additionalProperties: false
@@ -3917,27 +3857,33 @@ components:
         KYA ownership session state tracked by Pirate while a provider-backed registration, refresh,
         transfer, or deregistration flow is in progress or has recently completed.
       required:
-        - agent_ownership_session_id
+        - id
+        - object
         - session_kind
         - ownership_provider
         - status
         - launch
-        - created_at
+        - created
         - expires_at
-        - updated_at
       properties:
-        agent_ownership_session_id:
+        id:
           type: string
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - agent_ownership_session
         session_kind:
           $ref: "#/components/schemas/AgentOwnershipSessionKind"
-        owner_user_id:
+        owner_user:
           type: string
           nullable: true
           description: |
             May be null while Pirate is still resolving the human owner, such as agent-initiated
             starts or transfer handoff flows. A session must not transition to `verified` until the
             effective owner is known.
-        agent_id:
+        agent:
           type: string
           nullable: true
         ownership_provider:
@@ -3958,18 +3904,15 @@ components:
             Public callback endpoint for provider delivery when the selected provider uses asynchronous
             completion. Runtime callers must still authenticate the provider separately from transport-
             level auth, and duplicate callback deliveries must be idempotent.
-        resolved_agent_ownership_record_id:
+        resolved_agent_ownership_record:
           type: string
           nullable: true
-        created_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
         expires_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
     AgentDelegatedCredentialIssueRequest:
       type: object
       additionalProperties: false
@@ -3980,7 +3923,7 @@ components:
         ordinary Pirate bearer token while validating KYA enforcement, but that does not count as this
         public delegated credential contract.
       properties:
-        current_ownership_record_id:
+        current_ownership_record:
           type: string
           nullable: true
           description: |
@@ -4003,9 +3946,9 @@ components:
       type: object
       additionalProperties: false
       required:
-        - agent_id
-        - owner_user_id
-        - current_ownership_record_id
+        - agent
+        - owner_user
+        - current_ownership_record
         - token_type
         - access_token
         - refresh_token
@@ -4016,11 +3959,11 @@ components:
         agent. Public v0 should prefer opaque bearer tokens over long-lived self-contained JWTs so
         refresh denial remains the primary revocation chokepoint.
       properties:
-        agent_id:
+        agent:
           type: string
-        owner_user_id:
+        owner_user:
           type: string
-        current_ownership_record_id:
+        current_ownership_record:
           type: string
           description: |
             Ownership interval the credential was issued against. Historical writes still carry their
@@ -4034,14 +3977,14 @@ components:
         refresh_token:
           type: string
         issued_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
         expires_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
         refresh_expires_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
     UserReportReasonCode:
       type: string
@@ -4064,26 +4007,33 @@ components:
     ModerationSignal:
       type: object
       required:
-        - moderation_signal_id
-        - community_id
-        - post_id
-        - comment_id
+        - id
+        - object
+        - community
+        - post
+        - comment
         - analysis_result_ref
         - source
         - signal_type
         - severity
         - provider
         - provider_label
-        - created_at
+        - created
       properties:
-        moderation_signal_id:
+        id:
           type: string
-        community_id:
+          readOnly: true
+        object:
           type: string
-        post_id:
+          readOnly: true
+          enum:
+            - moderation_signal
+        community:
+          type: string
+        post:
           type: string
           nullable: true
-        comment_id:
+        comment:
           type: string
           nullable: true
         analysis_result_ref:
@@ -4104,96 +4054,116 @@ components:
         evidence_ref:
           type: string
           nullable: true
-        created_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     UserReport:
       type: object
       required:
-        - user_report_id
-        - community_id
-        - post_id
-        - comment_id
-        - reporter_user_id
+        - id
+        - object
+        - community
+        - post
+        - comment
+        - reporter_user
         - reason_code
-        - created_at
+        - created
       properties:
-        user_report_id:
+        id:
           type: string
-        community_id:
+          readOnly: true
+        object:
           type: string
-        post_id:
+          readOnly: true
+          enum:
+            - user_report
+        community:
+          type: string
+        post:
           type: string
           nullable: true
-        comment_id:
+        comment:
           type: string
           nullable: true
-        reporter_user_id:
+        reporter_user:
           type: string
         reason_code:
           $ref: "#/components/schemas/UserReportReasonCode"
         note:
           type: string
           nullable: true
-        created_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     ModerationAction:
       type: object
       required:
-        - moderation_action_id
-        - moderation_case_id
-        - community_id
-        - post_id
-        - comment_id
-        - actor_user_id
+        - id
+        - object
+        - moderation_case
+        - community
+        - post
+        - comment
+        - actor_user
         - action_type
-        - created_at
+        - created
       properties:
-        moderation_action_id:
+        id:
           type: string
-        moderation_case_id:
+          readOnly: true
+        object:
           type: string
-        community_id:
+          readOnly: true
+          enum:
+            - moderation_action
+        moderation_case:
           type: string
-        post_id:
+        community:
+          type: string
+        post:
           type: string
           nullable: true
-        comment_id:
+        comment:
           type: string
           nullable: true
-        actor_user_id:
+        actor_user:
           type: string
         action_type:
           $ref: "#/components/schemas/ModerationActionType"
         note:
           type: string
           nullable: true
-        created_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     ModerationCase:
       type: object
       required:
-        - moderation_case_id
-        - community_id
-        - post_id
-        - comment_id
+        - id
+        - object
+        - community
+        - post
+        - comment
         - status
         - queue_scope
         - priority
         - opened_by
-        - created_at
-        - updated_at
+        - created
       properties:
-        moderation_case_id:
+        id:
           type: string
-        community_id:
+          readOnly: true
+        object:
           type: string
-        post_id:
+          readOnly: true
+          enum:
+            - moderation_case
+        community:
+          type: string
+        post:
           type: string
           nullable: true
-        comment_id:
+        comment:
           type: string
           nullable: true
         status:
@@ -4204,15 +4174,12 @@ components:
           $ref: "#/components/schemas/ModerationSignalSeverity"
         opened_by:
           $ref: "#/components/schemas/ModerationCaseOpenedBy"
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
         resolved_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
     ModerationCaseDetail:
       type: object
@@ -4248,11 +4215,15 @@ components:
       type: object
       required:
         - items
+        - next_cursor
       properties:
         items:
           type: array
           items:
             $ref: "#/components/schemas/ModerationCase"
+        next_cursor:
+          type: string
+          nullable: true
     CreateUserReportRequest:
       type: object
       additionalProperties: false
@@ -4282,16 +4253,22 @@ components:
         User-owned agent read model. An agent becomes operational only when it has an active verified
         ownership interval; provisional `pending` rows, if they exist at all, are non-authorizing.
       required:
-        - agent_id
-        - owner_user_id
+        - id
+        - object
+        - owner_user
         - display_name
         - status
-        - created_at
-        - updated_at
+        - created
       properties:
-        agent_id:
+        id:
           type: string
-        owner_user_id:
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - user_agent
+        owner_user:
           type: string
         display_name:
           type: string
@@ -4300,7 +4277,7 @@ components:
           nullable: true
         status:
           $ref: "#/components/schemas/UserAgentStatus"
-        current_ownership_record_id:
+        current_ownership_record:
           type: string
           nullable: true
           description: |
@@ -4308,41 +4285,48 @@ components:
         current_ownership:
           $ref: "#/components/schemas/AgentOwnershipRecord"
           nullable: true
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     UserAgentListResponse:
       type: object
       additionalProperties: false
       required:
         - items
+        - next_cursor
       properties:
         items:
           type: array
           items:
             $ref: "#/components/schemas/UserAgent"
+        next_cursor:
+          type: string
+          nullable: true
     AgentHandle:
       type: object
       additionalProperties: false
       required:
-        - agent_handle_id
-        - agent_id
+        - id
+        - object
+        - agent
         - label_normalized
         - label_display
         - status
         - issued_at
-        - created_at
-        - updated_at
+        - created
       description: |
         Canonical platform-issued handle for a user-owned agent under the managed `.clawitzer` root.
         A user-owned agent may have one active handle. Replaced labels may remain as redirects.
       properties:
-        agent_handle_id:
+        id:
           type: string
-        agent_id:
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - agent_handle
+        agent:
           type: string
         label_normalized:
           type: string
@@ -4352,22 +4336,19 @@ components:
           description: Display handle including the `.clawitzer` suffix.
         status:
           $ref: "#/components/schemas/AgentHandleStatus"
-        redirect_target_agent_handle_id:
+        redirect_target_agent_handle:
           type: string
           nullable: true
         issued_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
         replaced_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     UpdateAgentHandleRequest:
       type: object
       additionalProperties: false
@@ -4406,12 +4387,11 @@ components:
           type: object
           additionalProperties: false
           required:
-            - agent_id
+            - agent
             - handle
-            - created_at
-            - updated_at
+            - created
           properties:
-            agent_id:
+            agent:
               type: string
             display_name:
               type: string
@@ -4421,21 +4401,18 @@ components:
             ownership_provider:
               $ref: "#/components/schemas/AgentOwnershipProvider"
               nullable: true
-            created_at:
-              type: string
-              format: date-time
-            updated_at:
-              type: string
-              format: date-time
+            created:
+              type: integer
+              format: int64
         owner:
           type: object
           additionalProperties: false
           required:
-            - user_id
+            - user
             - global_handle
             - primary_public_handle
           properties:
-            user_id:
+            user:
               type: string
             display_name:
               type: string
@@ -4448,13 +4425,19 @@ components:
     Profile:
       type: object
       required:
-        - user_id
+        - id
+        - object
         - global_handle
-        - created_at
-        - updated_at
+        - created
       properties:
-        user_id:
+        id:
           type: string
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - profile
         display_name:
           type: string
           nullable: true
@@ -4510,7 +4493,7 @@ components:
           type: string
           nullable: true
           description: Public primary wallet address when Pirate product policy exposes wallet-linked identity on profile.
-        xmtp_inbox_id:
+        xmtp_inbox:
           type: string
           nullable: true
           description: Optional published XMTP inbox ID for direct profile messaging. This is populated only after the user opts in to encrypted chat identity publication.
@@ -4521,24 +4504,28 @@ components:
           description: Public normalized trust projection shown on profile when Pirate enables public trust fields.
         global_handle:
           $ref: "#/components/schemas/GlobalHandle"
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     GlobalHandle:
       type: object
       required:
-        - global_handle_id
+        - id
+        - object
         - label
         - tier
         - status
         - issuance_source
         - issued_at
       properties:
-        global_handle_id:
+        id:
           type: string
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - global_handle
         label:
           type: string
         tier:
@@ -4561,27 +4548,28 @@ components:
             - reddit_verified_claim
             - paid_upgrade
             - admin_grant
-        redirect_target_global_handle_id:
+        redirect_target_global_handle:
           type: string
           nullable: true
-        price_paid_usd:
-          type: number
+        price_paid_cents:
+          type: integer
+          minimum: 0
           nullable: true
         free_rename_consumed:
           type: boolean
         issued_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
         replaced_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
     HandleUpgradeQuote:
       type: object
       required:
         - desired_label
         - tier
-        - price_usd
+        - price_cents
         - eligible
       properties:
         desired_label:
@@ -4591,8 +4579,9 @@ components:
           enum:
             - standard
             - premium
-        price_usd:
-          type: number
+        price_cents:
+          type: integer
+          minimum: 0
         eligible:
           type: boolean
         reason:
@@ -4601,17 +4590,24 @@ components:
     VerificationSession:
       type: object
       required:
-        - verification_session_id
-        - user_id
+        - id
+        - object
+        - user
         - provider
         - requested_capabilities
         - status
-        - created_at
+        - created
         - expires_at
       properties:
-        verification_session_id:
+        id:
           type: string
-        user_id:
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - verification_session
+        user:
           type: string
         provider:
           type: string
@@ -4627,7 +4623,7 @@ components:
             - qr_deeplink
             - widget
           nullable: true
-        wallet_attachment_id:
+        wallet_attachment:
           type: string
           nullable: true
         requested_capabilities:
@@ -4641,7 +4637,7 @@ components:
         verification_intent:
           $ref: "#/components/schemas/VerificationIntent"
           nullable: true
-        policy_id:
+        policy:
           type: string
           nullable: true
         status:
@@ -4664,7 +4660,7 @@ components:
         age_at_verification:
           type: integer
           nullable: true
-        attestation_id:
+        attestation:
           type: string
           nullable: true
         proof_hash:
@@ -4674,18 +4670,18 @@ components:
           type: string
           nullable: true
         verified_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         failure_reason:
           type: string
           nullable: true
-        created_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
         expires_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
     StartNamespaceVerificationSessionRequest:
       type: object
       required:
@@ -4767,22 +4763,29 @@ components:
     NamespaceVerificationSession:
       type: object
       required:
-        - namespace_verification_session_id
-        - user_id
+        - id
+        - object
+        - user
         - family
         - submitted_root_label
         - status
-        - created_at
+        - created
         - expires_at
       properties:
-        namespace_verification_session_id:
+        id:
           type: string
-        namespace_verification_id:
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - namespace_verification_session
+        namespace_verification:
           type: string
           nullable: true
           description: |
             Populated only when the session reaches `verified` and Pirate has issued an accepted verification reference.
-        user_id:
+        user:
           type: string
         family:
           type: string
@@ -4839,8 +4842,8 @@ components:
             Example HNS payload fields may include `host` and `txt_value`.
             Example Spaces payload fields may include `message`, `digest`, and signer metadata.
         challenge_expires_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
           description: Expiration time for the currently issued challenge, distinct from the overall namespace verification session expiry.
         setup_nameservers:
@@ -4886,23 +4889,21 @@ components:
           type: string
           nullable: true
         accepted_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
         expires_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
     NamespaceVerification:
       type: object
       required:
-        - namespace_verification_id
-        - user_id
+        - id
+        - object
+        - user
         - family
         - normalized_root_label
         - status
@@ -4910,12 +4911,17 @@ components:
         - capabilities
         - accepted_at
         - expires_at
-        - created_at
-        - updated_at
+        - created
       properties:
-        namespace_verification_id:
+        id:
           type: string
-        user_id:
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - namespace_verification
+        user:
           type: string
         family:
           type: string
@@ -4958,17 +4964,14 @@ components:
           type: string
           nullable: true
         accepted_at:
-          type: string
-          format: date-time
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
+        created:
+          type: integer
+          format: int64
         expires_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
     RedditVerification:
       type: object
       required:
@@ -4997,8 +5000,8 @@ components:
             - bio
             - about
         last_checked_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         failure_code:
           type: string
@@ -5021,8 +5024,8 @@ components:
         reddit_username:
           type: string
         imported_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
         account_age_days:
           type: integer
           nullable: true
@@ -5069,11 +5072,11 @@ components:
           items:
             type: object
             required:
-              - community_id
+              - community
               - name
               - reason
             properties:
-              community_id:
+              community:
                 type: string
               name:
                 type: string
@@ -5099,8 +5102,8 @@ components:
         cleanup_rename_available:
           type: boolean
         onboarding_dismissed_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         unique_human_verification_status:
           type: string
@@ -5148,12 +5151,12 @@ components:
     WalletAttachmentSummary:
       type: object
       required:
-        - wallet_attachment_id
+        - wallet_attachment
         - chain_namespace
         - wallet_address
         - is_primary
       properties:
-        wallet_attachment_id:
+        wallet_attachment:
           type: string
         chain_namespace:
           type: string
@@ -5194,7 +5197,7 @@ components:
         banner_ref:
           type: string
           nullable: true
-        artist_identity_id:
+        artist_identity:
           type: string
           nullable: true
         membership_mode:
@@ -5275,6 +5278,9 @@ components:
           default: none
           description: |
             Community-wide default viewer age gate. Setting this to `18_plus` requires the acting creator or updating owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
+        gate_policy:
+          $ref: "#/components/schemas/GatePolicy"
+          nullable: true
         agent_posting_policy:
           type: string
           enum:
@@ -5353,9 +5359,9 @@ components:
           type: object
           nullable: true
           required:
-            - namespace_verification_id
+            - namespace_verification
           properties:
-            namespace_verification_id:
+            namespace_verification:
               type: string
               description: Opaque server-issued identifier for the accepted namespace verification consumed at create time.
         handle_policy:
@@ -5539,18 +5545,24 @@ components:
     GateRule:
       type: object
       required:
-        - gate_rule_id
-        - community_id
+        - id
+        - object
+        - community
         - scope
         - gate_family
         - gate_type
         - status
-        - created_at
-        - updated_at
+        - created
       properties:
-        gate_rule_id:
+        id:
           type: string
-        community_id:
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - gate_rule
+        community:
           type: string
         scope:
           type: string
@@ -5602,12 +5614,9 @@ components:
           enum:
             - active
             - disabled
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     ProofRequirement:
       type: object
       required:
@@ -5626,6 +5635,8 @@ components:
           - self
         wallet_score:
           - passport
+        sanctions_clear:
+          - passport
       x-unvalidated-proof-types:
         - biometric_liveness
         - gov_id
@@ -5637,6 +5648,7 @@ components:
             - unique_human
             - biometric_liveness
             - wallet_score
+            - sanctions_clear
             - gov_id
             - age_over_18
             - minimum_age
@@ -5839,6 +5851,9 @@ components:
             - 18_plus
           description: |
             Community-wide default viewer age gate. Updating this field from `none` to `18_plus` requires the acting owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
+        gate_policy:
+          $ref: "#/components/schemas/GatePolicy"
+          nullable: true
         agent_posting_policy:
           type: string
           enum:
@@ -6047,7 +6062,8 @@ components:
       description: |
         Resolved community funding policy for commerce. This policy controls allowed buyer funding lanes and route constraints. It does not redefine the community object as a chain object, and it does not imply that the funding asset itself performs settlement or locked-asset unlocks. When no explicit money policy has been configured, the server must still return the effective default policy with `policy_origin = default`.
       required:
-        - community_id
+        - id
+        - object
         - policy_origin
         - funding_preference
         - accepted_funding_assets
@@ -6059,10 +6075,15 @@ components:
         - route_required
         - route_status_policy
         - route_hop_tolerance
-        - updated_at
       properties:
-        community_id:
+        id:
           type: string
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - community_money_policy
         policy_origin:
           $ref: "#/components/schemas/CommunityPolicyOrigin"
         funding_preference:
@@ -6100,9 +6121,6 @@ components:
         route_hop_tolerance:
           type: integer
           minimum: 0
-        updated_at:
-          type: string
-          format: date-time
     CommunityPurchaseFundingMode:
       type: string
       enum:
@@ -6122,7 +6140,7 @@ components:
         - client_estimated_hop_count
       additionalProperties: false
       properties:
-        listing_id:
+        listing:
           type: string
           nullable: true
         funding_asset:
@@ -6149,7 +6167,7 @@ components:
       description: |
         Effective community purchase quote preflight snapshot. A successful response means the requested funding lane satisfies the community's current money policy. The response surfaces the required settlement lane and policy-derived quote expiry, but does not include listing pricing or a reserved route.
       required:
-        - community_id
+        - community
         - eligible
         - funding_mode
         - policy_origin
@@ -6165,7 +6183,7 @@ components:
         - expires_at
       additionalProperties: false
       properties:
-        community_id:
+        community:
           type: string
         eligible:
           type: boolean
@@ -6204,38 +6222,39 @@ components:
         route_hop_tolerance:
           type: integer
           minimum: 0
-        base_price_usd:
-          type: number
+        base_price_cents:
+          type: integer
           nullable: true
-        viewer_price_usd:
-          type: number
+        viewer_price_cents:
+          type: integer
           nullable: true
-        best_verified_price_usd:
-          type: number
+        best_verified_price_cents:
+          type: integer
           nullable: true
-        max_self_discount_percent:
-          type: number
+        max_self_discount_bps:
+          type: integer
+          minimum: 0
           nullable: true
         verification_required_provider:
           $ref: "#/components/schemas/CommunityPricingVerificationProvider"
           nullable: true
         quoted_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
         expires_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
     CommunityPurchaseQuoteRequest:
       type: object
       description: |
         Request a short-lived priced purchase quote for a persisted community listing. The server must load the listing by `listing_id`, verify it belongs to the community and is currently sellable, and derive the quote from the authoritative stored listing price rather than trusting a client-supplied amount. Route estimate fields are client-estimated in this implementation slice and must not be interpreted as server-verified route telemetry.
       required:
-        - listing_id
+        - listing
         - client_estimated_slippage_bps
         - client_estimated_hop_count
       additionalProperties: false
       properties:
-        listing_id:
+        listing:
           type: string
         funding_asset:
           $ref: "#/components/schemas/CommunityMoneyAssetRef"
@@ -6261,12 +6280,13 @@ components:
       description: |
         Short-lived purchase quote snapshot for a community commerce object. This response is priced in USD using the persisted authored listing price and the community's current money policy. It is a quote record, not a completed purchase or settlement. In this implementation slice, route-policy compliance is checked server-side, but live bridge/swap liquidity is not yet verified.
       required:
-        - quote_id
-        - community_id
-        - listing_id
-        - buyer_user_id
-        - base_price_usd
-        - final_price_usd
+        - id
+        - object
+        - community
+        - listing
+        - buyer_user
+        - base_price_cents
+        - final_price_cents
         - settlement_mode
         - allocation_snapshot
         - funding_mode
@@ -6282,28 +6302,34 @@ components:
         - expires_at
       additionalProperties: false
       properties:
-        quote_id:
+        id:
           type: string
-        community_id:
+          readOnly: true
+        object:
           type: string
-        listing_id:
+          readOnly: true
+          enum:
+            - community_purchase_quote
+        community:
           type: string
-        buyer_user_id:
+        listing:
           type: string
-        asset_id:
+        buyer_user:
+          type: string
+        asset:
           type: string
           nullable: true
-        live_room_id:
+        live_room:
           type: string
           nullable: true
-        base_price_usd:
-          type: number
+        base_price_cents:
+          type: integer
           minimum: 0
         pricing_tier:
           type: string
           nullable: true
-        final_price_usd:
-          type: number
+        final_price_cents:
+          type: integer
           minimum: 0
         settlement_mode:
           $ref: "#/components/schemas/CommunityPurchaseSettlementMode"
@@ -6369,11 +6395,11 @@ components:
           type: string
           nullable: true
         quoted_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
         expires_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
     CreateCentralizedCommunityRequest:
       allOf:
         - $ref: "#/components/schemas/CreateCommunityRequestBase"
@@ -6456,25 +6482,31 @@ components:
     GovernanceAction:
       type: object
       required:
-        - governance_action_id
-        - community_id
+        - id
+        - object
+        - community
         - action_kind
         - governance_mode
         - payload_hash
         - status
-        - created_at
-        - updated_at
+        - created
       properties:
-        governance_action_id:
+        id:
           type: string
-        community_id:
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - governance_action
+        community:
           type: string
         action_kind:
           type: string
           enum:
             - attach_governance
             - replace_governance
-        requested_by_user_id:
+        requested_by_user:
           type: string
           nullable: true
         governance_mode:
@@ -6482,7 +6514,7 @@ components:
           enum:
             - multisig
             - majeur
-        chain_id:
+        chain:
           type: integer
           nullable: true
         target_address:
@@ -6504,12 +6536,9 @@ components:
         execution_tx_hash:
           type: string
           nullable: true
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     UpdateCommunityGovernanceRequest:
       type: object
       additionalProperties: false
@@ -6522,10 +6551,10 @@ components:
       type: object
       additionalProperties: false
       required:
-        - community_id
+        - community
         - governance_backend
       properties:
-        community_id:
+        community:
           type: string
         governance_backend:
           $ref: "#/components/schemas/CommunityGovernanceBackend"
@@ -6565,11 +6594,11 @@ components:
     MultisigGovernanceAttachmentInput:
       type: object
       required:
-        - chain_id
+        - chain
         - contract_address
         - attachment_proof
       properties:
-        chain_id:
+        chain:
           type: integer
         contract_address:
           type: string
@@ -6597,7 +6626,7 @@ components:
       type: object
       required:
         - governance_mode
-        - governance_chain_id
+        - governance_chain
         - governance_contract_address
         - governance_verification_state
         - governance_metadata
@@ -6606,7 +6635,7 @@ components:
           type: string
           enum:
             - multisig
-        governance_chain_id:
+        governance_chain:
           type: integer
         governance_contract_address:
           type: string
@@ -6619,12 +6648,12 @@ components:
           type: string
           nullable: true
         governance_attached_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         governance_last_verified_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         governance_metadata:
           $ref: "#/components/schemas/MultisigGovernanceMetadata"
@@ -6652,20 +6681,20 @@ components:
     MajeurGovernanceCreateInput:
       type: object
       required:
-        - chain_id
+        - chain
         - summon
       properties:
-        chain_id:
+        chain:
           type: integer
         summon:
           $ref: "#/components/schemas/MajeurSafeSummonInput"
     MajeurGovernanceAttachInput:
       type: object
       required:
-        - chain_id
+        - chain
         - dao_address
       properties:
-        chain_id:
+        chain:
           type: integer
         dao_address:
           type: string
@@ -6770,7 +6799,7 @@ components:
       type: object
       required:
         - governance_mode
-        - governance_chain_id
+        - governance_chain
         - governance_contract_address
         - governance_verification_state
         - governance_metadata
@@ -6779,7 +6808,7 @@ components:
           type: string
           enum:
             - majeur
-        governance_chain_id:
+        governance_chain:
           type: integer
         governance_contract_address:
           type: string
@@ -6792,12 +6821,12 @@ components:
           type: string
           nullable: true
         governance_attached_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         governance_last_verified_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         governance_metadata:
           $ref: "#/components/schemas/MajeurGovernanceMetadata"
@@ -6859,25 +6888,25 @@ components:
     NamespaceAttachmentInput:
       type: object
       required:
-        - namespace_verification_id
+        - namespace_verification
       properties:
-        namespace_verification_id:
+        namespace_verification:
           type: string
           description: |
             Opaque server-issued identifier for the previously accepted namespace verification session. The server resolves this to the underlying root-control evidence and assertions at create time. Creation must be rejected if the referenced verification is stale, disputed, or does not satisfy `club_attach_allowed` for the relevant protocol family. This field is required for public v0 create. Label and route fields below are derived from the verification session and are used for display and routing, not as proof of root control.
         display_label:
           type: string
           description: |
-            Optional derived display label for the verified namespace root. Clients may omit this on create and let the server derive it from `namespace_verification_id`. If submitted, it must match the verified namespace session.
+            Optional derived display label for the verified namespace root. Clients may omit this on create and let the server derive it from `namespace_verification`. If submitted, it must match the verified namespace session.
         normalized_label:
           type: string
           description: |
-            Optional derived normalized root label. Clients may omit this on create and let the server derive it from `namespace_verification_id`. If submitted, it must match the verified namespace session.
+            Optional derived normalized root label. Clients may omit this on create and let the server derive it from `namespace_verification`. If submitted, it must match the verified namespace session.
         resolver_label:
           type: string
           nullable: true
           description: |
-            Optional derived resolver-facing label for routing or downstream namespace operations. Clients may omit this on create and let the server derive it from `namespace_verification_id`.
+            Optional derived resolver-facing label for routing or downstream namespace operations. Clients may omit this on create and let the server derive it from `namespace_verification`.
         route_family:
           type: string
           nullable: true
@@ -6913,7 +6942,8 @@ components:
     Community:
       type: object
       required:
-        - community_id
+        - id
+        - object
         - display_name
         - status
         - provisioning_state
@@ -6940,12 +6970,17 @@ components:
         - civility_policy
         - provenance_policy
         - promotion_policy
-        - created_by_user_id
-        - created_at
-        - updated_at
+        - created_by_user
+        - created
       properties:
-        community_id:
+        id:
           type: string
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - community
         display_name:
           type: string
         description:
@@ -6957,7 +6992,7 @@ components:
         banner_ref:
           type: string
           nullable: true
-        namespace_verification_id:
+        namespace_verification:
           type: string
           nullable: true
           description: |
@@ -6965,7 +7000,7 @@ components:
         route_slug:
           type: string
           nullable: true
-        pending_namespace_verification_session_id:
+        pending_namespace_verification_session:
           type: string
           nullable: true
         status:
@@ -6987,10 +7022,10 @@ components:
           description: |
             Community infrastructure lifecycle state. This is distinct from domain `status`.
             A community may be domain-active while infrastructure provisioning is still in progress.
-        artist_identity_id:
+        artist_identity:
           type: string
           nullable: true
-        community_agent_user_id:
+        community_agent_user:
           type: string
           nullable: true
           description: |
@@ -7075,6 +7110,9 @@ components:
             - 18_plus
           description: |
             Community-wide default viewer age gate.
+        gate_policy:
+          $ref: "#/components/schemas/GatePolicy"
+          nullable: true
         agent_posting_policy:
           type: string
           enum:
@@ -7151,9 +7189,6 @@ components:
             - unconfigured
             - active
             - paused
-        donation_partner_id:
-          type: string
-          nullable: true
         donation_partner:
           $ref: "#/components/schemas/DonationPartnerSummary"
           nullable: true
@@ -7251,8 +7286,8 @@ components:
           description: |
             Derived count used for community-stage progression and namespace-commerce unlocks. This count is platform-defined and should exclude members that do not satisfy the platform's qualification rules for economic unlocks.
         stage_entered_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
           description: |
             Timestamp when the community most recently entered its current derived `community_stage`.
@@ -7270,14 +7305,11 @@ components:
           items:
             $ref: "#/components/schemas/GateRule"
           nullable: true
-        created_by_user_id:
+        created_by_user:
           type: string
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     CreateLiveRoomRequest:
       type: object
       required:
@@ -7294,8 +7326,8 @@ components:
           type: string
           nullable: true
         event_start_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         access_mode:
           type: string
@@ -7313,7 +7345,7 @@ components:
           enum:
             - public
             - unlisted
-        guest_user_id:
+        guest_user:
           type: string
           nullable: true
         performer_allocations:
@@ -7327,13 +7359,13 @@ components:
         participant_capacity:
           type: integer
           nullable: true
-        listing_id:
+        listing:
           type: string
           nullable: true
-        replay_listing_id:
+        replay_listing:
           type: string
           nullable: true
-        anchor_post_id:
+        anchor_post:
           type: string
           nullable: true
         initial_setlist:
@@ -7362,7 +7394,7 @@ components:
         Setlist items should resolve against Pirate's canonical track catalog by default. `title_text` and `artist_text` are display snapshots populated from the selected canonical track when available, with manual text entry used only as fallback when canonical resolution is not yet available.
       anyOf:
         - required:
-            - declared_track_id
+            - declared_track
         - required:
             - title_text
       required:
@@ -7377,7 +7409,7 @@ components:
         artist_text:
           type: string
           nullable: true
-        declared_track_id:
+        declared_track:
           type: string
           nullable: true
         notes:
@@ -7388,11 +7420,11 @@ components:
       description: |
         Explicit performer-side revenue allocation for the room. In v0, solo rooms should provide one host allocation at 100, and duet rooms should provide two allocations whose shares sum to 100.
       required:
-        - user_id
+        - user
         - role
         - share_pct
       properties:
-        user_id:
+        user:
           type: string
         role:
           type: string
@@ -7406,10 +7438,11 @@ components:
     LiveRoom:
       type: object
       required:
-        - live_room_id
-        - community_id
-        - anchor_post_id
-        - host_user_id
+        - id
+        - object
+        - community
+        - anchor_post
+        - host_user
         - title
         - status
         - access_mode
@@ -7417,16 +7450,21 @@ components:
         - visibility
         - performer_allocations
         - replay_status
-        - created_at
-        - updated_at
+        - created
       properties:
-        live_room_id:
+        id:
           type: string
-        community_id:
+          readOnly: true
+        object:
           type: string
-        anchor_post_id:
+          readOnly: true
+          enum:
+            - live_room
+        community:
           type: string
-        host_user_id:
+        anchor_post:
+          type: string
+        host_user:
           type: string
         title:
           type: string
@@ -7456,37 +7494,37 @@ components:
           enum:
             - public
             - unlisted
-        guest_user_id:
+        guest_user:
           type: string
           nullable: true
         performer_allocations:
           type: array
           items:
             $ref: "#/components/schemas/LiveRoomPerformerAllocationInput"
-        listing_id:
+        listing:
           type: string
           nullable: true
-        replay_listing_id:
+        replay_listing:
           type: string
           nullable: true
         broadcast_ref:
           type: string
           nullable: true
         event_start_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         live_started_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         ended_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         canceled_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         cover_ref:
           type: string
@@ -7494,7 +7532,7 @@ components:
         participant_capacity:
           type: integer
           nullable: true
-        replay_asset_id:
+        replay_asset:
           type: string
           nullable: true
         replay_status:
@@ -7505,12 +7543,9 @@ components:
             - review_pending
             - published
             - failed
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     HostAttachRequest:
       type: object
       description: |
@@ -7540,7 +7575,7 @@ components:
     LiveRoomAttachSession:
       type: object
       required:
-        - live_room_id
+        - live_room
         - broadcast_ref
         - agora_channel
         - agora_role
@@ -7548,7 +7583,7 @@ components:
         - bridge_token
         - expires_at
       properties:
-        live_room_id:
+        live_room:
           type: string
         broadcast_ref:
           type: string
@@ -7567,17 +7602,17 @@ components:
           type: string
           nullable: true
         expires_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
     LiveRoomAccessView:
       type: object
       required:
-        - live_room_id
+        - live_room
         - access_mode
         - join_state
         - viewer_entitled
       properties:
-        live_room_id:
+        live_room:
           type: string
         access_mode:
           type: string
@@ -7594,10 +7629,10 @@ components:
             - not_live
             - ended
             - canceled
-        listing_id:
+        listing:
           type: string
           nullable: true
-        replay_listing_id:
+        replay_listing:
           type: string
           nullable: true
         viewer_entitled:
@@ -7613,16 +7648,16 @@ components:
     LiveRoomReplayView:
       type: object
       required:
-        - live_room_id
-        - anchor_post_id
+        - live_room
+        - anchor_post
         - replay_status
         - is_playable
         - is_purchasable
         - viewer_entitled
       properties:
-        live_room_id:
+        live_room:
           type: string
-        anchor_post_id:
+        anchor_post:
           type: string
         replay_status:
           type: string
@@ -7632,10 +7667,10 @@ components:
             - review_pending
             - published
             - failed
-        replay_asset_id:
+        replay_asset:
           type: string
           nullable: true
-        replay_listing_id:
+        replay_listing:
           type: string
           nullable: true
         is_playable:
@@ -7653,11 +7688,11 @@ components:
     LiveRoomReplayAccessView:
       type: object
       required:
-        - live_room_id
+        - live_room
         - replay_status
         - access_state
       properties:
-        live_room_id:
+        live_room:
           type: string
         replay_status:
           type: string
@@ -7676,10 +7711,10 @@ components:
             - allowed
             - purchase_required
             - failed
-        replay_asset_id:
+        replay_asset:
           type: string
           nullable: true
-        replay_listing_id:
+        replay_listing:
           type: string
           nullable: true
         reason:
@@ -7688,10 +7723,10 @@ components:
     MembershipResult:
       type: object
       required:
-        - community_id
+        - community
         - status
       properties:
-        community_id:
+        community:
           type: string
         status:
           type: string
@@ -7702,10 +7737,10 @@ components:
     CommunityFollowResponse:
       type: object
       required:
-        - community_id
+        - community
         - following
       properties:
-        community_id:
+        community:
           type: string
         following:
           type: boolean
@@ -7725,7 +7760,7 @@ components:
             - none
             - optional_creator_sidecar
             - fundraiser_default
-        donation_partner_id:
+        donation_partner:
           type: string
           nullable: true
     UpdateCommunityDonationPolicyRequest:
@@ -7741,7 +7776,7 @@ components:
             - none
             - optional_creator_sidecar
             - fundraiser_default
-        donation_partner_id:
+        donation_partner:
           type: string
           nullable: true
         donation_partner_status:
@@ -7756,13 +7791,13 @@ components:
       description: |
         Public/admin-safe summary of a reviewed donation partner. Full payout routing details remain internal to Pirate settlement systems in v0.
       required:
-        - donation_partner_id
+        - donation_partner
         - display_name
         - provider
         - review_status
         - status
       properties:
-        donation_partner_id:
+        donation_partner:
           type: string
         display_name:
           type: string
@@ -7793,12 +7828,19 @@ components:
       description: |
         Resolved donation policy attached to a community. This policy enables or disables listing-level creator donation sidecars for content sold inside the community.
       required:
-        - community_id
+        - id
+        - object
         - donation_policy_mode
         - donation_partner_status
       properties:
-        community_id:
+        id:
           type: string
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - community_donation_policy
         donation_policy_mode:
           type: string
           enum:
@@ -7810,15 +7852,9 @@ components:
             - unconfigured
             - active
             - paused
-        donation_partner_id:
-          type: string
-          nullable: true
         donation_partner:
           $ref: "#/components/schemas/DonationPartnerSummary"
           nullable: true
-        updated_at:
-          type: string
-          format: date-time
     CreateCommunityMarketContextPolicyInput:
       type: object
       description: |
@@ -7851,7 +7887,7 @@ components:
           allOf:
             - $ref: "#/components/schemas/CommunityMarketContextProviderSet"
           nullable: true
-        market_context_profile_id:
+        market_context_profile:
           type: string
           nullable: true
           description: |
@@ -7886,7 +7922,7 @@ components:
           allOf:
             - $ref: "#/components/schemas/CommunityMarketContextProviderSet"
           nullable: true
-        market_context_profile_id:
+        market_context_profile:
           type: string
           nullable: true
           description: |
@@ -7896,12 +7932,12 @@ components:
       description: |
         Public/admin-safe summary of a platform-approved market-context profile. Communities select from Pirate-managed provider sets rather than configuring raw provider hostnames, thresholds, or search logic directly.
       required:
-        - market_context_profile_id
+        - market_context_profile
         - profile_key
         - provider_keys
         - status
       properties:
-        market_context_profile_id:
+        market_context_profile:
           type: string
         profile_key:
           type: string
@@ -7918,17 +7954,23 @@ components:
       description: |
         Resolved community market-context policy. When no explicit policy has been configured, the server must still return the platform-default policy with `policy_origin = default`. In v1, communities do not configure a match-confidence threshold directly; Pirate applies one platform-managed minimum uniformly across communities.
       required:
-        - community_id
+        - id
+        - object
         - policy_origin
         - mode
         - enabled_post_types
         - max_markets_per_post
         - provider_set
         - resolved_profile
-        - updated_at
       properties:
-        community_id:
+        id:
           type: string
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - community_market_context_policy
         policy_origin:
           $ref: "#/components/schemas/CommunityPolicyOrigin"
         mode:
@@ -7949,9 +7991,6 @@ components:
           $ref: "#/components/schemas/CommunityMarketContextProviderSet"
         resolved_profile:
           $ref: "#/components/schemas/MarketContextProfileSummary"
-        updated_at:
-          type: string
-          format: date-time
     MarketContextSummary:
       type: object
       description: |
@@ -7995,15 +8034,15 @@ components:
           type: string
           nullable: true
         resolve_date:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         market_url:
           type: string
           format: uri
         snapshot_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
     HandleAvailability:
       type: object
       required:
@@ -8017,8 +8056,9 @@ components:
           type: boolean
         eligible:
           type: boolean
-        estimated_price_usd:
-          type: number
+        estimated_price_cents:
+          type: integer
+          minimum: 0
           nullable: true
         reason:
           type: string
@@ -8028,18 +8068,25 @@ components:
     CommunityHandle:
       type: object
       required:
-        - community_handle_id
-        - user_id
-        - namespace_id
+        - id
+        - object
+        - user
+        - namespace
         - label
         - status
         - issuance_source
       properties:
-        community_handle_id:
+        id:
           type: string
-        user_id:
+          readOnly: true
+        object:
           type: string
-        namespace_id:
+          readOnly: true
+          enum:
+            - community_handle
+        user:
+          type: string
+        namespace:
           type: string
         label:
           type: string
@@ -8058,12 +8105,12 @@ components:
             - auction
             - admin_grant
         lease_started_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         lease_expires_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
     SongAudioArtifactDescriptor:
       type: object
@@ -8212,22 +8259,28 @@ components:
     SongArtifactUpload:
       type: object
       required:
-        - song_artifact_upload_id
-        - community_id
-        - uploader_user_id
+        - id
+        - object
+        - community
+        - uploader_user
         - artifact_kind
         - status
         - storage_ref
         - mime_type
         - upload_url
-        - created_at
-        - updated_at
+        - created
       properties:
-        song_artifact_upload_id:
+        id:
           type: string
-        community_id:
+          readOnly: true
+        object:
           type: string
-        uploader_user_id:
+          readOnly: true
+          enum:
+            - song_artifact_upload
+        community:
+          type: string
+        uploader_user:
           type: string
         artifact_kind:
           type: string
@@ -8278,18 +8331,16 @@ components:
           nullable: true
         upload_url:
           type: string
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     SongArtifactBundle:
       type: object
       required:
-        - song_artifact_bundle_id
-        - community_id
-        - creator_user_id
+        - id
+        - object
+        - community
+        - creator_user
         - status
         - primary_audio
         - media_refs
@@ -8299,14 +8350,19 @@ components:
         - translation_status
         - alignment_status
         - moderation_status
-        - created_at
-        - updated_at
+        - created
       properties:
-        song_artifact_bundle_id:
+        id:
           type: string
-        community_id:
+          readOnly: true
+        object:
           type: string
-        creator_user_id:
+          readOnly: true
+          enum:
+            - song_artifact_bundle
+        community:
+          type: string
+        creator_user:
           type: string
         status:
           type: string
@@ -8409,12 +8465,9 @@ components:
           type: object
           nullable: true
           additionalProperties: true
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     CreatePostRequest:
       type: object
       description: |
@@ -8455,7 +8508,7 @@ components:
               - required:
                   - media_refs
               - required:
-                  - song_artifact_bundle_id
+                  - song_artifact_bundle
               - required:
                   - lyrics
         - description: Image posts require at least one image in `media_refs`.
@@ -8480,7 +8533,7 @@ components:
               - required:
                   - link_url
               - required:
-                  - song_artifact_bundle_id
+                  - song_artifact_bundle
               - required:
                   - lyrics
         - description: |
@@ -8525,7 +8578,7 @@ components:
               - required:
                   - link_url
               - required:
-                  - song_artifact_bundle_id
+                  - song_artifact_bundle
               - required:
                   - lyrics
         - description: Link posts require `link_url`.
@@ -8552,7 +8605,7 @@ components:
               - required:
                   - media_refs
               - required:
-                  - song_artifact_bundle_id
+                  - song_artifact_bundle
               - required:
                   - lyrics
         - description: |
@@ -8564,7 +8617,7 @@ components:
             - identity_mode
           anyOf:
             - required:
-                - song_artifact_bundle_id
+                - song_artifact_bundle
             - allOf:
                 - required:
                     - media_refs
@@ -8610,12 +8663,12 @@ components:
                   - link_url
               - allOf:
                   - required:
-                      - song_artifact_bundle_id
+                      - song_artifact_bundle
                   - required:
                       - media_refs
               - allOf:
                   - required:
-                      - song_artifact_bundle_id
+                      - song_artifact_bundle
                   - required:
                       - lyrics
       required:
@@ -8636,7 +8689,7 @@ components:
           default: human_direct
           description: |
             Audit field for distinguishing human-direct writes from user-owned agent writes.
-        agent_id:
+        agent:
           type: string
           nullable: true
           description: |
@@ -8671,10 +8724,10 @@ components:
           nullable: true
           description: |
             Platform-defined `qualifier_template_id` values chosen by the author for this post. In v0 these are only valid when `identity_mode = anonymous`.
-        parent_post_id:
+        parent_post:
           type: string
           nullable: true
-        label_id:
+        label:
           type: string
           nullable: true
         label_assignment_status:
@@ -8692,8 +8745,8 @@ components:
             - ai
           nullable: true
         label_assigned_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         label_ai_confidence:
           type: number
@@ -8765,10 +8818,10 @@ components:
             - public
             - locked
           nullable: true
-        asset_id:
+        asset:
           type: string
           nullable: true
-        song_artifact_bundle_id:
+        song_artifact_bundle:
           type: string
           nullable: true
           description: |
@@ -8826,8 +8879,9 @@ components:
         Canonical post row. User-owned agent posts keep the owning human in `author_user_id` while
         exposing explicit authorship and byline snapshot fields for auditability and rendering.
       required:
-        - post_id
-        - community_id
+        - id
+        - object
+        - community
         - authorship_mode
         - identity_mode
         - post_type
@@ -8836,14 +8890,19 @@ components:
         - analysis_state
         - content_safety_state
         - age_gate_policy
-        - created_at
-        - updated_at
+        - created
       properties:
-        post_id:
+        id:
           type: string
-        community_id:
+          readOnly: true
+        object:
           type: string
-        author_user_id:
+          readOnly: true
+          enum:
+            - post
+        community:
+          type: string
+        author_user:
           type: string
           nullable: true
           description: |
@@ -8853,12 +8912,12 @@ components:
           enum:
             - human_direct
             - user_agent
-        agent_id:
+        agent:
           type: string
           nullable: true
           description: |
             Present when `authorship_mode = user_agent`.
-        agent_ownership_record_id:
+        agent_ownership_record:
           type: string
           nullable: true
           description: |
@@ -8906,7 +8965,7 @@ components:
           items:
             $ref: "#/components/schemas/DisclosedQualifierSnapshot"
           nullable: true
-        label_id:
+        label:
           type: string
           nullable: true
         post_type:
@@ -8992,13 +9051,13 @@ components:
             - public
             - locked
           nullable: true
-        asset_id:
+        asset:
           type: string
           nullable: true
-        song_artifact_bundle_id:
+        song_artifact_bundle:
           type: string
           nullable: true
-        parent_post_id:
+        parent_post:
           type: string
           nullable: true
         song_mode:
@@ -9046,12 +9105,9 @@ components:
           enum:
             - none
             - 18_plus
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     LocalizedPostResponse:
       type: object
       description: |
@@ -9093,6 +9149,9 @@ components:
           type: integer
           minimum: 0
         like_count:
+          type: integer
+          minimum: 0
+        comment_count:
           type: integer
           minimum: 0
         viewer_vote:
@@ -9206,21 +9265,21 @@ components:
           type: string
           format: uri
           nullable: true
-        created_at:
+        created:
           type: string
           nullable: true
     XPostEmbed:
       type: object
       additionalProperties: false
       required:
-        - embed_id
+        - embed
         - embed_key
         - provider
         - canonical_url
         - original_url
         - state
       properties:
-        embed_id:
+        embed:
           type: string
         embed_key:
           type: string
@@ -9263,8 +9322,8 @@ components:
             - unknown
           nullable: true
         last_checked_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
     YouTubeEmbedPreview:
       type: object
@@ -9294,14 +9353,14 @@ components:
       type: object
       additionalProperties: false
       required:
-        - embed_id
+        - embed
         - embed_key
         - provider
         - canonical_url
         - original_url
         - state
       properties:
-        embed_id:
+        embed:
           type: string
         embed_key:
           type: string
@@ -9344,28 +9403,35 @@ components:
             - unknown
           nullable: true
         last_checked_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
     Question:
       type: object
       required:
-        - question_id
-        - post_id
-        - community_id
-        - author_user_id
+        - id
+        - object
+        - post
+        - community
+        - author_user
         - question_kind
         - prompt
         - status
         - published_at
       properties:
-        question_id:
+        id:
           type: string
-        post_id:
+          readOnly: true
+        object:
           type: string
-        community_id:
+          readOnly: true
+          enum:
+            - question
+        post:
           type: string
-        author_user_id:
+        community:
+          type: string
+        author_user:
           type: string
         question_kind:
           type: string
@@ -9407,11 +9473,11 @@ components:
             - closed
             - revealed
         published_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
         expires_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
     CreateQuestionRequest:
       type: object
@@ -9453,24 +9519,31 @@ components:
           type: string
           nullable: true
         expires_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
     QuestionAnswer:
       type: object
       required:
-        - question_answer_id
-        - question_id
-        - user_id
+        - id
+        - object
+        - question
+        - user
         - selected_answer_ref
         - is_correct
         - submitted_at
       properties:
-        question_answer_id:
+        id:
           type: string
-        question_id:
+          readOnly: true
+        object:
           type: string
-        user_id:
+          readOnly: true
+          enum:
+            - question_answer
+        question:
+          type: string
+        user:
           type: string
         selected_answer_ref:
           type: integer
@@ -9479,12 +9552,12 @@ components:
           type: boolean
           nullable: true
         rewarded_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         submitted_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
     FeedResponse:
       type: object
       required:
@@ -9581,11 +9654,9 @@ components:
     UpdateCommunityLabelDefinitionInput:
       type: object
       required:
-        - label_id
+        - label
       additionalProperties: false
       properties:
-        label_id:
-          type: string
         label:
           type: string
         description:
@@ -9619,13 +9690,20 @@ components:
     CommunityLabelDefinition:
       type: object
       required:
-        - label_id
+        - id
+        - object
         - label
         - status
         - position
       properties:
-        label_id:
+        id:
           type: string
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - community_label_definition
         label:
           type: string
         description:
@@ -9672,12 +9750,19 @@ components:
       description: |
         Resolved label summary for a post read surface. Historical posts may continue to return label definitions whose current `status` is `archived`; clients should still render the label normally in that case rather than treating it as hidden or as a special archived badge.
       required:
-        - label_id
+        - id
+        - object
         - label
         - status
       properties:
-        label_id:
+        id:
           type: string
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - post_label
         label:
           type: string
         color_token:
@@ -9709,10 +9794,10 @@ components:
     UpdateCommunityRuleInput:
       type: object
       required:
-        - rule_id
+        - rule
       additionalProperties: false
       properties:
-        rule_id:
+        rule:
           type: string
         title:
           type: string
@@ -9736,15 +9821,22 @@ components:
     CommunityRule:
       type: object
       required:
-        - rule_id
+        - id
+        - object
         - title
         - body
         - report_reason
         - position
         - status
       properties:
-        rule_id:
+        id:
           type: string
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - community_rule
         title:
           type: string
         body:
@@ -9788,10 +9880,10 @@ components:
     UpdateCommunityResourceLinkInput:
       type: object
       required:
-        - resource_link_id
+        - resource_link
       additionalProperties: false
       properties:
-        resource_link_id:
+        resource_link:
           type: string
         label:
           type: string
@@ -9822,15 +9914,22 @@ components:
     CommunityResourceLink:
       type: object
       required:
-        - resource_link_id
+        - id
+        - object
         - label
         - url
         - resource_kind
         - position
         - status
       properties:
-        resource_link_id:
+        id:
           type: string
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - community_resource_link
         label:
           type: string
         url:
@@ -9891,10 +9990,10 @@ components:
       type: object
       additionalProperties: false
       required:
-        - community_id
+        - community
         - profile
       properties:
-        community_id:
+        community:
           type: string
         profile:
           type: object
@@ -9927,10 +10026,10 @@ components:
       type: object
       additionalProperties: false
       required:
-        - community_id
+        - community
         - rules
       properties:
-        community_id:
+        community:
           type: string
         rules:
           type: array
@@ -9953,10 +10052,10 @@ components:
       type: object
       additionalProperties: false
       required:
-        - community_id
+        - community
         - resource_links
       properties:
-        community_id:
+        community:
           type: string
         resource_links:
           type: array
@@ -9973,7 +10072,7 @@ components:
         - required:
             - recording_mbid
         - required:
-            - story_ip_id
+            - story_ip
         - required:
             - metadata_hash
         - required:
@@ -9983,16 +10082,16 @@ components:
         recording_mbid:
           type: string
           nullable: true
-        story_ip_id:
+        story_ip:
           type: string
           nullable: true
         metadata_hash:
           type: string
           nullable: true
-        asset_id:
+        asset:
           type: string
           nullable: true
-        community_id:
+        community:
           type: string
           nullable: true
         title:
@@ -10007,16 +10106,16 @@ components:
     ListingDonationConfig:
       type: object
       description: |
-        Listing-level creator donation sidecar configuration. When `donation_opt_in = true`, both `donation_share_pct` and `donation_partner_id_snapshot` must be non-null.
+        Listing-level creator donation sidecar configuration. When `donation_opt_in = true`, both `donation_share_bps` and `donation_partner_id_snapshot` must be non-null.
       required:
         - donation_opt_in
       properties:
         donation_opt_in:
           type: boolean
-        donation_share_pct:
-          type: number
-          minimum: 0.01
-          maximum: 50
+        donation_share_bps:
+          type: integer
+          minimum: 1
+          maximum: 5000
           nullable: true
         donation_partner_id_snapshot:
           type: string
@@ -10024,16 +10123,18 @@ components:
     PurchaseDonationSettlement:
       type: object
       description: |
-        Purchase-time snapshot of donation routing and settlement outcome. Money fields are represented here as numbers for readability, but decimal strings are recommended in implementation to avoid floating-point precision issues.
+        Purchase-time snapshot of donation routing and settlement outcome.
       properties:
-        donation_partner_id:
+        donation_partner:
           type: string
           nullable: true
-        donation_share_pct:
-          type: number
+        donation_share_bps:
+          type: integer
+          minimum: 0
           nullable: true
-        donation_amount_usd:
-          type: number
+        donation_amount_cents:
+          type: integer
+          minimum: 0
           nullable: true
         donation_settlement_ref:
           type: string
@@ -10041,16 +10142,22 @@ components:
     Track:
       type: object
       required:
-        - track_id
+        - id
+        - object
         - track_kind
         - title
         - metadata_hash
         - status
-        - created_at
-        - updated_at
+        - created
       properties:
-        track_id:
+        id:
           type: string
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - track
         track_kind:
           type: string
           enum:
@@ -10060,13 +10167,13 @@ components:
         recording_mbid:
           type: string
           nullable: true
-        story_ip_id:
+        story_ip:
           type: string
           nullable: true
-        asset_id:
+        asset:
           type: string
           nullable: true
-        community_id:
+        community:
           type: string
           nullable: true
         publisher_ref:
@@ -10088,7 +10195,7 @@ components:
         lyrics_ref:
           type: string
           nullable: true
-        genius_song_id:
+        genius_song:
           type: string
           nullable: true
         artist_identity_ids:
@@ -10104,22 +10211,19 @@ components:
             - draft
             - active
             - deprecated
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     CreateScrobbleRequest:
       type: object
       required:
-        - track_id
+        - track
         - source_type
         - playback_started_at
       properties:
-        track_id:
+        track:
           type: string
-        community_id:
+        community:
           type: string
           nullable: true
         source_type:
@@ -10130,8 +10234,8 @@ components:
             - mobile
             - operator_ingested
         playback_started_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
         playback_position_ms:
           type: integer
           nullable: true
@@ -10149,23 +10253,30 @@ components:
     Scrobble:
       type: object
       required:
-        - scrobble_id
-        - track_id
-        - user_id
+        - id
+        - object
+        - track
+        - user
         - source_type
         - playback_started_at
         - ingestion_mode
         - anchor_status
         - accepted_at
-        - created_at
+        - created
       properties:
-        scrobble_id:
+        id:
           type: string
-        track_id:
+          readOnly: true
+        object:
           type: string
-        user_id:
+          readOnly: true
+          enum:
+            - scrobble
+        track:
           type: string
-        community_id:
+        user:
+          type: string
+        community:
           type: string
           nullable: true
         source_type:
@@ -10176,8 +10287,8 @@ components:
             - mobile
             - operator_ingested
         playback_started_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
         playback_position_ms:
           type: integer
           nullable: true
@@ -10200,11 +10311,11 @@ components:
             - failed
             - suppressed
         accepted_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
         anchored_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         chain_tx_hash:
           type: string
@@ -10212,16 +10323,16 @@ components:
         chain_log_index:
           type: integer
           nullable: true
-        created_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     ListenerSummary:
       type: object
       required:
-        - user_id
+        - user
         - scrobble_count
       properties:
-        user_id:
+        user:
           type: string
         display_handle:
           type: string
@@ -10231,16 +10342,22 @@ components:
     Job:
       type: object
       required:
-        - job_id
+        - id
+        - object
         - job_type
         - status
         - subject_type
-        - subject_id
-        - created_at
-        - updated_at
+        - subject
+        - created
       properties:
-        job_id:
+        id:
           type: string
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - job
         job_type:
           type: string
           enum:
@@ -10266,7 +10383,7 @@ components:
             - failed
         subject_type:
           type: string
-        subject_id:
+        subject:
           type: string
         result_ref:
           type: string
@@ -10276,12 +10393,9 @@ components:
         error_code:
           type: string
           nullable: true
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     JobAcceptedResponse:
       type: object
       required:
@@ -10319,26 +10433,32 @@ components:
     UserTask:
       type: object
       required:
-        - task_id
-        - user_id
+        - id
+        - object
+        - user
         - type
         - subject_type
-        - subject_id
+        - subject
         - status
         - priority
         - payload
-        - created_at
-        - updated_at
+        - created
       properties:
-        task_id:
+        id:
           type: string
-        user_id:
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - user_task
+        user:
           type: string
         type:
           $ref: "#/components/schemas/UserTaskType"
         subject_type:
           type: string
-        subject_id:
+        subject:
           type: string
         status:
           $ref: "#/components/schemas/UserTaskStatus"
@@ -10349,75 +10469,83 @@ components:
           nullable: true
           additionalProperties: true
         resolved_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         dismissed_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     NotificationEvent:
       type: object
       required:
-        - event_id
+        - id
+        - object
         - type
-        - actor_user_id
+        - actor_user
         - subject_type
-        - subject_id
-        - created_at
+        - subject
+        - created
       properties:
-        event_id:
+        id:
           type: string
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - notification_event
         type:
           $ref: "#/components/schemas/NotificationEventType"
-        actor_user_id:
+        actor_user:
           type: string
           nullable: true
         subject_type:
           type: string
-        subject_id:
+        subject:
           type: string
         object_type:
-          type: string
-          nullable: true
-        object_id:
           type: string
           nullable: true
         payload:
           type: object
           nullable: true
           additionalProperties: true
-        created_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     NotificationReceipt:
       type: object
       required:
-        - event_id
-        - recipient_user_id
-        - created_at
+        - id
+        - object
+        - recipient_user
+        - created
       properties:
-        event_id:
+        id:
           type: string
-        recipient_user_id:
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - notification_receipt
+        recipient_user:
           type: string
         seen_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         read_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
-        created_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
     NotificationSummary:
       type: object
       required:
@@ -10458,11 +10586,15 @@ components:
       type: object
       required:
         - items
+        - next_cursor
       properties:
         items:
           type: array
           items:
             $ref: "#/components/schemas/UserTask"
+        next_cursor:
+          type: string
+          nullable: true
     MarkNotificationsReadRequest:
       type: object
       properties:
@@ -10473,26 +10605,26 @@ components:
     DismissTaskRequest:
       type: object
       required:
-        - task_id
+        - task
       properties:
-        task_id:
+        task:
           type: string
     ClaimableRoyaltyItem:
       type: object
       required:
-        - ip_id
+        - ip
         - claimable_wip_wei
-        - asset_id
-        - community_id
+        - asset
+        - community
         - title
       properties:
-        ip_id:
+        ip:
           type: string
         claimable_wip_wei:
           type: string
-        asset_id:
+        asset:
           type: string
-        community_id:
+        community:
           type: string
         title:
           type: string
@@ -10511,33 +10643,40 @@ components:
         total_claimable_wip_wei:
           type: string
         checked_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
     RoyaltyActivityItem:
       type: object
       required:
-        - event_id
-        - community_id
-        - asset_id
+        - id
+        - object
+        - community
+        - asset
         - title
-        - story_ip_id
+        - story_ip
         - amount_wip_wei
         - buyer_wallet_address
         - tx_hash
-        - purchase_id
-        - created_at
+        - purchase
+        - created
         - read_at
       properties:
-        event_id:
+        id:
           type: string
-        community_id:
+          readOnly: true
+        object:
           type: string
-        asset_id:
+          readOnly: true
+          enum:
+            - royalty_activity_item
+        community:
+          type: string
+        asset:
           type: string
         title:
           type: string
           nullable: true
-        story_ip_id:
+        story_ip:
           type: string
         amount_wip_wei:
           type: string
@@ -10547,15 +10686,15 @@ components:
         tx_hash:
           type: string
           nullable: true
-        purchase_id:
+        purchase:
           type: string
           nullable: true
-        created_at:
-          type: string
-          format: date-time
+        created:
+          type: integer
+          format: int64
         read_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
     RoyaltyActivityResponse:
       type: object
@@ -10575,7 +10714,7 @@ components:
       required:
         - tx_hash
         - wallet_address
-        - chain_id
+        - chain
         - claimable_wip_wei_at_submission
         - ip_ids
         - auto_unwrap_ip_tokens
@@ -10584,7 +10723,7 @@ components:
           type: string
         wallet_address:
           type: string
-        chain_id:
+        chain:
           type: integer
         claimable_wip_wei_at_submission:
           type: string
@@ -10597,11 +10736,12 @@ components:
     RoyaltyClaimRecord:
       type: object
       required:
-        - claim_id
-        - user_id
+        - id
+        - object
+        - user
         - tx_hash
         - wallet_address
-        - chain_id
+        - chain
         - claimable_wip_wei_at_submission
         - ip_ids
         - auto_unwrap_ip_tokens
@@ -10609,17 +10749,23 @@ components:
         - verified_at
         - verification_error
         - claimed_at
-        - created_at
+        - created
       properties:
-        claim_id:
+        id:
           type: string
-        user_id:
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - royalty_claim_record
+        user:
           type: string
         tx_hash:
           type: string
         wallet_address:
           type: string
-        chain_id:
+        chain:
           type: integer
         claimable_wip_wei_at_submission:
           type: string
@@ -10636,18 +10782,18 @@ components:
             - confirmed
             - failed
         verified_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
           nullable: true
         verification_error:
           type: string
           nullable: true
         claimed_at:
-          type: string
-          format: date-time
-        created_at:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
+        created:
+          type: integer
+          format: int64
     RoyaltyClaimHistoryResponse:
       type: object
       required:
@@ -10727,11 +10873,11 @@ components:
     ThreadExportAcceptedResponse:
       type: object
       required:
-        - community_id
+        - community
         - job
         - job_status_url
       properties:
-        community_id:
+        community:
           type: string
         job:
           $ref: "#/components/schemas/Job"

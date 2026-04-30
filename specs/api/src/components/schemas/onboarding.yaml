@@ -26,8 +26,8 @@ RedditVerification:
         - bio
         - about
     last_checked_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     failure_code:
       type: string
@@ -50,8 +50,8 @@ RedditImportSummary:
     reddit_username:
       type: string
     imported_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
     account_age_days:
       type: integer
       nullable: true
@@ -98,11 +98,11 @@ RedditImportSummary:
       items:
         type: object
         required:
-          - community_id
+          - community
           - name
           - reason
         properties:
-          community_id:
+          community:
             type: string
           name:
             type: string
@@ -128,8 +128,8 @@ OnboardingStatus:
     cleanup_rename_available:
       type: boolean
     onboarding_dismissed_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     unique_human_verification_status:
       type: string

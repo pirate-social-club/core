@@ -68,11 +68,11 @@ ThreadExportRequest:
 ThreadExportAcceptedResponse:
   type: object
   required:
-    - community_id
+    - community
     - job
     - job_status_url
   properties:
-    community_id:
+    community:
       type: string
     job:
       $ref: ./jobs.yaml#/Job

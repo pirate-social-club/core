@@ -1,16 +1,22 @@
 Job:
   type: object
   required:
-    - job_id
+    - id
+    - object
     - job_type
     - status
     - subject_type
-    - subject_id
-    - created_at
-    - updated_at
+    - subject
+    - created
   properties:
-    job_id:
+    id:
       type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - job
     job_type:
       type: string
       enum:
@@ -36,7 +42,7 @@ Job:
         - failed
     subject_type:
       type: string
-    subject_id:
+    subject:
       type: string
     result_ref:
       type: string
@@ -46,12 +52,9 @@ Job:
     error_code:
       type: string
       nullable: true
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 JobAcceptedResponse:
   type: object
   required:

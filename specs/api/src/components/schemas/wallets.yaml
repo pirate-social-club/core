@@ -1,14 +1,14 @@
 SentinelWalletEnsureResponse:
   type: object
   required:
-    - wallet_attachment_id
+    - wallet_attachment
     - chain_namespace
     - wallet_address
     - public_key_hex
     - source_provider
     - created_now
   properties:
-    wallet_attachment_id:
+    wallet_attachment:
       type: string
     chain_namespace:
       type: string

@@ -1,22 +1,29 @@
 Question:
   type: object
   required:
-    - question_id
-    - post_id
-    - community_id
-    - author_user_id
+    - id
+    - object
+    - post
+    - community
+    - author_user
     - question_kind
     - prompt
     - status
     - published_at
   properties:
-    question_id:
+    id:
       type: string
-    post_id:
+      readOnly: true
+    object:
       type: string
-    community_id:
+      readOnly: true
+      enum:
+        - question
+    post:
       type: string
-    author_user_id:
+    community:
+      type: string
+    author_user:
       type: string
     question_kind:
       type: string
@@ -58,11 +65,11 @@ Question:
         - closed
         - revealed
     published_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
     expires_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
 CreateQuestionRequest:
   type: object
@@ -104,24 +111,31 @@ CreateQuestionRequest:
       type: string
       nullable: true
     expires_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
 QuestionAnswer:
   type: object
   required:
-    - question_answer_id
-    - question_id
-    - user_id
+    - id
+    - object
+    - question
+    - user
     - selected_answer_ref
     - is_correct
     - submitted_at
   properties:
-    question_answer_id:
+    id:
       type: string
-    question_id:
+      readOnly: true
+    object:
       type: string
-    user_id:
+      readOnly: true
+      enum:
+        - question_answer
+    question:
+      type: string
+    user:
       type: string
     selected_answer_ref:
       type: integer
@@ -130,9 +144,9 @@ QuestionAnswer:
       type: boolean
       nullable: true
     rewarded_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     submitted_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64

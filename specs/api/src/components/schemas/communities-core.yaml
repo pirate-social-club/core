@@ -1,7 +1,7 @@
 CreateCommunityRequestBase:
   type: object
   description: |
-    Authoritative community-create write model. When `namespace` is provided for namespace-backed communities in public v0, the server must resolve `namespace.namespace_verification_id` to the accepted namespace-verification object at create time and re-check creator binding, freshness, and `club_attach_allowed` before any community state is written. When `namespace` is omitted, the community is created without a namespace and can attach one later.
+    Authoritative community-create write model. When `namespace` is provided for namespace-backed communities in public v0, the server must resolve `namespace.namespace_verification` to the accepted namespace-verification object at create time and re-check creator binding, freshness, and `club_attach_allowed` before any community state is written. When `namespace` is omitted, the community is created without a namespace and can attach one later.
   required:
     - display_name
     - membership_mode
@@ -38,7 +38,7 @@ CreateCommunityRequestBase:
     banner_ref:
       type: string
       nullable: true
-    artist_identity_id:
+    artist_identity:
       type: string
       nullable: true
     membership_mode:
@@ -119,6 +119,9 @@ CreateCommunityRequestBase:
       default: none
       description: |
         Community-wide default viewer age gate. Setting this to `18_plus` requires the acting creator or updating owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
+    gate_policy:
+      $ref: ./communities-core.yaml#/GatePolicy
+      nullable: true
     agent_posting_policy:
       type: string
       enum:
@@ -198,7 +201,7 @@ CreateCommunityRequestBase:
         - $ref: ./handles.yaml#/NamespaceAttachmentInput
       nullable: true
       description: |
-        Namespace attachment input for community creation. When provided, this must reference an accepted namespace-verification object via `namespace_verification_id`; the server must consume that accepted verification, not treat the field as a blind string. When omitted, the community is created without a namespace and can attach one later.
+        Namespace attachment input for community creation. When provided, this must reference an accepted namespace-verification object via `namespace_verification`; the server must consume that accepted verification, not treat the field as a blind string. When omitted, the community is created without a namespace and can attach one later.
     handle_policy:
       allOf:
         - $ref: ./handles.yaml#/HandlePolicyInput
@@ -381,18 +384,24 @@ GateRuleInput:
 GateRule:
   type: object
   required:
-    - gate_rule_id
-    - community_id
+    - id
+    - object
+    - community
     - scope
     - gate_family
     - gate_type
     - status
-    - created_at
-    - updated_at
+    - created
   properties:
-    gate_rule_id:
+    id:
       type: string
-    community_id:
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - gate_rule
+    community:
       type: string
     scope:
       type: string
@@ -444,12 +453,9 @@ GateRule:
       enum:
         - active
         - disabled
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 ProofRequirement:
   type: object
   required:
@@ -468,6 +474,8 @@ ProofRequirement:
       - self
     wallet_score:
       - passport
+    sanctions_clear:
+      - passport
   x-unvalidated-proof-types:
     - biometric_liveness
     - gov_id
@@ -479,6 +487,7 @@ ProofRequirement:
         - unique_human
         - biometric_liveness
         - wallet_score
+        - sanctions_clear
         - gov_id
         - age_over_18
         - minimum_age
@@ -610,7 +619,7 @@ CreateCommunityRequest:
   description: |
     Public v0 clients must submit only `CreateCentralizedCommunityRequest` (governance_mode = centralized). `CreateMultisigCommunityRequest` and `CreateMajeurCommunityRequest` remain valid in the API for internal, allowlisted, or feature-flagged use only. The public client must not submit them.
 
-    For namespace-backed public v0 create, when `namespace` is provided the server must resolve `namespace.namespace_verification_id` to the accepted `NamespaceVerification` resource, confirm it belongs to the requesting creator, and reject the create if the accepted verification is stale, disputed, expired, or no longer satisfies `club_attach_allowed`. When `namespace` is omitted, the community is created without a namespace and can attach one later.
+    For namespace-backed public v0 create, when `namespace` is provided the server must resolve `namespace.namespace_verification` to the accepted `NamespaceVerification` resource, confirm it belongs to the requesting creator, and reject the create if the accepted verification is stale, disputed, expired, or no longer satisfies `club_attach_allowed`. When `namespace` is omitted, the community is created without a namespace and can attach one later.
 CommunityCreateAcceptedResponse:
   type: object
   required:
@@ -706,6 +715,9 @@ UpdateCommunityRequest:
         - 18_plus
       description: |
         Community-wide default viewer age gate. Updating this field from `none` to `18_plus` requires the acting owner/admin to satisfy an accepted `age_over_18` proof requirement, such as `self` age verification.
+    gate_policy:
+      $ref: ./communities-core.yaml#/GatePolicy
+      nullable: true
     agent_posting_policy:
       type: string
       enum:
@@ -759,7 +771,8 @@ UpdateCommunityRequest:
 Community:
   type: object
   required:
-    - community_id
+    - id
+    - object
     - display_name
     - status
     - provisioning_state
@@ -787,12 +800,17 @@ Community:
     - civility_policy
     - provenance_policy
     - promotion_policy
-    - created_by_user_id
-    - created_at
-    - updated_at
+    - created_by_user
+    - created
   properties:
-    community_id:
+    id:
       type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - community
     display_name:
       type: string
     description:
@@ -804,7 +822,7 @@ Community:
     banner_ref:
       type: string
       nullable: true
-    namespace_verification_id:
+    namespace_verification:
       type: string
       nullable: true
       description: |
@@ -812,7 +830,7 @@ Community:
     route_slug:
       type: string
       nullable: true
-    pending_namespace_verification_session_id:
+    pending_namespace_verification_session:
       type: string
       nullable: true
     status:
@@ -834,10 +852,10 @@ Community:
       description: |
         Community infrastructure lifecycle state. This is distinct from domain `status`.
         A community may be domain-active while infrastructure provisioning is still in progress.
-    artist_identity_id:
+    artist_identity:
       type: string
       nullable: true
-    community_agent_user_id:
+    community_agent_user:
       type: string
       nullable: true
       description: |
@@ -922,6 +940,9 @@ Community:
         - 18_plus
       description: |
         Community-wide default viewer age gate.
+    gate_policy:
+      $ref: ./communities-core.yaml#/GatePolicy
+      nullable: true
     agent_posting_policy:
       type: string
       enum:
@@ -998,9 +1019,6 @@ Community:
         - unconfigured
         - active
         - paused
-    donation_partner_id:
-      type: string
-      nullable: true
     donation_partner:
       $ref: ./communities-community.yaml#/DonationPartnerSummary
       nullable: true
@@ -1102,8 +1120,8 @@ Community:
       description: |
         Derived count used for community-stage progression and namespace-commerce unlocks. This count is platform-defined and should exclude members that do not satisfy the platform's qualification rules for economic unlocks.
     stage_entered_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
       description: |
         Timestamp when the community most recently entered its current derived `community_stage`.
@@ -1121,21 +1139,18 @@ Community:
       items:
         $ref: ./communities-core.yaml#/GateRule
       nullable: true
-    created_by_user_id:
+    created_by_user:
       type: string
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 MembershipResult:
   type: object
   required:
-    - community_id
+    - community
     - status
   properties:
-    community_id:
+    community:
       type: string
     status:
       type: string
@@ -1146,10 +1161,10 @@ MembershipResult:
 CommunityFollowResponse:
   type: object
   required:
-    - community_id
+    - community
     - following
   properties:
-    community_id:
+    community:
       type: string
     following:
       type: boolean
@@ -1276,12 +1291,12 @@ CommunityTextLocalizationItem:
 CommunityRoleSummary:
   type: object
   required:
-    - user_id
+    - user
     - display_name
     - handle
     - role
   properties:
-    user_id:
+    user:
       type: string
     display_name:
       type: string
@@ -1302,17 +1317,30 @@ CommunityRoleSummary:
 CommunityPreview:
   type: object
   required:
-    - community_id
+    - id
+    - object
     - display_name
     - membership_mode
     - human_verification_lane
     - moderators
     - membership_gate_summaries
     - rules
-    - created_at
+    - created
   properties:
-    community_id:
+    id:
       type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - community_preview
+    namespace_verification:
+      type: string
+      nullable: true
+    route_slug:
+      type: string
+      nullable: true
     display_name:
       type: string
     description:
@@ -1364,9 +1392,6 @@ CommunityPreview:
         - none
         - optional_creator_sidecar
       nullable: true
-    donation_partner_id:
-      type: string
-      nullable: true
     donation_partner:
       $ref: ./communities-community.yaml#/DonationPartnerSummary
       nullable: true
@@ -1400,21 +1425,20 @@ CommunityPreview:
     viewer_following:
       type: boolean
       nullable: true
-    created_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 JoinEligibility:
   type: object
   required:
-    - community_id
+    - community
     - membership_mode
     - human_verification_lane
     - joinable_now
     - status
     - membership_gate_summaries
-    - missing_capabilities
   properties:
-    community_id:
+    community:
       type: string
     membership_mode:
       type: string
@@ -1491,19 +1515,23 @@ JoinEligibility:
         includes a wallet_score gate. Exposed only on user-specific eligibility/failure responses
         so clients can explain current-vs-required remediation without exposing stamp details.
       properties:
-        current_score:
-          type: number
+        current_score_decimal:
+          type: string
+          pattern: ^\d+(\.\d+)?$
           nullable: true
-        required_score:
-          type: number
+        required_score_decimal:
+          type: string
+          pattern: ^\d+(\.\d+)?$
           nullable: true
         passing_score:
           type: boolean
           nullable: true
-        last_score_timestamp:
-          type: string
-          format: date-time
+        last_scored_at:
+          type: integer
           nullable: true
+    gate_evaluation:
+      $ref: ./communities-core.yaml#/GatePolicyEvaluation
+      nullable: true
 MembershipRequestStatus:
   type: string
   enum:
@@ -1514,17 +1542,24 @@ MembershipRequestStatus:
 MembershipRequestSummary:
   type: object
   required:
-    - membership_request_id
-    - community_id
-    - applicant_user_id
+    - id
+    - object
+    - community
+    - applicant_user
     - status
-    - created_at
+    - created
   properties:
-    membership_request_id:
+    id:
       type: string
-    community_id:
+      readOnly: true
+    object:
       type: string
-    applicant_user_id:
+      readOnly: true
+      enum:
+        - membership_request_summary
+    community:
+      type: string
+    applicant_user:
       type: string
     applicant_handle:
       type: string
@@ -1537,9 +1572,9 @@ MembershipRequestSummary:
     note:
       type: string
       nullable: true
-    created_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 MembershipRequestListResponse:
   type: object
   required:
@@ -1602,16 +1637,278 @@ GateFailureDetails:
         Current authenticated user's Human Passport score state when a wallet_score gate blocked
         a join attempt.
       properties:
-        current_score:
-          type: number
+        current_score_decimal:
+          type: string
+          pattern: ^\d+(\.\d+)?$
           nullable: true
-        required_score:
-          type: number
+        required_score_decimal:
+          type: string
+          pattern: ^\d+(\.\d+)?$
           nullable: true
         passing_score:
           type: boolean
           nullable: true
-        last_score_timestamp:
-          type: string
-          format: date-time
+        last_scored_at:
+          type: integer
           nullable: true
+    gate_evaluation:
+      $ref: ./communities-core.yaml#/GatePolicyEvaluation
+      nullable: true
+GatePolicy:
+  type: object
+  required:
+    - version
+    - expression
+  properties:
+    version:
+      type: integer
+      enum:
+        - 1
+    expression:
+      $ref: ./communities-core.yaml#/GateExpression
+GateExpression:
+  type: object
+  required:
+    - op
+  additionalProperties: true
+  properties:
+    op:
+      type: string
+      enum:
+        - and
+        - or
+        - gate
+    children:
+      type: array
+      items:
+        type: object
+        additionalProperties: true
+    gate:
+      $ref: ./communities-core.yaml#/GateAtom
+GateAtom:
+  type: object
+  required:
+    - type
+  properties:
+    type:
+      type: string
+      enum:
+        - unique_human
+        - minimum_age
+        - nationality
+        - gender
+        - wallet_score
+        - erc721_holding
+        - erc721_inventory_match
+    provider:
+      type: string
+      enum:
+        - self
+        - very
+        - passport
+        - courtyard
+      nullable: true
+    minimum_age:
+      type: integer
+    allowed:
+      type: array
+      items:
+        type: string
+    minimum_score:
+      type: number
+    chain_namespace:
+      type: string
+    contract_address:
+      type: string
+    min_quantity:
+      type: integer
+    match:
+      type: object
+      additionalProperties: true
+GatePolicyEvaluation:
+  type: object
+  required:
+    - passed
+    - trace
+    - required_action_set
+  properties:
+    passed:
+      type: boolean
+    trace:
+      $ref: ./communities-core.yaml#/GateTraceNode
+    required_action_set:
+      $ref: ./communities-core.yaml#/RequiredActionSet
+      nullable: true
+GateTraceNode:
+  type: object
+  required:
+    - kind
+    - passed
+  additionalProperties: true
+  properties:
+    kind:
+      type: string
+      enum:
+        - op
+        - gate
+    op:
+      type: string
+      enum:
+        - and
+        - or
+    gate_type:
+      type: string
+    provider:
+      type: string
+    passed:
+      type: boolean
+    reason:
+      type: string
+    required_score:
+      type: number
+      nullable: true
+    actual_score:
+      type: number
+      nullable: true
+    required_age:
+      type: integer
+      nullable: true
+    children:
+      type: array
+      items:
+        type: object
+        additionalProperties: true
+RequiredActionSet:
+  type: object
+  required:
+    - kind
+    - mode
+    - items
+  properties:
+    kind:
+      type: string
+      enum:
+        - set
+    mode:
+      type: string
+      enum:
+        - all
+        - any
+    items:
+      type: array
+      items:
+        $ref: ./communities-core.yaml#/RequiredActionNode
+RequiredActionNode:
+  type: object
+  required:
+    - kind
+  additionalProperties: true
+  properties:
+    kind:
+      type: string
+      enum:
+        - action
+        - set
+    mode:
+      type: string
+      enum:
+        - all
+        - any
+    items:
+      type: array
+      items:
+        type: object
+        additionalProperties: true
+    provider:
+      type: string
+      enum:
+        - self
+        - very
+        - passport
+        - wallet
+    capability:
+      type: string
+      enum:
+        - minimum_age
+        - nationality
+        - gender
+        - unique_human
+        - wallet_score
+        - erc721_holding
+        - erc721_inventory_match
+    required_age:
+      type: integer
+    allowed_countries:
+      type: array
+      items:
+        type: string
+    allowed_markers:
+      type: array
+      items:
+        type: string
+        enum:
+          - M
+          - F
+    minimum_score:
+      type: number
+    actual_score:
+      type: number
+      nullable: true
+    chain_namespace:
+      type: string
+    contract_address:
+      type: string
+    min_quantity:
+      type: integer
+RequiredAction:
+  type: object
+  required:
+    - kind
+    - provider
+    - capability
+  properties:
+    kind:
+      type: string
+      enum:
+        - action
+    provider:
+      type: string
+      enum:
+        - self
+        - very
+        - passport
+        - wallet
+    capability:
+      type: string
+      enum:
+        - minimum_age
+        - nationality
+        - gender
+        - unique_human
+        - wallet_score
+        - erc721_holding
+        - erc721_inventory_match
+    required_age:
+      type: integer
+    allowed_countries:
+      type: array
+      items:
+        type: string
+    allowed_markers:
+      type: array
+      items:
+        type: string
+        enum:
+          - M
+          - F
+    minimum_score:
+      type: number
+    actual_score:
+      type: number
+      nullable: true
+    chain_namespace:
+      type: string
+    contract_address:
+      type: string
+    min_quantity:
+      type: integer

@@ -18,12 +18,12 @@ MarketContextProfileSummary:
   description: |
     Public/admin-safe summary of a platform-approved market-context profile. Communities select from Pirate-managed provider sets rather than configuring raw provider hostnames, thresholds, or search logic directly.
   required:
-    - market_context_profile_id
+    - market_context_profile
     - profile_key
     - provider_keys
     - status
   properties:
-    market_context_profile_id:
+    market_context_profile:
       type: string
     profile_key:
       type: string
@@ -67,7 +67,7 @@ CreateCommunityMarketContextPolicyInput:
       allOf:
         - $ref: ./market-context.yaml#/CommunityMarketContextProviderSet
       nullable: true
-    market_context_profile_id:
+    market_context_profile:
       type: string
       nullable: true
       description: |
@@ -102,7 +102,7 @@ UpdateCommunityMarketContextPolicyRequest:
       allOf:
         - $ref: ./market-context.yaml#/CommunityMarketContextProviderSet
       nullable: true
-    market_context_profile_id:
+    market_context_profile:
       type: string
       nullable: true
       description: |
@@ -112,17 +112,23 @@ CommunityMarketContextPolicy:
   description: |
     Resolved community market-context policy. When no explicit policy has been configured, the server must still return the platform-default policy with `policy_origin = default`. In v1, communities do not configure a match-confidence threshold directly; Pirate applies one platform-managed minimum uniformly across communities.
   required:
-    - community_id
+    - id
+    - object
     - policy_origin
     - mode
     - enabled_post_types
     - max_markets_per_post
     - provider_set
     - resolved_profile
-    - updated_at
   properties:
-    community_id:
+    id:
       type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - community_market_context_policy
     policy_origin:
       $ref: ./communities-community.yaml#/CommunityPolicyOrigin
     mode:
@@ -143,9 +149,6 @@ CommunityMarketContextPolicy:
       $ref: ./market-context.yaml#/CommunityMarketContextProviderSet
     resolved_profile:
       $ref: ./market-context.yaml#/MarketContextProfileSummary
-    updated_at:
-      type: string
-      format: date-time
 MarketContextSummary:
   type: object
   description: |
@@ -189,12 +192,12 @@ MarketContextMarket:
       type: string
       nullable: true
     resolve_date:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     market_url:
       type: string
       format: uri
     snapshot_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64

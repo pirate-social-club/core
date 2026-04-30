@@ -52,57 +52,71 @@ CreateUserReportRequest:
 UserReport:
   type: object
   required:
-    - user_report_id
-    - community_id
-    - post_id
-    - comment_id
-    - reporter_user_id
+    - id
+    - object
+    - community
+    - post
+    - comment
+    - reporter_user
     - reason_code
-    - created_at
+    - created
   properties:
-    user_report_id:
+    id:
       type: string
-    community_id:
+      readOnly: true
+    object:
       type: string
-    post_id:
+      readOnly: true
+      enum:
+        - user_report
+    community:
+      type: string
+    post:
       type: string
       nullable: true
-    comment_id:
+    comment:
       type: string
       nullable: true
-    reporter_user_id:
+    reporter_user:
       type: string
     reason_code:
       $ref: ./moderation.yaml#/UserReportReasonCode
     note:
       type: string
       nullable: true
-    created_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 ModerationSignal:
   type: object
   required:
-    - moderation_signal_id
-    - community_id
-    - post_id
-    - comment_id
+    - id
+    - object
+    - community
+    - post
+    - comment
     - analysis_result_ref
     - source
     - signal_type
     - severity
     - provider
     - provider_label
-    - created_at
+    - created
   properties:
-    moderation_signal_id:
+    id:
       type: string
-    community_id:
+      readOnly: true
+    object:
       type: string
-    post_id:
+      readOnly: true
+      enum:
+        - moderation_signal
+    community:
+      type: string
+    post:
       type: string
       nullable: true
-    comment_id:
+    comment:
       type: string
       nullable: true
     analysis_result_ref:
@@ -123,65 +137,78 @@ ModerationSignal:
     evidence_ref:
       type: string
       nullable: true
-    created_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 ModerationAction:
   type: object
   required:
-    - moderation_action_id
-    - moderation_case_id
-    - community_id
-    - post_id
-    - comment_id
-    - actor_user_id
+    - id
+    - object
+    - moderation_case
+    - community
+    - post
+    - comment
+    - actor_user
     - action_type
-    - created_at
+    - created
   properties:
-    moderation_action_id:
+    id:
       type: string
-    moderation_case_id:
+      readOnly: true
+    object:
       type: string
-    community_id:
+      readOnly: true
+      enum:
+        - moderation_action
+    moderation_case:
       type: string
-    post_id:
+    community:
+      type: string
+    post:
       type: string
       nullable: true
-    comment_id:
+    comment:
       type: string
       nullable: true
-    actor_user_id:
+    actor_user:
       type: string
     action_type:
       $ref: ./moderation.yaml#/ModerationActionType
     note:
       type: string
       nullable: true
-    created_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 ModerationCase:
   type: object
   required:
-    - moderation_case_id
-    - community_id
-    - post_id
-    - comment_id
+    - id
+    - object
+    - community
+    - post
+    - comment
     - status
     - queue_scope
     - priority
     - opened_by
-    - created_at
-    - updated_at
+    - created
   properties:
-    moderation_case_id:
+    id:
       type: string
-    community_id:
+      readOnly: true
+    object:
       type: string
-    post_id:
+      readOnly: true
+      enum:
+        - moderation_case
+    community:
+      type: string
+    post:
       type: string
       nullable: true
-    comment_id:
+    comment:
       type: string
       nullable: true
     status:
@@ -192,25 +219,26 @@ ModerationCase:
       $ref: ./moderation.yaml#/ModerationSignalSeverity
     opened_by:
       $ref: ./moderation.yaml#/ModerationCaseOpenedBy
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
     resolved_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
 ModerationCaseListResponse:
   type: object
   required:
     - items
+    - next_cursor
   properties:
     items:
       type: array
       items:
         $ref: ./moderation.yaml#/ModerationCase
+    next_cursor:
+      type: string
+      nullable: true
 ModerationCaseDetail:
   type: object
   required:

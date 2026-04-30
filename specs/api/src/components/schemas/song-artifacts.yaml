@@ -84,10 +84,10 @@ SongArtifactUploadRef:
     metadata from the completed upload. The referenced upload must belong to the same community
     and uploader, and its `status` must be `uploaded`.
   required:
-    - song_artifact_upload_id
+    - song_artifact_upload
   additionalProperties: false
   properties:
-    song_artifact_upload_id:
+    song_artifact_upload:
       type: string
 SongPreviewWindow:
   type: object
@@ -106,7 +106,7 @@ SongPreviewGeneratePayload:
   type: object
   additionalProperties: false
   properties:
-    song_artifact_bundle_id:
+    song_artifact_bundle:
       type: string
       nullable: true
     primary_audio_content_hash:
@@ -184,22 +184,28 @@ SongArtifactUploadContentRequest:
 SongArtifactUpload:
   type: object
   required:
-    - song_artifact_upload_id
-    - community_id
-    - uploader_user_id
+    - id
+    - object
+    - community
+    - uploader_user
     - artifact_kind
     - status
     - storage_ref
     - mime_type
     - upload_url
-    - created_at
-    - updated_at
+    - created
   properties:
-    song_artifact_upload_id:
+    id:
       type: string
-    community_id:
+      readOnly: true
+    object:
       type: string
-    uploader_user_id:
+      readOnly: true
+      enum:
+        - song_artifact_upload
+    community:
+      type: string
+    uploader_user:
       type: string
     artifact_kind:
       type: string
@@ -250,18 +256,16 @@ SongArtifactUpload:
       nullable: true
     upload_url:
       type: string
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 SongArtifactBundle:
   type: object
   required:
-    - song_artifact_bundle_id
-    - community_id
-    - creator_user_id
+    - id
+    - object
+    - community
+    - creator_user
     - status
     - primary_audio
     - media_refs
@@ -271,14 +275,19 @@ SongArtifactBundle:
     - translation_status
     - alignment_status
     - moderation_status
-    - created_at
-    - updated_at
+    - created
   properties:
-    song_artifact_bundle_id:
+    id:
       type: string
-    community_id:
+      readOnly: true
+    object:
       type: string
-    creator_user_id:
+      readOnly: true
+      enum:
+        - song_artifact_bundle
+    community:
+      type: string
+    creator_user:
       type: string
     status:
       type: string
@@ -381,19 +390,17 @@ SongArtifactBundle:
       type: object
       nullable: true
       additionalProperties: true
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 Asset:
   type: object
   required:
-    - asset_id
-    - community_id
-    - source_post_id
-    - creator_user_id
+    - id
+    - object
+    - community
+    - source_post
+    - creator_user
     - asset_kind
     - rights_basis
     - access_mode
@@ -401,22 +408,27 @@ Asset:
     - publication_status
     - story_status
     - locked_delivery_status
-    - created_at
-    - updated_at
+    - created
   properties:
-    asset_id:
+    id:
       type: string
-    community_id:
+      readOnly: true
+    object:
       type: string
-    source_post_id:
+      readOnly: true
+      enum:
+        - asset
+    community:
       type: string
-    song_artifact_bundle_id:
+    source_post:
+      type: string
+    song_artifact_bundle:
       type: string
       nullable: true
     display_title:
       type: string
       nullable: true
-    creator_user_id:
+    creator_user:
       type: string
     asset_kind:
       type: string
@@ -470,13 +482,13 @@ Asset:
     story_error:
       type: string
       nullable: true
-    story_ip_id:
+    story_ip:
       type: string
       nullable: true
     story_ip_nft_contract:
       type: string
       nullable: true
-    story_ip_nft_token_id:
+    story_ip_nft_token:
       type: string
       nullable: true
     story_publish_model:
@@ -484,7 +496,7 @@ Asset:
       enum:
         - pirate_v1
         - story_ip_v1
-    story_license_terms_id:
+    story_license_terms:
       type: string
       nullable: true
     story_license_template:
@@ -493,17 +505,14 @@ Asset:
     story_royalty_policy:
       type: string
       nullable: true
-    story_royalty_policy_id:
-      type: string
-      nullable: true
     story_derivative_parent_ip_ids:
       type: array
       nullable: true
       items:
         type: string
     story_derivative_registered_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     story_revenue_token:
       type: string
@@ -518,7 +527,7 @@ Asset:
     story_publish_tx_ref:
       type: string
       nullable: true
-    story_asset_version_id:
+    story_asset_version:
       type: string
       nullable: true
     story_cdr_vault_uuid:
@@ -527,7 +536,7 @@ Asset:
     story_namespace:
       type: string
       nullable: true
-    story_entitlement_token_id:
+    story_entitlement_token:
       type: string
       nullable: true
     story_read_condition:
@@ -549,18 +558,15 @@ Asset:
     locked_delivery_error:
       type: string
       nullable: true
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 AssetAccessResponse:
   type: object
   required:
-    - asset_id
-    - community_id
-    - source_post_id
+    - asset
+    - community
+    - source_post
     - access_mode
     - source_post_status
     - story_status
@@ -570,11 +576,11 @@ AssetAccessResponse:
     - delivery_kind
     - delivery_ref
   properties:
-    asset_id:
+    asset:
       type: string
-    community_id:
+    community:
       type: string
-    source_post_id:
+    source_post:
       type: string
     access_mode:
       type: string

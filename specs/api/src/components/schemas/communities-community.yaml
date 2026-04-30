@@ -11,7 +11,7 @@ CreateCommunityDonationPolicyInput:
         - none
         - optional_creator_sidecar
         - fundraiser_default
-    donation_partner_id:
+    donation_partner:
       type: string
       nullable: true
 UpdateCommunityDonationPolicyRequest:
@@ -27,7 +27,7 @@ UpdateCommunityDonationPolicyRequest:
         - none
         - optional_creator_sidecar
         - fundraiser_default
-    donation_partner_id:
+    donation_partner:
       type: string
       nullable: true
     donation_partner_status:
@@ -42,13 +42,13 @@ DonationPartnerSummary:
   description: |
     Public/admin-safe summary of a reviewed donation partner. Full payout routing details remain internal to Pirate settlement systems in v0.
   required:
-    - donation_partner_id
+    - donation_partner
     - display_name
     - provider
     - review_status
     - status
   properties:
-    donation_partner_id:
+    donation_partner:
       type: string
     display_name:
       type: string
@@ -79,12 +79,19 @@ CommunityDonationPolicy:
   description: |
     Resolved donation policy attached to a community. This policy enables or disables listing-level creator donation sidecars for content sold inside the community.
   required:
-    - community_id
+    - id
+    - object
     - donation_policy_mode
     - donation_partner_status
   properties:
-    community_id:
+    id:
       type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - community_donation_policy
     donation_policy_mode:
       type: string
       enum:
@@ -96,15 +103,9 @@ CommunityDonationPolicy:
         - unconfigured
         - active
         - paused
-    donation_partner_id:
-      type: string
-      nullable: true
     donation_partner:
       $ref: ./communities-community.yaml#/DonationPartnerSummary
       nullable: true
-    updated_at:
-      type: string
-      format: date-time
 CommunityContentAuthenticityStance:
   type: string
   enum:
@@ -275,7 +276,8 @@ CommunityMoneyPolicy:
   description: |
     Resolved community funding policy for commerce. This policy controls allowed buyer funding lanes and route constraints. It does not redefine the community object as a chain object, and it does not imply that the funding asset itself performs settlement or locked-asset unlocks. When no explicit money policy has been configured, the server must still return the effective default policy with `policy_origin = default`.
   required:
-    - community_id
+    - id
+    - object
     - policy_origin
     - funding_preference
     - accepted_funding_assets
@@ -287,10 +289,15 @@ CommunityMoneyPolicy:
     - route_required
     - route_status_policy
     - route_hop_tolerance
-    - updated_at
   properties:
-    community_id:
+    id:
       type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - community_money_policy
     policy_origin:
       $ref: ./communities-community.yaml#/CommunityPolicyOrigin
     funding_preference:
@@ -328,9 +335,6 @@ CommunityMoneyPolicy:
     route_hop_tolerance:
       type: integer
       minimum: 0
-    updated_at:
-      type: string
-      format: date-time
 CommunityPricingVerificationProvider:
   type: string
   enum:
@@ -398,7 +402,7 @@ CreateCommunityPricingPolicyInput:
       type: array
       items:
         $ref: ./communities-community.yaml#/CommunityPricingCountryAssignment
-    source_template_id:
+    source_template:
       type: string
       nullable: true
     source_template_version:
@@ -430,7 +434,7 @@ UpdateCommunityPricingPolicyRequest:
       type: array
       items:
         $ref: ./communities-community.yaml#/CommunityPricingCountryAssignment
-    source_template_id:
+    source_template:
       type: string
       nullable: true
     source_template_version:
@@ -441,17 +445,23 @@ CommunityPricingPolicy:
   description: |
     Resolved community pricing policy for commerce. This policy controls whether a listing that opts in may adjust the authored USD base price using buyer verification-backed tiering. It is separate from money policy, which controls allowed funding lanes and settlement constraints. When no explicit pricing policy has been configured, the server must still return the default non-tiered policy with `policy_origin = default`.
   required:
-    - community_id
+    - id
+    - object
     - policy_origin
     - pricing_policy_version
     - regional_pricing_enabled
     - tiers
     - country_assignments
-    - updated_at
   additionalProperties: false
   properties:
-    community_id:
+    id:
       type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - community_pricing_policy
     policy_origin:
       $ref: ./communities-community.yaml#/CommunityPolicyOrigin
     pricing_policy_version:
@@ -474,37 +484,40 @@ CommunityPricingPolicy:
       type: array
       items:
         $ref: ./communities-community.yaml#/CommunityPricingCountryAssignment
-    source_template_id:
+    source_template:
       type: string
       nullable: true
     source_template_version:
       type: string
       nullable: true
-    updated_at:
-      type: string
-      format: date-time
 CommunityListing:
   type: object
   required:
-    - listing_id
-    - community_id
+    - id
+    - object
+    - community
     - listing_mode
     - status
-    - price_usd
+    - price_cents
     - regional_pricing_enabled
-    - created_by_user_id
-    - created_at
-    - updated_at
+    - created_by_user
+    - created
   additionalProperties: false
   properties:
-    listing_id:
+    id:
       type: string
-    community_id:
+      readOnly: true
+    object:
       type: string
-    asset_id:
+      readOnly: true
+      enum:
+        - community_listing
+    community:
+      type: string
+    asset:
       type: string
       nullable: true
-    live_room_id:
+    live_room:
       type: string
       nullable: true
     listing_mode:
@@ -518,49 +531,48 @@ CommunityListing:
         - active
         - paused
         - archived
-    price_usd:
-      type: number
+    price_cents:
+      type: integer
       minimum: 0
     regional_pricing_enabled:
       type: boolean
-    donation_partner_id:
+    donation_partner:
       type: string
       nullable: true
-    donation_share_pct:
-      type: number
+    donation_share_bps:
+      type: integer
+      minimum: 0
       nullable: true
-    created_by_user_id:
+    created_by_user:
       type: string
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 CreateCommunityListingRequest:
   type: object
   required:
-    - price_usd
+    - price_cents
     - regional_pricing_enabled
     - status
   additionalProperties: false
   properties:
-    asset_id:
+    asset:
       type: string
       nullable: true
-    live_room_id:
+    live_room:
       type: string
       nullable: true
-    price_usd:
-      type: number
+    price_cents:
+      type: integer
       minimum: 0
     regional_pricing_enabled:
       type: boolean
-    donation_partner_id:
+    donation_partner:
       type: string
       nullable: true
-    donation_share_pct:
-      type: number
+    donation_share_bps:
+      type: integer
+      minimum: 0
       nullable: true
     status:
       type: string
@@ -573,16 +585,17 @@ UpdateCommunityListingRequest:
   type: object
   additionalProperties: false
   properties:
-    price_usd:
-      type: number
+    price_cents:
+      type: integer
       minimum: 0
     regional_pricing_enabled:
       type: boolean
-    donation_partner_id:
+    donation_partner:
       type: string
       nullable: true
-    donation_share_pct:
-      type: number
+    donation_share_bps:
+      type: integer
+      minimum: 0
       nullable: true
     status:
       type: string
@@ -595,12 +608,16 @@ CommunityListingListResponse:
   type: object
   required:
     - items
+    - next_cursor
   additionalProperties: false
   properties:
     items:
       type: array
       items:
         $ref: ./communities-community.yaml#/CommunityListing
+    next_cursor:
+      type: string
+      nullable: true
 CommunitySaleAllocationRecipientType:
   type: string
   enum:
@@ -628,7 +645,7 @@ CommunitySaleAllocationSnapshot:
     - recipient_type
     - waterfall_position
     - share_bps
-    - amount_usd
+    - amount_cents
     - settlement_strategy
   additionalProperties: false
   properties:
@@ -644,8 +661,8 @@ CommunitySaleAllocationSnapshot:
       type: integer
       minimum: 0
       maximum: 10000
-    amount_usd:
-      type: number
+    amount_cents:
+      type: integer
       minimum: 0
     settlement_strategy:
       $ref: ./communities-community.yaml#/CommunitySaleAllocationSettlementStrategy
@@ -668,41 +685,48 @@ CommunitySaleAllocationLeg:
 CommunityPurchase:
   type: object
   required:
-    - purchase_id
-    - community_id
-    - listing_id
-    - buyer_user_id
-    - settlement_wallet_attachment_id
-    - purchase_price_usd
+    - id
+    - object
+    - community
+    - listing
+    - buyer_user
+    - settlement_wallet_attachment
+    - purchase_price_cents
     - settlement_mode
     - settlement_chain
     - settlement_token
     - settlement_tx_ref
     - allocations
-    - purchase_entitlement_id
+    - purchase_entitlement
     - entitlement_kind
     - entitlement_target_ref
-    - created_at
+    - created
   additionalProperties: false
   properties:
-    purchase_id:
+    id:
       type: string
-    community_id:
+      readOnly: true
+    object:
       type: string
-    listing_id:
+      readOnly: true
+      enum:
+        - community_purchase
+    community:
       type: string
-    asset_id:
+    listing:
+      type: string
+    asset:
       type: string
       nullable: true
-    live_room_id:
+    live_room:
       type: string
       nullable: true
-    buyer_user_id:
+    buyer_user:
       type: string
-    settlement_wallet_attachment_id:
+    settlement_wallet_attachment:
       type: string
-    purchase_price_usd:
-      type: number
+    purchase_price_cents:
+      type: integer
       minimum: 0
     pricing_tier:
       type: string
@@ -719,16 +743,18 @@ CommunityPurchase:
       type: array
       items:
         $ref: ./communities-community.yaml#/CommunitySaleAllocationLeg
-    donation_partner_id:
+    donation_partner:
       type: string
       nullable: true
-    donation_share_pct:
-      type: number
+    donation_share_bps:
+      type: integer
+      minimum: 0
       nullable: true
-    donation_amount_usd:
-      type: number
+    donation_amount_cents:
+      type: integer
+      minimum: 0
       nullable: true
-    purchase_entitlement_id:
+    purchase_entitlement:
       type: string
     entitlement_kind:
       type: string
@@ -739,19 +765,23 @@ CommunityPurchase:
         - license
     entitlement_target_ref:
       type: string
-    created_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 CommunityPurchaseListResponse:
   type: object
   required:
     - items
+    - next_cursor
   additionalProperties: false
   properties:
     items:
       type: array
       items:
         $ref: ./communities-community.yaml#/CommunityPurchase
+    next_cursor:
+      type: string
+      nullable: true
 CommunityPurchaseFundingMode:
   type: string
   enum:
@@ -771,7 +801,7 @@ CommunityPurchaseQuotePreflightRequest:
     - client_estimated_hop_count
   additionalProperties: false
   properties:
-    listing_id:
+    listing:
       type: string
       nullable: true
     funding_asset:
@@ -798,7 +828,7 @@ CommunityPurchaseQuotePreflight:
   description: |
     Effective community purchase quote preflight snapshot. A successful response means the requested funding lane satisfies the community's current money policy. The response surfaces the required settlement lane and policy-derived quote expiry, but does not include listing pricing or a reserved route.
   required:
-    - community_id
+    - community
     - eligible
     - funding_mode
     - policy_origin
@@ -814,7 +844,7 @@ CommunityPurchaseQuotePreflight:
     - expires_at
   additionalProperties: false
   properties:
-    community_id:
+    community:
       type: string
     eligible:
       type: boolean
@@ -853,38 +883,39 @@ CommunityPurchaseQuotePreflight:
     route_hop_tolerance:
       type: integer
       minimum: 0
-    base_price_usd:
-      type: number
+    base_price_cents:
+      type: integer
       nullable: true
-    viewer_price_usd:
-      type: number
+    viewer_price_cents:
+      type: integer
       nullable: true
-    best_verified_price_usd:
-      type: number
+    best_verified_price_cents:
+      type: integer
       nullable: true
-    max_self_discount_percent:
-      type: number
+    max_self_discount_bps:
+      type: integer
+      minimum: 0
       nullable: true
     verification_required_provider:
       $ref: ./communities-community.yaml#/CommunityPricingVerificationProvider
       nullable: true
     quoted_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
     expires_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
 CommunityPurchaseQuoteRequest:
   type: object
   description: |
     Request a short-lived priced purchase quote for a persisted community listing. The server must load the listing by `listing_id`, verify it belongs to the community and is currently sellable, and derive the quote from the authoritative stored listing price rather than trusting a client-supplied amount. Route estimate fields are client-estimated in this implementation slice and must not be interpreted as server-verified route telemetry.
   required:
-    - listing_id
+    - listing
     - client_estimated_slippage_bps
     - client_estimated_hop_count
   additionalProperties: false
   properties:
-    listing_id:
+    listing:
       type: string
     funding_asset:
       $ref: ./communities-community.yaml#/CommunityMoneyAssetRef
@@ -910,12 +941,13 @@ CommunityPurchaseQuote:
   description: |
     Short-lived purchase quote snapshot for a community commerce object. This response is priced in USD using the persisted authored listing price and the community's current money policy. It is a quote record, not a completed purchase or settlement. In this implementation slice, route-policy compliance is checked server-side, but live bridge/swap liquidity is not yet verified.
   required:
-    - quote_id
-    - community_id
-    - listing_id
-    - buyer_user_id
-    - base_price_usd
-    - final_price_usd
+    - id
+    - object
+    - community
+    - listing
+    - buyer_user
+    - base_price_cents
+    - final_price_cents
     - settlement_mode
     - allocation_snapshot
     - funding_mode
@@ -931,28 +963,34 @@ CommunityPurchaseQuote:
     - expires_at
   additionalProperties: false
   properties:
-    quote_id:
+    id:
       type: string
-    community_id:
+      readOnly: true
+    object:
       type: string
-    listing_id:
+      readOnly: true
+      enum:
+        - community_purchase_quote
+    community:
       type: string
-    buyer_user_id:
+    listing:
       type: string
-    asset_id:
+    buyer_user:
+      type: string
+    asset:
       type: string
       nullable: true
-    live_room_id:
+    live_room:
       type: string
       nullable: true
-    base_price_usd:
-      type: number
+    base_price_cents:
+      type: integer
       minimum: 0
     pricing_tier:
       type: string
       nullable: true
-    final_price_usd:
-      type: number
+    final_price_cents:
+      type: integer
       minimum: 0
     settlement_mode:
       $ref: ./communities-community.yaml#/CommunityPurchaseSettlementMode
@@ -1018,25 +1056,25 @@ CommunityPurchaseQuote:
       type: string
       nullable: true
     quoted_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
     expires_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
 CommunityPurchaseSettlementRequest:
   type: object
   description: |
     Confirm successful settlement for an already-issued community purchase quote. The server must reload the stored quote by `community_id` and `quote_id`, verify the quote belongs to the authenticated buyer, ensure it is still active and unexpired, then create the canonical purchase row and entitlement snapshot before marking the quote consumed.
   required:
-    - quote_id
-    - settlement_wallet_attachment_id
+    - quote
+    - settlement_wallet_attachment
     - funding_tx_ref
     - settlement_tx_ref
   additionalProperties: false
   properties:
-    quote_id:
+    quote:
       type: string
-    settlement_wallet_attachment_id:
+    settlement_wallet_attachment:
       type: string
     funding_tx_ref:
       type: string
@@ -1048,13 +1086,14 @@ CommunityPurchaseSettlement:
   description: |
     Canonical app-level record returned after successful purchase settlement finalization. This response snapshots the consumed quote, settlement reference, and granted entitlement surface.
   required:
-    - purchase_id
-    - quote_id
-    - community_id
-    - listing_id
-    - buyer_user_id
-    - settlement_wallet_attachment_id
-    - purchase_price_usd
+    - id
+    - object
+    - quote
+    - community
+    - listing
+    - buyer_user
+    - settlement_wallet_attachment
+    - purchase_price_cents
     - settlement_mode
     - settlement_chain
     - settlement_chain_ref
@@ -1063,30 +1102,36 @@ CommunityPurchaseSettlement:
     - allocations
     - entitlement_kind
     - entitlement_target_ref
-    - purchase_entitlement_id
+    - purchase_entitlement
     - settled_at
   additionalProperties: false
   properties:
-    purchase_id:
+    id:
       type: string
-    quote_id:
+      readOnly: true
+    object:
       type: string
-    community_id:
+      readOnly: true
+      enum:
+        - community_purchase_settlement
+    quote:
       type: string
-    listing_id:
+    community:
       type: string
-    buyer_user_id:
+    listing:
       type: string
-    asset_id:
+    buyer_user:
+      type: string
+    asset:
       type: string
       nullable: true
-    live_room_id:
+    live_room:
       type: string
       nullable: true
-    settlement_wallet_attachment_id:
+    settlement_wallet_attachment:
       type: string
-    purchase_price_usd:
-      type: number
+    purchase_price_cents:
+      type: integer
       minimum: 0
     pricing_tier:
       type: string
@@ -1105,14 +1150,16 @@ CommunityPurchaseSettlement:
       type: array
       items:
         $ref: ./communities-community.yaml#/CommunitySaleAllocationLeg
-    donation_partner_id:
+    donation_partner:
       type: string
       nullable: true
-    donation_share_pct:
-      type: number
+    donation_share_bps:
+      type: integer
+      minimum: 0
       nullable: true
-    donation_amount_usd:
-      type: number
+    donation_amount_cents:
+      type: integer
+      minimum: 0
       nullable: true
     entitlement_kind:
       type: string
@@ -1121,33 +1168,43 @@ CommunityPurchaseSettlement:
         - live_room_access
     entitlement_target_ref:
       type: string
-    purchase_entitlement_id:
+    purchase_entitlement:
       type: string
     settled_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
 CommunityPurchaseSettlementFailureRequest:
   type: object
   description: |
     Mark an active purchase quote as failed without finalizing a purchase. This is the operator-facing failure path for routed or direct settlement attempts that did not finalize successfully.
   required:
-    - quote_id
+    - quote
   additionalProperties: false
   properties:
-    quote_id:
+    quote:
       type: string
 CommunityPurchaseSettlementFailure:
   type: object
   required:
-    - quote_id
-    - community_id
+    - id
+    - object
+    - quote
+    - community
     - status
     - expires_at
   additionalProperties: false
   properties:
-    quote_id:
+    id:
       type: string
-    community_id:
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - community_purchase_settlement_failure
+    quote:
+      type: string
+    community:
       type: string
     status:
       type: string
@@ -1155,12 +1212,12 @@ CommunityPurchaseSettlementFailure:
         - failed
         - expired
     failed_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     expires_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
 CommunityModerationDecisionLevel:
   type: string
   enum:
@@ -1218,13 +1275,13 @@ CommunityAuthenticityDetectionProfileSummary:
   description: |
     Public/admin-safe summary of a platform-approved authenticity-detection profile. Communities choose from these platform-managed profiles rather than configuring raw provider parameters directly.
   required:
-    - authenticity_detection_profile_id
+    - authenticity_detection_profile
     - profile_key
     - provider_key
     - supported_capabilities
     - status
   properties:
-    authenticity_detection_profile_id:
+    authenticity_detection_profile:
       type: string
     profile_key:
       type: string
@@ -1360,16 +1417,15 @@ CommunityContentAuthenticityPolicy:
   description: |
     Resolved community authenticity policy. This setting is separate from freeform rules text and separate from rights or source authorization policy. When no explicit policy has been configured, the server must still return the restrictive default policy with `policy_origin = default`. In that case, `updated_at` may be synthesized from the applicable default-policy revision timestamp or another server-defined default-policy source.
   required:
-    - community_id
+    - community
     - policy_origin
     - authenticity_stance
     - text_policy
     - image_policy
     - video_policy
     - song_policy
-    - updated_at
   properties:
-    community_id:
+    community:
       type: string
     policy_origin:
       $ref: ./communities-community.yaml#/CommunityPolicyOrigin
@@ -1383,9 +1439,6 @@ CommunityContentAuthenticityPolicy:
       $ref: ./communities-community.yaml#/CommunityVideoAuthenticityPolicySettings
     song_policy:
       $ref: ./communities-community.yaml#/CommunitySongAuthenticityPolicySettings
-    updated_at:
-      type: string
-      format: date-time
 CommunityIdentifiedPersonMediaScope:
   type: string
   enum:
@@ -1435,15 +1488,14 @@ CommunitySourcePolicy:
   description: |
     Resolved community source policy for reposts and fan works. This policy is orthogonal to AI authenticity settings and does not weaken platform-level bans on deceptive synthetic likeness content. When no explicit policy has been configured, the server must still return the restrictive default policy with `policy_origin = default`. In that case, `updated_at` may be synthesized from the applicable default-policy revision timestamp or another server-defined default-policy source.
   required:
-    - community_id
+    - community
     - policy_origin
     - identified_person_media_scope
     - require_source_url_for_reposts
     - allow_human_made_fan_art_of_real_people
     - require_fan_art_disclosure
-    - updated_at
   properties:
-    community_id:
+    community:
       type: string
     policy_origin:
       $ref: ./communities-community.yaml#/CommunityPolicyOrigin
@@ -1455,9 +1507,6 @@ CommunitySourcePolicy:
       type: boolean
     require_fan_art_disclosure:
       type: boolean
-    updated_at:
-      type: string
-      format: date-time
 CreateCommunityCaptureEditPolicyInput:
   type: object
   description: |
@@ -1507,16 +1556,15 @@ CommunityCaptureEditPolicy:
   description: |
     Resolved community capture-edit policy for non-generative media adjustments. When no explicit policy has been configured, the server must still return the effective default policy with `policy_origin = default`.
   required:
-    - community_id
+    - community
     - policy_origin
     - basic_adjustments
     - retouching
     - compositing
     - documentary_editing
     - require_edit_disclosure
-    - updated_at
   properties:
-    community_id:
+    community:
       type: string
     policy_origin:
       $ref: ./communities-community.yaml#/CommunityPolicyOrigin
@@ -1530,9 +1578,6 @@ CommunityCaptureEditPolicy:
       $ref: ./communities-community.yaml#/CommunityDisclosureDecisionLevel
     require_edit_disclosure:
       type: boolean
-    updated_at:
-      type: string
-      format: date-time
 CreateCommunityAdultContentPolicyInput:
   type: object
   description: |
@@ -1582,16 +1627,15 @@ CommunityAdultContentPolicy:
   description: |
     Resolved community adult-content policy. When no explicit policy has been configured, the server must still return the effective default policy with `policy_origin = default`.
   required:
-    - community_id
+    - community
     - policy_origin
     - suggestive
     - artistic_nudity
     - explicit_nudity
     - explicit_sexual_content
     - fetish_content
-    - updated_at
   properties:
-    community_id:
+    community:
       type: string
     policy_origin:
       $ref: ./communities-community.yaml#/CommunityPolicyOrigin
@@ -1605,9 +1649,6 @@ CommunityAdultContentPolicy:
       $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
     fetish_content:
       $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
-    updated_at:
-      type: string
-      format: date-time
 CreateCommunityGraphicContentPolicyInput:
   type: object
   description: |
@@ -1657,16 +1698,15 @@ CommunityGraphicContentPolicy:
   description: |
     Resolved community graphic-content policy. When no explicit policy has been configured, the server must still return the effective default policy with `policy_origin = default`.
   required:
-    - community_id
+    - community
     - policy_origin
     - injury_medical
     - gore
     - extreme_gore
     - body_horror_disturbing
     - animal_harm
-    - updated_at
   properties:
-    community_id:
+    community:
       type: string
     policy_origin:
       $ref: ./communities-community.yaml#/CommunityPolicyOrigin
@@ -1680,9 +1720,6 @@ CommunityGraphicContentPolicy:
       $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
     animal_harm:
       $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
-    updated_at:
-      type: string
-      format: date-time
 CreateCommunityMotionMediaPolicyInput:
   type: object
   description: |
@@ -1730,15 +1767,14 @@ CommunityMotionMediaPolicy:
   description: |
     Resolved community motion-media policy. When no explicit policy has been configured, the server must still return the effective default policy with `policy_origin = default`.
   required:
-    - community_id
+    - community
     - policy_origin
     - allow_animated_images
     - allow_silent_looping_video
     - allow_audio_video
     - require_video_transcription
-    - updated_at
   properties:
-    community_id:
+    community:
       type: string
     policy_origin:
       $ref: ./communities-community.yaml#/CommunityPolicyOrigin
@@ -1753,9 +1789,6 @@ CommunityMotionMediaPolicy:
       nullable: true
     require_video_transcription:
       type: boolean
-    updated_at:
-      type: string
-      format: date-time
 CreateCommunityLanguagePolicyInput:
   type: object
   description: |
@@ -1787,13 +1820,12 @@ CommunityLanguagePolicy:
   description: |
     Resolved community language policy. When no explicit policy has been configured, the server must still return the effective default policy with `policy_origin = default`.
   required:
-    - community_id
+    - community
     - policy_origin
     - profanity
     - slurs
-    - updated_at
   properties:
-    community_id:
+    community:
       type: string
     policy_origin:
       $ref: ./communities-community.yaml#/CommunityPolicyOrigin
@@ -1801,9 +1833,6 @@ CommunityLanguagePolicy:
       $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
     slurs:
       $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
-    updated_at:
-      type: string
-      format: date-time
 CreateCommunityCivilityPolicyInput:
   type: object
   description: |
@@ -1847,15 +1876,14 @@ CommunityCivilityPolicy:
   description: |
     Resolved community civility policy. When no explicit policy has been configured, the server must still return the effective default policy with `policy_origin = default`.
   required:
-    - community_id
+    - community
     - policy_origin
     - group_directed_demeaning_language
     - targeted_insults
     - targeted_harassment
     - threatening_language
-    - updated_at
   properties:
-    community_id:
+    community:
       type: string
     policy_origin:
       $ref: ./communities-community.yaml#/CommunityPolicyOrigin
@@ -1867,9 +1895,6 @@ CommunityCivilityPolicy:
       $ref: ./communities-community.yaml#/CommunityModerationDecisionLevel
     threatening_language:
       $ref: ./communities-community.yaml#/CommunityEscalationDecisionLevel
-    updated_at:
-      type: string
-      format: date-time
 CreateCommunityProvenancePolicyInput:
   type: object
   description: |
@@ -1925,16 +1950,15 @@ CommunityProvenancePolicy:
   description: |
     Resolved community provenance policy. When no explicit policy has been configured, the server must still return the effective default policy with `policy_origin = default`.
   required:
-    - community_id
+    - community
     - policy_origin
     - allowed_creator_relations
     - require_creator_relation
     - false_claim_consequence
     - allow_oc_claim
     - require_proof_for_original
-    - updated_at
   properties:
-    community_id:
+    community:
       type: string
     policy_origin:
       $ref: ./communities-community.yaml#/CommunityPolicyOrigin
@@ -1951,9 +1975,6 @@ CommunityProvenancePolicy:
       type: boolean
     require_proof_for_original:
       type: boolean
-    updated_at:
-      type: string
-      format: date-time
 CreateCommunityPromotionPolicyInput:
   type: object
   description: |
@@ -1972,8 +1993,9 @@ CreateCommunityPromotionPolicyInput:
       nullable: true
       description: |
         Rolling 7 * 24-hour cap for promotional posts.
-    promotional_participation_ratio:
-      type: number
+    promotional_participation_ratio_decimal:
+      type: string
+      pattern: ^\d+(\.\d+)?$
       nullable: true
     require_minimum_membership_days:
       type: integer
@@ -1996,8 +2018,9 @@ UpdateCommunityPromotionPolicyRequest:
       nullable: true
       description: |
         Rolling 7 * 24-hour cap for promotional posts.
-    promotional_participation_ratio:
-      type: number
+    promotional_participation_ratio_decimal:
+      type: string
+      pattern: ^\d+(\.\d+)?$
       nullable: true
     require_minimum_membership_days:
       type: integer
@@ -2007,13 +2030,12 @@ CommunityPromotionPolicy:
   description: |
     Resolved community promotion policy. When no explicit policy has been configured, the server must still return the effective default policy with `policy_origin = default`.
   required:
-    - community_id
+    - community
     - policy_origin
     - self_promotion_mode
     - require_affiliation_disclosure
-    - updated_at
   properties:
-    community_id:
+    community:
       type: string
     policy_origin:
       $ref: ./communities-community.yaml#/CommunityPolicyOrigin
@@ -2026,15 +2048,13 @@ CommunityPromotionPolicy:
       nullable: true
       description: |
         Effective rolling 7 * 24-hour cap for promotional posts.
-    promotional_participation_ratio:
-      type: number
+    promotional_participation_ratio_decimal:
+      type: string
+      pattern: ^\d+(\.\d+)?$
       nullable: true
     require_minimum_membership_days:
       type: integer
       nullable: true
-    updated_at:
-      type: string
-      format: date-time
 CreateCommunityContentAuthenticityDetectionPolicyInput:
   type: object
   description: |
@@ -2045,7 +2065,7 @@ CreateCommunityContentAuthenticityDetectionPolicyInput:
   properties:
     selection_mode:
       $ref: ./communities-community.yaml#/CommunityContentAuthenticityDetectionSelectionMode
-    authenticity_detection_profile_id:
+    authenticity_detection_profile:
       type: string
       nullable: true
       description: |
@@ -2060,7 +2080,7 @@ UpdateCommunityContentAuthenticityDetectionPolicyRequest:
   properties:
     selection_mode:
       $ref: ./communities-community.yaml#/CommunityContentAuthenticityDetectionSelectionMode
-    authenticity_detection_profile_id:
+    authenticity_detection_profile:
       type: string
       nullable: true
       description: |
@@ -2070,13 +2090,12 @@ CommunityContentAuthenticityDetectionPolicy:
   description: |
     Resolved community authenticity-detection policy. When no explicit selection has been configured, the server must still return the platform-default detection profile with `policy_origin = default`. The platform-default authenticity-detection profile is an operational invariant and must always exist while this feature is enabled. In that case, `updated_at` may be synthesized from the active platform-default profile version timestamp or another server-defined default-policy source.
   required:
-    - community_id
+    - community
     - policy_origin
     - selection_mode
     - resolved_profile
-    - updated_at
   properties:
-    community_id:
+    community:
       type: string
     policy_origin:
       $ref: ./communities-community.yaml#/CommunityPolicyOrigin
@@ -2084,9 +2103,6 @@ CommunityContentAuthenticityDetectionPolicy:
       $ref: ./communities-community.yaml#/CommunityContentAuthenticityDetectionSelectionMode
     resolved_profile:
       $ref: ./communities-community.yaml#/CommunityAuthenticityDetectionProfileSummary
-    updated_at:
-      type: string
-      format: date-time
 CreateCommunityBootstrapInput:
   type: object
   properties:
@@ -2156,11 +2172,9 @@ CreateCommunityLabelDefinitionInput:
 UpdateCommunityLabelDefinitionInput:
   type: object
   required:
-    - label_id
+    - label
   additionalProperties: false
   properties:
-    label_id:
-      type: string
     label:
       type: string
     description:
@@ -2194,13 +2208,20 @@ CommunityLabelDefinitionMutationInput:
 CommunityLabelDefinition:
   type: object
   required:
-    - label_id
+    - id
+    - object
     - label
     - status
     - position
   properties:
-    label_id:
+    id:
       type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - community_label_definition
     label:
       type: string
     description:
@@ -2247,12 +2268,19 @@ PostLabel:
   description: |
     Resolved label summary for a post read surface. Historical posts may continue to return label definitions whose current `status` is `archived`; clients should still render the label normally in that case rather than treating it as hidden or as a special archived badge.
   required:
-    - label_id
+    - id
+    - object
     - label
     - status
   properties:
-    label_id:
+    id:
       type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - post_label
     label:
       type: string
     color_token:
@@ -2284,10 +2312,10 @@ CreateCommunityRuleInput:
 UpdateCommunityRuleInput:
   type: object
   required:
-    - rule_id
+    - rule
   additionalProperties: false
   properties:
-    rule_id:
+    rule:
       type: string
     title:
       type: string
@@ -2311,15 +2339,22 @@ CommunityRuleMutationInput:
 CommunityRule:
   type: object
   required:
-    - rule_id
+    - id
+    - object
     - title
     - body
     - report_reason
     - position
     - status
   properties:
-    rule_id:
+    id:
       type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - community_rule
     title:
       type: string
     body:
@@ -2363,10 +2398,10 @@ CreateCommunityResourceLinkInput:
 UpdateCommunityResourceLinkInput:
   type: object
   required:
-    - resource_link_id
+    - resource_link
   additionalProperties: false
   properties:
-    resource_link_id:
+    resource_link:
       type: string
     label:
       type: string
@@ -2397,15 +2432,22 @@ CommunityResourceLinkMutationInput:
 CommunityResourceLink:
   type: object
   required:
-    - resource_link_id
+    - id
+    - object
     - label
     - url
     - resource_kind
     - position
     - status
   properties:
-    resource_link_id:
+    id:
       type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - community_resource_link
     label:
       type: string
     url:
@@ -2522,7 +2564,7 @@ CommunityReferenceLinkPublic:
   type: object
   additionalProperties: false
   required:
-    - community_reference_link_id
+    - community_reference_link
     - platform
     - url
     - link_status
@@ -2530,14 +2572,14 @@ CommunityReferenceLinkPublic:
     - metadata
     - position
   properties:
-    community_reference_link_id:
+    community_reference_link:
       type: string
     platform:
       $ref: ./communities-community.yaml#/CommunityReferenceLinkPlatform
     url:
       type: string
       format: uri
-    external_id:
+    external:
       type: string
       nullable: true
     label:
@@ -2550,8 +2592,8 @@ CommunityReferenceLinkPublic:
       description: |
         Public-safe verification flag. This is true only when the current link state is `verified`; pending, rejected, revoked, and non-applicable states should all surface as `false` to public callers.
     verified_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     metadata:
       $ref: ./communities-community.yaml#/CommunityReferenceLinkMetadata
@@ -2562,8 +2604,8 @@ CommunityReferenceLinkAdmin:
   type: object
   additionalProperties: false
   required:
-    - community_reference_link_id
-    - community_id
+    - community_reference_link
+    - community
     - platform
     - url
     - normalized_url
@@ -2571,12 +2613,11 @@ CommunityReferenceLinkAdmin:
     - verification_applicability
     - metadata
     - position
-    - created_at
-    - updated_at
+    - created
   properties:
-    community_reference_link_id:
+    community_reference_link:
       type: string
-    community_id:
+    community:
       type: string
     platform:
       $ref: ./communities-community.yaml#/CommunityReferenceLinkPlatform
@@ -2586,7 +2627,7 @@ CommunityReferenceLinkAdmin:
     normalized_url:
       type: string
       format: uri
-    external_id:
+    external:
       type: string
       nullable: true
     label:
@@ -2605,14 +2646,14 @@ CommunityReferenceLinkAdmin:
         - $ref: ./communities-community.yaml#/CommunityReferenceLinkVerificationMethod
       nullable: true
     verified_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     last_verification_checked_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
-    active_proof_id:
+    active_proof:
       type: string
       nullable: true
       description: |
@@ -2622,12 +2663,9 @@ CommunityReferenceLinkAdmin:
     position:
       type: integer
       minimum: 0
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 CommunityReferenceLinkReadResponse:
   oneOf:
     - $ref: ./communities-community.yaml#/CommunityReferenceLinkPublic
@@ -2692,20 +2730,26 @@ CommunityReferenceLinkProof:
   type: object
   additionalProperties: false
   required:
-    - proof_id
-    - community_reference_link_id
-    - community_id
+    - id
+    - object
+    - community_reference_link
+    - community
     - proof_type
     - proof_target
     - status
-    - created_at
-    - updated_at
+    - created
   properties:
-    proof_id:
+    id:
       type: string
-    community_reference_link_id:
+      readOnly: true
+    object:
       type: string
-    community_id:
+      readOnly: true
+      enum:
+        - community_reference_link_proof
+    community_reference_link:
+      type: string
+    community:
       type: string
     proof_type:
       $ref: ./communities-community.yaml#/CommunityReferenceLinkVerificationMethod
@@ -2732,19 +2776,16 @@ CommunityReferenceLinkProof:
       type: string
       nullable: true
     verified_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     reviewed_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 CommunityReferenceLinkProofListResponse:
   type: object
   additionalProperties: false
@@ -2837,10 +2878,10 @@ CommunityProfileMutationResponse:
   type: object
   additionalProperties: false
   required:
-    - community_id
+    - community
     - profile
   properties:
-    community_id:
+    community:
       type: string
     profile:
       type: object
@@ -2863,10 +2904,10 @@ CommunityRulesMutationResponse:
   type: object
   additionalProperties: false
   required:
-    - community_id
+    - community
     - rules
   properties:
-    community_id:
+    community:
       type: string
     rules:
       type: array
@@ -2879,10 +2920,10 @@ CommunityResourceLinksMutationResponse:
   type: object
   additionalProperties: false
   required:
-    - community_id
+    - community
     - resource_links
   properties:
-    community_id:
+    community:
       type: string
     resource_links:
       type: array
@@ -2895,10 +2936,10 @@ CommunityDonationPolicyPublicMutationResponse:
   type: object
   additionalProperties: false
   required:
-    - community_id
+    - community
     - donation_policy
   properties:
-    community_id:
+    community:
       type: string
     donation_policy:
       type: object
@@ -3037,15 +3078,14 @@ CommunityMachineAccessPolicy:
   type: object
   additionalProperties: false
   required:
-    - community_id
+    - community
     - policy_origin
     - access_mode
     - included_surfaces
     - allowed_uses
     - operational_limits
-    - updated_at
   properties:
-    community_id:
+    community:
       type: string
     policy_origin:
       type: string
@@ -3065,9 +3105,6 @@ CommunityMachineAccessPolicy:
       $ref: ./communities-community.yaml#/CommunityMachineAccessAllowedUses
     operational_limits:
       $ref: ./communities-community.yaml#/CommunityMachineAccessOperationalLimits
-    updated_at:
-      type: string
-      format: date-time
 CommunityMachineAccessPolicyPatch:
   type: object
   additionalProperties: false
@@ -3095,11 +3132,11 @@ PublicCommunityIdentity:
   type: object
   additionalProperties: false
   required:
-    - community_id
+    - community
     - slug
     - name
   properties:
-    community_id:
+    community:
       type: string
     slug:
       type: string
@@ -3112,9 +3149,9 @@ PublicCommunityIdentity:
       type: array
       items:
         type: string
-    created_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
       nullable: true
 PublicCommunityStats:
   type: object
@@ -3151,25 +3188,25 @@ StructuredPostCard:
   type: object
   additionalProperties: false
   required:
-    - post_id
-    - community_id
+    - post
+    - community
     - title
-    - created_at
+    - created
     - reply_count
     - links
   properties:
-    post_id:
+    post:
       type: string
-    community_id:
+    community:
       type: string
     title:
       type: string
     author_handle:
       type: string
       nullable: true
-    created_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
     vote_count:
       type: integer
       nullable: true
@@ -3192,6 +3229,7 @@ StructuredPublicPostListResponse:
   additionalProperties: false
   required:
     - items
+    - next_cursor
     - omitted_surfaces
     - links
   properties:
@@ -3199,6 +3237,9 @@ StructuredPublicPostListResponse:
       type: array
       items:
         $ref: ./communities-community.yaml#/StructuredPostCard
+    next_cursor:
+      type: string
+      nullable: true
     omitted_surfaces:
       type: array
       items:
@@ -3226,6 +3267,7 @@ StructuredTopCommentsResponse:
   additionalProperties: false
   required:
     - items
+    - next_cursor
     - top_comments_limit
     - links
   properties:
@@ -3233,6 +3275,9 @@ StructuredTopCommentsResponse:
       type: array
       items:
         $ref: ./comments.yaml#/CommentListItem
+    next_cursor:
+      type: string
+      nullable: true
     top_comments_limit:
       type: integer
       minimum: 0
@@ -3242,15 +3287,15 @@ StructuredEventCard:
   type: object
   additionalProperties: false
   required:
-    - event_id
-    - community_id
+    - event
+    - community
     - title
     - status
     - links
   properties:
-    event_id:
+    event:
       type: string
-    community_id:
+    community:
       type: string
     title:
       type: string
@@ -3258,8 +3303,8 @@ StructuredEventCard:
       type: string
       nullable: true
     starts_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     status:
       type: string

@@ -58,21 +58,21 @@ XEmbedPreview:
       type: string
       format: uri
       nullable: true
-    created_at:
+    created:
       type: string
       nullable: true
 XPostEmbed:
   type: object
   additionalProperties: false
   required:
-    - embed_id
+    - embed
     - embed_key
     - provider
     - canonical_url
     - original_url
     - state
   properties:
-    embed_id:
+    embed:
       type: string
     embed_key:
       type: string
@@ -115,8 +115,8 @@ XPostEmbed:
         - unknown
       nullable: true
     last_checked_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
 YouTubeEmbedPreview:
   type: object
@@ -146,14 +146,14 @@ YouTubeVideoEmbed:
   type: object
   additionalProperties: false
   required:
-    - embed_id
+    - embed
     - embed_key
     - provider
     - canonical_url
     - original_url
     - state
   properties:
-    embed_id:
+    embed:
       type: string
     embed_key:
       type: string
@@ -196,8 +196,8 @@ YouTubeVideoEmbed:
         - unknown
       nullable: true
     last_checked_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
 PostEmbed:
   oneOf:
@@ -243,7 +243,7 @@ CreatePostRequest:
           - required:
               - media_refs
           - required:
-              - song_artifact_bundle_id
+              - song_artifact_bundle
           - required:
               - lyrics
     - description: Image posts require at least one image in `media_refs`.
@@ -268,7 +268,7 @@ CreatePostRequest:
           - required:
               - link_url
           - required:
-              - song_artifact_bundle_id
+              - song_artifact_bundle
           - required:
               - lyrics
     - description: |
@@ -313,7 +313,7 @@ CreatePostRequest:
           - required:
               - link_url
           - required:
-              - song_artifact_bundle_id
+              - song_artifact_bundle
           - required:
               - lyrics
     - description: Link posts require `link_url`.
@@ -340,7 +340,7 @@ CreatePostRequest:
           - required:
               - media_refs
           - required:
-              - song_artifact_bundle_id
+              - song_artifact_bundle
           - required:
               - lyrics
     - description: |
@@ -352,7 +352,7 @@ CreatePostRequest:
         - identity_mode
       anyOf:
         - required:
-            - song_artifact_bundle_id
+            - song_artifact_bundle
         - allOf:
             - required:
                 - media_refs
@@ -398,12 +398,12 @@ CreatePostRequest:
               - link_url
           - allOf:
               - required:
-                  - song_artifact_bundle_id
+                  - song_artifact_bundle
               - required:
                   - media_refs
           - allOf:
               - required:
-                  - song_artifact_bundle_id
+                  - song_artifact_bundle
               - required:
                   - lyrics
   required:
@@ -424,7 +424,7 @@ CreatePostRequest:
       default: human_direct
       description: |
         Audit field for distinguishing human-direct writes from user-owned agent writes.
-    agent_id:
+    agent:
       type: string
       nullable: true
       description: |
@@ -459,10 +459,10 @@ CreatePostRequest:
       nullable: true
       description: |
         Platform-defined `qualifier_template_id` values chosen by the author for this post. In v0 these are only valid when `identity_mode = anonymous`.
-    parent_post_id:
+    parent_post:
       type: string
       nullable: true
-    label_id:
+    label:
       type: string
       nullable: true
     label_assignment_status:
@@ -480,8 +480,8 @@ CreatePostRequest:
         - ai
       nullable: true
     label_assigned_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     label_ai_confidence:
       type: number
@@ -553,10 +553,10 @@ CreatePostRequest:
         - public
         - locked
       nullable: true
-    asset_id:
+    asset:
       type: string
       nullable: true
-    song_artifact_bundle_id:
+    song_artifact_bundle:
       type: string
       nullable: true
       description: |
@@ -614,8 +614,9 @@ Post:
     Canonical post row. User-owned agent posts keep the owning human in `author_user_id` while
     exposing explicit authorship and byline snapshot fields for auditability and rendering.
   required:
-    - post_id
-    - community_id
+    - id
+    - object
+    - community
     - authorship_mode
     - identity_mode
     - post_type
@@ -624,14 +625,19 @@ Post:
     - analysis_state
     - content_safety_state
     - age_gate_policy
-    - created_at
-    - updated_at
+    - created
   properties:
-    post_id:
+    id:
       type: string
-    community_id:
+      readOnly: true
+    object:
       type: string
-    author_user_id:
+      readOnly: true
+      enum:
+        - post
+    community:
+      type: string
+    author_user:
       type: string
       nullable: true
       description: |
@@ -641,12 +647,12 @@ Post:
       enum:
         - human_direct
         - user_agent
-    agent_id:
+    agent:
       type: string
       nullable: true
       description: |
         Present when `authorship_mode = user_agent`.
-    agent_ownership_record_id:
+    agent_ownership_record:
       type: string
       nullable: true
       description: |
@@ -694,7 +700,7 @@ Post:
       items:
         $ref: ./posts.yaml#/DisclosedQualifierSnapshot
       nullable: true
-    label_id:
+    label:
       type: string
       nullable: true
     post_type:
@@ -780,13 +786,13 @@ Post:
         - public
         - locked
       nullable: true
-    asset_id:
+    asset:
       type: string
       nullable: true
-    song_artifact_bundle_id:
+    song_artifact_bundle:
       type: string
       nullable: true
-    parent_post_id:
+    parent_post:
       type: string
       nullable: true
     song_mode:
@@ -834,12 +840,9 @@ Post:
       enum:
         - none
         - 18_plus
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 LocalizedPostResponse:
   type: object
   description: |
@@ -881,6 +884,9 @@ LocalizedPostResponse:
       type: integer
       minimum: 0
     like_count:
+      type: integer
+      minimum: 0
+    comment_count:
       type: integer
       minimum: 0
     viewer_vote:
@@ -983,7 +989,7 @@ ImageMediaDescriptor:
       type: string
     mime_type:
       type: string
-      pattern: "^image/"
+      pattern: ^image/
     size_bytes:
       type: integer
       nullable: true
@@ -1011,7 +1017,7 @@ VideoMediaDescriptor:
       type: string
     mime_type:
       type: string
-      pattern: "^video/"
+      pattern: ^video/
     size_bytes:
       type: integer
       nullable: true
@@ -1033,7 +1039,7 @@ VideoMediaDescriptor:
     poster_mime_type:
       type: string
       nullable: true
-      pattern: "^image/"
+      pattern: ^image/
     poster_size_bytes:
       type: integer
       nullable: true
@@ -1059,7 +1065,7 @@ AudioMediaDescriptor:
       type: string
     mime_type:
       type: string
-      pattern: "^audio/"
+      pattern: ^audio/
     size_bytes:
       type: integer
       nullable: true
@@ -1072,12 +1078,12 @@ AudioMediaDescriptor:
 DisclosedQualifierSnapshot:
   type: object
   required:
-    - qualifier_template_id
+    - qualifier_template
     - rendered_label
     - qualifier_kind
     - qualifier_source
   properties:
-    qualifier_template_id:
+    qualifier_template:
       type: string
     rendered_label:
       type: string
@@ -1101,10 +1107,10 @@ PostVoteResponse:
   type: object
   additionalProperties: false
   required:
-    - post_id
+    - post
     - value
   properties:
-    post_id:
+    post:
       type: string
     value:
       type: integer

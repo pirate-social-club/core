@@ -1,13 +1,19 @@
 Profile:
   type: object
   required:
-    - user_id
+    - id
+    - object
     - global_handle
-    - created_at
-    - updated_at
+    - created
   properties:
-    user_id:
+    id:
       type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - profile
     display_name:
       type: string
       nullable: true
@@ -63,7 +69,7 @@ Profile:
       type: string
       nullable: true
       description: Public primary wallet address when Pirate product policy exposes wallet-linked identity on profile.
-    xmtp_inbox_id:
+    xmtp_inbox:
       type: string
       nullable: true
       description: Optional published XMTP inbox ID for direct profile messaging. This is populated only after the user opts in to encrypted chat identity publication.
@@ -74,12 +80,9 @@ Profile:
       description: Public normalized trust projection shown on profile when Pirate enables public trust fields.
     global_handle:
       $ref: ./profiles.yaml#/GlobalHandle
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 PublicProfileResolution:
   type: object
   required:
@@ -102,29 +105,29 @@ PublicProfileResolution:
       items:
         type: object
         required:
-          - community_id
+          - community
           - display_name
-          - created_at
+          - created
         properties:
-          community_id:
+          community:
             type: string
           display_name:
             type: string
           route_slug:
             type: string
             nullable: true
-          created_at:
-            type: string
-            format: date-time
+          created:
+            type: integer
+            format: int64
 LinkedHandle:
   type: object
   required:
-    - linked_handle_id
+    - linked_handle
     - label
     - kind
     - verification_state
   properties:
-    linked_handle_id:
+    linked_handle:
       type: string
     label:
       type: string
@@ -146,15 +149,22 @@ LinkedHandle:
 GlobalHandle:
   type: object
   required:
-    - global_handle_id
+    - id
+    - object
     - label
     - tier
     - status
     - issuance_source
     - issued_at
   properties:
-    global_handle_id:
+    id:
       type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - global_handle
     label:
       type: string
     tier:
@@ -177,27 +187,28 @@ GlobalHandle:
         - reddit_verified_claim
         - paid_upgrade
         - admin_grant
-    redirect_target_global_handle_id:
+    redirect_target_global_handle:
       type: string
       nullable: true
-    price_paid_usd:
-      type: number
+    price_paid_cents:
+      type: integer
+      minimum: 0
       nullable: true
     free_rename_consumed:
       type: boolean
     issued_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
     replaced_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
 HandleUpgradeQuote:
   type: object
   required:
     - desired_label
     - tier
-    - price_usd
+    - price_cents
     - eligible
   properties:
     desired_label:
@@ -207,8 +218,9 @@ HandleUpgradeQuote:
       enum:
         - standard
         - premium
-    price_usd:
-      type: number
+    price_cents:
+      type: integer
+      minimum: 0
     eligible:
       type: boolean
     reason:

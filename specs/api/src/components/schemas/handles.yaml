@@ -1,25 +1,25 @@
 NamespaceAttachmentInput:
   type: object
   required:
-    - namespace_verification_id
+    - namespace_verification
   properties:
-    namespace_verification_id:
+    namespace_verification:
       type: string
       description: |
         Opaque server-issued identifier for the previously accepted namespace verification session. The server resolves this to the underlying root-control evidence and assertions at create time. Creation must be rejected if the referenced verification is stale, disputed, or does not satisfy `club_attach_allowed` for the relevant protocol family. This field is required for public v0 create. Label and route fields below are derived from the verification session and are used for display and routing, not as proof of root control.
     display_label:
       type: string
       description: |
-        Optional derived display label for the verified namespace root. Clients may omit this on create and let the server derive it from `namespace_verification_id`. If submitted, it must match the verified namespace session.
+        Optional derived display label for the verified namespace root. Clients may omit this on create and let the server derive it from `namespace_verification`. If submitted, it must match the verified namespace session.
     normalized_label:
       type: string
       description: |
-        Optional derived normalized root label. Clients may omit this on create and let the server derive it from `namespace_verification_id`. If submitted, it must match the verified namespace session.
+        Optional derived normalized root label. Clients may omit this on create and let the server derive it from `namespace_verification`. If submitted, it must match the verified namespace session.
     resolver_label:
       type: string
       nullable: true
       description: |
-        Optional derived resolver-facing label for routing or downstream namespace operations. Clients may omit this on create and let the server derive it from `namespace_verification_id`.
+        Optional derived resolver-facing label for routing or downstream namespace operations. Clients may omit this on create and let the server derive it from `namespace_verification`.
     route_family:
       type: string
       nullable: true
@@ -65,8 +65,9 @@ HandleAvailability:
       type: boolean
     eligible:
       type: boolean
-    estimated_price_usd:
-      type: number
+    estimated_price_cents:
+      type: integer
+      minimum: 0
       nullable: true
     reason:
       type: string
@@ -76,18 +77,25 @@ HandleAvailability:
 CommunityHandle:
   type: object
   required:
-    - community_handle_id
-    - user_id
-    - namespace_id
+    - id
+    - object
+    - user
+    - namespace
     - label
     - status
     - issuance_source
   properties:
-    community_handle_id:
+    id:
       type: string
-    user_id:
+      readOnly: true
+    object:
       type: string
-    namespace_id:
+      readOnly: true
+      enum:
+        - community_handle
+    user:
+      type: string
+    namespace:
       type: string
     label:
       type: string
@@ -106,10 +114,10 @@ CommunityHandle:
         - auction
         - admin_grant
     lease_started_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     lease_expires_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true

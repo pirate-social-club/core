@@ -6,7 +6,7 @@ TrackResolveRequest:
     - required:
         - recording_mbid
     - required:
-        - story_ip_id
+        - story_ip
     - required:
         - metadata_hash
     - required:
@@ -16,16 +16,16 @@ TrackResolveRequest:
     recording_mbid:
       type: string
       nullable: true
-    story_ip_id:
+    story_ip:
       type: string
       nullable: true
     metadata_hash:
       type: string
       nullable: true
-    asset_id:
+    asset:
       type: string
       nullable: true
-    community_id:
+    community:
       type: string
       nullable: true
     title:
@@ -40,16 +40,16 @@ TrackResolveRequest:
 ListingDonationConfig:
   type: object
   description: |
-    Listing-level creator donation sidecar configuration. When `donation_opt_in = true`, both `donation_share_pct` and `donation_partner_id_snapshot` must be non-null.
+    Listing-level creator donation sidecar configuration. When `donation_opt_in = true`, both `donation_share_bps` and `donation_partner_id_snapshot` must be non-null.
   required:
     - donation_opt_in
   properties:
     donation_opt_in:
       type: boolean
-    donation_share_pct:
-      type: number
-      minimum: 0.01
-      maximum: 50
+    donation_share_bps:
+      type: integer
+      minimum: 1
+      maximum: 5000
       nullable: true
     donation_partner_id_snapshot:
       type: string
@@ -57,16 +57,18 @@ ListingDonationConfig:
 PurchaseDonationSettlement:
   type: object
   description: |
-    Purchase-time snapshot of donation routing and settlement outcome. Money fields are represented here as numbers for readability, but decimal strings are recommended in implementation to avoid floating-point precision issues.
+    Purchase-time snapshot of donation routing and settlement outcome.
   properties:
-    donation_partner_id:
+    donation_partner:
       type: string
       nullable: true
-    donation_share_pct:
-      type: number
+    donation_share_bps:
+      type: integer
+      minimum: 0
       nullable: true
-    donation_amount_usd:
-      type: number
+    donation_amount_cents:
+      type: integer
+      minimum: 0
       nullable: true
     donation_settlement_ref:
       type: string
@@ -74,16 +76,22 @@ PurchaseDonationSettlement:
 Track:
   type: object
   required:
-    - track_id
+    - id
+    - object
     - track_kind
     - title
     - metadata_hash
     - status
-    - created_at
-    - updated_at
+    - created
   properties:
-    track_id:
+    id:
       type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - track
     track_kind:
       type: string
       enum:
@@ -93,13 +101,13 @@ Track:
     recording_mbid:
       type: string
       nullable: true
-    story_ip_id:
+    story_ip:
       type: string
       nullable: true
-    asset_id:
+    asset:
       type: string
       nullable: true
-    community_id:
+    community:
       type: string
       nullable: true
     publisher_ref:
@@ -121,7 +129,7 @@ Track:
     lyrics_ref:
       type: string
       nullable: true
-    genius_song_id:
+    genius_song:
       type: string
       nullable: true
     artist_identity_ids:
@@ -137,9 +145,6 @@ Track:
         - draft
         - active
         - deprecated
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64

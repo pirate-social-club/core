@@ -94,11 +94,11 @@ posts_by_post_id_reactions:
             schema:
               type: object
               required:
-                - post_id
+                - post
                 - reaction_kind
                 - active
               properties:
-                post_id:
+                post:
                   type: string
                 reaction_kind:
                   type: string

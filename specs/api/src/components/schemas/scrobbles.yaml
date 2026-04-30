@@ -1,13 +1,13 @@
 CreateScrobbleRequest:
   type: object
   required:
-    - track_id
+    - track
     - source_type
     - playback_started_at
   properties:
-    track_id:
+    track:
       type: string
-    community_id:
+    community:
       type: string
       nullable: true
     source_type:
@@ -18,8 +18,8 @@ CreateScrobbleRequest:
         - mobile
         - operator_ingested
     playback_started_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
     playback_position_ms:
       type: integer
       nullable: true
@@ -37,23 +37,30 @@ CreateScrobbleRequest:
 Scrobble:
   type: object
   required:
-    - scrobble_id
-    - track_id
-    - user_id
+    - id
+    - object
+    - track
+    - user
     - source_type
     - playback_started_at
     - ingestion_mode
     - anchor_status
     - accepted_at
-    - created_at
+    - created
   properties:
-    scrobble_id:
+    id:
       type: string
-    track_id:
+      readOnly: true
+    object:
       type: string
-    user_id:
+      readOnly: true
+      enum:
+        - scrobble
+    track:
       type: string
-    community_id:
+    user:
+      type: string
+    community:
       type: string
       nullable: true
     source_type:
@@ -64,8 +71,8 @@ Scrobble:
         - mobile
         - operator_ingested
     playback_started_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
     playback_position_ms:
       type: integer
       nullable: true
@@ -88,11 +95,11 @@ Scrobble:
         - failed
         - suppressed
     accepted_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
     anchored_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     chain_tx_hash:
       type: string
@@ -100,16 +107,16 @@ Scrobble:
     chain_log_index:
       type: integer
       nullable: true
-    created_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 ListenerSummary:
   type: object
   required:
-    - user_id
+    - user
     - scrobble_count
   properties:
-    user_id:
+    user:
       type: string
     display_handle:
       type: string

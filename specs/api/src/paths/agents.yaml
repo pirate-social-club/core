@@ -203,6 +203,32 @@ agents_by_agent_id:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
+  post:
+    x-implemented: true
+    tags:
+      - Agents
+    summary: Update a user-owned agent
+    parameters:
+      - $ref: ../components/parameters.yaml#/AgentId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/agents.yaml#/UpdateUserAgentRequest
+    responses:
+      "200":
+        description: User-owned agent
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/agents.yaml#/UserAgent
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
 agents_by_agent_id_handle:
   get:
     x-implemented: true

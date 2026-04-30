@@ -23,7 +23,7 @@ communities_by_community_id_machine_access_policy:
         $ref: ../components/responses.yaml#/NotFound
       "429":
         $ref: ../components/responses.yaml#/RateLimited
-  patch:
+  post:
     tags:
       - Communities
     x-implemented: false

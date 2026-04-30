@@ -21,7 +21,6 @@ sentinel_subscribe:
         $ref: ../components/responses.yaml#/PaymentRequired
       "409":
         $ref: ../components/responses.yaml#/Conflict
-
 sentinel_session_start:
   post:
     tags:
@@ -45,14 +44,13 @@ sentinel_session_start:
         $ref: ../components/responses.yaml#/PaymentRequired
       "409":
         $ref: ../components/responses.yaml#/Conflict
-
 sentinel_session_by_id:
-  delete:
+  post:
     tags:
       - Wallets
-    summary: End the specified Sentinel session
+    summary: Revoke the specified Sentinel session
     description: |
-      Ends the authenticated user's Sentinel session and marks it ended in Pirate's control plane.
+      Revokes the authenticated user's Sentinel session and marks it ended in Pirate's control plane.
       Repeated calls are idempotent and return the ended state once the session is no longer active.
     parameters:
       - in: path

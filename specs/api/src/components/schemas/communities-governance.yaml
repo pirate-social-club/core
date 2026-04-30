@@ -80,25 +80,31 @@ AttachMajeurGovernanceRequest:
 GovernanceAction:
   type: object
   required:
-    - governance_action_id
-    - community_id
+    - id
+    - object
+    - community
     - action_kind
     - governance_mode
     - payload_hash
     - status
-    - created_at
-    - updated_at
+    - created
   properties:
-    governance_action_id:
+    id:
       type: string
-    community_id:
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - governance_action
+    community:
       type: string
     action_kind:
       type: string
       enum:
         - attach_governance
         - replace_governance
-    requested_by_user_id:
+    requested_by_user:
       type: string
       nullable: true
     governance_mode:
@@ -106,7 +112,7 @@ GovernanceAction:
       enum:
         - multisig
         - majeur
-    chain_id:
+    chain:
       type: integer
       nullable: true
     target_address:
@@ -128,12 +134,9 @@ GovernanceAction:
     execution_tx_hash:
       type: string
       nullable: true
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 GovernanceVerificationState:
   type: string
   enum:
@@ -164,10 +167,10 @@ CommunityGovernanceMutationResponse:
   type: object
   additionalProperties: false
   required:
-    - community_id
+    - community
     - governance_backend
   properties:
-    community_id:
+    community:
       type: string
     governance_backend:
       $ref: ./communities-governance.yaml#/CommunityGovernanceBackend
@@ -189,11 +192,11 @@ CentralizedGovernanceBackend:
 MultisigGovernanceAttachmentInput:
   type: object
   required:
-    - chain_id
+    - chain
     - contract_address
     - attachment_proof
   properties:
-    chain_id:
+    chain:
       type: integer
     contract_address:
       type: string
@@ -221,7 +224,7 @@ MultisigGovernanceBackend:
   type: object
   required:
     - governance_mode
-    - governance_chain_id
+    - governance_chain
     - governance_contract_address
     - governance_verification_state
     - governance_metadata
@@ -230,7 +233,7 @@ MultisigGovernanceBackend:
       type: string
       enum:
         - multisig
-    governance_chain_id:
+    governance_chain:
       type: integer
     governance_contract_address:
       type: string
@@ -243,12 +246,12 @@ MultisigGovernanceBackend:
       type: string
       nullable: true
     governance_attached_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     governance_last_verified_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     governance_metadata:
       $ref: ./communities-governance.yaml#/MultisigGovernanceMetadata
@@ -276,20 +279,20 @@ MultisigGovernanceMetadata:
 MajeurGovernanceCreateInput:
   type: object
   required:
-    - chain_id
+    - chain
     - summon
   properties:
-    chain_id:
+    chain:
       type: integer
     summon:
       $ref: ./communities-governance.yaml#/MajeurSafeSummonInput
 MajeurGovernanceAttachInput:
   type: object
   required:
-    - chain_id
+    - chain
     - dao_address
   properties:
-    chain_id:
+    chain:
       type: integer
     dao_address:
       type: string
@@ -394,7 +397,7 @@ MajeurGovernanceBackend:
   type: object
   required:
     - governance_mode
-    - governance_chain_id
+    - governance_chain
     - governance_contract_address
     - governance_verification_state
     - governance_metadata
@@ -403,7 +406,7 @@ MajeurGovernanceBackend:
       type: string
       enum:
         - majeur
-    governance_chain_id:
+    governance_chain:
       type: integer
     governance_contract_address:
       type: string
@@ -416,12 +419,12 @@ MajeurGovernanceBackend:
       type: string
       nullable: true
     governance_attached_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     governance_last_verified_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     governance_metadata:
       $ref: ./communities-governance.yaml#/MajeurGovernanceMetadata

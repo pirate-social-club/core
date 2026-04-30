@@ -5,25 +5,31 @@ User:
     such as `date_of_birth`, `age_at_verification`, provider nullifiers, and
     `verification_session_id`, are intentionally omitted from this schema in v0.
   required:
-    - user_id
+    - id
+    - object
     - verification_state
     - verification_capabilities
-    - created_at
-    - updated_at
+    - created
   properties:
-    user_id:
+    id:
       type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - user
     community_posting_state:
       type: object
       nullable: true
       properties:
         community_ref:
           type: string
-        community_id:
+        community:
           type: string
         has_created_text_post:
           type: boolean
-    primary_wallet_attachment_id:
+    primary_wallet_attachment:
       type: string
       nullable: true
     verification_state:
@@ -44,12 +50,9 @@ User:
     verification_capabilities:
       $ref: ./verification.yaml#/VerificationCapabilities
     verified_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64

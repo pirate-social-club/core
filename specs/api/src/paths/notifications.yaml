@@ -2,7 +2,8 @@ notifications_summary:
   get:
     x-implemented: true
     operationId: notifications_summary
-    tags: [Notifications]
+    tags:
+      - Notifications
     summary: Get notification summary for badge state
     responses:
       "200":
@@ -11,12 +12,12 @@ notifications_summary:
           application/json:
             schema:
               $ref: ../components/schemas/notifications.yaml#/NotificationSummary
-
 notifications_tasks:
   get:
     x-implemented: true
     operationId: notifications_tasks
-    tags: [Notifications]
+    tags:
+      - Notifications
     summary: List open tasks for the current user
     responses:
       "200":
@@ -25,12 +26,12 @@ notifications_tasks:
           application/json:
             schema:
               $ref: ../components/schemas/notifications.yaml#/NotificationTasksResponse
-
 notifications_feed:
   get:
     x-implemented: true
     operationId: notifications_feed
-    tags: [Notifications]
+    tags:
+      - Notifications
     summary: List activity feed items for the current user
     parameters:
       - name: cursor
@@ -51,12 +52,12 @@ notifications_feed:
           application/json:
             schema:
               $ref: ../components/schemas/notifications.yaml#/NotificationFeedResponse
-
 notifications_mark_read:
   post:
     x-implemented: true
     operationId: notifications_mark_read
-    tags: [Notifications]
+    tags:
+      - Notifications
     summary: Mark activity items as read
     requestBody:
       content:
@@ -66,12 +67,12 @@ notifications_mark_read:
     responses:
       "204":
         description: Marked as read
-
 notifications_dismiss_task:
   post:
     x-implemented: true
     operationId: notifications_dismiss_task
-    tags: [Notifications]
+    tags:
+      - Notifications
     summary: Dismiss a user task
     requestBody:
       content:

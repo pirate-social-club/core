@@ -158,9 +158,9 @@ function narrowImplementedCreateAndPostSchemas(schemas: unknown): Record<string,
       namespace: {
         type: "object",
         nullable: true,
-        required: ["namespace_verification_id"],
+        required: ["namespace_verification"],
         properties: {
-          namespace_verification_id: {
+          namespace_verification: {
             type: "string",
             description:
               "Opaque server-issued identifier for the accepted namespace verification consumed at create time.",

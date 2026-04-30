@@ -55,10 +55,10 @@ tracks_by_track_id_listeners:
             schema:
               type: object
               required:
-                - track_id
+                - track
                 - items
               properties:
-                track_id:
+                track:
                   type: string
                 items:
                   type: array

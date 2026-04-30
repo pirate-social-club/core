@@ -1,5 +1,24 @@
 comments_by_comment_id:
-  delete:
+  get:
+    tags:
+      - Comments
+    x-implemented: false
+    summary: Get a comment
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommentId
+    responses:
+      "200":
+        description: Comment
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/comments.yaml#/Comment
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+comments_by_comment_id_remove:
+  post:
     tags:
       - Comments
     x-implemented: true
@@ -19,7 +38,6 @@ comments_by_comment_id:
         $ref: ../components/responses.yaml#/EligibilityFailed
       "404":
         $ref: ../components/responses.yaml#/NotFound
-
 comments_by_comment_id_replies:
   get:
     tags:
@@ -68,7 +86,6 @@ comments_by_comment_id_replies:
         $ref: ../components/responses.yaml#/VerificationRequired
       "404":
         $ref: ../components/responses.yaml#/NotFound
-
 comments_by_comment_id_context:
   get:
     tags:
@@ -90,7 +107,6 @@ comments_by_comment_id_context:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
-
 comments_by_comment_id_vote:
   post:
     tags:

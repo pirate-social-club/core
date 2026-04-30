@@ -7,7 +7,7 @@ communities:
     description: |
       Creates a community once all create-time prerequisites are already satisfied.
 
-      When `namespace` is provided, the server must consume the accepted namespace-verification resource referenced by `namespace.namespace_verification_id`, not just the raw identifier string. Before writing any community state, the server must re-check:
+      When `namespace` is provided, the server must consume the accepted namespace-verification resource referenced by `namespace.namespace_verification`, not just the raw identifier string. Before writing any community state, the server must re-check:
 
       - the accepted namespace verification exists
       - it belongs to the requesting creator
@@ -109,7 +109,7 @@ communities_by_community_id:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
-  patch:
+  post:
     tags:
       - Communities
     summary: Update mutable community settings
@@ -182,7 +182,7 @@ communities_by_community_id_labels:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
-  patch:
+  post:
     tags:
       - Communities
     summary: Replace or update label definitions for a community
@@ -210,7 +210,7 @@ communities_by_community_id_labels:
       "409":
         $ref: ../components/responses.yaml#/Conflict
 communities_by_community_id_profile:
-  patch:
+  post:
     tags:
       - Communities
     summary: Update the community profile for a community
@@ -238,7 +238,7 @@ communities_by_community_id_profile:
       "409":
         $ref: ../components/responses.yaml#/Conflict
 communities_by_community_id_governance:
-  patch:
+  post:
     tags:
       - Communities
     summary: Update the public governance pointer for a community
@@ -266,7 +266,7 @@ communities_by_community_id_governance:
       "409":
         $ref: ../components/responses.yaml#/Conflict
 communities_by_community_id_donation_policy_public:
-  patch:
+  post:
     tags:
       - Communities
     summary: Update the public donation policy summary for a community
@@ -294,7 +294,7 @@ communities_by_community_id_donation_policy_public:
       "409":
         $ref: ../components/responses.yaml#/Conflict
 communities_by_community_id_rules:
-  put:
+  post:
     tags:
       - Communities
     summary: Update the public community rules for a community
@@ -322,7 +322,7 @@ communities_by_community_id_rules:
       "409":
         $ref: ../components/responses.yaml#/Conflict
 communities_by_community_id_resource_links:
-  put:
+  post:
     tags:
       - Communities
     summary: Update the public community resource links for a community
@@ -417,7 +417,7 @@ communities_by_community_id_reference_links_by_community_reference_link_id:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
-  patch:
+  post:
     tags:
       - Communities
     summary: Update a reference link for a community
@@ -591,7 +591,7 @@ communities_by_community_id_donation_policy:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
-  patch:
+  post:
     tags:
       - Communities
     summary: Configure or update the donation policy for a community
@@ -641,7 +641,7 @@ communities_by_community_id_money_policy:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
-  patch:
+  post:
     tags:
       - Communities
     x-implemented: true
@@ -694,7 +694,7 @@ communities_by_community_id_pricing_policy:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
-  patch:
+  post:
     tags:
       - Communities
     x-implemented: true
@@ -793,7 +793,7 @@ communities_by_community_id_listings_by_listing_id:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
-  patch:
+  post:
     tags:
       - Communities
     x-implemented: true
@@ -1003,7 +1003,7 @@ communities_by_community_id_content_authenticity_policy:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
-  patch:
+  post:
     tags:
       - Communities
     summary: Configure or update the content authenticity policy for a community
@@ -1054,7 +1054,7 @@ communities_by_community_id_content_authenticity_detection_policy:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
-  patch:
+  post:
     tags:
       - Communities
     summary: Configure or update the content authenticity detection policy for a community
@@ -1105,7 +1105,7 @@ communities_by_community_id_market_context_policy:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
-  patch:
+  post:
     tags:
       - Communities
     summary: Configure or update the market-context policy for a community
@@ -1156,7 +1156,7 @@ communities_by_community_id_source_policy:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
-  patch:
+  post:
     tags:
       - Communities
     summary: Configure or update the source policy for a community
@@ -1296,7 +1296,7 @@ communities_by_community_id_membership_requests_by_membership_request_id_reject:
       "409":
         $ref: ../components/responses.yaml#/Conflict
 communities_by_community_id_follow:
-  put:
+  post:
     tags:
       - Communities
     x-implemented: true
@@ -1314,7 +1314,8 @@ communities_by_community_id_follow:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
-  delete:
+communities_by_community_id_unfollow:
+  post:
     tags:
       - Communities
     x-implemented: true
@@ -1520,7 +1521,7 @@ communities_by_community_id_posts:
                 title: Harbor Lights
                 song_mode: original
                 rights_basis: original
-                song_artifact_bundle_id: sab_01HSONGBUNDLE001
+                song_artifact_bundle: sab_01HSONGBUNDLE001
             song_inline_remix:
               summary: Inline remix song post with audio, lyrics, and upstream attribution
               value:
@@ -1594,7 +1595,6 @@ communities_by_community_id_posts:
         $ref: ../components/responses.yaml#/AuthError
       "429":
         $ref: ../components/responses.yaml#/RateLimited
-
 communities_by_community_id_posts_by_post_id_comments:
   get:
     tags:
@@ -1973,417 +1973,315 @@ communities_by_community_id_song_artifacts_by_song_artifact_bundle_id:
         description: Song artifact bundle
         content:
           application/json:
-              schema:
-                $ref: ../components/schemas/song-artifacts.yaml#/SongArtifactBundle
-        "401":
-          $ref: ../components/responses.yaml#/AuthError
-        "404":
-          $ref: ../components/responses.yaml#/NotFound
-  communities_by_community_id_provenance_policy:
-    get:
-      tags:
-        - Communities
-      summary: Get the active provenance policy for a community
-      description: |
-        Returns the resolved effective provenance policy. When the community has not explicitly configured a provenance policy yet, the server must return the restrictive default policy with `policy_origin = default`.
-      parameters:
-        - $ref: ../components/parameters.yaml#/CommunityId
-      responses:
-        "200":
-          description: Community provenance policy
-          content:
-            application/json:
-              schema:
-                $ref: ../components/schemas/communities-community.yaml#/CommunityProvenancePolicy
-        "401":
-          $ref: ../components/responses.yaml#/AuthError
-        "404":
-          $ref: ../components/responses.yaml#/NotFound
-    patch:
-      tags:
-        - Communities
-      summary: Configure or update the provenance policy for a community
-      description: |
-        Stores an explicit community provenance policy for creator-relation claims and false-claim-of-ownership enforcement. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
-      parameters:
-        - $ref: ../components/parameters.yaml#/CommunityId
-      requestBody:
-        required: true
-        content:
-          application/json:
             schema:
-              $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityProvenancePolicyRequest
-      responses:
-        "200":
-          description: Community provenance policy updated
-          content:
-            application/json:
-              schema:
-                $ref: ../components/schemas/communities-community.yaml#/CommunityProvenancePolicy
-        "401":
-          $ref: ../components/responses.yaml#/AuthError
-        "403":
-          $ref: ../components/responses.yaml#/EligibilityFailed
-        "404":
-          $ref: ../components/responses.yaml#/NotFound
-        "409":
-          $ref: ../components/responses.yaml#/Conflict
-        "429":
-          $ref: ../components/responses.yaml#/RateLimited
-  communities_by_community_id_promotion_policy:
-    get:
-      tags:
-        - Communities
-      summary: Get the active promotion policy for a community
-      description: |
-        Returns the resolved effective promotion policy. When the community has not explicitly configured a promotion policy yet, the server must return the default policy with `policy_origin = default`.
-      parameters:
-        - $ref: ../components/parameters.yaml#/CommunityId
-      responses:
-        "200":
-          description: Community promotion policy
-          content:
-            application/json:
-              schema:
-                $ref: ../components/schemas/communities-community.yaml#/CommunityPromotionPolicy
-        "401":
-          $ref: ../components/responses.yaml#/AuthError
-        "404":
-          $ref: ../components/responses.yaml#/NotFound
-    patch:
-      tags:
-        - Communities
-      summary: Configure or update the promotion policy for a community
-      description: |
-        Stores an explicit community promotion policy for self-promotion, affiliation disclosure, and participation-ratio enforcement. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
-      parameters:
-        - $ref: ../components/parameters.yaml#/CommunityId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityPromotionPolicyRequest
-      responses:
-        "200":
-          description: Community promotion policy updated
-          content:
-            application/json:
-              schema:
-                $ref: ../components/schemas/communities-community.yaml#/CommunityPromotionPolicy
-        "401":
-          $ref: ../components/responses.yaml#/AuthError
-        "403":
-          $ref: ../components/responses.yaml#/EligibilityFailed
-        "404":
-          $ref: ../components/responses.yaml#/NotFound
-        "409":
-          $ref: ../components/responses.yaml#/Conflict
-        "429":
-          $ref: ../components/responses.yaml#/RateLimited
+              $ref: ../components/schemas/song-artifacts.yaml#/SongArtifactBundle
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
 communities_by_community_id_adult_content_policy:
-    get:
-      tags:
-        - Communities
-      summary: Get the active adult-content policy for a community
-      description: |
-        Returns the resolved effective adult-content policy. When the community has not explicitly configured an adult-content policy yet, the server must return the default policy with `policy_origin = default`. Platform age-gating and safety scanning remain mandatory regardless of this policy.
-      parameters:
-        - $ref: ../components/parameters.yaml#/CommunityId
-      responses:
-        "200":
-          description: Community adult-content policy
-          content:
-            application/json:
-              schema:
-                $ref: ../components/schemas/communities-community.yaml#/CommunityAdultContentPolicy
-        "401":
-          $ref: ../components/responses.yaml#/AuthError
-        "404":
-          $ref: ../components/responses.yaml#/NotFound
-    patch:
-      tags:
-        - Communities
-      summary: Configure or update the adult-content policy for a community
-      description: |
-        Stores an explicit community adult-content policy. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
-      parameters:
-        - $ref: ../components/parameters.yaml#/CommunityId
-      requestBody:
-        required: true
+  get:
+    tags:
+      - Communities
+    summary: Get the active adult-content policy for a community
+    description: |
+      Returns the resolved effective adult-content policy. When the community has not explicitly configured an adult-content policy yet, the server must return the default policy with `policy_origin = default`. Platform age-gating and safety scanning remain mandatory regardless of this policy.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community adult-content policy
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityAdultContentPolicyRequest
-      responses:
-        "200":
-          description: Community adult-content policy updated
-          content:
-            application/json:
-              schema:
-                $ref: ../components/schemas/communities-community.yaml#/CommunityAdultContentPolicy
-        "401":
-          $ref: ../components/responses.yaml#/AuthError
-        "403":
-          $ref: ../components/responses.yaml#/EligibilityFailed
-        "404":
-          $ref: ../components/responses.yaml#/NotFound
-        "409":
-          $ref: ../components/responses.yaml#/Conflict
-        "429":
-          $ref: ../components/responses.yaml#/RateLimited
+              $ref: ../components/schemas/communities-community.yaml#/CommunityAdultContentPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  post:
+    tags:
+      - Communities
+    summary: Configure or update the adult-content policy for a community
+    description: |
+      Stores an explicit community adult-content policy. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityAdultContentPolicyRequest
+    responses:
+      "200":
+        description: Community adult-content policy updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityAdultContentPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
 communities_by_community_id_graphic_content_policy:
-    get:
-      tags:
-        - Communities
-      summary: Get the active graphic-content policy for a community
-      description: |
-        Returns the resolved effective graphic-content policy. When the community has not explicitly configured a graphic-content policy yet, the server must return the default policy with `policy_origin = default`.
-      parameters:
-        - $ref: ../components/parameters.yaml#/CommunityId
-      responses:
-        "200":
-          description: Community graphic-content policy
-          content:
-            application/json:
-              schema:
-                $ref: ../components/schemas/communities-community.yaml#/CommunityGraphicContentPolicy
-        "401":
-          $ref: ../components/responses.yaml#/AuthError
-        "404":
-          $ref: ../components/responses.yaml#/NotFound
-    patch:
-      tags:
-        - Communities
-      summary: Configure or update the graphic-content policy for a community
-      description: |
-        Stores an explicit community graphic-content policy. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
-      parameters:
-        - $ref: ../components/parameters.yaml#/CommunityId
-      requestBody:
-        required: true
+  get:
+    tags:
+      - Communities
+    summary: Get the active graphic-content policy for a community
+    description: |
+      Returns the resolved effective graphic-content policy. When the community has not explicitly configured a graphic-content policy yet, the server must return the default policy with `policy_origin = default`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community graphic-content policy
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityGraphicContentPolicyRequest
-      responses:
-        "200":
-          description: Community graphic-content policy updated
-          content:
-            application/json:
-              schema:
-                $ref: ../components/schemas/communities-community.yaml#/CommunityGraphicContentPolicy
-        "401":
-          $ref: ../components/responses.yaml#/AuthError
-        "403":
-          $ref: ../components/responses.yaml#/EligibilityFailed
-        "404":
-          $ref: ../components/responses.yaml#/NotFound
-        "409":
-          $ref: ../components/responses.yaml#/Conflict
-        "429":
-          $ref: ../components/responses.yaml#/RateLimited
+              $ref: ../components/schemas/communities-community.yaml#/CommunityGraphicContentPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  post:
+    tags:
+      - Communities
+    summary: Configure or update the graphic-content policy for a community
+    description: |
+      Stores an explicit community graphic-content policy. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityGraphicContentPolicyRequest
+    responses:
+      "200":
+        description: Community graphic-content policy updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityGraphicContentPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
 communities_by_community_id_language_policy:
-    get:
-      tags:
-        - Communities
-      summary: Get the active language policy for a community
-      description: |
-        Returns the resolved effective language policy. When the community has not explicitly configured a language policy yet, the server must return the default policy with `policy_origin = default`.
-      parameters:
-        - $ref: ../components/parameters.yaml#/CommunityId
-      responses:
-        "200":
-          description: Community language policy
-          content:
-            application/json:
-              schema:
-                $ref: ../components/schemas/communities-community.yaml#/CommunityLanguagePolicy
-        "401":
-          $ref: ../components/responses.yaml#/AuthError
-        "404":
-          $ref: ../components/responses.yaml#/NotFound
-    patch:
-      tags:
-        - Communities
-      summary: Configure or update the language policy for a community
-      description: |
-        Stores an explicit community language policy for profanity, slur, and related language handling. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
-      parameters:
-        - $ref: ../components/parameters.yaml#/CommunityId
-      requestBody:
-        required: true
+  get:
+    tags:
+      - Communities
+    summary: Get the active language policy for a community
+    description: |
+      Returns the resolved effective language policy. When the community has not explicitly configured a language policy yet, the server must return the default policy with `policy_origin = default`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community language policy
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityLanguagePolicyRequest
-      responses:
-        "200":
-          description: Community language policy updated
-          content:
-            application/json:
-              schema:
-                $ref: ../components/schemas/communities-community.yaml#/CommunityLanguagePolicy
-        "401":
-          $ref: ../components/responses.yaml#/AuthError
-        "403":
-          $ref: ../components/responses.yaml#/EligibilityFailed
-        "404":
-          $ref: ../components/responses.yaml#/NotFound
-        "409":
-          $ref: ../components/responses.yaml#/Conflict
-        "429":
-          $ref: ../components/responses.yaml#/RateLimited
+              $ref: ../components/schemas/communities-community.yaml#/CommunityLanguagePolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  post:
+    tags:
+      - Communities
+    summary: Configure or update the language policy for a community
+    description: |
+      Stores an explicit community language policy for profanity, slur, and related language handling. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityLanguagePolicyRequest
+    responses:
+      "200":
+        description: Community language policy updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityLanguagePolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
 communities_by_community_id_civility_policy:
-    get:
-      tags:
-        - Communities
-      summary: Get the active civility policy for a community
-      description: |
-        Returns the resolved effective civility policy. When the community has not explicitly configured a civility policy yet, the server must return the default policy with `policy_origin = default`.
-      parameters:
-        - $ref: ../components/parameters.yaml#/CommunityId
-      responses:
-        "200":
-          description: Community civility policy
-          content:
-            application/json:
-              schema:
-                $ref: ../components/schemas/communities-community.yaml#/CommunityCivilityPolicy
-        "401":
-          $ref: ../components/responses.yaml#/AuthError
-        "404":
-          $ref: ../components/responses.yaml#/NotFound
-    patch:
-      tags:
-        - Communities
-      summary: Configure or update the civility policy for a community
-      description: |
-        Stores an explicit community civility policy for group-directed demeaning language, targeted insults, harassment, and related legal-but-disputed conduct categories above the platform floor. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
-      parameters:
-        - $ref: ../components/parameters.yaml#/CommunityId
-      requestBody:
-        required: true
+  get:
+    tags:
+      - Communities
+    summary: Get the active civility policy for a community
+    description: |
+      Returns the resolved effective civility policy. When the community has not explicitly configured a civility policy yet, the server must return the default policy with `policy_origin = default`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community civility policy
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityCivilityPolicyRequest
-      responses:
-        "200":
-          description: Community civility policy updated
-          content:
-            application/json:
-              schema:
-                $ref: ../components/schemas/communities-community.yaml#/CommunityCivilityPolicy
-        "401":
-          $ref: ../components/responses.yaml#/AuthError
-        "403":
-          $ref: ../components/responses.yaml#/EligibilityFailed
-        "404":
-          $ref: ../components/responses.yaml#/NotFound
-        "409":
-          $ref: ../components/responses.yaml#/Conflict
-        "429":
-          $ref: ../components/responses.yaml#/RateLimited
+              $ref: ../components/schemas/communities-community.yaml#/CommunityCivilityPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  post:
+    tags:
+      - Communities
+    summary: Configure or update the civility policy for a community
+    description: |
+      Stores an explicit community civility policy for group-directed demeaning language, targeted insults, harassment, and related legal-but-disputed conduct categories above the platform floor. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityCivilityPolicyRequest
+    responses:
+      "200":
+        description: Community civility policy updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityCivilityPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
 communities_by_community_id_capture_edit_policy:
-    get:
-      tags:
-        - Communities
-      summary: Get the active capture-edit policy for a community
-      description: |
-        Returns the resolved effective capture-edit policy for non-generative media adjustments. When the community has not explicitly configured a capture-edit policy yet, the server must return the default policy with `policy_origin = default`.
-      parameters:
-        - $ref: ../components/parameters.yaml#/CommunityId
-      responses:
-        "200":
-          description: Community capture-edit policy
-          content:
-            application/json:
-              schema:
-                $ref: ../components/schemas/communities-community.yaml#/CommunityCaptureEditPolicy
-        "401":
-          $ref: ../components/responses.yaml#/AuthError
-        "404":
-          $ref: ../components/responses.yaml#/NotFound
-    patch:
-      tags:
-        - Communities
-      summary: Configure or update the capture-edit policy for a community
-      description: |
-        Stores an explicit community capture-edit policy for non-generative photo and video editing. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts. Generative and AI-specific rules remain part of `content_authenticity_policy`.
-      parameters:
-        - $ref: ../components/parameters.yaml#/CommunityId
-      requestBody:
-        required: true
+  get:
+    tags:
+      - Communities
+    summary: Get the active capture-edit policy for a community
+    description: |
+      Returns the resolved effective capture-edit policy for non-generative media adjustments. When the community has not explicitly configured a capture-edit policy yet, the server must return the default policy with `policy_origin = default`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community capture-edit policy
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityCaptureEditPolicyRequest
-      responses:
-        "200":
-          description: Community capture-edit policy updated
-          content:
-            application/json:
-              schema:
-                $ref: ../components/schemas/communities-community.yaml#/CommunityCaptureEditPolicy
-        "401":
-          $ref: ../components/responses.yaml#/AuthError
-        "403":
-          $ref: ../components/responses.yaml#/EligibilityFailed
-        "404":
-          $ref: ../components/responses.yaml#/NotFound
-        "409":
-          $ref: ../components/responses.yaml#/Conflict
-        "429":
-          $ref: ../components/responses.yaml#/RateLimited
+              $ref: ../components/schemas/communities-community.yaml#/CommunityCaptureEditPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  post:
+    tags:
+      - Communities
+    summary: Configure or update the capture-edit policy for a community
+    description: |
+      Stores an explicit community capture-edit policy for non-generative photo and video editing. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts. Generative and AI-specific rules remain part of `content_authenticity_policy`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityCaptureEditPolicyRequest
+    responses:
+      "200":
+        description: Community capture-edit policy updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityCaptureEditPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
 communities_by_community_id_motion_media_policy:
-    get:
-      tags:
-        - Communities
-      summary: Get the active motion-media policy for a community
-      description: |
-        Returns the resolved effective motion-media policy for animated images, looping clips, and audio-bearing video. When the community has not explicitly configured a motion-media policy yet, the server must return the default policy with `policy_origin = default`.
-      parameters:
-        - $ref: ../components/parameters.yaml#/CommunityId
-      responses:
-        "200":
-          description: Community motion-media policy
-          content:
-            application/json:
-              schema:
-                $ref: ../components/schemas/communities-community.yaml#/CommunityMotionMediaPolicy
-        "401":
-          $ref: ../components/responses.yaml#/AuthError
-        "404":
-          $ref: ../components/responses.yaml#/NotFound
-    patch:
-      tags:
-        - Communities
-      summary: Configure or update the motion-media policy for a community
-      description: |
-        Stores an explicit community motion-media policy. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts. This policy intentionally does not create a separate `gif` post type.
-      parameters:
-        - $ref: ../components/parameters.yaml#/CommunityId
-      requestBody:
-        required: true
+  get:
+    tags:
+      - Communities
+    summary: Get the active motion-media policy for a community
+    description: |
+      Returns the resolved effective motion-media policy for animated images, looping clips, and audio-bearing video. When the community has not explicitly configured a motion-media policy yet, the server must return the default policy with `policy_origin = default`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    responses:
+      "200":
+        description: Community motion-media policy
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityMotionMediaPolicyRequest
-      responses:
-        "200":
-          description: Community motion-media policy updated
-          content:
-            application/json:
-              schema:
-                $ref: ../components/schemas/communities-community.yaml#/CommunityMotionMediaPolicy
-        "401":
-          $ref: ../components/responses.yaml#/AuthError
-        "403":
-          $ref: ../components/responses.yaml#/EligibilityFailed
-        "404":
-          $ref: ../components/responses.yaml#/NotFound
-        "409":
-          $ref: ../components/responses.yaml#/Conflict
-        "429":
-          $ref: ../components/responses.yaml#/RateLimited
+              $ref: ../components/schemas/communities-community.yaml#/CommunityMotionMediaPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  post:
+    tags:
+      - Communities
+    summary: Configure or update the motion-media policy for a community
+    description: |
+      Stores an explicit community motion-media policy. Changes apply prospectively to future posts and moderation decisions, but does not retroactively reclassify existing posts. This policy intentionally does not create a separate `gif` post type.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-community.yaml#/UpdateCommunityMotionMediaPolicyRequest
+    responses:
+      "200":
+        description: Community motion-media policy updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityMotionMediaPolicy
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited

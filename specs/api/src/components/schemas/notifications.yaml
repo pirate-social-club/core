@@ -9,14 +9,12 @@ UserTaskType:
     - payout_setup_required
     - royalty_claim_available
     - membership_review
-
 UserTaskStatus:
   type: string
   enum:
     - open
     - completed
     - dismissed
-
 NotificationEventType:
   type: string
   enum:
@@ -27,30 +25,35 @@ NotificationEventType:
     - community_update
     - xmtp_message
     - royalty_earned
-
 UserTask:
   type: object
   required:
-    - task_id
-    - user_id
+    - id
+    - object
+    - user
     - type
     - subject_type
-    - subject_id
+    - subject
     - status
     - priority
     - payload
-    - created_at
-    - updated_at
+    - created
   properties:
-    task_id:
+    id:
       type: string
-    user_id:
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - user_task
+    user:
       type: string
     type:
       $ref: ./notifications.yaml#/UserTaskType
     subject_type:
       type: string
-    subject_id:
+    subject:
       type: string
     status:
       $ref: ./notifications.yaml#/UserTaskStatus
@@ -61,78 +64,83 @@ UserTask:
       nullable: true
       additionalProperties: true
     resolved_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     dismissed_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
-
+    created:
+      type: integer
+      format: int64
 NotificationEvent:
   type: object
   required:
-    - event_id
+    - id
+    - object
     - type
-    - actor_user_id
+    - actor_user
     - subject_type
-    - subject_id
-    - created_at
+    - subject
+    - created
   properties:
-    event_id:
+    id:
       type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - notification_event
     type:
       $ref: ./notifications.yaml#/NotificationEventType
-    actor_user_id:
+    actor_user:
       type: string
       nullable: true
     subject_type:
       type: string
-    subject_id:
+    subject:
       type: string
     object_type:
-      type: string
-      nullable: true
-    object_id:
       type: string
       nullable: true
     payload:
       type: object
       nullable: true
       additionalProperties: true
-    created_at:
-      type: string
-      format: date-time
-
+    created:
+      type: integer
+      format: int64
 NotificationReceipt:
   type: object
   required:
-    - event_id
-    - recipient_user_id
-    - created_at
+    - id
+    - object
+    - recipient_user
+    - created
   properties:
-    event_id:
+    id:
       type: string
-    recipient_user_id:
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - notification_receipt
+    recipient_user:
       type: string
     seen_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     read_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
-    created_at:
-      type: string
-      format: date-time
-
+    created:
+      type: integer
+      format: int64
 NotificationSummary:
   type: object
   required:
@@ -146,7 +154,6 @@ NotificationSummary:
       type: integer
     has_unread:
       type: boolean
-
 NotificationFeedItem:
   type: object
   required:
@@ -157,7 +164,6 @@ NotificationFeedItem:
       $ref: ./notifications.yaml#/NotificationEvent
     receipt:
       $ref: ./notifications.yaml#/NotificationReceipt
-
 NotificationFeedResponse:
   type: object
   required:
@@ -171,17 +177,19 @@ NotificationFeedResponse:
     next_cursor:
       type: string
       nullable: true
-
 NotificationTasksResponse:
   type: object
   required:
     - items
+    - next_cursor
   properties:
     items:
       type: array
       items:
         $ref: ./notifications.yaml#/UserTask
-
+    next_cursor:
+      type: string
+      nullable: true
 MarkNotificationsReadRequest:
   type: object
   properties:
@@ -189,36 +197,33 @@ MarkNotificationsReadRequest:
       type: array
       items:
         type: string
-
 DismissTaskRequest:
   type: object
   required:
-    - task_id
+    - task
   properties:
-    task_id:
+    task:
       type: string
-
 ClaimableRoyaltyItem:
   type: object
   required:
-    - ip_id
+    - ip
     - claimable_wip_wei
-    - asset_id
-    - community_id
+    - asset
+    - community
     - title
   properties:
-    ip_id:
+    ip:
       type: string
     claimable_wip_wei:
       type: string
-    asset_id:
+    asset:
       type: string
-    community_id:
+    community:
       type: string
     title:
       type: string
       nullable: true
-
 ClaimableRoyaltiesResponse:
   type: object
   required:
@@ -233,34 +238,40 @@ ClaimableRoyaltiesResponse:
     total_claimable_wip_wei:
       type: string
     checked_at:
-      type: string
-      format: date-time
-
+      type: integer
+      format: int64
 RoyaltyActivityItem:
   type: object
   required:
-    - event_id
-    - community_id
-    - asset_id
+    - id
+    - object
+    - community
+    - asset
     - title
-    - story_ip_id
+    - story_ip
     - amount_wip_wei
     - buyer_wallet_address
     - tx_hash
-    - purchase_id
-    - created_at
+    - purchase
+    - created
     - read_at
   properties:
-    event_id:
+    id:
       type: string
-    community_id:
+      readOnly: true
+    object:
       type: string
-    asset_id:
+      readOnly: true
+      enum:
+        - royalty_activity_item
+    community:
+      type: string
+    asset:
       type: string
     title:
       type: string
       nullable: true
-    story_ip_id:
+    story_ip:
       type: string
     amount_wip_wei:
       type: string
@@ -270,17 +281,16 @@ RoyaltyActivityItem:
     tx_hash:
       type: string
       nullable: true
-    purchase_id:
+    purchase:
       type: string
       nullable: true
-    created_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
     read_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
-
 RoyaltyActivityResponse:
   type: object
   required:
@@ -294,13 +304,12 @@ RoyaltyActivityResponse:
     next_cursor:
       type: string
       nullable: true
-
 RoyaltyClaimRecordRequest:
   type: object
   required:
     - tx_hash
     - wallet_address
-    - chain_id
+    - chain
     - claimable_wip_wei_at_submission
     - ip_ids
     - auto_unwrap_ip_tokens
@@ -309,7 +318,7 @@ RoyaltyClaimRecordRequest:
       type: string
     wallet_address:
       type: string
-    chain_id:
+    chain:
       type: integer
     claimable_wip_wei_at_submission:
       type: string
@@ -319,15 +328,15 @@ RoyaltyClaimRecordRequest:
         type: string
     auto_unwrap_ip_tokens:
       type: boolean
-
 RoyaltyClaimRecord:
   type: object
   required:
-    - claim_id
-    - user_id
+    - id
+    - object
+    - user
     - tx_hash
     - wallet_address
-    - chain_id
+    - chain
     - claimable_wip_wei_at_submission
     - ip_ids
     - auto_unwrap_ip_tokens
@@ -335,17 +344,23 @@ RoyaltyClaimRecord:
     - verified_at
     - verification_error
     - claimed_at
-    - created_at
+    - created
   properties:
-    claim_id:
+    id:
       type: string
-    user_id:
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - royalty_claim_record
+    user:
       type: string
     tx_hash:
       type: string
     wallet_address:
       type: string
-    chain_id:
+    chain:
       type: integer
     claimable_wip_wei_at_submission:
       type: string
@@ -362,19 +377,18 @@ RoyaltyClaimRecord:
         - confirmed
         - failed
     verified_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     verification_error:
       type: string
       nullable: true
     claimed_at:
-      type: string
-      format: date-time
-    created_at:
-      type: string
-      format: date-time
-
+      type: integer
+      format: int64
+    created:
+      type: integer
+      format: int64
 RoyaltyClaimHistoryResponse:
   type: object
   required:

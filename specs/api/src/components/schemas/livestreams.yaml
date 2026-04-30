@@ -14,8 +14,8 @@ CreateLiveRoomRequest:
       type: string
       nullable: true
     event_start_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     access_mode:
       type: string
@@ -33,7 +33,7 @@ CreateLiveRoomRequest:
       enum:
         - public
         - unlisted
-    guest_user_id:
+    guest_user:
       type: string
       nullable: true
     performer_allocations:
@@ -47,13 +47,13 @@ CreateLiveRoomRequest:
     participant_capacity:
       type: integer
       nullable: true
-    listing_id:
+    listing:
       type: string
       nullable: true
-    replay_listing_id:
+    replay_listing:
       type: string
       nullable: true
-    anchor_post_id:
+    anchor_post:
       type: string
       nullable: true
     initial_setlist:
@@ -82,7 +82,7 @@ LiveSetlistItemInput:
     Setlist items should resolve against Pirate's canonical track catalog by default. `title_text` and `artist_text` are display snapshots populated from the selected canonical track when available, with manual text entry used only as fallback when canonical resolution is not yet available.
   anyOf:
     - required:
-        - declared_track_id
+        - declared_track
     - required:
         - title_text
   required:
@@ -97,7 +97,7 @@ LiveSetlistItemInput:
     artist_text:
       type: string
       nullable: true
-    declared_track_id:
+    declared_track:
       type: string
       nullable: true
     notes:
@@ -108,11 +108,11 @@ LiveRoomPerformerAllocationInput:
   description: |
     Explicit performer-side revenue allocation for the room. In v0, solo rooms should provide one host allocation at 100, and duet rooms should provide two allocations whose shares sum to 100.
   required:
-    - user_id
+    - user
     - role
     - share_pct
   properties:
-    user_id:
+    user:
       type: string
     role:
       type: string
@@ -126,10 +126,11 @@ LiveRoomPerformerAllocationInput:
 LiveRoom:
   type: object
   required:
-    - live_room_id
-    - community_id
-    - anchor_post_id
-    - host_user_id
+    - id
+    - object
+    - community
+    - anchor_post
+    - host_user
     - title
     - status
     - access_mode
@@ -137,16 +138,21 @@ LiveRoom:
     - visibility
     - performer_allocations
     - replay_status
-    - created_at
-    - updated_at
+    - created
   properties:
-    live_room_id:
+    id:
       type: string
-    community_id:
+      readOnly: true
+    object:
       type: string
-    anchor_post_id:
+      readOnly: true
+      enum:
+        - live_room
+    community:
       type: string
-    host_user_id:
+    anchor_post:
+      type: string
+    host_user:
       type: string
     title:
       type: string
@@ -176,37 +182,37 @@ LiveRoom:
       enum:
         - public
         - unlisted
-    guest_user_id:
+    guest_user:
       type: string
       nullable: true
     performer_allocations:
       type: array
       items:
         $ref: ./livestreams.yaml#/LiveRoomPerformerAllocationInput
-    listing_id:
+    listing:
       type: string
       nullable: true
-    replay_listing_id:
+    replay_listing:
       type: string
       nullable: true
     broadcast_ref:
       type: string
       nullable: true
     event_start_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     live_started_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     ended_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     canceled_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     cover_ref:
       type: string
@@ -214,7 +220,7 @@ LiveRoom:
     participant_capacity:
       type: integer
       nullable: true
-    replay_asset_id:
+    replay_asset:
       type: string
       nullable: true
     replay_status:
@@ -225,12 +231,9 @@ LiveRoom:
         - review_pending
         - published
         - failed
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
 HostAttachRequest:
   type: object
   description: |
@@ -260,7 +263,7 @@ GuestAttachRequest:
 LiveRoomAttachSession:
   type: object
   required:
-    - live_room_id
+    - live_room
     - broadcast_ref
     - agora_channel
     - agora_role
@@ -268,7 +271,7 @@ LiveRoomAttachSession:
     - bridge_token
     - expires_at
   properties:
-    live_room_id:
+    live_room:
       type: string
     broadcast_ref:
       type: string
@@ -287,17 +290,17 @@ LiveRoomAttachSession:
       type: string
       nullable: true
     expires_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
 LiveRoomAccessView:
   type: object
   required:
-    - live_room_id
+    - live_room
     - access_mode
     - join_state
     - viewer_entitled
   properties:
-    live_room_id:
+    live_room:
       type: string
     access_mode:
       type: string
@@ -314,10 +317,10 @@ LiveRoomAccessView:
         - not_live
         - ended
         - canceled
-    listing_id:
+    listing:
       type: string
       nullable: true
-    replay_listing_id:
+    replay_listing:
       type: string
       nullable: true
     viewer_entitled:
@@ -333,16 +336,16 @@ LiveRoomAccessView:
 LiveRoomReplayView:
   type: object
   required:
-    - live_room_id
-    - anchor_post_id
+    - live_room
+    - anchor_post
     - replay_status
     - is_playable
     - is_purchasable
     - viewer_entitled
   properties:
-    live_room_id:
+    live_room:
       type: string
-    anchor_post_id:
+    anchor_post:
       type: string
     replay_status:
       type: string
@@ -352,10 +355,10 @@ LiveRoomReplayView:
         - review_pending
         - published
         - failed
-    replay_asset_id:
+    replay_asset:
       type: string
       nullable: true
-    replay_listing_id:
+    replay_listing:
       type: string
       nullable: true
     is_playable:
@@ -373,11 +376,11 @@ LiveRoomReplayView:
 LiveRoomReplayAccessView:
   type: object
   required:
-    - live_room_id
+    - live_room
     - replay_status
     - access_state
   properties:
-    live_room_id:
+    live_room:
       type: string
     replay_status:
       type: string
@@ -396,10 +399,10 @@ LiveRoomReplayAccessView:
         - allowed
         - purchase_required
         - failed
-    replay_asset_id:
+    replay_asset:
       type: string
       nullable: true
-    replay_listing_id:
+    replay_listing:
       type: string
       nullable: true
     reason:

@@ -21,8 +21,9 @@ verification_sessions:
               self_qr_launch:
                 summary: Self verification session launch
                 value:
-                  verification_session_id: ver_sess_01HSELFQREXAMPLE
-                  user_id: usr_01HUSEREXAMPLE
+                  id: ver_sess_01HSELFQREXAMPLE
+                  object: verification_session
+                  user: usr_01HUSEREXAMPLE
                   provider: self
                   provider_mode: qr_deeplink
                   requested_capabilities:
@@ -43,13 +44,14 @@ verification_sessions:
                         minimum_age: null
                         gender: false
                   callback_path: /verification-sessions/ver_sess_01HSELFQREXAMPLE/callback
-                  created_at: "2026-04-10T12:00:00Z"
-                  expires_at: "2026-04-10T12:15:00Z"
+                  created: 1775822400
+                  expires_at: 1775823300
               very_widget_launch:
                 summary: Very widget verification session launch
                 value:
-                  verification_session_id: ver_sess_01HVERYWIDGETEXAMPLE
-                  user_id: usr_01HUSEREXAMPLE
+                  id: ver_sess_01HVERYWIDGETEXAMPLE
+                  object: verification_session
+                  user: usr_01HUSEREXAMPLE
                   provider: very
                   provider_mode: widget
                   requested_capabilities:
@@ -72,16 +74,16 @@ verification_sessions:
                           expiredAtLowerBound: "1743436800"
                           externalNullifier: pirate-unique-human-v0
                           equalCheckId: "0"
-                          pseudonym: "ver_sess_01HVERYWIDGETEXAMPLE.7f9f0e6b"
+                          pseudonym: ver_sess_01HVERYWIDGETEXAMPLE.7f9f0e6b
                       verify_url: https://verify.very.org/api/v1/verify
                       session_binding:
                         uniqueness_domain: pirate-unique-human-v0
-                        binding_value: "ver_sess_01HVERYWIDGETEXAMPLE.7f9f0e6b"
+                        binding_value: ver_sess_01HVERYWIDGETEXAMPLE.7f9f0e6b
                         binding_field: pseudonym
-                        challenge_expires_at: "2026-04-10T12:15:00Z"
+                        challenge_expires_at: 1775823300
                   callback_path: /verification-sessions/ver_sess_01HVERYWIDGETEXAMPLE/complete
-                  created_at: "2026-04-10T12:00:00Z"
-                  expires_at: "2026-04-10T12:15:00Z"
+                  created: 1775822400
+                  expires_at: 1775823300
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "429":
@@ -107,17 +109,17 @@ verification_wallet_score:
               provider: passport
               proof_type: wallet_score
               mechanism: stamps-api-v2
-              verified_at: "2026-04-10T12:00:00Z"
-              score: 28.4
-              score_threshold: 20
+              verified_at: 1775822400
+              score_decimal: "28.4"
+              score_threshold_decimal: "20"
               passing_score: true
-              last_score_timestamp: "2026-04-10T11:59:30Z"
-              expiration_timestamp: "2026-05-10T12:00:00Z"
+              last_scored_at: 1775822370
+              expires_at: 1778414400
               stamps:
                 - stamp_name: Gitcoin Passport
-                  stamp_score: 18.4
+                  stamp_score_decimal: "18.4"
                 - stamp_name: ENS
-                  stamp_score: 10
+                  stamp_score_decimal: "10"
       "401":
         $ref: ../components/responses.yaml#/AuthError
 verification_wallet_score_refresh:
@@ -251,7 +253,7 @@ verification_sessions_by_verification_session_id_self_callback:
               attestationId: 1
               proof: {}
               publicSignals: []
-              userContextData: "0x..."
+              userContextData: 0x...
     responses:
       "200":
         description: Self callback processed
@@ -261,11 +263,11 @@ verification_sessions_by_verification_session_id_self_callback:
               type: object
               required:
                 - status
-                - verification_session_id
+                - verification_session
               properties:
                 status:
                   type: string
-                verification_session_id:
+                verification_session:
                   type: string
       "400":
         $ref: ../components/responses.yaml#/BadRequest

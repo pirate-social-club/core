@@ -25,16 +25,15 @@ SessionExchangeResponse:
         request variant does not create wallet attachments.
       items:
         $ref: ./auth.yaml#/WalletAttachmentSummary
-
 WalletAttachmentSummary:
   type: object
   required:
-    - wallet_attachment_id
+    - wallet_attachment
     - chain_namespace
     - wallet_address
     - is_primary
   properties:
-    wallet_attachment_id:
+    wallet_attachment:
       type: string
     chain_namespace:
       type: string

@@ -1,26 +1,26 @@
 SentinelSessionStartResponse:
   type: object
   required:
-    - sentinel_session_id
-    - sentinel_subscription_id
-    - wallet_attachment_id
+    - sentinel_session
+    - sentinel_subscription
+    - wallet_attachment
     - wallet_address
-    - chain_session_id
+    - chain_session
     - node_address
     - transport_kind
     - wireguard_config
     - status
     - created_now
   properties:
-    sentinel_session_id:
+    sentinel_session:
       type: string
-    sentinel_subscription_id:
+    sentinel_subscription:
       type: string
-    wallet_attachment_id:
+    wallet_attachment:
       type: string
     wallet_address:
       type: string
-    chain_session_id:
+    chain_session:
       type: string
     node_address:
       type: string
@@ -59,8 +59,8 @@ SentinelSessionStartResponse:
           items:
             type: string
     expires_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     status:
       type: string
@@ -68,20 +68,19 @@ SentinelSessionStartResponse:
         - active
     created_now:
       type: boolean
-
 SentinelSessionEndResponse:
   type: object
   required:
-    - sentinel_session_id
+    - sentinel_session
     - status
     - ended_at
   properties:
-    sentinel_session_id:
+    sentinel_session:
       type: string
     status:
       type: string
       enum:
         - ended
     ended_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64

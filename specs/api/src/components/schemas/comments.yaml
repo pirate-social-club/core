@@ -2,11 +2,12 @@ Comment:
   type: object
   additionalProperties: false
   required:
-    - comment_id
-    - community_id
-    - thread_root_post_id
-    - parent_comment_id
-    - author_user_id
+    - id
+    - object
+    - community
+    - thread_root_post
+    - parent_comment
+    - author_user
     - authorship_mode
     - identity_mode
     - anonymous_scope
@@ -23,19 +24,24 @@ Comment:
     - content_hash
     - swarm_body_ref
     - idempotency_key
-    - created_at
-    - updated_at
+    - created
   properties:
-    comment_id:
+    id:
       type: string
-    community_id:
+      readOnly: true
+    object:
       type: string
-    thread_root_post_id:
+      readOnly: true
+      enum:
+        - comment
+    community:
       type: string
-    parent_comment_id:
+    thread_root_post:
+      type: string
+    parent_comment:
       type: string
       nullable: true
-    author_user_id:
+    author_user:
       type: string
       nullable: true
     authorship_mode:
@@ -43,10 +49,10 @@ Comment:
       enum:
         - human_direct
         - user_agent
-    agent_id:
+    agent:
       type: string
       nullable: true
-    agent_ownership_record_id:
+    agent_ownership_record:
       type: string
       nullable: true
     identity_mode:
@@ -98,8 +104,8 @@ Comment:
     score:
       type: integer
     last_reply_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     content_hash:
       type: string
@@ -110,13 +116,9 @@ Comment:
     idempotency_key:
       type: string
       nullable: true
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
-
+    created:
+      type: integer
+      format: int64
 CreateCommentRequest:
   type: object
   additionalProperties: false
@@ -137,7 +139,7 @@ CreateCommentRequest:
         - human_direct
         - user_agent
       default: human_direct
-    agent_id:
+    agent:
       type: string
       nullable: true
       description: |
@@ -161,11 +163,12 @@ CreateCommentRequest:
         - community_stable
         - thread_stable
       nullable: true
-
 CommentListItem:
   type: object
   additionalProperties: false
   required:
+    - id
+    - object
     - comment
     - viewer_vote
     - resolved_locale
@@ -173,6 +176,14 @@ CommentListItem:
     - machine_translated
     - source_hash
   properties:
+    id:
+      type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - comment_list_item
     comment:
       $ref: ./comments.yaml#/Comment
     viewer_vote:
@@ -197,7 +208,6 @@ CommentListItem:
       nullable: true
     source_hash:
       type: string
-
 CommentListResponse:
   type: object
   additionalProperties: false
@@ -216,7 +226,6 @@ CommentListResponse:
     thread_snapshot:
       $ref: ./comments.yaml#/CommentThreadSnapshot
       nullable: true
-
 CommentContext:
   type: object
   additionalProperties: false
@@ -243,26 +252,25 @@ CommentContext:
     thread_snapshot:
       $ref: ./comments.yaml#/CommentThreadSnapshot
       nullable: true
-
 CommentThreadSnapshot:
   type: object
   additionalProperties: false
   required:
-    - thread_root_post_id
+    - thread_root_post
     - snapshot_seq
-    - published_through_comment_created_at
+    - published_through_comment_created
     - comment_count
     - swarm_manifest_ref
     - swarm_feed_ref
-    - created_at
+    - created
   properties:
-    thread_root_post_id:
+    thread_root_post:
       type: string
     snapshot_seq:
       type: integer
-    published_through_comment_created_at:
-      type: string
-      format: date-time
+    published_through_comment_created:
+      type: integer
+      format: int64
     comment_count:
       type: integer
     swarm_manifest_ref:
@@ -270,18 +278,17 @@ CommentThreadSnapshot:
     swarm_feed_ref:
       type: string
       nullable: true
-    created_at:
-      type: string
-      format: date-time
-
+    created:
+      type: integer
+      format: int64
 CommentVoteResponse:
   type: object
   additionalProperties: false
   required:
-    - comment_id
+    - comment
     - value
   properties:
-    comment_id:
+    comment:
       type: string
     value:
       type: integer

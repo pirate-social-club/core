@@ -25,17 +25,22 @@ FeedItem:
       $ref: ./feeds.yaml#/HomeFeedCommunitySummary
     post:
       $ref: ./posts.yaml#/LocalizedPostResponse
-
 HomeFeedCommunitySummary:
   type: object
   additionalProperties: false
   required:
-    - community_id
+    - id
+    - object
     - display_name
-    - updated_at
   properties:
-    community_id:
+    id:
       type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - home_feed_community_summary
     display_name:
       type: string
     route_slug:
@@ -50,6 +55,3 @@ HomeFeedCommunitySummary:
     follower_count:
       type: integer
       nullable: true
-    updated_at:
-      type: string
-      format: date-time

@@ -72,7 +72,7 @@ StartVerificationSessionRequest:
         Additional typed verifier constraints for the requested capability set. Public v0 uses this
         to request a Self-backed `minimum_age` proof such as 21+ without encoding provider-specific
         verifier configuration in the client.
-    wallet_attachment_id:
+    wallet_attachment:
       type: string
       nullable: true
     verification_intent:
@@ -81,7 +81,7 @@ StartVerificationSessionRequest:
       description: |
         Product-flow identifier such as `profile_verification`, `community_creation`,
         `commerce_pricing`, or `qualifier_disclosure`.
-    policy_id:
+    policy:
       type: string
       nullable: true
       description: |
@@ -109,7 +109,7 @@ CompleteVerificationSessionRequest:
     Fields are optional because some providers complete asynchronously while others return proof
     material to the frontend first.
   properties:
-    attestation_id:
+    attestation:
       type: string
       nullable: true
     proof:
@@ -139,10 +139,10 @@ CompleteVerificationSessionRequest:
 RefreshPassportWalletScoreRequest:
   type: object
   properties:
-    wallet_attachment_id:
+    wallet_attachment:
       type: string
       nullable: true
-    community_id:
+    community:
       type: string
       nullable: true
 RefreshPassportWalletScoreResponse:
@@ -156,17 +156,19 @@ RefreshPassportWalletScoreResponse:
       type: object
       nullable: true
       properties:
-        current_score:
-          type: number
+        current_score_decimal:
+          type: string
+          pattern: ^\d+(\.\d+)?$
           nullable: true
-        required_score:
-          type: number
+        required_score_decimal:
+          type: string
+          pattern: ^\d+(\.\d+)?$
           nullable: true
         passing_score:
           type: boolean
           nullable: true
-        last_score_timestamp:
-          type: string
+        last_scored_at:
+          type: integer
           nullable: true
     join_eligibility:
       $ref: ./communities-core.yaml#/JoinEligibility
@@ -185,7 +187,7 @@ ProviderVerificationCallbackRequest:
     event_type:
       type: string
       nullable: true
-    attestation_id:
+    attestation:
       type: string
       nullable: true
     proof_hash:
@@ -367,8 +369,8 @@ VerySessionBinding:
       nullable: true
       description: Provider field used to carry the binding value.
     challenge_expires_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
 VerificationSessionLaunch:
   type: object
   required:
@@ -493,8 +495,8 @@ VerificationCapabilityState:
       type: string
       nullable: true
     verified_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
 VerifiedCapabilityState:
   type: object
@@ -529,8 +531,8 @@ VerifiedCapabilityState:
       type: string
       nullable: true
     verified_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
 SanctionsClearCapabilityState:
   type: object
@@ -565,8 +567,8 @@ SanctionsClearCapabilityState:
         - CleanHands
       nullable: true
     verified_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
 WalletScoreCapabilityState:
   type: object
@@ -595,25 +597,25 @@ WalletScoreCapabilityState:
         - stamps-api-v2
       nullable: true
     verified_at:
+      type: integer
+      format: int64
+      nullable: true
+    score_decimal:
       type: string
-      format: date-time
+      pattern: ^\d+(\.\d+)?$
       nullable: true
-    score:
-      type: number
-      nullable: true
-    score_threshold:
-      type: number
+    score_threshold_decimal:
+      type: string
+      pattern: ^\d+(\.\d+)?$
       nullable: true
     passing_score:
       type: boolean
       nullable: true
-    last_score_timestamp:
-      type: string
-      format: date-time
+    last_scored_at:
+      type: integer
       nullable: true
-    expiration_timestamp:
-      type: string
-      format: date-time
+    expires_at:
+      type: integer
       nullable: true
     stamps:
       type: array
@@ -623,22 +625,30 @@ WalletScoreCapabilityState:
         properties:
           stamp_name:
             type: string
-          stamp_score:
-            type: number
+          stamp_score_decimal:
+            type: string
+            pattern: ^\d+(\.\d+)?$
 VerificationSession:
   type: object
   required:
-    - verification_session_id
-    - user_id
+    - id
+    - object
+    - user
     - provider
     - requested_capabilities
     - status
-    - created_at
+    - created
     - expires_at
   properties:
-    verification_session_id:
+    id:
       type: string
-    user_id:
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - verification_session
+    user:
       type: string
     provider:
       type: string
@@ -654,7 +664,7 @@ VerificationSession:
         - qr_deeplink
         - widget
       nullable: true
-    wallet_attachment_id:
+    wallet_attachment:
       type: string
       nullable: true
     requested_capabilities:
@@ -668,7 +678,7 @@ VerificationSession:
     verification_intent:
       $ref: ./verification.yaml#/VerificationIntent
       nullable: true
-    policy_id:
+    policy:
       type: string
       nullable: true
     status:
@@ -691,7 +701,7 @@ VerificationSession:
     age_at_verification:
       type: integer
       nullable: true
-    attestation_id:
+    attestation:
       type: string
       nullable: true
     proof_hash:
@@ -701,18 +711,18 @@ VerificationSession:
       type: string
       nullable: true
     verified_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
     failure_reason:
       type: string
       nullable: true
-    created_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
     expires_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
 StartNamespaceVerificationSessionRequest:
   type: object
   required:
@@ -794,22 +804,29 @@ NamespaceVerificationCapabilities:
 NamespaceVerificationSession:
   type: object
   required:
-    - namespace_verification_session_id
-    - user_id
+    - id
+    - object
+    - user
     - family
     - submitted_root_label
     - status
-    - created_at
+    - created
     - expires_at
   properties:
-    namespace_verification_session_id:
+    id:
       type: string
-    namespace_verification_id:
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - namespace_verification_session
+    namespace_verification:
       type: string
       nullable: true
       description: |
         Populated only when the session reaches `verified` and Pirate has issued an accepted verification reference.
-    user_id:
+    user:
       type: string
     family:
       type: string
@@ -866,8 +883,8 @@ NamespaceVerificationSession:
         Example HNS payload fields may include `host` and `txt_value`.
         Example Spaces payload fields may include `message`, `digest`, and signer metadata.
     challenge_expires_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
       description: Expiration time for the currently issued challenge, distinct from the overall namespace verification session expiry.
     setup_nameservers:
@@ -913,23 +930,21 @@ NamespaceVerificationSession:
       type: string
       nullable: true
     accepted_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
       nullable: true
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
+    created:
+      type: integer
+      format: int64
     expires_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
 NamespaceVerification:
   type: object
   required:
-    - namespace_verification_id
-    - user_id
+    - id
+    - object
+    - user
     - family
     - normalized_root_label
     - status
@@ -937,12 +952,17 @@ NamespaceVerification:
     - capabilities
     - accepted_at
     - expires_at
-    - created_at
-    - updated_at
+    - created
   properties:
-    namespace_verification_id:
+    id:
       type: string
-    user_id:
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - namespace_verification
+    user:
       type: string
     family:
       type: string
@@ -985,14 +1005,11 @@ NamespaceVerification:
       type: string
       nullable: true
     accepted_at:
-      type: string
-      format: date-time
-    created_at:
-      type: string
-      format: date-time
-    updated_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
+    created:
+      type: integer
+      format: int64
     expires_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
