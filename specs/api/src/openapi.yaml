@@ -66,14 +66,12 @@ paths:
   /verification/wallet-score:
     $ref: ./paths/verification.yaml#/verification_wallet_score
   /verification/passport-wallet-score:
-    $ref: ./paths/verification.yaml#/verification_wallet_score
+    $ref: ./paths/verification.yaml#/verification_passport_wallet_score
   /verification/wallet-score/refresh:
     $ref: ./paths/verification.yaml#/verification_wallet_score_refresh
   /verification-sessions/{verification_session_id}:
     $ref: ./paths/verification.yaml#/verification_sessions_by_verification_session_id
-  /verification-sessions/{verification_session_id}/callback:
-    $ref: ./paths/verification.yaml#/verification_sessions_by_verification_session_id_callback
-  /verification-sessions/{verification_session_id}/self-callback:
+  /verification-sessions/{verification_session_id}/receive-self-proof:
     $ref: ./paths/verification.yaml#/verification_sessions_by_verification_session_id_self_callback
   /verification-sessions/{verification_session_id}/complete:
     $ref: ./paths/verification.yaml#/verification_sessions_by_verification_session_id_complete
@@ -87,7 +85,7 @@ paths:
     $ref: ./paths/agents.yaml#/agent_ownership_sessions_by_agent_ownership_session_id
   /agent-ownership-sessions/{agent_ownership_session_id}/complete:
     $ref: ./paths/agents.yaml#/agent_ownership_sessions_by_agent_ownership_session_id_complete
-  /agent-ownership-sessions/{agent_ownership_session_id}/callback:
+  /agent-ownership-sessions/{agent_ownership_session_id}/receive-callback:
     $ref: ./paths/agents.yaml#/agent_ownership_sessions_by_agent_ownership_session_id_callback
   /agents:
     $ref: ./paths/agents.yaml#/agents
@@ -97,7 +95,7 @@ paths:
     $ref: ./paths/agents.yaml#/agents_by_agent_id_handle
   /agents/{agent_id}/credential:
     $ref: ./paths/agents.yaml#/agents_by_agent_id_credential
-  /agents/{agent_id}/refresh_credential:
+  /agents/{agent_id}/refresh-credential:
     $ref: ./paths/agents.yaml#/agents_by_agent_id_credential_refresh
   /public-agents/{handle_label}:
     $ref: ./paths/agents.yaml#/public_agents_by_handle_label
@@ -133,13 +131,13 @@ paths:
     $ref: ./paths/profiles.yaml#/profiles_me
   /profiles/me/xmtp-inbox:
     $ref: ./paths/profiles.yaml#/profiles_me_xmtp_inbox
-  /profiles/me/rename_global_handle:
+  /profiles/me/rename-global-handle:
     $ref: ./paths/profiles.yaml#/profiles_me_global_handle_rename
-  /profiles/me/quote_handle_upgrade:
+  /profiles/me/quote-handle-upgrade:
     $ref: ./paths/profiles.yaml#/profiles_me_global_handle_upgrade_quote
-  /profiles/me/sync_linked_handles:
+  /profiles/me/sync-linked-handles:
     $ref: ./paths/profiles.yaml#/profiles_me_linked_handles_sync
-  /profiles/me/set_primary_public_handle:
+  /profiles/me/set-primary-public-handle:
     $ref: ./paths/profiles.yaml#/profiles_me_primary_public_handle
   /profiles/{user_id}:
     $ref: ./paths/profiles.yaml#/profiles_by_user_id
@@ -203,7 +201,7 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_purchase_quotes
   /communities/{community_id}/purchase-settlements:
     $ref: ./paths/communities.yaml#/communities_by_community_id_purchase_settlements
-  /communities/{community_id}/fail_purchase_settlement:
+  /communities/{community_id}/fail-purchase-settlement:
     $ref: ./paths/communities.yaml#/communities_by_community_id_purchase_settlement_failures
   /communities/{community_id}/join:
     $ref: ./paths/communities.yaml#/communities_by_community_id_join

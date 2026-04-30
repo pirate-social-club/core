@@ -465,39 +465,6 @@ CreatePostRequest:
     label:
       type: string
       nullable: true
-    label_assignment_status:
-      type: string
-      enum:
-        - pending
-        - assigned
-        - failed
-        - skipped
-      nullable: true
-    label_assigned_by:
-      type: string
-      enum:
-        - moderator
-        - ai
-      nullable: true
-    label_assigned_at:
-      type: integer
-      format: int64
-      nullable: true
-    label_ai_confidence:
-      type: number
-      nullable: true
-      minimum: 0
-      maximum: 1
-    label_assignment_error:
-      type: string
-      nullable: true
-    label_assignment_model:
-      type: string
-      nullable: true
-    label_assignment_result_json:
-      type: object
-      additionalProperties: true
-      nullable: true
     post_type:
       type: string
       enum:

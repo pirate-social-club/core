@@ -222,18 +222,7 @@ CreateCommunityMoneyPolicyInput:
 UpdateCommunityMoneyPolicyRequest:
   type: object
   description: |
-    Replace or update the community funding policy. Changes apply prospectively to future quotes and purchases. Existing purchases remain pinned to the quote and settlement snapshots used at execution time.
-  required:
-    - funding_preference
-    - accepted_funding_assets
-    - accepted_source_chains
-    - destination_settlement_chain
-    - destination_settlement_token
-    - max_slippage_bps
-    - quote_ttl_seconds
-    - route_required
-    - route_status_policy
-    - route_hop_tolerance
+    Partially update the community funding policy. Omitted fields retain their current effective values. Changes apply prospectively to future quotes and purchases. Existing purchases remain pinned to the quote and settlement snapshots used at execution time.
   additionalProperties: false
   properties:
     funding_preference:
@@ -411,11 +400,7 @@ CreateCommunityPricingPolicyInput:
 UpdateCommunityPricingPolicyRequest:
   type: object
   description: |
-    Replace or update the community pricing policy. Changes apply prospectively to future quote generation only. Existing purchases remain pinned to the pricing tier and pricing-policy version captured in their quote and settlement snapshots.
-  required:
-    - regional_pricing_enabled
-    - tiers
-    - country_assignments
+    Partially update the community pricing policy. Omitted fields retain their current effective values. Changes apply prospectively to future quote generation only. Existing purchases remain pinned to the pricing tier and pricing-policy version captured in their quote and settlement snapshots.
   additionalProperties: false
   properties:
     regional_pricing_enabled:

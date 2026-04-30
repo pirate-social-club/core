@@ -368,7 +368,7 @@ paths:
                       mode: qr_deeplink
                       self_app:
                         app_name: Pirate
-                        endpoint: https://api.pirate.example/verification-sessions/ver_sess_01HSELFQREXAMPLE/callback
+                        endpoint: https://api.pirate.example/verification-sessions/ver_sess_01HSELFQREXAMPLE/receive-self-proof
                         endpoint_type: https
                         scope: pirate-verification-v0
                         session_id: ver_sess_01HSELFQREXAMPLE
@@ -378,7 +378,7 @@ paths:
                           nationality: false
                           minimum_age: null
                           gender: false
-                    callback_path: /verification-sessions/ver_sess_01HSELFQREXAMPLE/callback
+                    callback_path: /verification-sessions/ver_sess_01HSELFQREXAMPLE/receive-self-proof
                     created: 1775822400
                     expires_at: 1775823300
                 very_widget_launch:
@@ -462,13 +462,13 @@ paths:
       tags:
         - Verification
       x-implemented: true
-      summary: Get the current wallet score capability
+      summary: Get the current Passport wallet score capability
       description: |
         Read the current Human Passport-derived wallet-score capability for the authenticated user.
         This is a server-owned score read, not an interactive verification session.
       responses:
         "200":
-          description: Current wallet score capability
+          description: Current Passport wallet score capability
           content:
             application/json:
               schema:
@@ -529,32 +529,7 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
-  /verification-sessions/{verification_session_id}/callback:
-    post:
-      tags:
-        - Verification
-      x-implemented: true
-      summary: Provider callback for a verification session
-      parameters:
-        - $ref: "#/components/parameters/VerificationSessionId"
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ProviderVerificationCallbackRequest"
-      responses:
-        "200":
-          description: Verification session updated by provider callback
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/VerificationSession"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "404":
-          $ref: "#/components/responses/NotFound"
-  /verification-sessions/{verification_session_id}/self-callback:
+  /verification-sessions/{verification_session_id}/receive-self-proof:
     post:
       tags:
         - Verification
@@ -765,7 +740,7 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
-  /agent-ownership-sessions/{agent_ownership_session_id}/callback:
+  /agent-ownership-sessions/{agent_ownership_session_id}/receive-callback:
     post:
       x-implemented: true
       tags:
@@ -942,7 +917,7 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
-  /agents/{agent_id}/refresh_credential:
+  /agents/{agent_id}/refresh-credential:
     post:
       x-implemented: true
       tags:
@@ -1410,7 +1385,7 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/AuthError"
-  /profiles/me/rename_global_handle:
+  /profiles/me/rename-global-handle:
     post:
       tags:
         - Profiles
@@ -1442,7 +1417,7 @@ paths:
           $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/RateLimited"
-  /profiles/me/quote_handle_upgrade:
+  /profiles/me/quote-handle-upgrade:
     post:
       tags:
         - Profiles
@@ -1472,7 +1447,7 @@ paths:
           $ref: "#/components/responses/EligibilityFailed"
         "429":
           $ref: "#/components/responses/RateLimited"
-  /profiles/me/sync_linked_handles:
+  /profiles/me/sync-linked-handles:
     post:
       tags:
         - Profiles
@@ -1487,7 +1462,7 @@ paths:
                 $ref: "#/components/schemas/Profile"
         "401":
           $ref: "#/components/responses/AuthError"
-  /profiles/me/set_primary_public_handle:
+  /profiles/me/set-primary-public-handle:
     post:
       tags:
         - Profiles
@@ -2588,7 +2563,7 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
-  /communities/{community_id}/fail_purchase_settlement:
+  /communities/{community_id}/fail-purchase-settlement:
     post:
       tags:
         - Communities
@@ -6376,8 +6351,6 @@ components:
     UpdateUserAgentRequest:
       type: object
       additionalProperties: false
-      required:
-        - display_name
       properties:
         display_name:
           type: string
@@ -8039,18 +8012,7 @@ components:
     UpdateCommunityMoneyPolicyRequest:
       type: object
       description: |
-        Replace or update the community funding policy. Changes apply prospectively to future quotes and purchases. Existing purchases remain pinned to the quote and settlement snapshots used at execution time.
-      required:
-        - funding_preference
-        - accepted_funding_assets
-        - accepted_source_chains
-        - destination_settlement_chain
-        - destination_settlement_token
-        - max_slippage_bps
-        - quote_ttl_seconds
-        - route_required
-        - route_status_policy
-        - route_hop_tolerance
+        Partially update the community funding policy. Omitted fields retain their current effective values. Changes apply prospectively to future quotes and purchases. Existing purchases remain pinned to the quote and settlement snapshots used at execution time.
       additionalProperties: false
       properties:
         funding_preference:
@@ -10765,39 +10727,6 @@ components:
           nullable: true
         label:
           type: string
-          nullable: true
-        label_assignment_status:
-          type: string
-          enum:
-            - pending
-            - assigned
-            - failed
-            - skipped
-          nullable: true
-        label_assigned_by:
-          type: string
-          enum:
-            - moderator
-            - ai
-          nullable: true
-        label_assigned_at:
-          type: integer
-          format: int64
-          nullable: true
-        label_ai_confidence:
-          type: number
-          nullable: true
-          minimum: 0
-          maximum: 1
-        label_assignment_error:
-          type: string
-          nullable: true
-        label_assignment_model:
-          type: string
-          nullable: true
-        label_assignment_result_json:
-          type: object
-          additionalProperties: true
           nullable: true
         post_type:
           type: string

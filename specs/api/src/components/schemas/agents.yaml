@@ -581,8 +581,6 @@ UserAgentListResponse:
 UpdateUserAgentRequest:
   type: object
   additionalProperties: false
-  required:
-    - display_name
   properties:
     display_name:
       type: string

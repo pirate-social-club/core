@@ -480,26 +480,26 @@ export type CommunityPurchaseSettlementFailure = {
 };
 
 export type UpdateCommunityMoneyPolicyRequest = {
-  funding_preference: string;
-  accepted_funding_assets: Array<CommunityMoneyAssetRef>;
-  accepted_source_chains: Array<CommunityMoneyChainRef>;
+  funding_preference?: string;
+  accepted_funding_assets?: Array<CommunityMoneyAssetRef>;
+  accepted_source_chains?: Array<CommunityMoneyChainRef>;
   approved_route_providers?: Array<string> | null;
-  destination_settlement_chain: CommunityMoneyChainRef;
-  destination_settlement_token: string;
+  destination_settlement_chain?: CommunityMoneyChainRef;
+  destination_settlement_token?: string;
   treasury_denomination?: string | null;
-  max_slippage_bps: number;
-  quote_ttl_seconds: number;
-  route_required: boolean;
-  route_status_policy: CommunityFundingRouteStatusPolicy;
-  route_hop_tolerance: number;
+  max_slippage_bps?: number;
+  quote_ttl_seconds?: number;
+  route_required?: boolean;
+  route_status_policy?: CommunityFundingRouteStatusPolicy;
+  route_hop_tolerance?: number;
 };
 
 export type UpdateCommunityPricingPolicyRequest = {
-  regional_pricing_enabled: boolean;
+  regional_pricing_enabled?: boolean;
   verification_provider_requirement?: CommunityPricingVerificationProvider | null;
   default_tier_key?: string | null;
-  tiers: Array<CommunityPricingTier>;
-  country_assignments: Array<CommunityPricingCountryAssignment>;
+  tiers?: Array<CommunityPricingTier>;
+  country_assignments?: Array<CommunityPricingCountryAssignment>;
   source_template?: string | null;
   source_template_version?: string | null;
 };

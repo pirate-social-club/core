@@ -33,7 +33,7 @@ verification_sessions:
                     mode: qr_deeplink
                     self_app:
                       app_name: Pirate
-                      endpoint: https://api.pirate.example/verification-sessions/ver_sess_01HSELFQREXAMPLE/callback
+                      endpoint: https://api.pirate.example/verification-sessions/ver_sess_01HSELFQREXAMPLE/receive-self-proof
                       endpoint_type: https
                       scope: pirate-verification-v0
                       session_id: ver_sess_01HSELFQREXAMPLE
@@ -43,7 +43,7 @@ verification_sessions:
                         nationality: false
                         minimum_age: null
                         gender: false
-                  callback_path: /verification-sessions/ver_sess_01HSELFQREXAMPLE/callback
+                  callback_path: /verification-sessions/ver_sess_01HSELFQREXAMPLE/receive-self-proof
                   created: 1775822400
                   expires_at: 1775823300
               very_widget_launch:
@@ -100,6 +100,40 @@ verification_wallet_score:
     responses:
       "200":
         description: Current wallet score capability
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/verification.yaml#/WalletScoreCapabilityState
+            example:
+              state: verified
+              provider: passport
+              proof_type: wallet_score
+              mechanism: stamps-api-v2
+              verified_at: 1775822400
+              score_decimal: "28.4"
+              score_threshold_decimal: "20"
+              passing_score: true
+              last_scored_at: 1775822370
+              expires_at: 1778414400
+              stamps:
+                - stamp_name: Gitcoin Passport
+                  stamp_score_decimal: "18.4"
+                - stamp_name: ENS
+                  stamp_score_decimal: "10"
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+verification_passport_wallet_score:
+  get:
+    tags:
+      - Verification
+    x-implemented: true
+    summary: Get the current Passport wallet score capability
+    description: |
+      Read the current Human Passport-derived wallet-score capability for the authenticated user.
+      This is a server-owned score read, not an interactive verification session.
+    responses:
+      "200":
+        description: Current Passport wallet score capability
         content:
           application/json:
             schema:
@@ -207,7 +241,7 @@ verification_sessions_by_verification_session_id_callback:
     tags:
       - Verification
     x-implemented: true
-    summary: Provider callback for a verification session
+    summary: Receive a provider callback for a verification session
     parameters:
       - $ref: ../components/parameters.yaml#/VerificationSessionId
     requestBody:
