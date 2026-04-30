@@ -86,3 +86,7 @@ notifications_dismiss_task:
           application/json:
             schema:
               $ref: ../components/schemas/notifications.yaml#/UserTask
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "404":
+        $ref: ../components/responses.yaml#/NotFound

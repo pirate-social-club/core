@@ -200,9 +200,9 @@ MarkNotificationsReadRequest:
 DismissTaskRequest:
   type: object
   required:
-    - task
+    - task_id
   properties:
-    task:
+    task_id:
       type: string
 ClaimableRoyaltyItem:
   type: object

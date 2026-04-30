@@ -4517,6 +4517,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserTask"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /jobs:
     get:
       tags:
@@ -12580,9 +12584,9 @@ components:
     DismissTaskRequest:
       type: object
       required:
-        - task
+        - task_id
       properties:
-        task:
+        task_id:
           type: string
     ClaimableRoyaltyItem:
       type: object
