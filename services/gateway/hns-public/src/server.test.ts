@@ -101,6 +101,34 @@ describe("handleRequest", () => {
     expect(await response.text()).toBe(":root{}");
   });
 
+  test("proxies bare HNS root API paths to the API origin", async () => {
+    let requestedUrl = "";
+    let requestedMethod = "";
+    let requestedAuthorization = "";
+    const response = await handleRequest(
+      new Request("http://dankmeme/feed/home?locale=en", {
+        headers: {
+          accept: "application/json",
+          authorization: "Bearer token",
+        },
+      }),
+      env,
+      async (input, init) => {
+        requestedUrl = typeof input === "string" ? input : input.url;
+        requestedMethod = init?.method ?? "";
+        requestedAuthorization = new Headers(init?.headers).get("authorization") ?? "";
+        return Response.json({ items: [] });
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(requestedUrl).toBe("https://api.pirate.sc/feed/home?locale=en");
+    expect(requestedMethod).toBe("GET");
+    expect(requestedAuthorization).toBe("Bearer token");
+    expect(response.headers.get("content-type")).toContain("application/json");
+    expect(await response.json()).toEqual({ items: [] });
+  });
+
   test("redirects renamed handles to canonical host", async () => {
     const response = await handleRequest(
       new Request("http://oldname.pirate/"),

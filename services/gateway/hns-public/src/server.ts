@@ -67,6 +67,37 @@ const RESERVED_HOSTS = new Set([
   "profile",
 ]);
 
+const API_PATH_PREFIXES = [
+  "/admin",
+  "/agents",
+  "/analytics",
+  "/api-catalog",
+  "/auth",
+  "/bot-users",
+  "/comments",
+  "/communities",
+  "/community-media",
+  "/feed",
+  "/jobs",
+  "/namespace-verification-sessions",
+  "/namespace-verifications",
+  "/notifications",
+  "/onboarding",
+  "/openapi.json",
+  "/posts",
+  "/profile-media",
+  "/profiles",
+  "/public-agents",
+  "/public-comments",
+  "/public-communities",
+  "/public-posts",
+  "/public-profiles",
+  "/royalties",
+  "/users",
+  "/verification",
+  "/verification-sessions",
+];
+
 export function buildCommunityPath(communityId: string, routeSlug: string | null): string {
   return `/c/${encodeURIComponent(routeSlug || communityId)}`;
 }
@@ -381,30 +412,68 @@ function createCanonicalUrl(requestUrl: URL, scheme: string): string {
   return nextUrl.toString();
 }
 
+function isApiPath(pathname: string): boolean {
+  return API_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+function buildProxyHeaders(request: Request, defaultAccept: string): Headers {
+  const headers = new Headers();
+  const passThroughHeaders = [
+    "accept",
+    "authorization",
+    "content-type",
+    "user-agent",
+    "x-pirate-anonymous-id",
+    "x-pirate-session-id",
+  ];
+
+  for (const name of passThroughHeaders) {
+    const value = request.headers.get(name);
+    if (value) {
+      headers.set(name, value);
+    }
+  }
+
+  if (!headers.has("accept")) {
+    headers.set("accept", defaultAccept);
+  }
+  if (!headers.has("user-agent")) {
+    headers.set("user-agent", "Pirate HNS Gateway");
+  }
+
+  return headers;
+}
+
 async function proxyCommunityRoot({
+  apiOrigin,
   appOrigin,
   communityRoot,
   fetchImpl,
   request,
   url,
 }: {
+  apiOrigin: string;
   appOrigin: string;
   communityRoot: string;
   fetchImpl: typeof fetch;
   request: Request;
   url: URL;
 }): Promise<Response> {
-  const upstreamPath = url.pathname === "/"
+  const isApiRequest = isApiPath(url.pathname);
+  const upstreamPath = isApiRequest
+    ? url.pathname
+    : url.pathname === "/"
     ? `/c/${encodeURIComponent(communityRoot)}`
     : url.pathname;
-  const upstream = new URL(upstreamPath, appOrigin);
+  const upstream = new URL(upstreamPath, isApiRequest ? apiOrigin : appOrigin);
   upstream.search = url.search;
+  const method = request.method.toUpperCase();
+  const hasBody = method !== "GET" && method !== "HEAD";
 
   const response = await fetchImpl(upstream.toString(), {
-    headers: {
-      accept: request.headers.get("accept") || "text/html",
-      "user-agent": request.headers.get("user-agent") || "Pirate HNS Gateway",
-    },
+    body: hasBody ? request.body : undefined,
+    headers: buildProxyHeaders(request, isApiRequest ? "application/json" : "text/html"),
+    method,
     redirect: "manual",
   });
 
@@ -445,6 +514,7 @@ export async function handleRequest(
 
   if (communityRoot) {
     return proxyCommunityRoot({
+      apiOrigin,
       appOrigin,
       communityRoot,
       fetchImpl,
