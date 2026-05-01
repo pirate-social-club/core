@@ -63,6 +63,8 @@ describe("handleRequest", () => {
         return new Response("<html><title>dankmeme</title></html>", {
           headers: {
             "content-security-policy": "default-src 'self'",
+            "content-encoding": "zstd",
+            "content-length": "999",
             "content-type": "text/html; charset=utf-8",
             "x-frame-options": "DENY",
           },
@@ -73,6 +75,8 @@ describe("handleRequest", () => {
     expect(response.status).toBe(200);
     expect(requestedUrl).toBe("https://pirate.sc/c/dankmeme?tab=top");
     expect(response.headers.get("content-security-policy")).toBeNull();
+    expect(response.headers.get("content-encoding")).toBeNull();
+    expect(response.headers.get("content-length")).toBeNull();
     expect(await response.text()).toContain("dankmeme");
   });
 

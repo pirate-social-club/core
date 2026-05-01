@@ -409,6 +409,8 @@ async function proxyCommunityRoot({
   headers.set("cache-control", "public, max-age=60");
   headers.delete("content-security-policy");
   headers.delete("content-security-policy-report-only");
+  headers.delete("content-encoding");
+  headers.delete("content-length");
   headers.delete("x-frame-options");
   headers.delete("report-to");
   headers.delete("nel");
