@@ -85,6 +85,7 @@ export type ProvisionCommunityInput = {
   namespaceLabel?: string | null;
   initialSettings?: Record<string, unknown> | null;
   databaseTokenExpiration?: string | null;
+  requestId?: string | null;
   fetch?: TursoPlatformFetch;
   bootstrapCommunityDatabaseFn?: (
     input: BootstrapCommunityDatabaseInput,
@@ -193,8 +194,72 @@ export type DoctorResult = {
   findings: DoctorFinding[];
 };
 
+export type ReapStaleCommunityProvisioningInput = {
+  controlPlaneDatabaseUrl: string;
+  controlPlaneAuthToken?: string | null;
+  staleAfterMs?: number;
+  now?: Date;
+};
+
+export type ReapedCommunityProvisioningJob = {
+  jobId: string;
+  communityId: string;
+  updatedAt: string;
+};
+
+export type ReapStaleCommunityProvisioningResult = {
+  cutoff: string;
+  staleAfterMs: number;
+  reapedJobs: ReapedCommunityProvisioningJob[];
+  reapedJobCount: number;
+};
+
 function nowIso(date = new Date()): string {
   return date.toISOString();
+}
+
+function logProvisionStep(input: {
+  communityId: string;
+  requestId?: string | null;
+  step: string;
+  event: "start" | "success" | "error";
+  startedAt?: number;
+  error?: unknown;
+}): void {
+  const fields = [
+    "[community-provision]",
+    `community_id=${input.communityId}`,
+    input.requestId ? `request_id=${input.requestId}` : null,
+    `step=${input.step}`,
+    `event=${input.event}`,
+    input.startedAt == null ? null : `took_ms=${Math.max(0, Math.round(performance.now() - input.startedAt))}`,
+    input.error == null ? null : `error=${JSON.stringify(errorMessage(input.error))}`,
+  ].filter(Boolean);
+  console.log(fields.join(" "));
+}
+
+async function withProvisionStep<T>(
+  input: {
+    communityId: string;
+    requestId?: string | null;
+    step: string;
+  },
+  operation: () => Promise<T>,
+): Promise<T> {
+  const startedAt = performance.now();
+  logProvisionStep({ ...input, event: "start" });
+  try {
+    const result = await operation();
+    logProvisionStep({ ...input, event: "success", startedAt });
+    return result;
+  } catch (error) {
+    logProvisionStep({ ...input, event: "error", startedAt, error });
+    throw error;
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function makeId(prefix: string): string {
@@ -1068,98 +1133,134 @@ export async function provisionCommunityRuntime(
   let db: ControlPlaneDatabase | null = null;
 
   try {
-    db = openControlPlaneDatabase({
+    db = await withProvisionStep({
+      communityId,
+      requestId: input.requestId,
+      step: "open_control_plane",
+    }, async () => openControlPlaneDatabase({
       url: controlPlaneDatabaseUrl,
       authToken: controlPlaneAuthToken,
-    });
-    const namespaceVerification = namespaceVerificationId
-      ? await requireNamespaceVerification(db, {
+    }));
+    const namespaceVerification = await withProvisionStep({
+      communityId,
+      requestId: input.requestId,
+      step: "load_namespace_verification",
+    }, async () => namespaceVerificationId
+      ? requireNamespaceVerification(db!, {
           namespaceVerificationId,
           creatorUserId,
         })
-      : null;
+      : null);
 
     const platform = new TursoPlatformClient({
       apiToken: tursoPlatformApiToken,
       fetch: input.fetch,
     });
 
-    let group = (await platform.listGroups(tursoOrganizationSlug))
+    let group = await withProvisionStep({
+      communityId,
+      requestId: input.requestId,
+      step: "ensure_group",
+    }, async () => (await platform.listGroups(tursoOrganizationSlug))
       .find((entry) => entry.name === groupName)
       ?? await platform.createGroup({
         organizationSlug: tursoOrganizationSlug,
         groupName,
         location: groupLocation,
-      });
+      }));
 
     if (group.deleteProtection !== true) {
-      group = {
+      group = await withProvisionStep({
+        communityId,
+        requestId: input.requestId,
+        step: "enable_group_delete_protection",
+      }, async () => ({
         ...group,
         ...await platform.updateGroupConfiguration({
           organizationSlug: tursoOrganizationSlug,
           groupName,
           deleteProtection: true,
         }),
-      };
+      }));
     }
 
-    let database = (await platform.listDatabases({
-      organizationSlug: tursoOrganizationSlug,
-      groupName,
-    }))
-      .find((entry) => entry.name === databaseName)
-      ?? await platform.createDatabase({
+    let database = await withProvisionStep({
+      communityId,
+      requestId: input.requestId,
+      step: "ensure_database",
+    }, async () => (await platform.listDatabases({
         organizationSlug: tursoOrganizationSlug,
-        databaseName,
         groupName,
-      });
+      }))
+        .find((entry) => entry.name === databaseName)
+        ?? await platform.createDatabase({
+          organizationSlug: tursoOrganizationSlug,
+          databaseName,
+          groupName,
+        }));
 
     if (database.deleteProtection !== true) {
-      database = {
+      database = await withProvisionStep({
+        communityId,
+        requestId: input.requestId,
+        step: "enable_database_delete_protection",
+      }, async () => ({
         ...database,
         ...await platform.updateDatabaseConfiguration({
           organizationSlug: tursoOrganizationSlug,
           databaseName,
           deleteProtection: true,
         }),
-      };
+      }));
     }
 
     const databaseUrl = requireText(database.libsqlUrl, "database.libsqlUrl");
-    const minted = await platform.createDatabaseAuthToken({
-      organizationSlug: tursoOrganizationSlug,
-      databaseName,
-      expiration: databaseTokenExpiration ?? undefined,
-      authorization: "full-access",
-    });
+    const minted = await withProvisionStep({
+      communityId,
+      requestId: input.requestId,
+      step: "mint_database_token",
+    }, async () => platform.createDatabaseAuthToken({
+        organizationSlug: tursoOrganizationSlug,
+        databaseName,
+        expiration: databaseTokenExpiration ?? undefined,
+        authorization: "full-access",
+      }));
     const plaintextToken = requireText(minted.jwt, "minted database auth token");
 
     const namespaceLabel = input.namespaceLabel?.trim() || namespaceVerification?.normalized_root_label || null;
-    await bootstrapFn({
-      databaseUrl,
-      databaseAuthToken: plaintextToken,
+    await withProvisionStep({
       communityId,
-      userId: creatorUserId,
-      displayName,
-      namespaceVerificationId,
-      description: input.description?.trim() || null,
-      avatarRef: input.avatarRef?.trim() || null,
-      bannerRef: input.bannerRef?.trim() || null,
-      membershipMode: input.membershipMode ?? "open",
-      defaultAgeGatePolicy: input.defaultAgeGatePolicy ?? "none",
-      gatePolicy: input.gatePolicy ?? null,
-      membershipUniqueHumanProvider: input.membershipUniqueHumanProvider ?? null,
-      postingUniqueHumanProvider: input.postingUniqueHumanProvider ?? null,
-      handlePolicyTemplate: input.handlePolicyTemplate ?? "standard",
-      handlePricingModel: input.handlePricingModel ?? null,
-      namespaceLabel,
-      initialSettings: input.initialSettings ?? null,
-      now: input.now ?? new Date(),
-    });
+      requestId: input.requestId,
+      step: "bootstrap_database",
+    }, async () => bootstrapFn({
+        databaseUrl,
+        databaseAuthToken: plaintextToken,
+        communityId,
+        userId: creatorUserId,
+        displayName,
+        namespaceVerificationId,
+        description: input.description?.trim() || null,
+        avatarRef: input.avatarRef?.trim() || null,
+        bannerRef: input.bannerRef?.trim() || null,
+        membershipMode: input.membershipMode ?? "open",
+        defaultAgeGatePolicy: input.defaultAgeGatePolicy ?? "none",
+        gatePolicy: input.gatePolicy ?? null,
+        membershipUniqueHumanProvider: input.membershipUniqueHumanProvider ?? null,
+        postingUniqueHumanProvider: input.postingUniqueHumanProvider ?? null,
+        handlePolicyTemplate: input.handlePolicyTemplate ?? "standard",
+        handlePricingModel: input.handlePricingModel ?? null,
+        namespaceLabel,
+        initialSettings: input.initialSettings ?? null,
+        now: input.now ?? new Date(),
+      }));
 
-    const rotationNumber = await getNextRotationNumber(db, {
+    const rotationNumber = await withProvisionStep({
       communityId,
-    });
+      requestId: input.requestId,
+      step: "load_next_rotation",
+    }, async () => getNextRotationNumber(db!, {
+        communityId,
+      }));
     const tokenName = `worker-${communityId}-v${rotationNumber}`;
 
     return {
@@ -1176,6 +1277,106 @@ export async function provisionCommunityRuntime(
       issuedAt: timestamp,
       expiresAt: null,
       rotationNumber,
+    };
+  } finally {
+    if (db) {
+      await db.close();
+    }
+  }
+}
+
+export async function reapStaleCommunityProvisioningJobs(
+  input: ReapStaleCommunityProvisioningInput,
+): Promise<ReapStaleCommunityProvisioningResult> {
+  const controlPlaneDatabaseUrl = requireText(input.controlPlaneDatabaseUrl, "controlPlaneDatabaseUrl");
+  const controlPlaneAuthToken = input.controlPlaneAuthToken?.trim() || null;
+  const staleAfterMs = requirePositiveInt(input.staleAfterMs ?? 15 * 60 * 1000, "staleAfterMs");
+  const cutoff = nowIso(new Date((input.now ?? new Date()).getTime() - staleAfterMs));
+  const reapedAt = nowIso(input.now ?? new Date());
+  let db: ControlPlaneDatabase | null = null;
+
+  try {
+    db = openControlPlaneDatabase({
+      url: controlPlaneDatabaseUrl,
+      authToken: controlPlaneAuthToken,
+    });
+
+    const staleRows = await db.sql<Array<{
+      job_id: string;
+      community_id: string;
+      updated_at: string;
+    }>>`
+      SELECT j.job_id, j.community_id, j.updated_at
+      FROM jobs AS j
+      WHERE j.job_type = 'community_provisioning'
+        AND j.status = 'running'
+        AND j.updated_at < ${cutoff}
+        AND NOT EXISTS (
+          SELECT 1
+          FROM community_database_bindings AS cdb
+          INNER JOIN community_db_credentials AS cdc
+            ON cdc.community_database_binding_id = cdb.community_database_binding_id
+           AND cdc.status = 'active'
+          WHERE cdb.community_id = j.community_id
+            AND cdb.binding_role = 'primary'
+            AND cdb.status = 'active'
+          LIMIT 1
+        )
+      ORDER BY j.updated_at ASC
+    `;
+
+    const reapedJobs: ReapedCommunityProvisioningJob[] = [];
+    await db.begin(async (tx) => {
+      for (const row of staleRows) {
+        await tx.sql`
+          UPDATE jobs
+          SET status = 'failed',
+              error_code = 'job_stale_timeout',
+              result_ref = NULL,
+              updated_at = ${reapedAt}
+          WHERE job_id = ${row.job_id}
+            AND status = 'running'
+        `;
+        await tx.sql`
+          UPDATE communities
+          SET provisioning_state = 'error',
+              updated_at = ${reapedAt}
+          WHERE community_id = ${row.community_id}
+            AND provisioning_state = 'provisioning'
+            AND NOT EXISTS (
+              SELECT 1
+              FROM community_database_bindings AS cdb
+              INNER JOIN community_db_credentials AS cdc
+                ON cdc.community_database_binding_id = cdb.community_database_binding_id
+               AND cdc.status = 'active'
+              WHERE cdb.community_id = ${row.community_id}
+                AND cdb.binding_role = 'primary'
+                AND cdb.status = 'active'
+              LIMIT 1
+            )
+        `;
+        reapedJobs.push({
+          jobId: row.job_id,
+          communityId: row.community_id,
+          updatedAt: row.updated_at,
+        });
+      }
+    });
+
+    for (const job of reapedJobs) {
+      console.warn("[community-provision] reaped stale job", JSON.stringify({
+        job_id: job.jobId,
+        community_id: job.communityId,
+        updated_at: job.updatedAt,
+        cutoff,
+      }));
+    }
+
+    return {
+      cutoff,
+      staleAfterMs,
+      reapedJobs,
+      reapedJobCount: reapedJobs.length,
     };
   } finally {
     if (db) {

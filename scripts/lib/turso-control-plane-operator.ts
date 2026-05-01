@@ -1,10 +1,12 @@
 import {
   doctorControlPlane,
   provisionCommunityRuntime,
+  reapStaleCommunityProvisioningJobs,
   rotateCommunityToken,
   type DoctorResult,
   type ProvisionCommunityResult,
   type ProvisionCommunityRuntimeResult,
+  type ReapStaleCommunityProvisioningResult,
   type RotateCommunityTokenResult,
 } from "./turso-control-plane";
 
@@ -54,10 +56,15 @@ type DoctorRouteBody = {
   community_id?: string | null;
 };
 
+type ReapStaleRouteBody = {
+  stale_after_ms?: number | string | null;
+};
+
 type OperatorDeps = {
   provisionCommunityFn?: typeof provisionCommunityRuntime;
   rotateCommunityTokenFn?: typeof rotateCommunityToken;
   doctorControlPlaneFn?: typeof doctorControlPlane;
+  reapStaleCommunityProvisioningJobsFn?: typeof reapStaleCommunityProvisioningJobs;
 };
 
 function json(body: unknown, init?: ResponseInit): Response {
@@ -185,6 +192,30 @@ function mapDoctorResponse(result: DoctorResult): Record<string, unknown> {
   };
 }
 
+function mapReapStaleResponse(result: ReapStaleCommunityProvisioningResult): Record<string, unknown> {
+  return {
+    cutoff: result.cutoff,
+    stale_after_ms: result.staleAfterMs,
+    reaped_job_count: result.reapedJobCount,
+    reaped_jobs: result.reapedJobs.map((job) => ({
+      job_id: job.jobId,
+      community_id: job.communityId,
+      updated_at: job.updatedAt,
+    })),
+  };
+}
+
+function optionalPositiveInt(value: number | string | null | undefined, label: string): number | null {
+  if (value == null || trim(String(value)) === "") {
+    return null;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${label} must be a positive integer`);
+  }
+  return parsed;
+}
+
 export function createTursoControlPlaneOperatorHandler(
   env: TursoControlPlaneOperatorEnv,
   deps: OperatorDeps = {},
@@ -193,6 +224,7 @@ export function createTursoControlPlaneOperatorHandler(
   const provisionCommunityFn = deps.provisionCommunityFn ?? provisionCommunityRuntime;
   const rotateCommunityTokenFn = deps.rotateCommunityTokenFn ?? rotateCommunityToken;
   const doctorControlPlaneFn = deps.doctorControlPlaneFn ?? doctorControlPlane;
+  const reapStaleCommunityProvisioningJobsFn = deps.reapStaleCommunityProvisioningJobsFn ?? reapStaleCommunityProvisioningJobs;
 
   return async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
@@ -220,8 +252,10 @@ export function createTursoControlPlaneOperatorHandler(
       if (url.pathname === "/internal/v0/community-provisioning/provision") {
         const body = await readJson<ProvisionRouteBody>(request);
         const runtime = requireOperatorRuntime(env);
+        const requestId = trim(request.headers.get("x-request-id")) || null;
         const result = await provisionCommunityFn({
           ...runtime,
+          requestId,
           communityId: requireText(body.community_id, "community_id"),
           creatorUserId: requireText(body.creator_user_id, "creator_user_id"),
           displayName: requireText(body.display_name, "display_name"),
@@ -271,13 +305,23 @@ export function createTursoControlPlaneOperatorHandler(
         return json(mapDoctorResponse(result));
       }
 
+      if (url.pathname === "/internal/v0/community-provisioning/reap-stale") {
+        const body = await readJson<ReapStaleRouteBody>(request);
+        const result = await reapStaleCommunityProvisioningJobsFn({
+          controlPlaneDatabaseUrl: requireText(env.CONTROL_PLANE_DATABASE_URL, "CONTROL_PLANE_DATABASE_URL"),
+          controlPlaneAuthToken: trim(env.TURSO_CONTROL_PLANE_AUTH_TOKEN) || null,
+          staleAfterMs: optionalPositiveInt(body.stale_after_ms, "stale_after_ms") ?? undefined,
+        });
+        return json(mapReapStaleResponse(result));
+      }
+
       return new Response("Not Found", { status: 404 });
     } catch (error) {
       const message = error instanceof Error ? error.message : "operator request failed";
       const isValidationError = message.endsWith(" is required")
         || message.includes("must be valid JSON")
         || message.endsWith("must be a positive integer");
-      console.error("[community-provision-operator]", request.method, url.pathname, message);
+      console.error("[community-provision-operator]", request.method, url.pathname, `request_id=${trim(request.headers.get("x-request-id")) || "none"}`, message);
       return json(
         {
           error_code: isValidationError ? "invalid_request" : "community_provision_operator_failed",

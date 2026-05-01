@@ -78,6 +78,7 @@ describe("turso control-plane operator handler", () => {
       headers: {
         authorization: `Bearer ${baseEnv.COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN}`,
         "content-type": "application/json",
+        "x-request-id": "opr_test_request",
       },
       body: JSON.stringify({
         community_id: "cmt_01",
@@ -118,6 +119,7 @@ describe("turso control-plane operator handler", () => {
     expect(response.status).toBe(200);
     expect(received).toMatchObject({
       controlPlaneDatabaseUrl: baseEnv.CONTROL_PLANE_DATABASE_URL,
+      requestId: "opr_test_request",
       tursoPlatformApiToken: baseEnv.TURSO_PLATFORM_API_TOKEN,
       tursoOrganizationSlug: baseEnv.TURSO_ORGANIZATION_SLUG,
       tursoCommunityDbWrapKey: baseEnv.TURSO_COMMUNITY_DB_WRAP_KEY,
@@ -270,6 +272,52 @@ describe("turso control-plane operator handler", () => {
     expect(body.checked_communities).toBe(1);
     expect(body.finding_count).toBe(1);
     expect(body.findings[0]?.code).toBe("binding_database_url_invalid");
+  });
+
+  test("reap-stale route delegates and returns reaped jobs", async () => {
+    let received: Record<string, unknown> | null = null;
+    const handler = createTursoControlPlaneOperatorHandler(baseEnv, {
+      reapStaleCommunityProvisioningJobsFn: async (input) => {
+        received = input as unknown as Record<string, unknown>;
+        return {
+          cutoff: "2026-05-01T17:30:00.000Z",
+          staleAfterMs: 900000,
+          reapedJobCount: 1,
+          reapedJobs: [{
+            jobId: "job_stale",
+            communityId: "cmt_stale",
+            updatedAt: "2026-05-01T17:00:00.000Z",
+          }],
+        };
+      },
+    });
+
+    const response = await handler(new Request("http://operator.test/internal/v0/community-provisioning/reap-stale", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${baseEnv.COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        stale_after_ms: 900000,
+      }),
+    }));
+
+    expect(response.status).toBe(200);
+    expect(received).toMatchObject({
+      controlPlaneDatabaseUrl: baseEnv.CONTROL_PLANE_DATABASE_URL,
+      staleAfterMs: 900000,
+    });
+    const body = await response.json() as {
+      reaped_job_count: number;
+      reaped_jobs: Array<{ job_id: string; community_id: string }>;
+    };
+    expect(body.reaped_job_count).toBe(1);
+    expect(body.reaped_jobs[0]).toEqual({
+      job_id: "job_stale",
+      community_id: "cmt_stale",
+      updated_at: "2026-05-01T17:00:00.000Z",
+    });
   });
 
   test("port helper defaults and validates", () => {
