@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { extractPublicProfileHost, handleRequest } from "./server";
+import { extractCommunityRootHost, extractPublicProfileHost, handleRequest } from "./server";
 
 describe("extractPublicProfileHost", () => {
   test("extracts a simple pirate hostname", () => {
@@ -25,6 +25,18 @@ describe("extractPublicProfileHost", () => {
   });
 });
 
+describe("extractCommunityRootHost", () => {
+  test("extracts a bare HNS community root", () => {
+    expect(extractCommunityRootHost("dankmeme")).toBe("dankmeme");
+  });
+
+  test("rejects reserved, dotted, and invalid roots", () => {
+    expect(extractCommunityRootHost("api")).toBeNull();
+    expect(extractCommunityRootHost("blackbeard.pirate")).toBeNull();
+    expect(extractCommunityRootHost("-bad")).toBeNull();
+  });
+});
+
 describe("handleRequest", () => {
   const env = {
     HNS_PUBLIC_GATEWAY_ROOT_SUFFIX: "pirate",
@@ -37,6 +49,31 @@ describe("handleRequest", () => {
     const response = await handleRequest(new Request("http://127.0.0.1/health"), env);
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
+  });
+
+  test("proxies bare HNS community roots to Pirate community pages", async () => {
+    let requestedUrl = "";
+    const response = await handleRequest(
+      new Request("http://dankmeme/?tab=top", {
+        headers: { accept: "text/html" },
+      }),
+      env,
+      async (input) => {
+        requestedUrl = typeof input === "string" ? input : input.url;
+        return new Response("<html><title>dankmeme</title></html>", {
+          headers: {
+            "content-security-policy": "default-src 'self'",
+            "content-type": "text/html; charset=utf-8",
+            "x-frame-options": "DENY",
+          },
+        });
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(requestedUrl).toBe("https://pirate.sc/c/dankmeme?tab=top");
+    expect(response.headers.get("content-security-policy")).toBeNull();
+    expect(await response.text()).toContain("dankmeme");
   });
 
   test("redirects renamed handles to canonical host", async () => {

@@ -110,6 +110,17 @@ export function extractPublicProfileHost(
   return { handleLabel: subdomain, hostSuffix: normalizedSuffix };
 }
 
+export function extractCommunityRootHost(hostname: string): string | null {
+  const normalizedHostname = hostname.trim().toLowerCase().replace(/\.+$/u, "");
+  if (!normalizedHostname || normalizedHostname.includes(".") || RESERVED_HOSTS.has(normalizedHostname)) {
+    return null;
+  }
+  if (!/^[a-z]([a-z0-9-]*[a-z0-9])?$/.test(normalizedHostname)) {
+    return null;
+  }
+  return normalizedHostname;
+}
+
 function formatJoinedLabel(createdAt: string): string {
   return new Date(createdAt).toLocaleDateString("en-US", {
     month: "short",
@@ -370,6 +381,45 @@ function createCanonicalUrl(requestUrl: URL, scheme: string): string {
   return nextUrl.toString();
 }
 
+async function proxyCommunityRoot({
+  appOrigin,
+  communityRoot,
+  fetchImpl,
+  request,
+  url,
+}: {
+  appOrigin: string;
+  communityRoot: string;
+  fetchImpl: typeof fetch;
+  request: Request;
+  url: URL;
+}): Promise<Response> {
+  const upstream = new URL(`/c/${encodeURIComponent(communityRoot)}`, appOrigin);
+  upstream.search = url.search;
+
+  const response = await fetchImpl(upstream.toString(), {
+    headers: {
+      accept: request.headers.get("accept") || "text/html",
+      "user-agent": request.headers.get("user-agent") || "Pirate HNS Gateway",
+    },
+    redirect: "manual",
+  });
+
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", "public, max-age=60");
+  headers.delete("content-security-policy");
+  headers.delete("content-security-policy-report-only");
+  headers.delete("x-frame-options");
+  headers.delete("report-to");
+  headers.delete("nel");
+
+  return new Response(response.body, {
+    headers,
+    status: response.status,
+    statusText: response.statusText,
+  });
+}
+
 export async function handleRequest(
   request: Request,
   env: HnsPublicGatewayEnv,
@@ -383,6 +433,20 @@ export async function handleRequest(
   const rootSuffix = env.HNS_PUBLIC_GATEWAY_ROOT_SUFFIX?.trim() || "pirate";
   const agentSuffix = env.HNS_PUBLIC_GATEWAY_AGENT_SUFFIX?.trim() || "clawitzer";
   const externalScheme = env.HNS_PUBLIC_GATEWAY_EXTERNAL_SCHEME?.trim() || "https";
+
+  const apiOrigin = env.HNS_PUBLIC_API_ORIGIN?.trim() || "https://api.pirate.sc";
+  const appOrigin = env.HNS_PUBLIC_APP_ORIGIN?.trim() || "https://pirate.sc";
+  const communityRoot = extractCommunityRootHost(url.hostname);
+
+  if (communityRoot) {
+    return proxyCommunityRoot({
+      appOrigin,
+      communityRoot,
+      fetchImpl,
+      request,
+      url,
+    });
+  }
 
   let target = extractPublicProfileHost(url.hostname, rootSuffix);
   let isAgent = false;
@@ -400,8 +464,6 @@ export async function handleRequest(
     );
   }
 
-  const apiOrigin = env.HNS_PUBLIC_API_ORIGIN?.trim() || "https://api.pirate.sc";
-  const appOrigin = env.HNS_PUBLIC_APP_ORIGIN?.trim() || "https://pirate.sc";
   const apiPath = isAgent ? "public-agents" : "public-profiles";
   const response = await fetchImpl(
     `${apiOrigin}/${apiPath}/${encodeURIComponent(target.handleLabel)}`,
