@@ -394,7 +394,10 @@ async function proxyCommunityRoot({
   request: Request;
   url: URL;
 }): Promise<Response> {
-  const upstream = new URL(`/c/${encodeURIComponent(communityRoot)}`, appOrigin);
+  const upstreamPath = url.pathname === "/"
+    ? `/c/${encodeURIComponent(communityRoot)}`
+    : url.pathname;
+  const upstream = new URL(upstreamPath, appOrigin);
   upstream.search = url.search;
 
   const response = await fetchImpl(upstream.toString(), {

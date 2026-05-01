@@ -80,6 +80,27 @@ describe("handleRequest", () => {
     expect(await response.text()).toContain("dankmeme");
   });
 
+  test("proxies bare HNS root assets by original path", async () => {
+    let requestedUrl = "";
+    const response = await handleRequest(
+      new Request("http://dankmeme/assets/tokens.css", {
+        headers: { accept: "text/css" },
+      }),
+      env,
+      async (input) => {
+        requestedUrl = typeof input === "string" ? input : input.url;
+        return new Response(":root{}", {
+          headers: { "content-type": "text/css" },
+        });
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(requestedUrl).toBe("https://pirate.sc/assets/tokens.css");
+    expect(response.headers.get("content-type")).toBe("text/css");
+    expect(await response.text()).toBe(":root{}");
+  });
+
   test("redirects renamed handles to canonical host", async () => {
     const response = await handleRequest(
       new Request("http://oldname.pirate/"),
