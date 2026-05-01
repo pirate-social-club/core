@@ -214,7 +214,7 @@ CREATE TABLE communities (
     creator_user_id TEXT NOT NULL,
     display_name TEXT NOT NULL,
     membership_mode TEXT NOT NULL CHECK (
-        membership_mode IN ('request', 'gated')
+        membership_mode IN ('open', 'request', 'gated')
     ),
     status TEXT NOT NULL CHECK (
         status IN ('draft', 'active', 'frozen', 'archived', 'deleted', 'suspended')
