@@ -6,6 +6,7 @@ import { createClient } from "@libsql/client";
 
 type CommunityBootstrapSql = {
   execute<T>(sql: string, params?: Array<string | number | null>): Promise<T[]>;
+  batch<T>(statements: Array<{ sql: string; args?: Array<string | number | null> }>): Promise<T[][]>;
   transaction<T>(fn: (tx: CommunityBootstrapSql) => Promise<T>): Promise<T>;
   close(): Promise<void>;
 };
@@ -62,11 +63,27 @@ function createLocalBootstrapSql(databaseUrl: string): CommunityBootstrapSql {
     execute(statement, params) {
       return sql.unsafe(statement, params);
     },
+    batch(statements) {
+      return sql.begin(async (tx) => {
+        const results: unknown[][] = [];
+        for (const statement of statements) {
+          results.push(await tx.unsafe(statement.sql, statement.args));
+        }
+        return results;
+      });
+    },
     transaction(fn) {
       return sql.begin(async (tx) =>
         fn({
           execute(statement, params) {
             return tx.unsafe(statement, params);
+          },
+          async batch(statements) {
+            const results: unknown[][] = [];
+            for (const statement of statements) {
+              results.push(await tx.unsafe(statement.sql, statement.args));
+            }
+            return results;
           },
           transaction() {
             throw new Error("nested_local_bootstrap_transactions_not_supported");
@@ -124,6 +141,16 @@ function createRemoteBootstrapSql(input: {
       }));
       return result.rows as T[];
     },
+    async batch<T>(statements) {
+      const results = await retryRemoteBootstrap(() => client.batch(
+        statements.map((statement) => ({
+          sql: statement.sql,
+          args: statement.args ?? [],
+        })),
+        "write",
+      ));
+      return results.map((result) => result.rows as T[]);
+    },
     async transaction<T>(fn) {
       return retryRemoteBootstrap(async () => {
         const tx = await client.transaction("write");
@@ -134,6 +161,17 @@ function createRemoteBootstrapSql(input: {
               args: params ?? [],
             });
             return result.rows as U[];
+          },
+          async batch<U>(statements) {
+            const results: U[][] = [];
+            for (const statement of statements) {
+              const result = await tx.execute({
+                sql: statement.sql,
+                args: statement.args ?? [],
+              });
+              results.push(result.rows as U[]);
+            }
+            return results;
           },
           transaction() {
             throw new Error("nested_remote_bootstrap_transactions_not_supported");
@@ -319,6 +357,7 @@ export async function inspectCommunityTemplateMigrations(input: {
 
 async function applyCommunityMigrations(sql: CommunityBootstrapSql): Promise<ApplyCommunityTemplateMigrationsResult> {
   await ensureSchemaMigrationsTable(sql);
+  const existingByName = await readSchemaMigrationChecksums(sql);
 
   let applied = 0;
   let skipped = 0;
@@ -327,11 +366,7 @@ async function applyCommunityMigrations(sql: CommunityBootstrapSql): Promise<App
     const migrationName = filePath.split("/").at(-1) ?? filePath;
     const migrationSql = await readFile(filePath, "utf8");
     const checksum = checksumSql(migrationSql);
-    const existing = await sql.execute<{ checksum: string }>(
-      "SELECT checksum FROM schema_migrations WHERE migration_name = ?",
-      [migrationName],
-    );
-    const existingChecksum = existing[0]?.checksum ?? null;
+    const existingChecksum = existingByName.get(migrationName) ?? null;
 
     if (existingChecksum) {
       if (existingChecksum !== checksum) {
@@ -341,19 +376,17 @@ async function applyCommunityMigrations(sql: CommunityBootstrapSql): Promise<App
       continue;
     }
 
-    await sql.transaction(async (tx) => {
-      for (const statement of splitSqlStatements(migrationSql)) {
-        await tx.execute(statement);
-      }
-      await tx.execute(
-        `INSERT INTO schema_migrations (
+    await sql.batch([
+      ...splitSqlStatements(migrationSql).map((statement) => ({ sql: statement })),
+      {
+        sql: `INSERT INTO schema_migrations (
            migration_name,
            migration_label,
            checksum
          ) VALUES (?, ?, ?)`,
-        [migrationName, "community-template", checksum],
-      );
-    });
+        args: [migrationName, "community-template", checksum],
+      },
+    ]);
     applied += 1;
   }
 
