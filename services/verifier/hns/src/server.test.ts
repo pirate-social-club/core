@@ -7,7 +7,7 @@ describe("hns verifier server", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.ok).toBe(true);
-    expect(body.observation_provider).toBe("powerdns_sqlite");
+    expect(body.observation_provider).toBe("web3dns_json_doh");
   });
 
   test("inspects public nameserver delegation through configured JSON resolvers", async () => {

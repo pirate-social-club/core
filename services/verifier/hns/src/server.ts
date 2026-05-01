@@ -1,27 +1,3 @@
-type InspectResult = {
-  root_label: string;
-  zone_name: string;
-  challenge_name: string;
-  zone_exists: boolean;
-  challenge_present: boolean;
-  root_exists: boolean | null;
-  root_control_verified: boolean | null;
-  expiry_horizon_sufficient: boolean | null;
-  routing_enabled: boolean | null;
-  pirate_dns_authority_verified: boolean | null;
-  control_class: "single_holder_root" | "multisig_controlled_root" | "dao_controlled_root" | "burned_or_immutable_root" | null;
-  operation_class: "owner_managed_namespace" | "routing_only_namespace" | "pirate_delegated_namespace" | "owner_signed_updates_namespace" | null;
-  nameservers: string[];
-  observation_provider: string;
-  failure_reason: string | null;
-  rrsets?: {
-    name: string;
-    type: string;
-    ttl: number | null;
-    records: string[];
-  }[];
-};
-
 type PublicResolverConfig = {
   id: string;
   url: string;
@@ -41,15 +17,11 @@ type PublicDnsResponse = {
   Responder?: string;
 };
 
-import { PowerDnsStore, type PowerDnsZoneSnapshot } from "./pdns-store";
 import { json, requireBearerAuth } from "../../shared/http";
 
 const verifierHost = Bun.env.HNS_VERIFIER_HOST?.trim() || "127.0.0.1";
 const verifierPort = Number(Bun.env.HNS_VERIFIER_PORT || "4048");
 const verifierAuthToken = Bun.env.HNS_VERIFIER_AUTH_TOKEN?.trim() || null;
-
-const pdnsSqliteDatabase = Bun.env.PDNS_SQLITE_DATABASE?.trim() || "/srv/pirate-hns/authdns/data/pdns.sqlite3";
-const defaultSoaContent = Bun.env.PDNS_DEFAULT_SOA_CONTENT?.trim() || "ns1.pirate dns.pirate 0 3600 900 1209600 300";
 
 const defaultNameservers = parseCsv(Bun.env.HNS_AUTHORITATIVE_NAMESERVERS) ?? ["ns1.pirate."];
 const publicResolverConfigs = parsePublicResolverConfigs(Bun.env.HNS_PUBLIC_RESOLVER_JSON_URLS)
@@ -75,14 +47,6 @@ function parsePublicResolverConfigs(value: string | undefined): PublicResolverCo
 
 function withTrailingDot(value: string): string {
   return value.endsWith(".") ? value : `${value}.`;
-}
-
-function toStorageName(value: string): string {
-  return value.replace(/\.$/, "");
-}
-
-function requirePowerDnsStore(): PowerDnsStore {
-  return new PowerDnsStore(pdnsSqliteDatabase, defaultSoaContent);
 }
 
 function normalizeRootLabel(value: string): string {
@@ -126,41 +90,6 @@ function normalizeTxtRecordContent(value: string): string {
 
 function normalizeResolverRecordContent(value: string): string {
   return normalizeTxtRecordContent(value).trim();
-}
-
-function summarizeZone(zone: PowerDnsZoneSnapshot): InspectResult["rrsets"] {
-  return zone.rrsets.map((rrset) => ({
-    name: withTrailingDot(rrset.name),
-    type: rrset.type,
-    ttl: rrset.ttl ?? null,
-    records: rrset.type === "NS"
-      ? rrset.records.map((record) => withTrailingDot(record))
-      : rrset.records,
-  }));
-}
-
-function deriveInspectionFields(zoneExists: boolean) {
-  if (!zoneExists) {
-    return {
-      root_exists: null,
-      root_control_verified: null,
-      expiry_horizon_sufficient: null,
-      routing_enabled: null,
-      pirate_dns_authority_verified: false,
-      control_class: null,
-      operation_class: null,
-    };
-  }
-
-  return {
-    root_exists: true,
-    root_control_verified: null,
-    expiry_horizon_sufficient: true,
-    routing_enabled: true,
-    pirate_dns_authority_verified: true,
-    control_class: "single_holder_root" as const,
-    operation_class: "pirate_delegated_namespace" as const,
-  };
 }
 
 function resolverQueryUrl(resolver: PublicResolverConfig, name: string, type: "NS" | "TXT"): string {
@@ -251,102 +180,6 @@ async function inspectPublicRoot(rootLabel: string) {
   return publicNsInspection(normalizedRoot, responses);
 }
 
-async function inspectRoot(rootLabel: string, challengeHost?: string | null): Promise<InspectResult> {
-  const store = requirePowerDnsStore();
-  const zoneName = normalizeZoneName(rootLabel);
-  const challengeName = normalizeChallengeName(rootLabel, challengeHost);
-  const zone = store.getZoneByName(zoneName);
-
-  if (!zone) {
-    return {
-      root_label: normalizeRootLabel(rootLabel),
-      zone_name: zoneName,
-      challenge_name: challengeName,
-      zone_exists: false,
-      challenge_present: false,
-      nameservers: defaultNameservers,
-      observation_provider: "powerdns_sqlite",
-      failure_reason: "zone_not_provisioned",
-      rrsets: [],
-      ...deriveInspectionFields(false),
-    };
-  }
-
-  const challengePresent = zone.rrsets.some((rrset) => rrset.type === "TXT" && rrset.name === toStorageName(challengeName));
-
-  return {
-    root_label: normalizeRootLabel(rootLabel),
-    zone_name: zoneName,
-    challenge_name: challengeName,
-    zone_exists: true,
-    challenge_present: challengePresent,
-    nameservers: zone.nameservers.length > 0 ? zone.nameservers.map(withTrailingDot) : defaultNameservers,
-    observation_provider: "powerdns_sqlite",
-    failure_reason: challengePresent ? null : "challenge_not_published",
-    rrsets: summarizeZone(zone),
-    ...deriveInspectionFields(true),
-  };
-}
-
-async function verifyTxt(body: {
-  root_label?: string | null;
-  challenge_host?: string | null;
-  challenge_txt_value?: string | null;
-}) {
-  const rootLabel = body.root_label?.trim();
-  const challengeTxtValue = body.challenge_txt_value?.trim();
-
-  if (!rootLabel || !challengeTxtValue) {
-    return json({ error: "root_label and challenge_txt_value are required" }, { status: 400 });
-  }
-
-  const store = requirePowerDnsStore();
-  const normalizedRoot = normalizeRootLabel(rootLabel);
-  const zoneName = normalizeZoneName(normalizedRoot);
-  const challengeName = normalizeChallengeName(normalizedRoot, body.challenge_host);
-  const zone = store.getZoneByName(zoneName);
-
-  if (!zone) {
-    return json({
-      verified: false,
-      observation_provider: "powerdns_sqlite",
-      failure_reason: "zone_not_provisioned",
-      root_exists: false,
-      root_control_verified: false,
-      expiry_horizon_sufficient: false,
-      routing_enabled: false,
-      pirate_dns_authority_verified: false,
-      control_class: null,
-      operation_class: null,
-    });
-  }
-
-  const rrset = zone.rrsets.find((entry) => entry.name === toStorageName(challengeName) && entry.type === "TXT") ?? null;
-  const observedValues = rrset?.records.map((record) => normalizeTxtRecordContent(record)) ?? [];
-  const verified = observedValues.includes(challengeTxtValue);
-
-  return json({
-    verified,
-    observation_provider: "powerdns_sqlite",
-    failure_reason: verified
-      ? null
-      : rrset == null
-        ? "challenge_not_published"
-        : "challenge_mismatch",
-    observed_values: observedValues,
-    root_exists: true,
-    root_control_verified: verified,
-    expiry_horizon_sufficient: true,
-    routing_enabled: true,
-    pirate_dns_authority_verified: true,
-    control_class: "single_holder_root",
-    operation_class: "pirate_delegated_namespace",
-    root_label: normalizedRoot,
-    zone_name: zoneName,
-    challenge_name: challengeName,
-  });
-}
-
 async function verifyTxtPublic(body: {
   root_label?: string | null;
   challenge_host?: string | null;
@@ -409,28 +242,9 @@ export async function handleRequest(request: Request) {
         ok: true,
         bind_host: verifierHost,
         bind_port: verifierPort,
-        pdns_sqlite_database: pdnsSqliteDatabase,
-        observation_provider: "powerdns_sqlite",
+        observation_provider: "web3dns_json_doh",
         requires_bearer_auth: verifierAuthToken != null,
       });
-    }
-
-    if (url.pathname === "/" || url.pathname === "/inspect") {
-      if (request.method !== "GET") {
-        return new Response("Method Not Allowed", { status: 405 });
-      }
-
-      try {
-        const rootLabel = url.searchParams.get("root_label");
-        if (!rootLabel) {
-          return json({ error: "root_label is required" }, { status: 400 });
-        }
-        return json(await inspectRoot(rootLabel, url.searchParams.get("challenge_host")));
-      } catch (error) {
-        return json({
-          error: error instanceof Error ? error.message : "inspect failed",
-        }, { status: 500 });
-      }
     }
 
     if (url.pathname === "/inspect-public") {
@@ -448,21 +262,6 @@ export async function handleRequest(request: Request) {
         return json({
           error: error instanceof Error ? error.message : "public inspect failed",
         }, { status: 502 });
-      }
-    }
-
-    if (url.pathname === "/verify-txt") {
-      if (request.method !== "POST") {
-        return new Response("Method Not Allowed", { status: 405 });
-      }
-
-      try {
-        const body = await request.json() as Parameters<typeof verifyTxt>[0];
-        return await verifyTxt(body);
-      } catch (error) {
-        return json({
-          error: error instanceof Error ? error.message : "TXT verification failed",
-        }, { status: 500 });
       }
     }
 
