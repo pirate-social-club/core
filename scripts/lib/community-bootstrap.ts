@@ -18,8 +18,11 @@ export type BootstrapCommunityDatabaseInput = {
   displayName: string;
   namespaceVerificationId: string | null;
   description?: string | null;
+  avatarRef?: string | null;
+  bannerRef?: string | null;
   membershipMode: "open" | "request" | "gated";
   defaultAgeGatePolicy: "none" | "18_plus";
+  gatePolicy?: Record<string, unknown> | null;
   membershipUniqueHumanProvider?: "self" | "very" | null;
   postingUniqueHumanProvider?: "self" | "very" | null;
   handlePolicyTemplate: "standard" | "premium" | "membership_gated" | "custom";
@@ -370,6 +373,99 @@ export async function applyCommunityTemplateMigrations(input: {
   }
 }
 
+async function upsertUniqueHumanGatePolicy(
+  tx: CommunityBootstrapSql,
+  input: {
+    communityId: string;
+    provider?: "self" | "very" | null;
+    scope: "membership" | "posting";
+    timestamp: string;
+  },
+): Promise<void> {
+  if (!input.provider) {
+    await tx.execute(
+      `DELETE FROM community_gate_policies
+       WHERE community_id = ?
+         AND scope = ?`,
+      [input.communityId, input.scope],
+    );
+    return;
+  }
+
+  const expressionJson = JSON.stringify({
+    version: 1,
+    expression: {
+      op: "gate",
+      gate: {
+        type: "unique_human",
+        provider: input.provider,
+      },
+    },
+  });
+
+  await tx.execute(
+    `INSERT INTO community_gate_policies (
+       community_id,
+       scope,
+       version,
+       expression_json,
+       created_at,
+       updated_at
+     ) VALUES (?, ?, 1, ?, ?, ?)
+     ON CONFLICT(community_id, scope) DO UPDATE SET
+       version = excluded.version,
+       expression_json = excluded.expression_json,
+       updated_at = excluded.updated_at`,
+    [
+      input.communityId,
+      input.scope,
+      expressionJson,
+      input.timestamp,
+      input.timestamp,
+    ],
+  );
+}
+
+async function upsertMembershipGatePolicy(
+  tx: CommunityBootstrapSql,
+  input: {
+    communityId: string;
+    gatePolicy?: Record<string, unknown> | null;
+    timestamp: string;
+  },
+): Promise<void> {
+  if (!input.gatePolicy) {
+    await tx.execute(
+      `DELETE FROM community_gate_policies
+       WHERE community_id = ?
+         AND scope = 'membership'`,
+      [input.communityId],
+    );
+    return;
+  }
+
+  await tx.execute(
+    `INSERT INTO community_gate_policies (
+       community_id,
+       scope,
+       version,
+       expression_json,
+       created_at,
+       updated_at
+     ) VALUES (?, 'membership', 1, ?, ?, ?)
+     ON CONFLICT(community_id, scope) DO UPDATE SET
+       version = excluded.version,
+       expression_json = excluded.expression_json,
+       updated_at = excluded.updated_at`,
+    [
+      input.communityId,
+      JSON.stringify(input.gatePolicy),
+      input.timestamp,
+      input.timestamp,
+    ],
+  );
+}
+
 export async function bootstrapCommunityDatabase(
   input: BootstrapCommunityDatabaseInput,
 ): Promise<{
@@ -387,28 +483,8 @@ export async function bootstrapCommunityDatabase(
   const namespaceHandlePolicyId = input.namespaceVerificationId ? `nhp_${input.communityId}` : null;
   const membershipId = `mbr_${input.communityId}_${input.userId}`;
   const roleAssignmentId = `role_${input.communityId}_${input.userId}_owner`;
-  const membershipGateRuleId = `gate_${input.communityId}_membership_unique_human`;
-  const postingGateRuleId = `gate_${input.communityId}_posting_unique_human`;
-  const membershipGateProofRequirements = input.membershipUniqueHumanProvider
-    ? JSON.stringify([{
-        proof_type: "unique_human",
-        accepted_providers: [input.membershipUniqueHumanProvider],
-      }])
-    : null;
-  const postingGateProofRequirements = input.postingUniqueHumanProvider
-    ? JSON.stringify([{
-        proof_type: "unique_human",
-        accepted_providers: [input.postingUniqueHumanProvider],
-      }])
-    : null;
   const initialSettingsJson = input.initialSettings && Object.keys(input.initialSettings).length > 0
     ? JSON.stringify(input.initialSettings)
-    : null;
-  const postingGateConfig = input.postingUniqueHumanProvider
-    ? JSON.stringify({
-        post_types: ["text"],
-        first_post_only: true,
-      })
     : null;
 
   try {
@@ -420,6 +496,8 @@ export async function bootstrapCommunityDatabase(
            community_id,
            display_name,
            description,
+           avatar_ref,
+           banner_ref,
            status,
            artist_identity_id,
            artist_governance_state,
@@ -435,10 +513,12 @@ export async function bootstrapCommunityDatabase(
            created_by_user_id,
            created_at,
            updated_at
-         ) VALUES (?, ?, ?, 'active', NULL, 'fan_run', ?, ?, 0, NULL, NULL, 'none', 'unconfigured', 'centralized', ?, ?, ?, ?)
+         ) VALUES (?, ?, ?, ?, ?, 'active', NULL, 'fan_run', ?, ?, 0, NULL, NULL, 'none', 'unconfigured', 'centralized', ?, ?, ?, ?)
          ON CONFLICT(community_id) DO UPDATE SET
            display_name = excluded.display_name,
            description = excluded.description,
+           avatar_ref = excluded.avatar_ref,
+           banner_ref = excluded.banner_ref,
            status = excluded.status,
            membership_mode = excluded.membership_mode,
            default_age_gate_policy = excluded.default_age_gate_policy,
@@ -449,6 +529,8 @@ export async function bootstrapCommunityDatabase(
           input.communityId,
           input.displayName,
           input.description ?? null,
+          input.avatarRef ?? null,
+          input.bannerRef ?? null,
           input.membershipMode,
           input.defaultAgeGatePolicy,
           initialSettingsJson,
@@ -575,96 +657,27 @@ export async function bootstrapCommunityDatabase(
         );
       }
 
-      await tx.execute(
-        `DELETE FROM community_gate_rules
-         WHERE gate_rule_id = ?
-           AND ? IS NULL`,
-        [
-          membershipGateRuleId,
-          input.membershipUniqueHumanProvider ?? null,
-        ],
-      );
-
-      if (input.membershipUniqueHumanProvider) {
-        await tx.execute(
-          `INSERT INTO community_gate_rules (
-             gate_rule_id,
-             community_id,
-             scope,
-             gate_family,
-             gate_type,
-             proof_requirements_json,
-             chain_namespace,
-             gate_config_json,
-             status,
-             created_at,
-             updated_at
-           ) VALUES (?, ?, 'membership', 'identity_proof', 'unique_human', ?, NULL, NULL, 'active', ?, ?)
-           ON CONFLICT(gate_rule_id) DO UPDATE SET
-             community_id = excluded.community_id,
-             scope = excluded.scope,
-             gate_family = excluded.gate_family,
-             gate_type = excluded.gate_type,
-             proof_requirements_json = excluded.proof_requirements_json,
-             chain_namespace = excluded.chain_namespace,
-             gate_config_json = excluded.gate_config_json,
-             status = excluded.status,
-             updated_at = excluded.updated_at`,
-          [
-            membershipGateRuleId,
-            input.communityId,
-            membershipGateProofRequirements,
-            timestamp,
-            timestamp,
-          ],
-        );
+      if (input.gatePolicy) {
+        await upsertMembershipGatePolicy(tx, {
+          communityId: input.communityId,
+          gatePolicy: input.gatePolicy,
+          timestamp,
+        });
+      } else {
+        await upsertUniqueHumanGatePolicy(tx, {
+          communityId: input.communityId,
+          provider: input.membershipUniqueHumanProvider,
+          scope: "membership",
+          timestamp,
+        });
       }
 
-      await tx.execute(
-        `DELETE FROM community_gate_rules
-         WHERE gate_rule_id = ?
-           AND ? IS NULL`,
-        [
-          postingGateRuleId,
-          input.postingUniqueHumanProvider ?? null,
-        ],
-      );
-
-      if (input.postingUniqueHumanProvider) {
-        await tx.execute(
-          `INSERT INTO community_gate_rules (
-             gate_rule_id,
-             community_id,
-             scope,
-             gate_family,
-             gate_type,
-             proof_requirements_json,
-             chain_namespace,
-             gate_config_json,
-             status,
-             created_at,
-             updated_at
-           ) VALUES (?, ?, 'posting', 'identity_proof', 'unique_human', ?, NULL, ?, 'active', ?, ?)
-           ON CONFLICT(gate_rule_id) DO UPDATE SET
-             community_id = excluded.community_id,
-             scope = excluded.scope,
-             gate_family = excluded.gate_family,
-             gate_type = excluded.gate_type,
-             proof_requirements_json = excluded.proof_requirements_json,
-             chain_namespace = excluded.chain_namespace,
-             gate_config_json = excluded.gate_config_json,
-             status = excluded.status,
-             updated_at = excluded.updated_at`,
-          [
-            postingGateRuleId,
-            input.communityId,
-            postingGateProofRequirements,
-            postingGateConfig,
-            timestamp,
-            timestamp,
-          ],
-        );
-      }
+      await upsertUniqueHumanGatePolicy(tx, {
+        communityId: input.communityId,
+        provider: input.postingUniqueHumanProvider,
+        scope: "posting",
+        timestamp,
+      });
     });
 
     return {

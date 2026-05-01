@@ -87,8 +87,17 @@ describe("turso control-plane operator handler", () => {
         group_location: "aws-us-east-1",
         bootstrap_payload: {
           description: "hello",
+          avatar_ref: "data:image/jpeg;base64,avatar",
+          banner_ref: "data:image/jpeg;base64,banner",
           membership_mode: "gated",
           default_age_gate_policy: "18_plus",
+          gate_policy: {
+            version: 1,
+            expression: {
+              op: "gate",
+              gate: { type: "unique_human", provider: "very" },
+            },
+          },
           membership_unique_human_provider: "very",
           posting_unique_human_provider: "very",
           handle_policy_template: "standard",
@@ -119,8 +128,17 @@ describe("turso control-plane operator handler", () => {
       namespaceVerificationId: "nv_01",
       groupLocation: "aws-us-east-1",
       description: "hello",
+      avatarRef: "data:image/jpeg;base64,avatar",
+      bannerRef: "data:image/jpeg;base64,banner",
       membershipMode: "gated",
       defaultAgeGatePolicy: "18_plus",
+      gatePolicy: {
+        version: 1,
+        expression: {
+          op: "gate",
+          gate: { type: "unique_human", provider: "very" },
+        },
+      },
       membershipUniqueHumanProvider: "very",
       postingUniqueHumanProvider: "very",
       handlePolicyTemplate: "standard",

@@ -82,6 +82,13 @@ describe("turso control-plane provision-community", () => {
       displayName: "Turso Club",
       namespaceVerificationId: fixture.namespaceVerificationId,
       groupLocation: "iad",
+      gatePolicy: {
+        version: 1,
+        expression: {
+          op: "gate",
+          gate: { type: "unique_human", provider: "very" },
+        },
+      },
       fetch: async (url, init) => {
         requests.push(`${String(init?.method ?? "GET")} ${String(url)}`);
         const text = String(url);
@@ -148,8 +155,17 @@ describe("turso control-plane provision-community", () => {
       displayName: "Turso Club",
       namespaceVerificationId: fixture.namespaceVerificationId,
       description: null,
+      avatarRef: null,
+      bannerRef: null,
       membershipMode: "open",
       defaultAgeGatePolicy: "none",
+      gatePolicy: {
+        version: 1,
+        expression: {
+          op: "gate",
+          gate: { type: "unique_human", provider: "very" },
+        },
+      },
       membershipUniqueHumanProvider: null,
       postingUniqueHumanProvider: null,
       handlePolicyTemplate: "standard",
@@ -309,8 +325,11 @@ describe("turso control-plane provision-community", () => {
       displayName: "Turso Namespaceless Club",
       namespaceVerificationId: null,
       description: null,
+      avatarRef: null,
+      bannerRef: null,
       membershipMode: "open",
       defaultAgeGatePolicy: "none",
+      gatePolicy: null,
       membershipUniqueHumanProvider: null,
       postingUniqueHumanProvider: null,
       handlePolicyTemplate: "standard",

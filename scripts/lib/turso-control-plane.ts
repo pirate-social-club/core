@@ -73,8 +73,11 @@ export type ProvisionCommunityInput = {
   namespaceVerificationId?: string | null;
   groupLocation: string;
   description?: string | null;
+  avatarRef?: string | null;
+  bannerRef?: string | null;
   membershipMode?: "open" | "request" | "gated";
   defaultAgeGatePolicy?: "none" | "18_plus";
+  gatePolicy?: Record<string, unknown> | null;
   membershipUniqueHumanProvider?: "self" | "very" | null;
   postingUniqueHumanProvider?: "self" | "very" | null;
   handlePolicyTemplate?: "standard" | "premium" | "membership_gated" | "custom";
@@ -840,8 +843,11 @@ export async function provisionCommunity(
       displayName,
       namespaceVerificationId,
       description: input.description?.trim() || null,
+      avatarRef: input.avatarRef?.trim() || null,
+      bannerRef: input.bannerRef?.trim() || null,
       membershipMode: input.membershipMode ?? "open",
       defaultAgeGatePolicy: input.defaultAgeGatePolicy ?? "none",
+      gatePolicy: input.gatePolicy ?? null,
       membershipUniqueHumanProvider: input.membershipUniqueHumanProvider ?? null,
       postingUniqueHumanProvider: input.postingUniqueHumanProvider ?? null,
       handlePolicyTemplate: input.handlePolicyTemplate ?? "standard",
@@ -1137,8 +1143,11 @@ export async function provisionCommunityRuntime(
       displayName,
       namespaceVerificationId,
       description: input.description?.trim() || null,
+      avatarRef: input.avatarRef?.trim() || null,
+      bannerRef: input.bannerRef?.trim() || null,
       membershipMode: input.membershipMode ?? "open",
       defaultAgeGatePolicy: input.defaultAgeGatePolicy ?? "none",
+      gatePolicy: input.gatePolicy ?? null,
       membershipUniqueHumanProvider: input.membershipUniqueHumanProvider ?? null,
       postingUniqueHumanProvider: input.postingUniqueHumanProvider ?? null,
       handlePolicyTemplate: input.handlePolicyTemplate ?? "standard",
