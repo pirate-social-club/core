@@ -2180,7 +2180,7 @@ paths:
         "429":
           $ref: "#/components/responses/PostingQuotaExhausted"
   /communities/{community_id}/song-artifact-uploads/{song_artifact_upload_id}/content:
-    put:
+    post:
       tags:
         - Posts
       summary: Upload song artifact content

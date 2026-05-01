@@ -98,6 +98,18 @@ communities_by_community_id:
     summary: Get a community
     parameters:
       - $ref: ../components/parameters.yaml#/CommunityId
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
     responses:
       "200":
         description: Community
@@ -115,6 +127,18 @@ communities_by_community_id:
     summary: Update mutable community settings
     parameters:
       - $ref: ../components/parameters.yaml#/CommunityId
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
     requestBody:
       required: true
       content:
@@ -1922,7 +1946,7 @@ communities_by_community_id_song_artifact_uploads:
       "429":
         $ref: ../components/responses.yaml#/PostingQuotaExhausted
 communities_by_community_id_song_artifact_uploads_by_song_artifact_upload_id_content:
-  put:
+  post:
     tags:
       - Posts
     x-implemented: true

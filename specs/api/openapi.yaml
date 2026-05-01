@@ -1650,6 +1650,18 @@ paths:
       summary: Get a community
       parameters:
         - $ref: "#/components/parameters/CommunityId"
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
       responses:
         "200":
           description: Community
@@ -1667,6 +1679,18 @@ paths:
       summary: Update mutable community settings
       parameters:
         - $ref: "#/components/parameters/CommunityId"
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
       requestBody:
         required: true
         content:
@@ -3283,7 +3307,7 @@ paths:
         "429":
           $ref: "#/components/responses/PostingQuotaExhausted"
   /communities/{community_id}/song-artifact-uploads/{song_artifact_upload_id}/content:
-    put:
+    post:
       tags:
         - Posts
       x-implemented: true
