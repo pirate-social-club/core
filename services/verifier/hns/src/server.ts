@@ -50,14 +50,8 @@ const verifierAuthToken = Bun.env.HNS_VERIFIER_AUTH_TOKEN?.trim() || null;
 
 const pdnsSqliteDatabase = Bun.env.PDNS_SQLITE_DATABASE?.trim() || "/srv/pirate-hns/authdns/data/pdns.sqlite3";
 const defaultSoaContent = Bun.env.PDNS_DEFAULT_SOA_CONTENT?.trim() || "ns1.pirate dns.pirate 0 3600 900 1209600 300";
-const rediscoverCommand = Bun.env.PDNS_REDISCOVER_COMMAND?.trim() || "docker exec pirate-hns-authdns /usr/local/bin/pdns_control rediscover";
 
 const defaultNameservers = parseCsv(Bun.env.HNS_AUTHORITATIVE_NAMESERVERS) ?? ["ns1.pirate."];
-const defaultTtl = Number(Bun.env.HNS_AUTHORITATIVE_TTL || "300");
-const defaultApexIpv4 = Bun.env.HNS_AUTHORITATIVE_APEX_IPV4?.trim() || null;
-const defaultNameserverIpv4 = Bun.env.HNS_AUTHORITATIVE_NAMESERVER_IPV4?.trim() || defaultApexIpv4;
-const defaultProfileIpv4 = Bun.env.HNS_AUTHORITATIVE_PROFILE_IPV4?.trim() || defaultApexIpv4;
-const defaultWildcardIpv4 = Bun.env.HNS_AUTHORITATIVE_WILDCARD_IPV4?.trim() || defaultApexIpv4;
 const publicResolverConfigs = parsePublicResolverConfigs(Bun.env.HNS_PUBLIC_RESOLVER_JSON_URLS)
   ?? [{ id: "web3dns", url: "https://api.web3dns.net/" }];
 
@@ -91,18 +85,6 @@ function requirePowerDnsStore(): PowerDnsStore {
   return new PowerDnsStore(pdnsSqliteDatabase, defaultSoaContent);
 }
 
-async function rediscoverZones() {
-  const proc = Bun.spawn(["/bin/sh", "-lc", rediscoverCommand], {
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const exitCode = await proc.exited;
-  if (exitCode !== 0) {
-    const stderr = await new Response(proc.stderr).text();
-    throw new Error(stderr.trim() || `rediscover command failed with exit code ${exitCode}`);
-  }
-}
-
 function normalizeRootLabel(value: string): string {
   const trimmed = value.trim().toLowerCase().replace(/\/+$/, "");
   if (!/^[a-z0-9-]+$/.test(trimmed)) {
@@ -132,10 +114,6 @@ function normalizeChallengeName(rootLabel: string, challengeHost?: string | null
   }
 
   throw new Error("challenge_host must be _pirate or a name within the delegated root");
-}
-
-function escapeTxtRecord(value: string): string {
-  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
 }
 
 function normalizeTxtRecordContent(value: string): string {
@@ -310,96 +288,6 @@ async function inspectRoot(rootLabel: string, challengeHost?: string | null): Pr
   };
 }
 
-async function publishTxt(body: {
-  root_label?: string | null;
-  challenge_host?: string | null;
-  challenge_txt_value?: string | null;
-  apex_ipv4?: string | null;
-  profile_ipv4?: string | null;
-  wildcard_ipv4?: string | null;
-  nameservers?: string[] | null;
-}) {
-  const rootLabel = body.root_label?.trim();
-  const challengeTxtValue = body.challenge_txt_value?.trim();
-
-  if (!rootLabel || !challengeTxtValue) {
-    return json({ error: "root_label and challenge_txt_value are required" }, { status: 400 });
-  }
-
-  const store = requirePowerDnsStore();
-  const normalizedRoot = normalizeRootLabel(rootLabel);
-  const zoneName = normalizeZoneName(normalizedRoot);
-  const challengeName = normalizeChallengeName(normalizedRoot, body.challenge_host);
-  const nameservers = body.nameservers?.map(withTrailingDot) ?? defaultNameservers;
-
-  const ensured = store.ensureZone({
-    zoneName,
-    nameservers,
-    nameserverIpv4: defaultNameserverIpv4,
-    apexIpv4: body.apex_ipv4?.trim() || defaultApexIpv4,
-    profileIpv4: body.profile_ipv4?.trim() || defaultProfileIpv4,
-    wildcardIpv4: body.wildcard_ipv4?.trim() || defaultWildcardIpv4,
-    ttl: defaultTtl,
-  });
-
-  store.replaceRecordSet(zoneName, challengeName, "TXT", defaultTtl, [escapeTxtRecord(challengeTxtValue)]);
-  await rediscoverZones();
-  const zone = store.getZoneByName(zoneName);
-  if (!zone) {
-    throw new Error(`zone not found after publish: ${zoneName}`);
-  }
-
-  return json({
-    root_label: normalizedRoot,
-    zone_name: zoneName,
-    challenge_name: challengeName,
-    challenge_txt_value: challengeTxtValue,
-    zone_created: ensured.created,
-    nameservers,
-    observation_provider: "powerdns_sqlite",
-    rrsets: summarizeZone(zone),
-  });
-}
-
-async function ensureZone(body: {
-  root_label?: string | null;
-  apex_ipv4?: string | null;
-  profile_ipv4?: string | null;
-  wildcard_ipv4?: string | null;
-  nameservers?: string[] | null;
-}) {
-  const rootLabel = body.root_label?.trim();
-  if (!rootLabel) {
-    return json({ error: "root_label is required" }, { status: 400 });
-  }
-
-  const store = requirePowerDnsStore();
-  const normalizedRoot = normalizeRootLabel(rootLabel);
-  const zoneName = normalizeZoneName(normalizedRoot);
-  const nameservers = body.nameservers?.map(withTrailingDot) ?? defaultNameservers;
-
-  const ensured = store.ensureZone({
-    zoneName,
-    nameservers,
-    nameserverIpv4: defaultNameserverIpv4,
-    apexIpv4: body.apex_ipv4?.trim() || defaultApexIpv4,
-    profileIpv4: body.profile_ipv4?.trim() || defaultProfileIpv4,
-    wildcardIpv4: body.wildcard_ipv4?.trim() || defaultWildcardIpv4,
-    ttl: defaultTtl,
-  });
-
-  await rediscoverZones();
-
-  return json({
-    root_label: normalizedRoot,
-    zone_name: zoneName,
-    zone_created: ensured.created,
-    nameservers,
-    observation_provider: "powerdns_sqlite",
-    rrsets: summarizeZone(ensured.zone),
-  });
-}
-
 async function verifyTxt(body: {
   root_label?: string | null;
   challenge_host?: string | null;
@@ -560,36 +448,6 @@ export async function handleRequest(request: Request) {
         return json({
           error: error instanceof Error ? error.message : "public inspect failed",
         }, { status: 502 });
-      }
-    }
-
-    if (url.pathname === "/publish-txt") {
-      if (request.method !== "POST") {
-        return new Response("Method Not Allowed", { status: 405 });
-      }
-
-      try {
-        const body = await request.json() as Parameters<typeof publishTxt>[0];
-        return await publishTxt(body);
-      } catch (error) {
-        return json({
-          error: error instanceof Error ? error.message : "publish failed",
-        }, { status: 500 });
-      }
-    }
-
-    if (url.pathname === "/ensure-zone") {
-      if (request.method !== "POST") {
-        return new Response("Method Not Allowed", { status: 405 });
-      }
-
-      try {
-        const body = await request.json() as Parameters<typeof ensureZone>[0];
-        return await ensureZone(body);
-      } catch (error) {
-        return json({
-          error: error instanceof Error ? error.message : "zone ensure failed",
-        }, { status: 500 });
       }
     }
 
