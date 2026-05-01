@@ -70,11 +70,27 @@ async function rediscoverZones() {
 }
 
 function normalizeRootLabel(value: string): string {
-  const trimmed = value.trim().toLowerCase().replace(/\/+$/, "");
-  if (!/^[a-z0-9-]+$/.test(trimmed)) {
+  const trimmed = value.trim().normalize("NFKC").toLowerCase().replace(/\/+$/, "");
+  const normalized = normalizeIdnaRootLabel(trimmed);
+  if (!/^[a-z0-9-]+$/.test(normalized)) {
     throw new Error("root_label must be a single Handshake TLD label");
   }
-  return trimmed;
+  return normalized;
+}
+
+function normalizeIdnaRootLabel(value: string): string {
+  if (!value || value.includes(".") || /^[\x00-\x7F]+$/u.test(value)) {
+    return value;
+  }
+
+  try {
+    const hostname = new URL(`http://${value}.invalid`).hostname;
+    return hostname.endsWith(".invalid")
+      ? hostname.slice(0, -".invalid".length)
+      : value;
+  } catch {
+    return value;
+  }
 }
 
 function normalizeZoneName(rootLabel: string): string {
@@ -351,7 +367,7 @@ export async function handleRequest(request: Request) {
       });
     }
 
-    if (url.pathname === "/" || url.pathname === "/inspect") {
+    if (url.pathname === "/" || url.pathname === "/inspect" || url.pathname === "/inspect-public") {
       if (request.method !== "GET") {
         return new Response("Method Not Allowed", { status: 405 });
       }
@@ -399,7 +415,7 @@ export async function handleRequest(request: Request) {
       }
     }
 
-    if (url.pathname === "/verify-txt") {
+    if (url.pathname === "/verify-txt" || url.pathname === "/verify-txt-public") {
       if (request.method !== "POST") {
         return new Response("Method Not Allowed", { status: 405 });
       }
