@@ -1,6 +1,8 @@
 type PublicResolverConfig = {
   id: string;
-  url: string;
+  kind: "json_doh" | "dns";
+  url?: string;
+  server?: string;
 };
 
 type PublicDnsRecord = {
@@ -17,6 +19,7 @@ type PublicDnsResponse = {
   Responder?: string;
 };
 
+import { Resolver } from "node:dns/promises";
 import { json, requireBearerAuth } from "../../shared/http";
 
 const verifierHost = Bun.env.HNS_VERIFIER_HOST?.trim() || "127.0.0.1";
@@ -24,15 +27,19 @@ const verifierPort = Number(Bun.env.HNS_VERIFIER_PORT || "4048");
 const verifierAuthToken = Bun.env.HNS_VERIFIER_AUTH_TOKEN?.trim() || null;
 
 const defaultNameservers = parseCsv(Bun.env.HNS_AUTHORITATIVE_NAMESERVERS) ?? ["ns1.pirate."];
-const publicResolverConfigs = parsePublicResolverConfigs(Bun.env.HNS_PUBLIC_RESOLVER_JSON_URLS)
-  ?? [{ id: "web3dns", url: "https://api.web3dns.net/" }];
+const publicResolverConfigs = parsePublicDnsResolverConfigs(Bun.env.HNS_PUBLIC_RESOLVER_DNS_SERVERS)
+  ?? parsePublicJsonResolverConfigs(Bun.env.HNS_PUBLIC_RESOLVER_JSON_URLS)
+  ?? [{ id: "web3dns", kind: "json_doh", url: "https://api.web3dns.net/" }];
+const observationProvider = publicResolverConfigs.every((resolver) => resolver.kind === "dns")
+  ? "web3dns_public_dns"
+  : "web3dns_json_doh";
 
 function parseCsv(value: string | undefined): string[] | null {
   const entries = value?.split(",").map((entry) => entry.trim()).filter(Boolean) ?? [];
   return entries.length > 0 ? entries.map(withTrailingDot) : null;
 }
 
-function parsePublicResolverConfigs(value: string | undefined): PublicResolverConfig[] | null {
+function parsePublicJsonResolverConfigs(value: string | undefined): PublicResolverConfig[] | null {
   const entries = value?.split(",").map((entry) => entry.trim()).filter(Boolean) ?? [];
   if (entries.length === 0) return null;
   return entries.map((entry, index) => {
@@ -41,7 +48,20 @@ function parsePublicResolverConfigs(value: string | undefined): PublicResolverCo
     if (!url) {
       throw new Error(`invalid HNS_PUBLIC_RESOLVER_JSON_URLS entry: ${entry}`);
     }
-    return { id: id.trim() || `resolver_${index + 1}`, url };
+    return { id: id.trim() || `resolver_${index + 1}`, kind: "json_doh", url };
+  });
+}
+
+function parsePublicDnsResolverConfigs(value: string | undefined): PublicResolverConfig[] | null {
+  const entries = value?.split(",").map((entry) => entry.trim()).filter(Boolean) ?? [];
+  if (entries.length === 0) return null;
+  return entries.map((entry, index) => {
+    const [id, ...serverParts] = entry.includes("=") ? entry.split("=") : [`resolver_${index + 1}`, entry];
+    const server = serverParts.join("=").trim();
+    if (!server) {
+      throw new Error(`invalid HNS_PUBLIC_RESOLVER_DNS_SERVERS entry: ${entry}`);
+    }
+    return { id: id.trim() || `resolver_${index + 1}`, kind: "dns", server };
   });
 }
 
@@ -93,13 +113,16 @@ function normalizeResolverRecordContent(value: string): string {
 }
 
 function resolverQueryUrl(resolver: PublicResolverConfig, name: string, type: "NS" | "TXT"): string {
+  if (!resolver.url) {
+    throw new Error(`${resolver.id} is not a JSON resolver`);
+  }
   const url = new URL(resolver.url);
   url.searchParams.set("name", name.replace(/\.$/, ""));
   url.searchParams.set("type", type);
   return url.toString();
 }
 
-async function queryPublicResolver(resolver: PublicResolverConfig, name: string, type: "NS" | "TXT"): Promise<PublicDnsResponse> {
+async function queryPublicJsonResolver(resolver: PublicResolverConfig, name: string, type: "NS" | "TXT"): Promise<PublicDnsResponse> {
   const response = await fetch(resolverQueryUrl(resolver, name, type), {
     headers: { accept: "application/json" },
     signal: AbortSignal.timeout(8000),
@@ -112,6 +135,56 @@ async function queryPublicResolver(resolver: PublicResolverConfig, name: string,
     throw new Error(`${resolver.id} returned unexpected DNS JSON`);
   }
   return body;
+}
+
+async function queryPublicDnsResolver(resolver: PublicResolverConfig, name: string, type: "NS" | "TXT"): Promise<PublicDnsResponse> {
+  if (!resolver.server) {
+    throw new Error(`${resolver.id} is not a DNS resolver`);
+  }
+
+  const dns = new Resolver();
+  dns.setServers([resolver.server]);
+  const normalizedName = name.replace(/\.$/, "");
+
+  try {
+    if (type === "NS") {
+      const records = await dns.resolveNs(normalizedName);
+      return {
+        Answer: records.map((record) => ({
+          data: withTrailingDot(record),
+          name: withTrailingDot(normalizedName),
+          type: 2,
+          typename: "NS",
+        })),
+        Responder: resolver.server,
+        Status: 0,
+      };
+    }
+
+    const records = await dns.resolveTxt(normalizedName);
+    return {
+      Answer: records.map((record) => ({
+        data: record.join(""),
+        name: withTrailingDot(normalizedName),
+        type: 16,
+        typename: "TXT",
+      })),
+      Responder: resolver.server,
+      Status: 0,
+    };
+  } catch (error) {
+    const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
+    if (code === "ENODATA" || code === "ENOTFOUND") {
+      return { Answer: [], Responder: resolver.server, Status: code === "ENOTFOUND" ? 3 : 0 };
+    }
+    throw error;
+  }
+}
+
+async function queryPublicResolver(resolver: PublicResolverConfig, name: string, type: "NS" | "TXT"): Promise<PublicDnsResponse> {
+  return resolver.kind === "dns"
+    ? queryPublicDnsResolver(resolver, name, type)
+    : queryPublicJsonResolver(resolver, name, type);
 }
 
 async function queryConfiguredPublicResolvers(name: string, type: "NS" | "TXT") {
@@ -156,7 +229,7 @@ function publicNsInspection(rootLabel: string, responses: Awaited<ReturnType<typ
   return {
     root_label: normalizeRootLabel(rootLabel),
     zone_name: normalizeZoneName(rootLabel),
-    observation_provider: "web3dns_json_doh",
+    observation_provider: observationProvider,
     resolver_results: resolverResults,
     nameservers: expected,
     root_exists: resolverResults.some((result) => result.status === 0 && result.observed_nameservers.length > 0),
@@ -214,7 +287,7 @@ async function verifyTxtPublic(body: {
 
   return json({
     verified,
-    observation_provider: "web3dns_json_doh",
+    observation_provider: observationProvider,
     failure_reason: verified
       ? null
       : nsInspection.pirate_dns_authority_verified !== true
@@ -242,7 +315,7 @@ export async function handleRequest(request: Request) {
         ok: true,
         bind_host: verifierHost,
         bind_port: verifierPort,
-        observation_provider: "web3dns_json_doh",
+        observation_provider: observationProvider,
         requires_bearer_auth: verifierAuthToken != null,
       });
     }
