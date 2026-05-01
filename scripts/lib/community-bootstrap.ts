@@ -356,9 +356,9 @@ export async function inspectCommunityTemplateMigrations(input: {
 }
 
 async function applyCommunityMigrations(sql: CommunityBootstrapSql): Promise<ApplyCommunityTemplateMigrationsResult> {
-  await ensureSchemaMigrationsTable(sql);
   const existingByName = await readSchemaMigrationChecksums(sql);
 
+  const pending: Array<{ sql: string; args?: Array<string | number | null> }> = [];
   let applied = 0;
   let skipped = 0;
 
@@ -376,7 +376,7 @@ async function applyCommunityMigrations(sql: CommunityBootstrapSql): Promise<App
       continue;
     }
 
-    await sql.batch([
+    pending.push(
       ...splitSqlStatements(migrationSql).map((statement) => ({ sql: statement })),
       {
         sql: `INSERT INTO schema_migrations (
@@ -386,8 +386,12 @@ async function applyCommunityMigrations(sql: CommunityBootstrapSql): Promise<App
          ) VALUES (?, ?, ?)`,
         args: [migrationName, "community-template", checksum],
       },
-    ]);
+    );
     applied += 1;
+  }
+
+  if (pending.length > 0) {
+    await sql.batch(pending);
   }
 
   return { applied, skipped };
