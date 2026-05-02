@@ -55,7 +55,7 @@ The corresponding HTTP origin for those wildcard records lives in:
 
 - [ops/vps/hns-public-gateway](../hns-public-gateway/README.md)
 
-Do not use parent-side TXT values in ShakeStation as the source of truth after `NS` delegation.
+Do not use parent-side TXT values in the Handshake root resource as the source of truth after `NS` delegation.
 
 ## Files
 

@@ -67,7 +67,7 @@ That means:
 
 The parent Handshake record set and the delegated child zone must not be conflated.
 
-If the owner sets `NS` for `kanye/` in ShakeStation:
+If the owner sets `NS` for `kanye/` in their HNS root-management tool:
 
 - Handshake stores the delegation for `kanye`
 - HNS-aware resolvers follow that delegation to the named authoritative DNS service
@@ -75,11 +75,11 @@ If the owner sets `NS` for `kanye/` in ShakeStation:
 
 Important:
 
-- after `NS` delegation, `_pirate.<root>` TXT proof is no longer satisfied by a parent-side TXT value stored only in ShakeStation
+- after `NS` delegation, `_pirate.<root>` TXT proof is no longer satisfied by a parent-side TXT value stored only in the Handshake root resource
 - the delegated authoritative DNS host must actually serve the `<root>.` zone
-- a static DNS server that only serves `infinity.` will not automatically answer for `kanye.` just because ShakeStation now points `kanye/` at that server
+- a static DNS server that only serves `infinity.` will not automatically answer for `kanye.` just because the Handshake parent resource now points `kanye/` at that server
 
-This is the operational source of confusion behind "the user added NS and TXT in ShakeStation but `_pirate.kanye` still does not resolve." The parent registry can publish delegation. It does not auto-host the delegated zone contents.
+This is the operational source of confusion behind "the user added NS and TXT in the HNS root resource but `_pirate.kanye` still does not resolve." The parent registry can publish delegation. It does not auto-host the delegated zone contents.
 
 ## Current Direction
 
@@ -230,7 +230,7 @@ The recommended split is:
 
 Important:
 
-- after `NS` delegation, parent-side TXT state in ShakeStation is not the authoritative `_pirate.<root>` source
+- after `NS` delegation, parent-side TXT state in the Handshake root resource is not the authoritative `_pirate.<root>` source
 - `spaced` or other Handshake-parent inspection can prove delegation posture
 - it cannot replace the child-zone authoritative data path for delegated TXT verification
 
@@ -278,7 +278,7 @@ Important:
 - owner-managed authoritative DNS is sufficient for TXT proof
 - owner-managed authoritative DNS is also sufficient for HNS-native routing such as `profile.infinity`
 - Pirate-managed nameserver delegation is a separate operational choice and should not be required just to verify club attachment eligibility
-- but if Pirate chooses a public-v0 implementation that only automates Pirate-managed DNS first, the product must say that plainly in UX instead of implying that parent-side ShakeStation edits alone will populate the delegated child zone
+- but if Pirate chooses a public-v0 implementation that only automates Pirate-managed DNS first, the product must say that plainly in UX instead of implying that parent-side HNS root-resource edits alone will populate the delegated child zone
 
 ## Verification Implications
 
@@ -331,7 +331,7 @@ This is the simplest deployment model that makes `infinity/` and `profile.infini
 To get HNS working end-to-end with the least ambiguity:
 
 1. Ship one supported HNS path first: Pirate-managed authoritative DNS on a single VPS.
-2. In the frontend, ask the user to update only the Handshake parent delegation records in ShakeStation:
+2. In the frontend, ask the user to update only the Handshake parent delegation records in their HNS root-management tool:
    - `NS`
    - any needed glue records
 3. After delegation is published, Pirate provisions the `<root>.` zone in PowerDNS.

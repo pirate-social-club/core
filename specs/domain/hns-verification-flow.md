@@ -157,7 +157,7 @@ Public-v0 implementation note:
 
 - the protocol model allows either owner-managed authoritative DNS or Pirate-managed authoritative DNS
 - the product should still ship one path first
-- if Pirate ships Pirate-managed authoritative DNS first, the frontend must ask the user to publish only Handshake parent delegation records in ShakeStation and must not imply that a parent-side TXT value alone satisfies `_pirate.<root>` after delegation
+- if Pirate ships Pirate-managed authoritative DNS first, the frontend must ask the user to publish only Handshake parent delegation records in their HNS root-management tool and must not imply that a parent-side TXT value alone satisfies `_pirate.<root>` after delegation
 - the recommended Pirate-managed implementation is PowerDNS Authoritative plus API-backed zone provisioning
 
 ## Flow
@@ -223,8 +223,8 @@ Prerequisite:
 Delegation clarification:
 
 - if the user delegates the root to Pirate nameservers, the `_pirate.<root>` TXT record must be served from Pirate's authoritative `<root>.` zone
-- after that delegation, the frontend must not tell the user to keep editing `_pirate.<root>` only at the Handshake parent in ShakeStation
-- ShakeStation remains the place to update parent delegation records such as `NS` and glue
+- after that delegation, the frontend must not tell the user to keep editing `_pirate.<root>` only at the Handshake parent resource
+- the HNS root-management tool remains the place to update parent delegation records such as `NS` and glue
 - the delegated child-zone TXT challenge must be hosted by the authoritative DNS service for `<root>.`
 - for Pirate-managed public v0, that authoritative DNS service should be PowerDNS and the challenge should be written through its API-backed backend
 
@@ -316,7 +316,7 @@ Frontend UX rules:
 Record-writing rules:
 
 - if the user remains on owner-managed authoritative DNS, the frontend shows the `_pirate.<root>` TXT challenge they must publish on that authority
-- if the user delegates to Pirate-managed nameservers, the frontend shows only the parent Handshake delegation records to set in ShakeStation
+- if the user delegates to Pirate-managed nameservers, the frontend shows only the parent Handshake delegation records to set in their HNS root-management tool
 - after Pirate-managed delegation, the TXT challenge is served from Pirate's hosted `<root>.` zone, not from the parent Handshake record set
 
 ## HNS-First Rollout Plan
