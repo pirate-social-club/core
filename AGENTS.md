@@ -134,7 +134,8 @@ Rules:
 - For web work especially, assume builds/watchers can freeze the machine. Start with static analysis, narrow tests, and existing-process reuse before any heavy frontend command.
 - In `web/`, do not default to `rtk bun run build`. That full build can freeze the machine.
 - Prefer this escalation order for frontend verification:
-  - `rtk bun run types`
+  - `rtk bun run types:safe`
+  - `rtk bun run types` only when exact uncapped CI parity is required
   - `rtk bun run locales:generate`
   - `rtk ./node_modules/.bin/vite build --ssr src/worker.tsx --minify false --sourcemap false`
   - `rtk ./node_modules/.bin/vite build --minify false --sourcemap false` only when a full production asset build is truly required
