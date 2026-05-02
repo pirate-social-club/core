@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { extractPublicProfileHost, handleRequest } from "./server";
+import { extractImportedNamespaceHost, extractPublicProfileHost, handleRequest } from "./server";
 
 describe("extractPublicProfileHost", () => {
   test("extracts a simple pirate hostname", () => {
@@ -22,6 +22,27 @@ describe("extractPublicProfileHost", () => {
       handleLabel: "night-signal",
       hostSuffix: "clawitzer",
     });
+  });
+});
+
+describe("extractImportedNamespaceHost", () => {
+  test("extracts bare imported HNS roots", () => {
+    expect(extractImportedNamespaceHost("xn--pokmon-dva", ["pirate", "clawitzer"])).toEqual({
+      rootLabel: "xn--pokmon-dva",
+      subdomain: null,
+    });
+  });
+
+  test("extracts imported root subdomains", () => {
+    expect(extractImportedNamespaceHost("v.xn--pokmon-dva", ["pirate", "clawitzer"])).toEqual({
+      rootLabel: "xn--pokmon-dva",
+      subdomain: "v",
+    });
+  });
+
+  test("does not treat first-party suffix hosts as imported roots", () => {
+    expect(extractImportedNamespaceHost("app.pirate", ["pirate", "clawitzer"])).toBeNull();
+    expect(extractImportedNamespaceHost("night-signal.clawitzer", ["pirate", "clawitzer"])).toBeNull();
   });
 });
 
@@ -169,5 +190,68 @@ describe("handleRequest", () => {
     expect(html).not.toContain("owner.pirate");
     expect(html).toContain("https://pirate.sc/a/night-signal.clawitzer");
     expect(html).toContain('property="og:title" content="Night Signal • Pirate Agent"');
+  });
+
+  test("proxies verified imported HNS roots to their community route", async () => {
+    const calls: Array<{ url: string; headers: Headers }> = [];
+    const response = await handleRequest(
+      new Request("http://xn--pokmon-dva/"),
+      env,
+      async (url, init) => {
+        calls.push({ url: String(url), headers: new Headers(init?.headers) });
+        if (String(url) === "https://api.pirate.sc/public-namespaces/xn--pokmon-dva") {
+          return Response.json({
+            root_label: "xn--pokmon-dva",
+            namespace_verification: "nv_namespace_public_test",
+            community: {
+              id: "com_cmt_public_namespace_test",
+              display_name: "Imported Root",
+              route_slug: "xn--pokmon-dva",
+            },
+          });
+        }
+        return new Response("community page", {
+          headers: { "content-type": "text/html; charset=utf-8" },
+        });
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("community page");
+    expect(calls.map((call) => call.url)).toEqual([
+      "https://api.pirate.sc/public-namespaces/xn--pokmon-dva",
+      "https://pirate.sc/c/xn--pokmon-dva",
+    ]);
+    expect(calls[1].headers.get("x-pirate-hns-host")).toBe("xn--pokmon-dva");
+    expect(calls[1].headers.get("x-pirate-hns-root")).toBe("xn--pokmon-dva");
+    expect(calls[1].headers.get("x-pirate-hns-community-route")).toBe("xn--pokmon-dva");
+  });
+
+  test("proxies verified imported HNS subdomains with the subdomain header", async () => {
+    const calls: Array<{ url: string; headers: Headers }> = [];
+    const response = await handleRequest(
+      new Request("http://v.xn--pokmon-dva/"),
+      env,
+      async (url, init) => {
+        calls.push({ url: String(url), headers: new Headers(init?.headers) });
+        if (String(url) === "https://api.pirate.sc/public-namespaces/xn--pokmon-dva") {
+          return Response.json({
+            root_label: "xn--pokmon-dva",
+            namespace_verification: "nv_namespace_public_test",
+            community: {
+              id: "com_cmt_public_namespace_test",
+              display_name: "Imported Root",
+              route_slug: "xn--pokmon-dva",
+            },
+          });
+        }
+        return new Response("community page");
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(calls[1].url).toBe("https://pirate.sc/c/xn--pokmon-dva");
+    expect(calls[1].headers.get("x-pirate-hns-host")).toBe("v.xn--pokmon-dva");
+    expect(calls[1].headers.get("x-pirate-hns-subdomain")).toBe("v");
   });
 });

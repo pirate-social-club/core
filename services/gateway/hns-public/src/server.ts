@@ -44,6 +44,16 @@ type PublicAgentResolution = {
   };
 };
 
+type PublicNamespaceResolution = {
+  root_label: string;
+  namespace_verification: string | null;
+  community: {
+    id: string;
+    display_name: string | null;
+    route_slug: string;
+  };
+};
+
 export type HnsPublicGatewayEnv = {
   HNS_PUBLIC_GATEWAY_ROOT_SUFFIX?: string;
   HNS_PUBLIC_GATEWAY_AGENT_SUFFIX?: string;
@@ -108,6 +118,37 @@ export function extractPublicProfileHost(
   }
 
   return { handleLabel: subdomain, hostSuffix: normalizedSuffix };
+}
+
+export function extractImportedNamespaceHost(
+  hostname: string,
+  reservedSuffixes: string[],
+): { rootLabel: string; subdomain: string | null } | null {
+  const normalizedHostname = hostname.trim().toLowerCase().replace(/\.+$/u, "");
+  if (!normalizedHostname || normalizedHostname === "localhost" || normalizedHostname.includes(":")) {
+    return null;
+  }
+
+  for (const suffix of reservedSuffixes) {
+    const normalizedSuffix = suffix.trim().toLowerCase().replace(/\.+$/u, "");
+    if (!normalizedSuffix) {
+      continue;
+    }
+    if (normalizedHostname === normalizedSuffix || normalizedHostname.endsWith(`.${normalizedSuffix}`)) {
+      return null;
+    }
+  }
+
+  const labels = normalizedHostname.split(".").filter(Boolean);
+  const rootLabel = labels[labels.length - 1];
+  if (!rootLabel || !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(rootLabel)) {
+    return null;
+  }
+
+  return {
+    rootLabel,
+    subdomain: labels.length > 1 ? labels.slice(0, -1).join(".") : null,
+  };
 }
 
 function formatJoinedLabel(createdAt: string): string {
@@ -370,6 +411,60 @@ function createCanonicalUrl(requestUrl: URL, scheme: string): string {
   return nextUrl.toString();
 }
 
+async function proxyImportedNamespaceRequest(input: {
+  request: Request;
+  url: URL;
+  apiOrigin: string;
+  appOrigin: string;
+  namespaceHost: { rootLabel: string; subdomain: string | null };
+  fetchImpl: typeof fetch;
+}): Promise<Response | null> {
+  const namespaceResponse = await input.fetchImpl(
+    `${input.apiOrigin}/public-namespaces/${encodeURIComponent(input.namespaceHost.rootLabel)}`,
+    {
+      headers: { accept: "application/json" },
+      redirect: "manual",
+    },
+  );
+
+  if (namespaceResponse.status === 404) {
+    return null;
+  }
+
+  if (!namespaceResponse.ok) {
+    return renderErrorPage(
+      "Imported namespace",
+      "This imported HNS namespace could not be loaded right now.",
+      502,
+    );
+  }
+
+  const resolution = await namespaceResponse.json() as PublicNamespaceResolution;
+  const appUrl = new URL(input.request.url);
+  const appOriginUrl = new URL(input.appOrigin);
+  appUrl.protocol = appOriginUrl.protocol;
+  appUrl.host = appOriginUrl.host;
+
+  if (input.url.pathname === "/") {
+    appUrl.pathname = buildCommunityPath(resolution.community.id, resolution.community.route_slug);
+  }
+
+  const headers = new Headers(input.request.headers);
+  headers.set("accept", input.request.headers.get("accept") ?? "text/html");
+  headers.set("x-pirate-hns-host", input.url.hostname);
+  headers.set("x-pirate-hns-root", resolution.root_label);
+  headers.set("x-pirate-hns-community-route", resolution.community.route_slug);
+  if (input.namespaceHost.subdomain) {
+    headers.set("x-pirate-hns-subdomain", input.namespaceHost.subdomain);
+  }
+
+  return input.fetchImpl(appUrl.toString(), {
+    headers,
+    method: input.request.method,
+    redirect: "manual",
+  });
+}
+
 export async function handleRequest(
   request: Request,
   env: HnsPublicGatewayEnv,
@@ -392,7 +487,25 @@ export async function handleRequest(
     isAgent = true;
   }
 
+  const apiOrigin = env.HNS_PUBLIC_API_ORIGIN?.trim() || "https://api.pirate.sc";
+  const appOrigin = env.HNS_PUBLIC_APP_ORIGIN?.trim() || "https://pirate.sc";
+
   if (!target) {
+    const namespaceHost = extractImportedNamespaceHost(url.hostname, [rootSuffix, agentSuffix]);
+    if (namespaceHost) {
+      const proxied = await proxyImportedNamespaceRequest({
+        request,
+        url,
+        apiOrigin,
+        appOrigin,
+        namespaceHost,
+        fetchImpl,
+      });
+      if (proxied) {
+        return proxied;
+      }
+    }
+
     return renderErrorPage(
       "Public profile",
       `The host ${url.hostname} does not map to a public Pirate profile.`,
@@ -400,8 +513,6 @@ export async function handleRequest(
     );
   }
 
-  const apiOrigin = env.HNS_PUBLIC_API_ORIGIN?.trim() || "https://api.pirate.sc";
-  const appOrigin = env.HNS_PUBLIC_APP_ORIGIN?.trim() || "https://pirate.sc";
   const apiPath = isAgent ? "public-agents" : "public-profiles";
   const response = await fetchImpl(
     `${apiOrigin}/${apiPath}/${encodeURIComponent(target.handleLabel)}`,
