@@ -17,9 +17,9 @@ This runbook records the completed live staging smoke for:
 - deployed API origin: `https://api-staging.pirate.sc`
 - live worker name: `pirate-api-staging`
 - verifier public endpoints:
-  - HNS: `https://spaces.pirate.sc/hns`
+  - HNS: `https://verifier.pirate.sc/hns`
   - Spaces: `https://spaces.pirate.sc`
-- verifier traffic goes through Caddy on the VPS at `spaces.pirate.sc`
+- verifier traffic goes through Caddy on the VPS at `verifier.pirate.sc`
 
 Important discovery:
 
@@ -184,10 +184,39 @@ curl -sS -X POST https://api-staging.pirate.sc/namespace-verification-sessions \
   -d '{"family":"hns","root_label":"infinity"}'
 ```
 
-### HNS TXT publish
+### HNS owner-managed public resolver check
+
+Use this shape for the product flow where the user publishes NS/TXT in Bob/HNS and Pirate only
+observes public HNS-visible DNS. This does not call `/publish-txt` and must return a trusted
+owner-managed provider such as `hns_public_dns`.
 
 ```bash
-curl -sS -X POST https://spaces.pirate.sc/hns/publish-txt \
+curl -sS "https://verifier.pirate.sc/hns/inspect-public?root_label=<root>&challenge_host=_pirate.<root>" \
+  -H "Authorization: Bearer <HNS_VERIFIER_AUTH_TOKEN>"
+```
+
+```bash
+curl -sS -X POST https://verifier.pirate.sc/hns/verify-txt-public \
+  -H "Authorization: Bearer <HNS_VERIFIER_AUTH_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "root_label":"<root>",
+    "challenge_host":"_pirate.<root>",
+    "challenge_txt_value":"pirate-verification=<session-challenge>"
+  }'
+```
+
+Expected owner-managed success shape:
+
+- `observation_provider = hns_public_dns`
+- `operation_class = owner_managed_namespace`
+- `pirate_dns_authority_verified = true` when the HNS-visible NS set contains `ns1.pirate.`
+- `verified = true` when `_pirate.<root>` contains the session challenge TXT value
+
+### HNS Pirate-managed TXT publish
+
+```bash
+curl -sS -X POST https://verifier.pirate.sc/hns/publish-txt \
   -H "Authorization: Bearer <HNS_VERIFIER_AUTH_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{

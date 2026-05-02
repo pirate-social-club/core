@@ -5,6 +5,7 @@ This service hosts Pirate's PowerDNS-backed HNS verifier and zone-provisioning r
 ## Responsibilities
 
 - inspect whether Pirate has already provisioned a delegated HNS child zone
+- verify owner-managed HNS TXT challenges through configured HNS-aware recursive resolvers
 - create the `<root>.` zone in PowerDNS when Pirate-managed delegation is observed
 - publish `_pirate.<root>` TXT records for verification sessions
 - trigger PowerDNS rediscovery after zone updates so delegated roots become authoritative immediately
@@ -34,6 +35,8 @@ Current platform-managed roots:
 - `HNS_VERIFIER_HOST`
 - `HNS_VERIFIER_PORT`
 - `HNS_VERIFIER_AUTH_TOKEN`
+- `HNS_OWNER_MANAGED_RESOLVERS`
+- `HNS_OWNER_MANAGED_RESOLVER_TIMEOUT_MS`
 - `PDNS_SQLITE_DATABASE`
 - `PDNS_DEFAULT_SOA_CONTENT`
 - `PDNS_REDISCOVER_COMMAND`
@@ -43,6 +46,12 @@ Current platform-managed roots:
 - `HNS_AUTHORITATIVE_APEX_IPV4`
 - `HNS_AUTHORITATIVE_PROFILE_IPV4`
 - `HNS_AUTHORITATIVE_WILDCARD_IPV4`
+
+`HNS_OWNER_MANAGED_RESOLVERS` is a comma-separated list of trusted HNS-aware recursive resolver
+IP addresses. The verifier uses these resolvers for owner-managed NS/TXT checks, including
+underscore-prefixed challenge names such as `_pirate.<root>`. Each resolver query is bounded by
+`HNS_OWNER_MANAGED_RESOLVER_TIMEOUT_MS` so the API caller sees a verifier result instead of waiting
+on OS-level DNS retry behavior.
 
 For the platform-owned `pirate.` root, prefer an HNS-native nameserver:
 

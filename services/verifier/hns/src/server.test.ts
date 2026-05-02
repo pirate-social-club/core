@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
+import { Resolver } from "node:dns/promises";
 import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 Bun.env.PDNS_SQLITE_DATABASE = createPowerDnsTestDatabase();
+Bun.env.HNS_OWNER_MANAGED_RESOLVER_TIMEOUT_MS = "25";
 
 const { handleRequest } = await import("./server");
 
@@ -39,7 +41,22 @@ function createPowerDnsTestDatabase(): string {
 }
 
 describe("hns verifier server", () => {
+  const originalOwnerManagedResolvers = Bun.env.HNS_OWNER_MANAGED_RESOLVERS;
+  const originalResolveNs = Resolver.prototype.resolveNs;
+  const originalResolveTxt = Resolver.prototype.resolveTxt;
+
+  function resetOwnerManagedResolvers() {
+    if (originalOwnerManagedResolvers == null) {
+      delete Bun.env.HNS_OWNER_MANAGED_RESOLVERS;
+    } else {
+      Bun.env.HNS_OWNER_MANAGED_RESOLVERS = originalOwnerManagedResolvers;
+    }
+    Resolver.prototype.resolveNs = originalResolveNs;
+    Resolver.prototype.resolveTxt = originalResolveTxt;
+  }
+
   test("exports a health handler", async () => {
+    resetOwnerManagedResolvers();
     const response = await handleRequest(new Request("http://127.0.0.1:4048/health"));
     expect(response.status).toBe(200);
     const body = await response.json();
@@ -48,6 +65,7 @@ describe("hns verifier server", () => {
   });
 
   test("supports API-facing public inspect endpoint for punycode HNS roots", async () => {
+    resetOwnerManagedResolvers();
     const response = await handleRequest(new Request(
       "http://127.0.0.1:4048/inspect-public?root_label=xn--pokmon-dva&challenge_host=_pirate.xn--pokmon-dva",
     ));
@@ -62,6 +80,7 @@ describe("hns verifier server", () => {
   });
 
   test("normalizes Unicode HNS roots to the same public inspect result", async () => {
+    resetOwnerManagedResolvers();
     const response = await handleRequest(new Request(
       "http://127.0.0.1:4048/inspect-public?root_label=pok%C3%A9mon&challenge_host=_pirate.xn--pokmon-dva",
     ));
@@ -73,6 +92,7 @@ describe("hns verifier server", () => {
   });
 
   test("supports API-facing public TXT verification endpoint", async () => {
+    resetOwnerManagedResolvers();
     const response = await handleRequest(new Request("http://127.0.0.1:4048/verify-txt-public", {
       method: "POST",
       body: JSON.stringify({
@@ -87,5 +107,79 @@ describe("hns verifier server", () => {
     expect(body.verified).toBe(false);
     expect(body.failure_reason).toBe("zone_not_provisioned");
     expect(body.root_exists).toBe(false);
+  });
+
+  test("public inspect can read owner-managed HNS records through configured resolvers", async () => {
+    Bun.env.HNS_OWNER_MANAGED_RESOLVERS = "82.68.70.162,82.68.70.163";
+    const requested: string[] = [];
+    Resolver.prototype.resolveNs = (async (_name: string) => {
+      requested.push(`NS ${_name}`);
+      return ["ns1.pirate."];
+    }) as typeof Resolver.prototype.resolveNs;
+    Resolver.prototype.resolveTxt = (async (_name: string) => {
+      requested.push(`TXT ${_name}`);
+      return [["pirate-verification=nvs_test"]];
+    }) as typeof Resolver.prototype.resolveTxt;
+
+    const response = await handleRequest(new Request(
+      "http://127.0.0.1:4048/inspect-public?root_label=xn--pokmon-dva&challenge_host=_pirate.xn--pokmon-dva",
+    ));
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.root_label).toBe("xn--pokmon-dva");
+    expect(body.zone_exists).toBe(true);
+    expect(body.challenge_present).toBe(true);
+    expect(body.nameservers).toEqual(["ns1.pirate."]);
+    expect(body.observation_provider).toBe("hns_public_dns");
+    expect(body.pirate_dns_authority_verified).toBe(true);
+    expect(body.operation_class).toBe("owner_managed_namespace");
+    expect(requested).toEqual(["NS xn--pokmon-dva.", "TXT _pirate.xn--pokmon-dva."]);
+
+    resetOwnerManagedResolvers();
+  });
+
+  test("public TXT verification can verify owner-managed HNS TXT through configured resolvers", async () => {
+    Bun.env.HNS_OWNER_MANAGED_RESOLVERS = "82.68.70.162,82.68.70.163";
+    Resolver.prototype.resolveNs = (async () => ["ns1.pirate."]) as typeof Resolver.prototype.resolveNs;
+    Resolver.prototype.resolveTxt = (async () => [["pirate-verification=nvs_test"]]) as typeof Resolver.prototype.resolveTxt;
+
+    const response = await handleRequest(new Request("http://127.0.0.1:4048/verify-txt-public", {
+      method: "POST",
+      body: JSON.stringify({
+        root_label: "xn--pokmon-dva",
+        challenge_host: "_pirate.xn--pokmon-dva",
+        challenge_txt_value: "pirate-verification=nvs_test",
+      }),
+    }));
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.verified).toBe(true);
+    expect(body.observation_provider).toBe("hns_public_dns");
+    expect(body.observed_values).toEqual(["pirate-verification=nvs_test"]);
+    expect(body.root_control_verified).toBe(true);
+
+    resetOwnerManagedResolvers();
+  });
+
+  test("owner-managed DNS lookups time out inside the verifier budget", async () => {
+    Bun.env.HNS_OWNER_MANAGED_RESOLVERS = "82.68.70.162";
+    Resolver.prototype.resolveNs = (() => new Promise<string[]>(() => {})) as typeof Resolver.prototype.resolveNs;
+    Resolver.prototype.resolveTxt = (() => new Promise<string[][]>(() => {})) as typeof Resolver.prototype.resolveTxt;
+
+    const startedAt = Date.now();
+    const response = await handleRequest(new Request(
+      "http://127.0.0.1:4048/inspect-public?root_label=xn--pokmon-dva&challenge_host=_pirate.xn--pokmon-dva",
+    ));
+
+    expect(Date.now() - startedAt).toBeLessThan(500);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.observation_provider).toBe("hns_public_dns");
+    expect(body.failure_reason).toBe("root_not_delegated");
+    expect(body.zone_exists).toBe(false);
+
+    resetOwnerManagedResolvers();
   });
 });

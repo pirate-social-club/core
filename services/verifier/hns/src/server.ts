@@ -22,6 +22,7 @@ type InspectResult = {
   }[];
 };
 
+import { Resolver } from "node:dns/promises";
 import { PowerDnsStore, type PowerDnsZoneSnapshot } from "./pdns-store";
 import { json, requireBearerAuth } from "../../shared/http";
 
@@ -39,6 +40,8 @@ const defaultApexIpv4 = Bun.env.HNS_AUTHORITATIVE_APEX_IPV4?.trim() || null;
 const defaultNameserverIpv4 = Bun.env.HNS_AUTHORITATIVE_NAMESERVER_IPV4?.trim() || defaultApexIpv4;
 const defaultProfileIpv4 = Bun.env.HNS_AUTHORITATIVE_PROFILE_IPV4?.trim() || defaultApexIpv4;
 const defaultWildcardIpv4 = Bun.env.HNS_AUTHORITATIVE_WILDCARD_IPV4?.trim() || defaultApexIpv4;
+const OWNER_MANAGED_OBSERVATION_PROVIDER = "hns_public_dns";
+const ownerManagedResolverTimeoutMs = Number(Bun.env.HNS_OWNER_MANAGED_RESOLVER_TIMEOUT_MS || "2500");
 
 function parseCsv(value: string | undefined): string[] | null {
   const entries = value?.split(",").map((entry) => entry.trim()).filter(Boolean) ?? [];
@@ -51,6 +54,18 @@ function withTrailingDot(value: string): string {
 
 function toStorageName(value: string): string {
   return value.replace(/\.$/, "");
+}
+
+function parseResolverCsv(value: string | undefined): string[] {
+  return value?.split(",").map((entry) => entry.trim()).filter(Boolean) ?? [];
+}
+
+function getOwnerManagedResolvers(): string[] {
+  return parseResolverCsv(Bun.env.HNS_OWNER_MANAGED_RESOLVERS);
+}
+
+function isOwnerManagedResolverConfigured(): boolean {
+  return getOwnerManagedResolvers().length > 0;
 }
 
 function requirePowerDnsStore(): PowerDnsStore {
@@ -128,6 +143,78 @@ function normalizeTxtRecordContent(value: string): string {
   return trimmed;
 }
 
+function normalizeNsRecord(value: string): string {
+  return withTrailingDot(value.trim().toLowerCase());
+}
+
+function matchesDefaultNameserver(value: string): boolean {
+  const normalized = normalizeNsRecord(value);
+  return defaultNameservers.map(normalizeNsRecord).includes(normalized);
+}
+
+function createOwnerManagedResolver(): Resolver | null {
+  const resolvers = getOwnerManagedResolvers();
+  if (resolvers.length === 0) {
+    return null;
+  }
+
+  const resolver = new Resolver();
+  resolver.setServers(resolvers);
+  return resolver;
+}
+
+async function withOwnerManagedResolverTimeout<T>(operation: Promise<T>): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error("owner-managed resolver query timed out")),
+          ownerManagedResolverTimeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+async function resolveOwnerManagedNs(rootLabel: string): Promise<string[]> {
+  const resolver = createOwnerManagedResolver();
+  if (!resolver) {
+    return [];
+  }
+
+  const zoneName = normalizeZoneName(rootLabel);
+  try {
+    return (await withOwnerManagedResolverTimeout(resolver.resolveNs(zoneName)))
+      .map(normalizeNsRecord)
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+async function resolveOwnerManagedTxt(name: string): Promise<string[]> {
+  const resolver = createOwnerManagedResolver();
+  if (!resolver) {
+    return [];
+  }
+
+  try {
+    return (await withOwnerManagedResolverTimeout(resolver.resolveTxt(withTrailingDot(name))))
+      .map((chunks) => chunks.join(""))
+      .map(normalizeTxtRecordContent)
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 function summarizeZone(zone: PowerDnsZoneSnapshot): InspectResult["rrsets"] {
   return zone.rrsets.map((rrset) => ({
     name: withTrailingDot(rrset.name),
@@ -164,6 +251,10 @@ function deriveInspectionFields(zoneExists: boolean) {
 }
 
 async function inspectRoot(rootLabel: string, challengeHost?: string | null): Promise<InspectResult> {
+  if (isOwnerManagedResolverConfigured()) {
+    return inspectOwnerManagedRoot(rootLabel, challengeHost);
+  }
+
   const store = requirePowerDnsStore();
   const zoneName = normalizeZoneName(rootLabel);
   const challengeName = normalizeChallengeName(rootLabel, challengeHost);
@@ -197,6 +288,51 @@ async function inspectRoot(rootLabel: string, challengeHost?: string | null): Pr
     failure_reason: challengePresent ? null : "challenge_not_published",
     rrsets: summarizeZone(zone),
     ...deriveInspectionFields(true),
+  };
+}
+
+async function inspectOwnerManagedRoot(rootLabel: string, challengeHost?: string | null): Promise<InspectResult> {
+  const normalizedRoot = normalizeRootLabel(rootLabel);
+  const zoneName = normalizeZoneName(normalizedRoot);
+  const challengeName = normalizeChallengeName(normalizedRoot, challengeHost);
+  const nameservers = await resolveOwnerManagedNs(normalizedRoot);
+  const observedTxtValues = await resolveOwnerManagedTxt(challengeName);
+  const rootExists = nameservers.length > 0;
+  const pirateDnsAuthorityVerified = nameservers.some(matchesDefaultNameserver);
+  const challengePresent = observedTxtValues.length > 0;
+
+  return {
+    root_label: normalizedRoot,
+    zone_name: zoneName,
+    challenge_name: challengeName,
+    zone_exists: rootExists,
+    challenge_present: challengePresent,
+    nameservers: nameservers.length > 0 ? nameservers : defaultNameservers,
+    observation_provider: OWNER_MANAGED_OBSERVATION_PROVIDER,
+    failure_reason: rootExists
+      ? challengePresent ? null : "challenge_not_published"
+      : "root_not_delegated",
+    rrsets: [
+      ...(nameservers.length > 0 ? [{
+        name: zoneName,
+        type: "NS",
+        ttl: null,
+        records: nameservers,
+      }] : []),
+      ...(observedTxtValues.length > 0 ? [{
+        name: challengeName,
+        type: "TXT",
+        ttl: null,
+        records: observedTxtValues,
+      }] : []),
+    ],
+    root_exists: rootExists,
+    root_control_verified: challengePresent,
+    expiry_horizon_sufficient: rootExists ? true : null,
+    routing_enabled: pirateDnsAuthorityVerified,
+    pirate_dns_authority_verified: pirateDnsAuthorityVerified,
+    control_class: rootExists ? "single_holder_root" : null,
+    operation_class: rootExists ? "owner_managed_namespace" : null,
   };
 }
 
@@ -302,6 +438,14 @@ async function verifyTxt(body: {
     return json({ error: "root_label and challenge_txt_value are required" }, { status: 400 });
   }
 
+  if (isOwnerManagedResolverConfigured()) {
+    return verifyOwnerManagedTxt({
+      root_label: rootLabel,
+      challenge_host: body.challenge_host,
+      challenge_txt_value: challengeTxtValue,
+    });
+  }
+
   const store = requirePowerDnsStore();
   const normalizedRoot = normalizeRootLabel(rootLabel);
   const zoneName = normalizeZoneName(normalizedRoot);
@@ -349,6 +493,44 @@ async function verifyTxt(body: {
   });
 }
 
+async function verifyOwnerManagedTxt(body: {
+  root_label: string;
+  challenge_host?: string | null;
+  challenge_txt_value: string;
+}) {
+  const normalizedRoot = normalizeRootLabel(body.root_label);
+  const zoneName = normalizeZoneName(normalizedRoot);
+  const challengeName = normalizeChallengeName(normalizedRoot, body.challenge_host);
+  const [nameservers, observedValues] = await Promise.all([
+    resolveOwnerManagedNs(normalizedRoot),
+    resolveOwnerManagedTxt(challengeName),
+  ]);
+  const rootExists = nameservers.length > 0;
+  const pirateDnsAuthorityVerified = nameservers.some(matchesDefaultNameserver);
+  const verified = observedValues.includes(body.challenge_txt_value);
+
+  return json({
+    verified,
+    observation_provider: OWNER_MANAGED_OBSERVATION_PROVIDER,
+    failure_reason: verified
+      ? null
+      : observedValues.length === 0
+        ? "challenge_not_published"
+        : "challenge_mismatch",
+    observed_values: observedValues,
+    root_exists: rootExists,
+    root_control_verified: verified,
+    expiry_horizon_sufficient: rootExists ? true : null,
+    routing_enabled: pirateDnsAuthorityVerified,
+    pirate_dns_authority_verified: pirateDnsAuthorityVerified,
+    control_class: rootExists ? "single_holder_root" : null,
+    operation_class: rootExists ? "owner_managed_namespace" : null,
+    root_label: normalizedRoot,
+    zone_name: zoneName,
+    challenge_name: challengeName,
+  });
+}
+
 export async function handleRequest(request: Request) {
     const url = new URL(request.url);
     const authResponse = requireBearerAuth(request, verifierAuthToken);
@@ -362,7 +544,9 @@ export async function handleRequest(request: Request) {
         bind_host: verifierHost,
         bind_port: verifierPort,
         pdns_sqlite_database: pdnsSqliteDatabase,
-        observation_provider: "powerdns_sqlite",
+        observation_provider: isOwnerManagedResolverConfigured() ? OWNER_MANAGED_OBSERVATION_PROVIDER : "powerdns_sqlite",
+        owner_managed_resolvers: getOwnerManagedResolvers(),
+        owner_managed_resolver_timeout_ms: ownerManagedResolverTimeoutMs,
         requires_bearer_auth: verifierAuthToken != null,
       });
     }

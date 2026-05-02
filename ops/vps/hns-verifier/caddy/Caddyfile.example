@@ -1,0 +1,5 @@
+verifier.pirate.sc {
+  handle_path /hns/* {
+    reverse_proxy 127.0.0.1:4048
+  }
+}
