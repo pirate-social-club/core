@@ -5,9 +5,9 @@ This service hosts Pirate's PowerDNS-backed HNS verifier and zone-provisioning r
 ## Responsibilities
 
 - inspect whether Pirate has already provisioned a delegated HNS child zone
-- verify owner-managed HNS TXT challenges through configured HNS-aware recursive resolvers
+- verify owner-managed HNS TXT challenges from the live Handshake root resource
 - create the `<root>.` zone in PowerDNS when Pirate-managed delegation is observed
-- publish `_pirate.<root>` TXT records for verification sessions
+- publish `_pirate.<root>` TXT records for delegated Pirate-managed verification sessions
 - trigger PowerDNS rediscovery after zone updates so delegated roots become authoritative immediately
 - verify TXT challenges against the same authoritative source of truth PowerDNS serves
 
@@ -35,8 +35,8 @@ Current platform-managed roots:
 - `HNS_VERIFIER_HOST`
 - `HNS_VERIFIER_PORT`
 - `HNS_VERIFIER_AUTH_TOKEN`
-- `HNS_OWNER_MANAGED_RESOLVERS`
-- `HNS_OWNER_MANAGED_RESOLVER_TIMEOUT_MS`
+- `HNS_ROOT_RESOURCE_URL_TEMPLATE`
+- `HNS_ROOT_RESOURCE_TIMEOUT_MS`
 - `PDNS_SQLITE_DATABASE`
 - `PDNS_DEFAULT_SOA_CONTENT`
 - `PDNS_REDISCOVER_COMMAND`
@@ -47,11 +47,13 @@ Current platform-managed roots:
 - `HNS_AUTHORITATIVE_PROFILE_IPV4`
 - `HNS_AUTHORITATIVE_WILDCARD_IPV4`
 
-`HNS_OWNER_MANAGED_RESOLVERS` is a comma-separated list of trusted HNS-aware recursive resolver
-IP addresses. The verifier uses these resolvers for owner-managed NS/TXT checks, including
-underscore-prefixed challenge names such as `_pirate.<root>`. Each resolver query is bounded by
-`HNS_OWNER_MANAGED_RESOLVER_TIMEOUT_MS` so the API caller sees a verifier result instead of waiting
-on OS-level DNS retry behavior.
+`HNS_ROOT_RESOURCE_URL_TEMPLATE` points at a trusted Handshake chain/resource reader. The template
+must contain `{root}` and defaults to `https://shakeshift.com/name/{root}/resources?fetch=main`.
+Owner-managed verification reads the live root resource and checks the apex TXT value there. It does
+not depend on recursive DNS resolution or `_pirate.<root>` child records.
+
+`HNS_ROOT_RESOURCE_TIMEOUT_MS` bounds the root-resource lookup so the API caller sees a verifier
+result inside its timeout budget.
 
 For the platform-owned `pirate.` root, prefer an HNS-native nameserver:
 

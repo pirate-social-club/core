@@ -184,14 +184,14 @@ curl -sS -X POST https://api-staging.pirate.sc/namespace-verification-sessions \
   -d '{"family":"hns","root_label":"infinity"}'
 ```
 
-### HNS owner-managed public resolver check
+### HNS owner-managed root-resource check
 
 Use this shape for the product flow where the user publishes NS/TXT in Bob/HNS and Pirate only
-observes public HNS-visible DNS. This does not call `/publish-txt` and must return a trusted
-owner-managed provider such as `hns_public_dns`.
+observes the live Handshake root resource. This does not call `/publish-txt` and must return a
+trusted owner-managed provider such as `hns_parent_chain`.
 
 ```bash
-curl -sS "https://verifier.pirate.sc/hns/inspect-public?root_label=<root>&challenge_host=_pirate.<root>" \
+curl -sS "https://verifier.pirate.sc/hns/inspect-public?root_label=<root>" \
   -H "Authorization: Bearer <HNS_VERIFIER_AUTH_TOKEN>"
 ```
 
@@ -201,17 +201,16 @@ curl -sS -X POST https://verifier.pirate.sc/hns/verify-txt-public \
   -H "Content-Type: application/json" \
   -d '{
     "root_label":"<root>",
-    "challenge_host":"_pirate.<root>",
     "challenge_txt_value":"pirate-verification=<session-challenge>"
   }'
 ```
 
 Expected owner-managed success shape:
 
-- `observation_provider = hns_public_dns`
+- `observation_provider = hns_parent_chain`
 - `operation_class = owner_managed_namespace`
 - `pirate_dns_authority_verified = true` when the HNS-visible NS set contains `ns1.pirate.`
-- `verified = true` when `_pirate.<root>` contains the session challenge TXT value
+- `verified = true` when the live HNS root resource contains the session challenge TXT value
 
 ### HNS Pirate-managed TXT publish
 

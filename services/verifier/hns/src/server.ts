@@ -40,8 +40,9 @@ const defaultApexIpv4 = Bun.env.HNS_AUTHORITATIVE_APEX_IPV4?.trim() || null;
 const defaultNameserverIpv4 = Bun.env.HNS_AUTHORITATIVE_NAMESERVER_IPV4?.trim() || defaultApexIpv4;
 const defaultProfileIpv4 = Bun.env.HNS_AUTHORITATIVE_PROFILE_IPV4?.trim() || defaultApexIpv4;
 const defaultWildcardIpv4 = Bun.env.HNS_AUTHORITATIVE_WILDCARD_IPV4?.trim() || defaultApexIpv4;
-const OWNER_MANAGED_OBSERVATION_PROVIDER = "hns_public_dns";
+const OWNER_MANAGED_OBSERVATION_PROVIDER = "hns_parent_chain";
 const ownerManagedResolverTimeoutMs = Number(Bun.env.HNS_OWNER_MANAGED_RESOLVER_TIMEOUT_MS || "2500");
+const defaultHnsRootResourceUrlTemplate = "https://shakeshift.com/name/{root}/resources?fetch=main";
 
 function parseCsv(value: string | undefined): string[] | null {
   const entries = value?.split(",").map((entry) => entry.trim()).filter(Boolean) ?? [];
@@ -66,6 +67,18 @@ function getOwnerManagedResolvers(): string[] {
 
 function isOwnerManagedResolverConfigured(): boolean {
   return getOwnerManagedResolvers().length > 0;
+}
+
+function isOwnerManagedRootResourceConfigured(): boolean {
+  return getHnsRootResourceUrlTemplate().length > 0;
+}
+
+function getHnsRootResourceUrlTemplate(): string {
+  return Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE?.trim() ?? defaultHnsRootResourceUrlTemplate;
+}
+
+function getHnsRootResourceTimeoutMs(): number {
+  return Number(Bun.env.HNS_ROOT_RESOURCE_TIMEOUT_MS || "4000");
 }
 
 function requirePowerDnsStore(): PowerDnsStore {
@@ -215,6 +228,144 @@ async function resolveOwnerManagedTxt(name: string): Promise<string[]> {
   }
 }
 
+async function withRootResourceTimeout<T>(operation: Promise<T>): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error("HNS root resource query timed out")),
+          getHnsRootResourceTimeoutMs(),
+        );
+      }),
+    ]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+function readDnsNameFromResource(buffer: Buffer, offset: number): { name: string; offset: number } {
+  const labels: string[] = [];
+  let cursor = offset;
+
+  while (cursor < buffer.length) {
+    const length = buffer[cursor];
+    cursor += 1;
+    if (length === 0) {
+      return { name: `${labels.join(".")}.`, offset: cursor };
+    }
+
+    if (cursor + length > buffer.length) {
+      throw new Error("invalid HNS resource name");
+    }
+
+    labels.push(buffer.subarray(cursor, cursor + length).toString("ascii"));
+    cursor += length;
+  }
+
+  throw new Error("unterminated HNS resource name");
+}
+
+function decodeHnsResourceHex(rawHex: string): { nameservers: string[]; txtValues: string[] } {
+  const buffer = Buffer.from(rawHex, "hex");
+  const nameservers: string[] = [];
+  const txtValues: string[] = [];
+  let offset = buffer[0] === 0 ? 1 : 0;
+
+  while (offset < buffer.length) {
+    const type = buffer[offset];
+    offset += 1;
+
+    if (type === 1) {
+      const decoded = readDnsNameFromResource(buffer, offset);
+      nameservers.push(normalizeNsRecord(decoded.name));
+      offset = decoded.offset;
+      continue;
+    }
+
+    if (type === 6) {
+      const chunkCount = buffer[offset] ?? 0;
+      offset += 1;
+      const chunks: string[] = [];
+
+      for (let index = 0; index < chunkCount; index += 1) {
+        const length = buffer[offset];
+        offset += 1;
+        if (offset + length > buffer.length) {
+          throw new Error("invalid HNS TXT resource");
+        }
+        chunks.push(buffer.subarray(offset, offset + length).toString("utf8"));
+        offset += length;
+      }
+
+      txtValues.push(normalizeTxtRecordContent(chunks.join("")));
+      continue;
+    }
+
+    if (type === 0) {
+      offset += 5 + (buffer[offset + 4] ?? 0);
+      continue;
+    }
+
+    if (type === 2) {
+      const decoded = readDnsNameFromResource(buffer, offset);
+      offset = decoded.offset + 4;
+      continue;
+    }
+
+    throw new Error(`unsupported HNS resource record type ${type}`);
+  }
+
+  return {
+    nameservers: nameservers.filter(Boolean),
+    txtValues: txtValues.filter(Boolean),
+  };
+}
+
+function extractLiveResourceHexFromExplorerPayload(payload: unknown): string | null {
+  const html = Array.isArray(payload) && typeof payload[2] === "object" && payload[2] != null
+    && "html" in payload[2] && typeof payload[2].html === "string"
+    ? payload[2].html
+    : null;
+  if (!html) {
+    return null;
+  }
+
+  const liveResourceMatch = html.match(/<strong class="highlight-green">Live<\/strong>[\s\S]*?<div class="tab-raw">([0-9a-f]+)<\/div>/i);
+  return liveResourceMatch?.[1] ?? null;
+}
+
+async function fetchOwnerManagedRootResource(rootLabel: string): Promise<{
+  nameservers: string[];
+  txtValues: string[];
+} | null> {
+  const normalizedRoot = normalizeRootLabel(rootLabel);
+  const urlTemplate = getHnsRootResourceUrlTemplate();
+  if (!urlTemplate) {
+    return null;
+  }
+  const url = urlTemplate.replace("{root}", encodeURIComponent(normalizedRoot));
+
+  try {
+    const response = await withRootResourceTimeout(fetch(url, {
+      headers: { accept: "application/json" },
+    }));
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = await response.json();
+    const rawHex = extractLiveResourceHexFromExplorerPayload(payload);
+    return rawHex ? decodeHnsResourceHex(rawHex) : null;
+  } catch {
+    return null;
+  }
+}
+
 function summarizeZone(zone: PowerDnsZoneSnapshot): InspectResult["rrsets"] {
   return zone.rrsets.map((rrset) => ({
     name: withTrailingDot(rrset.name),
@@ -251,7 +402,7 @@ function deriveInspectionFields(zoneExists: boolean) {
 }
 
 async function inspectRoot(rootLabel: string, challengeHost?: string | null): Promise<InspectResult> {
-  if (isOwnerManagedResolverConfigured()) {
+  if (isOwnerManagedRootResourceConfigured()) {
     return inspectOwnerManagedRoot(rootLabel, challengeHost);
   }
 
@@ -294,10 +445,11 @@ async function inspectRoot(rootLabel: string, challengeHost?: string | null): Pr
 async function inspectOwnerManagedRoot(rootLabel: string, challengeHost?: string | null): Promise<InspectResult> {
   const normalizedRoot = normalizeRootLabel(rootLabel);
   const zoneName = normalizeZoneName(normalizedRoot);
-  const challengeName = normalizeChallengeName(normalizedRoot, challengeHost);
-  const nameservers = await resolveOwnerManagedNs(normalizedRoot);
-  const observedTxtValues = await resolveOwnerManagedTxt(challengeName);
-  const rootExists = nameservers.length > 0;
+  const challengeName = zoneName;
+  const rootResource = await fetchOwnerManagedRootResource(normalizedRoot);
+  const nameservers = rootResource?.nameservers ?? [];
+  const observedTxtValues = rootResource?.txtValues ?? [];
+  const rootExists = rootResource != null;
   const pirateDnsAuthorityVerified = nameservers.some(matchesDefaultNameserver);
   const challengePresent = observedTxtValues.length > 0;
 
@@ -311,7 +463,7 @@ async function inspectOwnerManagedRoot(rootLabel: string, challengeHost?: string
     observation_provider: OWNER_MANAGED_OBSERVATION_PROVIDER,
     failure_reason: rootExists
       ? challengePresent ? null : "challenge_not_published"
-      : "root_not_delegated",
+      : "root_resource_unavailable",
     rrsets: [
       ...(nameservers.length > 0 ? [{
         name: zoneName,
@@ -320,7 +472,7 @@ async function inspectOwnerManagedRoot(rootLabel: string, challengeHost?: string
         records: nameservers,
       }] : []),
       ...(observedTxtValues.length > 0 ? [{
-        name: challengeName,
+        name: zoneName,
         type: "TXT",
         ttl: null,
         records: observedTxtValues,
@@ -438,7 +590,7 @@ async function verifyTxt(body: {
     return json({ error: "root_label and challenge_txt_value are required" }, { status: 400 });
   }
 
-  if (isOwnerManagedResolverConfigured()) {
+  if (isOwnerManagedRootResourceConfigured()) {
     return verifyOwnerManagedTxt({
       root_label: rootLabel,
       challenge_host: body.challenge_host,
@@ -500,12 +652,11 @@ async function verifyOwnerManagedTxt(body: {
 }) {
   const normalizedRoot = normalizeRootLabel(body.root_label);
   const zoneName = normalizeZoneName(normalizedRoot);
-  const challengeName = normalizeChallengeName(normalizedRoot, body.challenge_host);
-  const [nameservers, observedValues] = await Promise.all([
-    resolveOwnerManagedNs(normalizedRoot),
-    resolveOwnerManagedTxt(challengeName),
-  ]);
-  const rootExists = nameservers.length > 0;
+  const challengeName = zoneName;
+  const rootResource = await fetchOwnerManagedRootResource(normalizedRoot);
+  const nameservers = rootResource?.nameservers ?? [];
+  const observedValues = rootResource?.txtValues ?? [];
+  const rootExists = rootResource != null;
   const pirateDnsAuthorityVerified = nameservers.some(matchesDefaultNameserver);
   const verified = observedValues.includes(body.challenge_txt_value);
 
@@ -514,8 +665,10 @@ async function verifyOwnerManagedTxt(body: {
     observation_provider: OWNER_MANAGED_OBSERVATION_PROVIDER,
     failure_reason: verified
       ? null
-      : observedValues.length === 0
-        ? "challenge_not_published"
+      : rootResource == null
+        ? "root_resource_unavailable"
+        : observedValues.length === 0
+          ? "challenge_not_published"
         : "challenge_mismatch",
     observed_values: observedValues,
     root_exists: rootExists,
@@ -544,9 +697,11 @@ export async function handleRequest(request: Request) {
         bind_host: verifierHost,
         bind_port: verifierPort,
         pdns_sqlite_database: pdnsSqliteDatabase,
-        observation_provider: isOwnerManagedResolverConfigured() ? OWNER_MANAGED_OBSERVATION_PROVIDER : "powerdns_sqlite",
+        observation_provider: isOwnerManagedRootResourceConfigured() ? OWNER_MANAGED_OBSERVATION_PROVIDER : "powerdns_sqlite",
         owner_managed_resolvers: getOwnerManagedResolvers(),
         owner_managed_resolver_timeout_ms: ownerManagedResolverTimeoutMs,
+        hns_root_resource_url_template: getHnsRootResourceUrlTemplate(),
+        hns_root_resource_timeout_ms: getHnsRootResourceTimeoutMs(),
         requires_bearer_auth: verifierAuthToken != null,
       });
     }
