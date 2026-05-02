@@ -226,6 +226,7 @@ describe("handleRequest", () => {
     expect(calls[1].headers.get("x-pirate-hns-root")).toBe("xn--pokmon-dva");
     expect(calls[1].headers.get("x-pirate-hns-community-route")).toBe("xn--pokmon-dva");
     expect(calls[1].headers.has("host")).toBe(false);
+    expect(calls[1].headers.get("accept-encoding")).toBe("identity");
   });
 
   test("proxies verified imported HNS subdomains with the subdomain header", async () => {

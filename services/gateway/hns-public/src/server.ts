@@ -451,6 +451,7 @@ async function proxyImportedNamespaceRequest(input: {
 
   const headers = new Headers(input.request.headers);
   headers.delete("host");
+  headers.set("accept-encoding", "identity");
   headers.set("accept", input.request.headers.get("accept") ?? "text/html");
   headers.set("x-pirate-hns-host", input.url.hostname);
   headers.set("x-pirate-hns-root", resolution.root_label);
