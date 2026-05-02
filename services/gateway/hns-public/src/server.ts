@@ -445,16 +445,13 @@ async function proxyImportedNamespaceRequest(input: {
   appUrl.protocol = appOriginUrl.protocol;
   appUrl.host = appOriginUrl.host;
 
-  if (input.url.pathname === "/") {
-    appUrl.pathname = buildCommunityPath(resolution.community.id, resolution.community.route_slug);
-  }
-
   const headers = new Headers(input.request.headers);
   headers.delete("host");
   headers.set("accept-encoding", "identity");
   headers.set("accept", input.request.headers.get("accept") ?? "text/html");
   headers.set("x-pirate-hns-host", input.url.hostname);
   headers.set("x-pirate-hns-root", resolution.root_label);
+  headers.set("x-pirate-hns-community-id", resolution.community.id);
   headers.set("x-pirate-hns-community-route", resolution.community.route_slug);
   if (input.namespaceHost.subdomain) {
     headers.set("x-pirate-hns-subdomain", input.namespaceHost.subdomain);

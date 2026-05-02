@@ -192,7 +192,7 @@ describe("handleRequest", () => {
     expect(html).toContain('property="og:title" content="Night Signal • Pirate Agent"');
   });
 
-  test("proxies verified imported HNS roots to their community route", async () => {
+  test("proxies verified imported HNS roots without rewriting the path", async () => {
     const calls: Array<{ url: string; headers: Headers }> = [];
     const response = await handleRequest(
       new Request("http://xn--pokmon-dva/"),
@@ -220,10 +220,11 @@ describe("handleRequest", () => {
     expect(await response.text()).toBe("community page");
     expect(calls.map((call) => call.url)).toEqual([
       "https://api.pirate.sc/public-namespaces/xn--pokmon-dva",
-      "https://pirate.sc/c/xn--pokmon-dva",
+      "https://pirate.sc/",
     ]);
     expect(calls[1].headers.get("x-pirate-hns-host")).toBe("xn--pokmon-dva");
     expect(calls[1].headers.get("x-pirate-hns-root")).toBe("xn--pokmon-dva");
+    expect(calls[1].headers.get("x-pirate-hns-community-id")).toBe("com_cmt_public_namespace_test");
     expect(calls[1].headers.get("x-pirate-hns-community-route")).toBe("xn--pokmon-dva");
     expect(calls[1].headers.has("host")).toBe(false);
     expect(calls[1].headers.get("accept-encoding")).toBe("identity");
@@ -252,8 +253,9 @@ describe("handleRequest", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(calls[1].url).toBe("https://pirate.sc/c/xn--pokmon-dva");
+    expect(calls[1].url).toBe("https://pirate.sc/");
     expect(calls[1].headers.get("x-pirate-hns-host")).toBe("v.xn--pokmon-dva");
+    expect(calls[1].headers.get("x-pirate-hns-community-id")).toBe("com_cmt_public_namespace_test");
     expect(calls[1].headers.get("x-pirate-hns-subdomain")).toBe("v");
   });
 });
