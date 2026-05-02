@@ -60,6 +60,7 @@ export type HnsPublicGatewayEnv = {
   HNS_PUBLIC_GATEWAY_EXTERNAL_SCHEME?: string;
   HNS_PUBLIC_API_ORIGIN?: string;
   HNS_PUBLIC_APP_ORIGIN?: string;
+  HNS_PUBLIC_FORWARDER_AUTH_TOKEN?: string;
 };
 
 const RESERVED_HOSTS = new Set([
@@ -416,6 +417,7 @@ async function proxyImportedNamespaceRequest(input: {
   url: URL;
   apiOrigin: string;
   appOrigin: string;
+  env: HnsPublicGatewayEnv;
   namespaceHost: { rootLabel: string; subdomain: string | null };
   fetchImpl: typeof fetch;
 }): Promise<Response | null> {
@@ -453,6 +455,10 @@ async function proxyImportedNamespaceRequest(input: {
   headers.set("x-pirate-hns-root", resolution.root_label);
   headers.set("x-pirate-hns-community-id", resolution.community.id);
   headers.set("x-pirate-hns-community-route", resolution.community.route_slug);
+  const forwarderToken = input.env.HNS_PUBLIC_FORWARDER_AUTH_TOKEN?.trim();
+  if (forwarderToken) {
+    headers.set("x-pirate-hns-forwarder-token", forwarderToken);
+  }
   if (input.namespaceHost.subdomain) {
     headers.set("x-pirate-hns-subdomain", input.namespaceHost.subdomain);
   }
@@ -497,6 +503,7 @@ export async function handleRequest(
         url,
         apiOrigin,
         appOrigin,
+        env,
         namespaceHost,
         fetchImpl,
       });

@@ -226,8 +226,35 @@ describe("handleRequest", () => {
     expect(calls[1].headers.get("x-pirate-hns-root")).toBe("xn--pokmon-dva");
     expect(calls[1].headers.get("x-pirate-hns-community-id")).toBe("com_cmt_public_namespace_test");
     expect(calls[1].headers.get("x-pirate-hns-community-route")).toBe("xn--pokmon-dva");
+    expect(calls[1].headers.has("x-pirate-hns-forwarder-token")).toBe(false);
     expect(calls[1].headers.has("host")).toBe(false);
     expect(calls[1].headers.get("accept-encoding")).toBe("identity");
+  });
+
+  test("signs imported HNS proxy requests when a forwarder token is configured", async () => {
+    const calls: Array<{ url: string; headers: Headers }> = [];
+    const response = await handleRequest(
+      new Request("http://xn--pokmon-dva/"),
+      { ...env, HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "shared-secret" },
+      async (url, init) => {
+        calls.push({ url: String(url), headers: new Headers(init?.headers) });
+        if (String(url) === "https://api.pirate.sc/public-namespaces/xn--pokmon-dva") {
+          return Response.json({
+            root_label: "xn--pokmon-dva",
+            namespace_verification: "nv_namespace_public_test",
+            community: {
+              id: "com_cmt_public_namespace_test",
+              display_name: "Imported Root",
+              route_slug: "xn--pokmon-dva",
+            },
+          });
+        }
+        return new Response("community page");
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(calls[1].headers.get("x-pirate-hns-forwarder-token")).toBe("shared-secret");
   });
 
   test("proxies verified imported HNS subdomains with the subdomain header", async () => {
