@@ -1,6 +1,6 @@
 # Spaces VPS Deployment Spec
 
-Status: production shape for the VPS-hosted Spaces verifier at `spaces.pirate.sc`
+Status: production shape for the VPS-hosted Spaces verifier at `verifier.pirate.sc/spaces`
 
 Related:
 
@@ -65,7 +65,7 @@ The VPS checkout must preserve the repo tree. Do not flatten verifier files into
    - binds to `127.0.0.1:4047`
 
 3. reverse proxy
-   - terminates TLS for `https://spaces.pirate.sc`
+   - terminates TLS for `https://verifier.pirate.sc`
    - forwards only verifier traffic
 
 4. `pirate-api`
@@ -101,7 +101,7 @@ Expose only the verifier over HTTPS. `spaced` must not be publicly reachable.
 
 Pirate API:
 
-- `SPACES_VERIFIER_BASE_URL=https://spaces.pirate.sc`
+- `SPACES_VERIFIER_BASE_URL=https://verifier.pirate.sc/spaces`
 - `SPACES_VERIFIER_AUTH_TOKEN=<same-bearer-token>`
 
 Do not set `SPACES_NATIVE_ALLOW_BUILD_FALLBACK=true` on the VPS.
@@ -148,9 +148,9 @@ Do not compile Rust on each service restart.
 3. Run `bun install` if dependencies changed.
 4. Build `spaces-verifier-native`.
 5. Restart `pirate-spaces-verifier.service`.
-6. Confirm `GET https://spaces.pirate.sc/health`.
-7. Confirm `GET https://spaces.pirate.sc/inspect?root_label=@pirate`.
-8. Confirm `POST https://spaces.pirate.sc/verify-publish` with a known session challenge when available.
+6. Confirm `GET https://verifier.pirate.sc/spaces/health`.
+7. Confirm `GET https://verifier.pirate.sc/spaces/inspect?root_label=@pirate`.
+8. Confirm `POST https://verifier.pirate.sc/spaces/verify-publish` with a known session challenge when available.
 
 ## Cutover Rule
 

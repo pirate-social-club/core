@@ -69,7 +69,7 @@ Options:
   --display-name TEXT              Community display name.
   --description TEXT               Optional community description.
   --database-region REGION         Default: aws-us-east-1
-  --publisher-ssh HOST             Default: root@spaces.pirate.sc
+  --publisher-ssh HOST             Default: root@verifier.pirate.sc
   --publisher-bin PATH             Default: /srv/pirate-spaces/bin/spaces-publisher
   --wallet-export PATH             Default: /srv/pirate-spaces/data/spaced/mainnet/wallets/default/wallet.json
   --issuer ISSUER                  Default: pirate-production-upstream
@@ -86,7 +86,7 @@ function parseArgs(argv: string[]): Options {
     displayName: "",
     description: null,
     databaseRegion: "aws-us-east-1",
-    publisherSsh: "root@spaces.pirate.sc",
+    publisherSsh: "root@verifier.pirate.sc",
     publisherBin: "/srv/pirate-spaces/bin/spaces-publisher",
     walletExport: "/srv/pirate-spaces/data/spaced/mainnet/wallets/default/wallet.json",
     issuer: "pirate-production-upstream",

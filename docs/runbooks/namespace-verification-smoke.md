@@ -18,7 +18,7 @@ This runbook records the completed live staging smoke for:
 - live worker name: `pirate-api-staging`
 - verifier public endpoints:
   - HNS: `https://verifier.pirate.sc/hns`
-  - Spaces: `https://spaces.pirate.sc`
+  - Spaces: `https://verifier.pirate.sc/spaces`
 - verifier traffic goes through Caddy on the VPS at `verifier.pirate.sc`
 
 Important discovery:

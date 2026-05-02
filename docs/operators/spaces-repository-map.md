@@ -26,7 +26,7 @@ The live verifier service currently stays in `core`:
 - [services/verifier/spaces](../../services/verifier/spaces)
 - [ops/vps/spaces-verifier](../../ops/vps/spaces-verifier)
 
-It is deployed on the VPS behind `https://spaces.pirate.sc`. If this service is extracted into a
+It is deployed on the VPS behind `https://verifier.pirate.sc/spaces`. If this service is extracted into a
 standalone repo, use `pirate-spaces-verifier`.
 
 The active publisher CLI name is `pirate-spaces-publisher`. The local source used by this workspace

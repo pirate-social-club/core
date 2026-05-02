@@ -2,4 +2,12 @@ verifier.pirate.sc {
   handle_path /hns/* {
     reverse_proxy 127.0.0.1:4048
   }
+
+  handle_path /spaces/* {
+    reverse_proxy 127.0.0.1:4047
+  }
+
+  handle_path /prod/* {
+    reverse_proxy 127.0.0.1:8789
+  }
 }
