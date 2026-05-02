@@ -89,6 +89,8 @@ Product and system design docs grouped by domain surface.
   Canonical `*.clawitzer` identity for user-owned agents.
 - `handles.md`
   Handle issuance and namespace policy.
+- `namespace-handle-issuance.md`
+  TLD/Spaces namespace handle claims, sales, resolution, authority, and registry projection.
 - `namespace.md`
   Namespace control and product semantics.
 - `namespace-root-control.md`
