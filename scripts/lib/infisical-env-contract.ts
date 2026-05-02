@@ -246,6 +246,11 @@ export const ENV_CONTRACT: EnvContract = {
     },
     {
       path: "/services/api",
+      key: "FIRECRAWL_API_KEY",
+      requiredness: "deferred",
+    },
+    {
+      path: "/services/api",
       key: "STORY_RUNTIME_PRIVATE_KEY",
       requiredness: "required_for_hosted",
     },
@@ -635,6 +640,8 @@ export const WRANGLER_MANAGED_CONFIG_NAMES = [
   "OPENAI_MODERATION_SEXUAL_MINORS_BLOCK_THRESHOLD",
   "OPENAI_MODERATION_TIMEOUT_MS",
   "OPENROUTER_BASE_URL",
+  "OPENROUTER_LINK_SUMMARY_MODEL",
+  "OPENROUTER_LINK_SUMMARY_TIMEOUT_MS",
   "OPENROUTER_MODEL",
   "PASSPORT_API_URL",
   "PASSPORT_SCORER_ID",
