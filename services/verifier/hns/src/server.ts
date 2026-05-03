@@ -100,7 +100,7 @@ async function rediscoverZones() {
 function normalizeRootLabel(value: string): string {
   const trimmed = value.trim().normalize("NFKC").toLowerCase().replace(/\/+$/, "");
   const normalized = normalizeIdnaRootLabel(trimmed);
-  if (!/^[a-z0-9-]+$/.test(normalized)) {
+  if (!/^[a-z0-9_-]+$/.test(normalized)) {
     throw new Error("root_label must be a single Handshake TLD label");
   }
   return normalized;

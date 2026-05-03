@@ -104,6 +104,21 @@ describe("hns verifier server", () => {
     expect(body.failure_reason).toBe("zone_not_provisioned");
   });
 
+  test("supports underscores in HNS root labels", async () => {
+    resetOwnerManagedProofs();
+    const response = await handleRequest(new Request(
+      "http://127.0.0.1:4048/inspect-public?root_label=tame_impala&challenge_host=_pirate.tame_impala",
+    ));
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.root_label).toBe("tame_impala");
+    expect(body.zone_name).toBe("tame_impala.");
+    expect(body.challenge_name).toBe("_pirate.tame_impala.");
+    expect(body.zone_exists).toBe(false);
+    expect(body.failure_reason).toBe("zone_not_provisioned");
+  });
+
   test("normalizes Unicode HNS roots to the same public inspect result", async () => {
     resetOwnerManagedProofs();
     const response = await handleRequest(new Request(
