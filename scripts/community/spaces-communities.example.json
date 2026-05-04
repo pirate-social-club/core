@@ -1,0 +1,75 @@
+{
+  "owner": {
+    "subject": "cold-wallet-launch-owner-202605",
+    "issuer": "pirate-production-upstream",
+    "audience": "api-core"
+  },
+  "defaults": {
+    "database_region": "aws-us-east-1",
+    "publisher_bin": "./tools/spaces-publisher/spaces-publisher",
+    "wallet_export": "/srv/pirate-spaces/data/spaced/mainnet/wallets/default/wallet.json",
+    "max_index": 10000
+  },
+  "communities": [
+    {
+      "root": "🇵🇸",
+      "display_name": "فلسطين Palestine",
+      "country_code": "PSE",
+      "description": "Palestine community"
+    },
+    {
+      "root": "🇺🇦",
+      "display_name": "Україна Ukraine",
+      "country_code": "UKR",
+      "description": "Ukraine community"
+    },
+    {
+      "root": "🇸🇩",
+      "display_name": "السودان Sudan",
+      "country_code": "SDN",
+      "description": "Sudan community"
+    },
+    {
+      "root": "🇾🇪",
+      "display_name": "اليمن Yemen",
+      "country_code": "YEM",
+      "description": "Yemen community"
+    },
+    {
+      "root": "🇸🇴",
+      "display_name": "Soomaaliya Somalia",
+      "country_code": "SOM",
+      "description": "Somalia community"
+    },
+    {
+      "root": "🇦🇫",
+      "display_name": "افغانستان Afghanistan",
+      "country_code": "AFG",
+      "description": "Afghanistan community"
+    },
+    {
+      "root": "🇸🇾",
+      "display_name": "سوريا Syria",
+      "country_code": "SYR",
+      "description": "Syria community"
+    },
+    {
+      "root": "🇲🇲",
+      "display_name": "မြန်မာ Myanmar",
+      "country_code": "MMR",
+      "description": "Myanmar community"
+    },
+    {
+      "root": "🇪🇹",
+      "display_name": "ኢትዮጵያ Ethiopia",
+      "country_code": "ETH",
+      "description": "Ethiopia community"
+    },
+    {
+      "root": "🇨🇩",
+      "display_name": "RD Congo",
+      "country_code": "COD",
+      "description": "DR Congo community"
+    }
+  ]
+}

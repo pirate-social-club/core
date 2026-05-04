@@ -30,7 +30,7 @@ type CommunityResponse = {
   banner_ref?: string | null;
   membership_mode?: string;
   route_slug?: string | null;
-  gate_rules?: unknown[];
+  gate_policy?: unknown;
   label_policy?: unknown;
   donation_policy_mode?: string;
   donation_partner_id?: string | null;
@@ -267,16 +267,17 @@ function buildNationalityGate(nationality: string) {
     membership_mode: "gated",
     default_age_gate_policy: "none",
     allow_anonymous_identity: false,
-    gate_rules: [{
-      scope: "membership",
-      gate_family: "identity_proof",
-      gate_type: "nationality",
-      proof_requirements: [{
-        proof_type: "nationality",
-        accepted_providers: ["self"],
-        config: { required_value: nationality },
-      }],
-    }],
+    gate_policy: {
+      version: 1,
+      expression: {
+        op: "gate",
+        gate: {
+          type: "nationality",
+          provider: "self",
+          allowed: [nationality],
+        },
+      },
+    },
   };
 }
 
