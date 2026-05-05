@@ -89,19 +89,32 @@ StartVerificationSessionRequest:
         use this policy as the source of truth for provider-specific verifier settings rather than
         trusting client-authored disclosure or widget configuration.
 VerificationRequirement:
-  type: object
-  required:
-    - proof_type
-  properties:
-    proof_type:
-      type: string
-      enum:
-        - minimum_age
-    minimum_age:
-      type: integer
-      minimum: 18
-      maximum: 125
-      description: Minimum age threshold requested from the verifier.
+  oneOf:
+    - type: object
+      required:
+        - proof_type
+      properties:
+        proof_type:
+          type: string
+          enum:
+            - minimum_age
+        minimum_age:
+          type: integer
+          minimum: 18
+          maximum: 125
+          description: Minimum age threshold requested from the verifier.
+    - type: object
+      required:
+        - proof_type
+      properties:
+        proof_type:
+          type: string
+          enum:
+            - nationality
+        required_values:
+          type: array
+          items:
+            type: string
 CompleteVerificationSessionRequest:
   type: object
   description: |

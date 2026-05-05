@@ -91,6 +91,20 @@ Comment:
         - hidden
         - removed
         - deleted
+    replies_locked:
+      type: boolean
+      description: |
+        True when moderators have locked this comment against new replies by ordinary members.
+    replies_locked_at:
+      type: integer
+      format: int64
+      nullable: true
+    replies_locked_by_user:
+      type: string
+      nullable: true
+    replies_lock_reason:
+      type: string
+      nullable: true
     depth:
       type: integer
     direct_reply_count:
@@ -119,6 +133,18 @@ Comment:
     created:
       type: integer
       format: int64
+CommentLockRequest:
+  type: object
+  additionalProperties: false
+  properties:
+    locked:
+      type: boolean
+      default: true
+      description: |
+        Omit or set to true to lock. Set false to unlock.
+    reason:
+      type: string
+      nullable: true
 CreateCommentRequest:
   type: object
   additionalProperties: false

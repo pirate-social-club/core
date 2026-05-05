@@ -1645,6 +1645,56 @@ communities_by_community_id_posts_by_post_id_comments:
         $ref: ../components/responses.yaml#/VerificationRequired
       "404":
         $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_posts_by_post_id_remove:
+  post:
+    tags:
+      - Moderation
+    x-implemented: true
+    summary: Remove a post as a moderator
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/PostId
+    responses:
+      "200":
+        description: Post removed
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/posts.yaml#/Post
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_posts_by_post_id_comments_lock:
+  post:
+    tags:
+      - Moderation
+    x-implemented: true
+    summary: Lock or unlock comments on a post thread
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/PostId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/comments.yaml#/CommentLockRequest
+    responses:
+      "200":
+        description: Thread lock state updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/posts.yaml#/Post
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
 communities_by_community_id_posts_by_post_id_reports:
   post:
     tags:

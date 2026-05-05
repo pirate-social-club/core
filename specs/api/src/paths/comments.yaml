@@ -22,7 +22,28 @@ comments_by_comment_id_remove:
     tags:
       - Comments
     x-implemented: true
-    summary: Tombstone a comment
+    summary: Remove a comment as a moderator
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommentId
+    responses:
+      "200":
+        description: Comment removed
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/comments.yaml#/Comment
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+comments_by_comment_id_delete:
+  post:
+    tags:
+      - Comments
+    x-implemented: true
+    summary: Tombstone a comment as its author
     parameters:
       - $ref: ../components/parameters.yaml#/CommentId
     responses:
@@ -84,6 +105,33 @@ comments_by_comment_id_replies:
         $ref: ../components/responses.yaml#/AuthError
       "403":
         $ref: ../components/responses.yaml#/VerificationRequired
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+comments_by_comment_id_replies_lock:
+  post:
+    tags:
+      - Moderation
+    x-implemented: true
+    summary: Lock or unlock replies under a comment
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommentId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/comments.yaml#/CommentLockRequest
+    responses:
+      "200":
+        description: Comment reply lock state updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/comments.yaml#/Comment
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
       "404":
         $ref: ../components/responses.yaml#/NotFound
 comments_by_comment_id_context:

@@ -199,10 +199,226 @@ YouTubeVideoEmbed:
       type: integer
       format: int64
       nullable: true
+PredictionMarketChartPoint:
+  type: object
+  additionalProperties: false
+  required:
+    - ts
+  properties:
+    ts:
+      type: integer
+      format: int64
+    price:
+      type: number
+      nullable: true
+    volume:
+      type: number
+      nullable: true
+    open_interest:
+      type: number
+      nullable: true
+PredictionMarketOutcome:
+  type: object
+  additionalProperties: false
+  required:
+    - label
+    - probability
+  properties:
+    label:
+      type: string
+    probability:
+      type: number
+PredictionMarketEmbedPreview:
+  type: object
+  additionalProperties: false
+  properties:
+    question:
+      type: string
+      nullable: true
+    title:
+      type: string
+      nullable: true
+    image_url:
+      type: string
+      nullable: true
+    yes_price:
+      type: number
+      nullable: true
+    yes_bid:
+      type: number
+      nullable: true
+    yes_ask:
+      type: number
+      nullable: true
+    no_bid:
+      type: number
+      nullable: true
+    no_ask:
+      type: number
+      nullable: true
+    last_price:
+      type: number
+      nullable: true
+    volume:
+      type: number
+      nullable: true
+    volume_24h:
+      type: number
+      nullable: true
+    liquidity:
+      type: number
+      nullable: true
+    open_interest:
+      type: number
+      nullable: true
+    status:
+      type: string
+      nullable: true
+    resolution:
+      type: string
+      enum:
+        - yes
+        - no
+      nullable: true
+    resolved_outcome:
+      type: string
+      nullable: true
+    close_time:
+      type: string
+      nullable: true
+    updated_at:
+      type: string
+      nullable: true
+    chart:
+      type: array
+      nullable: true
+      items:
+        $ref: ./posts.yaml#/PredictionMarketChartPoint
+    outcomes:
+      type: array
+      nullable: true
+      items:
+        $ref: ./posts.yaml#/PredictionMarketOutcome
+KalshiMarketEmbed:
+  type: object
+  additionalProperties: false
+  required:
+    - embed
+    - embed_key
+    - provider
+    - canonical_url
+    - original_url
+    - state
+  properties:
+    embed:
+      type: string
+    embed_key:
+      type: string
+    provider:
+      type: string
+      enum:
+        - kalshi
+    provider_ref:
+      type: string
+      nullable: true
+    canonical_url:
+      type: string
+      format: uri
+    original_url:
+      type: string
+      format: uri
+    state:
+      type: string
+      enum:
+        - pending
+        - preview
+        - embed
+        - unavailable
+    preview:
+      $ref: ./posts.yaml#/PredictionMarketEmbedPreview
+      nullable: true
+    oembed_html:
+      type: string
+      nullable: true
+    oembed_cache_age:
+      type: integer
+      nullable: true
+    unavailable_reason:
+      type: string
+      enum:
+        - deleted
+        - withheld
+        - private
+        - unsupported
+        - unknown
+      nullable: true
+    last_checked_at:
+      type: integer
+      format: int64
+      nullable: true
+PolymarketMarketEmbed:
+  type: object
+  additionalProperties: false
+  required:
+    - embed
+    - embed_key
+    - provider
+    - canonical_url
+    - original_url
+    - state
+  properties:
+    embed:
+      type: string
+    embed_key:
+      type: string
+    provider:
+      type: string
+      enum:
+        - polymarket
+    provider_ref:
+      type: string
+      nullable: true
+    canonical_url:
+      type: string
+      format: uri
+    original_url:
+      type: string
+      format: uri
+    state:
+      type: string
+      enum:
+        - pending
+        - preview
+        - embed
+        - unavailable
+    preview:
+      $ref: ./posts.yaml#/PredictionMarketEmbedPreview
+      nullable: true
+    oembed_html:
+      type: string
+      nullable: true
+    oembed_cache_age:
+      type: integer
+      nullable: true
+    unavailable_reason:
+      type: string
+      enum:
+        - deleted
+        - withheld
+        - private
+        - unsupported
+        - unknown
+      nullable: true
+    last_checked_at:
+      type: integer
+      format: int64
+      nullable: true
 PostEmbed:
   oneOf:
     - $ref: ./posts.yaml#/XPostEmbed
     - $ref: ./posts.yaml#/YouTubeVideoEmbed
+    - $ref: ./posts.yaml#/KalshiMarketEmbed
+    - $ref: ./posts.yaml#/PolymarketMarketEmbed
 CreatePostRequest:
   type: object
   description: |
@@ -686,6 +902,20 @@ Post:
         - hidden
         - removed
         - deleted
+    comments_locked:
+      type: boolean
+      description: |
+        True when moderators have locked the thread against new top-level comments by ordinary members.
+    comments_locked_at:
+      type: integer
+      format: int64
+      nullable: true
+    comments_locked_by_user:
+      type: string
+      nullable: true
+    comments_lock_reason:
+      type: string
+      nullable: true
     visibility:
       type: string
       enum:
@@ -711,6 +941,10 @@ Post:
     link_og_title:
       type: string
       nullable: true
+    link_enrichment:
+      type: object
+      nullable: true
+      additionalProperties: true
     embeds:
       type: array
       items:
@@ -864,6 +1098,14 @@ LocalizedPostResponse:
       nullable: true
       description: |
         The caller's active vote on the post. Null means the caller has not cast a vote.
+    viewer_is_author:
+      type: boolean
+    age_gate_viewer_state:
+      type: string
+      enum:
+        - proof_required
+        - verified_allowed
+      nullable: true
     viewer_reaction_kinds:
       type: array
       description: |
@@ -902,10 +1144,68 @@ LocalizedPostResponse:
       nullable: true
       description: |
         Viewer-facing translated caption text when `translation_state = ready`.
+    translated_embeds:
+      type: array
+      nullable: true
+      items:
+        $ref: ./posts.yaml#/LocalizedPostEmbedTranslation
     source_hash:
       type: string
       description: |
         Content fingerprint for translation cache invalidation. Changes when the canonical source text changes.
+LocalizedPostEmbedTranslation:
+  type: object
+  additionalProperties: false
+  required:
+    - embed_key
+    - source_hash
+  properties:
+    embed_key:
+      type: string
+    translated_question:
+      type: string
+      nullable: true
+    translated_title:
+      type: string
+      nullable: true
+    translated_outcomes:
+      type: array
+      nullable: true
+      items:
+        type: object
+        additionalProperties: false
+        required:
+          - label
+          - translated_label
+          - source_hash
+        properties:
+          label:
+            type: string
+          translated_label:
+            type: string
+            nullable: true
+          source_hash:
+            type: string
+    source_hash:
+      type: string
+DeletedPostResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - id
+    - object
+    - deleted
+  properties:
+    id:
+      type: string
+    object:
+      type: string
+      enum:
+        - post
+    deleted:
+      type: boolean
+      enum:
+        - true
 MediaDescriptor:
   type: object
   required:

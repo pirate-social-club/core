@@ -226,6 +226,51 @@ ModerationCase:
       type: integer
       format: int64
       nullable: true
+ModerationCasePostPreview:
+  type: object
+  additionalProperties: false
+  required:
+    - post_id
+    - post_type
+    - status
+    - title
+    - body
+    - caption
+    - media_refs_json
+    - author_handle
+  properties:
+    post_id:
+      type: string
+    post_type:
+      type: string
+    status:
+      type: string
+    title:
+      type: string
+      nullable: true
+    body:
+      type: string
+      nullable: true
+    caption:
+      type: string
+      nullable: true
+    media_refs_json:
+      type: string
+      nullable: true
+    author_handle:
+      type: string
+      nullable: true
+ModerationCaseListItem:
+  allOf:
+    - $ref: ./moderation.yaml#/ModerationCase
+    - type: object
+      additionalProperties: false
+      required:
+        - post
+      properties:
+        post:
+          $ref: ./moderation.yaml#/ModerationCasePostPreview
+          nullable: true
 ModerationCaseListResponse:
   type: object
   required:
@@ -235,7 +280,7 @@ ModerationCaseListResponse:
     items:
       type: array
       items:
-        $ref: ./moderation.yaml#/ModerationCase
+        $ref: ./moderation.yaml#/ModerationCaseListItem
     next_cursor:
       type: string
       nullable: true

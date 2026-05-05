@@ -798,6 +798,7 @@ Community:
     - motion_media_policy
     - language_policy
     - civility_policy
+    - visual_policy_settings
     - provenance_policy
     - promotion_policy
     - created_by_user
@@ -1066,6 +1067,8 @@ Community:
       $ref: ./communities-community.yaml#/CommunityCivilityPolicy
       description: |
         Resolved effective civility policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the default from an explicit community configuration.
+    visual_policy_settings:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicySettings
     openai_moderation_settings:
       type: object
       nullable: true
@@ -1171,6 +1174,181 @@ CommunityFollowResponse:
     follower_count:
       type: integer
       nullable: true
+CommunityVisualPolicyAction:
+  type: string
+  enum:
+    - allow
+    - queue
+    - reject
+CommunityVisualPolicyDisclosureAction:
+  type: string
+  enum:
+    - allow
+    - allow_with_disclosure
+    - queue
+    - reject
+CommunityVisualPolicySettings:
+  type: object
+  additionalProperties: false
+  required:
+    - community
+    - policy_origin
+    - topless
+    - visible_nipples
+    - visible_buttocks
+    - visible_genitals
+    - bottomless_obscured
+    - implied_sexual_activity
+    - explicit_sexual_activity
+    - sexualized_contact
+    - masturbation
+    - oral_sex
+    - sex_toy_packaging
+    - sex_toy_visible
+    - sex_toy_in_use
+    - anime_manga
+    - furry_anthro
+    - fictional_nudity
+    - fictional_explicit_sex
+    - ambiguous_fictional_age_with_adult_content
+    - possible_minor_with_adult_content
+    - ai_generated_images
+    - ai_generated_adult_images
+    - deepfake_or_face_swap_risk
+    - celebrity_adult_likeness
+    - voyeuristic_or_hidden_camera
+    - watermark
+    - adult_platform_watermark
+    - product_promotion
+    - affiliate_or_sales_link
+    - qr_code
+    - payment_handle
+    - urls_in_image
+    - weapons
+    - gore_or_injury
+    - drugs
+    - hate_symbols
+    - personal_documents
+    - uncertain_age_with_adult_content
+    - low_quality_adult_image
+    - model_uncertain
+  properties:
+    community:
+      type: string
+    policy_origin:
+      $ref: ./communities-community.yaml#/CommunityPolicyOrigin
+    topless:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    visible_nipples:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    visible_buttocks:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    visible_genitals:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    bottomless_obscured:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    implied_sexual_activity:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    explicit_sexual_activity:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    sexualized_contact:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    masturbation:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    oral_sex:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    sex_toy_packaging:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    sex_toy_visible:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    sex_toy_in_use:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    anime_manga:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    furry_anthro:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    fictional_nudity:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    fictional_explicit_sex:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    ambiguous_fictional_age_with_adult_content:
+      type: string
+      enum:
+        - queue
+        - reject
+    possible_minor_with_adult_content:
+      type: string
+      enum:
+        - reject
+    ai_generated_images:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    ai_generated_adult_images:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    deepfake_or_face_swap_risk:
+      type: string
+      enum:
+        - queue
+        - reject
+    celebrity_adult_likeness:
+      type: string
+      enum:
+        - queue
+        - reject
+    voyeuristic_or_hidden_camera:
+      type: string
+      enum:
+        - reject
+    watermark:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    adult_platform_watermark:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    product_promotion:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyDisclosureAction
+    affiliate_or_sales_link:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyDisclosureAction
+    qr_code:
+      type: string
+      enum:
+        - queue
+        - reject
+    payment_handle:
+      type: string
+      enum:
+        - queue
+        - reject
+    urls_in_image:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    weapons:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    gore_or_injury:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    drugs:
+      $ref: ./communities-core.yaml#/CommunityVisualPolicyAction
+    hate_symbols:
+      type: string
+      enum:
+        - queue
+        - reject
+    personal_documents:
+      type: string
+      enum:
+        - queue
+        - reject
+    uncertain_age_with_adult_content:
+      type: string
+      enum:
+        - queue
+        - reject
+    low_quality_adult_image:
+      type: string
+      enum:
+        - queue
+        - reject
+    model_uncertain:
+      type: string
+      enum:
+        - queue
+        - reject
 MembershipGateSummary:
   type: object
   required:

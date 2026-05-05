@@ -3101,6 +3101,56 @@ paths:
           $ref: "#/components/responses/VerificationRequired"
         "404":
           $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/posts/{post_id}/remove:
+    post:
+      tags:
+        - Moderation
+      x-implemented: true
+      summary: Remove a post as a moderator
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/PostId"
+      responses:
+        "200":
+          description: Post removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/posts/{post_id}/comments-lock:
+    post:
+      tags:
+        - Moderation
+      x-implemented: true
+      summary: Lock or unlock comments on a post thread
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/PostId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommentLockRequest"
+      responses:
+        "200":
+          description: Thread lock state updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /communities/{community_id}/posts/{post_id}/reports:
     post:
       tags:
@@ -4066,7 +4116,28 @@ paths:
       tags:
         - Comments
       x-implemented: true
-      summary: Tombstone a comment
+      summary: Remove a comment as a moderator
+      parameters:
+        - $ref: "#/components/parameters/CommentId"
+      responses:
+        "200":
+          description: Comment removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /comments/{comment_id}/delete:
+    post:
+      tags:
+        - Comments
+      x-implemented: true
+      summary: Tombstone a comment as its author
       parameters:
         - $ref: "#/components/parameters/CommentId"
       responses:
@@ -4128,6 +4199,33 @@ paths:
           $ref: "#/components/responses/AuthError"
         "403":
           $ref: "#/components/responses/VerificationRequired"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /comments/{comment_id}/replies-lock:
+    post:
+      tags:
+        - Moderation
+      x-implemented: true
+      summary: Lock or unlock replies under a comment
+      parameters:
+        - $ref: "#/components/parameters/CommentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommentLockRequest"
+      responses:
+        "200":
+          description: Comment reply lock state updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
         "404":
           $ref: "#/components/responses/NotFound"
   /comments/{comment_id}/context:
@@ -6220,7 +6318,7 @@ components:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/ModerationCase"
+            $ref: "#/components/schemas/ModerationCaseListItem"
         next_cursor:
           type: string
           nullable: true
@@ -7006,6 +7104,7 @@ components:
           nullable: true
           enum:
             - code_not_found
+            - different_code_found
             - username_not_found
             - rate_limited
             - source_error
@@ -8972,6 +9071,7 @@ components:
         - motion_media_policy
         - language_policy
         - civility_policy
+        - visual_policy_settings
         - provenance_policy
         - promotion_policy
         - created_by_user
@@ -9240,6 +9340,8 @@ components:
           $ref: "#/components/schemas/CommunityCivilityPolicy"
           description: |
             Resolved effective civility policy returned on community reads. This object must be returned even when the stored policy is unset; use `policy_origin` to distinguish the default from an explicit community configuration.
+        visual_policy_settings:
+          $ref: "#/components/schemas/CommunityVisualPolicySettings"
         openai_moderation_settings:
           type: object
           nullable: true
@@ -10959,6 +11061,20 @@ components:
             - hidden
             - removed
             - deleted
+        comments_locked:
+          type: boolean
+          description: |
+            True when moderators have locked the thread against new top-level comments by ordinary members.
+        comments_locked_at:
+          type: integer
+          format: int64
+          nullable: true
+        comments_locked_by_user:
+          type: string
+          nullable: true
+        comments_lock_reason:
+          type: string
+          nullable: true
         visibility:
           type: string
           enum:
@@ -10984,6 +11100,10 @@ components:
         link_og_title:
           type: string
           nullable: true
+        link_enrichment:
+          type: object
+          nullable: true
+          additionalProperties: true
         embeds:
           type: array
           items:
@@ -11137,6 +11257,14 @@ components:
           nullable: true
           description: |
             The caller's active vote on the post. Null means the caller has not cast a vote.
+        viewer_is_author:
+          type: boolean
+        age_gate_viewer_state:
+          type: string
+          enum:
+            - proof_required
+            - verified_allowed
+          nullable: true
         viewer_reaction_kinds:
           type: array
           description: |
@@ -11175,6 +11303,11 @@ components:
           nullable: true
           description: |
             Viewer-facing translated caption text when `translation_state = ready`.
+        translated_embeds:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/LocalizedPostEmbedTranslation"
         source_hash:
           type: string
           description: |
@@ -11220,6 +11353,8 @@ components:
       oneOf:
         - $ref: "#/components/schemas/XPostEmbed"
         - $ref: "#/components/schemas/YouTubeVideoEmbed"
+        - $ref: "#/components/schemas/KalshiMarketEmbed"
+        - $ref: "#/components/schemas/PolymarketMarketEmbed"
     XEmbedPreview:
       type: object
       additionalProperties: false
@@ -12580,9 +12715,9 @@ components:
     DismissTaskRequest:
       type: object
       required:
-        - task
+        - task_id
       properties:
-        task:
+        task_id:
           type: string
     ClaimableRoyaltyItem:
       type: object

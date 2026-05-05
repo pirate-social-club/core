@@ -55,3 +55,6 @@ HomeFeedCommunitySummary:
     follower_count:
       type: integer
       nullable: true
+    view_count:
+      type: integer
+      nullable: true

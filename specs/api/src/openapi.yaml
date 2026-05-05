@@ -229,6 +229,10 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_posts
   /communities/{community_id}/posts/{post_id}/comments:
     $ref: ./paths/communities.yaml#/communities_by_community_id_posts_by_post_id_comments
+  /communities/{community_id}/posts/{post_id}/remove:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_posts_by_post_id_remove
+  /communities/{community_id}/posts/{post_id}/comments-lock:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_posts_by_post_id_comments_lock
   /communities/{community_id}/posts/{post_id}/reports:
     $ref: ./paths/communities.yaml#/communities_by_community_id_posts_by_post_id_reports
   /communities/{community_id}/comments/{comment_id}/reports:
@@ -295,8 +299,12 @@ paths:
     $ref: ./paths/comments.yaml#/comments_by_comment_id
   /comments/{comment_id}/remove:
     $ref: ./paths/comments.yaml#/comments_by_comment_id_remove
+  /comments/{comment_id}/delete:
+    $ref: ./paths/comments.yaml#/comments_by_comment_id_delete
   /comments/{comment_id}/replies:
     $ref: ./paths/comments.yaml#/comments_by_comment_id_replies
+  /comments/{comment_id}/replies-lock:
+    $ref: ./paths/comments.yaml#/comments_by_comment_id_replies_lock
   /comments/{comment_id}/context:
     $ref: ./paths/comments.yaml#/comments_by_comment_id_context
   /comments/{comment_id}/vote:
