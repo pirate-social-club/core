@@ -190,17 +190,22 @@ export const ENV_CONTRACT: EnvContract = {
     {
       path: "/services/api",
       key: "ANALYTICS_ENABLED",
-      requiredness: "deferred",
+      requiredness: "required_for_production",
     },
     {
       path: "/services/api",
       key: "ANALYTICS_HMAC_SECRET",
-      requiredness: "deferred",
+      requiredness: "required_for_production",
     },
     {
       path: "/services/api",
       key: "TINYBIRD_INGEST_TOKEN",
-      requiredness: "deferred",
+      requiredness: "required_for_production",
+    },
+    {
+      path: "/services/api",
+      key: "TINYBIRD_READ_TOKEN",
+      requiredness: "required_for_production",
     },
     {
       path: "/services/api",
