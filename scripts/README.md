@@ -56,6 +56,8 @@ It is intentionally narrow:
   Read-only inspection of one remote community DB migration ledger, including checksum-based rename candidates.
 - `scripts/community/reconcile-remote-community-migration-ledgers.ts`
   Dry-run or apply checksum-proven `schema_migrations` ledger renames for active remote community DBs. It does not apply missing migrations.
+- `scripts/community/repair-community-migration-ledger.ts`
+  Dry-run or apply known checksum drift repairs, remove known stray ledger rows, and apply pending community-template migrations.
 - `scripts/community/bootstrap-community-db.sh`
   Bootstrap a local community DB from the community template.
 - `scripts/community/bootstrap-community-slice.ts`
