@@ -84,6 +84,12 @@ Comment:
     body:
       type: string
       nullable: true
+    media_refs:
+      type: array
+      items:
+        $ref: ./posts.yaml#/MediaDescriptor
+      description: |
+        Optional image media attached to the comment. v1 accepts at most one image descriptor.
     status:
       type: string
       enum:
@@ -148,8 +154,6 @@ CommentLockRequest:
 CreateCommentRequest:
   type: object
   additionalProperties: false
-  required:
-    - body
   properties:
     idempotency_key:
       type: string
@@ -159,6 +163,15 @@ CreateCommentRequest:
         and community returns the already-created comment.
     body:
       type: string
+      description: |
+        Text body for the comment. Required unless `media_refs` contains one image descriptor.
+    media_refs:
+      type: array
+      maxItems: 1
+      items:
+        $ref: ./posts.yaml#/MediaDescriptor
+      description: |
+        Optional image media attached to the comment. v1 accepts at most one JPEG, PNG, WebP, GIF, or AVIF descriptor.
     authorship_mode:
       type: string
       enum:
