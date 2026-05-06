@@ -231,6 +231,8 @@ CommentListItem:
         - -1
         - 1
       nullable: true
+    viewer_can_delete:
+      type: boolean
     resolved_locale:
       type: string
     translation_state:
