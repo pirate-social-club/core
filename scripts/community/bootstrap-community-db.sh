@@ -41,7 +41,7 @@ namespace_verification_id=""
 description=""
 membership_mode="open"
 default_age_gate_policy="none"
-handle_policy_template="standard"
+handle_policy_template="premium"
 handle_pricing_model=""
 namespace_label=""
 membership_unique_human_provider=""
@@ -189,7 +189,7 @@ if [[ -n "$description" ]]; then
   description_sql="$(sql_quote "$description")"
 fi
 
-pricing_model_sql="NULL"
+pricing_model_sql="'flat_by_length'"
 if [[ -n "$handle_pricing_model" ]]; then
   pricing_model_sql="$(sql_quote "$handle_pricing_model")"
 fi
@@ -353,6 +353,7 @@ INSERT INTO namespace_handle_policies (
     policy_template,
     pricing_model,
     membership_required_for_claim,
+    claims_enabled,
     settings_json,
     created_at,
     updated_at
@@ -363,7 +364,8 @@ INSERT INTO namespace_handle_policies (
     $(sql_quote "$handle_policy_template"),
     $pricing_model_sql,
     1,
-    NULL,
+    1,
+    '{"flat_price_cents":500,"premium_price_cents":2500,"premium_max_length":4,"min_length":3,"max_length":32,"non_member_claims_enabled":false,"non_member_price_multiplier":5,"special_price_cents_by_label":{"crown":100000,"xn--2p8h":100000,"prince":50000,"xn--tq9h":50000,"princess":50000,"xn--6q8h":50000,"diamond":75000,"xn--tr8h":75000,"ring":50000,"xn--sr8h":50000,"xn--cs8h":50000,"xn--cz8h":25000}}',
     $(sql_quote "$now"),
     $(sql_quote "$now")
 )
