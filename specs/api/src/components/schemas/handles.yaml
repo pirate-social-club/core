@@ -49,9 +49,6 @@ HandlePolicyInput:
       nullable: true
       description: |
         Optional pricing model for commerce-enabled templates. This does not by itself enable public claims or sales; launch availability is controlled separately by server-derived capability flags.
-    membership_required_for_claim:
-      type: boolean
-      default: true
 HandleAvailability:
   type: object
   required:
@@ -79,11 +76,24 @@ CommunityHandle:
   required:
     - id
     - object
+    - community
     - user
     - namespace
     - label
+    - label_normalized
     - status
     - issuance_source
+    - quote
+    - price_cents
+    - currency
+    - pricing_model
+    - pricing_tier
+    - settlement_wallet_attachment
+    - funding_tx_ref
+    - settlement_tx_ref
+    - lease_started_at
+    - lease_expires_at
+    - created
   properties:
     id:
       type: string
@@ -93,11 +103,15 @@ CommunityHandle:
       readOnly: true
       enum:
         - community_handle
+    community:
+      type: string
     user:
       type: string
     namespace:
       type: string
     label:
+      type: string
+    label_normalized:
       type: string
     status:
       type: string
@@ -113,6 +127,36 @@ CommunityHandle:
         - claim
         - auction
         - admin_grant
+    quote:
+      type: string
+      nullable: true
+    price_cents:
+      type: integer
+      minimum: 0
+    currency:
+      type: string
+      enum:
+        - USD
+    pricing_model:
+      type: string
+      enum:
+        - free
+        - flat_by_length
+        - custom_curve
+        - gated_then_flat
+      nullable: true
+    pricing_tier:
+      type: string
+      nullable: true
+    settlement_wallet_attachment:
+      type: string
+      nullable: true
+    funding_tx_ref:
+      type: string
+      nullable: true
+    settlement_tx_ref:
+      type: string
+      nullable: true
     lease_started_at:
       type: integer
       format: int64
@@ -120,4 +164,292 @@ CommunityHandle:
     lease_expires_at:
       type: integer
       format: int64
+      nullable: true
+    created:
+      type: integer
+      format: int64
+CommunityHandlePolicySettings:
+  type: object
+  properties:
+    flat_price_cents:
+      type: integer
+      minimum: 0
+    premium_price_cents:
+      type: integer
+      minimum: 0
+    premium_max_length:
+      type: integer
+      minimum: 1
+    min_length:
+      type: integer
+      minimum: 1
+    max_length:
+      type: integer
+      minimum: 1
+    quote_ttl_seconds:
+      type: integer
+      minimum: 60
+    reserved_labels:
+      type: array
+      items:
+        type: string
+    special_price_cents_by_label:
+      type: object
+      additionalProperties:
+        type: integer
+        minimum: 0
+CommunityHandlePolicy:
+  type: object
+  required:
+    - id
+    - object
+    - community
+    - namespace
+    - policy_template
+    - pricing_model
+    - claims_enabled
+    - settings
+    - updated_at
+  properties:
+    id:
+      type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - community_handle_policy
+    community:
+      type: string
+    namespace:
+      type: string
+    policy_template:
+      type: string
+      enum:
+        - standard
+        - premium
+        - membership_gated
+        - custom
+    pricing_model:
+      type: string
+      enum:
+        - free
+        - flat_by_length
+        - custom_curve
+        - gated_then_flat
+      nullable: true
+    claims_enabled:
+      type: boolean
+    settings:
+      $ref: ./handles.yaml#/CommunityHandlePolicySettings
+    updated_at:
+      type: integer
+      format: int64
+      nullable: true
+UpdateCommunityHandlePolicyRequest:
+  type: object
+  properties:
+    policy_template:
+      type: string
+      enum:
+        - standard
+        - premium
+        - membership_gated
+        - custom
+    pricing_model:
+      type: string
+      enum:
+        - free
+        - flat_by_length
+        - custom_curve
+        - gated_then_flat
+    claims_enabled:
+      type: boolean
+    settings:
+      $ref: ./handles.yaml#/CommunityHandlePolicySettings
+      nullable: true
+CommunityHandleQuoteRequest:
+  type: object
+  required:
+    - desired_label
+  properties:
+    desired_label:
+      type: string
+CommunityHandlePaymentInstructions:
+  type: object
+  required:
+    - chain
+    - token_address
+    - recipient_address
+    - amount_atomic
+    - amount_display
+  properties:
+    chain:
+      type: object
+      required:
+        - chain_namespace
+        - chain_id
+        - display_name
+      properties:
+        chain_namespace:
+          type: string
+        chain_id:
+          type: integer
+        display_name:
+          type: string
+    token_address:
+      type: string
+    recipient_address:
+      type: string
+    amount_atomic:
+      type: string
+    amount_display:
+      type: string
+CommunityHandleQuote:
+  type: object
+  required:
+    - id
+    - object
+    - community
+    - namespace
+    - desired_label
+    - label
+    - label_normalized
+    - eligible
+    - availability
+    - reason
+    - price_cents
+    - currency
+    - pricing_model
+    - pricing_tier
+    - payment_instructions
+    - quote_ttl_seconds
+    - quoted_at
+    - expires_at
+  properties:
+    id:
+      type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - community_handle_quote
+    community:
+      type: string
+    namespace:
+      type: string
+    desired_label:
+      type: string
+    label:
+      type: string
+    label_normalized:
+      type: string
+    eligible:
+      type: boolean
+    availability:
+      type: string
+      enum:
+        - available
+        - taken
+        - reserved
+        - already_claimed_by_viewer
+        - viewer_has_claim
+        - namespace_unavailable
+    reason:
+      type: string
+      nullable: true
+    price_cents:
+      type: integer
+      minimum: 0
+    currency:
+      type: string
+      enum:
+        - USD
+    pricing_model:
+      type: string
+      enum:
+        - free
+        - flat_by_length
+        - custom_curve
+        - gated_then_flat
+      nullable: true
+    pricing_tier:
+      type: string
+      nullable: true
+    payment_instructions:
+      $ref: ./handles.yaml#/CommunityHandlePaymentInstructions
+      nullable: true
+    quote_ttl_seconds:
+      type: integer
+    quoted_at:
+      type: integer
+      format: int64
+    expires_at:
+      type: integer
+      format: int64
+CommunityHandleClaimRequest:
+  type: object
+  required:
+    - quote
+  properties:
+    quote:
+      type: string
+    settlement_wallet_attachment:
+      type: string
+      nullable: true
+    funding_tx_ref:
+      type: string
+      nullable: true
+    settlement_tx_ref:
+      type: string
+      nullable: true
+CommunityHandleReserveRequest:
+  type: object
+  required:
+    - desired_label
+  properties:
+    desired_label:
+      type: string
+CommunityHandleRevokeRequest:
+  type: object
+  properties:
+    reason:
+      type: string
+      nullable: true
+CommunityHandleListResponse:
+  type: object
+  required:
+    - handles
+  properties:
+    handles:
+      type: array
+      items:
+        $ref: ./handles.yaml#/CommunityHandle
+CommunityHandleMeResponse:
+  type: object
+  required:
+    - handle
+  properties:
+    handle:
+      $ref: ./handles.yaml#/CommunityHandle
+      nullable: true
+CommunityHandleStatusResponse:
+  type: object
+  required:
+    - available
+    - reason
+    - claims_enabled
+    - namespace
+  properties:
+    available:
+      type: boolean
+    reason:
+      type: string
+      nullable: true
+    claims_enabled:
+      type: boolean
+      nullable: true
+    namespace:
+      type: string
       nullable: true
