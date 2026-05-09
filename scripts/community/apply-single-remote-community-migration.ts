@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createClient } from "@libsql/client";
 import { decryptCommunityDbCredential } from "../lib/shared/community-db-credential-crypto";
-import { splitSqlStatements } from "../lib/shared/sql-migration";
+import { splitSqlStatements, toRemoteSqliteMigrationStatement } from "../lib/shared/sql-migration";
 
 type Options = {
   databaseUrlEnv: string;
@@ -169,7 +169,9 @@ const wrapKey = requireEnv("TURSO_COMMUNITY_DB_WRAP_KEY");
 const migrationPath = resolve("db/community-template/migrations", options.migrationName);
 const migrationSql = await readFile(migrationPath, "utf8");
 const checksum = checksumSql(migrationSql);
-const statements = splitSqlStatements(migrationSql);
+const statements = splitSqlStatements(migrationSql)
+  .map(toRemoteSqliteMigrationStatement)
+  .filter((statement): statement is string => statement !== null);
 const rows = await listCommunityBindings({
   controlPlaneDatabaseUrl,
   communityIds: options.communityIds,

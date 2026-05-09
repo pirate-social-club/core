@@ -3,7 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@libsql/client";
-import { splitSqlStatements } from "./shared/sql-migration";
+import { splitSqlStatements, toRemoteSqliteMigrationStatement } from "./shared/sql-migration";
 
 type CommunityBootstrapSql = {
   execute<T>(sql: string, params?: Array<string | number | null>): Promise<T[]>;
@@ -324,7 +324,10 @@ async function applyCommunityMigrations(sql: CommunityBootstrapSql): Promise<App
     }
 
     pending.push(
-      ...splitSqlStatements(migrationSql).map((statement) => ({ sql: statement })),
+      ...splitSqlStatements(migrationSql)
+        .map(toRemoteSqliteMigrationStatement)
+        .filter((statement): statement is string => statement !== null)
+        .map((statement) => ({ sql: statement })),
       {
         sql: `INSERT INTO schema_migrations (
            migration_name,

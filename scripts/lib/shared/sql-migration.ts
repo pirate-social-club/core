@@ -118,3 +118,13 @@ export function toSqliteCompatibleStatement(statement: string): string | null {
 
   return sqliteCompat;
 }
+
+export function toRemoteSqliteMigrationStatement(statement: string): string | null {
+  const normalized = statement.trim().replace(/\s+/g, " ").toUpperCase();
+
+  if (normalized === "PRAGMA LEGACY_ALTER_TABLE = ON;" || normalized === "PRAGMA LEGACY_ALTER_TABLE = OFF;") {
+    return null;
+  }
+
+  return statement;
+}

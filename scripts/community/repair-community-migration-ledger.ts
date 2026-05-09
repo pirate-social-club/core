@@ -4,7 +4,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { decryptCommunityDbCredential } from "../lib/shared/community-db-credential-crypto";
-import { splitSqlStatements } from "../lib/shared/sql-migration";
+import { splitSqlStatements, toRemoteSqliteMigrationStatement } from "../lib/shared/sql-migration";
 
 const MIGRATIONS_DIR = resolve(import.meta.dir, "../../db/community-template/migrations");
 const DRIFT_POLICY_PATH = resolve(import.meta.dir, "../../db/known-community-migration-drifts.json");
@@ -380,7 +380,10 @@ for (const row of rows) {
       }
 
       pending.push(
-        ...splitSqlStatements(file.sql).map((statement) => ({ sql: statement })),
+        ...splitSqlStatements(file.sql)
+          .map(toRemoteSqliteMigrationStatement)
+          .filter((statement): statement is string => statement !== null)
+          .map((statement) => ({ sql: statement })),
         {
           sql: `INSERT INTO schema_migrations (migration_name, migration_label, checksum) VALUES (?, ?, ?)`,
           args: [file.name, "community-template", file.checksum],
