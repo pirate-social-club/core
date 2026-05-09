@@ -1,7 +1,7 @@
 [Unit]
 Description=Pirate community protocol subsd
-After=network-online.target docker.service pirate-spaced.service
-Wants=network-online.target docker.service
+After=network-online.target docker.service pirate-protocol-spaced.service
+Wants=network-online.target docker.service pirate-protocol-spaced.service
 
 [Service]
 Type=simple

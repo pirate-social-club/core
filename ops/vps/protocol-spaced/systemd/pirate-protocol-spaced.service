@@ -1,0 +1,21 @@
+[Unit]
+Description=Pirate protocol Spaces spaced daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pirate-spaces
+Group=pirate-spaces
+WorkingDirectory=/srv/pirate-spaces
+Environment=HOME=/srv/pirate-spaces
+EnvironmentFile=/srv/pirate-spaces/config/protocol-spaced.env
+ExecStart=/srv/pirate-spaces/bin/start-protocol-spaced.sh
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ReadWritePaths=/srv/pirate-spaces/data /srv/pirate-spaces/log /srv/pirate-spaces/run
+
+[Install]
+WantedBy=multi-user.target

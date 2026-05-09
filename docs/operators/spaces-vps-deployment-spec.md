@@ -20,6 +20,7 @@ session-bound Fabric publishes without running `spaced` inside the API worker.
 The VPS-hosted slice provides:
 
 - a persistent `spaced` instance
+- a separate protocol `spaced` instance for `subsd`
 - a colocated `spaces-verifier` HTTP service
 - outbound Bitcoin RPC access through Chainstack
 - a public HTTPS verifier endpoint for Pirate API
@@ -57,25 +58,34 @@ The VPS checkout must preserve the repo tree. Do not flatten verifier files into
    - stores chain state under `/srv/pirate-spaces/data/spaced`
    - talks to Chainstack for Bitcoin RPC
    - binds only to `127.0.0.1`
+   - is reserved for the verification path
 
-2. `spaces-verifier`
+2. `protocol-spaced`
+   - runs on the VPS
+   - stores protocol issuance chain/wallet state under `/srv/pirate-spaces/data/protocol-spaced`
+   - uses a `spaces_client` build compatible with `subsd`
+   - talks to Chainstack for Bitcoin RPC
+   - binds only to `127.0.0.1`
+   - is reserved for `subsd` and protocol subspace issuance
+
+3. `spaces-verifier`
    - runs on the VPS
    - talks to `spaced` over `127.0.0.1`
    - shells out to the prebuilt native verifier binary
    - binds to `127.0.0.1:4047`
 
-3. `community-protocol-subsd`
+4. `community-protocol-subsd`
    - runs on the VPS for protocol subspace issuance
-   - talks to `spaced` over `127.0.0.1`
+   - talks to `protocol-spaced` over `127.0.0.1`
    - keeps durable `subsd` state under `/srv/pirate-spaces/data/subsd`
    - binds internally on `127.0.0.1:7777` through host networking
    - is consumed by `community-protocol-issuer`, not public users
 
-4. reverse proxy
+5. reverse proxy
    - terminates TLS for `https://verifier.pirate.sc`
    - forwards only verifier traffic
 
-5. `pirate-api`
+6. `pirate-api`
    - calls the verifier through `SPACES_VERIFIER_BASE_URL`
    - sends `SPACES_VERIFIER_AUTH_TOKEN`
 
@@ -84,10 +94,12 @@ The VPS checkout must preserve the repo tree. Do not flatten verifier files into
 Recommended internal ports:
 
 - `spaced`: `127.0.0.1:7225`
+- `protocol-spaced`: `127.0.0.1:7226`
 - `spaces-verifier`: `127.0.0.1:4047`
 - `community-protocol-subsd`: `127.0.0.1:7777`
 
-Expose only the verifier over HTTPS. `spaced` and `community-protocol-subsd` must not be publicly reachable.
+Expose only the verifier over HTTPS. `spaced`, `protocol-spaced`, and `community-protocol-subsd`
+must not be publicly reachable.
 
 ## Environment
 
@@ -97,6 +109,15 @@ Expose only the verifier over HTTPS. `spaced` and `community-protocol-subsd` mus
 - `BITCOIN_RPC_USER`
 - `BITCOIN_RPC_PASS`
 - `SPACED_DATA_DIR=/srv/pirate-spaces/data/spaced`
+
+`/srv/pirate-spaces/config/protocol-spaced.env`:
+
+- `SPACED_BIN=/srv/pirate-spaces/bin/spaced-0.1.1`
+- `SPACED_RPC_URL=http://127.0.0.1:7226`
+- `SPACED_DATA_DIR=/srv/pirate-spaces/data/protocol-spaced`
+- `BITCOIN_RPC_URL`
+- `BITCOIN_RPC_USER`
+- `BITCOIN_RPC_PASS`
 
 `/srv/pirate-spaces/config/verifier.env`:
 
@@ -119,6 +140,7 @@ Do not set `SPACES_NATIVE_ALLOW_BUILD_FALLBACK=true` on the VPS.
 Use `systemd` units:
 
 - `pirate-spaced.service`
+- `pirate-protocol-spaced.service`
 - `pirate-spaces-verifier.service`
 
 `pirate-spaces-verifier.service` runs:
@@ -129,6 +151,10 @@ bun services/verifier/spaces/src/server.ts
 
 `pirate-community-protocol-subsd.service` runs the pinned Docker image described in
 `ops/vps/community-protocol-subsd`.
+
+`pirate-protocol-spaced.service` must use a protocol-compatible `spaced` binary and its own data
+directory. Do not upgrade the verifier `spaced` in place unless the existing verifier data format
+has been tested against that exact binary.
 
 from:
 
