@@ -37,6 +37,7 @@ function usage(exitCode = 1): never {
 Dry-runs or repairs checksum-proven community schema_migrations name drift.
 This only renames ledger rows when an unexpected row checksum exactly matches a
 currently missing canonical migration file. It does not apply missing migrations.
+For new operational repair workflows, prefer repair-community-migration-ledger.ts.
 
 Environment:
   CONTROL_PLANE_DATABASE_URL       Required by default, or override with --database-url-env.

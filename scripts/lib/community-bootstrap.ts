@@ -3,6 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@libsql/client";
+import { splitSqlStatements } from "./shared/sql-migration";
 
 type CommunityBootstrapSql = {
   execute<T>(sql: string, params?: Array<string | number | null>): Promise<T[]>;
@@ -224,61 +225,6 @@ async function ensureSchemaMigrationsTable(sql: CommunityBootstrapSql): Promise<
       applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
-}
-
-function splitSqlStatements(source: string): string[] {
-  const statements: string[] = [];
-  let current = "";
-  let inSingleQuote = false;
-  let inLineComment = false;
-
-  for (let index = 0; index < source.length; index += 1) {
-    const char = source[index];
-    const next = source[index + 1] ?? "";
-
-    if (inLineComment) {
-      current += char;
-      if (char === "\n") {
-        inLineComment = false;
-      }
-      continue;
-    }
-
-    if (!inSingleQuote && char === "-" && next === "-") {
-      inLineComment = true;
-      current += char;
-      continue;
-    }
-
-    if (char === "'") {
-      current += char;
-      if (inSingleQuote && next === "'") {
-        current += next;
-        index += 1;
-        continue;
-      }
-      inSingleQuote = !inSingleQuote;
-      continue;
-    }
-
-    if (!inSingleQuote && char === ";") {
-      const statement = current.trim();
-      if (statement) {
-        statements.push(statement);
-      }
-      current = "";
-      continue;
-    }
-
-    current += char;
-  }
-
-  const trailing = current.trim();
-  if (trailing) {
-    statements.push(trailing);
-  }
-
-  return statements;
 }
 
 async function listMigrationFiles(): Promise<string[]> {

@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createClient } from "@libsql/client";
 import { decryptCommunityDbCredential } from "../lib/shared/community-db-credential-crypto";
+import { splitSqlStatements } from "../lib/shared/sql-migration";
 
 type Options = {
   databaseUrlEnv: string;
@@ -113,51 +114,6 @@ function validateCommunityId(value: string): string {
 
 function checksumSql(sql: string): string {
   return createHash("sha256").update(sql).digest("hex");
-}
-
-function splitSqlStatements(source: string): string[] {
-  const statements: string[] = [];
-  let current = "";
-  let inSingleQuote = false;
-  let inLineComment = false;
-
-  for (let index = 0; index < source.length; index += 1) {
-    const char = source[index];
-    const next = source[index + 1] ?? "";
-
-    if (inLineComment) {
-      current += char;
-      if (char === "\n") inLineComment = false;
-      continue;
-    }
-    if (!inSingleQuote && char === "-" && next === "-") {
-      inLineComment = true;
-      current += char;
-      continue;
-    }
-    if (char === "'") {
-      current += char;
-      if (inSingleQuote && next === "'") {
-        current += next;
-        index += 1;
-        continue;
-      }
-      inSingleQuote = !inSingleQuote;
-      continue;
-    }
-    if (!inSingleQuote && char === ";") {
-      const statement = current.trim();
-      if (statement) statements.push(statement);
-      current = "";
-      continue;
-    }
-
-    current += char;
-  }
-
-  const trailing = current.trim();
-  if (trailing) statements.push(trailing);
-  return statements;
 }
 
 async function listCommunityBindings(input: {

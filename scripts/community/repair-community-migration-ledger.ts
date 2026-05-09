@@ -4,8 +4,10 @@ import { readFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { decryptCommunityDbCredential } from "../lib/shared/community-db-credential-crypto";
+import { splitSqlStatements } from "../lib/shared/sql-migration";
 
 const MIGRATIONS_DIR = resolve(import.meta.dir, "../../db/community-template/migrations");
+const DRIFT_POLICY_PATH = resolve(import.meta.dir, "../../db/known-community-migration-drifts.json");
 
 type Options = {
   databaseUrlEnv: string;
@@ -21,34 +23,34 @@ type CommunityBindingRow = {
   encryption_key_version: number | string;
 };
 
-const KNOWN_CHECKSUM_REPAIRS: Record<string, { old: string; new: string }> = {
-  "1050_post_embeds.sql": {
-    old: "17fa8e6f860480d77626f73575e7ae097e49fe0f009c1c064948fec6e40099f7",
-    new: "fa6a008cbb81e249bd9b8f07ddf4f6d09236885c5115810ad83754d3a3e8c5f4",
-  },
-  "1060_community_gate_policies.sql": {
-    old: "0c0df6502b683e17ac2a8102f777b440114d33a2fc954237696967623f28d469",
-    new: "50b40ee28ad443c6ed4cc9bbfc0ffcd2cb2fe2a9cba443b5944952ec1b6ed5c6",
-  },
-  "1064_thread_comment_locks.sql": {
-    old: "bdb8e886939b733f10afff54e25f83cc39ed49c2a6501b7f7604ac3357b8d61f",
-    new: "c768ccfa8e10523f54d2e8960fe534fde388fee6b1aced30d5dcbd7314ca4c96",
-  },
+type ChecksumRepair = {
+  migrationName: string;
+  oldChecksum: string;
+  newChecksum: string;
+  reason: string;
 };
 
-// Some communities were migrated with the test-fixtures version of 1060
-const ADDITIONAL_1060_OLD_CHECKSUM = "8bb9d45175bc3a3deb398776dd67d8f1b287a1843af9cb869ea9a7360bf7a548";
+type DriftPolicy = {
+  communityTemplate: {
+    checksumRepairs: ChecksumRepair[];
+    unexpectedMigrationsToRemove: string[];
+  };
+};
 
-const UNEXPECTED_MIGRATIONS_TO_REMOVE = new Set([
-  "1061_reference_links_resource_shape.sql",
-]);
+type MigrationFile = {
+  name: string;
+  path: string;
+  sql: string;
+  checksum: string;
+};
 
 function usage(exitCode = 1): never {
   console.error(`Usage:
   bun scripts/community/repair-community-migration-ledger.ts [options]
 
-Repairs known migration ledger drift on active remote community databases,
-then applies missing migrations.
+Repairs safe migration ledger drift on active remote community databases,
+then applies missing migrations. Safe ledger repairs include allowlisted
+checksum updates, checksum-proven renames, and allowlisted unexpected removals.
 
 Environment:
   CONTROL_PLANE_DATABASE_URL       Required by default, or override with --database-url-env.
@@ -172,56 +174,56 @@ function checksumSql(sql: string): string {
   return createHash("sha256").update(sql).digest("hex");
 }
 
-function splitSqlStatements(source: string): string[] {
-  const statements: string[] = [];
-  let current = "";
-  let inSingleQuote = false;
-  let inLineComment = false;
-
-  for (let index = 0; index < source.length; index += 1) {
-    const char = source[index];
-    const next = source[index + 1] ?? "";
-
-    if (inLineComment) {
-      current += char;
-      if (char === "\n") inLineComment = false;
-      continue;
-    }
-    if (!inSingleQuote && char === "-" && next === "-") {
-      inLineComment = true;
-      current += char;
-      continue;
-    }
-    if (char === "'") {
-      current += char;
-      if (inSingleQuote && next === "'") {
-        current += next;
-        index += 1;
-        continue;
-      }
-      inSingleQuote = !inSingleQuote;
-      continue;
-    }
-    if (!inSingleQuote && char === ";") {
-      const statement = current.trim();
-      if (statement) statements.push(statement);
-      current = "";
-      continue;
-    }
-    current += char;
-  }
-
-  const trailing = current.trim();
-  if (trailing) statements.push(trailing);
-  return statements;
-}
-
-async function listMigrationFiles(): Promise<Array<{ name: string; path: string }>> {
+async function listMigrationFiles(): Promise<MigrationFile[]> {
   const entries = await readdir(MIGRATIONS_DIR, { withFileTypes: true });
-  return entries
+  const files = entries
     .filter((entry) => entry.isFile() && entry.name.endsWith(".sql"))
     .map((entry) => ({ name: entry.name, path: resolve(MIGRATIONS_DIR, entry.name) }))
     .sort((a, b) => a.name.localeCompare(b.name));
+
+  const migrations: MigrationFile[] = [];
+  for (const file of files) {
+    const sql = await readFile(file.path, "utf8");
+    migrations.push({
+      ...file,
+      sql,
+      checksum: checksumSql(sql),
+    });
+  }
+  return migrations;
+}
+
+async function loadDriftPolicy(expectedByName: Map<string, MigrationFile>): Promise<DriftPolicy> {
+  const raw = await readFile(DRIFT_POLICY_PATH, "utf8");
+  const policy = JSON.parse(raw) as DriftPolicy;
+  const checksumRepairs = policy.communityTemplate?.checksumRepairs ?? [];
+  const unexpectedMigrationsToRemove = policy.communityTemplate?.unexpectedMigrationsToRemove ?? [];
+
+  for (const repair of checksumRepairs) {
+    if (!repair.migrationName || !repair.oldChecksum || !repair.newChecksum) {
+      throw new Error("invalid checksum repair entry in drift policy");
+    }
+    const expected = expectedByName.get(repair.migrationName);
+    if (!expected) {
+      throw new Error(`drift policy references unknown migration: ${repair.migrationName}`);
+    }
+    if (expected.checksum !== repair.newChecksum) {
+      throw new Error(`drift policy newChecksum does not match current migration: ${repair.migrationName}`);
+    }
+  }
+
+  for (const migrationName of unexpectedMigrationsToRemove) {
+    if (expectedByName.has(migrationName)) {
+      throw new Error(`drift policy cannot remove expected migration: ${migrationName}`);
+    }
+  }
+
+  return {
+    communityTemplate: {
+      checksumRepairs,
+      unexpectedMigrationsToRemove,
+    },
+  };
 }
 
 const options = parseArgs(process.argv.slice(2));
@@ -238,13 +240,17 @@ console.log(`mode: ${options.execute ? "execute" : "dry-run"}`);
 console.log(`selected_communities: ${rows.length}`);
 console.log("");
 
-let repaired = 0;
+let checksumRepaired = 0;
+let renamed = 0;
 let removed = 0;
 let appliedTotal = 0;
 let skippedTotal = 0;
 let failed = 0;
 
 const migrationFiles = await listMigrationFiles();
+const expectedByName = new Map(migrationFiles.map((file) => [file.name, file] as const));
+const driftPolicy = await loadDriftPolicy(expectedByName);
+const unexpectedMigrationsToRemove = new Set(driftPolicy.communityTemplate.unexpectedMigrationsToRemove);
 
 for (const row of rows) {
   const token = decryptCommunityDbCredential({
@@ -277,41 +283,24 @@ for (const row of rows) {
     let communityRepaired = 0;
     let communityRemoved = 0;
 
-    // Repair known checksum mismatches
-    for (const [migrationName, { old, new: newChecksum }] of Object.entries(KNOWN_CHECKSUM_REPAIRS)) {
-      const actual = actualByName.get(migrationName);
-      if (actual === old) {
-        console.log(`${options.execute ? "repair" : "DRY "} ${label} ${migrationName} checksum mismatch (known drift)`);
+    for (const repair of driftPolicy.communityTemplate.checksumRepairs) {
+      const actual = actualByName.get(repair.migrationName);
+      if (actual === repair.oldChecksum) {
+        console.log(`${options.execute ? "repair" : "DRY "} ${label} ${repair.migrationName} checksum mismatch (${repair.reason})`);
         if (options.execute) {
           ledgerRepairs.push({
             sql: "UPDATE schema_migrations SET checksum = ? WHERE migration_name = ?",
-            args: [newChecksum, migrationName],
+            args: [repair.newChecksum, repair.migrationName],
           });
         }
-        actualByName.set(migrationName, newChecksum);
+        actualByName.set(repair.migrationName, repair.newChecksum);
         communityRepaired += 1;
       }
     }
 
-    // Additional 1060 checksum from test-fixtures version
-    const actual1060 = actualByName.get("1060_community_gate_policies.sql");
-    if (actual1060 === ADDITIONAL_1060_OLD_CHECKSUM) {
-      const newChecksum = KNOWN_CHECKSUM_REPAIRS["1060_community_gate_policies.sql"].new;
-      console.log(`${options.execute ? "repair" : "DRY "} ${label} 1060_community_gate_policies.sql checksum mismatch (test-fixtures drift)`);
-      if (options.execute) {
-        ledgerRepairs.push({
-          sql: "UPDATE schema_migrations SET checksum = ? WHERE migration_name = ?",
-          args: [newChecksum, "1060_community_gate_policies.sql"],
-        });
-      }
-      actualByName.set("1060_community_gate_policies.sql", newChecksum);
-      communityRepaired += 1;
-    }
-
-    // Remove unexpected migrations
     for (const migrationName of Array.from(actualByName.keys())) {
-      const isExpected = migrationFiles.some((f) => f.name === migrationName);
-      if (!isExpected && UNEXPECTED_MIGRATIONS_TO_REMOVE.has(migrationName)) {
+      const isExpected = expectedByName.has(migrationName);
+      if (!isExpected && unexpectedMigrationsToRemove.has(migrationName)) {
         console.log(`${options.execute ? "remove" : "DRY "} ${label} ${migrationName} unexpected migration`);
         if (options.execute) {
           ledgerRepairs.push({
@@ -322,6 +311,39 @@ for (const row of rows) {
         actualByName.delete(migrationName);
         communityRemoved += 1;
       }
+    }
+
+    const missingByChecksum = new Map(
+      migrationFiles
+        .filter((file) => !actualByName.has(file.name))
+        .map((file) => [file.checksum, file.name] as const),
+    );
+    let communityRenamed = 0;
+    for (const [actualName, checksum] of Array.from(actualByName.entries())) {
+      if (expectedByName.has(actualName)) {
+        continue;
+      }
+      const expectedName = missingByChecksum.get(checksum);
+      if (!expectedName) {
+        continue;
+      }
+      console.log(`${options.execute ? "rename" : "DRY  "} ${label} ${actualName} -> ${expectedName} checksum-proven rename`);
+      if (options.execute) {
+        ledgerRepairs.push({
+          sql: "UPDATE schema_migrations SET migration_name = ? WHERE migration_name = ?",
+          args: [expectedName, actualName],
+        });
+      }
+      actualByName.delete(actualName);
+      actualByName.set(expectedName, checksum);
+      communityRenamed += 1;
+    }
+
+    const remainingUnexpected = Array.from(actualByName.keys())
+      .filter((migrationName) => !expectedByName.has(migrationName))
+      .sort();
+    if (remainingUnexpected.length > 0) {
+      throw new Error(`remaining_unexpected_migration:${remainingUnexpected.join(",")}`);
     }
 
     if (ledgerRepairs.length > 0 && options.execute) {
@@ -337,8 +359,9 @@ for (const row of rows) {
       }
     }
 
-    repaired += communityRepaired;
+    checksumRepaired += communityRepaired;
     removed += communityRemoved;
+    renamed += communityRenamed;
 
     // Apply missing migrations
     const pending: Array<{ sql: string; args?: (string | number | null)[] }> = [];
@@ -346,12 +369,10 @@ for (const row of rows) {
     let communitySkipped = 0;
 
     for (const file of migrationFiles) {
-      const migrationSql = await readFile(file.path, "utf8");
-      const checksum = checksumSql(migrationSql);
       const existingChecksum = actualByName.get(file.name) ?? null;
 
       if (existingChecksum) {
-        if (existingChecksum !== checksum) {
+        if (existingChecksum !== file.checksum) {
           throw new Error(`remaining_checksum_mismatch:${file.name}`);
         }
         communitySkipped += 1;
@@ -359,10 +380,10 @@ for (const row of rows) {
       }
 
       pending.push(
-        ...splitSqlStatements(migrationSql).map((statement) => ({ sql: statement })),
+        ...splitSqlStatements(file.sql).map((statement) => ({ sql: statement })),
         {
           sql: `INSERT INTO schema_migrations (migration_name, migration_label, checksum) VALUES (?, ?, ?)`,
-          args: [file.name, "community-template", checksum],
+          args: [file.name, "community-template", file.checksum],
         }
       );
       communityApplied += 1;
@@ -401,7 +422,8 @@ for (const row of rows) {
 console.log("");
 console.log("community migration ledger repair complete");
 console.log(`checked_communities: ${rows.length}`);
-console.log(`ledger_repairs: ${repaired}`);
+console.log(`checksum_repairs: ${checksumRepaired}`);
+console.log(`renamed_rows: ${renamed}`);
 console.log(`unexpected_removed: ${removed}`);
 console.log(`applied_migrations: ${appliedTotal}`);
 console.log(`skipped_migrations: ${skippedTotal}`);

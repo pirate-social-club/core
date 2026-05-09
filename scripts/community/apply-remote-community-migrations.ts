@@ -31,6 +31,8 @@ function usage(exitCode = 1): never {
 
 Audits active Turso/libSQL community databases against db/community-template/migrations
 and applies missing migrations only when --execute is passed.
+For checksum, rename, or unexpected-ledger repair workflows, use
+repair-community-migration-ledger.ts.
 
 Environment:
   CONTROL_PLANE_DATABASE_URL       Required by default, or override with --database-url-env.
@@ -247,4 +249,4 @@ console.log(`applied_migrations: ${appliedTotal}`);
 console.log(`skipped_migrations: ${skippedTotal}`);
 console.log(`failed_communities: ${failedTotal}`);
 
-process.exit(failedTotal > 0 ? 1 : 0);
+process.exit(failedTotal > 0 || (!options.execute && communitiesWithDrift > 0) ? 1 : 0);

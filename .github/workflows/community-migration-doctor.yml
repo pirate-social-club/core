@@ -1,0 +1,36 @@
+name: community-migration-doctor
+
+on:
+  schedule:
+    - cron: "23 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prod-read-only:
+    runs-on: ubuntu-latest
+    env:
+      CONTROL_PLANE_DATABASE_URL: ${{ secrets.PROD_CONTROL_PLANE_DATABASE_URL }}
+      TURSO_COMMUNITY_DB_WRAP_KEY: ${{ secrets.PROD_TURSO_COMMUNITY_DB_WRAP_KEY }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.21
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify required secrets
+        run: |
+          test -n "$CONTROL_PLANE_DATABASE_URL"
+          test -n "$TURSO_COMMUNITY_DB_WRAP_KEY"
+
+      - name: Check production community migration drift
+        run: bun scripts/community/apply-remote-community-migrations.ts

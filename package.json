@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "check": "node scripts/check-repo-hygiene.mjs",
+    "check:migrations": "node scripts/check-migration-integrity.mjs",
     "tinybird:info": "tinybird info",
     "tinybird:deploy": "tinybird deploy",
     "tinybird:generate": "tinybird generate --output-dir /tmp/pirate-core-tinybird-generated"

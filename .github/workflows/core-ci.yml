@@ -5,15 +5,23 @@ on:
     paths:
       - ".github/workflows/core-ci.yml"
       - "db/control-plane/migrations/**"
+      - "db/known-community-migration-drifts.json"
+      - "db/local-control-plane-migration-drifts.json"
+      - "db/community-template/migrations/**"
       - "references/templates/api-worker-auth-first-slice/**"
       - "scripts/apply-sqlite-migrations.sh"
+      - "scripts/check-migration-integrity.mjs"
       - "specs/api/**"
   push:
     paths:
       - ".github/workflows/core-ci.yml"
       - "db/control-plane/migrations/**"
+      - "db/known-community-migration-drifts.json"
+      - "db/local-control-plane-migration-drifts.json"
+      - "db/community-template/migrations/**"
       - "references/templates/api-worker-auth-first-slice/**"
       - "scripts/apply-sqlite-migrations.sh"
+      - "scripts/check-migration-integrity.mjs"
       - "specs/api/**"
   workflow_dispatch:
 
@@ -27,6 +35,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
@@ -39,6 +49,9 @@ jobs:
 
       - name: Run repo hygiene checks
         run: npm run check
+
+      - name: Check migration integrity
+        run: npm run check:migrations
 
       # Full `bun run verify` is intentionally excluded here because it writes
       # generated contracts into the standalone API sidecar when available.

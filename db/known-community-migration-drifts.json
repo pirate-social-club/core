@@ -1,0 +1,33 @@
+{
+  "communityTemplate": {
+    "checksumRepairs": [
+      {
+        "migrationName": "1050_post_embeds.sql",
+        "oldChecksum": "17fa8e6f860480d77626f73575e7ae097e49fe0f009c1c064948fec6e40099f7",
+        "newChecksum": "fa6a008cbb81e249bd9b8f07ddf4f6d09236885c5115810ad83754d3a3e8c5f4",
+        "reason": "compatible ledger checksum drift"
+      },
+      {
+        "migrationName": "1060_community_gate_policies.sql",
+        "oldChecksum": "0c0df6502b683e17ac2a8102f777b440114d33a2fc954237696967623f28d469",
+        "newChecksum": "50b40ee28ad443c6ed4cc9bbfc0ffcd2cb2fe2a9cba443b5944952ec1b6ed5c6",
+        "reason": "compatible ledger checksum drift"
+      },
+      {
+        "migrationName": "1060_community_gate_policies.sql",
+        "oldChecksum": "8bb9d45175bc3a3deb398776dd67d8f1b287a1843af9cb869ea9a7360bf7a548",
+        "newChecksum": "50b40ee28ad443c6ed4cc9bbfc0ffcd2cb2fe2a9cba443b5944952ec1b6ed5c6",
+        "reason": "test-fixtures checksum drift"
+      },
+      {
+        "migrationName": "1064_thread_comment_locks.sql",
+        "oldChecksum": "bdb8e886939b733f10afff54e25f83cc39ed49c2a6501b7f7604ac3357b8d61f",
+        "newChecksum": "c768ccfa8e10523f54d2e8960fe534fde388fee6b1aced30d5dcbd7314ca4c96",
+        "reason": "compatible ledger checksum drift"
+      }
+    ],
+    "unexpectedMigrationsToRemove": [
+      "1061_reference_links_resource_shape.sql"
+    ]
+  }
+}
