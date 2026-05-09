@@ -64,11 +64,18 @@ The VPS checkout must preserve the repo tree. Do not flatten verifier files into
    - shells out to the prebuilt native verifier binary
    - binds to `127.0.0.1:4047`
 
-3. reverse proxy
+3. `community-protocol-subsd`
+   - runs on the VPS for protocol subspace issuance
+   - talks to `spaced` over `127.0.0.1`
+   - keeps durable `subsd` state under `/srv/pirate-spaces/data/subsd`
+   - binds internally on `127.0.0.1:7777` through host networking
+   - is consumed by `community-protocol-issuer`, not public users
+
+4. reverse proxy
    - terminates TLS for `https://verifier.pirate.sc`
    - forwards only verifier traffic
 
-4. `pirate-api`
+5. `pirate-api`
    - calls the verifier through `SPACES_VERIFIER_BASE_URL`
    - sends `SPACES_VERIFIER_AUTH_TOKEN`
 
@@ -78,8 +85,9 @@ Recommended internal ports:
 
 - `spaced`: `127.0.0.1:7225`
 - `spaces-verifier`: `127.0.0.1:4047`
+- `community-protocol-subsd`: `127.0.0.1:7777`
 
-Expose only the verifier over HTTPS. `spaced` must not be publicly reachable.
+Expose only the verifier over HTTPS. `spaced` and `community-protocol-subsd` must not be publicly reachable.
 
 ## Environment
 
@@ -118,6 +126,9 @@ Use `systemd` units:
 ```text
 bun services/verifier/spaces/src/server.ts
 ```
+
+`pirate-community-protocol-subsd.service` runs the pinned Docker image described in
+`ops/vps/community-protocol-subsd`.
 
 from:
 

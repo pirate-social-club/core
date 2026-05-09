@@ -1,0 +1,28 @@
+[Unit]
+Description=Pirate community protocol subsd
+After=network-online.target docker.service pirate-spaced.service
+Wants=network-online.target docker.service
+
+[Service]
+Type=simple
+EnvironmentFile=/srv/pirate-spaces/config/subsd.env
+ExecStartPre=/usr/bin/docker pull ${SUBSD_IMAGE}
+ExecStartPre=-/usr/bin/docker rm -f pirate-community-protocol-subsd
+ExecStart=/usr/bin/docker run --rm --name pirate-community-protocol-subsd \
+  --network host \
+  --volume /srv/pirate-spaces/data/subsd:/var/lib/pirate/subsd \
+  --env SUBSD_PORT=${SUBSD_PORT} \
+  --env SUBSD_DATA_DIR=${SUBSD_DATA_DIR} \
+  --env SUBSD_RPC_URL=${SUBSD_RPC_URL} \
+  --env SUBSD_WALLET=${SUBSD_WALLET} \
+  --env SUBSD_RPC_USER=${SUBSD_RPC_USER} \
+  --env SUBSD_RPC_PASSWORD=${SUBSD_RPC_PASSWORD} \
+  --env SUBSD_RPC_COOKIE=${SUBSD_RPC_COOKIE} \
+  --env RUST_LOG=${RUST_LOG} \
+  ${SUBSD_IMAGE}
+ExecStop=/usr/bin/docker stop pirate-community-protocol-subsd
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
