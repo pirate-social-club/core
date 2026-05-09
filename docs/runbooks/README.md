@@ -8,6 +8,7 @@ Start here:
 - [Infinity Local Happy Path](./infinity-local-happy-path.md)
 - [Infinity Staging Manual Bring-Up](./infinity-staging-manual-bringup.md)
 - [Infinity Staging Validation](./infinity-staging-validation.md)
+- [Community SLD Dev Smoke](./community-sld-dev-smoke.md)
 
 Supporting architecture docs:
 

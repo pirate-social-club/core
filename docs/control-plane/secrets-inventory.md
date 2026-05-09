@@ -92,6 +92,7 @@ The API worker cannot start without these. The sync script (`scripts/infisical/s
 | `PIRATE_CHECKOUT_RPC_URL` | `api-key` | Checkout source-chain RPC URL when it embeds provider credentials |
 | `PIRATE_CHECKOUT_SOURCE_CHAIN_ID` | `tuning-knob` | Checkout source chain id; currently carried by the secret sync contract |
 | `PIRATE_CHECKOUT_USDC_TOKEN_ADDRESS` | `contract-address` | Checkout source-chain USDC address; currently carried by the secret sync contract |
+| `PIRATE_CHECKOUT_TX_WAIT_TIMEOUT_MS` | `tuning-knob` | Checkout receipt wait ceiling. Set pilot handle-claim environments to `20000`; missing/empty falls back to 120s. Before the verify-outside-transaction refactor, this also caps the Turso write-lock hold while waiting for RPC confirmation. |
 
 #### Conditional (only when the feature is enabled)
 
