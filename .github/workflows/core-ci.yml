@@ -43,7 +43,35 @@ jobs:
         with:
           bun-version: 1.2.21
 
+      - name: Detect spec artifact inputs
+        id: changed
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "spec_artifacts=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base_ref="origin/${{ github.base_ref }}"
+          else
+            base_ref="${{ github.event.before }}"
+          fi
+
+          if [ -z "$base_ref" ] || [ "$base_ref" = "0000000000000000000000000000000000000000" ]; then
+            base_ref="HEAD~1"
+          fi
+
+          if git diff --name-only "$base_ref"...HEAD -- \
+              specs/api \
+              references/templates/api-worker-auth-first-slice |
+            grep -q .; then
+            echo "spec_artifacts=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "spec_artifacts=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install spec dependencies
+        if: steps.changed.outputs.spec_artifacts == 'true'
         working-directory: specs/api
         run: bun install --frozen-lockfile
 
@@ -56,6 +84,7 @@ jobs:
       # Full `bun run verify` is intentionally excluded here because it writes
       # generated contracts into the standalone API sidecar when available.
       - name: Rebuild core-owned spec artifacts
+        if: steps.changed.outputs.spec_artifacts == 'true'
         run: |
           bun specs/api/scripts/bundle-openapi.ts
           bun specs/api/scripts/bundle-openapi-implemented.ts
@@ -65,6 +94,7 @@ jobs:
           bun specs/api/scripts/validate-openapi-examples.ts
 
       - name: Fail on uncommitted generated changes
+        if: steps.changed.outputs.spec_artifacts == 'true'
         run: |
           git diff --exit-code -- \
             specs/api/openapi.yaml \
