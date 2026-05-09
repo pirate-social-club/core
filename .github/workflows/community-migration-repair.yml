@@ -1,0 +1,53 @@
+name: community-migration-repair
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Remote environment to inspect or repair"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - prod
+      execute:
+        description: "Apply safe repairs and missing migrations"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    env:
+      CONTROL_PLANE_DATABASE_URL: ${{ inputs.environment == 'prod' && secrets.PROD_CONTROL_PLANE_DATABASE_URL || secrets.STAGING_CONTROL_PLANE_DATABASE_URL }}
+      TURSO_COMMUNITY_DB_WRAP_KEY: ${{ inputs.environment == 'prod' && secrets.PROD_TURSO_COMMUNITY_DB_WRAP_KEY || secrets.STAGING_TURSO_COMMUNITY_DB_WRAP_KEY }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.21
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify required secrets
+        run: |
+          test -n "$CONTROL_PLANE_DATABASE_URL"
+          test -n "$TURSO_COMMUNITY_DB_WRAP_KEY"
+
+      - name: Inspect or repair community migration drift
+        run: |
+          if [ "${{ inputs.execute }}" = "true" ]; then
+            bun scripts/community/repair-community-migration-ledger.ts --execute
+          else
+            bun scripts/community/repair-community-migration-ledger.ts
+          fi
