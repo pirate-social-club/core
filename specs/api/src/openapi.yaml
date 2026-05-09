@@ -61,6 +61,12 @@ paths:
     $ref: ./paths/agent-discovery.yaml#/sitemap_xml
   /auth/session/exchange:
     $ref: ./paths/auth.yaml#/auth_session_exchange
+  /oauth/device_authorize:
+    $ref: ./paths/auth.yaml#/oauth_device_authorize
+  /oauth/device/verify:
+    $ref: ./paths/auth.yaml#/oauth_device_verify
+  /oauth/device/token:
+    $ref: ./paths/auth.yaml#/oauth_device_token
   /verification-sessions:
     $ref: ./paths/verification.yaml#/verification_sessions
   /verification/wallet-score:
@@ -432,6 +438,20 @@ components:
       $ref: ./components/schemas/common.yaml#/Error
     SessionExchangeResponse:
       $ref: ./components/schemas/auth.yaml#/SessionExchangeResponse
+    OAuthDeviceAuthorizeRequest:
+      $ref: ./components/schemas/auth.yaml#/OAuthDeviceAuthorizeRequest
+    OAuthDeviceAuthorizeResponse:
+      $ref: ./components/schemas/auth.yaml#/OAuthDeviceAuthorizeResponse
+    OAuthDeviceVerifyRequest:
+      $ref: ./components/schemas/auth.yaml#/OAuthDeviceVerifyRequest
+    OAuthDeviceVerifyResponse:
+      $ref: ./components/schemas/auth.yaml#/OAuthDeviceVerifyResponse
+    OAuthDeviceTokenRequest:
+      $ref: ./components/schemas/auth.yaml#/OAuthDeviceTokenRequest
+    OAuthDeviceTokenResponse:
+      $ref: ./components/schemas/auth.yaml#/OAuthDeviceTokenResponse
+    OAuthDeviceAuthorizationPendingResponse:
+      $ref: ./components/schemas/auth.yaml#/OAuthDeviceAuthorizationPendingResponse
     User:
       $ref: ./components/schemas/users.yaml#/User
     VerificationCapabilities:
@@ -708,6 +728,28 @@ components:
       $ref: ./components/schemas/handles.yaml#/HandleAvailability
     CommunityHandle:
       $ref: ./components/schemas/handles.yaml#/CommunityHandle
+    CommunityHandleClaimRequest:
+      $ref: ./components/schemas/handles.yaml#/CommunityHandleClaimRequest
+    CommunityHandleListResponse:
+      $ref: ./components/schemas/handles.yaml#/CommunityHandleListResponse
+    CommunityHandleMeResponse:
+      $ref: ./components/schemas/handles.yaml#/CommunityHandleMeResponse
+    CommunityHandleStatusResponse:
+      $ref: ./components/schemas/handles.yaml#/CommunityHandleStatusResponse
+    CommunityHandlePolicy:
+      $ref: ./components/schemas/handles.yaml#/CommunityHandlePolicy
+    CommunityHandlePolicySettings:
+      $ref: ./components/schemas/handles.yaml#/CommunityHandlePolicySettings
+    CommunityHandleQuote:
+      $ref: ./components/schemas/handles.yaml#/CommunityHandleQuote
+    CommunityHandleQuoteRequest:
+      $ref: ./components/schemas/handles.yaml#/CommunityHandleQuoteRequest
+    CommunityHandleReserveRequest:
+      $ref: ./components/schemas/handles.yaml#/CommunityHandleReserveRequest
+    CommunityHandleRevokeRequest:
+      $ref: ./components/schemas/handles.yaml#/CommunityHandleRevokeRequest
+    UpdateCommunityHandlePolicyRequest:
+      $ref: ./components/schemas/handles.yaml#/UpdateCommunityHandlePolicyRequest
     SongAudioArtifactDescriptor:
       $ref: ./components/schemas/song-artifacts.yaml#/SongAudioArtifactDescriptor
     SongImageArtifactDescriptor:
@@ -724,6 +766,8 @@ components:
       $ref: ./components/schemas/song-artifacts.yaml#/SongArtifactUpload
     SongArtifactBundle:
       $ref: ./components/schemas/song-artifacts.yaml#/SongArtifactBundle
+    SongArtifactBundleListResponse:
+      $ref: ./components/schemas/song-artifacts.yaml#/SongArtifactBundleListResponse
     CreatePostRequest:
       $ref: ./components/schemas/posts.yaml#/CreatePostRequest
     Post:

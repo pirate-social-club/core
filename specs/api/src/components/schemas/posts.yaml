@@ -993,6 +993,17 @@ Post:
     song_artifact_bundle:
       type: string
       nullable: true
+    anchor_live_room:
+      type: string
+      nullable: true
+      readOnly: true
+      description: |
+        Live room anchored to this post when the post was created by the live-room composer.
+    song_title:
+      type: string
+      nullable: true
+      readOnly: true
+      description: Canonical song/track title copied from the song artifact bundle for feed rendering.
     parent_post:
       type: string
       nullable: true

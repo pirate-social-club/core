@@ -1894,6 +1894,41 @@ communities_by_community_id_assets_by_asset_id_access:
       "404":
         $ref: ../components/responses.yaml#/NotFound
 communities_by_community_id_song_artifacts:
+  get:
+    tags:
+      - Posts
+    x-implemented: true
+    summary: List ready song artifact bundles for the authenticated creator
+    description: |
+      Returns ready song artifact bundles in this community owned by the authenticated user. This collection is the first implemented picker source for live-room setlists and other composer flows.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 25
+    responses:
+      "200":
+        description: Song artifact bundles
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/song-artifacts.yaml#/SongArtifactBundleListResponse
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
   post:
     tags:
       - Posts

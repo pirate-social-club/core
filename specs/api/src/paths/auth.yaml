@@ -84,3 +84,111 @@ auth_session_exchange:
               $ref: ../components/schemas/auth.yaml#/SessionExchangeResponse
       "401":
         $ref: ../components/responses.yaml#/AuthError
+
+oauth_device_authorize:
+  post:
+    tags:
+      - Auth
+    x-implemented: true
+    summary: Start OAuth device authorization for Freedom Desktop
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/auth.yaml#/OAuthDeviceAuthorizeRequest
+    responses:
+      "200":
+        description: Device authorization started
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/auth.yaml#/OAuthDeviceAuthorizeResponse
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+
+oauth_device_verify:
+  get:
+    tags:
+      - Auth
+    x-implemented: true
+    summary: Authorize a pending OAuth device code for the authenticated user
+    parameters:
+      - in: query
+        name: user_code
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Device authorization approved
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/auth.yaml#/OAuthDeviceVerifyResponse
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+  post:
+    tags:
+      - Auth
+    x-implemented: true
+    summary: Authorize a pending OAuth device code for the authenticated user
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/auth.yaml#/OAuthDeviceVerifyRequest
+    responses:
+      "200":
+        description: Device authorization approved
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/auth.yaml#/OAuthDeviceVerifyResponse
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+
+oauth_device_token:
+  post:
+    tags:
+      - Auth
+    x-implemented: true
+    summary: Poll or refresh an OAuth device credential
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/auth.yaml#/OAuthDeviceTokenRequest
+    responses:
+      "200":
+        description: OAuth token issued
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/auth.yaml#/OAuthDeviceTokenResponse
+      "400":
+        description: Authorization pending or invalid token request
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: ../components/schemas/auth.yaml#/OAuthDeviceAuthorizationPendingResponse
+                - $ref: ../components/schemas/common.yaml#/Error
+      "401":
+        $ref: ../components/responses.yaml#/AuthError

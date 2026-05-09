@@ -333,6 +333,111 @@ paths:
                 $ref: "#/components/schemas/SessionExchangeResponse"
         "401":
           $ref: "#/components/responses/AuthError"
+  /oauth/device_authorize:
+    post:
+      tags:
+        - Auth
+      x-implemented: true
+      summary: Start OAuth device authorization for Freedom Desktop
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OAuthDeviceAuthorizeRequest"
+      responses:
+        "200":
+          description: Device authorization started
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthDeviceAuthorizeResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /oauth/device/verify:
+    get:
+      tags:
+        - Auth
+      x-implemented: true
+      summary: Authorize a pending OAuth device code for the authenticated user
+      parameters:
+        - in: query
+          name: user_code
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Device authorization approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthDeviceVerifyResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+    post:
+      tags:
+        - Auth
+      x-implemented: true
+      summary: Authorize a pending OAuth device code for the authenticated user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OAuthDeviceVerifyRequest"
+      responses:
+        "200":
+          description: Device authorization approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthDeviceVerifyResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+  /oauth/device/token:
+    post:
+      tags:
+        - Auth
+      x-implemented: true
+      summary: Poll or refresh an OAuth device credential
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OAuthDeviceTokenRequest"
+      responses:
+        "200":
+          description: OAuth token issued
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthDeviceTokenResponse"
+        "400":
+          description: Authorization pending or invalid token request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/OAuthDeviceAuthorizationPendingResponse"
+                  - $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/AuthError"
   /verification-sessions:
     post:
       tags:
@@ -3369,6 +3474,41 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
   /communities/{community_id}/song-artifacts:
+    get:
+      tags:
+        - Posts
+      x-implemented: true
+      summary: List ready song artifact bundles for the authenticated creator
+      description: |
+        Returns ready song artifact bundles in this community owned by the authenticated user. This collection is the first implemented picker source for live-room setlists and other composer flows.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 25
+      responses:
+        "200":
+          description: Song artifact bundles
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SongArtifactBundleListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
     post:
       tags:
         - Posts
@@ -4997,6 +5137,146 @@ components:
             request variant does not create wallet attachments.
           items:
             $ref: "#/components/schemas/WalletAttachmentSummary"
+    OAuthDeviceAuthorizeRequest:
+      type: object
+      required:
+        - client_id
+      properties:
+        client_id:
+          type: string
+          enum:
+            - freedom-desktop
+        scope:
+          type: string
+          description: Space-delimited OAuth scopes requested by Freedom.
+          example: live_room:attach live_room:manage song_artifacts:read profile:read
+    OAuthDeviceAuthorizeResponse:
+      type: object
+      required:
+        - device_code
+        - user_code
+        - verification_uri
+        - verification_uri_complete
+        - expires_in
+        - interval
+      properties:
+        device_code:
+          type: string
+        user_code:
+          type: string
+          example: PTR-4X7K-9M2Q
+        verification_uri:
+          type: string
+          format: uri
+        verification_uri_complete:
+          type: string
+          format: uri
+        expires_in:
+          type: integer
+          minimum: 1
+        interval:
+          type: integer
+          minimum: 1
+    OAuthDeviceVerifyRequest:
+      type: object
+      required:
+        - user_code
+      properties:
+        user_code:
+          type: string
+    OAuthDeviceVerifyResponse:
+      type: object
+      required:
+        - client_id
+        - scope
+        - status
+        - user_code
+      properties:
+        client_id:
+          type: string
+        scope:
+          type: string
+        status:
+          type: string
+          enum:
+            - authorized
+        user_code:
+          type: string
+    OAuthDeviceTokenRequest:
+      oneOf:
+        - type: object
+          required:
+            - client_id
+            - device_code
+          properties:
+            grant_type:
+              type: string
+              enum:
+                - urn:ietf:params:oauth:grant-type:device_code
+            client_id:
+              type: string
+              enum:
+                - freedom-desktop
+            device_code:
+              type: string
+        - type: object
+          required:
+            - grant_type
+            - client_id
+            - refresh_token
+          properties:
+            grant_type:
+              type: string
+              enum:
+                - refresh_token
+            client_id:
+              type: string
+              enum:
+                - freedom-desktop
+            refresh_token:
+              type: string
+    OAuthDeviceTokenResponse:
+      type: object
+      required:
+        - access_token
+        - refresh_token
+        - token_type
+        - expires_in
+        - refresh_expires_in
+        - scope
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          enum:
+            - Bearer
+        expires_in:
+          type: integer
+          minimum: 1
+        refresh_expires_in:
+          type: integer
+          minimum: 1
+        scope:
+          type: string
+    OAuthDeviceAuthorizationPendingResponse:
+      type: object
+      required:
+        - error
+        - error_description
+        - interval
+      properties:
+        error:
+          type: string
+          enum:
+            - authorization_pending
+        error_description:
+          type: string
+        interval:
+          type: integer
+          minimum: 1
     User:
       type: object
       description: |
@@ -6793,7 +7073,7 @@ components:
             Public v0 supports HNS and Spaces. Future namespace families may extend this surface without changing the session model.
         root_label:
           type: string
-          description: Root label as entered by the creator before server normalization.
+          description: Root label as entered by the creator before server normalization. Values starting with `@` are Spaces roots; bare labels are HNS roots. The prefix must match `family`.
     CompleteNamespaceVerificationSessionRequest:
       type: object
       description: |
@@ -9038,9 +9318,6 @@ components:
           nullable: true
           description: |
             Optional pricing model for commerce-enabled templates. This does not by itself enable public claims or sales; launch availability is controlled separately by server-derived capability flags.
-        membership_required_for_claim:
-          type: boolean
-          default: true
     Community:
       type: object
       required:
@@ -10180,11 +10457,24 @@ components:
       required:
         - id
         - object
+        - community
         - user
         - namespace
         - label
+        - label_normalized
         - status
         - issuance_source
+        - quote
+        - price_cents
+        - currency
+        - pricing_model
+        - pricing_tier
+        - settlement_wallet_attachment
+        - funding_tx_ref
+        - settlement_tx_ref
+        - lease_started_at
+        - lease_expires_at
+        - created
       properties:
         id:
           type: string
@@ -10194,11 +10484,15 @@ components:
           readOnly: true
           enum:
             - community_handle
+        community:
+          type: string
         user:
           type: string
         namespace:
           type: string
         label:
+          type: string
+        label_normalized:
           type: string
         status:
           type: string
@@ -10214,6 +10508,36 @@ components:
             - claim
             - auction
             - admin_grant
+        quote:
+          type: string
+          nullable: true
+        price_cents:
+          type: integer
+          minimum: 0
+        currency:
+          type: string
+          enum:
+            - USD
+        pricing_model:
+          type: string
+          enum:
+            - free
+            - flat_by_length
+            - custom_curve
+            - gated_then_flat
+          nullable: true
+        pricing_tier:
+          type: string
+          nullable: true
+        settlement_wallet_attachment:
+          type: string
+          nullable: true
+        funding_tx_ref:
+          type: string
+          nullable: true
+        settlement_tx_ref:
+          type: string
+          nullable: true
         lease_started_at:
           type: integer
           format: int64
@@ -10221,6 +10545,292 @@ components:
         lease_expires_at:
           type: integer
           format: int64
+          nullable: true
+        created:
+          type: integer
+          format: int64
+    CommunityHandleClaimRequest:
+      type: object
+      required:
+        - quote
+      properties:
+        quote:
+          type: string
+        settlement_wallet_attachment:
+          type: string
+          nullable: true
+        funding_tx_ref:
+          type: string
+          nullable: true
+        settlement_tx_ref:
+          type: string
+          nullable: true
+    CommunityHandleListResponse:
+      type: object
+      required:
+        - handles
+      properties:
+        handles:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommunityHandle"
+    CommunityHandleMeResponse:
+      type: object
+      required:
+        - handle
+      properties:
+        handle:
+          $ref: "#/components/schemas/CommunityHandle"
+          nullable: true
+    CommunityHandleStatusResponse:
+      type: object
+      required:
+        - available
+        - reason
+        - claims_enabled
+        - namespace
+      properties:
+        available:
+          type: boolean
+        reason:
+          type: string
+          nullable: true
+        claims_enabled:
+          type: boolean
+          nullable: true
+        namespace:
+          type: string
+          nullable: true
+    CommunityHandlePolicy:
+      type: object
+      required:
+        - id
+        - object
+        - community
+        - namespace
+        - policy_template
+        - pricing_model
+        - claims_enabled
+        - settings
+        - updated_at
+      properties:
+        id:
+          type: string
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - community_handle_policy
+        community:
+          type: string
+        namespace:
+          type: string
+        policy_template:
+          type: string
+          enum:
+            - standard
+            - premium
+            - membership_gated
+            - custom
+        pricing_model:
+          type: string
+          enum:
+            - free
+            - flat_by_length
+            - custom_curve
+            - gated_then_flat
+          nullable: true
+        claims_enabled:
+          type: boolean
+        settings:
+          $ref: "#/components/schemas/CommunityHandlePolicySettings"
+        updated_at:
+          type: integer
+          format: int64
+          nullable: true
+    CommunityHandlePolicySettings:
+      type: object
+      properties:
+        flat_price_cents:
+          type: integer
+          minimum: 0
+        premium_price_cents:
+          type: integer
+          minimum: 0
+        premium_max_length:
+          type: integer
+          minimum: 1
+        min_length:
+          type: integer
+          minimum: 1
+        max_length:
+          type: integer
+          minimum: 1
+        quote_ttl_seconds:
+          type: integer
+          minimum: 60
+        reserved_labels:
+          type: array
+          items:
+            type: string
+        special_price_cents_by_label:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+    CommunityHandleQuote:
+      type: object
+      required:
+        - id
+        - object
+        - community
+        - namespace
+        - desired_label
+        - label
+        - label_normalized
+        - eligible
+        - availability
+        - reason
+        - price_cents
+        - currency
+        - pricing_model
+        - pricing_tier
+        - payment_instructions
+        - quote_ttl_seconds
+        - quoted_at
+        - expires_at
+      properties:
+        id:
+          type: string
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - community_handle_quote
+        community:
+          type: string
+        namespace:
+          type: string
+        desired_label:
+          type: string
+        label:
+          type: string
+        label_normalized:
+          type: string
+        eligible:
+          type: boolean
+        availability:
+          type: string
+          enum:
+            - available
+            - taken
+            - reserved
+            - already_claimed_by_viewer
+            - viewer_has_claim
+            - namespace_unavailable
+        reason:
+          type: string
+          nullable: true
+        price_cents:
+          type: integer
+          minimum: 0
+        currency:
+          type: string
+          enum:
+            - USD
+        pricing_model:
+          type: string
+          enum:
+            - free
+            - flat_by_length
+            - custom_curve
+            - gated_then_flat
+          nullable: true
+        pricing_tier:
+          type: string
+          nullable: true
+        payment_instructions:
+          type: object
+          nullable: true
+          required:
+            - chain
+            - token_address
+            - recipient_address
+            - amount_atomic
+            - amount_display
+          properties:
+            chain:
+              type: object
+              required:
+                - chain_namespace
+                - chain_id
+                - display_name
+              properties:
+                chain_namespace:
+                  type: string
+                chain_id:
+                  type: integer
+                display_name:
+                  type: string
+            token_address:
+              type: string
+            recipient_address:
+              type: string
+            amount_atomic:
+              type: string
+            amount_display:
+              type: string
+        quote_ttl_seconds:
+          type: integer
+        quoted_at:
+          type: integer
+          format: int64
+        expires_at:
+          type: integer
+          format: int64
+    CommunityHandleQuoteRequest:
+      type: object
+      required:
+        - desired_label
+      properties:
+        desired_label:
+          type: string
+    CommunityHandleReserveRequest:
+      type: object
+      required:
+        - desired_label
+      properties:
+        desired_label:
+          type: string
+    CommunityHandleRevokeRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          nullable: true
+    UpdateCommunityHandlePolicyRequest:
+      type: object
+      properties:
+        policy_template:
+          type: string
+          enum:
+            - standard
+            - premium
+            - membership_gated
+            - custom
+        pricing_model:
+          type: string
+          enum:
+            - free
+            - flat_by_length
+            - custom_curve
+            - gated_then_flat
+        claims_enabled:
+          type: boolean
+        settings:
+          $ref: "#/components/schemas/CommunityHandlePolicySettings"
           nullable: true
     SongAudioArtifactDescriptor:
       type: object
@@ -10305,10 +10915,14 @@ components:
       additionalProperties: false
       required:
         - primary_audio
+        - title
         - lyrics
       properties:
         primary_audio:
           $ref: "#/components/schemas/SongArtifactUploadRef"
+        title:
+          type: string
+          description: Canonical song/track title. This is distinct from the social post title.
         lyrics:
           type: string
           description: Plain-text lyrics used for the mainline v0 song post.
@@ -10452,6 +11066,7 @@ components:
         - community
         - creator_user
         - status
+        - title
         - primary_audio
         - media_refs
         - lyrics
@@ -10483,6 +11098,8 @@ components:
             - consuming
             - consumed
             - failed
+        title:
+          type: string
         primary_audio:
           $ref: "#/components/schemas/SongAudioArtifactDescriptor"
         media_refs:
@@ -10578,6 +11195,19 @@ components:
         created:
           type: integer
           format: int64
+    SongArtifactBundleListResponse:
+      type: object
+      required:
+        - items
+        - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SongArtifactBundle"
+        next_cursor:
+          type: string
+          nullable: true
     CreatePostRequest:
       type: object
       description: |
@@ -11152,6 +11782,17 @@ components:
         song_artifact_bundle:
           type: string
           nullable: true
+        anchor_live_room:
+          type: string
+          nullable: true
+          readOnly: true
+          description: |
+            Live room anchored to this post when the post was created by the live-room composer.
+        song_title:
+          type: string
+          nullable: true
+          readOnly: true
+          description: Canonical song/track title copied from the song artifact bundle for feed rendering.
         parent_post:
           type: string
           nullable: true
