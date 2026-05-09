@@ -467,7 +467,7 @@ curl -sS https://<prod-api-origin>/communities/<hns-community-id> \
 curl -sS -X POST https://<prod-api-origin>/namespace-verification-sessions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <production-access-token>" \
-  -d '{"family":"spaces","root_label":"<your-production-spaces-root>"}'
+  -d '{"family":"spaces","root_label":"@<your-production-spaces-root>"}'
 ```
 
 - [ ] Response: 201
