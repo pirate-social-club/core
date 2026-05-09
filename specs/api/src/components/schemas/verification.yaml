@@ -751,7 +751,7 @@ StartNamespaceVerificationSessionRequest:
         Public v0 supports HNS and Spaces. Future namespace families may extend this surface without changing the session model.
     root_label:
       type: string
-      description: Root label as entered by the creator before server normalization.
+      description: Root label as entered by the creator before server normalization. Values starting with `@` are Spaces roots; bare labels are HNS roots. The prefix must match `family`.
 CompleteNamespaceVerificationSessionRequest:
   type: object
   description: |

@@ -120,10 +120,14 @@ CreateSongArtifactBundleRequest:
   additionalProperties: false
   required:
     - primary_audio
+    - title
     - lyrics
   properties:
     primary_audio:
       $ref: ./song-artifacts.yaml#/SongArtifactUploadRef
+    title:
+      type: string
+      description: Canonical song/track title. This is distinct from the social post title.
     lyrics:
       type: string
       description: Plain-text lyrics used for the mainline v0 song post.
@@ -267,6 +271,7 @@ SongArtifactBundle:
     - community
     - creator_user
     - status
+    - title
     - primary_audio
     - media_refs
     - lyrics
@@ -298,6 +303,8 @@ SongArtifactBundle:
         - consuming
         - consumed
         - failed
+    title:
+      type: string
     primary_audio:
       $ref: ./song-artifacts.yaml#/SongAudioArtifactDescriptor
     media_refs:
@@ -393,6 +400,19 @@ SongArtifactBundle:
     created:
       type: integer
       format: int64
+SongArtifactBundleListResponse:
+  type: object
+  required:
+    - items
+    - next_cursor
+  properties:
+    items:
+      type: array
+      items:
+        $ref: ./song-artifacts.yaml#/SongArtifactBundle
+    next_cursor:
+      type: string
+      nullable: true
 Asset:
   type: object
   required:
