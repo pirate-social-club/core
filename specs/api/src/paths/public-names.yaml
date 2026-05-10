@@ -1,0 +1,83 @@
+public_names_quotes:
+  post:
+    tags:
+      - Public Names
+    x-implemented: true
+    security: []
+    summary: Quote a public wallet-owned .pirate name purchase
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/public-names.yaml#/PublicNameQuoteRequest
+    responses:
+      "200":
+        description: Public wallet-bound .pirate purchase quote
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/public-names.yaml#/PublicNameQuote
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+public_names_claims:
+  post:
+    tags:
+      - Public Names
+    x-implemented: true
+    security: []
+    summary: Claim a public wallet-owned .pirate name after checkout funding
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/public-names.yaml#/PublicNameClaimRequest
+    responses:
+      "200":
+        description: Wallet-owned .pirate registration
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/public-names.yaml#/PublicNameRegistrationResponse
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+public_names_by_label_status:
+  get:
+    tags:
+      - Public Names
+    x-implemented: true
+    security: []
+    summary: Check public .pirate name availability or wallet-owned registration status
+    parameters:
+      - name: label
+        in: path
+        required: true
+        schema:
+          type: string
+        description: .pirate label with or without the .pirate suffix.
+    responses:
+      "200":
+        description: Public .pirate name status
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/public-names.yaml#/PublicNameStatus
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
