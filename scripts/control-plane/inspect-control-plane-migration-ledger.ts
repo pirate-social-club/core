@@ -3,6 +3,7 @@
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { migrationChecksumMatches } from "../lib/postgres-migrations";
 
 type Options = {
   databaseUrlEnv: string;
@@ -139,13 +140,27 @@ try {
 
 const actualByName = new Map(rows.map((row) => [row.migration_name, row] as const));
 const matching = expected
-  .filter((entry) => actualByName.get(entry.migrationName)?.checksum === entry.checksum)
+  .filter((entry) => {
+    const actualChecksum = actualByName.get(entry.migrationName)?.checksum;
+    return typeof actualChecksum === "string" && migrationChecksumMatches({
+      migrationName: entry.migrationName,
+      existingChecksum: actualChecksum,
+      currentChecksum: entry.checksum,
+    });
+  })
   .map((entry) => entry.migrationName);
 const missing = expected
   .filter((entry) => !actualByName.has(entry.migrationName))
   .map((entry) => entry.migrationName);
 const mismatched = expected
-  .filter((entry) => actualByName.has(entry.migrationName) && actualByName.get(entry.migrationName)?.checksum !== entry.checksum)
+  .filter((entry) => {
+    const actualChecksum = actualByName.get(entry.migrationName)?.checksum;
+    return typeof actualChecksum === "string" && !migrationChecksumMatches({
+      migrationName: entry.migrationName,
+      existingChecksum: actualChecksum,
+      currentChecksum: entry.checksum,
+    });
+  })
   .map((entry) => entry.migrationName);
 const unexpected = rows
   .map((row) => row.migration_name)

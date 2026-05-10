@@ -45,6 +45,10 @@ Prefix rule:
 - each migration filename prefix must be unique within its migration root
 - the current runner applies files in lexicographic order and only warns on duplicate prefixes
 - do not rely on duplicate numeric prefixes to imply a stable order
+- `0080_control_plane_link_enrichment_source_language.sql` and
+  `0080_control_plane_song_artifact_bundle_title.sql` are a known historical
+  duplicate in the control-plane root. Keep both names stable because production
+  ledgers have recorded them separately. New migrations must use a fresh prefix.
 
 Use the directories themselves as the authoritative source:
 
@@ -61,6 +65,9 @@ It will:
 - apply the baseline on fresh Postgres targets
 - skip the historical SQLite-first files after the baseline is applied
 - skip the baseline on databases that already recorded the historical migrations
+- tolerate checksum drift for the baseline row on already-bootstrapped Postgres
+  databases, because the baseline is a snapshot and not a replayed historical
+  migration there. Regular migration checksum drift still fails.
 
 Keep this README descriptive rather than maintaining a duplicated file-by-file index that can drift from the actual migration roots.
 

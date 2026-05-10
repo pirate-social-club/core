@@ -7,6 +7,15 @@ const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(__filename), "..");
 const communityDriftPolicyPath = "db/known-community-migration-drifts.json";
 const localControlPlaneDriftPolicyPath = "db/local-control-plane-migration-drifts.json";
+const allowedDuplicateMigrationPrefixes = new Map([
+  [
+    "control-plane:0080",
+    new Set([
+      "db/control-plane/migrations/0080_control_plane_link_enrichment_source_language.sql",
+      "db/control-plane/migrations/0080_control_plane_song_artifact_bundle_title.sql",
+    ]),
+  ],
+]);
 
 const migrationRoots = [
   {
@@ -144,6 +153,12 @@ function checkDuplicatePrefixes(root, headFiles, baseFiles) {
     const baseGroup = baseGroups.get(prefix) ?? [];
     if (baseGroup.length > 1 && sameSet(headGroup, baseGroup)) {
       warnings.push(`${root.label}: existing duplicate prefix ${prefix} is grandfathered: ${headGroup.join(", ")}`);
+      continue;
+    }
+
+    const allowedGroup = allowedDuplicateMigrationPrefixes.get(`${root.label}:${prefix}`);
+    if (allowedGroup && sameSet(headGroup, Array.from(allowedGroup))) {
+      warnings.push(`${root.label}: known duplicate prefix ${prefix} is grandfathered: ${headGroup.join(", ")}`);
       continue;
     }
 
