@@ -7,6 +7,10 @@ set -euo pipefail
 
 cmd=("$SPACED_BIN" --chain "${SPACED_CHAIN:-mainnet}" --data-dir "$SPACED_DATA_DIR" --bitcoin-rpc-url "$BITCOIN_RPC_URL")
 
+if [ -n "${SPACED_JOBS:-}" ]; then
+  cmd+=(--jobs "$SPACED_JOBS")
+fi
+
 if [ -n "${BITCOIN_RPC_USER:-}" ] && [ -n "${BITCOIN_RPC_PASS:-}" ]; then
   cmd+=(--bitcoin-rpc-user "$BITCOIN_RPC_USER" --bitcoin-rpc-password "$BITCOIN_RPC_PASS")
 fi
