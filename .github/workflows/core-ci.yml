@@ -9,7 +9,7 @@ on:
       - "db/local-control-plane-migration-drifts.json"
       - "db/community-template/migrations/**"
       - "references/templates/api-worker-auth-first-slice/**"
-      - "scripts/apply-sqlite-migrations.sh"
+      - "scripts/community/apply-sqlite-migrations.sh"
       - "scripts/check-migration-integrity.mjs"
       - "specs/api/**"
   push:
@@ -20,7 +20,7 @@ on:
       - "db/local-control-plane-migration-drifts.json"
       - "db/community-template/migrations/**"
       - "references/templates/api-worker-auth-first-slice/**"
-      - "scripts/apply-sqlite-migrations.sh"
+      - "scripts/community/apply-sqlite-migrations.sh"
       - "scripts/check-migration-integrity.mjs"
       - "specs/api/**"
   workflow_dispatch:
@@ -80,6 +80,13 @@ jobs:
 
       - name: Check migration integrity
         run: npm run check:migrations
+
+      - name: Validate community-template migrations against fresh SQLite
+        run: |
+          mkdir -p /tmp/pirate-migration-test
+          ./scripts/community/apply-sqlite-migrations.sh \
+            --db /tmp/pirate-migration-test/community.db \
+            --migrations db/community-template/migrations
 
       # Full `bun run verify` is intentionally excluded here because it writes
       # generated contracts into the standalone API sidecar when available.

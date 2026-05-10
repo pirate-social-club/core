@@ -5,11 +5,11 @@ node_modules/
 .codex
 references/upstream/majeur/
 references/upstream/multisig/
-api/
-web/
-contracts/
-desktop/
-android/
+/api/
+/web/
+/contracts/
+/desktop/
+/android/
 
 # Deploy manifests
 deployments/
