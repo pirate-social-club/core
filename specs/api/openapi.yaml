@@ -28,6 +28,7 @@ tags:
   - name: Wallets
   - name: Users
   - name: Profiles
+  - name: Public Names
   - name: Communities
   - name: Handles
   - name: Posts
@@ -596,6 +597,63 @@ paths:
                     stamp_score_decimal: "10"
         "401":
           $ref: "#/components/responses/AuthError"
+  /verification/altcha/challenge:
+    get:
+      tags:
+        - Verification
+      x-implemented: true
+      summary: Create an ALTCHA proof-of-work challenge
+      description: |
+        Returns a fresh ALTCHA OSS proof-of-work challenge bound to the authenticated actor,
+        requested scope, and action reference. Clients solve this challenge locally and submit the
+        resulting payload on gated writes with `X-Pirate-Altcha`.
+      parameters:
+        - name: scope
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - community_join
+              - post_create
+              - comment_create
+              - post_vote
+              - comment_vote
+              - community_follow
+        - name: action
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 300
+          description: Scope-specific action reference, such as `community:{community_id}`.
+      responses:
+        "200":
+          description: ALTCHA challenge payload
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                parameters:
+                  algorithm: PBKDF2/SHA-256
+                  cost: 5000
+                  data:
+                    actor: usr_123
+                    scope: community_join
+                    action: community:cmt_123
+                  nonce: 6f2c3a...
+                  salt: 9bf0...
+                  expiresAt: 1778323200
+                signature: 02a1b4...
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /verification/wallet-score/refresh:
     post:
       tags:
@@ -1655,6 +1713,89 @@ paths:
                 $ref: "#/components/schemas/PublicProfileResolution"
         "404":
           $ref: "#/components/responses/NotFound"
+  /public-names/quotes:
+    post:
+      tags:
+        - Public Names
+      x-implemented: true
+      security: []
+      summary: Quote a public wallet-owned .pirate name purchase
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicNameQuoteRequest"
+      responses:
+        "200":
+          description: Public wallet-bound .pirate purchase quote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicNameQuote"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /public-names/claims:
+    post:
+      tags:
+        - Public Names
+      x-implemented: true
+      security: []
+      summary: Claim a public wallet-owned .pirate name after checkout funding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicNameClaimRequest"
+      responses:
+        "200":
+          description: Wallet-owned .pirate registration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicNameRegistrationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /public-names/{label}/status:
+    get:
+      tags:
+        - Public Names
+      x-implemented: true
+      security: []
+      summary: Check public .pirate name availability or wallet-owned registration status
+      parameters:
+        - name: label
+          in: path
+          required: true
+          schema:
+            type: string
+          description: .pirate label with or without the .pirate suffix.
+      responses:
+        "200":
+          description: Public .pirate name status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicNameStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /communities:
     post:
       tags:
@@ -6963,6 +7104,280 @@ components:
         reason:
           type: string
           nullable: true
+    PublicNameQuoteRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - desired_label
+        - buyer_wallet_address
+      properties:
+        desired_label:
+          type: string
+          description: Requested .pirate label, with or without the .pirate suffix.
+          example: captain
+        buyer_wallet_address:
+          type: string
+          description: EVM wallet address that will fund and own the public registration.
+          example: "0x2000000000000000000000000000000000000002"
+    PublicNamePaymentInstructions:
+      type: object
+      additionalProperties: false
+      required:
+        - chain
+        - token_address
+        - recipient_address
+        - amount_atomic
+        - amount_display
+      properties:
+        chain:
+          type: object
+          additionalProperties: false
+          required:
+            - chain_namespace
+            - chain_id
+            - display_name
+          properties:
+            chain_namespace:
+              type: string
+              enum:
+                - eip155
+            chain_id:
+              type: integer
+              example: 84532
+            display_name:
+              type: string
+              example: Base Sepolia
+        token_address:
+          type: string
+        recipient_address:
+          type: string
+        amount_atomic:
+          type: string
+          description: Exact token amount in atomic units.
+        amount_display:
+          type: string
+          description: Human-readable USD amount.
+    PublicNameQuote:
+      type: object
+      additionalProperties: false
+      required:
+        - quote
+        - desired_label
+        - label_normalized
+        - buyer
+        - price_cents
+        - currency
+        - eligible
+        - reason
+        - policy_version
+        - quote_ttl_seconds
+        - quoted_at
+        - expires_at
+        - payment_instructions
+      properties:
+        quote:
+          type: string
+          example: pnq_01JZ0000000000000000000000
+        desired_label:
+          type: string
+          example: captain.pirate
+        label_normalized:
+          type: string
+          example: captain
+        buyer:
+          type: object
+          additionalProperties: false
+          required:
+            - kind
+            - wallet_address
+            - chain_ref
+          properties:
+            kind:
+              type: string
+              enum:
+                - wallet
+            wallet_address:
+              type: string
+            chain_ref:
+              type: string
+              example: eip155:84532
+        price_cents:
+          type: integer
+          minimum: 0
+        currency:
+          type: string
+          enum:
+            - USD
+        eligible:
+          type: boolean
+          enum:
+            - true
+        reason:
+          type: string
+          nullable: true
+        policy_version:
+          type: string
+          example: global_handle_paid_v1
+        pricing_tier:
+          type: string
+          nullable: true
+        quote_ttl_seconds:
+          type: integer
+          minimum: 1
+          example: 900
+        quoted_at:
+          type: integer
+          format: int64
+        expires_at:
+          type: integer
+          format: int64
+        payment_instructions:
+          $ref: "#/PublicNamePaymentInstructions"
+    PublicNameClaimRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - quote
+        - funding_tx_ref
+      properties:
+        quote:
+          type: string
+          example: pnq_01JZ0000000000000000000000
+        funding_tx_ref:
+          type: string
+          description: Confirmed source-chain transaction hash that funded the quoted checkout transfer.
+    PublicNameRegistration:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - label
+        - label_normalized
+        - status
+        - owner_kind
+        - owner_wallet_address
+        - chain_ref
+        - price_paid_cents
+        - currency
+        - issued_at
+        - expires_at
+        - pirate_user_id
+      properties:
+        id:
+          type: string
+          example: pnr_01JZ0000000000000000000000
+        label:
+          type: string
+          example: captain.pirate
+        label_normalized:
+          type: string
+          example: captain
+        status:
+          type: string
+          enum:
+            - active
+            - expired
+            - revoked
+        owner_kind:
+          type: string
+          enum:
+            - wallet
+        owner_wallet_address:
+          type: string
+        chain_ref:
+          type: string
+          example: eip155:84532
+        price_paid_cents:
+          type: integer
+          minimum: 0
+        currency:
+          type: string
+          enum:
+            - USD
+        issued_at:
+          type: integer
+          format: int64
+        expires_at:
+          type: integer
+          format: int64
+          nullable: true
+        pirate_user_id:
+          type: string
+          nullable: true
+    PublicNameRegistrationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - registration
+        - quote
+        - funding_tx_ref
+        - settlement_tx_ref
+      properties:
+        registration:
+          $ref: "#/PublicNameRegistration"
+        quote:
+          type: string
+        funding_tx_ref:
+          type: string
+          nullable: true
+        settlement_tx_ref:
+          type: string
+          nullable: true
+    PublicNameStatus:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required:
+            - label
+            - label_normalized
+            - status
+          properties:
+            label:
+              type: string
+            label_normalized:
+              type: string
+            status:
+              type: string
+              enum:
+                - available
+        - type: object
+          additionalProperties: false
+          required:
+            - label
+            - label_normalized
+            - status
+            - registration
+          properties:
+            label:
+              type: string
+            label_normalized:
+              type: string
+            status:
+              type: string
+              enum:
+                - registered
+            registration:
+              $ref: "#/PublicNameRegistration"
+        - type: object
+          additionalProperties: false
+          required:
+            - label
+            - label_normalized
+            - status
+            - owner_kind
+          properties:
+            label:
+              type: string
+            label_normalized:
+              type: string
+            status:
+              type: string
+              enum:
+                - taken
+            owner_kind:
+              type: string
+              enum:
+                - user
     VerificationSession:
       type: object
       required:
@@ -7895,6 +8310,7 @@ components:
             - nationality
             - gender
             - wallet_score
+            - altcha_pow
             - erc721_holding
             - erc721_inventory_match
         proof_requirements:
@@ -10470,6 +10886,7 @@ components:
         - pricing_model
         - pricing_tier
         - settlement_wallet_attachment
+        - protocol_owner_wallet_attachment
         - funding_tx_ref
         - settlement_tx_ref
         - lease_started_at
@@ -10532,6 +10949,9 @@ components:
         settlement_wallet_attachment:
           type: string
           nullable: true
+        protocol_owner_wallet_attachment:
+          type: string
+          nullable: true
         funding_tx_ref:
           type: string
           nullable: true
@@ -10546,6 +10966,9 @@ components:
           type: integer
           format: int64
           nullable: true
+        protocol_issuance:
+          $ref: "#/components/schemas/CommunityHandleProtocolIssuance"
+          nullable: true
         created:
           type: integer
           format: int64
@@ -10557,6 +10980,9 @@ components:
         quote:
           type: string
         settlement_wallet_attachment:
+          type: string
+          nullable: true
+        protocol_owner_wallet_attachment:
           type: string
           nullable: true
         funding_tx_ref:
@@ -10679,6 +11105,11 @@ components:
           additionalProperties:
             type: integer
             minimum: 0
+        issuance_mode:
+          type: string
+          enum:
+            - app_internal
+            - spaces_subspace
     CommunityHandleQuote:
       type: object
       required:
@@ -10696,6 +11127,9 @@ components:
         - currency
         - pricing_model
         - pricing_tier
+        - protocol_issuance_required
+        - protocol_issuance_eligible
+        - protocol_issuance_reason
         - payment_instructions
         - quote_ttl_seconds
         - quoted_at
@@ -10751,37 +11185,16 @@ components:
         pricing_tier:
           type: string
           nullable: true
-        payment_instructions:
-          type: object
+        protocol_issuance_required:
+          type: boolean
+        protocol_issuance_eligible:
+          type: boolean
+        protocol_issuance_reason:
+          type: string
           nullable: true
-          required:
-            - chain
-            - token_address
-            - recipient_address
-            - amount_atomic
-            - amount_display
-          properties:
-            chain:
-              type: object
-              required:
-                - chain_namespace
-                - chain_id
-                - display_name
-              properties:
-                chain_namespace:
-                  type: string
-                chain_id:
-                  type: integer
-                display_name:
-                  type: string
-            token_address:
-              type: string
-            recipient_address:
-              type: string
-            amount_atomic:
-              type: string
-            amount_display:
-              type: string
+        payment_instructions:
+          $ref: "#/components/schemas/CommunityHandlePaymentInstructions"
+          nullable: true
         quote_ttl_seconds:
           type: integer
         quoted_at:

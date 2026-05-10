@@ -156,6 +156,63 @@ verification_passport_wallet_score:
                   stamp_score_decimal: "10"
       "401":
         $ref: ../components/responses.yaml#/AuthError
+verification_altcha_challenge:
+  get:
+    tags:
+      - Verification
+    x-implemented: true
+    summary: Create an ALTCHA proof-of-work challenge
+    description: |
+      Returns a fresh ALTCHA OSS proof-of-work challenge bound to the authenticated actor,
+      requested scope, and action reference. Clients solve this challenge locally and submit the
+      resulting payload on gated writes with `X-Pirate-Altcha`.
+    parameters:
+      - name: scope
+        in: query
+        required: true
+        schema:
+          type: string
+          enum:
+            - community_join
+            - post_create
+            - comment_create
+            - post_vote
+            - comment_vote
+            - community_follow
+      - name: action
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 300
+        description: Scope-specific action reference, such as `community:{community_id}`.
+    responses:
+      "200":
+        description: ALTCHA challenge payload
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              parameters:
+                algorithm: PBKDF2/SHA-256
+                cost: 5000
+                data:
+                  actor: usr_123
+                  scope: community_join
+                  action: community:cmt_123
+                nonce: 6f2c3a...
+                salt: 9bf0...
+                expiresAt: 1778323200
+              signature: 02a1b4...
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
 verification_wallet_score_refresh:
   post:
     tags:

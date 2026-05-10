@@ -27,6 +27,7 @@ tags:
   - name: Wallets
   - name: Users
   - name: Profiles
+  - name: Public Names
   - name: Communities
   - name: Handles
   - name: Posts
@@ -73,6 +74,8 @@ paths:
     $ref: ./paths/verification.yaml#/verification_wallet_score
   /verification/passport-wallet-score:
     $ref: ./paths/verification.yaml#/verification_passport_wallet_score
+  /verification/altcha/challenge:
+    $ref: ./paths/verification.yaml#/verification_altcha_challenge
   /verification/wallet-score/refresh:
     $ref: ./paths/verification.yaml#/verification_wallet_score_refresh
   /verification-sessions/{verification_session_id}:
@@ -151,6 +154,12 @@ paths:
     $ref: ./paths/profiles.yaml#/public_profiles_by_wallet_address
   /public-profiles/{handle_label}:
     $ref: ./paths/profiles.yaml#/public_profiles_by_handle_label
+  /public-names/quotes:
+    $ref: ./paths/public-names.yaml#/public_names_quotes
+  /public-names/claims:
+    $ref: ./paths/public-names.yaml#/public_names_claims
+  /public-names/{label}/status:
+    $ref: ./paths/public-names.yaml#/public_names_by_label_status
   /communities:
     $ref: ./paths/communities.yaml#/communities
   /communities/admin/health:
@@ -560,6 +569,20 @@ components:
       $ref: ./components/schemas/profiles.yaml#/GlobalHandle
     HandleUpgradeQuote:
       $ref: ./components/schemas/profiles.yaml#/HandleUpgradeQuote
+    PublicNameQuoteRequest:
+      $ref: ./components/schemas/public-names.yaml#/PublicNameQuoteRequest
+    PublicNamePaymentInstructions:
+      $ref: ./components/schemas/public-names.yaml#/PublicNamePaymentInstructions
+    PublicNameQuote:
+      $ref: ./components/schemas/public-names.yaml#/PublicNameQuote
+    PublicNameClaimRequest:
+      $ref: ./components/schemas/public-names.yaml#/PublicNameClaimRequest
+    PublicNameRegistration:
+      $ref: ./components/schemas/public-names.yaml#/PublicNameRegistration
+    PublicNameRegistrationResponse:
+      $ref: ./components/schemas/public-names.yaml#/PublicNameRegistrationResponse
+    PublicNameStatus:
+      $ref: ./components/schemas/public-names.yaml#/PublicNameStatus
     VerificationSession:
       $ref: ./components/schemas/verification.yaml#/VerificationSession
     StartNamespaceVerificationSessionRequest:

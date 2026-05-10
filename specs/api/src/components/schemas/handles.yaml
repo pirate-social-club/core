@@ -89,6 +89,7 @@ CommunityHandle:
     - pricing_model
     - pricing_tier
     - settlement_wallet_attachment
+    - protocol_owner_wallet_attachment
     - funding_tx_ref
     - settlement_tx_ref
     - lease_started_at
@@ -151,6 +152,9 @@ CommunityHandle:
     settlement_wallet_attachment:
       type: string
       nullable: true
+    protocol_owner_wallet_attachment:
+      type: string
+      nullable: true
     funding_tx_ref:
       type: string
       nullable: true
@@ -165,9 +169,30 @@ CommunityHandle:
       type: integer
       format: int64
       nullable: true
+    protocol_issuance:
+      $ref: ./handles.yaml#/CommunityHandleProtocolIssuance
+      nullable: true
     created:
       type: integer
       format: int64
+CommunityHandleProtocolIssuance:
+  type: object
+  required:
+    - status
+    - sname
+    - parent_space
+    - issued_at
+  properties:
+    status:
+      type: string
+    sname:
+      type: string
+    parent_space:
+      type: string
+    issued_at:
+      type: integer
+      format: int64
+      nullable: true
 CommunityHandlePolicySettings:
   type: object
   properties:
@@ -198,6 +223,11 @@ CommunityHandlePolicySettings:
       additionalProperties:
         type: integer
         minimum: 0
+    issuance_mode:
+      type: string
+      enum:
+        - app_internal
+        - spaces_subspace
 CommunityHandlePolicy:
   type: object
   required:
@@ -322,6 +352,9 @@ CommunityHandleQuote:
     - currency
     - pricing_model
     - pricing_tier
+    - protocol_issuance_required
+    - protocol_issuance_eligible
+    - protocol_issuance_reason
     - payment_instructions
     - quote_ttl_seconds
     - quoted_at
@@ -377,6 +410,13 @@ CommunityHandleQuote:
     pricing_tier:
       type: string
       nullable: true
+    protocol_issuance_required:
+      type: boolean
+    protocol_issuance_eligible:
+      type: boolean
+    protocol_issuance_reason:
+      type: string
+      nullable: true
     payment_instructions:
       $ref: ./handles.yaml#/CommunityHandlePaymentInstructions
       nullable: true
@@ -396,6 +436,9 @@ CommunityHandleClaimRequest:
     quote:
       type: string
     settlement_wallet_attachment:
+      type: string
+      nullable: true
+    protocol_owner_wallet_attachment:
       type: string
       nullable: true
     funding_tx_ref:

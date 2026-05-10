@@ -352,6 +352,7 @@ GateRuleInput:
         - nationality
         - gender
         - wallet_score
+        - altcha_pow
         - erc721_holding
         - erc721_inventory_match
     proof_requirements:
@@ -1363,6 +1364,7 @@ MembershipGateSummary:
         - age_over_18
         - minimum_age
         - wallet_score
+        - altcha_pow
         - erc721_holding
         - erc721_inventory_match
     accepted_providers:
@@ -1653,11 +1655,12 @@ JoinEligibility:
           - nationality
           - gender
           - wallet_score
+          - altcha_pow
       description: |
         Missing capability keys for the evaluated join path. Public-v0 community remediation should
         surface only capability keys Pirate can remediate end to end for the current lane, including
         `unique_human`, `age_over_18`, `nationality`, and `gender` for Self-backed flows and
-        `wallet_score` for Human Passport checks.
+        `wallet_score` for Human Passport checks and `altcha_pow` for per-action proof-of-work.
     suggested_verification_provider:
       type: string
       enum:
@@ -1876,6 +1879,7 @@ GateAtom:
         - nationality
         - gender
         - wallet_score
+        - altcha_pow
         - erc721_holding
         - erc721_inventory_match
     provider:
@@ -1885,6 +1889,7 @@ GateAtom:
         - very
         - passport
         - courtyard
+        - altcha
       nullable: true
     minimum_age:
       type: integer
@@ -2004,6 +2009,7 @@ RequiredActionNode:
         - very
         - passport
         - wallet
+        - altcha
     capability:
       type: string
       enum:
@@ -2012,8 +2018,11 @@ RequiredActionNode:
         - gender
         - unique_human
         - wallet_score
+        - altcha_pow
         - erc721_holding
         - erc721_inventory_match
+    scope:
+      type: string
     required_age:
       type: integer
     allowed_countries:
@@ -2056,6 +2065,7 @@ RequiredAction:
         - very
         - passport
         - wallet
+        - altcha
     capability:
       type: string
       enum:
@@ -2064,8 +2074,11 @@ RequiredAction:
         - gender
         - unique_human
         - wallet_score
+        - altcha_pow
         - erc721_holding
         - erc721_inventory_match
+    scope:
+      type: string
     required_age:
       type: integer
     allowed_countries:

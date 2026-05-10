@@ -119,7 +119,7 @@ export type RedditVerification = {
   verification_hint?: string | null;
   code_placement_surface?: "profile" | "bio" | "about" | null;
   last_checked_at?: number | null;
-  failure_code?: "code_not_found" | "username_not_found" | "rate_limited" | "source_error" | null;
+  failure_code?: "code_not_found" | "different_code_found" | "username_not_found" | "rate_limited" | "source_error" | null;
 };
 
 export type RedditImportSummary = {
@@ -225,6 +225,7 @@ export type Community = {
   motion_media_policy: CommunityMotionMediaPolicy;
   language_policy: CommunityLanguagePolicy;
   civility_policy: CommunityCivilityPolicy;
+  visual_policy_settings: CommunityVisualPolicySettings;
   openai_moderation_settings?: ({
     scan_titles?: boolean;
     scan_post_bodies?: boolean;
@@ -556,7 +557,7 @@ export type ModerationCaseDetail = {
 };
 
 export type ModerationCaseListResponse = {
-  items: Array<ModerationCase>;
+  items: Array<ModerationCaseListItem>;
   next_cursor: string | null;
 };
 
@@ -637,7 +638,12 @@ type Comment = {
   agent_owner_handle_snapshot?: string | null;
   agent_ownership_provider_snapshot?: AgentOwnershipProvider | null;
   body: string | null;
+  media_refs?: Array<MediaDescriptor>;
   status: "published" | "hidden" | "removed" | "deleted";
+  replies_locked?: boolean;
+  replies_locked_at?: number | null;
+  replies_locked_by_user?: string | null;
+  replies_lock_reason?: string | null;
   depth: number;
   direct_reply_count: number;
   descendant_count: number;
@@ -950,6 +956,54 @@ type CommunityVideoAuthenticityPolicySettings = {
   allow_ai_generated: boolean;
 };
 
+type CommunityVisualPolicyAction = "allow" | "queue" | "reject";
+
+type CommunityVisualPolicyDisclosureAction = "allow" | "allow_with_disclosure" | "queue" | "reject";
+
+type CommunityVisualPolicySettings = {
+  community: string;
+  policy_origin: CommunityPolicyOrigin;
+  topless: CommunityVisualPolicyAction;
+  visible_nipples: CommunityVisualPolicyAction;
+  visible_buttocks: CommunityVisualPolicyAction;
+  visible_genitals: CommunityVisualPolicyAction;
+  bottomless_obscured: CommunityVisualPolicyAction;
+  implied_sexual_activity: CommunityVisualPolicyAction;
+  explicit_sexual_activity: CommunityVisualPolicyAction;
+  sexualized_contact: CommunityVisualPolicyAction;
+  masturbation: CommunityVisualPolicyAction;
+  oral_sex: CommunityVisualPolicyAction;
+  sex_toy_packaging: CommunityVisualPolicyAction;
+  sex_toy_visible: CommunityVisualPolicyAction;
+  sex_toy_in_use: CommunityVisualPolicyAction;
+  anime_manga: CommunityVisualPolicyAction;
+  furry_anthro: CommunityVisualPolicyAction;
+  fictional_nudity: CommunityVisualPolicyAction;
+  fictional_explicit_sex: CommunityVisualPolicyAction;
+  ambiguous_fictional_age_with_adult_content: "queue" | "reject";
+  possible_minor_with_adult_content: "reject";
+  ai_generated_images: CommunityVisualPolicyAction;
+  ai_generated_adult_images: CommunityVisualPolicyAction;
+  deepfake_or_face_swap_risk: "queue" | "reject";
+  celebrity_adult_likeness: "queue" | "reject";
+  voyeuristic_or_hidden_camera: "reject";
+  watermark: CommunityVisualPolicyAction;
+  adult_platform_watermark: CommunityVisualPolicyAction;
+  product_promotion: CommunityVisualPolicyDisclosureAction;
+  affiliate_or_sales_link: CommunityVisualPolicyDisclosureAction;
+  qr_code: "queue" | "reject";
+  payment_handle: "queue" | "reject";
+  urls_in_image: CommunityVisualPolicyAction;
+  weapons: CommunityVisualPolicyAction;
+  gore_or_injury: CommunityVisualPolicyAction;
+  drugs: CommunityVisualPolicyAction;
+  hate_symbols: "queue" | "reject";
+  personal_documents: "queue" | "reject";
+  uncertain_age_with_adult_content: "queue" | "reject";
+  low_quality_adult_image: "queue" | "reject";
+  model_uncertain: "queue" | "reject";
+};
+
 type DisclosedQualifierSnapshot = {
   qualifier_template: string;
   rendered_label: string;
@@ -970,8 +1024,8 @@ type DonationPartnerSummary = {
 };
 
 type GateAtom = {
-  type: "unique_human" | "minimum_age" | "nationality" | "gender" | "wallet_score" | "erc721_holding" | "erc721_inventory_match";
-  provider?: "self" | "very" | "passport" | "courtyard" | null;
+  type: "unique_human" | "minimum_age" | "nationality" | "gender" | "wallet_score" | "altcha_pow" | "erc721_holding" | "erc721_inventory_match";
+  provider?: "self" | "very" | "passport" | "courtyard" | "altcha" | null;
   minimum_age?: number;
   allowed?: Array<string>;
   minimum_score?: number;
@@ -1009,6 +1063,21 @@ type GateRule = {
 type GovernanceVerificationState = "not_required" | "pending" | "verified" | "broken";
 
 type HumanVerificationLane = "very" | "self";
+
+type KalshiMarketEmbed = {
+  embed: string;
+  embed_key: string;
+  provider: "kalshi";
+  provider_ref?: string | null;
+  canonical_url: string;
+  original_url: string;
+  state: "pending" | "preview" | "embed" | "unavailable";
+  preview?: PredictionMarketEmbedPreview | null;
+  oembed_html?: string | null;
+  oembed_cache_age?: number | null;
+  unavailable_reason?: "deleted" | "withheld" | "private" | "unsupported" | "unknown" | null;
+  last_checked_at?: number | null;
+};
 
 type LinkedHandle = {
   linked_handle: string;
@@ -1075,7 +1144,22 @@ type MediaDescriptor = {
 
 type ModerationActionType = "dismiss" | "hide" | "remove" | "restore" | "age_gate";
 
+type ModerationCaseListItem = (ModerationCase & {
+  post: ModerationCasePostPreview | null;
+});
+
 type ModerationCaseOpenedBy = "platform_analysis" | "user_report" | "mixed";
+
+type ModerationCasePostPreview = {
+  post_id: string;
+  post_type: string;
+  status: string;
+  title: string | null;
+  body: string | null;
+  caption: string | null;
+  media_refs_json: string | null;
+  author_handle: string | null;
+};
 
 type ModerationCaseStatus = "open" | "resolved";
 
@@ -1103,6 +1187,21 @@ type MultisigGovernanceMetadata = {
   master_copy_address?: string | null;
 };
 
+type PolymarketMarketEmbed = {
+  embed: string;
+  embed_key: string;
+  provider: "polymarket";
+  provider_ref?: string | null;
+  canonical_url: string;
+  original_url: string;
+  state: "pending" | "preview" | "embed" | "unavailable";
+  preview?: PredictionMarketEmbedPreview | null;
+  oembed_html?: string | null;
+  oembed_cache_age?: number | null;
+  unavailable_reason?: "deleted" | "withheld" | "private" | "unsupported" | "unknown" | null;
+  last_checked_at?: number | null;
+};
+
 type Post = {
   id: string;
   object: "post";
@@ -1122,6 +1221,10 @@ type Post = {
   label?: string | null;
   post_type: "text" | "image" | "video" | "link" | "song";
   status: "draft" | "published" | "hidden" | "removed" | "deleted";
+  comments_locked?: boolean;
+  comments_locked_at?: number | null;
+  comments_locked_by_user?: string | null;
+  comments_lock_reason?: string | null;
   visibility: "public" | "members_only";
   title?: string | null;
   body?: string | null;
@@ -1129,6 +1232,7 @@ type Post = {
   link_url?: string | null;
   link_og_image_url?: string | null;
   link_og_title?: string | null;
+  link_enrichment?: (Record<string, unknown>) | null;
   embeds?: Array<PostEmbed> | null;
   media_refs?: Array<MediaDescriptor>;
   creator_relation?: PostCreatorRelation | null;
@@ -1138,6 +1242,8 @@ type Post = {
   access_mode?: "public" | "locked" | null;
   asset?: string | null;
   song_artifact_bundle?: string | null;
+  anchor_live_room?: string | null;
+  song_title?: string | null;
   parent_post?: string | null;
   song_mode?: "original" | "remix" | null;
   rights_basis?: "none" | "original" | "derivative" | "attribution_only" | null;
@@ -1151,7 +1257,42 @@ type Post = {
 
 type PostCreatorRelation = "captured" | "created" | "subject" | "authorized_repost" | "fan_work" | "found";
 
-type PostEmbed = (XPostEmbed | YouTubeVideoEmbed);
+type PostEmbed = (XPostEmbed | YouTubeVideoEmbed | KalshiMarketEmbed | PolymarketMarketEmbed);
+
+type PredictionMarketChartPoint = {
+  ts: number;
+  price?: number | null;
+  volume?: number | null;
+  open_interest?: number | null;
+};
+
+type PredictionMarketEmbedPreview = {
+  question?: string | null;
+  title?: string | null;
+  image_url?: string | null;
+  yes_price?: number | null;
+  yes_bid?: number | null;
+  yes_ask?: number | null;
+  no_bid?: number | null;
+  no_ask?: number | null;
+  last_price?: number | null;
+  volume?: number | null;
+  volume_24h?: number | null;
+  liquidity?: number | null;
+  open_interest?: number | null;
+  status?: string | null;
+  resolution?: "yes" | "no" | null;
+  resolved_outcome?: string | null;
+  close_time?: string | null;
+  updated_at?: string | null;
+  chart?: Array<PredictionMarketChartPoint> | null;
+  outcomes?: Array<PredictionMarketOutcome> | null;
+};
+
+type PredictionMarketOutcome = {
+  label: string;
+  probability: number;
+};
 
 type PromotionAffiliationKind = "self" | "brand" | "client" | "partner" | "employer" | "other";
 
