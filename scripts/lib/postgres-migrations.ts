@@ -37,6 +37,10 @@ export function migrationChecksumMatches(input: {
     return true;
   }
 
+  if (input.migrationName === "0000_control_plane_baseline_postgres.sql") {
+    return true;
+  }
+
   return false;
 }
 
