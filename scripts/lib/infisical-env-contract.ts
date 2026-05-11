@@ -108,6 +108,16 @@ export const ENV_CONTRACT: EnvContract = {
     },
     {
       path: "/services/api",
+      key: "ALTCHA_HMAC_SECRET",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "ALTCHA_HMAC_KEY_SECRET",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
       key: "TURSO_COMMUNITY_DB_WRAP_KEY",
       requiredness: "required_now",
       validate: is64CharHex,
@@ -560,6 +570,8 @@ export const CORE_SECRET_IDS = [
   "TURSO_PLATFORM_API_TOKEN__/services/control-plane",
   "TURSO_COMMUNITY_DB_WRAP_KEY__/services/control-plane",
   "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN__/services/control-plane",
+  "ALTCHA_HMAC_SECRET__/services/api",
+  "ALTCHA_HMAC_KEY_SECRET__/services/api",
 ] as const;
 
 export const HAPPY_PATH_SECRET_IDS = [
