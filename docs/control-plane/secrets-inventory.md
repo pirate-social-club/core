@@ -96,6 +96,15 @@ The API worker cannot start without these. The sync script (`scripts/infisical/s
 | `ALTCHA_HMAC_SECRET` | `worker-secret` | HMAC secret for ALTCHA challenge signing (proof-of-work gates and guest comments) |
 | `ALTCHA_HMAC_KEY_SECRET` | `worker-secret` | HMAC key secret for ALTCHA challenge key-prefix signing |
 
+#### Required for staging smoke tests
+
+These secrets are used by operator-run smoke scripts and must stay out of Cloudflare Worker
+runtime secret sync unless the worker itself starts consuming them.
+
+| Name | Type | Purpose |
+|---|---|---|
+| `PIRATE_CHECKOUT_SMOKE_BUYER_PRIVATE_KEY` | `private-key` | Funded Base Sepolia-only buyer wallet for staging `.pirate` purchase claim smoke tests |
+
 #### Conditional (only when the feature is enabled)
 
 | Name | Type | Condition |

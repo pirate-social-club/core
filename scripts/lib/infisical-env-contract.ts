@@ -89,6 +89,13 @@ function isEvmAddress(value: string): string | null {
   return null;
 }
 
+function isEvmPrivateKey(value: string): string | null {
+  if (!/^0x[0-9a-fA-F]{64}$/.test(value)) {
+    return "expected 0x-prefixed 32-byte EVM private key";
+  }
+  return null;
+}
+
 export const ENV_CONTRACT: EnvContract = {
   folders: [
     { path: "/services", requiredness: "required_now" },
@@ -323,6 +330,12 @@ export const ENV_CONTRACT: EnvContract = {
       key: "PIRATE_CHECKOUT_TX_WAIT_TIMEOUT_MS",
       requiredness: "deferred",
       validate: isPositiveInteger,
+    },
+    {
+      path: "/services/api",
+      key: "PIRATE_CHECKOUT_SMOKE_BUYER_PRIVATE_KEY",
+      requiredness: "required_for_staging",
+      validate: isEvmPrivateKey,
     },
     {
       path: "/services/api",
@@ -596,11 +609,13 @@ export const COMMERCE_SECRET_IDS = [
   "PIRATE_CHECKOUT_RPC_URL__/services/api",
   "PIRATE_CHECKOUT_SOURCE_CHAIN_ID__/services/api",
   "PIRATE_CHECKOUT_USDC_TOKEN_ADDRESS__/services/api",
+  "PIRATE_CHECKOUT_SMOKE_BUYER_PRIVATE_KEY__/services/api",
 ] as const;
 
 const NON_WRANGLER_API_SECRET_NAMES = new Set([
   "TINYBIRD_TOKEN",
   "TINYBIRD_URL",
+  "PIRATE_CHECKOUT_SMOKE_BUYER_PRIVATE_KEY",
 ]);
 
 export function profileSecretIds(profile: SecretProfile): Set<string> | null {
