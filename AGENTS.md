@@ -75,6 +75,23 @@ Repo boundary rules:
 
 If a sibling repo has its own `AGENTS.md`, follow this file for workspace/repo selection and follow the sibling file for repo-local workflows, validation, and product constraints.
 
+## Infisical Profile
+
+Use the Infisical profile `habitant_barber905@simplelogin.com` for Pirate workspace secrets.
+Do not use `buildapps.dev@proton.me` for this workspace; it is in the wrong selected Infisical
+organization and returns project ownership errors for the Pirate project.
+
+Another local AI/session may switch the active Infisical profile. Immediately before any
+Infisical command that reads, writes, checks, or syncs secrets, switch back:
+
+```bash
+printf '\n' | rtk infisical user switch >/dev/null
+```
+
+The first profile in the prompt should be `habitant_barber905@simplelogin.com`; the newline
+selects it. If the prompt order changes, stop and switch explicitly/interactively rather than
+touching secrets with the wrong account.
+
 ## Branch Workflow
 
 All work commits directly to `main`. No feature branches, no task branches.
