@@ -16,6 +16,8 @@ VerificationIntent:
     - profile_verification
     - community_creation
     - community_join
+    - post_create
+    - comment_create
     - post_access_18_plus
     - commerce_pricing
     - qualifier_disclosure

@@ -5566,6 +5566,8 @@ components:
         - profile_verification
         - community_creation
         - community_join
+        - post_create
+        - comment_create
         - post_access_18_plus
         - commerce_pricing
         - qualifier_disclosure
@@ -8027,6 +8029,14 @@ components:
           nullable: true
           description: |
             Enables anonymous posts in the community to attach disclosed qualifiers from `allowed_disclosed_qualifiers`. Public v0 create may set this only when `allow_anonymous_identity = true`. If `false` or `null`, anonymous posts must not expose optional qualifiers.
+        guest_comment_policy:
+          type: string
+          enum:
+            - disallow
+            - altcha_required
+          nullable: true
+          description: |
+            Controls unauthenticated guest comment support. `altcha_required` permits guest comments only with a solved per-comment proof-of-work challenge.
         root_post_min_trust_tier:
           type: string
           enum:
@@ -8617,6 +8627,14 @@ components:
           nullable: true
           description: |
             Enables anonymous posts in the club to attach disclosed qualifiers from `allowed_disclosed_qualifiers`. If `false` or `null`, anonymous posts must not expose optional qualifiers.
+        guest_comment_policy:
+          type: string
+          enum:
+            - disallow
+            - altcha_required
+          nullable: true
+          description: |
+            Controls unauthenticated guest comment support.
         root_post_min_trust_tier:
           type: string
           enum:
@@ -9744,6 +9762,7 @@ components:
         - human_verification_lane
         - human_verification_lane_origin
         - agent_posting_policy
+        - guest_comment_policy
         - agent_posting_scope
         - accepted_agent_ownership_providers_origin
         - accepted_agent_ownership_providers
@@ -9858,6 +9877,11 @@ components:
           nullable: true
           description: |
             Whether anonymous posts in the community may attach disclosed qualifiers from `allowed_disclosed_qualifiers`.
+        guest_comment_policy:
+          type: string
+          enum:
+            - disallow
+            - altcha_required
         root_post_min_trust_tier:
           type: string
           enum:
