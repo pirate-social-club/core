@@ -24,6 +24,12 @@
         "oldChecksum": "bdb8e886939b733f10afff54e25f83cc39ed49c2a6501b7f7604ac3357b8d61f",
         "newChecksum": "c768ccfa8e10523f54d2e8960fe534fde388fee6b1aced30d5dcbd7314ca4c96",
         "reason": "compatible ledger checksum drift"
+      },
+      {
+        "migrationName": "1036_comment_agent_authorship.sql",
+        "oldChecksum": "aa648205a1796140aafe3c2c42766e5a0d5b62338ea8d429cc1504839ff4fc15",
+        "newChecksum": "211877f264ae14bf694899bdabc11e7baed6efbfdd518361842075ce8b37ec5a",
+        "reason": "guest authorship compatibility repair tracked by 1037_rebuild_comments_guest_authorship.sql"
       }
     ],
     "unexpectedMigrationsToRemove": [
