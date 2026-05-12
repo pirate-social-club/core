@@ -11619,6 +11619,7 @@ components:
             - primary_audio
             - cover_art
             - preview_audio
+            - preview_video
             - canvas_video
             - instrumental_audio
             - vocal_audio
@@ -11674,6 +11675,7 @@ components:
             - primary_audio
             - cover_art
             - preview_audio
+            - preview_video
             - canvas_video
             - instrumental_audio
             - vocal_audio
@@ -11941,7 +11943,8 @@ components:
         - description: |
             Video posts require at least one video in `media_refs`. When `access_mode` is present,
             the first video media ref must resolve to an uploaded `primary_video` artifact and the
-            server creates a video commerce asset. Identity must be public for commerce video posts.
+            optional `preview_video` descriptor must resolve to an uploaded `preview_video` artifact.
+            The server creates a video commerce asset. Identity must be public for commerce video posts.
           required:
             - post_type
             - media_refs
@@ -12675,6 +12678,9 @@ components:
           nullable: true
         poster_frame_ms:
           type: integer
+          nullable: true
+        preview_video:
+          $ref: "#/components/schemas/SongVideoArtifactDescriptor"
           nullable: true
     PostEmbed:
       oneOf:

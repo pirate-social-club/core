@@ -193,6 +193,7 @@ export type Community = {
   human_verification_lane_origin: CommunityAgentResolutionOrigin;
   allowed_disclosed_qualifiers?: Array<string> | null;
   allow_qualifiers_on_anonymous_posts?: boolean | null;
+  guest_comment_policy: "disallow" | "altcha_required";
   root_post_min_trust_tier?: "new" | "established" | "trusted" | "high_trust" | null;
   reply_min_trust_tier?: "new" | "established" | "trusted" | "high_trust" | null;
   anonymous_posting_min_trust_tier?: "new" | "established" | "trusted" | "high_trust" | null;
@@ -627,7 +628,7 @@ type Comment = {
   thread_root_post: string;
   parent_comment: string | null;
   author_user: string | null;
-  authorship_mode: "human_direct" | "user_agent";
+  authorship_mode: "human_direct" | "user_agent" | "guest";
   agent?: string | null;
   agent_ownership_record?: string | null;
   identity_mode: "public" | "anonymous";
@@ -1140,6 +1141,7 @@ type MediaDescriptor = {
   poster_width?: number | null;
   poster_height?: number | null;
   poster_frame_ms?: number | null;
+  preview_video?: SongVideoArtifactDescriptor | null;
 };
 
 type ModerationActionType = "dismiss" | "hide" | "remove" | "restore" | "age_gate";
@@ -1334,6 +1336,18 @@ type RootPostQuotaRule = {
   max_root_posts: number;
   max_song_posts: number;
   max_video_posts: number;
+};
+
+type SongVideoArtifactDescriptor = {
+  storage_ref: string;
+  mime_type: string;
+  size_bytes?: number | null;
+  content_hash?: string | null;
+  duration_ms?: number | null;
+  clip_start_ms?: number | null;
+  clip_duration_ms?: number | null;
+  width?: number | null;
+  height?: number | null;
 };
 
 type UserReportReasonCode = "spam" | "harassment" | "hate" | "sexual_content" | "graphic_content" | "misleading" | "other";
