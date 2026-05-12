@@ -2,6 +2,16 @@
   "controlPlane": {
     "compatibleChecksumDrifts": [
       {
+        "migrationName": "0000_control_plane_baseline_postgres.sql",
+        "oldChecksum": "cedddc5f85541610502414b66cbad42d1678f298fbd92732cbc48cefbfa7e795",
+        "reason": "local baseline drift before song artifact preview video was added"
+      },
+      {
+        "migrationName": "0067_control_plane_song_artifact_primary_video.sql",
+        "oldChecksum": "b0af38cab275fca4dd8d744fb9b99638a648bea085d27f227d692e36e1508625",
+        "reason": "local song artifact primary video migration drift before preview video was added"
+      },
+      {
         "migrationName": "0084_control_plane_altcha_used_challenges.sql",
         "oldChecksum": "5d0f0b7923b963c46ea2f8960497bf4b4b098a96e3a1bb93846f8e8564457f8c",
         "reason": "local ALTCHA migration drift before rate-limit table was added"
