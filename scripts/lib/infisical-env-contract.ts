@@ -177,13 +177,13 @@ export const ENV_CONTRACT: EnvContract = {
     {
       path: "/services/api",
       key: "SWARM_BEE_API_URL",
-      requiredness: "required_for_hosted",
+      requiredness: "deferred",
       validate: isHttpUrl,
     },
     {
       path: "/services/api",
       key: "SWARM_POSTAGE_BATCH_ID",
-      requiredness: "required_for_hosted",
+      requiredness: "deferred",
     },
     {
       path: "/services/api",
@@ -646,8 +646,6 @@ export const HAPPY_PATH_SECRET_IDS = [
 export const COMMERCE_SECRET_IDS = [
   "FILEBASE_S3_ACCESS_KEY__/services/api",
   "FILEBASE_S3_SECRET_KEY__/services/api",
-  "SWARM_BEE_API_URL__/services/api",
-  "SWARM_POSTAGE_BATCH_ID__/services/api",
   "ACRCLOUD_ACCESS_KEY__/services/api",
   "ACRCLOUD_ACCESS_SECRET__/services/api",
   "ACRCLOUD_PERSONAL_ACCESS_TOKEN__/services/api",
