@@ -299,3 +299,120 @@ ProfileActivityResponse:
     next_cursor:
       type: string
       nullable: true
+WalletIdentityPublicName:
+  type: object
+  additionalProperties: false
+  required:
+    - id
+    - label
+    - label_normalized
+    - status
+    - owner_kind
+    - owner_wallet_address
+    - chain_ref
+    - price_paid_cents
+    - currency
+    - issued_at
+    - expires_at
+    - pirate_user_id
+  properties:
+    id:
+      type: string
+      example: pnr_01JZ0000000000000000000000
+    label:
+      type: string
+      example: captain.pirate
+    label_normalized:
+      type: string
+      example: captain
+    status:
+      type: string
+      enum:
+        - active
+    owner_kind:
+      type: string
+      enum:
+        - wallet
+    owner_wallet_address:
+      type: string
+    chain_ref:
+      type: string
+      example: eip155:84532
+    price_paid_cents:
+      type: integer
+      minimum: 0
+    currency:
+      type: string
+      enum:
+        - USD
+    issued_at:
+      type: integer
+      format: int64
+    expires_at:
+      type: integer
+      format: int64
+      nullable: true
+    pirate_user_id:
+      type: string
+      nullable: true
+WalletIdentity:
+  type: object
+  additionalProperties: false
+  required:
+    - object
+    - chain_ref
+    - wallet_address
+    - display_label
+    - public_names
+  properties:
+    object:
+      type: string
+      enum:
+        - wallet_identity
+    chain_ref:
+      type: string
+      example: eip155:84532
+    wallet_address:
+      type: string
+    display_label:
+      type: string
+      nullable: true
+      description: First-issued active wallet-owned Pirate name, if one exists. Clients may apply their own fallback chain.
+    public_names:
+      type: array
+      items:
+        $ref: ./profiles.yaml#/WalletIdentityPublicName
+WalletIdentityRedirect:
+  type: object
+  additionalProperties: false
+  required:
+    - object
+    - chain_ref
+    - wallet_address
+    - profile
+    - profile_handle
+  properties:
+    object:
+      type: string
+      enum:
+        - wallet_identity_redirect
+    chain_ref:
+      type: string
+      example: eip155:84532
+    wallet_address:
+      type: string
+    profile:
+      type: string
+      description: Account-backed public user ID for the attached profile.
+    profile_handle:
+      type: string
+      description: Canonical public profile handle label.
+WalletIdentityResponse:
+  oneOf:
+    - $ref: ./profiles.yaml#/WalletIdentity
+    - $ref: ./profiles.yaml#/WalletIdentityRedirect
+  discriminator:
+    propertyName: object
+    mapping:
+      wallet_identity: ./profiles.yaml#/WalletIdentity
+      wallet_identity_redirect: ./profiles.yaml#/WalletIdentityRedirect
