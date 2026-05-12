@@ -222,6 +222,44 @@ public_profiles_by_wallet_address:
               $ref: ../components/schemas/profiles.yaml#/PublicProfileResolution
       "404":
         $ref: ../components/responses.yaml#/NotFound
+wallet_identities_by_chain_ref_wallet_address:
+  get:
+    tags:
+      - Profiles
+    x-implemented: true
+    security: []
+    summary: Resolve a public wallet identity
+    description: |
+      Returns a query-time wallet identity projection for wallets that have wallet-owned Pirate names.
+      If the wallet is attached to an account-backed profile, callers receive a redirect payload to the profile surface instead.
+    parameters:
+      - name: chain_ref
+        in: path
+        required: true
+        schema:
+          type: string
+        description: EIP-155 chain reference, either `eip155` or `eip155:{chain_id}`.
+      - name: wallet_address
+        in: path
+        required: true
+        schema:
+          type: string
+        description: EVM wallet address.
+    responses:
+      "200":
+        description: Wallet identity projection or profile redirect
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/profiles.yaml#/WalletIdentityResponse
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
 public_profiles_by_handle_label:
   get:
     tags:

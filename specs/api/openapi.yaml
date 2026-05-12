@@ -617,9 +617,6 @@ paths:
               - community_join
               - post_create
               - comment_create
-              - post_vote
-              - comment_vote
-              - community_follow
         - name: action
           in: query
           required: true
@@ -1690,6 +1687,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PublicProfileResolution"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /wallet-identities/{chain_ref}/{wallet_address}:
+    get:
+      tags:
+        - Profiles
+      x-implemented: true
+      security: []
+      summary: Resolve a public wallet identity
+      description: |
+        Returns a query-time wallet identity projection for wallets that have wallet-owned Pirate names.
+        If the wallet is attached to an account-backed profile, callers receive a redirect payload to the profile surface instead.
+      parameters:
+        - name: chain_ref
+          in: path
+          required: true
+          schema:
+            type: string
+          description: EIP-155 chain reference, either `eip155` or `eip155:{chain_id}`.
+        - name: wallet_address
+          in: path
+          required: true
+          schema:
+            type: string
+          description: EVM wallet address.
+      responses:
+        "200":
+          description: Wallet identity projection or profile redirect
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletIdentityResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
   /public-profiles/{handle_label}:
@@ -5569,6 +5604,8 @@ components:
         - profile_verification
         - community_creation
         - community_join
+        - post_create
+        - comment_create
         - post_access_18_plus
         - commerce_pricing
         - qualifier_disclosure
@@ -7104,6 +7141,196 @@ components:
         reason:
           type: string
           nullable: true
+    ProfileActivityPostPage:
+      type: object
+      required:
+        - kind
+        - post
+        - community
+        - created
+      properties:
+        kind:
+          type: string
+          enum:
+            - post
+        post:
+          $ref: "#/components/schemas/LocalizedPostResponse"
+        community:
+          $ref: "#/components/schemas/CommunityPreview"
+        created:
+          type: integer
+          format: int64
+    ProfileActivityCommentPage:
+      type: object
+      required:
+        - kind
+        - comment
+        - thread_root_post
+        - community
+        - created
+      properties:
+        kind:
+          type: string
+          enum:
+            - comment
+        comment:
+          $ref: "#/components/schemas/CommentListItem"
+        thread_root_post:
+          $ref: "#/components/schemas/LocalizedPostResponse"
+        community:
+          $ref: "#/components/schemas/CommunityPreview"
+        created:
+          type: integer
+          format: int64
+    ProfileActivityResponse:
+      type: object
+      required:
+        - tab
+        - posts
+        - comments
+        - overview_items
+        - next_cursor
+      properties:
+        tab:
+          type: string
+          enum:
+            - overview
+            - posts
+            - comments
+        posts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProfileActivityPostPage"
+        comments:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProfileActivityCommentPage"
+        overview_items:
+          type: array
+          items:
+            oneOf:
+              - $ref: "#/components/schemas/ProfileActivityPostPage"
+              - $ref: "#/components/schemas/ProfileActivityCommentPage"
+        next_cursor:
+          type: string
+          nullable: true
+    WalletIdentityPublicName:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - label
+        - label_normalized
+        - status
+        - owner_kind
+        - owner_wallet_address
+        - chain_ref
+        - price_paid_cents
+        - currency
+        - issued_at
+        - expires_at
+        - pirate_user_id
+      properties:
+        id:
+          type: string
+          example: pnr_01JZ0000000000000000000000
+        label:
+          type: string
+          example: captain.pirate
+        label_normalized:
+          type: string
+          example: captain
+        status:
+          type: string
+          enum:
+            - active
+        owner_kind:
+          type: string
+          enum:
+            - wallet
+        owner_wallet_address:
+          type: string
+        chain_ref:
+          type: string
+          example: eip155:84532
+        price_paid_cents:
+          type: integer
+          minimum: 0
+        currency:
+          type: string
+          enum:
+            - USD
+        issued_at:
+          type: integer
+          format: int64
+        expires_at:
+          type: integer
+          format: int64
+          nullable: true
+        pirate_user_id:
+          type: string
+          nullable: true
+    WalletIdentity:
+      type: object
+      additionalProperties: false
+      required:
+        - object
+        - chain_ref
+        - wallet_address
+        - display_label
+        - public_names
+      properties:
+        object:
+          type: string
+          enum:
+            - wallet_identity
+        chain_ref:
+          type: string
+          example: eip155:84532
+        wallet_address:
+          type: string
+        display_label:
+          type: string
+          nullable: true
+          description: First-issued active wallet-owned Pirate name, if one exists. Clients may apply their own fallback chain.
+        public_names:
+          type: array
+          items:
+            $ref: "#/components/schemas/WalletIdentityPublicName"
+    WalletIdentityRedirect:
+      type: object
+      additionalProperties: false
+      required:
+        - object
+        - chain_ref
+        - wallet_address
+        - profile
+        - profile_handle
+      properties:
+        object:
+          type: string
+          enum:
+            - wallet_identity_redirect
+        chain_ref:
+          type: string
+          example: eip155:84532
+        wallet_address:
+          type: string
+        profile:
+          type: string
+          description: Account-backed public user ID for the attached profile.
+        profile_handle:
+          type: string
+          description: Canonical public profile handle label.
+    WalletIdentityResponse:
+      oneOf:
+        - $ref: "#/components/schemas/WalletIdentity"
+        - $ref: "#/components/schemas/WalletIdentityRedirect"
+      discriminator:
+        propertyName: object
+        mapping:
+          wallet_identity: ./profiles.yaml#/WalletIdentity
+          wallet_identity_redirect: ./profiles.yaml#/WalletIdentityRedirect
     PublicNameQuoteRequest:
       type: object
       additionalProperties: false
@@ -8030,6 +8257,14 @@ components:
           nullable: true
           description: |
             Enables anonymous posts in the community to attach disclosed qualifiers from `allowed_disclosed_qualifiers`. Public v0 create may set this only when `allow_anonymous_identity = true`. If `false` or `null`, anonymous posts must not expose optional qualifiers.
+        guest_comment_policy:
+          type: string
+          enum:
+            - disallow
+            - altcha_required
+          nullable: true
+          description: |
+            Controls unauthenticated guest comment support. `altcha_required` permits guest comments only with a solved per-comment proof-of-work challenge.
         root_post_min_trust_tier:
           type: string
           enum:
@@ -8620,6 +8855,14 @@ components:
           nullable: true
           description: |
             Enables anonymous posts in the club to attach disclosed qualifiers from `allowed_disclosed_qualifiers`. If `false` or `null`, anonymous posts must not expose optional qualifiers.
+        guest_comment_policy:
+          type: string
+          enum:
+            - disallow
+            - altcha_required
+          nullable: true
+          description: |
+            Controls unauthenticated guest comment support.
         root_post_min_trust_tier:
           type: string
           enum:
@@ -9747,6 +9990,7 @@ components:
         - human_verification_lane
         - human_verification_lane_origin
         - agent_posting_policy
+        - guest_comment_policy
         - agent_posting_scope
         - accepted_agent_ownership_providers_origin
         - accepted_agent_ownership_providers
@@ -9861,6 +10105,11 @@ components:
           nullable: true
           description: |
             Whether anonymous posts in the community may attach disclosed qualifiers from `allowed_disclosed_qualifiers`.
+        guest_comment_policy:
+          type: string
+          enum:
+            - disallow
+            - altcha_required
         root_post_min_trust_tier:
           type: string
           enum:
@@ -11370,6 +11619,7 @@ components:
             - primary_audio
             - cover_art
             - preview_audio
+            - preview_video
             - canvas_video
             - instrumental_audio
             - vocal_audio
@@ -11425,6 +11675,7 @@ components:
             - primary_audio
             - cover_art
             - preview_audio
+            - preview_video
             - canvas_video
             - instrumental_audio
             - vocal_audio
@@ -11692,7 +11943,8 @@ components:
         - description: |
             Video posts require at least one video in `media_refs`. When `access_mode` is present,
             the first video media ref must resolve to an uploaded `primary_video` artifact and the
-            server creates a video commerce asset. Identity must be public for commerce video posts.
+            optional `preview_video` descriptor must resolve to an uploaded `preview_video` artifact.
+            The server creates a video commerce asset. Identity must be public for commerce video posts.
           required:
             - post_type
             - media_refs
@@ -12257,6 +12509,27 @@ components:
         created:
           type: integer
           format: int64
+    SongPresentation:
+      type: object
+      description: Display-safe song metadata projected onto localized post reads.
+      required:
+        - title
+        - cover_art_ref
+        - duration_ms
+      properties:
+        title:
+          type: string
+          nullable: true
+          description: Canonical song title copied from the published song artifact bundle.
+        cover_art_ref:
+          type: string
+          nullable: true
+          description: Storage reference for the published song cover art, when present.
+        duration_ms:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: Primary audio duration in milliseconds, when known.
     LocalizedPostResponse:
       type: object
       description: |
@@ -12290,6 +12563,9 @@ components:
           nullable: true
         label:
           $ref: "#/components/schemas/PostLabel"
+          nullable: true
+        song_presentation:
+          $ref: "#/components/schemas/SongPresentation"
           nullable: true
         upvote_count:
           type: integer
@@ -12402,6 +12678,9 @@ components:
           nullable: true
         poster_frame_ms:
           type: integer
+          nullable: true
+        preview_video:
+          $ref: "#/components/schemas/SongVideoArtifactDescriptor"
           nullable: true
     PostEmbed:
       oneOf:

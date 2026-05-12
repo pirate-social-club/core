@@ -152,6 +152,8 @@ paths:
     $ref: ./paths/profiles.yaml#/profiles_by_user_id
   /public-profiles/by-wallet/{wallet_address}:
     $ref: ./paths/profiles.yaml#/public_profiles_by_wallet_address
+  /wallet-identities/{chain_ref}/{wallet_address}:
+    $ref: ./paths/profiles.yaml#/wallet_identities_by_chain_ref_wallet_address
   /public-profiles/{handle_label}:
     $ref: ./paths/profiles.yaml#/public_profiles_by_handle_label
   /public-names/quotes:
@@ -569,6 +571,20 @@ components:
       $ref: ./components/schemas/profiles.yaml#/GlobalHandle
     HandleUpgradeQuote:
       $ref: ./components/schemas/profiles.yaml#/HandleUpgradeQuote
+    ProfileActivityPostPage:
+      $ref: ./components/schemas/profiles.yaml#/ProfileActivityPostPage
+    ProfileActivityCommentPage:
+      $ref: ./components/schemas/profiles.yaml#/ProfileActivityCommentPage
+    ProfileActivityResponse:
+      $ref: ./components/schemas/profiles.yaml#/ProfileActivityResponse
+    WalletIdentityPublicName:
+      $ref: ./components/schemas/profiles.yaml#/WalletIdentityPublicName
+    WalletIdentity:
+      $ref: ./components/schemas/profiles.yaml#/WalletIdentity
+    WalletIdentityRedirect:
+      $ref: ./components/schemas/profiles.yaml#/WalletIdentityRedirect
+    WalletIdentityResponse:
+      $ref: ./components/schemas/profiles.yaml#/WalletIdentityResponse
     PublicNameQuoteRequest:
       $ref: ./components/schemas/public-names.yaml#/PublicNameQuoteRequest
     PublicNamePaymentInstructions:
@@ -795,6 +811,8 @@ components:
       $ref: ./components/schemas/posts.yaml#/CreatePostRequest
     Post:
       $ref: ./components/schemas/posts.yaml#/Post
+    SongPresentation:
+      $ref: ./components/schemas/posts.yaml#/SongPresentation
     LocalizedPostResponse:
       $ref: ./components/schemas/posts.yaml#/LocalizedPostResponse
     MediaDescriptor:

@@ -49,6 +49,7 @@ Comment:
       enum:
         - human_direct
         - user_agent
+        - guest
     agent:
       type: string
       nullable: true
@@ -177,6 +178,7 @@ CreateCommentRequest:
       enum:
         - human_direct
         - user_agent
+        - guest
       default: human_direct
     agent:
       type: string

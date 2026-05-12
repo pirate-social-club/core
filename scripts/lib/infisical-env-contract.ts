@@ -176,6 +176,28 @@ export const ENV_CONTRACT: EnvContract = {
     },
     {
       path: "/services/api",
+      key: "SWARM_BEE_API_URL",
+      requiredness: "deferred",
+      validate: isHttpUrl,
+    },
+    {
+      path: "/services/api",
+      key: "SWARM_POSTAGE_BATCH_ID",
+      requiredness: "deferred",
+    },
+    {
+      path: "/services/api",
+      key: "SWARM_FEED_PRIVATE_KEY",
+      requiredness: "deferred",
+      validate: isEvmPrivateKey,
+    },
+    {
+      path: "/services/api",
+      key: "SWARM_FEED_TOPIC_NAMESPACE",
+      requiredness: "deferred",
+    },
+    {
+      path: "/services/api",
       key: "ACRCLOUD_ACCESS_KEY",
       requiredness: "required_for_hosted",
     },
@@ -280,6 +302,35 @@ export const ENV_CONTRACT: EnvContract = {
       path: "/services/api",
       key: "STORY_OPERATOR_PRIVATE_KEY",
       requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "STORY_ROYALTY_SPG_NFT_CONTRACT",
+      requiredness: "required_for_hosted",
+      validate: isEvmAddress,
+    },
+    {
+      path: "/services/api",
+      key: "STORY_ROYALTY_COMMERCIAL_REV_SHARE_PCT",
+      requiredness: "required_for_hosted",
+      validate: isPositiveInteger,
+    },
+    {
+      path: "/services/api",
+      key: "STORY_ROYALTY_DEFAULT_MINTING_FEE_WEI",
+      requiredness: "deferred",
+    },
+    {
+      path: "/services/api",
+      key: "STORY_ROYALTY_MAX_LICENSE_TOKENS",
+      requiredness: "deferred",
+      validate: isPositiveInteger,
+    },
+    {
+      path: "/services/api",
+      key: "STORY_ROYALTY_POLICY_LAP_ADDRESS",
+      requiredness: "deferred",
+      validate: isEvmAddress,
     },
     {
       path: "/services/api",
@@ -602,6 +653,8 @@ export const COMMERCE_SECRET_IDS = [
   "OPENROUTER_API_KEY__/services/api",
   "STORY_RUNTIME_PRIVATE_KEY__/services/api",
   "STORY_OPERATOR_PRIVATE_KEY__/services/api",
+  "STORY_ROYALTY_SPG_NFT_CONTRACT__/services/api",
+  "STORY_ROYALTY_COMMERCIAL_REV_SHARE_PCT__/services/api",
   "STORY_CDR_WRITER_PRIVATE_KEY__/services/api",
   "STORY_ACCESS_CONTROLLER_PRIVATE_KEY__/services/api",
   "MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY__/services/api",

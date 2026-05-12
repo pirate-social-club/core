@@ -176,9 +176,6 @@ verification_altcha_challenge:
             - community_join
             - post_create
             - comment_create
-            - post_vote
-            - comment_vote
-            - community_follow
       - name: action
         in: query
         required: true

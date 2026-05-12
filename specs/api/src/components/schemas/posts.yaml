@@ -490,7 +490,8 @@ CreatePostRequest:
     - description: |
         Video posts require at least one video in `media_refs`. When `access_mode` is present,
         the first video media ref must resolve to an uploaded `primary_video` artifact and the
-        server creates a video commerce asset. Identity must be public for commerce video posts.
+        optional `preview_video` descriptor must resolve to an uploaded `preview_video` artifact.
+        The server creates a video commerce asset. Identity must be public for commerce video posts.
       required:
         - post_type
         - media_refs
@@ -1055,6 +1056,27 @@ Post:
     created:
       type: integer
       format: int64
+SongPresentation:
+  type: object
+  description: Display-safe song metadata projected onto localized post reads.
+  required:
+    - title
+    - cover_art_ref
+    - duration_ms
+  properties:
+    title:
+      type: string
+      nullable: true
+      description: Canonical song title copied from the published song artifact bundle.
+    cover_art_ref:
+      type: string
+      nullable: true
+      description: Storage reference for the published song cover art, when present.
+    duration_ms:
+      type: integer
+      minimum: 0
+      nullable: true
+      description: Primary audio duration in milliseconds, when known.
 LocalizedPostResponse:
   type: object
   description: |
@@ -1088,6 +1110,9 @@ LocalizedPostResponse:
       nullable: true
     label:
       $ref: ./communities-community.yaml#/PostLabel
+      nullable: true
+    song_presentation:
+      $ref: '#/components/schemas/SongPresentation'
       nullable: true
     upvote_count:
       type: integer
@@ -1254,6 +1279,9 @@ MediaDescriptor:
     poster_frame_ms:
       type: integer
       nullable: true
+    preview_video:
+      $ref: ./song-artifacts.yaml#/SongVideoArtifactDescriptor
+      nullable: true
 ImageMediaDescriptor:
   type: object
   description: |
@@ -1329,6 +1357,9 @@ VideoMediaDescriptor:
       nullable: true
     poster_frame_ms:
       type: integer
+      nullable: true
+    preview_video:
+      $ref: ./song-artifacts.yaml#/SongVideoArtifactDescriptor
       nullable: true
 AudioMediaDescriptor:
   type: object
