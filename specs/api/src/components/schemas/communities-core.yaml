@@ -1629,6 +1629,13 @@ CommunityPreview:
         - not_member
         - banned
       nullable: true
+    viewer_community_role:
+      type: string
+      enum:
+        - owner
+        - admin
+        - moderator
+      nullable: true
     viewer_following:
       type: boolean
       nullable: true

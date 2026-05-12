@@ -1055,6 +1055,27 @@ Post:
     created:
       type: integer
       format: int64
+SongPresentation:
+  type: object
+  description: Display-safe song metadata projected onto localized post reads.
+  required:
+    - title
+    - cover_art_ref
+    - duration_ms
+  properties:
+    title:
+      type: string
+      nullable: true
+      description: Canonical song title copied from the published song artifact bundle.
+    cover_art_ref:
+      type: string
+      nullable: true
+      description: Storage reference for the published song cover art, when present.
+    duration_ms:
+      type: integer
+      minimum: 0
+      nullable: true
+      description: Primary audio duration in milliseconds, when known.
 LocalizedPostResponse:
   type: object
   description: |
@@ -1088,6 +1109,9 @@ LocalizedPostResponse:
       nullable: true
     label:
       $ref: ./communities-community.yaml#/PostLabel
+      nullable: true
+    song_presentation:
+      $ref: '#/components/schemas/SongPresentation'
       nullable: true
     upvote_count:
       type: integer

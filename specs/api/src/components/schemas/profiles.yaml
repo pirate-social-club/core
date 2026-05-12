@@ -226,3 +226,76 @@ HandleUpgradeQuote:
     reason:
       type: string
       nullable: true
+ProfileActivityPostPage:
+  type: object
+  required:
+    - kind
+    - post
+    - community
+    - created
+  properties:
+    kind:
+      type: string
+      enum:
+        - post
+    post:
+      $ref: '#/components/schemas/LocalizedPostResponse'
+    community:
+      $ref: '#/components/schemas/CommunityPreview'
+    created:
+      type: integer
+      format: int64
+ProfileActivityCommentPage:
+  type: object
+  required:
+    - kind
+    - comment
+    - thread_root_post
+    - community
+    - created
+  properties:
+    kind:
+      type: string
+      enum:
+        - comment
+    comment:
+      $ref: '#/components/schemas/CommentListItem'
+    thread_root_post:
+      $ref: '#/components/schemas/LocalizedPostResponse'
+    community:
+      $ref: '#/components/schemas/CommunityPreview'
+    created:
+      type: integer
+      format: int64
+ProfileActivityResponse:
+  type: object
+  required:
+    - tab
+    - posts
+    - comments
+    - overview_items
+    - next_cursor
+  properties:
+    tab:
+      type: string
+      enum:
+        - overview
+        - posts
+        - comments
+    posts:
+      type: array
+      items:
+        $ref: '#/components/schemas/ProfileActivityPostPage'
+    comments:
+      type: array
+      items:
+        $ref: '#/components/schemas/ProfileActivityCommentPage'
+    overview_items:
+      type: array
+      items:
+        oneOf:
+          - $ref: '#/components/schemas/ProfileActivityPostPage'
+          - $ref: '#/components/schemas/ProfileActivityCommentPage'
+    next_cursor:
+      type: string
+      nullable: true

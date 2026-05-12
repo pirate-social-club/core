@@ -5076,6 +5076,79 @@ components:
         reason:
           type: string
           nullable: true
+    ProfileActivityPostPage:
+      type: object
+      required:
+        - kind
+        - post
+        - community
+        - created
+      properties:
+        kind:
+          type: string
+          enum:
+            - post
+        post:
+          $ref: "#/components/schemas/LocalizedPostResponse"
+        community:
+          $ref: "#/components/schemas/CommunityPreview"
+        created:
+          type: integer
+          format: int64
+    ProfileActivityCommentPage:
+      type: object
+      required:
+        - kind
+        - comment
+        - thread_root_post
+        - community
+        - created
+      properties:
+        kind:
+          type: string
+          enum:
+            - comment
+        comment:
+          $ref: "#/components/schemas/CommentListItem"
+        thread_root_post:
+          $ref: "#/components/schemas/LocalizedPostResponse"
+        community:
+          $ref: "#/components/schemas/CommunityPreview"
+        created:
+          type: integer
+          format: int64
+    ProfileActivityResponse:
+      type: object
+      required:
+        - tab
+        - posts
+        - comments
+        - overview_items
+        - next_cursor
+      properties:
+        tab:
+          type: string
+          enum:
+            - overview
+            - posts
+            - comments
+        posts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProfileActivityPostPage"
+        comments:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProfileActivityCommentPage"
+        overview_items:
+          type: array
+          items:
+            oneOf:
+              - $ref: "#/components/schemas/ProfileActivityPostPage"
+              - $ref: "#/components/schemas/ProfileActivityCommentPage"
+        next_cursor:
+          type: string
+          nullable: true
     PublicNameQuoteRequest:
       type: object
       additionalProperties: false
@@ -10230,6 +10303,27 @@ components:
         created:
           type: integer
           format: int64
+    SongPresentation:
+      type: object
+      description: Display-safe song metadata projected onto localized post reads.
+      required:
+        - title
+        - cover_art_ref
+        - duration_ms
+      properties:
+        title:
+          type: string
+          nullable: true
+          description: Canonical song title copied from the published song artifact bundle.
+        cover_art_ref:
+          type: string
+          nullable: true
+          description: Storage reference for the published song cover art, when present.
+        duration_ms:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: Primary audio duration in milliseconds, when known.
     LocalizedPostResponse:
       type: object
       description: |
@@ -10263,6 +10357,9 @@ components:
           nullable: true
         label:
           $ref: "#/components/schemas/PostLabel"
+          nullable: true
+        song_presentation:
+          $ref: "#/components/schemas/SongPresentation"
           nullable: true
         upvote_count:
           type: integer

@@ -569,6 +569,12 @@ components:
       $ref: ./components/schemas/profiles.yaml#/GlobalHandle
     HandleUpgradeQuote:
       $ref: ./components/schemas/profiles.yaml#/HandleUpgradeQuote
+    ProfileActivityPostPage:
+      $ref: ./components/schemas/profiles.yaml#/ProfileActivityPostPage
+    ProfileActivityCommentPage:
+      $ref: ./components/schemas/profiles.yaml#/ProfileActivityCommentPage
+    ProfileActivityResponse:
+      $ref: ./components/schemas/profiles.yaml#/ProfileActivityResponse
     PublicNameQuoteRequest:
       $ref: ./components/schemas/public-names.yaml#/PublicNameQuoteRequest
     PublicNamePaymentInstructions:
@@ -795,6 +801,8 @@ components:
       $ref: ./components/schemas/posts.yaml#/CreatePostRequest
     Post:
       $ref: ./components/schemas/posts.yaml#/Post
+    SongPresentation:
+      $ref: ./components/schemas/posts.yaml#/SongPresentation
     LocalizedPostResponse:
       $ref: ./components/schemas/posts.yaml#/LocalizedPostResponse
     MediaDescriptor:
