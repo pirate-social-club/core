@@ -181,6 +181,57 @@ Hosted environments use `/services` only.
 - Lit/PKP secret paths are out of the current hosted mainline
 - `REGISTRY_PUBLISHER_AUTH_TOKEN` is out of the hosted mainline until `REGISTRY_PUBLISHER_URL` is configured deliberately
 
+## CI/CD Secret Delivery
+
+Infisical is the canonical source for real secrets. GitHub Actions secrets are a
+delivery layer for CI/CD, not the source of truth. A GitHub secret is acceptable
+only when it is either synced from Infisical or has a named human owner
+responsible for rotating it from Infisical.
+
+Public build configuration must use GitHub Actions variables, not GitHub Actions
+secrets and not Infisical. In particular, browser-exposed `VITE_*` identifiers
+such as Privy app/client ids are public client config. They may be sensitive to
+correctness, but they are not confidentiality secrets.
+
+Workflow rules:
+
+- do not place `secrets.*` values in workflow-level `env`
+- avoid job-level `env` for secrets unless every step in the job must see them
+- dependency install, audit, lint, test, and egress-audit steps must not receive
+  deploy credentials, database URLs, signing credentials, or upstream auth
+  secrets
+- secret-bearing jobs should run after no-secret dependency gates when the job
+  touches production or staging infrastructure
+- if a secret-bearing job must install dependencies, use `npm ci --ignore-scripts`
+  or the equivalent package-manager control whenever install scripts are not
+  required
+
+Current CI/CD delivery map:
+
+| Name | Secret? | Canonical source | GitHub delivery | Consumers |
+|---|---|---|---|---|
+| `CLOUDFLARE_ACCOUNT_ID` | Yes | Infisical deploy/platform path | GitHub Actions secret | Root and web deploy/metadata steps only |
+| `CLOUDFLARE_API_TOKEN` | Yes | Infisical deploy/platform path | GitHub Actions secret | Root and web deploy/metadata steps only |
+| `RELEASE_GITHUB_TOKEN` | Yes | Infisical or GitHub-managed deploy token | GitHub Actions secret | Web private-repo checkout steps |
+| `STAGING_CONTROL_PLANE_DATABASE_URL` | Yes | Infisical `staging:/services/api` | GitHub Actions secret | Staging migration drift checks |
+| `PROD_CONTROL_PLANE_DATABASE_URL` | Yes | Infisical `prod:/services/api` | GitHub Actions secret | Core production migration doctor/repair DB jobs |
+| `STAGING_TURSO_COMMUNITY_DB_WRAP_KEY` | Yes | Infisical `staging:/services/api` and `staging:/services/control-plane` | GitHub Actions secret | Staging migration drift checks |
+| `PROD_TURSO_COMMUNITY_DB_WRAP_KEY` | Yes | Infisical `prod:/services/api` and `prod:/services/control-plane` | GitHub Actions secret | Core production migration doctor/repair DB jobs |
+| `AUTH_UPSTREAM_JWT_SHARED_SECRET` | Yes | Infisical `staging:/services/api` | GitHub Actions secret | Web live-staging smoke step only |
+| `AUTH_UPSTREAM_JWT_ISSUER` | No | GitHub Actions variable public config | GitHub Actions variable | Web live-staging smoke step only |
+| `AUTH_UPSTREAM_JWT_AUDIENCE` | No | GitHub Actions variable public config | GitHub Actions variable | Web live-staging smoke step only |
+| `APPLE_ID` | Yes | Infisical signing/notarization path | GitHub Actions secret | Freedom Browser notarization step only |
+| `APPLE_TEAM_ID` | Yes | Infisical signing/notarization path | GitHub Actions secret | Freedom Browser notarization step only |
+| `APPLE_APP_SPECIFIC_PASSWORD` | Yes | Infisical signing/notarization path | GitHub Actions secret | Freedom Browser notarization step only |
+| `VITE_PRIVY_APP_ID` | No | GitHub Actions variable | GitHub Actions variable | Web deploy/build steps |
+| `VITE_PRIVY_CLIENT_ID` | No | GitHub Actions variable | GitHub Actions variable | Web deploy/build steps |
+| `VITE_BASE_NETWORK` | No | GitHub Actions variable | GitHub Actions variable | Web deploy/build steps |
+| `VITE_EFP_ENVIRONMENT` | No | GitHub Actions variable | GitHub Actions variable | Web deploy/build steps |
+| `VITE_PIRATE_APP_ENV` | No | GitHub Actions variable | GitHub Actions variable | Web deploy/build steps |
+
+`AUTH_UPSTREAM_JWT_ISSUER` and `AUTH_UPSTREAM_JWT_AUDIENCE` are public JWT
+claims. Only `AUTH_UPSTREAM_JWT_SHARED_SECRET` is confidential.
+
 ## Live State
 
 Live Infisical contents drift quickly. Do not treat this file as a live inventory snapshot.
