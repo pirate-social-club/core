@@ -38,6 +38,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Start iron-proxy egress audit
+        uses: ironsh/iron-proxy-action@fa1fd82ec32396d044deba7040a6db576bec927a
+        with:
+          egress-rules: egress-rules.yaml
+          warn: true
+
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -75,11 +81,19 @@ jobs:
         working-directory: specs/api
         run: bun install --frozen-lockfile
 
+      - name: Audit spec dependencies
+        if: steps.changed.outputs.spec_artifacts == 'true'
+        working-directory: specs/api
+        run: bun audit --audit-level=high
+
       - name: Run repo hygiene checks
         run: npm run check
 
       - name: Check migration integrity
         run: npm run check:migrations
+
+      - name: Audit core dependencies
+        run: npm audit --audit-level=high
 
       - name: Validate community-template migrations against fresh SQLite
         run: |
@@ -107,3 +121,7 @@ jobs:
             specs/api/openapi.yaml \
             specs/api/openapi-implemented.yaml \
             references/templates/api-worker-auth-first-slice/src/types/api.ts
+
+      - name: Show iron-proxy egress summary
+        uses: ironsh/iron-proxy-action/summary@fa1fd82ec32396d044deba7040a6db576bec927a
+        if: always()

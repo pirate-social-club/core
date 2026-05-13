@@ -8,9 +8,41 @@ on:
 permissions:
   contents: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
+  dependency-egress-audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Start iron-proxy egress audit
+        uses: ironsh/iron-proxy-action@fa1fd82ec32396d044deba7040a6db576bec927a
+        with:
+          egress-rules: egress-rules.yaml
+          warn: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
+      - name: Show iron-proxy egress summary
+        uses: ironsh/iron-proxy-action/summary@fa1fd82ec32396d044deba7040a6db576bec927a
+        if: always()
+
   prod-read-only:
     runs-on: ubuntu-latest
+    needs: dependency-egress-audit
     env:
       CONTROL_PLANE_DATABASE_URL: ${{ secrets.PROD_CONTROL_PLANE_DATABASE_URL }}
       TURSO_COMMUNITY_DB_WRAP_KEY: ${{ secrets.PROD_TURSO_COMMUNITY_DB_WRAP_KEY }}
@@ -19,13 +51,21 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.2.21
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
+
+      - name: Audit lockfile
+        run: npm audit --audit-level=high --package-lock-only
 
       - name: Verify required secrets
         run: |
