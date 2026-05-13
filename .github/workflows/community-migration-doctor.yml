@@ -19,6 +19,12 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Start iron-proxy egress audit
+        uses: ironsh/iron-proxy-action@fa1fd82ec32396d044deba7040a6db576bec927a
+        with:
+          egress-rules: egress-rules.yaml
+          warn: true
+
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -37,3 +43,7 @@ jobs:
 
       - name: Check production community migration drift
         run: bun scripts/community/apply-remote-community-migrations.ts
+
+      - name: Show iron-proxy egress summary
+        uses: ironsh/iron-proxy-action/summary@fa1fd82ec32396d044deba7040a6db576bec927a
+        if: always()
