@@ -9,11 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  prod-read-only:
+  dependency-egress-audit:
     runs-on: ubuntu-latest
-    env:
-      CONTROL_PLANE_DATABASE_URL: ${{ secrets.PROD_CONTROL_PLANE_DATABASE_URL }}
-      TURSO_COMMUNITY_DB_WRAP_KEY: ${{ secrets.PROD_TURSO_COMMUNITY_DB_WRAP_KEY }}
 
     steps:
       - name: Check out repository
@@ -25,16 +22,34 @@ jobs:
           egress-rules: egress-rules.yaml
           warn: true
 
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
+      - name: Show iron-proxy egress summary
+        uses: ironsh/iron-proxy-action/summary@fa1fd82ec32396d044deba7040a6db576bec927a
+        if: always()
+
+  prod-read-only:
+    runs-on: ubuntu-latest
+    needs: dependency-egress-audit
+    env:
+      CONTROL_PLANE_DATABASE_URL: ${{ secrets.PROD_CONTROL_PLANE_DATABASE_URL }}
+      TURSO_COMMUNITY_DB_WRAP_KEY: ${{ secrets.PROD_TURSO_COMMUNITY_DB_WRAP_KEY }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.2.21
 
       - name: Install dependencies
-        run: npm ci
-
-      - name: Audit dependencies
-        run: npm audit --audit-level=high
+        run: npm ci --ignore-scripts
 
       - name: Verify required secrets
         run: |
@@ -43,7 +58,3 @@ jobs:
 
       - name: Check production community migration drift
         run: bun scripts/community/apply-remote-community-migrations.ts
-
-      - name: Show iron-proxy egress summary
-        uses: ironsh/iron-proxy-action/summary@fa1fd82ec32396d044deba7040a6db576bec927a
-        if: always()
