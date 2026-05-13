@@ -56,6 +56,7 @@ Examples by bucket:
 - `runbooks/happy-path-matrix.md`
 - `runbooks/namespace-verification-smoke.md`
 - `runbooks/namespace-verification-production-promotion.md`
+- `runbooks/github-actions-infisical-oidc.md`
 
 Hygiene rules:
 
