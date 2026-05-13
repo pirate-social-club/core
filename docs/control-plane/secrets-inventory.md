@@ -188,6 +188,10 @@ delivery layer for CI/CD, not the source of truth. A GitHub secret is acceptable
 only when it is either synced from Infisical or has a named human owner
 responsible for rotating it from Infisical.
 
+The target CI/CD model is runtime Infisical delivery through GitHub OIDC machine
+identities. See
+[GitHub Actions Infisical OIDC Delivery](../runbooks/github-actions-infisical-oidc.md).
+
 Public build configuration must use GitHub Actions variables, not GitHub Actions
 secrets and not Infisical. In particular, browser-exposed `VITE_*` identifiers
 such as Privy app/client ids are public client config. They may be sensitive to
