@@ -15,11 +15,10 @@ GitHub.
 - AI sessions must not browse Infisical or print secret values. See
   [AI Infisical Boundary](../control-plane/ai-infisical-boundary.md).
 
-Infisical's GitHub Actions integration uses GitHub OIDC tokens and
-`Infisical/secrets-action`. The action can inject secrets as environment
-variables for later steps in the same job. The machine identity ID is not a
-secret and may be committed, but the identity must be configured in Infisical by
-a human operator before any workflow uses it.
+Pirate workflows use GitHub OIDC tokens directly and fetch allowed secrets by
+name from the Infisical API. The machine identity ID is not a secret and may be
+committed, but the identity must be configured in Infisical before any workflow
+uses it.
 
 Pirate project config:
 
@@ -38,6 +37,7 @@ Recommended identities:
 |---|---|---|---|---|---|
 | `github-core-prod-migration-doctor` | `ec0ad659-af1c-4009-a845-9e6092cc062b` | `pirate-social-club/core` | `prod` | `/services/api` | `community-migration-doctor.yml` DB job |
 | `github-core-prod-migration-repair` | `3141c3e2-a32c-4299-9382-c2684d11fe06` | `pirate-social-club/core` | `prod` | `/services/api` | `community-migration-repair.yml` DB job |
+| `github-core-staging-migration-repair` | `ddbd02c6-359a-42c1-9cb7-d4ed0eb86be7` | `pirate-social-club/core` | `staging` | `/services/api` | `community-migration-repair.yml` DB job |
 | `github-web-staging-release` | TBD | `pirate-social-club/web` | `staging` | `/services/api` | release staging smoke and migration steps |
 
 For each identity:
@@ -71,13 +71,13 @@ Fetch secrets immediately before the step that needs them:
 
 ```yaml
 - name: Fetch Infisical secrets
-  uses: Infisical/secrets-action@v1.0.9
-  with:
-    method: oidc
-    identity-id: "<machine-identity-id>"
-    project-slug: pirate-dev-pr33
-    env-slug: prod
-    secret-path: /services/api
+  env:
+    INFISICAL_IDENTITY_ID: "<machine-identity-id>"
+    INFISICAL_PROJECT_ID: 5acea78e-7813-4d8a-b29c-9b862a0b1c71
+    INFISICAL_ENV: prod
+    INFISICAL_SECRET_PATH: /services/api
+    SECRET_NAMES: CONTROL_PLANE_DATABASE_URL TURSO_COMMUNITY_DB_WRAP_KEY
+  run: scripts/ci/fetch-infisical-secrets.sh
 
 - name: Run secret-bearing command
   run: |
@@ -95,12 +95,11 @@ Rules:
 - Never print secret values. Use `test -n "$NAME"` checks only.
 - Prefer separate identities for doctor, repair, deploy, and release workflows
   when their blast radius differs.
-- Start with `Infisical/secrets-action@v1.0.9` while proving the workflow, then
-  pin to a commit SHA before deleting the migrated GitHub repository secrets.
-- If the identity is restricted by `secretName`, prefer explicit v4
-  `GET /secrets/{secretName}` calls for each allowed secret. The generic
-  secrets action fetches a whole path as a list, which is not a good fit for
-  secret-name-scoped privileges.
+- Use `scripts/ci/fetch-infisical-secrets.sh` for repo-local workflows so OIDC
+  login, masking, and `$GITHUB_ENV` export behavior stay consistent.
+- The script reads each allowed secret by name with Infisical v4
+  `GET /secrets/{secretName}`. That matches `secretName`-scoped identity
+  privileges and avoids broad path-list reads.
 
 ## Migration Status
 
@@ -108,7 +107,7 @@ Rules:
 OIDC for production.
 
 `core/.github/workflows/community-migration-repair.yml` is migrated to Infisical
-OIDC for production and still uses GitHub repository secrets for staging.
+OIDC for production and staging with separate identities.
 
 The first production migration target was `community-migration-doctor.yml`
 because:
@@ -122,9 +121,9 @@ because:
 
 Next migration candidates:
 
-1. Migrate web staging release secrets if the workflow remains stable.
-2. Remove migrated GitHub repository secrets after a successful production or
-   staging run proves the runtime fetch works.
+1. Remove core staging GitHub repository secrets after a successful staging
+   repair run proves the runtime fetch works.
+2. Migrate web staging release secrets if the workflow remains stable.
 
 ## Secret Sync Alternative
 
@@ -153,5 +152,3 @@ For each migrated workflow:
 
 - Infisical GitHub Actions integration:
   <https://infisical.com/docs/integrations/cicd/githubactions>
-- Infisical secrets action:
-  <https://github.com/Infisical/secrets-action>

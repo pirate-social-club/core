@@ -79,68 +79,14 @@ jobs:
       - name: Audit lockfile
         run: npm audit --audit-level=high --package-lock-only
 
-      - name: Load staging migration secrets
-        if: ${{ inputs.environment == 'staging' }}
+      - name: Fetch migration secrets
         env:
-          STAGING_CONTROL_PLANE_DATABASE_URL: ${{ secrets.STAGING_CONTROL_PLANE_DATABASE_URL }}
-          STAGING_TURSO_COMMUNITY_DB_WRAP_KEY: ${{ secrets.STAGING_TURSO_COMMUNITY_DB_WRAP_KEY }}
-        run: |
-          echo "::add-mask::$STAGING_CONTROL_PLANE_DATABASE_URL"
-          echo "::add-mask::$STAGING_TURSO_COMMUNITY_DB_WRAP_KEY"
-          {
-            printf 'CONTROL_PLANE_DATABASE_URL=%s\n' "$STAGING_CONTROL_PLANE_DATABASE_URL"
-            printf 'TURSO_COMMUNITY_DB_WRAP_KEY=%s\n' "$STAGING_TURSO_COMMUNITY_DB_WRAP_KEY"
-          } >> "$GITHUB_ENV"
-
-      - name: Fetch production migration secrets
-        if: ${{ inputs.environment == 'prod' }}
-        env:
-          INFISICAL_IDENTITY_ID: 3141c3e2-a32c-4299-9382-c2684d11fe06
+          INFISICAL_IDENTITY_ID: ${{ inputs.environment == 'prod' && '3141c3e2-a32c-4299-9382-c2684d11fe06' || 'ddbd02c6-359a-42c1-9cb7-d4ed0eb86be7' }}
           INFISICAL_PROJECT_ID: 5acea78e-7813-4d8a-b29c-9b862a0b1c71
-        run: |
-          set -euo pipefail
-
-          oidc_response="$(
-            curl -fsS \
-              -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-              "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=https%3A%2F%2Fgithub.com%2Fpirate-social-club"
-          )"
-          oidc_token="$(
-            OIDC_RESPONSE="$oidc_response" node -e 'const response = JSON.parse(process.env.OIDC_RESPONSE); if (!response.value) process.exit(1); process.stdout.write(response.value);'
-          )"
-          login_payload="$(
-            INFISICAL_IDENTITY_ID="$INFISICAL_IDENTITY_ID" OIDC_TOKEN="$oidc_token" node -e 'process.stdout.write(JSON.stringify({ identityId: process.env.INFISICAL_IDENTITY_ID, jwt: process.env.OIDC_TOKEN }));'
-          )"
-          infisical_token="$(
-            curl -fsS \
-              -X POST "https://app.infisical.com/api/v1/auth/oidc-auth/login" \
-              -H "Content-Type: application/json" \
-              --data "$login_payload" \
-              | node -e 'let input = ""; process.stdin.on("data", (chunk) => input += chunk); process.stdin.on("end", () => { const response = JSON.parse(input); if (!response.accessToken) process.exit(1); process.stdout.write(response.accessToken); });'
-          )"
-
-          fetch_secret() {
-            local name="$1"
-            curl -fsS --get "https://app.infisical.com/api/v4/secrets/$name" \
-              -H "Authorization: Bearer $infisical_token" \
-              --data-urlencode "projectId=$INFISICAL_PROJECT_ID" \
-              --data-urlencode "environment=prod" \
-              --data-urlencode "secretPath=/services/api" \
-              --data-urlencode "type=shared" \
-              --data-urlencode "viewSecretValue=true" \
-              --data-urlencode "expandSecretReferences=true" \
-              --data-urlencode "includeImports=false" \
-              | node -e 'let input = ""; process.stdin.on("data", (chunk) => input += chunk); process.stdin.on("end", () => { const response = JSON.parse(input); const value = response.secret && response.secret.secretValue; if (!value) process.exit(1); process.stdout.write(value); });'
-          }
-
-          CONTROL_PLANE_DATABASE_URL="$(fetch_secret CONTROL_PLANE_DATABASE_URL)"
-          TURSO_COMMUNITY_DB_WRAP_KEY="$(fetch_secret TURSO_COMMUNITY_DB_WRAP_KEY)"
-          echo "::add-mask::$CONTROL_PLANE_DATABASE_URL"
-          echo "::add-mask::$TURSO_COMMUNITY_DB_WRAP_KEY"
-          {
-            printf 'CONTROL_PLANE_DATABASE_URL=%s\n' "$CONTROL_PLANE_DATABASE_URL"
-            printf 'TURSO_COMMUNITY_DB_WRAP_KEY=%s\n' "$TURSO_COMMUNITY_DB_WRAP_KEY"
-          } >> "$GITHUB_ENV"
+          INFISICAL_ENV: ${{ inputs.environment }}
+          INFISICAL_SECRET_PATH: /services/api
+          SECRET_NAMES: CONTROL_PLANE_DATABASE_URL TURSO_COMMUNITY_DB_WRAP_KEY
+        run: scripts/ci/fetch-infisical-secrets.sh
 
       - name: Verify required secrets
         run: |

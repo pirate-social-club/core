@@ -217,9 +217,9 @@ Current CI/CD delivery map:
 | `CLOUDFLARE_ACCOUNT_ID` | Yes | Infisical deploy/platform path | GitHub Actions secret | Root and web deploy/metadata steps only |
 | `CLOUDFLARE_API_TOKEN` | Yes | Infisical deploy/platform path | GitHub Actions secret | Root and web deploy/metadata steps only |
 | `RELEASE_GITHUB_TOKEN` | Yes | Infisical or GitHub-managed deploy token | GitHub Actions secret | Web private-repo checkout steps |
-| `STAGING_CONTROL_PLANE_DATABASE_URL` | Yes | Infisical `staging:/services/api` | GitHub Actions secret | Staging migration drift checks |
+| `CONTROL_PLANE_DATABASE_URL` | Yes | Infisical `staging:/services/api` | Infisical OIDC | Core staging migration repair job |
 | `CONTROL_PLANE_DATABASE_URL` | Yes | Infisical `prod:/services/api` | Infisical OIDC | Core production migration doctor/repair DB jobs |
-| `STAGING_TURSO_COMMUNITY_DB_WRAP_KEY` | Yes | Infisical `staging:/services/api` and `staging:/services/control-plane` | GitHub Actions secret | Staging migration drift checks |
+| `TURSO_COMMUNITY_DB_WRAP_KEY` | Yes | Infisical `staging:/services/api` and `staging:/services/control-plane` | Infisical OIDC | Core staging migration repair job |
 | `TURSO_COMMUNITY_DB_WRAP_KEY` | Yes | Infisical `prod:/services/api` and `prod:/services/control-plane` | Infisical OIDC | Core production migration doctor/repair DB jobs |
 | `AUTH_UPSTREAM_JWT_SHARED_SECRET` | Yes | Infisical `staging:/services/api` | GitHub Actions secret | Web live-staging smoke step only |
 | `AUTH_UPSTREAM_JWT_ISSUER` | No | GitHub Actions variable public config | GitHub Actions variable | Web live-staging smoke step only |
