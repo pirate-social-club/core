@@ -37,7 +37,7 @@ Recommended identities:
 | Identity | Identity ID | Repository | Environment | Secret path | Intended workflows |
 |---|---|---|---|---|---|
 | `github-core-prod-migration-doctor` | `ec0ad659-af1c-4009-a845-9e6092cc062b` | `pirate-social-club/core` | `prod` | `/services/api` | `community-migration-doctor.yml` DB job |
-| `github-core-prod-migration-repair` | TBD | `pirate-social-club/core` | `prod` | `/services/api` | `community-migration-repair.yml` DB job |
+| `github-core-prod-migration-repair` | `3141c3e2-a32c-4299-9382-c2684d11fe06` | `pirate-social-club/core` | `prod` | `/services/api` | `community-migration-repair.yml` DB job |
 | `github-web-staging-release` | TBD | `pirate-social-club/web` | `staging` | `/services/api` | release staging smoke and migration steps |
 
 For each identity:
@@ -102,11 +102,16 @@ Rules:
   secrets action fetches a whole path as a list, which is not a good fit for
   secret-name-scoped privileges.
 
-## First Migration Candidate
+## Migration Status
 
-Migrate `core/.github/workflows/community-migration-doctor.yml` first.
+`core/.github/workflows/community-migration-doctor.yml` is migrated to Infisical
+OIDC for production.
 
-Why:
+`core/.github/workflows/community-migration-repair.yml` is migrated to Infisical
+OIDC for production and still uses GitHub repository secrets for staging.
+
+The first production migration target was `community-migration-doctor.yml`
+because:
 
 - It is read-only.
 - It already separates dependency audit from the production-secret DB job.
@@ -115,11 +120,10 @@ Why:
   - `TURSO_COMMUNITY_DB_WRAP_KEY`
 - It does not need Cloudflare, Apple signing, or browser test credentials.
 
-After `doctor` passes on OIDC:
+Next migration candidates:
 
-1. Migrate `community-migration-repair.yml` with a separate identity.
-2. Migrate web staging release secrets if the workflow remains stable.
-3. Remove migrated GitHub repository secrets after a successful production or
+1. Migrate web staging release secrets if the workflow remains stable.
+2. Remove migrated GitHub repository secrets after a successful production or
    staging run proves the runtime fetch works.
 
 ## Secret Sync Alternative
