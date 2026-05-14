@@ -31,13 +31,14 @@ Pirate project config:
 For each repo/workflow boundary that needs runtime secrets, create a separate
 machine identity. Start with the narrowest production-secret workflows.
 
-Recommended identities:
+Current identities:
 
 | Identity | Identity ID | Repository | Environment | Secret path | Intended workflows |
 |---|---|---|---|---|---|
 | `github-core-prod-migration` | `ec0ad659-af1c-4009-a845-9e6092cc062b` | `pirate-social-club/core` | `prod` | `/services/api` | `community-migration-doctor.yml` and `community-migration-repair.yml` DB jobs |
 | `github-core-staging-migration-repair` | `ddbd02c6-359a-42c1-9cb7-d4ed0eb86be7` | `pirate-social-club/core` | `staging` | `/services/api` | `community-migration-repair.yml` DB job |
-| `github-web-staging-release` | TBD | `pirate-social-club/web` | `staging` | `/services/api` | release staging smoke and migration steps |
+| `github-web-staging-migration` | `a7b5d0b2-0891-4b63-b0e6-946a8c513458` | `pirate-social-club/web` | `staging` | `/services/api` | `release.yml` staging community migration step |
+| `github-web-staging-live-browser` | `3141c3e2-a32c-4299-9382-c2684d11fe06` | `pirate-social-club/web` | `staging` | `/services/api` | `release.yml` live browser integration step |
 
 For each identity:
 
@@ -108,6 +109,15 @@ OIDC for production.
 `core/.github/workflows/community-migration-repair.yml` is migrated to Infisical
 OIDC for production and staging with separate identities.
 
+`web/.github/workflows/release.yml` is migrated to Infisical OIDC for staging
+community migration secrets and the live browser JWT shared secret.
+
+The core production migration identity is shared by doctor and repair because
+both jobs have the same repository subject, environment, path, and two-secret
+permission set. The web staging migration and live-browser identities remain
+separate because database migration credentials and browser-test JWT material
+have different blast radii.
+
 The first production migration target was `community-migration-doctor.yml`
 because:
 
@@ -118,11 +128,12 @@ because:
   - `TURSO_COMMUNITY_DB_WRAP_KEY`
 - It does not need Cloudflare, Apple signing, or browser test credentials.
 
-Next migration candidates:
+Remaining migration candidates:
 
-1. Remove core staging GitHub repository secrets after a successful staging
-   repair run proves the runtime fetch works.
-2. Migrate web staging release secrets if the workflow remains stable.
+1. Migrate Cloudflare deploy credentials with separate staging and production
+   identities and a deploy rollback plan.
+2. Keep `RELEASE_GITHUB_TOKEN` as a GitHub-native checkout token unless it is
+   replaced with a GitHub App flow.
 
 ## Secret Sync Alternative
 
