@@ -34,11 +34,11 @@ machine identity. Start with the narrowest production-secret workflows.
 
 Recommended identities:
 
-| Identity | Repository | Environment | Secret path | Intended workflows |
-|---|---|---|---|---|
-| `github-core-prod-migration-doctor` | `pirate-social-club/core` | `prod` | `/services/api` | `community-migration-doctor.yml` DB job |
-| `github-core-prod-migration-repair` | `pirate-social-club/core` | `prod` | `/services/api` | `community-migration-repair.yml` DB job |
-| `github-web-staging-release` | `pirate-social-club/web` | `staging` | `/services/api` | release staging smoke and migration steps |
+| Identity | Identity ID | Repository | Environment | Secret path | Intended workflows |
+|---|---|---|---|---|---|
+| `github-core-prod-migration-doctor` | `ec0ad659-af1c-4009-a845-9e6092cc062b` | `pirate-social-club/core` | `prod` | `/services/api` | `community-migration-doctor.yml` DB job |
+| `github-core-prod-migration-repair` | TBD | `pirate-social-club/core` | `prod` | `/services/api` | `community-migration-repair.yml` DB job |
+| `github-web-staging-release` | TBD | `pirate-social-club/web` | `staging` | `/services/api` | release staging smoke and migration steps |
 
 For each identity:
 
