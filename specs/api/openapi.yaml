@@ -617,6 +617,7 @@ paths:
               - community_join
               - post_create
               - comment_create
+              - vote
         - name: action
           in: query
           required: true
