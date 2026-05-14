@@ -21,6 +21,12 @@ variables for later steps in the same job. The machine identity ID is not a
 secret and may be committed, but the identity must be configured in Infisical by
 a human operator before any workflow uses it.
 
+Pirate project config:
+
+- project slug: `pirate-dev-pr33`
+- project id: `5acea78e-7813-4d8a-b29c-9b862a0b1c71`
+- hosted environment slugs currently used by the repo: `staging`, `prod`
+
 ## Human Setup In Infisical
 
 For each repo/workflow boundary that needs runtime secrets, create a separate
@@ -69,7 +75,7 @@ Fetch secrets immediately before the step that needs them:
   with:
     method: oidc
     identity-id: "<machine-identity-id>"
-    project-slug: "<pirate-project-slug>"
+    project-slug: pirate-dev-pr33
     env-slug: prod
     secret-path: /services/api
 
@@ -89,6 +95,8 @@ Rules:
 - Never print secret values. Use `test -n "$NAME"` checks only.
 - Prefer separate identities for doctor, repair, deploy, and release workflows
   when their blast radius differs.
+- Start with `Infisical/secrets-action@v1.0.9` while proving the workflow, then
+  pin to a commit SHA before deleting the migrated GitHub repository secrets.
 
 ## First Migration Candidate
 
