@@ -97,6 +97,10 @@ Rules:
   when their blast radius differs.
 - Start with `Infisical/secrets-action@v1.0.9` while proving the workflow, then
   pin to a commit SHA before deleting the migrated GitHub repository secrets.
+- If the identity is restricted by `secretName`, prefer explicit v4
+  `GET /secrets/{secretName}` calls for each allowed secret. The generic
+  secrets action fetches a whole path as a list, which is not a good fit for
+  secret-name-scoped privileges.
 
 ## First Migration Candidate
 
