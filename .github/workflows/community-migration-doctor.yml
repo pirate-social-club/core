@@ -68,13 +68,53 @@ jobs:
         run: npm audit --audit-level=high --package-lock-only
 
       - name: Fetch production migration secrets
-        uses: Infisical/secrets-action@8a06c1bdcd5b8635d510c52d4b57a92c1ccef785
-        with:
-          method: oidc
-          identity-id: ec0ad659-af1c-4009-a845-9e6092cc062b
-          project-slug: pirate-dev-pr33
-          env-slug: prod
-          secret-path: /services/api
+        env:
+          INFISICAL_IDENTITY_ID: ec0ad659-af1c-4009-a845-9e6092cc062b
+          INFISICAL_PROJECT_ID: 5acea78e-7813-4d8a-b29c-9b862a0b1c71
+        run: |
+          set -euo pipefail
+
+          oidc_response="$(
+            curl -fsS \
+              -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+              "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=https%3A%2F%2Fgithub.com%2Fpirate-social-club"
+          )"
+          oidc_token="$(
+            OIDC_RESPONSE="$oidc_response" node -e 'const response = JSON.parse(process.env.OIDC_RESPONSE); if (!response.value) process.exit(1); process.stdout.write(response.value);'
+          )"
+          login_payload="$(
+            INFISICAL_IDENTITY_ID="$INFISICAL_IDENTITY_ID" OIDC_TOKEN="$oidc_token" node -e 'process.stdout.write(JSON.stringify({ identityId: process.env.INFISICAL_IDENTITY_ID, jwt: process.env.OIDC_TOKEN }));'
+          )"
+          infisical_token="$(
+            curl -fsS \
+              -X POST "https://app.infisical.com/api/v1/auth/oidc-auth/login" \
+              -H "Content-Type: application/json" \
+              --data "$login_payload" \
+              | node -e 'let input = ""; process.stdin.on("data", (chunk) => input += chunk); process.stdin.on("end", () => { const response = JSON.parse(input); if (!response.accessToken) process.exit(1); process.stdout.write(response.accessToken); });'
+          )"
+
+          fetch_secret() {
+            local name="$1"
+            curl -fsS --get "https://app.infisical.com/api/v4/secrets/$name" \
+              -H "Authorization: Bearer $infisical_token" \
+              --data-urlencode "projectId=$INFISICAL_PROJECT_ID" \
+              --data-urlencode "environment=prod" \
+              --data-urlencode "secretPath=/services/api" \
+              --data-urlencode "type=shared" \
+              --data-urlencode "viewSecretValue=true" \
+              --data-urlencode "expandSecretReferences=true" \
+              --data-urlencode "includeImports=false" \
+              | node -e 'let input = ""; process.stdin.on("data", (chunk) => input += chunk); process.stdin.on("end", () => { const response = JSON.parse(input); const value = response.secret && response.secret.secretValue; if (!value) process.exit(1); process.stdout.write(value); });'
+          }
+
+          CONTROL_PLANE_DATABASE_URL="$(fetch_secret CONTROL_PLANE_DATABASE_URL)"
+          TURSO_COMMUNITY_DB_WRAP_KEY="$(fetch_secret TURSO_COMMUNITY_DB_WRAP_KEY)"
+          echo "::add-mask::$CONTROL_PLANE_DATABASE_URL"
+          echo "::add-mask::$TURSO_COMMUNITY_DB_WRAP_KEY"
+          {
+            printf 'CONTROL_PLANE_DATABASE_URL=%s\n' "$CONTROL_PLANE_DATABASE_URL"
+            printf 'TURSO_COMMUNITY_DB_WRAP_KEY=%s\n' "$TURSO_COMMUNITY_DB_WRAP_KEY"
+          } >> "$GITHUB_ENV"
 
       - name: Verify required secrets
         run: |
