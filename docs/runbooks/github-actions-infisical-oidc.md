@@ -35,8 +35,7 @@ Recommended identities:
 
 | Identity | Identity ID | Repository | Environment | Secret path | Intended workflows |
 |---|---|---|---|---|---|
-| `github-core-prod-migration-doctor` | `ec0ad659-af1c-4009-a845-9e6092cc062b` | `pirate-social-club/core` | `prod` | `/services/api` | `community-migration-doctor.yml` DB job |
-| `github-core-prod-migration-repair` | `3141c3e2-a32c-4299-9382-c2684d11fe06` | `pirate-social-club/core` | `prod` | `/services/api` | `community-migration-repair.yml` DB job |
+| `github-core-prod-migration` | `ec0ad659-af1c-4009-a845-9e6092cc062b` | `pirate-social-club/core` | `prod` | `/services/api` | `community-migration-doctor.yml` and `community-migration-repair.yml` DB jobs |
 | `github-core-staging-migration-repair` | `ddbd02c6-359a-42c1-9cb7-d4ed0eb86be7` | `pirate-social-club/core` | `staging` | `/services/api` | `community-migration-repair.yml` DB job |
 | `github-web-staging-release` | TBD | `pirate-social-club/web` | `staging` | `/services/api` | release staging smoke and migration steps |
 
