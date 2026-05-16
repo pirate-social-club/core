@@ -46,10 +46,11 @@ StartVerificationSessionRequest:
       enum:
         - qr_deeplink
         - widget
+        - native_sdk
       nullable: true
       description: |
         Optional requested launch mode. `self` sessions resolve to `qr_deeplink`.
-        `very` sessions resolve to `widget` in public v0.
+        `very` sessions resolve to `widget` for web and `native_sdk` for supported native apps.
     requested_capabilities:
       type: array
       minItems: 1
@@ -399,6 +400,7 @@ VerificationSessionLaunch:
       enum:
         - qr_deeplink
         - widget
+        - native_sdk
         - none
     self_app:
       $ref: ./verification.yaml#/SelfVerificationLaunch
@@ -678,6 +680,7 @@ VerificationSession:
       enum:
         - qr_deeplink
         - widget
+        - native_sdk
       nullable: true
     wallet_attachment:
       type: string
