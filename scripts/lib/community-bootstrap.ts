@@ -53,6 +53,11 @@ export type ApplyCommunityTemplateMigrationsResult = {
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const COMMUNITY_MIGRATIONS_DIR = resolve(REPO_ROOT, "db/community-template/migrations");
+const COMPATIBLE_COMMUNITY_MIGRATION_CHECKSUMS: Record<string, Set<string>> = {
+  "1080_post_comment_locks.sql": new Set([
+    "cc64b1844768fc2cd585bd76daab9e75a32c596ddbdfbe8d7ac060d38cc5d23f",
+  ]),
+};
 
 function createLocalBootstrapSql(databaseUrl: string): CommunityBootstrapSql {
   const sql = new Bun.SQL(databaseUrl) as {
@@ -283,7 +288,10 @@ export async function inspectCommunityTemplateMigrations(input: {
       const actualChecksum = actualByName.get(expected.migrationName);
       if (!actualChecksum) {
         missingMigrationNames.push(expected.migrationName);
-      } else if (actualChecksum !== expected.checksum) {
+      } else if (
+        actualChecksum !== expected.checksum
+        && !COMPATIBLE_COMMUNITY_MIGRATION_CHECKSUMS[expected.migrationName]?.has(actualChecksum)
+      ) {
         mismatchedMigrationNames.push(expected.migrationName);
       }
     }
@@ -316,6 +324,10 @@ async function applyCommunityMigrations(sql: CommunityBootstrapSql): Promise<App
 
     if (existingChecksum) {
       if (existingChecksum !== checksum) {
+        if (COMPATIBLE_COMMUNITY_MIGRATION_CHECKSUMS[migrationName]?.has(existingChecksum)) {
+          skipped += 1;
+          continue;
+        }
         throw new Error(`schema_migration_checksum_mismatch:${migrationName}`);
       }
       skipped += 1;
