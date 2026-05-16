@@ -305,7 +305,6 @@ export async function inspectCommunityTemplateMigrations(input: {
 async function applyCommunityMigrations(sql: CommunityBootstrapSql): Promise<ApplyCommunityTemplateMigrationsResult> {
   const existingByName = await readSchemaMigrationChecksums(sql);
 
-  const pending: Array<{ sql: string; args?: Array<string | number | null> }> = [];
   let applied = 0;
   let skipped = 0;
 
@@ -323,28 +322,47 @@ async function applyCommunityMigrations(sql: CommunityBootstrapSql): Promise<App
       continue;
     }
 
-    pending.push(
-      ...splitSqlStatements(migrationSql)
-        .map(toRemoteSqliteMigrationStatement)
-        .filter((statement): statement is string => statement !== null)
-        .map((statement) => ({ sql: statement })),
-      {
-        sql: `INSERT INTO schema_migrations (
-           migration_name,
-           migration_label,
-           checksum
-         ) VALUES (?, ?, ?)`,
-        args: [migrationName, "community-template", checksum],
-      },
-    );
+    const statements = splitSqlStatements(migrationSql)
+      .map(toRemoteSqliteMigrationStatement)
+      .filter((statement): statement is string => statement !== null);
+    const disablesForeignKeys = statements.some(isForeignKeysOffPragma);
+    const executableStatements = statements
+      .filter((statement) => !isForeignKeysPragma(statement))
+      .map((statement) => ({ sql: statement }));
+    const ledgerStatement = {
+      sql: `INSERT INTO schema_migrations (
+         migration_name,
+         migration_label,
+         checksum
+       ) VALUES (?, ?, ?)`,
+      args: [migrationName, "community-template", checksum],
+    };
+
+    if (disablesForeignKeys) {
+      await sql.execute("PRAGMA foreign_keys = OFF");
+    }
+    try {
+      await sql.batch([
+        ...executableStatements,
+        ledgerStatement,
+      ]);
+    } finally {
+      if (disablesForeignKeys) {
+        await sql.execute("PRAGMA foreign_keys = ON");
+      }
+    }
     applied += 1;
   }
 
-  if (pending.length > 0) {
-    await sql.batch(pending);
-  }
-
   return { applied, skipped };
+}
+
+function isForeignKeysPragma(statement: string): boolean {
+  return /^PRAGMA\s+foreign_keys\s*=\s*(?:ON|OFF)\s*;?$/iu.test(statement.trim());
+}
+
+function isForeignKeysOffPragma(statement: string): boolean {
+  return /^PRAGMA\s+foreign_keys\s*=\s*OFF\s*;?$/iu.test(statement.trim());
 }
 
 export async function applyCommunityTemplateMigrations(input: {
