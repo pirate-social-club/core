@@ -12454,6 +12454,18 @@ components:
           readOnly: true
           description: |
             Live room anchored to this post when the post was created by the live-room composer.
+        anchor_live_room_status:
+          type: string
+          enum:
+            - scheduled
+            - live
+            - ended
+            - canceled
+          nullable: true
+          readOnly: true
+          description: |
+            Public status snapshot for the anchored live room. Present only when the room is publicly visible;
+            viewer authorization and Agora credentials still require the live-room access endpoints.
         song_title:
           type: string
           nullable: true

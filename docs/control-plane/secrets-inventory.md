@@ -113,6 +113,7 @@ runtime secret sync unless the worker itself starts consuming them.
 | `PRIVY_JWT_VERIFICATION_KEY` | `api-key` | When Privy auth is enabled |
 | `REDDIT_PULLPUSH_BASE_URL` | `api-key` | When Reddit onboarding is enabled |
 | `REDDIT_PROFILE_CHECK_USER_AGENT` | `tuning-knob` | When Reddit profile checks are enabled |
+| `AGORA_APP_CERTIFICATE` | `api-key` | Server-side live-room Agora token signing |
 
 #### Not secrets (version-controlled config)
 
@@ -129,6 +130,7 @@ These are read by the API worker but are public config, not secrets. They live i
 - `OPENAI_MODERATION_BASE_URL`, `OPENAI_MODERATION_MODEL`, `OPENAI_MODERATION_TIMEOUT_MS`
 - `OPENROUTER_BASE_URL`, `OPENROUTER_MODEL`, `OPENROUTER_TIMEOUT_MS`
 - `ACRCLOUD_HOST`, `ACRCLOUD_IDENTIFY_PATH`, `ACRCLOUD_TIMEOUT_MS`
+- `AGORA_APP_ID`
 - `ELEVENLABS_FORCE_ALIGNMENT_URL`, `ELEVENLABS_TIMEOUT_MS`
 
 ### dev:/services/control-plane

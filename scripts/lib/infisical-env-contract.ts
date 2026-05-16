@@ -75,6 +75,13 @@ function is64CharHex(value: string): string | null {
   return null;
 }
 
+function is32CharHex(value: string): string | null {
+  if (!/^[0-9a-f]{32}$/.test(value)) {
+    return "expected 32-character lowercase hex string";
+  }
+  return null;
+}
+
 function isPositiveInteger(value: string): string | null {
   if (!/^[1-9][0-9]*$/.test(value)) {
     return "expected positive integer";
@@ -215,6 +222,12 @@ export const ENV_CONTRACT: EnvContract = {
       path: "/services/api",
       key: "ELEVENLABS_API_KEY",
       requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
+      key: "AGORA_APP_CERTIFICATE",
+      requiredness: "required_for_staging",
+      validate: is32CharHex,
     },
     {
       path: "/services/api",
@@ -717,6 +730,7 @@ export const WRANGLER_MANAGED_CONFIG_NAMES = [
   "VERY_APP_ID",
   "VERY_API_URL",
   "VERY_VERIFY_URL",
+  "AGORA_APP_ID",
   "FILEBASE_MEDIA_BUCKET",
   "FILEBASE_S3_ENDPOINT",
   "FILEBASE_S3_REGION",
