@@ -1005,6 +1005,22 @@ type CommunityVisualPolicySettings = {
   model_uncertain: "queue" | "reject";
 };
 
+type CrosspostSource = {
+  status: CrosspostSourceStatus;
+  post: string;
+  community: string;
+  captured_at?: string | null;
+  post_type?: "text" | "image" | "video" | "link" | "song" | null;
+  title?: string | null;
+  community_label?: string | null;
+  community_route_slug?: string | null;
+  author_user?: string | null;
+  author_label?: string | null;
+  thumbnail_ref?: string | null;
+};
+
+type CrosspostSourceStatus = "available" | "deleted" | "removed" | "unavailable";
+
 type DisclosedQualifierSnapshot = {
   qualifier_template: string;
   rendered_label: string;
@@ -1221,7 +1237,7 @@ type Post = {
   agent_ownership_provider_snapshot?: string | null;
   disclosed_qualifiers_json?: Array<DisclosedQualifierSnapshot> | null;
   label?: string | null;
-  post_type: "text" | "image" | "video" | "link" | "song";
+  post_type: "text" | "image" | "video" | "link" | "song" | "crosspost";
   status: "draft" | "published" | "hidden" | "removed" | "deleted";
   comments_locked?: boolean;
   comments_locked_at?: number | null;
@@ -1244,9 +1260,11 @@ type Post = {
   access_mode?: "public" | "locked" | null;
   asset?: string | null;
   song_artifact_bundle?: string | null;
+  crosspost_source?: CrosspostSource | null;
   anchor_live_room?: string | null;
   anchor_live_room_status?: "scheduled" | "live" | "ended" | "canceled" | null;
   song_title?: string | null;
+  song_annotations_url?: string | null;
   parent_post?: string | null;
   song_mode?: "original" | "remix" | null;
   rights_basis?: "none" | "original" | "derivative" | "attribution_only" | null;

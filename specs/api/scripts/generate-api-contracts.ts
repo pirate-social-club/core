@@ -167,6 +167,8 @@ const TYPE_EXPORTS = [
   { name: "SongArtifactBundle", ref: "#/components/schemas/SongArtifactBundle" },
   { name: "SongArtifactBundleListResponse", ref: "#/components/schemas/SongArtifactBundleListResponse" },
   { name: "SongPreviewGeneratePayload", ref: "#/components/schemas/SongPreviewGeneratePayload" },
+  { name: "CrosspostSourceStatus", ref: "#/components/schemas/CrosspostSourceStatus" },
+  { name: "CrosspostSource", ref: "#/components/schemas/CrosspostSource" },
   { name: "Post", ref: "#/components/schemas/Post" },
   { name: "DeletedPostResponse", ref: "#/components/schemas/DeletedPostResponse" },
   { name: "Comment", ref: "#/components/schemas/Comment" },

@@ -131,6 +131,10 @@ CreateSongArtifactBundleRequest:
     lyrics:
       type: string
       description: Plain-text lyrics used for the mainline v0 song post.
+    genius_annotations_url:
+      type: string
+      nullable: true
+      description: Optional Genius URL for lyric annotations.
     cover_art:
       $ref: ./song-artifacts.yaml#/SongArtifactUploadRef
       nullable: true
@@ -320,6 +324,10 @@ SongArtifactBundle:
     lyrics_sha256:
       type: string
       description: SHA-256 digest of `lyrics`, prefixed with `0x`.
+    genius_annotations_url:
+      type: string
+      nullable: true
+      description: Optional Genius URL for lyric annotations.
     cover_art:
       $ref: ./song-artifacts.yaml#/SongImageArtifactDescriptor
       nullable: true

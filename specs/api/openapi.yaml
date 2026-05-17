@@ -11592,6 +11592,10 @@ components:
         lyrics:
           type: string
           description: Plain-text lyrics used for the mainline v0 song post.
+        genius_annotations_url:
+          type: string
+          nullable: true
+          description: Optional Genius URL for lyric annotations.
         cover_art:
           $ref: "#/components/schemas/SongArtifactUploadRef"
           nullable: true
@@ -11781,6 +11785,10 @@ components:
         lyrics_sha256:
           type: string
           description: SHA-256 digest of `lyrics`, prefixed with `0x`.
+        genius_annotations_url:
+          type: string
+          nullable: true
+          description: Optional Genius URL for lyric annotations.
         cover_art:
           $ref: "#/components/schemas/SongImageArtifactDescriptor"
           nullable: true
@@ -11889,6 +11897,7 @@ components:
         - video: requires at least one item in `media_refs` (at least one item must be `video/*`); commerce videos may send `access_mode`; locked videos require `license_preset`; must not send `link_url`, `song_artifact_bundle_id`, or `lyrics`
         - link: requires `link_url`; may send `title` and `body`; must not send `media_refs`, `song_artifact_bundle_id`, or `lyrics`
         - song: requires either `song_artifact_bundle_id` or both `media_refs` (at least one `audio/*`) and `lyrics`; must not send `link_url`; `identity_mode` must be `public`; original songs require `license_preset`
+        - crosspost: requires `title`, `source_post`, and `source_community`.
       oneOf:
         - description: Text posts require at least one of `title` or `body`.
           required:
@@ -12076,10 +12085,27 @@ components:
                   - required:
                       - media_refs
               - allOf:
-                  - required:
-                      - song_artifact_bundle
+                  - required: null
+                  - song_artifact_bundle
                   - required:
                       - lyrics
+        - description: Crossposts quote another Pirate thread into the current community.
+          required:
+            - post_type
+            - title
+            - source_post
+            - source_community
+          properties:
+            post_type:
+              type: string
+              enum:
+                - crosspost
+            title:
+              type: string
+            source_post:
+              type: string
+            source_community:
+              type: string
       required:
         - idempotency_key
         - post_type
@@ -12147,6 +12173,7 @@ components:
             - video
             - link
             - song
+            - crosspost
         body:
           type: string
           nullable: true
@@ -12158,6 +12185,12 @@ components:
           format: uri
           nullable: true
           description: Required when post_type is link. Must be absent for all other post types.
+        source_post:
+          type: string
+          nullable: true
+        source_community:
+          type: string
+          nullable: true
         media_refs:
           type: array
           items:
@@ -12352,6 +12385,7 @@ components:
             - video
             - link
             - song
+            - crosspost
         status:
           type: string
           enum:
@@ -12451,6 +12485,9 @@ components:
         song_artifact_bundle:
           type: string
           nullable: true
+        crosspost_source:
+          $ref: "#/components/schemas/CrosspostSource"
+          nullable: true
         anchor_live_room:
           type: string
           nullable: true
@@ -12474,6 +12511,11 @@ components:
           nullable: true
           readOnly: true
           description: Canonical song/track title copied from the song artifact bundle for feed rendering.
+        song_annotations_url:
+          type: string
+          nullable: true
+          readOnly: true
+          description: Genius annotations URL copied from the song artifact bundle for feed rendering.
         parent_post:
           type: string
           nullable: true

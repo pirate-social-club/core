@@ -1585,6 +1585,28 @@ CommunityPreview:
       enum:
         - disallow
         - altcha_required
+    agent_posting_policy:
+      type: string
+      enum:
+        - disallow
+        - review
+        - allow_with_disclosure
+        - allow
+    agent_posting_scope:
+      type: string
+      enum:
+        - replies_only
+        - top_level_and_replies
+    agent_daily_post_cap:
+      type: integer
+      nullable: true
+    agent_daily_reply_cap:
+      type: integer
+      nullable: true
+    accepted_agent_ownership_providers:
+      type: array
+      items:
+        $ref: ./agents.yaml#/AgentOwnershipProvider
     human_verification_lane:
       $ref: ./communities-core.yaml#/HumanVerificationLane
     member_count:

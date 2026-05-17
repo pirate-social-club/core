@@ -30,6 +30,12 @@
         "oldChecksum": "aa648205a1796140aafe3c2c42766e5a0d5b62338ea8d429cc1504839ff4fc15",
         "newChecksum": "211877f264ae14bf694899bdabc11e7baed6efbfdd518361842075ce8b37ec5a",
         "reason": "guest authorship compatibility repair tracked by 1037_rebuild_comments_guest_authorship.sql"
+      },
+      {
+        "migrationName": "1080_post_comment_locks.sql",
+        "oldChecksum": "cc64b1844768fc2cd585bd76daab9e75a32c596ddbdfbe8d7ac060d38cc5d23f",
+        "newChecksum": "1b72ebf9d27d7dbd047dd5f7d83bede1d80919ec15c3203080cd97825eeb899e",
+        "reason": "compatibility repair after runtime preflight covered post comment lock columns"
       }
     ],
     "unexpectedMigrationsToRemove": [
