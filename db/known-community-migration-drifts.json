@@ -38,8 +38,6 @@
         "reason": "compatibility repair after runtime preflight covered post comment lock columns"
       }
     ],
-    "unexpectedMigrationsToRemove": [
-      "1061_reference_links_resource_shape.sql"
-    ]
+    "unexpectedMigrationsToRemove": []
   }
 }
