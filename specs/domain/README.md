@@ -25,6 +25,8 @@ Product and system design docs grouped by domain surface.
 
 - `community.md`
   Community creation, settings, and policy surface.
+- `telegram-communities.md`
+  Telegram Mini App, linked community chats, gate-aware join grants, and Telegram assistant behavior.
 - `community-money-policy.md`
   Community funding preference, route constraints, and settlement-lane policy.
 - `community-pricing-policy.md`
