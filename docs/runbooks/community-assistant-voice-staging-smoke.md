@@ -39,7 +39,7 @@ Minimum expected state:
 - OpenRouter key connected
 - model selected
 - ElevenLabs key connected
-- voice mode set to `Voice replies`
+- voice mode set to `Voice replies` or `Text + voice replies`
 - STT provider shown as ElevenLabs Scribe
 - STT model set to `scribe_v2`
 - TTS provider shown as ElevenLabs
@@ -61,6 +61,8 @@ Expected policy values:
 
 ```text
 voice_mode=voice_replies
+# or
+voice_mode=text_and_voice_replies
 stt_provider=elevenlabs
 stt_model=scribe_v2
 tts_provider=elevenlabs
@@ -89,7 +91,8 @@ Text input:
 Expected:
 
 - bot generates an assistant answer
-- bot sends a Telegram voice note
+- if `voice_mode=voice_replies`, bot sends a Telegram voice note
+- if `voice_mode=text_and_voice_replies`, bot sends the text answer first, then a Telegram voice note
 - if ElevenLabs TTS or Telegram `sendVoice` fails, bot falls back to a text answer
 
 Voice input:
@@ -102,7 +105,8 @@ Expected:
 - bot downloads the Telegram voice file
 - ElevenLabs Scribe transcribes it
 - assistant answers the transcript
-- bot sends a Telegram voice note
+- if `voice_mode=voice_replies`, bot sends a Telegram voice note
+- if `voice_mode=text_and_voice_replies`, bot sends the text answer first, then a Telegram voice note
 
 Random group voice notes should not wake the assistant. Group voice is intentionally gated to reply-to-bot messages.
 
@@ -116,7 +120,7 @@ Text input:
 can you hear me?
 ```
 
-Expected: the bot replies with a voice note.
+Expected: the bot replies with a voice note, or with text first and then voice when `text_and_voice_replies` is enabled.
 
 Voice input:
 
@@ -126,7 +130,7 @@ Expected:
 
 - bot transcribes the voice note
 - assistant answers
-- bot replies with a voice note
+- bot replies with a voice note, or with text first and then voice when `text_and_voice_replies` is enabled
 
 Unlinked Telegram users or users without community access should receive onboarding/access prompts and should not call OpenRouter or ElevenLabs.
 
@@ -139,6 +143,8 @@ Look for these structured log events:
 - `[telegram-assistant] voice STT failed`
 - `[telegram-assistant] voice TTS start`
 - `[telegram-assistant] voice TTS success`
+- `[telegram-assistant] group text before voice`
+- `[telegram-assistant] direct text before voice`
 - `[telegram-webhook] assistant TTS failed`
 - `[telegram-webhook] sendVoice failed`
 - `[telegram-assistant] voice reply send result`
@@ -162,9 +168,9 @@ Useful fields:
 
 - Deployed web/API versions match the intended commits.
 - Assistant settings show connected OpenRouter and ElevenLabs keys.
-- Policy is configured for ElevenLabs Scribe and voice replies.
-- Group `/ask` returns a voice note.
-- Group reply-to-bot voice returns a voice note.
-- DM text returns a voice note.
-- DM voice returns a voice note.
+- Policy is configured for ElevenLabs Scribe and voice replies or text + voice replies.
+- Group `/ask` returns the configured voice response shape.
+- Group reply-to-bot voice returns the configured voice response shape.
+- DM text returns the configured voice response shape.
+- DM voice returns the configured voice response shape.
 - When voice output cannot be sent, the bot returns text instead of dropping the answer.
