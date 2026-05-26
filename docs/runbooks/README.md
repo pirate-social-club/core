@@ -9,6 +9,7 @@ Start here:
 - [Infinity Staging Manual Bring-Up](./infinity-staging-manual-bringup.md)
 - [Infinity Staging Validation](./infinity-staging-validation.md)
 - [Community SLD Dev Smoke](./community-sld-dev-smoke.md)
+- [Community Assistant Voice Staging Smoke](./community-assistant-voice-staging-smoke.md)
 
 Supporting architecture docs:
 
