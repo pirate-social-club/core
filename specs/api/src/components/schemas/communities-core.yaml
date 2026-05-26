@@ -511,9 +511,9 @@ ProofRequirement:
         Valid public-v0 combinations are:
         - `unique_human`: `self` or `very`
         - `age_over_18`: `self`
-        - `minimum_age`: `self`
-        - `nationality`: `self`
-        - `gender`: `self` (document marker `M` / `F`)
+        - `minimum_age`: `self` or `zkpassport`
+        - `nationality`: `self` or `zkpassport`
+        - `gender`: `self` or `zkpassport` (document marker `M` / `F`)
         - `wallet_score`: `passport`
         - `sanctions_clear`: `passport`
         Self OFAC-backed `sanctions_clear` is intentionally not public-v0 until launch config,
@@ -525,6 +525,7 @@ ProofRequirement:
         type: string
         enum:
           - self
+          - zkpassport
           - very
           - passport
     accepted_mechanisms:
@@ -1396,6 +1397,7 @@ MembershipGateSummary:
         type: string
         enum:
           - self
+          - zkpassport
           - very
           - passport
     required_value:
@@ -1721,6 +1723,7 @@ JoinEligibility:
       type: string
       enum:
         - self
+        - zkpassport
         - very
         - passport
       nullable: true
@@ -1846,6 +1849,7 @@ GateFailureDetails:
       type: string
       enum:
         - self
+        - zkpassport
         - very
         - passport
       nullable: true
@@ -1946,11 +1950,24 @@ GateAtom:
       type: string
       enum:
         - self
+        - zkpassport
         - very
         - passport
         - courtyard
         - altcha
       nullable: true
+    accepted_providers:
+      type: array
+      nullable: true
+      description: |
+        Accepted document proof providers for document-backed gates. Currently supported for
+        `minimum_age`, `nationality`, and `gender`; when omitted, the legacy `provider` field
+        remains authoritative.
+      items:
+        type: string
+        enum:
+          - self
+          - zkpassport
     minimum_age:
       type: integer
     allowed:
@@ -2066,10 +2083,22 @@ RequiredActionNode:
       type: string
       enum:
         - self
+        - zkpassport
         - very
         - passport
         - wallet
         - altcha
+    accepted_providers:
+      type: array
+      nullable: true
+      description: |
+        Accepted document proof providers for this required document action. Clients may satisfy
+        the action with any listed provider.
+      items:
+        type: string
+        enum:
+          - self
+          - zkpassport
     capability:
       type: string
       enum:
@@ -2122,10 +2151,22 @@ RequiredAction:
       type: string
       enum:
         - self
+        - zkpassport
         - very
         - passport
         - wallet
         - altcha
+    accepted_providers:
+      type: array
+      nullable: true
+      description: |
+        Accepted document proof providers for this required document action. Clients may satisfy
+        the action with any listed provider.
+      items:
+        type: string
+        enum:
+          - self
+          - zkpassport
     capability:
       type: string
       enum:

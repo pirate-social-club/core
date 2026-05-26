@@ -9,7 +9,8 @@ RequestedVerificationCapability:
   description: |
     Canonical capability requested from an interactive verification flow. Public v0 should treat
     `unique_human`, `age_over_18`, `minimum_age`, `nationality`, and a document-derived `gender`
-    marker as the actively supported Self-backed capability set.
+    marker as the actively supported capability set. ZKPassport sessions are document-capability
+    only and must not mint `unique_human`.
 VerificationIntent:
   type: string
   enum:
@@ -27,7 +28,8 @@ StartVerificationSessionRequest:
     - provider
   description: |
     Start an interactive verification session for a provider that requires a frontend launch flow.
-    This surface is intentionally limited to interactive providers such as `self` and `very`.
+    This surface is intentionally limited to interactive providers such as `self`, `very`, and
+    `zkpassport`.
     Human Passport wallet-score refresh is not modeled as a verification session because it is
     a server-side score lookup by address rather than a QR, widget, or redirect ceremony.
 
@@ -41,16 +43,19 @@ StartVerificationSessionRequest:
       enum:
         - self
         - very
+        - zkpassport
     provider_mode:
       type: string
       enum:
         - qr_deeplink
         - widget
         - native_sdk
+        - web_sdk
       nullable: true
       description: |
         Optional requested launch mode. `self` sessions resolve to `qr_deeplink`.
         `very` sessions resolve to `widget` for web and `native_sdk` for supported native apps.
+        `zkpassport` sessions resolve to `web_sdk`.
     requested_capabilities:
       type: array
       minItems: 1
@@ -63,6 +68,7 @@ StartVerificationSessionRequest:
         Public-v0 intent:
         - `very`: `unique_human` only
         - `self`: `unique_human`, `age_over_18`, `nationality`, and `gender` (document marker)
+        - `zkpassport`: `minimum_age`, `nationality`, and `gender` document capabilities only
 
         When a Self session requests `age_over_18`, `nationality`, or `gender`, the server should
         also treat `unique_human` as part of the effective capability set.
@@ -387,6 +393,50 @@ VerySessionBinding:
     challenge_expires_at:
       type: integer
       format: int64
+ZkPassportVerificationLaunch:
+  type: object
+  required:
+    - domain
+    - name
+    - purpose
+    - scope
+    - binding
+    - requested_capabilities
+    - verification_requirements
+  description: |
+    Server-authored ZKPassport launch material. The frontend must build the SDK request from this
+    payload and return the generated proofs plus query result to the verification-session complete
+    endpoint. The backend independently verifies the proofs and binding before minting document
+    capabilities.
+  properties:
+    domain:
+      type: string
+    name:
+      type: string
+    logo:
+      type: string
+      nullable: true
+    purpose:
+      type: string
+    scope:
+      type: string
+    binding:
+      type: string
+      description: Compact server-authored value bound into the ZKPassport proof via `custom_data`.
+    validity_seconds:
+      type: integer
+      nullable: true
+    dev_mode:
+      type: boolean
+      nullable: true
+    requested_capabilities:
+      type: array
+      items:
+        $ref: ./verification.yaml#/RequestedVerificationCapability
+    verification_requirements:
+      type: array
+      items:
+        $ref: ./verification.yaml#/VerificationRequirement
 VerificationSessionLaunch:
   type: object
   required:
@@ -401,11 +451,14 @@ VerificationSessionLaunch:
         - qr_deeplink
         - widget
         - native_sdk
+        - web_sdk
         - none
     self_app:
       $ref: ./verification.yaml#/SelfVerificationLaunch
     very_widget:
       $ref: ./verification.yaml#/VeryWidgetLaunch
+    zkpassport:
+      $ref: ./verification.yaml#/ZkPassportVerificationLaunch
 VerificationCapabilities:
   type: object
   required:
@@ -441,7 +494,7 @@ VerificationCapabilities:
         value:
           type: integer
           nullable: true
-          description: Highest reusable minimum-age threshold verified by Self.
+          description: Highest reusable minimum-age threshold verified by an accepted document proof provider.
     nationality:
       allOf:
         - $ref: ./verification.yaml#/VerifiedCapabilityState
@@ -467,7 +520,7 @@ VerificationCapabilities:
             - M
             - F
           nullable: true
-          description: Verified document marker value when disclosed by an eligible Self flow; currently limited to `M` or `F`
+          description: Verified document marker value when disclosed by an eligible document proof flow; currently limited to `M` or `F`
         proof_type:
           type: string
           enum:
@@ -520,7 +573,7 @@ VerifiedCapabilityState:
   required:
     - state
   description: |
-    Capability state for Self-backed disclosure capabilities in v0. These capabilities have no
+    Capability state for document-backed disclosure capabilities in v0. These capabilities have no
     pending state — they are either unverified, verified from an accepted record, or expired after
     a re-verification requirement. Public-v0 refresh should be reactive at gate time rather than
     background or silent.
@@ -535,6 +588,7 @@ VerifiedCapabilityState:
       type: string
       enum:
         - self
+        - zkpassport
       nullable: true
     proof_type:
       type: string
@@ -672,6 +726,7 @@ VerificationSession:
       enum:
         - self
         - very
+        - zkpassport
       description: |
         Interactive provider family for this session. Human Passport wallet-score lookups are
         intentionally excluded because they do not require a session ceremony.
@@ -681,6 +736,7 @@ VerificationSession:
         - qr_deeplink
         - widget
         - native_sdk
+        - web_sdk
       nullable: true
     wallet_attachment:
       type: string
