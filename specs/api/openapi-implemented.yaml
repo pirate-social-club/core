@@ -3519,7 +3519,7 @@ components:
             value:
               type: integer
               nullable: true
-              description: Highest reusable minimum-age threshold verified by Self.
+              description: Highest reusable minimum-age threshold verified by an accepted document proof provider.
         nationality:
           allOf:
             - $ref: "#/components/schemas/VerifiedCapabilityState"
@@ -3545,7 +3545,7 @@ components:
                 - M
                 - F
               nullable: true
-              description: Verified document marker value when disclosed by an eligible Self flow; currently limited to `M` or `F`
+              description: Verified document marker value when disclosed by an eligible document proof flow; currently limited to `M` or `F`
             proof_type:
               type: string
               enum:
@@ -3570,7 +3570,8 @@ components:
       description: |
         Canonical capability requested from an interactive verification flow. Public v0 should treat
         `unique_human`, `age_over_18`, `minimum_age`, `nationality`, and a document-derived `gender`
-        marker as the actively supported Self-backed capability set.
+        marker as the actively supported capability set. ZKPassport sessions are document-capability
+        only and must not mint `unique_human`.
     VerificationIntent:
       type: string
       enum:
@@ -3621,7 +3622,7 @@ components:
       required:
         - state
       description: |
-        Capability state for Self-backed disclosure capabilities in v0. These capabilities have no
+        Capability state for document-backed disclosure capabilities in v0. These capabilities have no
         pending state — they are either unverified, verified from an accepted record, or expired after
         a re-verification requirement. Public-v0 refresh should be reactive at gate time rather than
         background or silent.
@@ -3636,6 +3637,7 @@ components:
           type: string
           enum:
             - self
+            - zkpassport
           nullable: true
         proof_type:
           type: string
@@ -3752,7 +3754,8 @@ components:
         - provider
       description: |
         Start an interactive verification session for a provider that requires a frontend launch flow.
-        This surface is intentionally limited to interactive providers such as `self` and `very`.
+        This surface is intentionally limited to interactive providers such as `self`, `very`, and
+        `zkpassport`.
         Human Passport wallet-score refresh is not modeled as a verification session because it is
         a server-side score lookup by address rather than a QR, widget, or redirect ceremony.
 
@@ -3766,16 +3769,19 @@ components:
           enum:
             - self
             - very
+            - zkpassport
         provider_mode:
           type: string
           enum:
             - qr_deeplink
             - widget
             - native_sdk
+            - web_sdk
           nullable: true
           description: |
             Optional requested launch mode. `self` sessions resolve to `qr_deeplink`.
             `very` sessions resolve to `widget` for web and `native_sdk` for supported native apps.
+            `zkpassport` sessions resolve to `web_sdk`.
         requested_capabilities:
           type: array
           minItems: 1
@@ -3788,6 +3794,7 @@ components:
             Public-v0 intent:
             - `very`: `unique_human` only
             - `self`: `unique_human`, `age_over_18`, `nationality`, and `gender` (document marker)
+            - `zkpassport`: `minimum_age`, `nationality`, and `gender` document capabilities only
 
             When a Self session requests `age_over_18`, `nationality`, or `gender`, the server should
             also treat `unique_human` as part of the effective capability set.
@@ -4062,11 +4069,14 @@ components:
             - qr_deeplink
             - widget
             - native_sdk
+            - web_sdk
             - none
         self_app:
           $ref: "#/components/schemas/SelfVerificationLaunch"
         very_widget:
           $ref: "#/components/schemas/VeryWidgetLaunch"
+        zkpassport:
+          $ref: "#/components/schemas/ZkPassportVerificationLaunch"
     AgentOwnershipProvider:
       type: string
       enum:
@@ -5607,6 +5617,7 @@ components:
           enum:
             - self
             - very
+            - zkpassport
           description: |
             Interactive provider family for this session. Human Passport wallet-score lookups are
             intentionally excluded because they do not require a session ceremony.
@@ -5616,6 +5627,7 @@ components:
             - qr_deeplink
             - widget
             - native_sdk
+            - web_sdk
           nullable: true
         wallet_attachment:
           type: string
@@ -6633,10 +6645,13 @@ components:
           - self
         minimum_age:
           - self
+          - zkpassport
         nationality:
           - self
+          - zkpassport
         gender:
           - self
+          - zkpassport
         wallet_score:
           - passport
         sanctions_clear:
@@ -6667,9 +6682,9 @@ components:
             Valid public-v0 combinations are:
             - `unique_human`: `self` or `very`
             - `age_over_18`: `self`
-            - `minimum_age`: `self`
-            - `nationality`: `self`
-            - `gender`: `self` (document marker `M` / `F`)
+            - `minimum_age`: `self` or `zkpassport`
+            - `nationality`: `self` or `zkpassport`
+            - `gender`: `self` or `zkpassport` (document marker `M` / `F`)
             - `wallet_score`: `passport`
             - `sanctions_clear`: `passport`
             Self OFAC-backed `sanctions_clear` is intentionally not public-v0 until launch config,
@@ -6681,6 +6696,7 @@ components:
             type: string
             enum:
               - self
+              - zkpassport
               - very
               - passport
         accepted_mechanisms:

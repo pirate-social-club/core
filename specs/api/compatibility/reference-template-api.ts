@@ -10,7 +10,7 @@ export type VerificationCapabilityState = {
 
 export type VerifiedCapabilityState = {
   state: "unverified" | "verified" | "expired";
-  provider?: "self" | null;
+  provider?: "self" | "zkpassport" | null;
   proof_type?: "age_over_18" | "minimum_age" | "nationality" | "gender" | null;
   mechanism?: string | null;
   verified_at?: number | null;
@@ -1042,7 +1042,8 @@ type DonationPartnerSummary = {
 
 type GateAtom = {
   type: "unique_human" | "minimum_age" | "nationality" | "gender" | "wallet_score" | "altcha_pow" | "erc721_holding" | "erc721_inventory_match";
-  provider?: "self" | "very" | "passport" | "courtyard" | "altcha" | null;
+  provider?: "self" | "zkpassport" | "very" | "passport" | "courtyard" | "altcha" | null;
+  accepted_providers?: Array<"self" | "zkpassport"> | null;
   minimum_age?: number;
   allowed?: Array<string>;
   minimum_score?: number;
@@ -1324,7 +1325,7 @@ type PromotionDisclosure = {
 
 type ProofRequirement = {
   proof_type: "unique_human" | "biometric_liveness" | "wallet_score" | "sanctions_clear" | "gov_id" | "age_over_18" | "minimum_age" | "nationality" | "gender" | "phone";
-  accepted_providers?: Array<"self" | "very" | "passport"> | null;
+  accepted_providers?: Array<"self" | "zkpassport" | "very" | "passport"> | null;
   accepted_mechanisms?: Array<string> | null;
   config?: (Record<string, unknown>) | null;
 };

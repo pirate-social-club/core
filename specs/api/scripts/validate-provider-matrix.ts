@@ -98,7 +98,7 @@ async function main() {
   );
   assertEqualSet(
     getStringEnum(getObject(verifiedCapabilityState, "properties"), "provider"),
-    ["self"],
+    [...new Set([...PROVIDER_MATRIX.minimum_age, ...PROVIDER_MATRIX.nationality, ...PROVIDER_MATRIX.gender])],
     "VerifiedCapabilityState.provider",
   );
   assertEqualSet(
