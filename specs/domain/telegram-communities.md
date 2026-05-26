@@ -1,6 +1,6 @@
 # Telegram Communities
 
-Status: draft working spec
+Status: current working spec
 
 Related docs:
 
