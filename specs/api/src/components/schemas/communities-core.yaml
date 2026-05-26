@@ -477,10 +477,13 @@ ProofRequirement:
       - self
     minimum_age:
       - self
+      - zkpassport
     nationality:
       - self
+      - zkpassport
     gender:
       - self
+      - zkpassport
     wallet_score:
       - passport
     sanctions_clear:
