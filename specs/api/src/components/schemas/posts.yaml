@@ -1192,6 +1192,10 @@ LocalizedPostResponse:
   properties:
     post:
       $ref: ./posts.yaml#/Post
+    community:
+      $ref: ./communities-core.yaml#/CommunityPreview
+      nullable: true
+      description: Inline public community preview for post SEO and public traversal clients, when available.
     author_community_role:
       type: string
       enum:
