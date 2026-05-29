@@ -36,6 +36,12 @@
         "oldChecksum": "cc64b1844768fc2cd585bd76daab9e75a32c596ddbdfbe8d7ac060d38cc5d23f",
         "newChecksum": "1b72ebf9d27d7dbd047dd5f7d83bede1d80919ec15c3203080cd97825eeb899e",
         "reason": "compatibility repair after runtime preflight covered post comment lock columns"
+      },
+      {
+        "migrationName": "1088_community_assistant_elevenlabs_voice_backfill.sql",
+        "oldChecksum": "01f22966d812643e78408d1c0b4835568a6dd928569f33c00dac5d791ff1150d",
+        "newChecksum": "e5e341d1e39fc18c3b794cce4ad3579afc9caf6f2b5cc2cf9ff5b14a2bbb71b8",
+        "reason": "compatible repair for communities whose voice-policy ledger drift lacks tts_provider"
       }
     ],
     "unexpectedMigrationsToRemove": []

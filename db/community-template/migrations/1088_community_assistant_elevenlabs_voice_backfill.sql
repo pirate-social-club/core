@@ -77,7 +77,7 @@ SELECT
     max_context_threads, max_lookback_days, memory_enabled, retention_mode, retention_days,
     save_chats_to_community_db, action_mode, require_moderator_approval_for_writes,
     per_user_daily_message_cap, voice_mode, 'elevenlabs', 'scribe_v2',
-    CASE WHEN tts_provider IN ('elevenlabs', 'none') THEN tts_provider ELSE 'elevenlabs' END,
+    'elevenlabs',
     tts_voice, include_in_sovereign_export, policy_origin, created_at, CURRENT_TIMESTAMP
 FROM community_assistant_policy;
 
