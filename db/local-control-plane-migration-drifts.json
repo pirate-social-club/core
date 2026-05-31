@@ -10,6 +10,11 @@
         "migrationName": "0000_control_plane_baseline_postgres.sql",
         "oldChecksum": "cedddc5f85541610502414b66cbad42d1678f298fbd92732cbc48cefbfa7e795",
         "reason": "local song artifact bundle baseline drift before genius annotations URL was added"
+      },
+      {
+        "migrationName": "0000_control_plane_baseline_postgres.sql",
+        "oldChecksum": "bfc099cb71802011cc5bfc994a72fd170f04bc212a4a76e19a1b55d6e46dc810",
+        "reason": "local community postable projection baseline drift before avatar_ref and membership_has_altcha_pow were added"
       }
     ]
   }
