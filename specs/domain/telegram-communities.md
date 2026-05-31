@@ -612,7 +612,8 @@ Token encryption:
 
 - Community bot tokens are dynamic community-provided secrets, so they should be stored in
   the control-plane database encrypted at rest.
-- Use an environment-level envelope key such as `TELEGRAM_BOT_TOKEN_WRAP_KEY`.
+- Use the existing community-secret envelope key (`TURSO_COMMUNITY_DB_WRAP_KEY`) through the
+  shared credential crypto helpers until a separate Telegram-specific key is introduced.
 - Encrypt tokens with AES-256-GCM using a per-bot random nonce and authenticated associated
   data including `telegram_community_bot_id` and `community_id`.
 - Store the key version so rotation can be introduced without rewriting the table shape.
@@ -685,8 +686,8 @@ Operational model:
   community assistant for group surfaces.
 - `telegram_linked_chats.telegram_community_bot_id` identifies the bot authorized to act in
   that group.
-- a short-lived assistant direct-message launch intent maps a Telegram private chat to a
-  community assistant session for one-to-one surfaces through the community bot.
+- private Telegram messages route by community bot identity, Telegram account resolution,
+  membership access, and the community assistant policy's private Telegram toggle.
 
 Existing code anchors:
 
@@ -915,6 +916,7 @@ Suggested storage:
   - `telegram_message_id`
   - `telegram_user_id`
   - `user_id` nullable
+  - `channel`: `group`, `private_member`, or `private_preview`
   - `trigger_type`
   - `prompt`
   - `assistant_message_ref` nullable
@@ -955,43 +957,17 @@ Useful v0 prompts:
 - "Summarize recent posts in this community."
 - "Open this community in the Mini App."
 
-Recommended v0 entry point:
+Current v0 entry point:
 
-1. User opens the community in the Telegram Mini App or web app.
-2. Pirate creates a short-lived Telegram assistant DM intent.
-3. The client opens `https://t.me/{community_bot_username}?start=tgassist_{token}`.
-4. The bot receives `/start tgassist_{token}` in a private chat.
-5. The bot validates the intent, binds the Telegram private chat to the intended community
-   and Telegram account, and sends a short ready message.
-6. The user's next private messages route to that community assistant until the session is
-   changed or expires.
-
-Suggested storage:
-
-- `telegram_assistant_dm_intents`
-  - `telegram_assistant_dm_intent_id`
-  - `community_id`
-  - `user_id` nullable
-  - `telegram_user_id` nullable
-  - `setup_token_hash`
-  - `status`
-  - `private_chat_id` nullable
-  - `assistant_chat_id` nullable
-  - `created_at`
-  - `expires_at`
-  - `completed_at` nullable
-
-- `telegram_assistant_dm_sessions`
-  - `telegram_assistant_dm_session_id`
-  - `community_id`
-  - `user_id`
-  - `telegram_user_id`
-  - `private_chat_id`
-  - `assistant_chat_id` nullable
-  - `status`
-  - `created_at`
-  - `updated_at`
-  - `last_message_at` nullable
+1. The user opens or messages a community-owned bot in a private Telegram chat.
+2. If the Telegram account maps to a joined Pirate member and the community has enabled the
+   private Telegram assistant, the message routes through the existing private-user
+   community assistant path.
+3. If the Telegram account is unlinked or not joined and preview is enabled, text messages
+   route through public-safe preview context with no community DB chat history.
+4. If preview is disabled or capped, the bot sends a short onboarding exchange Mini App link.
+5. A dedicated `tgassist_*` session table is deferred; current routing is derived from bot
+   identity, Telegram account resolution, membership access, and assistant policy.
 
 Rules:
 
@@ -999,25 +975,20 @@ Rules:
   reconciliation and community access checks
 - direct-message assistant may create Mini App deep links
 - direct-message assistant should not complete wallet, purchase, or moderation actions directly in v0
-- a `tgassist_*` token bound to one Telegram user must not activate for another Telegram user
+- onboarding exchange tokens bound to one Telegram user must not activate for another Telegram user
 - if the Telegram user is not linked to a Pirate user, the bot should return a Mini App link
   to complete Telegram session exchange before answering with private context
 - direct-message sessions should reuse `community_assistant_chats` where possible so web,
   Mini App, and Telegram DM history can share the same retention policy
-- users should be able to change the active community assistant by opening a new
-  `tgassist_*` link
-- DM sessions must have an inactivity timeout. If `last_message_at` or `updated_at` is older
-  than the configured TTL, the next private message should ask the user to reopen the
-  community assistant link instead of routing to stale community context.
-- opening a new `tgassist_*` link should replace the active DM session for that Telegram
-  private chat and community-aware user context.
+- current routing does not keep a cross-community DM session; each community bot maps to one
+  community.
 
 ## Security And Privacy
 
 Rules:
 
 - bot token must be treated as an auth secret
-- community bot tokens must be encrypted with `TELEGRAM_BOT_TOKEN_WRAP_KEY` and decrypted
+- community bot tokens must be encrypted with the configured community-secret wrap key and decrypted
   only inside bot-specific webhook or registration flows
 - platform bot environment secrets must not be used for community-specific group linking,
   join approval, or assistant replies
@@ -1049,7 +1020,7 @@ Recommended implementation sequence:
    - `telegram_linked_chats.telegram_community_bot_id` nullable during rollout
    - indexes for active bot by community, webhook lookup, and active bot Telegram user id
 2. Add bot token encryption helpers:
-   - require `TELEGRAM_BOT_TOKEN_WRAP_KEY`
+   - require the configured community-secret wrap key
    - AES-256-GCM encrypt/decrypt
    - associated data includes community and bot ids
    - tests verify wrong associated data and wrong key fail
@@ -1085,12 +1056,12 @@ Recommended implementation sequence:
    - second section: connect group using that bot
    - show bot username, verification status, webhook registration status, and linked group
    - disable group connect until a verified bot exists
-9. Add DM assistant launch intents and sessions:
-   - create a `tgassist_*` intent from Mini App or web
-   - deep link to the community bot username
-   - bind intent to Telegram user when available
-   - create or reuse `community_assistant_chats` after user reconciliation
-   - route private messages to `private_user` context
+9. Add DM assistant routing through the community bot:
+   - gate routing on the private Telegram assistant policy toggle
+   - route joined members to `private_user` context through the existing assistant runtime
+   - route unlinked or non-member text previews to `public_group` context when preview is enabled
+   - use onboarding exchange links when preview is disabled, unsupported, or capped
+   - persist preview accounting with `telegram_assistant_events.channel = 'private_preview'`
 
 Already-built implementation that should be preserved:
 
@@ -1098,6 +1069,7 @@ Already-built implementation that should be preserved:
 - linked chat settings and moderator UI shape
 - join-request grant decision service
 - group assistant trigger parsing, rate limiting, and group-safe context
+- private DM member and preview assistant routing
 - safe webhook acknowledgement and safe Telegram send/approve wrappers
 
 ## Telegram Assistant Test Plan
@@ -1165,13 +1137,13 @@ Required automated tests:
     and mark the grant approved
   - mapped users who are not joinable create pending grants and receive a Mini App join link
   - prompt failures and approve failures mark the grant failed while still returning `200`
-- DM assistant launch:
-  - `/start tgassist_*` in a private chat completes a pending DM intent
-  - a token bound to a different Telegram user is rejected without provider calls
-  - expired DM intents are marked expired and acknowledged with `200`
-  - a private message after a completed DM session calls the existing assistant runtime with
-    `private_user` context
-  - the resulting `community_assistant_chats` history is private to the resolved Pirate user
+- DM assistant routing:
+  - joined members can message the community bot privately and use `private_user` context
+  - unlinked or non-member Telegram users can receive text-only preview answers with
+    `public_group` context
+  - preview answers write `telegram_assistant_events.channel = 'private_preview'`
+  - member DM user messages carry Telegram source metadata in `community_assistant_messages`
+  - private Telegram DMs require the community's private Telegram assistant policy toggle
 - webhook robustness:
   - malformed assistant updates return `200`
   - Telegram API timeout in response sending is swallowed by safe send
@@ -1215,7 +1187,7 @@ Recommended build order:
 7. `/tg/c/{community_id}` join grant flow
 8. proof-of-work gate support in the Mini App
 9. Self and Very app-switch verification flows
-10. Telegram direct-message assistant launch intents
+10. Telegram direct-message member and preview assistant through the community bot
 
 Deferred:
 
