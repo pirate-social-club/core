@@ -25,7 +25,6 @@ Related docs:
 - [../domain/royalty-graph.md](../domain/royalty-graph.md)
 - [../domain/rights-review.md](../domain/rights-review.md)
 - [../domain/karma.md](../domain/karma.md)
-- [../domain/scrobbles.md](../domain/scrobbles.md)
 - [../domain/questions.md](../domain/questions.md)
 - [../contracts/overview.md](../contracts/overview.md)
 
@@ -80,7 +79,6 @@ Recommended v0 resource families:
 - `feeds`
 - `marketplace`
 - `tracks`
-- `scrobbles`
 - `mpp`
 - `jobs`
 
@@ -114,8 +112,6 @@ Interpretation:
   Listings, quote generation, purchase initiation, entitlement reads, and purchase history.
 - `tracks`
   Canonical track identity, artist-catalog reads, track resolution, and preregistered catalog metadata.
-- `scrobbles`
-  Listen submission, scrobble reconciliation, and listen-derived read views.
 - `mpp`
   Machine-access payment-gated surfaces for exports, search, and bulk retrieval.
 - `jobs`
@@ -210,7 +206,6 @@ Examples:
 - publish asset to Story
 - create listing
 - submit purchase intent
-- record scrobble
 
 ### Read Model
 
@@ -227,7 +222,6 @@ Examples:
 - live room detail pages
 - purchase history
 - track detail pages
-- scrobble leaderboards or listener views
 
 Rules:
 
@@ -529,23 +523,6 @@ Recommended API shape:
 7. purchase record becomes canonical
 8. buyer entitlement becomes readable
 
-### Scrobbling
-
-Recommended API shape:
-
-1. resolve or register track identity
-2. submit scrobble; the server accepts it and queues it for async anchoring
-3. the accepted offchain row becomes the canonical ingest record; the anchored onchain event becomes the canonical anchor record
-4. an internal anchor worker periodically publishes batches onchain via `registerTracks(...)` then `scrobbleBatch(...)`
-5. read models and karma derivations update after anchoring
-
-Recommended URL posture:
-
-- track identity and scrobble submission are separate concerns
-- `POST /scrobbles` is the normal single-ingest path
-- `POST /scrobbles/batch` is the trusted/internal bulk-ingest path
-- users inspect `anchor_status` on scrobble resources rather than polling a separate anchor job
-
 ## Enforcement Boundaries
 
 The API should make enforcement points explicit.
@@ -626,4 +603,3 @@ Recommended next step:
 ## Open Questions
 
 - Which flows deserve websocket or push updates in v0 versus plain polling?
-- Should scrobble submission be synchronous app acknowledgement with async chain reconciliation, or should the API expose both direct and delegated submission modes separately? Resolved: scrobble submission is synchronous app acknowledgement with async chain reconciliation. The API accepts scrobbles and returns `202`. Onchain anchoring is performed asynchronously by a batch publisher. `ingestion_mode` preserves original provenance offchain; onchain `submissionMode` is effectively always delegated under batch publication.

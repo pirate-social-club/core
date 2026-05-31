@@ -30,9 +30,6 @@ The central database is the canonical home for:
 - community registry rows
 - community connection metadata
 - encrypted community database credentials
-- scrobble ingest events
-- scrobble anchor batches and batch items
-- global track onchain registration state
 - cross-community search projections
 - cross-community feed projections
 - platform-level jobs
@@ -44,20 +41,6 @@ The central database is the canonical home for:
 - a user may participate in many communities
 - global discovery and moderation need platform-level views
 - connection metadata for community databases is infrastructure state, not community content
-
-### Scrobble And Track Anchor State
-
-Scrobble ingest events are central because:
-
-- scrobbles are keyed by `user_id`, not `community_id`
-- `community_id` is nullable on scrobbles
-- a single user's scrobbles may span multiple communities
-- batch anchoring groups by resolved wallet, not by club
-
-Global track onchain registration state is central because:
-
-- `ScrobbleV1` has a single global track registry
-- track registration is a prerequisite for scrobble anchoring regardless of club context
 
 ## Community Database
 
@@ -75,7 +58,6 @@ The community database is the canonical home for durable community-owned state:
 - community-specific commerce metadata
 - community-specific purchase records and entitlement records where those purchases are owned by the community surface
 - community-local read models and counters
-- community-local scrobble projections such as recent listeners, charts, and counters
 
 ### Why these live with the community
 
@@ -100,8 +82,6 @@ Examples:
 - the global feed/search projection is updated centrally
 
 The projection may lag. The community database remains the durable source of truth for community-owned state.
-
-Community-local scrobble surfaces are projections derived from central ingest and anchor state. They are not the canonical scrobble store.
 
 ## Identity Rules
 

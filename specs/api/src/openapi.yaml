@@ -36,7 +36,6 @@ tags:
   - name: Questions
   - name: Feeds
   - name: Tracks
-  - name: Scrobbles
   - name: Moderation
   - name: MPP
   - name: Notifications
@@ -334,12 +333,6 @@ paths:
     $ref: ./paths/tracks.yaml#/tracks
   /tracks/{track_id}:
     $ref: ./paths/tracks.yaml#/tracks_by_track_id
-  /tracks/{track_id}/listeners:
-    $ref: ./paths/tracks.yaml#/tracks_by_track_id_listeners
-  /scrobbles:
-    $ref: ./paths/scrobbles.yaml#/scrobbles
-  /users/{user_id}/scrobbles:
-    $ref: ./paths/scrobbles.yaml#/users_by_user_id_scrobbles
   /mpp/communities/{community_id}/threads/export:
     $ref: ./paths/mpp.yaml#/mpp_communities_by_community_id_threads_export
   /mpp/jobs/{job_id}:
@@ -893,12 +886,6 @@ components:
       $ref: ./components/schemas/tracks.yaml#/PurchaseDonationSettlement
     Track:
       $ref: ./components/schemas/tracks.yaml#/Track
-    CreateScrobbleRequest:
-      $ref: ./components/schemas/scrobbles.yaml#/CreateScrobbleRequest
-    Scrobble:
-      $ref: ./components/schemas/scrobbles.yaml#/Scrobble
-    ListenerSummary:
-      $ref: ./components/schemas/scrobbles.yaml#/ListenerSummary
     Job:
       $ref: ./components/schemas/jobs.yaml#/Job
     JobAcceptedResponse:

@@ -428,8 +428,6 @@ Recommended v0 capability defaults:
 - Story CDR locked-asset read
   - should use the buyer wallet that actually holds or can prove the entitlement needed for the locked read
   - in v0 this should normally be the same EIP-155 wallet path used for purchase settlement unless Pirate later introduces explicit entitlement-wallet selection
-- scrobble anchoring
-  - defaults to the current primary active EIP-155 wallet attachment as defined below
 
 Failure posture:
 
@@ -458,20 +456,6 @@ Reasoning:
 - Solana is a separate wallet family and signing/runtime surface, not just another EIP-155 chain id
 - Bitcoin-native support should not be implied when the real executable posture may still be a narrower routed funding lane
 - Pirate should prefer an honest narrow support claim over broad "multi-chain" language that hides capability gaps
-
-## Scrobble Wallet Resolution
-
-Scrobble batch anchoring requires a resolved EIP-155 wallet address per user.
-
-Recommended v0 rules:
-
-- the canonical scrobble wallet defaults to the user's primary active EIP-155 wallet attachment
-- if no active EIP-155 wallet attachment exists, the scrobble enters `awaiting_wallet` status and will not be anchored until a wallet is attached
-- the `wallet_attachment_id` is pinned on the ingest event at acceptance time
-- if the pinned wallet attachment is revoked before the scrobble is anchored, the anchor worker may re-resolve to the current primary wallet and update the pin
-- wallet resolution for scrobbles follows the same pattern as follow resolution; see [follow.md](./follow.md)
-
-This is an internal resolution detail. The public scrobble API does not expose `wallet_attachment_id`.
 
 ## Auth Provider Links
 

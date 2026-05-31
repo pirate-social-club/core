@@ -78,7 +78,6 @@ Examples:
 - community-specific language and slang
 - artist-community context
 - question-answer history
-- scrobble-derived audience signals
 - high-quality human interaction data
 
 That makes Pirate attractive to:
@@ -470,22 +469,6 @@ Excluded content:
 
 - must not be returned from paid export surfaces
 - must not produce payout attribution
-
-## Scrobble And Listener Data Boundary
-
-Scrobble-derived data is valuable, but Pirate does not need to put all listener detail behind MPP on day one.
-
-Recommended v0 split:
-
-- normal authenticated endpoints may expose limited scrobble history and aggregate listener summaries
-- bulk listener export, high-volume user listening export, and machine-oriented audience analytics should move to the MPP surface
-- standard endpoints should prefer summary-oriented responses and interactive quotas
-
-This keeps:
-
-- normal music-club UX simple
-- fan recognition features available in the app
-- extractive analytics and bulk audience harvesting on the paid machine surface
 
 ## OpenAPI Implication
 

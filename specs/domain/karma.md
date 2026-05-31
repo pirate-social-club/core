@@ -122,7 +122,6 @@ Karma anti-Sybil is enforced through multiple layers:
 - rate limits on voting, posting, and handle availability probes
 - account age and activity minimums for trust-sensitive actions
 - moderation adjustments and penalties
-- scrobble karma caps per user per club per day
 - append-only event logs that prevent retroactive tampering
 
 ## Data Model
@@ -152,7 +151,6 @@ Suggested `event_type` values:
 - `comment_upvote_received`
 - `comment_downvote_received`
 - `question_answer_correct`
-- `scrobble_karma_grant`
 - `moderator_adjustment_up`
 - `moderator_adjustment_down`
 - `trust_tier_promotion`
@@ -180,7 +178,6 @@ Suggested v0 shape:
 - `post_karma`
 - `comment_karma`
 - `question_karma`
-- `scrobble_karma`
 - `moderation_adjustment`
 - `raw_karma`
 - `effective_karma`
@@ -202,13 +199,11 @@ Suggested meanings:
   Sum of upvotes received on the user's comments in this community, minus downvotes.
 - `question_karma`
   Sum of rewardable correct-answer karma granted from club questions in this community.
-- `scrobble_karma`
-  Sum of scrobble-derived karma in this community, subject to daily caps.
 - `moderation_adjustment`
   Sum of all moderator adjustments, both positive and negative.
 - `raw_karma`
   Sum of all community-scoped event deltas before moderation adjustments.
-  This is `post_karma + comment_karma + question_karma + scrobble_karma`.
+  This is `post_karma + comment_karma + question_karma`.
 - `effective_karma`
   The trust-relevant karma after moderation adjustments.
   This is `raw_karma + moderation_adjustment`.
@@ -267,7 +262,6 @@ The following are reasonable karma sources because they reflect recognized club 
 - comment upvotes received within a club
 - posts and comments remaining visible and non-removed over time, represented by the upvote and downvote event totals rather than a separate event type
 - correct answers to rewardable club questions
-- scrobble-derived karma for music communities
 - moderator grants and penalties
 
 ### Inputs To Treat Carefully
@@ -294,25 +288,6 @@ The following must not produce karma:
 - imported external platform metrics such as Reddit karma
 
 Reddit karma can inform initial handle eligibility as a bootstrap signal, but it does not produce karma events and does not add to Pirate karma totals.
-
-## Scrobble Karma
-
-Scrobble-derived karma should exist but remain bounded.
-
-Recommended v0 rules:
-
-- scrobble karma is a low-weight positive signal
-- only scrobbles that pass minimum listening validity rules contribute
-- scrobble karma is capped per `(user_id, community_id)` per day
-- the daily cap prevents passive-listening farms from inflating handle eligibility
-- scrobble karma is useful for fan status, top-listener recognition, and music-native participation
-- scrobble karma alone should not be enough to dominate handle allocation
-- scrobble karma derives only from anchored scrobbles
-- accepted but not-yet-anchored scrobbles do not produce `scrobble_karma_grant` events
-- the anchor worker emits karma-related side effects only after successful onchain confirmation
-- the daily cap is bucketed by `playback_started_at`, not by `anchored_at`
-
-The daily cap value and minimum listening rules are implementation policy, not protocol.
 
 ## Trust Tiers
 
@@ -436,7 +411,7 @@ For karma-specific rules:
 
 - external trust must not produce karma events
 - external trust may inform initial handle eligibility as a bootstrap signal
-- external trust must not add to `post_karma`, `comment_karma`, `question_karma`, or `scrobble_karma`
+- external trust must not add to `post_karma`, `comment_karma`, or `question_karma`
 - external trust must not affect `trust_tier` derivation
 - external trust may appear on the user's profile as contextual information but must not be displayed as native Pirate karma
 - the influence of external trust on eligibility should decrease over time as native karma accumulates
@@ -473,6 +448,5 @@ Recommended v0 split:
 - Should downvotes subtract from karma, or only neutralize an upvote?
 - Should karma decay over time if a user becomes inactive?
 - What is the minimum activity threshold before a new user's votes start producing karma events for others?
-- Should scrobble karma be capped at a fixed daily amount, or should the cap vary by club size?
 - How should karma handle club merges or namespace mirrors where the same user may have karma in sibling namespaces?
 - What audit trail is required for admin karma overrides, and who can review it?

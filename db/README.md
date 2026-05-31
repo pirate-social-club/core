@@ -3,7 +3,7 @@
 Pirate has two relational migration roots:
 
 - `db/control-plane/migrations/`
-  Central Pirate-owned control-plane schema for identity, auth links, verification, community routing, encrypted community credentials, global scrobble and track anchor state, projections, jobs, and audit.
+  Central Pirate-owned control-plane schema for identity, auth links, verification, community routing, encrypted community credentials, projections, jobs, and audit.
 - `db/community-template/migrations/`
   Baseline per-community schema applied to each new community `main` database at provisioning time.
 

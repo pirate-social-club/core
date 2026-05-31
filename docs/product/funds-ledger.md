@@ -24,7 +24,6 @@ Do not restate addresses from this file in wrangler.toml, release manifests, or 
 | `STORY_OPERATOR_ADDRESS` | Story operator PKP | Gas for presentation/lyrics/study-set txs and `publishAssetVersion(...)` on locked-asset publishes | 0.05 IP | contract-owner | PKP self-drains via gas spend only; no manual drain | Revoke operator role on-chain, then sweep remaining balance from contract-owner |
 | `STORY_CDR_WRITER_ADDRESS` | Story CDR writer PKP | Gas plus CDR protocol fees for `allocate(...)` and `write(...)` during locked-song publish | 0.1 IP | contract-owner | PKP self-drains via gas and protocol-fee spend only; no manual drain | Halt locked publish, wait for pending writes, then sweep remaining balance from contract-owner |
 | `STORY_FEED_REGISTRAR_ADDRESS` | Story feed registrar PKP | Gas for setPostStoryIpId / setPostTranslationRef txs | 0.05 IP | contract-owner | PKP self-drains via gas spend only; no manual drain | Revoke STORY_REGISTRAR_ROLE and TRANSLATION_UPDATER_ROLE on-chain |
-| `STORY_SCROBBLE_OPERATOR_ADDRESS` | Story scrobble batch publisher | Gas for delegated scrobble anchoring. Signs `registerTracks(...)` then `scrobbleBatch(...)` in separate txs on `ScrobbleV1` | 0.05 IP | contract-owner | Direct-key gas spend only; no automatic drain path | Revoke operator role on `ScrobbleV1` on-chain |
 | `STORY_SETTLEMENT_ADDRESS` | Story settlement PKP | Gas for `MarketplaceSettlementV1.settlePurchase(...)`; future upgrade path may also hold WIP temporarily during royalty routing | 0.1 IP | contract-owner | Native settlement gas only in v1; if later upgraded to WIP routing, sweep excess WIP to treasury on schedule | Halt settlement cron, sweep any staged funds to contract-owner, revoke operator/approval paths |
 | `STORY_SPONSOR_ADDRESS` | Story sponsor PKP | Gas for sponsor-router IP registration and vault bootstrap txs | 0.1 IP | contract-owner | PKP self-drains via gas spend only; no manual drain | Remove PKP from router authorized signers on-chain |
 | `STORY_BACKEND_SIGNER_ADDRESS` | Story backend signer PKP | Gas for backend-approval registration txs on the two-PKP router | 0.1 IP | contract-owner | PKP self-drains via gas spend only; no manual drain | Remove PKP from router authorized signers on-chain |
@@ -51,7 +50,7 @@ Actual addresses are not hardcoded in this file. They resolve from:
 - signer-family canonical addresses: `docs/operators/signer-families.md`
 - PKP control-plane addresses: `config/lit-families.json`
 
-When those files disagree, this ledger is not authoritative on which address is correct. It is authoritative on which addresses hold value and what to do about it. Direct-key families such as `story-scrobble-operator` resolve from `docs/operators/signer-families.md` only.
+When those files disagree, this ledger is not authoritative on which address is correct. It is authoritative on which addresses hold value and what to do about it.
 
 ## Refill Procedure
 

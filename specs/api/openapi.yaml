@@ -37,7 +37,6 @@ tags:
   - name: Questions
   - name: Feeds
   - name: Tracks
-  - name: Scrobbles
   - name: Moderation
   - name: MPP
   - name: Notifications
@@ -4684,105 +4683,6 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
-  /tracks/{track_id}/listeners:
-    get:
-      tags:
-        - Scrobbles
-      summary: Read listener summaries for a track
-      parameters:
-        - $ref: "#/components/parameters/TrackId"
-        - $ref: "#/components/parameters/Cursor"
-        - $ref: "#/components/parameters/Limit"
-      responses:
-        "200":
-          description: Listener summaries
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - track
-                  - items
-                properties:
-                  track:
-                    type: string
-                  items:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/ListenerSummary"
-                  next_cursor:
-                    type: string
-                    nullable: true
-        "401":
-          $ref: "#/components/responses/AuthError"
-        "429":
-          $ref: "#/components/responses/RateLimited"
-  /scrobbles:
-    post:
-      tags:
-        - Scrobbles
-      summary: Submit a scrobble
-      description: Scrobble accepted for async anchoring.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateScrobbleRequest"
-      responses:
-        "202":
-          description: Scrobble accepted for async anchoring
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Scrobble"
-        "401":
-          $ref: "#/components/responses/AuthError"
-        "429":
-          $ref: "#/components/responses/RateLimited"
-  /users/{user_id}/scrobbles:
-    get:
-      tags:
-        - Scrobbles
-      summary: Read scrobbles for a user
-      parameters:
-        - $ref: "#/components/parameters/UserId"
-        - $ref: "#/components/parameters/Cursor"
-        - $ref: "#/components/parameters/Limit"
-        - name: anchor_status
-          in: query
-          required: false
-          schema:
-            type: string
-            enum:
-              - queued
-              - awaiting_wallet
-              - awaiting_track
-              - anchoring
-              - anchored
-              - failed
-              - suppressed
-      responses:
-        "200":
-          description: Scrobbles
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - items
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Scrobble"
-                  next_cursor:
-                    type: string
-                    nullable: true
-        "401":
-          $ref: "#/components/responses/AuthError"
-        "429":
-          $ref: "#/components/responses/RateLimited"
   /mpp/communities/{community_id}/threads/export:
     post:
       tags:
@@ -12623,6 +12523,10 @@ components:
       properties:
         post:
           $ref: "#/components/schemas/Post"
+        community:
+          $ref: "#/components/schemas/CommunityPreview"
+          nullable: true
+          description: Inline public community preview for post SEO and public traversal clients, when available.
         author_community_role:
           type: string
           enum:
@@ -13731,131 +13635,6 @@ components:
         created:
           type: integer
           format: int64
-    CreateScrobbleRequest:
-      type: object
-      required:
-        - track
-        - source_type
-        - playback_started_at
-      properties:
-        track:
-          type: string
-        community:
-          type: string
-          nullable: true
-        source_type:
-          type: string
-          enum:
-            - web
-            - desktop
-            - mobile
-            - operator_ingested
-        playback_started_at:
-          type: integer
-          format: int64
-        playback_position_ms:
-          type: integer
-          nullable: true
-        credited_duration_ms:
-          type: integer
-          nullable: true
-        ingestion_mode:
-          type: string
-          enum:
-            - first_party
-            - trusted_import
-          default: first_party
-        idempotency_key:
-          type: string
-    Scrobble:
-      type: object
-      required:
-        - id
-        - object
-        - track
-        - user
-        - source_type
-        - playback_started_at
-        - ingestion_mode
-        - anchor_status
-        - accepted_at
-        - created
-      properties:
-        id:
-          type: string
-          readOnly: true
-        object:
-          type: string
-          readOnly: true
-          enum:
-            - scrobble
-        track:
-          type: string
-        user:
-          type: string
-        community:
-          type: string
-          nullable: true
-        source_type:
-          type: string
-          enum:
-            - web
-            - desktop
-            - mobile
-            - operator_ingested
-        playback_started_at:
-          type: integer
-          format: int64
-        playback_position_ms:
-          type: integer
-          nullable: true
-        credited_duration_ms:
-          type: integer
-          nullable: true
-        ingestion_mode:
-          type: string
-          enum:
-            - first_party
-            - trusted_import
-        anchor_status:
-          type: string
-          enum:
-            - queued
-            - awaiting_wallet
-            - awaiting_track
-            - anchoring
-            - anchored
-            - failed
-            - suppressed
-        accepted_at:
-          type: integer
-          format: int64
-        anchored_at:
-          type: integer
-          format: int64
-          nullable: true
-        chain_tx_hash:
-          type: string
-          nullable: true
-        chain_log_index:
-          type: integer
-          nullable: true
-        created:
-          type: integer
-          format: int64
-    ListenerSummary:
-      type: object
-      required:
-        - user
-        - scrobble_count
-      properties:
-        user:
-          type: string
-        display_handle:
-          type: string
-          nullable: true
-        scrobble_count:
-          type: integer
     Job:
       type: object
       required:

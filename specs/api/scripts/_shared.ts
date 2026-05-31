@@ -192,7 +192,6 @@ const SCHEMA_GROUPS: Record<string, readonly string[]> = {
     "PurchaseDonationSettlement",
     "Track",
   ],
-  scrobbles: ["CreateScrobbleRequest", "Scrobble", "ListenerSummary"],
   jobs: ["Job", "JobAcceptedResponse"],
   mpp: [
     "MppChallenge",
@@ -216,7 +215,6 @@ export const PATH_GROUP_ORDER = [
   "posts",
   "feeds",
   "tracks",
-  "scrobbles",
   "mpp",
   "jobs",
 ] as const;
@@ -240,7 +238,6 @@ export const SCHEMA_GROUP_ORDER = [
   "questions",
   "feeds",
   "tracks",
-  "scrobbles",
   "jobs",
   "mpp",
 ] as const;
@@ -262,9 +259,6 @@ export function classifyPath(pathname: string): string {
   }
   if (pathname.startsWith("/onboarding/")) {
     return "onboarding";
-  }
-  if (pathname.startsWith("/users/{user_id}/scrobbles") || pathname === "/scrobbles") {
-    return "scrobbles";
   }
   if (pathname.startsWith("/users/")) {
     return "users";

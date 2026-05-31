@@ -454,4 +454,4 @@ This replaces the old model where desktop owned creation and then opened a brows
 - Should live-room metadata edits such as title, cover, and scheduled time use a dedicated PATCH endpoint in the first public API pass?
 - Should desktop ever directly author `live_room` objects in production, or should it remain a host/performance client attached to rooms created by web/app?
 - Should club-gated livestreams support room-specific audience segments in v0, or should that wait until after the base club-gate model hardens?
-- Should gated access mode gain a subfield like `gate_mode` or `audience_gate_ref` to encode segment types (purchase_entitlement, scrobble_threshold, study_streak, wallet_allowlist) from old Pirate, or should v0 rely on club-level gate evaluation and defer room-specific audience segmentation?
+- Should gated access mode gain a subfield like `gate_mode` or `audience_gate_ref` to encode segment types (purchase_entitlement, study_streak, wallet_allowlist), or should v0 rely on club-level gate evaluation and defer room-specific audience segmentation?

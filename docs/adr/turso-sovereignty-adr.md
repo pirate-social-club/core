@@ -69,8 +69,6 @@ One central Pirate database stores:
 - global profile and global handle state
 - community registry and routing metadata
 - encrypted connection metadata for community databases
-- scrobble ingest events and anchor batches
-- global track onchain registration state
 - global projections for discovery, search, and cross-community feeds
 - platform-level jobs and audit state
 

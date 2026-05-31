@@ -7,7 +7,6 @@ Related docs:
 - [overview.md](./overview.md)
 - [../domain/asset.md](../domain/asset.md)
 - [../domain/marketplace.md](../domain/marketplace.md)
-- [scrobble-v1.md](./scrobble-v1.md)
 
 ## Purpose
 

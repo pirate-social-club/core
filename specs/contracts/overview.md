@@ -79,29 +79,6 @@ Recommended v0 asset posture:
 
 Pirate should rely on Story's existing protocol contracts where possible rather than recreating those primitives.
 
-### Track Registry And Scrobble Events
-
-Music listening activity is meaningful product state for Pirate and should have a real Story-side contract surface.
-
-Reasoning:
-
-- scrobbles are valuable music-club reputation and activity data
-- track registration and scrobble history benefit from shared onchain visibility
-- scrobble thresholds can later drive audience segments, unlocks, and club recognition
-- this is already a proven pattern in `pirate/` via `ScrobbleV4` (`contracts/story/scrobble` uses `ScrobbleV1` as the batch anchor contract)
-
-Recommended v0 shape:
-
-- one Story-side scrobble contract
-- track registry keyed by stable `track_id`
-- cheap event-oriented scrobble writes
-- delegated operator path for trusted ingestion flows such as desktop scrobbling
-
-Important boundary:
-
-- onchain scrobble data is the canonical event layer
-- aggregation, ranking, streaks, badges, and club views remain offchain read models
-
 ### Marketplace Purchase Execution
 
 Primary sales for royalty-native assets should execute on Story.
@@ -180,11 +157,8 @@ This includes:
 
 Even if club governance later influences ranking policy, feed execution remains an app-level concern.
 
-This does not conflict with having an onchain scrobble event layer for music activity.
-
 The rule is:
 
-- event publication may be onchain where it materially helps the music product
 - ranking and feed assembly remain offchain
 
 ### Posts, Comments, And Votes
@@ -288,7 +262,6 @@ Pirate-specific v0 contracts should stay narrow.
 
 Likely areas:
 
-- track registry and scrobble events on Story
 - publish/access coordination for locked song assets on Story
 - marketplace purchase execution on Story
 - payout routing on Story
@@ -308,7 +281,6 @@ Based on the existing `pirate/` Story stack, the most sensible v0 contract inven
 
 Current concrete contract names implemented in `contracts/`:
 
-- `ScrobbleV1`
 - `AssetPublishCoordinatorV1`
 - `MarketplaceSettlementV1`
 - `PurchaseEntitlementToken`
@@ -316,20 +288,7 @@ Current concrete contract names implemented in `contracts/`:
 - `PirateSignerRegistry`
 - `SignedAccessConditionV1`
 
-### 1. Scrobble Contract
-
-Role:
-
-- register tracks
-- emit scrobble events
-- support trusted operator-assisted scrobbling
-
-Notes:
-
-- this is already validated by `ScrobbleV4` in `pirate/` (`contracts/story/scrobble` uses `ScrobbleV1` for this role)
-- it is the strongest candidate for a first-class Pirate contract outside direct marketplace settlement
-
-### 2. Asset Publish Coordinator
+### 1. Asset Publish Coordinator
 
 Role:
 
@@ -344,7 +303,7 @@ Notes:
 - unlike `pirate/`, v2 should not assume `ContentRegistry`-style grant rows as the purchase-access primitive
 - this should remain Story-side for locked song delivery flows
 
-### 3. Marketplace Settlement Contract
+### 2. Marketplace Settlement Contract
 
 Role:
 
@@ -358,7 +317,7 @@ Notes:
 - this may stay separate from the CDR condition and entitlement contracts
 - the marketplace contract should stay small and focused on purchase execution
 
-### 4. Purchase Entitlement Token
+### 3. Purchase Entitlement Token
 
 Role:
 
@@ -371,7 +330,7 @@ Notes:
 - if Pirate adopts token-gated CDR reads for locked assets, this is no longer just an optional UX receipt
 - this may still look similar to `PurchaseReceiptV2`, but v2 should treat it as core locked-delivery infrastructure rather than decorative buyer proof
 
-### 5. CDR Condition / Access Proof Contracts
+### 4. CDR Condition / Access Proof Contracts
 
 Role:
 

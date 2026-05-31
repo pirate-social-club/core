@@ -7,7 +7,6 @@ Related docs:
 - [artist-identity.md](./artist-identity.md)
 - [community.md](./community.md)
 - [asset.md](./asset.md)
-- [scrobbles.md](./scrobbles.md)
 - [questions.md](./questions.md)
 
 ## Purpose
@@ -41,7 +40,6 @@ Pirate should treat:
 
 The catalog should be good enough to support:
 
-- day-one scrobbling
 - day-one artist club pages
 - day-one question generation
 
@@ -147,7 +145,7 @@ Suggested meanings:
 
 Rules:
 
-- `track_id` is Pirate's stable canonical track identifier used by scrobbles and question generation
+- `track_id` is Pirate's stable canonical track identifier used by song, artist, and question-generation surfaces
 - a track should use MBID-backed identity when a strong match exists
 - a Pirate-published song asset may still map to a Story-IP-backed track identity when MBID is absent
 - unknown or unresolved tracks may fall back to metadata-hash identity without blocking use
@@ -177,7 +175,7 @@ The enrichment job may then:
 - fetch a first-pass known track list
 - pre-register known tracks into Pirate's track table
 
-This gives artist communities better day-one scrobble and question-generation UX without making community creation fragile.
+This gives artist communities better day-one song and question-generation UX without making community creation fragile.
 
 ## Pre-Registration vs Lazy Registration
 
@@ -205,21 +203,6 @@ Recommended v0 rule:
 
 - pre-register what Pirate knows with high confidence
 - lazily register the rest on demand
-
-## Track Registration State
-
-A track may exist offchain before it is registered onchain.
-
-The registration gap has two distinct causes:
-
-- `awaiting_track_metadata`
-  - the track lacks sufficient identity metadata for onchain registration
-  - enrichment jobs such as `artist_metadata_enrichment` fill this gap
-- `awaiting_track_registration`
-  - the track has sufficient metadata but has not yet been registered onchain
-  - the anchor worker or `catalog_track_preregistration` job handles this gap
-
-Global onchain track registration state is managed centrally, even for community-associated tracks. `ScrobbleV1` has a single global track registry, not per-community registries.
 
 ## Question Generation Support
 
@@ -249,7 +232,7 @@ Likely API surfaces:
 - read club-linked artist metadata
 - inspect enrichment status
 - resolve or create track records
-- fetch track metadata for song/scrobble/question surfaces
+- fetch track metadata for song and question surfaces
 
 ## Open Questions
 

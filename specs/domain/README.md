@@ -64,8 +64,6 @@ Product and system design docs grouped by domain surface.
   Canonical asset model and attachments.
 - `karaoke.md`
   Karaoke-specific behavior and assets.
-- `scrobbles.md`
-  Listening event model and derived product value.
 - `livestream.md`
   Live room and broadcast surface.
 - `live-access-runtime.md`
@@ -145,5 +143,4 @@ If you are starting fresh, read in this order:
 9. `governance-backends.md`
 10. `asset.md`
 11. `marketplace.md`
-12. `scrobbles.md`
-13. `onboarding.md`
+12. `onboarding.md`

@@ -58,26 +58,6 @@ No Lit control-plane details live here. See `config/lit-families.json` for execu
 | Funding requirement | Yes — gas plus CDR allocate/write fees. See `docs/product/funds-ledger.md` |
 | Fallback status | None. This must stay PKP-only. |
 
-### story-scrobble-operator
-
-| Field | Value |
-|---|---|
-| Chain | Story Aeneid (1315) |
-| Signer kind | `direct-key` |
-| Canonical signer address | TBD - direct-key batch publisher for the current scrobble anchor worker. |
-| Purpose | Delegated scrobble anchoring via `registerTracks(...)` then `scrobbleBatch(...)` |
-| Allowed contracts | `ScrobbleV1` |
-| Allowed methods | `registerTrack(...)`, `registerTracks(...)`, `scrobble(...)`, `scrobbleBatch(...)` |
-| Required on-chain grants | `isOperator(...)` on `ScrobbleV1` |
-| Funding requirement | Yes — gas for on-chain txs. See `docs/product/funds-ledger.md` |
-| Fallback status | v0: `direct-key`. PKP migration planned after the anchor worker is stable. |
-
-Batch publish flow:
-
-- Unregistered tracks must be registered and confirmed on-chain before their scrobbles can be included in `scrobbleBatch(...)`.
-- The batch publisher groups accepted scrobbles by resolved wallet address because `ScrobbleV1.scrobbleBatch(...)` accepts one `user` per batch.
-- `registerTracks(...)` and `scrobbleBatch(...)` are separate transactions in v0. Any future combined helper belongs in a new contract version, not this family definition.
-
 ### story-feed-registrar
 
 | Field | Value |
@@ -206,7 +186,7 @@ Batch publish flow:
 
 ## Audit Notes
 
-Addresses marked TBD must be audited before use. The `story-scrobble-operator` family uses a dedicated direct-key batch publisher on `ScrobbleV1`.
+Addresses marked TBD must be audited before use.
 
 The contract-owner address `0xBAFB9D9e...` should only be the contract owner. Signing responsibilities belong to the dedicated signer families above.
 
