@@ -91,6 +91,31 @@ Comment:
         $ref: ./posts.yaml#/MediaDescriptor
       description: |
         Optional image media attached to the comment. v1 accepts at most one image descriptor.
+    source_language:
+      type: string
+      nullable: true
+      description: |
+        Server-authored detected source language. May be null until provider-backed language detection has completed.
+    source_language_confidence:
+      type: number
+      format: double
+      nullable: true
+      minimum: 0
+      maximum: 1
+    source_language_reliable:
+      type: boolean
+      description: |
+        True when `source_language` came from provider-backed detection with enough confidence to show to users and use for same-language short-circuiting.
+    source_language_detector:
+      type: string
+      nullable: true
+    source_language_detected_at:
+      type: string
+      format: date-time
+      nullable: true
+    source_language_source_hash:
+      type: string
+      nullable: true
     status:
       type: string
       enum:
