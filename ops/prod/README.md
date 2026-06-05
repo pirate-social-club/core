@@ -51,3 +51,7 @@ rtk infisical run --env prod --path /services/control-plane -- \
 Use the full operator checklist here:
 
 - [production-infisical-human-only-checklist.md](../../docs/runbooks/production-infisical-human-only-checklist.md)
+
+Telegram identity drift and link-intent incident notes live in the API repo:
+
+- `api/services/api/docs/runbooks/telegram-identity-drift.md`
