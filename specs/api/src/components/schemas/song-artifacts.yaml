@@ -14,6 +14,10 @@ SongAudioArtifactDescriptor:
     content_hash:
       type: string
       nullable: true
+    decentralized_storage:
+      type: object
+      nullable: true
+      additionalProperties: true
     duration_ms:
       type: integer
       nullable: true
@@ -39,6 +43,11 @@ SongImageArtifactDescriptor:
     content_hash:
       type: string
       nullable: true
+    upload_mode:
+      type: string
+      enum:
+        - proxy
+        - direct_multipart
     width:
       type: integer
       nullable: true
@@ -233,6 +242,7 @@ SongArtifactUpload:
         - pending_upload
         - uploaded
         - failed
+        - cancelled
     storage_ref:
       type: string
     mime_type:
@@ -264,8 +274,55 @@ SongArtifactUpload:
     gateway_url:
       type: string
       nullable: true
+    ipfs_cid:
+      type: string
+      nullable: true
     upload_url:
       type: string
+    upload_session:
+      type: object
+      nullable: true
+      additionalProperties: false
+      required:
+        - id
+        - status
+        - object_key
+        - upload_id
+        - part_size_bytes
+        - total_parts
+        - expires_at
+        - sign_part_url
+        - complete
+        - abort
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum:
+            - created
+            - parts_uploading
+            - completing
+            - head_verifying
+            - uploaded
+            - aborting
+            - aborted
+        object_key:
+          type: string
+        upload_id:
+          type: string
+        part_size_bytes:
+          type: integer
+        total_parts:
+          type: integer
+        expires_at:
+          type: string
+        sign_part_url:
+          type: string
+        complete:
+          type: string
+        abort:
+          type: string
     created:
       type: integer
       format: int64
