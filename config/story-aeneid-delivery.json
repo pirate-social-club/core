@@ -6,22 +6,24 @@
     "deployRpcUrl": "https://aeneid.storyrpc.io"
   },
   "deployment": {
-    "tag": "dev-aeneid-delivery-2026-04-18",
-    "deployerAddress": "0x9F787b5a2F30a7C297702bba382bf7B34787B5E9",
-    "ownerAddress": "0x9F787b5a2F30a7C297702bba382bf7B34787B5E9",
-    "completedAt": "2026-04-18"
+    "tag": "submission-speed-staging-20260608",
+    "deployerAddress": "0xD713708b8460aB234BBb578C87Ca3EFf6aFcE3D4",
+    "ownerAddress": "0xD713708b8460aB234BBb578C87Ca3EFf6aFcE3D4",
+    "completedAt": "2026-06-08"
   },
   "contracts": {
-    "purchaseEntitlementToken": "0x6952c089fE7b270268306313cF6E4CC7f566921c",
-    "pirateSignerRegistry": "0x8e25e5D2B6Fb9B3c5E703D737FE6b0E8b55253f3",
-    "tokenGateCondition": "0x29a859d9012ffc73443af5e3264c1605d44f6bcc",
-    "signedAccessConditionV1": "0xa8e49520c4d681d34fde757c41f5a06b87b52e43",
-    "assetPublishCoordinatorV1": "0xAD6919367E72F3D2390E837bEbf042368c2acfDf",
-    "marketplaceSettlementV1": "0x71c7ee1B0F108C7AC76AF12D70D8BE6fE13F8847"
+    "purchaseEntitlementToken": "0x0814e763acB216E4DC1De527A1f7F64E95E89479",
+    "pirateSignerRegistry": "0x79fCBB247d31B76A7B370A7f3Bb5F8F278598E74",
+    "tokenGateCondition": "0xE80Efee2e820948926d62A489149f587cF797766",
+    "signedAccessConditionV1": "0xf52505d911259840B0E58f2Bd0DF0A277Dbcfd3D",
+    "assetPublishCoordinatorV1": "0x92a374FC27e40e0e76D5dF2855BD97fE7f39572A",
+    "marketplaceSettlementV1": "0x1be1923195Be0f8a00dcBbA6aD4358009786Ec81",
+    "purchaseEntitlementClassConfigurer": "0x326ebDA1320B2e61Ee09e3a3181f6925042F5Dc8"
   },
   "grants": {
-    "publishOperator": "0x7f969455cFe240927F1ACe4E23000685Ad224dA7",
-    "settlementOperator": "0xfB1E0bbE209C1B75f8E365F3055bfF4b0a24702B",
-    "accessProofSigner": "0x33617684f55154fc180db7c158b86694639aa46d"
+    "publishOperator": "0xc77Ad4de7d179FFFBa417cA24c055d86Af69F4BB",
+    "settlementOperator": "0x526331ddA08972173C485b874956818E8a0b7D2F",
+    "accessProofSigner": "0xc77Ad4de7d179FFFBa417cA24c055d86Af69F4BB",
+    "entitlementClassConfigurer": "0xbE03F72356A82F830811c1f487Bc18400CB85734"
   }
 }
