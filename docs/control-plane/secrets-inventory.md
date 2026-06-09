@@ -185,10 +185,11 @@ Hosted environments use `/services` only.
 
 ## CI/CD Secret Delivery
 
-Infisical is the canonical source for real secrets. GitHub Actions secrets are a
-delivery layer for CI/CD, not the source of truth. A GitHub secret is acceptable
-only when it is either synced from Infisical or has a named human owner
-responsible for rotating it from Infisical.
+Infisical is the canonical source for service runtime secrets. GitHub Actions
+secrets are a delivery layer for CI/CD, not the preferred source of truth. A
+GitHub secret is acceptable only when it is either synced from Infisical, fetched
+from Infisical at runtime with OIDC, or intentionally GitHub-native while a
+migration plan exists.
 
 The target CI/CD model is runtime Infisical delivery through GitHub OIDC machine
 identities. See
@@ -216,9 +217,9 @@ Current CI/CD delivery map:
 
 | Name | Secret? | Canonical source | GitHub delivery | Consumers |
 |---|---|---|---|---|
-| `CLOUDFLARE_ACCOUNT_ID` | Yes | Infisical deploy/platform path | GitHub Actions secret | Root and web deploy/metadata steps only |
-| `CLOUDFLARE_API_TOKEN` | Yes | Infisical deploy/platform path | GitHub Actions secret | Root and web deploy/metadata steps only |
-| `RELEASE_GITHUB_TOKEN` | Yes | Infisical or GitHub-managed deploy token | GitHub Actions secret | Web private-repo checkout steps |
+| `CLOUDFLARE_ACCOUNT_ID` | Yes | GitHub-native deploy secret, pending migration | GitHub Actions secret | Web deploy/metadata steps only |
+| `CLOUDFLARE_API_TOKEN` | Yes | GitHub-native deploy secret, pending migration | GitHub Actions secret | Web deploy/metadata steps only |
+| `RELEASE_GITHUB_TOKEN` | Yes | GitHub-native checkout token, pending GitHub App replacement | GitHub Actions secret | Web private-repo checkout steps |
 | `CONTROL_PLANE_DATABASE_URL` | Yes | Infisical `staging:/services/api` | Infisical OIDC | Core staging migration repair job and web staging release migration step |
 | `CONTROL_PLANE_DATABASE_URL` | Yes | Infisical `prod:/services/api` | Infisical OIDC | Core production migration doctor/repair DB jobs |
 | `TURSO_COMMUNITY_DB_WRAP_KEY` | Yes | Infisical `staging:/services/api` and `staging:/services/control-plane` | Infisical OIDC | Core staging migration repair job and web staging release migration step |
@@ -237,6 +238,15 @@ Current CI/CD delivery map:
 
 `AUTH_UPSTREAM_JWT_ISSUER` and `AUTH_UPSTREAM_JWT_AUDIENCE` are public JWT
 claims. Only `AUTH_UPSTREAM_JWT_SHARED_SECRET` is confidential.
+
+As of the 2026-06-09 audit, the Pirate Infisical project
+`5acea78e-7813-4d8a-b29c-9b862a0b1c71` has no `/deploy`, `/deploy/platform`,
+`/platform`, `/ci`, `/github`, or `/github/actions` path in `dev`, `staging`,
+or `prod`, and has no configured Infisical GitHub Secret Syncs. The web
+repository does have GitHub repository secrets named `CLOUDFLARE_ACCOUNT_ID`,
+`CLOUDFLARE_API_TOKEN`, and `RELEASE_GITHUB_TOKEN`; those are therefore
+GitHub-native until the Cloudflare deploy credentials are migrated to Infisical
+OIDC or an Infisical-managed secret sync.
 
 ## Live State
 
