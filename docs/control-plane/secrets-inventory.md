@@ -218,13 +218,14 @@ Current CI/CD delivery map:
 | Name | Secret? | Canonical source | GitHub delivery | Consumers |
 |---|---|---|---|---|
 | `CLOUDFLARE_ACCOUNT_ID` | Yes | GitHub-native deploy secret, pending migration | GitHub Actions secret | Web deploy/metadata steps only |
-| `CLOUDFLARE_API_TOKEN` | Yes | GitHub-native deploy secret, pending migration | GitHub Actions secret | Web deploy/metadata steps only |
+| `CLOUDFLARE_API_TOKEN` | Yes | GitHub-native deploy secret, pending migration | GitHub Actions secret | Web/API deploy and metadata steps only |
 | `RELEASE_GITHUB_TOKEN` | Yes | GitHub-native checkout token, pending GitHub App replacement | GitHub Actions secret | Web private-repo checkout steps |
 | `CONTROL_PLANE_DATABASE_URL` | Yes | Infisical `staging:/services/api` | Infisical OIDC | Core staging migration repair job and web staging release migration step |
 | `CONTROL_PLANE_DATABASE_URL` | Yes | Infisical `prod:/services/api` | Infisical OIDC | Core production migration doctor/repair DB jobs |
 | `TURSO_COMMUNITY_DB_WRAP_KEY` | Yes | Infisical `staging:/services/api` and `staging:/services/control-plane` | Infisical OIDC | Core staging migration repair job and web staging release migration step |
 | `TURSO_COMMUNITY_DB_WRAP_KEY` | Yes | Infisical `prod:/services/api` and `prod:/services/control-plane` | Infisical OIDC | Core production migration doctor/repair DB jobs |
 | `AUTH_UPSTREAM_JWT_SHARED_SECRET` | Yes | Infisical `staging:/services/api` | Infisical OIDC | Web live-staging smoke step only |
+| `SONG_PREVIEW_SHARED_SECRET` | Yes | Infisical `staging:/services/api` | Infisical OIDC | Web release staging song-preview container health gate only |
 | `AUTH_UPSTREAM_JWT_ISSUER` | No | GitHub Actions variable public config | GitHub Actions variable | Web live-staging smoke step only |
 | `AUTH_UPSTREAM_JWT_AUDIENCE` | No | GitHub Actions variable public config | GitHub Actions variable | Web live-staging smoke step only |
 | `APPLE_ID` | Yes | Infisical signing/notarization path | GitHub Actions secret | Freedom Browser notarization step only |
@@ -247,6 +248,17 @@ repository does have GitHub repository secrets named `CLOUDFLARE_ACCOUNT_ID`,
 `CLOUDFLARE_API_TOKEN`, and `RELEASE_GITHUB_TOKEN`; those are therefore
 GitHub-native until the Cloudflare deploy credentials are migrated to Infisical
 OIDC or an Infisical-managed secret sync.
+
+As of the 2026-06-09 container deploy audit, the current web repository
+`CLOUDFLARE_API_TOKEN` can deploy the normal Workers release path but cannot
+deploy Cloudflare Containers; Wrangler returned `403 Forbidden` for the
+Cloudflare Containers API. Local Wrangler OAuth for the Cloudflare account can
+deploy the song-preview container, but that OAuth session cannot create API
+tokens through the Cloudflare token-management API, and GitHub repository secret
+values are not retrievable for rotation. A Cloudflare account owner must create
+or rotate the web repository deploy token with the required Workers and
+Containers/Cloudchamber write permissions, then either replace the GitHub
+repository secret or move it behind the Infisical delivery model.
 
 ## Live State
 
