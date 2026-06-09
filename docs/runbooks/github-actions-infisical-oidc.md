@@ -37,7 +37,7 @@ Current identities:
 |---|---|---|---|---|---|
 | `github-core-prod-migration` | `ec0ad659-af1c-4009-a845-9e6092cc062b` | `pirate-social-club/core` | `prod` | `/services/api` | `community-migration-doctor.yml` and `community-migration-repair.yml` DB jobs |
 | `github-core-staging-migration-repair` | `ddbd02c6-359a-42c1-9cb7-d4ed0eb86be7` | `pirate-social-club/core` | `staging` | `/services/api` | `community-migration-repair.yml` DB job |
-| `github-web-staging-migration` | `a7b5d0b2-0891-4b63-b0e6-946a8c513458` | `pirate-social-club/web` | `staging` | `/services/api` | `release.yml` staging community migration step |
+| `github-web-staging-migration` | `a7b5d0b2-0891-4b63-b0e6-946a8c513458` | `pirate-social-club/web` | `staging` | `/services/api` | `release.yml` staging community migration step and song-preview container health gate |
 | `github-web-staging-live-browser` | `3141c3e2-a32c-4299-9382-c2684d11fe06` | `pirate-social-club/web` | `staging` | `/services/api` | `release.yml` live browser integration step |
 
 For each identity:
@@ -110,13 +110,25 @@ OIDC for production.
 OIDC for production and staging with separate identities.
 
 `web/.github/workflows/release.yml` is migrated to Infisical OIDC for staging
-community migration secrets and the live browser JWT shared secret.
+community migration secrets, the live browser JWT shared secret, and the
+staging song-preview container health-check shared secret.
 
 Cloudflare deploy credentials in `web/.github/workflows/release.yml`
 (`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`) are not yet migrated to
 Infisical OIDC. As of the 2026-06-09 audit, they exist as GitHub repository
 secrets on `pirate-social-club/web`; the Pirate Infisical project has no
 `/deploy/platform` path and no configured GitHub Secret Syncs for these values.
+
+The current GitHub-native `CLOUDFLARE_API_TOKEN` is also missing the capability
+needed to deploy the song-preview Cloudflare Container. It can deploy the normal
+release Workers path, but Cloudflare rejected container deployment with
+`403 Forbidden` on the Containers API. Local Wrangler OAuth can deploy the
+container, but that OAuth session cannot mint API tokens through the Cloudflare
+token-management API, and GitHub repository secrets are write-only. The
+remaining action is an account-owner rotation: create or update the web
+repository deploy token with the required Workers and Containers/Cloudchamber
+write permissions, then put that value into GitHub or an Infisical-managed
+delivery path.
 
 The core production migration identity is shared by doctor and repair because
 both jobs have the same repository subject, environment, path, and two-secret
@@ -136,8 +148,10 @@ because:
 
 Remaining migration candidates:
 
-1. Migrate Cloudflare deploy credentials with separate staging and production
-   identities and a deploy rollback plan.
+1. Rotate the web release `CLOUDFLARE_API_TOKEN` to a token that can deploy
+   both Workers and Cloudflare Containers. Then migrate Cloudflare deploy
+   credentials with separate staging and production identities and a deploy
+   rollback plan.
 2. Keep `RELEASE_GITHUB_TOKEN` as a GitHub-native checkout token unless it is
    replaced with a GitHub App flow.
 
