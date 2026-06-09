@@ -37,8 +37,8 @@ Current identities:
 |---|---|---|---|---|---|
 | `github-core-prod-migration` | `ec0ad659-af1c-4009-a845-9e6092cc062b` | `pirate-social-club/core` | `prod` | `/services/api` | `community-migration-doctor.yml` and `community-migration-repair.yml` DB jobs |
 | `github-core-staging-migration-repair` | `ddbd02c6-359a-42c1-9cb7-d4ed0eb86be7` | `pirate-social-club/core` | `staging` | `/services/api` | `community-migration-repair.yml` DB job |
-| `github-web-staging-migration` | `a7b5d0b2-0891-4b63-b0e6-946a8c513458` | `pirate-social-club/web` | `staging` | `/services/api` | `release.yml` staging community migration step and song-preview container health gate |
-| `github-web-staging-live-browser` | `3141c3e2-a32c-4299-9382-c2684d11fe06` | `pirate-social-club/web` | `staging` | `/services/api` | `release.yml` live browser integration step |
+| `github-web-staging-migration` | `a7b5d0b2-0891-4b63-b0e6-946a8c513458` | `pirate-social-club/web` | `staging` | `/services/api` | `release.yml` staging community migration step |
+| `github-web-staging-live-browser` | `3141c3e2-a32c-4299-9382-c2684d11fe06` | `pirate-social-club/web` | `staging` | `/services/api` | `release.yml` live browser, Story derivative royalty E2E, and song-preview container health gates |
 
 For each identity:
 
@@ -110,8 +110,12 @@ OIDC for production.
 OIDC for production and staging with separate identities.
 
 `web/.github/workflows/release.yml` is migrated to Infisical OIDC for staging
-community migration secrets, the live browser JWT shared secret, and the
-staging song-preview container health-check shared secret.
+community migration secrets, the live browser JWT shared secret, Story
+derivative royalty E2E secrets, and the staging song-preview container
+health-check shared secret. The song-preview health gate uses
+`github-web-staging-live-browser`, not `github-web-staging-migration`; grant it
+exact `describeSecret` and `readValue` access to
+`staging:/services/api/SONG_PREVIEW_SHARED_SECRET`.
 
 Cloudflare deploy credentials in `web/.github/workflows/release.yml`
 (`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`) are not yet migrated to
@@ -133,8 +137,9 @@ delivery path.
 The core production migration identity is shared by doctor and repair because
 both jobs have the same repository subject, environment, path, and two-secret
 permission set. The web staging migration and live-browser identities remain
-separate because database migration credentials and browser-test JWT material
-have different blast radii.
+separate because database migration credentials, browser-test JWT material,
+Story checkout material, and song-preview health-check material have different
+blast radii.
 
 The first production migration target was `community-migration-doctor.yml`
 because:
