@@ -68,6 +68,9 @@
         "purchaseEntitlementToken": {
           "$ref": "#/$defs/address"
         },
+        "purchaseEntitlementClassConfigurer": {
+          "$ref": "#/$defs/address"
+        },
         "pirateSignerRegistry": {
           "$ref": "#/$defs/address"
         },
@@ -97,6 +100,9 @@
           "$ref": "#/$defs/address"
         },
         "accessProofSigner": {
+          "$ref": "#/$defs/address"
+        },
+        "entitlementClassConfigurer": {
           "$ref": "#/$defs/address"
         }
       }
