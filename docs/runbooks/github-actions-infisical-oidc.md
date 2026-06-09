@@ -112,6 +112,12 @@ OIDC for production and staging with separate identities.
 `web/.github/workflows/release.yml` is migrated to Infisical OIDC for staging
 community migration secrets and the live browser JWT shared secret.
 
+Cloudflare deploy credentials in `web/.github/workflows/release.yml`
+(`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`) are not yet migrated to
+Infisical OIDC. As of the 2026-06-09 audit, they exist as GitHub repository
+secrets on `pirate-social-club/web`; the Pirate Infisical project has no
+`/deploy/platform` path and no configured GitHub Secret Syncs for these values.
+
 The core production migration identity is shared by doctor and repair because
 both jobs have the same repository subject, environment, path, and two-secret
 permission set. The web staging migration and live-browser identities remain
