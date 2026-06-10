@@ -35,7 +35,7 @@ PROFILE: core, happy-path, commerce. Default: happy-path.
 
 Options:
   --api-dir PATH       API service directory. Default: ../api/services/api from core.
-  --worker-name NAME   Cloudflare Worker name. Default: pirate-api-core.
+  --worker-name NAME   Cloudflare Worker name. Default: api-core.
   --wrangler-env ENV   Wrangler environment. Omit for top-level production worker.
   --profile PROFILE    Secret profile to require. Default: happy-path.
   --allow-extra        Warn instead of failing on unmanaged extra secrets.
@@ -46,7 +46,7 @@ Options:
 function parseArgs(argv: string[]): Options {
   const options: Options = {
     apiDir: resolve(process.cwd(), "../api/services/api"),
-    workerName: "pirate-api-core",
+    workerName: "api-core",
     wranglerEnv: "",
     profile: "happy-path",
     allowExtra: false,
@@ -142,6 +142,7 @@ const auditEnv = options.wranglerEnv || "production";
 for (const spec of ENV_CONTRACT.secrets) {
   if (
     spec.path === "/services/api"
+    && !WRANGLER_MANAGED_CONFIG_NAMES.includes(spec.key as (typeof WRANGLER_MANAGED_CONFIG_NAMES)[number])
     && requirednessApplies(spec.requiredness, auditEnv)
     && spec.requiredness === "required_for_production"
     && (options.profile === "commerce" || secretProfileIds.has(secretId(spec.path, spec.key)))

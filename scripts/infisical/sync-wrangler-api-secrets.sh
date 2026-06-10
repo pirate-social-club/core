@@ -8,7 +8,7 @@ Usage:
 
 If --api-dir is omitted, the script uses API_DIR or the first available API checkout.
 If --env-file is omitted, the script reads from the current exported environment.
-If --worker-name is omitted, the script syncs the worker named in wrangler.jsonc.
+If --worker-name is omitted, the script syncs the production worker api-core.
 If --wrangler-env is omitted, the script targets Wrangler's top-level environment.
 PROFILE can be:
   core        Core auth/control-plane/community-provisioning path
@@ -36,7 +36,7 @@ EOF
 
 ENV_FILE=""
 API_DIR="${API_DIR:-}"
-WORKER_NAME="pirate-api-core"
+WORKER_NAME="api-core"
 WRANGLER_ENV=""
 PROFILE="happy-path"
 
@@ -131,12 +131,16 @@ done
 put_secret() {
   local name="$1"
   local value="${!name:-}"
+  local -a wrangler_args=(secret put "$name" --name "$WORKER_NAME")
   if [[ -z "$value" ]]; then
     return 0
   fi
+  if [[ -n "$WRANGLER_ENV" ]]; then
+    wrangler_args+=(--env "$WRANGLER_ENV")
+  fi
   printf '%s' "$value" | (
     cd "$API_DIR"
-    "$WRANGLER" secret put "$name" --name "$WORKER_NAME" --env "$WRANGLER_ENV" >/dev/null
+    "$WRANGLER" "${wrangler_args[@]}" >/dev/null
   )
 }
 
