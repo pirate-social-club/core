@@ -33,6 +33,9 @@ Examples by bucket:
 ## Community
 
 - `community/community-registry-plane.md`
+- `community/turso-to-d1-migration.md`
+- `community/d1-binding-management-design.md`
+- `community/d1-transaction-replacement-design.md`
 
 ## Operators
 
