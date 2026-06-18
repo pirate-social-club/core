@@ -45,7 +45,9 @@ infisical_token="$(
 
 fetch_secret() {
   local name="$1"
-  curl -fsS --get "https://app.infisical.com/api/v4/secrets/$name" \
+  local response
+  local curl_status=0
+  response="$(curl -sS --get "https://app.infisical.com/api/v4/secrets/$name" \
     -H "Authorization: Bearer $infisical_token" \
     --data-urlencode "projectId=$INFISICAL_PROJECT_ID" \
     --data-urlencode "environment=$INFISICAL_ENV" \
@@ -54,7 +56,14 @@ fetch_secret() {
     --data-urlencode "viewSecretValue=true" \
     --data-urlencode "expandSecretReferences=true" \
     --data-urlencode "includeImports=false" \
-    | node -e 'let input = ""; process.stdin.on("data", (chunk) => input += chunk); process.stdin.on("end", () => { const response = JSON.parse(input); const value = response.secret && response.secret.secretValue; if (!value) process.exit(1); process.stdout.write(value); });'
+    --write-out $'\n%{http_code}')" || curl_status=$?
+  local http_status="${response##*$'\n'}"
+  local body="${response%$'\n'*}"
+  if [ "$curl_status" -ne 0 ] || ! [[ "$http_status" =~ ^[0-9][0-9][0-9]$ ]] || [ "$http_status" -lt 200 ] || [ "$http_status" -ge 300 ]; then
+    echo "::error::Infisical secret fetch failed for ${INFISICAL_ENV}:${INFISICAL_SECRET_PATH}/${name} (HTTP ${http_status:-unknown}, curl exit ${curl_status}). Check identity ${INFISICAL_IDENTITY_ID} can read this secret." >&2
+    return 1
+  fi
+  RESPONSE="$body" SECRET_NAME="$name" node -e 'const response = JSON.parse(process.env.RESPONSE || "{}"); const value = response.secret && response.secret.secretValue; if (!value) { console.error(`Infisical returned no value for ${process.env.SECRET_NAME}`); process.exit(1); } process.stdout.write(value);'
 }
 
 for name in $SECRET_NAMES; do
