@@ -108,7 +108,7 @@ formally settled.
   "@pirate" = { registry = "https://npm.pkg.github.com", token = "$NPM_GITHUB_TOKEN" }
   ```
   (npm equivalent: `@pirate:registry=https://npm.pkg.github.com` + `//npm.pkg.github.com/:_authToken=${NPM_GITHUB_TOKEN}`.)
-- **Decision — use the per-job Actions `GITHUB_TOKEN` for CI; a fine-grained PAT off-Actions.**
+- **Decision — use the per-job Actions `GITHUB_TOKEN` for CI; a classic PAT off-Actions.**
   This is the proven path against the GH Packages **npm** registry and needs no standing secret:
   - **Publish (web Actions):** the workflow's `GITHUB_TOKEN` with `permissions: { contents:
     read, packages: write }`. It is itself the built-in Actions App's short-lived installation
@@ -116,9 +116,12 @@ formally settled.
   - **Consume (api Actions):** grant the published package **repository read access to `api`**
     (package settings → repository access); the api workflow's `GITHUB_TOKEN` with
     `permissions: { packages: read }` then resolves it cross-repo. No PAT in CI.
-  - **Off-Actions (local dev, cron/headless runners with no `GITHUB_TOKEN`):** a single
-    **fine-grained PAT** scoped to `read:packages` on this package, stored as `NPM_GITHUB_TOKEN`,
+  - **Off-Actions (local dev, cron/headless runners with no `GITHUB_TOKEN`):** a **personal
+    access token (classic)** with the `read:packages` scope, stored as `NPM_GITHUB_TOKEN`,
     documented expiry, **rotation owner = the runtime-owning team** (the CODEOWNERS owner, §1).
+    GH Packages' npm registry only supports **classic** PATs outside Actions — fine-grained PATs
+    are not accepted here. (`write:packages` classic PAT only if a human ever publishes
+    manually; normal publishing is Actions-only.)
 - **Custom GitHub App — not adopted as primary (unvalidated for the npm registry).** A custom
   App installation token's support against `npm.pkg.github.com` is not confirmed here (the
   proven installation token for this registry is the Actions one above). **Blocker resolution:**
