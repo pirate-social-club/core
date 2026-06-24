@@ -209,6 +209,29 @@ Ordered; each step backward-compatible:
 A `scoring_version` bump is coordinated with deploy; the query's version filter retires
 pre-change attempts automatically.
 
+### 9a. Build/dependency reproducibility — hard precondition for persistence
+
+The API currently consumes the runtime via
+`"@pirate/karaoke-runtime": "file:../../../web-karaoke-rel/packages/karaoke-runtime"`.
+This is **workstation-layout coupling**, not a stable cross-repository dependency: the
+relative path only resolves when `web-karaoke-rel` happens to sit as a sibling worktree.
+A clean checkout or CI runner arranged differently cannot resolve it, and an `api`
+reinstall on a dev box does **not** prove what a production build consumes.
+
+Therefore:
+
+- **Persistence (steps 3–6) must NOT begin until production API builds have a reproducible,
+  pinned runtime-dependency mechanism** — a published/versioned `@pirate/karaoke-runtime`
+  package or a genuine shared monorepo location. Until then, `scoring_version` cannot be
+  trusted to mean the same algorithm across environments, which undermines rank comparability.
+- Every build must **record the exact runtime source commit/version** it bundled. As of this
+  writing the runtime source is `web-karaoke-rel@release/karaoke-web 42fbce9f`
+  (`uncertainLineCount` + `KARAOKE_SCORING_VERSION = 1`), consumed via the `file:` path above.
+
+Follow-up (separate task): publish/version the runtime package or relocate it to a shared
+monorepo path, then repoint the API dependency. The runtime-parity step (1) is safe to land
+under the current mechanism; persistence is not.
+
 ## Resolved decisions
 
 - Revision identity: explicit immutable `karaoke_revision_id`; `content_hash` stored alongside
