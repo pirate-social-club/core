@@ -232,18 +232,131 @@ Follow-up (separate task): publish/version the runtime package or relocate it to
 monorepo path, then repoint the API dependency. The runtime-parity step (1) is safe to land
 under the current mechanism; persistence is not.
 
+## 10. UI surfaces & view-model contracts (PR-locked)
+
+### 10.1 Surfaces (committed)
+
+1. **Per-song leaderboard** — top eligible scores for one song (§5/§6). The primary surface.
+2. **Community karaoke hub** — a discovery/index screen listing the community's
+   karaoke-enabled songs and the viewer's standing on each. It is NOT one combined leaderboard
+   and NOT a cross-song ranking of people; it's an index of per-song boards.
+
+**Deferred (explicitly not built):** cross-song "best singer in this community" ladder, global
+singer leaderboard, cross-community leaderboard. Raw scores compare only within the same
+`(karaoke_revision_id, scoring_version)`; any singer ladder across songs requires a separate
+points/normalization system and must not be inferred from raw averages.
+
+### 10.2 View models (API-shaped; the UI contract)
+
+The UI consumes these view models, never DB rows. **Scores cross the API/UI boundary in basis
+points (0..10000); components convert to display percent (`/100`).** Identity is resolved
+server-side at read time (§7, §10.4) — attempts store only `user_id`.
+
+```ts
+type RankingScope = "all_time" | "weekly";
+
+interface PublicLeaderboardIdentity {
+  displayName: string;
+  handle: string | null;
+  avatarUrl: string | null;
+  visibility: "visible" | "anonymized";
+}
+
+interface KaraokeLeaderboardEntry {
+  rank: number;                 // competition rank (1,2,2,4); server-assigned
+  scoreBps: number;             // 0..10000
+  reachedAt: string;            // ISO; best_reached_at (tie-break)
+  identity: PublicLeaderboardIdentity;
+  isCurrentUser: boolean;
+}
+
+interface KaraokeSongLeaderboard {
+  postId: string;
+  karaokeRevisionId: string;
+  scoringVersion: number;
+  scope: RankingScope;
+  periodStart: string | null;   // weekly window (UTC), null for all_time
+  periodEnd: string | null;
+  totalRanked: number;
+  currentUser: {
+    eligible: boolean;
+    rank: number | null;
+    bestScoreBps: number | null;
+    percentileBps: number | null;
+  };
+  entries: KaraokeLeaderboardEntry[];
+}
+
+// Compact rank line for the result screen (separate from the full board).
+interface KaraokeRankSummaryProps {
+  rank: number | null;
+  totalRanked: number;
+  percentile: number | null;    // top-fraction in basis points (1800 = "Top 18%")
+  scope: RankingScope;
+  eligible: boolean;
+}
+
+// Community karaoke hub — one card per karaoke-enabled song.
+interface CommunityKaraokeSongStanding {
+  postId: string;
+  title: string;
+  artistName: string | null;
+  artworkUrl: string | null;
+  karaokeRevisionId: string;
+  scoringVersion: number;
+  participantCount: number;
+  leadingScoreBps: number | null;
+  currentUserBestScoreBps: number | null;
+  currentUserRank: number | null;
+}
+```
+
+(Open: the hub card's "weekly activity" affordance has no field in `CommunityKaraokeSongStanding`
+above — add an optional `weeklyParticipantCount` only if we commit to showing it; until then the
+hub omits weekly activity rather than inventing an undocumented field.)
+
+### 10.3 Eligibility messaging
+
+`rank_eligible` rules are §3. The result screen explains ineligibility **without exposing
+internal mechanics**:
+- not enough of the song completed → "Finish more of the song to join the rankings."
+- scoring interrupted (uncertain/provider failure) → "This take wasn't eligible because scoring was interrupted."
+- otherwise saved-but-unranked → "Your score was saved to your history but not ranked."
+
+Note on the denominator: with `uncertain_line_count = 0` required, subtracting it from
+`total_line_count` is currently a no-op. Keep the `scored / (total - uncertain)` form anyway —
+it stays correct if eligibility later tolerates limited infrastructure failures.
+
+### 10.4 Identity & moderation resolution order
+
+Resolve current public identity at read time. Filtering order matters:
+- **Before** rank + percentile are computed: exclude **deleted** accounts (also from
+  `totalRanked`/participant counts) and **community-banned/suspended** users.
+- **After** ranks are assigned: **viewer-specific blocking** only **anonymizes** the entry
+  (`visibility: "anonymized"`) and **keeps its rank** — so two viewers never see different rank
+  numbers solely because one blocked someone.
+- Missing profile → `displayName: "Pirate singer"`, no handle/avatar.
+- Never expose raw internal user IDs in any leaderboard response.
+
 ## Resolved decisions
 
-- Revision identity: explicit immutable `karaoke_revision_id`; `content_hash` stored alongside
-  for integrity/dedup only.
+- Revision identity: explicit immutable `karaoke_revision_id` minted whenever any
+  scoring-relevant input changes (timed lyric text, stable line/word identities, line/word
+  timing, instrumental audio, package-embedded scoring config); `content_hash` stored alongside
+  for integrity/dedup only; public id is NOT derived from the hash.
 - Tie-break: earliest `best_reached_at`.
 - Coverage: `scored / (total - uncertain) >= 0.85`, with `>= 5` measured lines (v1).
 - Identity: server projection with `visibility`; moderation/blocking preserves rank numbers;
   no identity snapshot in attempts.
 - Idempotency: `ON CONFLICT DO NOTHING` + payload compare + alert on mismatch (no regrade).
 - Ranking: competition rank (1,2,2,4); server-computed percentile.
+- Surfaces: per-song leaderboard + community karaoke hub (index). Cross-song/global/
+  cross-community ladders deferred (need a separate points/normalization system).
+- UI boundary: basis points; identity resolved server-side at read time; moderation filters
+  before rank, viewer-block anonymizes after (preserving rank). Missing profile → "Pirate singer".
 
 ## Open (non-blocking) questions
 
-- `karaoke_revision_id` issuance: where the package-version id is minted (asset pipeline?).
-- Avatar/handle source for the identity projection, and the exact `anonymized` placeholder.
+- Exact pipeline step that mints `karaoke_revision_id` when scoring-relevant inputs change.
+- Whether to show "weekly activity" on hub cards (would add `weeklyParticipantCount` to the
+  `CommunityKaraokeSongStanding` contract).
