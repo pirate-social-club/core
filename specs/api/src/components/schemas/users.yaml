@@ -1,3 +1,16 @@
+SetIdentityWalletRequest:
+  type: object
+  description: |
+    Request to set the caller's identity (primary) wallet to one of their own verified, active
+    wallet attachments.
+  required:
+    - wallet_attachment_id
+  properties:
+    wallet_attachment_id:
+      type: string
+      description: |
+        ID of the verified, active wallet attachment to make the identity wallet. Must belong to
+        the caller; a foreign or unknown attachment is rejected with 404.
 User:
   type: object
   description: |
