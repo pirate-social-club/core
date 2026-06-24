@@ -18,8 +18,9 @@ even built from the same runtime source. This must be fixed before any score is 
 
 Publish `@pirate/karaoke-runtime` as an **immutable, private, SemVer'd package** from its
 **current canonical source** (the `web` repo's `packages/karaoke-runtime`). The API pins an
-**exact version with an integrity hash**; builds embed runtime provenance. **No code is moved
-between repositories** until package ownership is formally settled.
+**exact version with a validated integrity value or a checked-in SHA-256** (§4); builds embed
+runtime provenance. **No code is moved between repositories** until package ownership is
+formally settled.
 
 ---
 
@@ -52,7 +53,9 @@ between repositories** until package ownership is formally settled.
   pre-publish existence check + restricted deletion permissions.
 - Alternatives considered: npmjs private (extra cost/account), self-hosted (ops burden),
   Cloudflare (no first-class npm registry). GH Packages is lowest-friction for this org.
-- The package is `private` and scoped; access is org-membership + token-gated (§5).
+- "Private" means **registry visibility**, not `package.json`. The manifest **must NOT set
+  `"private": true`** (that blocks publishing entirely); access is gated by the registry's
+  private visibility + org-membership/tokens (§5).
 
 ## 3. Versioning & release workflow
 
@@ -75,7 +78,8 @@ between repositories** until package ownership is formally settled.
      karaoke tests + typecheck. (You cannot install an unpublished "version" — only the packed
      artifact.)
   7. **Publish the exact tested tarball** (`npm publish <tarball>`), not a re-pack, so the
-     published bytes equal the tested bytes. Verify the published tarball's SHA-256 matches §5.
+     published bytes equal the tested bytes. Verify the published tarball's SHA-256 matches the
+  packed tarball recorded in §3.5 / §6.
 - First publish: `0.1.0` cut from the current source commit
   (`web release/karaoke-web @42fbce9f` — `uncertainLineCount` + `KARAOKE_SCORING_VERSION=1`).
 
@@ -104,20 +108,25 @@ between repositories** until package ownership is formally settled.
   "@pirate" = { registry = "https://npm.pkg.github.com", token = "$NPM_GITHUB_TOKEN" }
   ```
   (npm equivalent: `@pirate:registry=https://npm.pkg.github.com` + `//npm.pkg.github.com/:_authToken=${NPM_GITHUB_TOKEN}`.)
-- **Decision — GitHub App (token broker), not a standing PAT.** Create a dedicated GitHub App
-  (e.g. `pirate-packages-ci`) installed on the org with least privilege: **`packages: read`**
-  for consumers, **`packages: write`** only for the `web` publish job. CI mints a **short-lived
-  installation token** per job (e.g. `actions/create-github-app-token`); no long-lived token
-  sits in CI. Provenance/ownership: the App's private key is an org secret; **rotation owner =
-  the runtime-owning team** (the CODEOWNERS owner from §1), rotated on a fixed schedule.
-- **Fallback (only if the App is infeasible):** a single fine-grained PAT scoped to
-  `read:packages` on this package, stored as `NPM_GITHUB_TOKEN`, with a documented expiry and
-  the same named rotation owner. Pick one mechanism and record it here before migration — do
-  not ship "PAT or App".
-- **Cross-repo read grant:** the package is published from `web` but read by `api`; confirm the
-  package's repository-access setting grants `api` (and any cron/headless runner) read. The
-  API's own CI `GITHUB_TOKEN` only covers same-repo packages, so the App token is the
-  cross-repo path.
+- **Decision — use the per-job Actions `GITHUB_TOKEN` for CI; a fine-grained PAT off-Actions.**
+  This is the proven path against the GH Packages **npm** registry and needs no standing secret:
+  - **Publish (web Actions):** the workflow's `GITHUB_TOKEN` with `permissions: { contents:
+    read, packages: write }`. It is itself the built-in Actions App's short-lived installation
+    token, documented to authenticate npm against `npm.pkg.github.com`, auto-rotated per job.
+  - **Consume (api Actions):** grant the published package **repository read access to `api`**
+    (package settings → repository access); the api workflow's `GITHUB_TOKEN` with
+    `permissions: { packages: read }` then resolves it cross-repo. No PAT in CI.
+  - **Off-Actions (local dev, cron/headless runners with no `GITHUB_TOKEN`):** a single
+    **fine-grained PAT** scoped to `read:packages` on this package, stored as `NPM_GITHUB_TOKEN`,
+    documented expiry, **rotation owner = the runtime-owning team** (the CODEOWNERS owner, §1).
+- **Custom GitHub App — not adopted as primary (unvalidated for the npm registry).** A custom
+  App installation token's support against `npm.pkg.github.com` is not confirmed here (the
+  proven installation token for this registry is the Actions one above). **Blocker resolution:**
+  do not depend on a custom App. A custom App/token-broker may replace the PAT later *only after
+  a spike proves* `bun`/`npm` authenticates to `npm.pkg.github.com` with its installation token
+  and `packages` permission; until then the PAT fallback is the selected off-Actions mechanism.
+- **Cross-repo read** is solved by the package's repository-access grant (above) + the
+  consumer's `GITHUB_TOKEN`, not by a cross-repo token.
 - Install: normal `bun install` to (re)generate the lockfile on a bump, then
   `bun install --frozen-lockfile` in CI (§4). Local dev uses the same scope config with a
   developer `read:packages` token (documented in the API README).
