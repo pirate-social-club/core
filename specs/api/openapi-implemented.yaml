@@ -10038,6 +10038,12 @@ components:
               minimum: 0
               maximum: 100
               nullable: true
+            royalty_allocations:
+              type: array
+              maxItems: 10
+              nullable: true
+              items:
+                $ref: "#/components/schemas/RoyaltyAllocationRequest"
             media_refs:
               type: array
               minItems: 1
@@ -10119,6 +10125,12 @@ components:
               minimum: 0
               maximum: 100
               nullable: true
+            royalty_allocations:
+              type: array
+              maxItems: 10
+              nullable: true
+              items:
+                $ref: "#/components/schemas/RoyaltyAllocationRequest"
             title:
               type: string
               nullable: true
