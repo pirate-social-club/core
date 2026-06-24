@@ -283,6 +283,14 @@ interface KaraokeSongLeaderboard {
     rank: number | null;
     bestScoreBps: number | null;
     percentileBps: number | null;
+    // Optional, nullable. The viewer's rank before this take improved their best score
+    // (null = no prior ranked score, or the server doesn't compute it). Present → the
+    // result screen shows a rank-up flourish ("↑5 · now #12").
+    previousRank?: number | null;
+    // Optional, nullable. Basis-point gap to the entry ranked one ahead
+    // (scoreAhead - bestScoreBps), >= 0; null when already #1 / not ranked / not computed.
+    // Present → result + song-page cards show a nudge ("+5 to overtake #16").
+    gapToNextRankBps?: number | null;
   };
   entries: KaraokeLeaderboardEntry[];
 }
@@ -352,15 +360,26 @@ opening the same board for the song's `postId`:
   this week" line). It carries **no heavy action buttons** — just a quiet **"See full
   leaderboard →"** link; **"Sing again" lives in the stage footer** where playback controls
   already are. (The shipped minimal ended state stays score-only until the endpoint exists.)
-- **Song post page** (`/p/{postId}`) — a "Leaderboard" / "Top singers" affordance on the song
-  post card (next to "Sing"), optionally an inline **top-3 strip** for at-a-glance. This is the
-  no-sing entry point.
+- **Song post page** (`/p/{postId}`) — an inline **`KaraokeSongTopSingersCard`**: a compact
+  **top-3 podium** (rank badge / `Crown` for #1, `bg-primary-subtle` tint, name → `/u/<handle>`
+  link for visible non-self entries) plus the viewer's own standing row when ranked outside the
+  podium (dashed separator, `bg-muted/40`). Empty state: "No scores yet — be the first to sing."
+  + Sing. A quiet **"View all"** affordance opens the full board. This is the **no-sing entry
+  point** — the page you land on without having sung. Wiring this card into `PostPage`/the song
+  card is gated on the endpoint; the component is built presentationally (Storybook).
 - **Community karaoke hub** — each card's "View rankings".
 
 Canonical surface for the full board: a **dedicated, shareable route**
 `/p/{postId}/karaoke/leaderboard` (sibling of `/p/{postId}/karaoke`); it may also open as a
 sheet from the completion screen for immediacy. All of the above read the per-song leaderboard
 endpoint (gated); the post-card affordance + route are wiring, not built during the design phase.
+
+Game-y cues are **derived from the existing contract, not invented**:
+- per-entry **"Top X%"** label ← `rank / totalRanked` (no server field);
+- per-entry **recency** ("2h ago") ← `entry.reachedAt` (client relative time);
+- current-user **rank-up flourish** ("↑5") ← `currentUser.previousRank` (optional field above);
+- current-user **gap nudge** ("+5 to overtake #16") ← `currentUser.gapToNextRankBps` (optional).
+Scope is shown as a **season label** ("this week" / "all-time") from `scope`.
 
 ## Resolved decisions
 
