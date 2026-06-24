@@ -521,6 +521,12 @@ CreatePostRequest:
           minimum: 0
           maximum: 100
           nullable: true
+        royalty_allocations:
+          type: array
+          maxItems: 10
+          nullable: true
+          items:
+            $ref: ./posts.yaml#/RoyaltyAllocationRequest
         media_refs:
           type: array
           minItems: 1
@@ -602,6 +608,12 @@ CreatePostRequest:
           minimum: 0
           maximum: 100
           nullable: true
+        royalty_allocations:
+          type: array
+          maxItems: 10
+          nullable: true
+          items:
+            $ref: ./posts.yaml#/RoyaltyAllocationRequest
         title:
           type: string
           nullable: true
@@ -1504,6 +1516,32 @@ AudioMediaDescriptor:
     duration_ms:
       type: integer
       nullable: true
+RoyaltyAllocationRequest:
+  type: object
+  description: |
+    One recipient of a declared initial royalty split for a song or rights-bearing
+    video asset. The server re-validates the full split (exactly one creator, shares
+    totalling 10000 bps, unique wallets, at most 10 recipients) atomically with asset
+    creation and persists it as a draft agreement; it is not trusted from the client.
+    See core/specs/domain/royalty-allocation.md.
+  required:
+    - recipient_kind
+    - wallet_address
+    - share_bps
+  properties:
+    recipient_kind:
+      type: string
+      enum:
+        - creator
+        - collaborator
+    wallet_address:
+      type: string
+      description: EVM (Story-chain) wallet address that receives royalty tokens.
+    share_bps:
+      type: integer
+      minimum: 1
+      maximum: 10000
+      description: Share of the split in basis points (1 bps = 0.01%); shares total 10000.
 DisclosedQualifierSnapshot:
   type: object
   required:
