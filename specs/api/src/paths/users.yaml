@@ -22,3 +22,32 @@ users_me:
               $ref: ../components/schemas/users.yaml#/User
       "401":
         $ref: ../components/responses.yaml#/AuthError
+users_me_identity_wallet:
+  put:
+    tags:
+      - Users
+    x-implemented: true
+    summary: Set the current user's identity wallet
+    description: |
+      Sets the identity (primary) wallet to one of the caller's verified, active wallet
+      attachments. The identity wallet backs the public wallet address, ENS identity, messaging,
+      and creator ownership. Authentication never changes this — only this endpoint does.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/users.yaml#/SetIdentityWalletRequest
+    responses:
+      "200":
+        description: Updated current user
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/users.yaml#/User
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound

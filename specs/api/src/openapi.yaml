@@ -127,6 +127,8 @@ paths:
     $ref: ./paths/onboarding.yaml#/onboarding_reddit_imports_latest
   /users/me:
     $ref: ./paths/users.yaml#/users_me
+  /users/me/identity-wallet:
+    $ref: ./paths/users.yaml#/users_me_identity_wallet
   /wallets/sentinel/ensure:
     $ref: ./paths/wallets.yaml#/wallets_sentinel_ensure
   /sentinel/subscribe:
