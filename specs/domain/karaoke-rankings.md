@@ -337,16 +337,21 @@ Resolve current public identity at read time. Filtering order matters:
   numbers solely because one blocked someone.
 - Missing profile → `displayName: "Pirate singer"`, no handle/avatar.
 - Never expose raw internal user IDs in any leaderboard response.
+- **`handle` is the full routing handle label** (e.g. `maya.pirate`, `diego.eth`), not a bare
+  nickname. Display via `formatProfileDisplayHandle` (`.pirate` → `u/maya.pirate`; `.eth` stays
+  bare). **Visible, non-self entries link the name to `/u/<handle>`**; the viewer's own row
+  ("You") and anonymized entries are never links.
 
 ### 10.5 Entry points & navigation to the per-song board
 
 The full per-song board (`KaraokeSongLeaderboardView`) is reached from three places, all
 opening the same board for the song's `postId`:
 
-- **Completion screen** — after a take, show the score + a **Top 5 preview + the viewer's own
-  standing** (a compact `KaraokeResultLeaderboard`, not just the "#17 this week" line), with
-  "Sing again" and **"View rankings"** → full board. (The shipped minimal ended state stays
-  score-only until the leaderboard endpoint exists.)
+- **Completion screen** — after a take, show the score + the viewer's standing line + a
+  **Top 5 preview + their own row** (a compact `KaraokeResultLeaderboard`, not just the "#17
+  this week" line). It carries **no heavy action buttons** — just a quiet **"See full
+  leaderboard →"** link; **"Sing again" lives in the stage footer** where playback controls
+  already are. (The shipped minimal ended state stays score-only until the endpoint exists.)
 - **Song post page** (`/p/{postId}`) — a "Leaderboard" / "Top singers" affordance on the song
   post card (next to "Sing"), optionally an inline **top-3 strip** for at-a-glance. This is the
   no-sing entry point.
