@@ -338,6 +338,25 @@ Resolve current public identity at read time. Filtering order matters:
 - Missing profile → `displayName: "Pirate singer"`, no handle/avatar.
 - Never expose raw internal user IDs in any leaderboard response.
 
+### 10.5 Entry points & navigation to the per-song board
+
+The full per-song board (`KaraokeSongLeaderboardView`) is reached from three places, all
+opening the same board for the song's `postId`:
+
+- **Completion screen** — after a take, show the score + a **Top 5 preview + the viewer's own
+  standing** (a compact `KaraokeResultLeaderboard`, not just the "#17 this week" line), with
+  "Sing again" and **"View rankings"** → full board. (The shipped minimal ended state stays
+  score-only until the leaderboard endpoint exists.)
+- **Song post page** (`/p/{postId}`) — a "Leaderboard" / "Top singers" affordance on the song
+  post card (next to "Sing"), optionally an inline **top-3 strip** for at-a-glance. This is the
+  no-sing entry point.
+- **Community karaoke hub** — each card's "View rankings".
+
+Canonical surface for the full board: a **dedicated, shareable route**
+`/p/{postId}/karaoke/leaderboard` (sibling of `/p/{postId}/karaoke`); it may also open as a
+sheet from the completion screen for immediacy. All of the above read the per-song leaderboard
+endpoint (gated); the post-card affordance + route are wiring, not built during the design phase.
+
 ## Resolved decisions
 
 - Revision identity: explicit immutable `karaoke_revision_id` minted whenever any
