@@ -403,3 +403,63 @@ Scope is shown as a **season label** ("this week" / "all-time") from `scope`.
 - Exact pipeline step that mints `karaoke_revision_id` when scoring-relevant inputs change.
 - Whether to show "weekly activity" on hub cards (would add `weeklyParticipantCount` to the
   `CommunityKaraokeSongStanding` contract).
+
+## 11. Implementation slice (appendix — gated, not a contract amendment)
+
+This appendix is a **ready-to-execute implementation plan** for the first persistence slice. It
+is design only: it ships no code, no migration, no endpoint, and does **not** lift the §9a
+reproducibility gate. It executes only **after** the prerequisites below are met. It is tracked
+here so reviewers see the execution path alongside the contract.
+
+### Hard prerequisites (gate intact)
+
+1. This spec is merged (PRs #29 + #30).
+2. Runtime packaging complete: `@pirate/karaoke-runtime@0.1.0` published, the API repinned to
+   it, deployed, and `/__version` verified to show the pinned version/SHA (§9a lifts here).
+3. The `karaoke_revision_id` minting source is decided (open question above) — finalize can't
+   stamp a trustworthy revision id without it.
+
+### Slice scope
+
+1. **Migration** — `db/community-template/migrations/1101_community_karaoke_attempt.sql` (the
+   §1 DDL verbatim; 1100 is current). Apply to the template + ~live communities via the
+   per-community single-migration runner (the one used for 0117). `karaoke_attempt_line` stays
+   deferred.
+2. **Revision-id plumbing** (prereq inside the slice) — `getPostKaraokePayload`
+   (`src/lib/posts/post-karaoke-service.ts`) already exposes `karaoke_revision_id` +
+   `content_hash`; session creation (`communities-karaoke-session-routes.ts` →
+   `session-creation-service.ts`) threads it into the DO so the final summary carries it.
+3. **Finalize write path** (`src/lib/karaoke/session-do.ts`) — the DO already has a
+   `SqliteOutboxStore`/`outboxStore` abstraction and terminalizes sessions (the ended path; the
+   `provider_failed` finalize near teardown; teardown wipes outbox/snapshots at eviction). Add:
+   - On a terminal state with a computed summary, build a finalize record per §1/§3
+     (`id`, `session_id`, `attempt_id`, `user_id`, `post_id`, `revision`/`content_hash`,
+     `scoring_version`, bps scores, counts, `completion_reason`, `rank_eligible` per §3,
+     `completed_at`) → enqueue to a **finalize outbox** (new record kind). Teardown does **not**
+     await the community D1 write (§4 decoupling).
+   - An alarm-driven finalizer drains it → writes to the community D1 (via the API worker's
+     community-DB routing — an internal RPC from the DO is simplest; Cloudflare Queues the
+     alternative), executing §4's `INSERT … ON CONFLICT (session_id, attempt_id) DO NOTHING` +
+     read-back-compare + mismatch alert. Exactly-once under retries.
+4. **One read endpoint** — new `src/routes/communities-karaoke-leaderboard-routes.ts`:
+   `GET /:communityId/posts/:postId/karaoke/leaderboard?scope=all_time|weekly&limit=`. Runs §5's
+   best-per-user query on the per-community D1 (filtered to the post's current
+   `karaoke_revision_id` + `scoring_version`), assigns competition rank + server percentile,
+   resolves the identity projection (§10.4: deleted/banned excluded pre-rank; viewer-block
+   anonymized post-rank, rank preserved; missing → "Pirate singer"), returns the
+   `KaraokeSongLeaderboard` shape.
+5. **api-contracts** — add `KaraokeSongLeaderboard` / entry / identity to
+   `services/contracts/src/index.ts`, mirroring the web view models so both sides share one type.
+
+### Out of this slice (follows once the read endpoint is real)
+
+- The per-community hub endpoint (`CommunityKaraokeSongStanding[]` index).
+- The global / control-plane eligible-best projection (deferred per "Resolved decisions").
+- All web wiring: the ended-state swap in `KaraokeAudioSurface`, the `/p/{postId}/karaoke/leaderboard`
+  route to `KaraokeSongLeaderboardView`, the `KaraokeSongTopSingersCard` into `PostPage`, the hub.
+
+### Decisions this slice forces (owner's call)
+
+- **DO→D1 transport:** internal RPC from the DO vs a Cloudflare Queue.
+- The two still-open spec items it depends on: the `karaoke_revision_id` minting source and the
+  identity-projection source (public-name/profile join).
