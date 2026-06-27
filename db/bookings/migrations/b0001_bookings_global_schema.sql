@@ -39,7 +39,7 @@ CREATE TABLE bookings.profiles (
 CREATE TABLE bookings.availability_rules (
     rule_id                 TEXT PRIMARY KEY,
     host_user_id            TEXT NOT NULL REFERENCES bookings.profiles(host_user_id) ON DELETE CASCADE,
-    by_weekday              SMALLINT[] NOT NULL CHECK (array_length(by_weekday, 1) >= 1 AND by_weekday <@ ARRAY[0,1,2,3,4,5,6]::smallint[]),
+    by_weekday              SMALLINT[] NOT NULL CHECK (cardinality(by_weekday) >= 1 AND by_weekday <@ ARRAY[0,1,2,3,4,5,6]::smallint[]),
     start_local             TIME NOT NULL,
     end_local               TIME NOT NULL CHECK (end_local > start_local),
     slot_duration_seconds   INTEGER NOT NULL CHECK (slot_duration_seconds > 0),
@@ -64,7 +64,7 @@ CREATE INDEX idx_bookings_availability_exceptions_host ON bookings.availability_
 CREATE TABLE bookings.price_rules (
     price_rule_id           TEXT PRIMARY KEY,
     host_user_id            TEXT NOT NULL REFERENCES bookings.profiles(host_user_id) ON DELETE CASCADE,
-    match_weekday           SMALLINT[] CHECK (match_weekday IS NULL OR (array_length(match_weekday, 1) >= 1 AND match_weekday <@ ARRAY[0,1,2,3,4,5,6]::smallint[])),
+    match_weekday           SMALLINT[] CHECK (match_weekday IS NULL OR (cardinality(match_weekday) >= 1 AND match_weekday <@ ARRAY[0,1,2,3,4,5,6]::smallint[])),
     match_local_start       TIME,
     match_local_end         TIME,
     match_duration_seconds  INTEGER CHECK (match_duration_seconds IS NULL OR match_duration_seconds > 0),
