@@ -23,7 +23,7 @@ CREATE TABLE bookings.profiles (
     host_user_id                   TEXT PRIMARY KEY,                 -- global user id (no cross-schema FK)
     display_headline               TEXT,
     bio                            TEXT,
-    topics                         JSONB,
+    topics                         JSONB CHECK (topics IS NULL OR jsonb_typeof(topics) = 'array'),
     intro_video_ref                TEXT,
     host_timezone                  TEXT NOT NULL,
     base_price_cents               INTEGER NOT NULL CHECK (base_price_cents > 0),
@@ -46,7 +46,8 @@ CREATE TABLE bookings.availability_rules (
     effective_from_utc      TIMESTAMPTZ,
     effective_until_utc     TIMESTAMPTZ,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (effective_from_utc IS NULL OR effective_until_utc IS NULL OR effective_until_utc > effective_from_utc)
 );
 CREATE INDEX idx_bookings_availability_rules_host ON bookings.availability_rules(host_user_id);
 
@@ -63,14 +64,17 @@ CREATE INDEX idx_bookings_availability_exceptions_host ON bookings.availability_
 CREATE TABLE bookings.price_rules (
     price_rule_id           TEXT PRIMARY KEY,
     host_user_id            TEXT NOT NULL REFERENCES bookings.profiles(host_user_id) ON DELETE CASCADE,
-    match_weekday           SMALLINT[] CHECK (match_weekday IS NULL OR match_weekday <@ ARRAY[0,1,2,3,4,5,6]::smallint[]),
+    match_weekday           SMALLINT[] CHECK (match_weekday IS NULL OR (array_length(match_weekday, 1) >= 1 AND match_weekday <@ ARRAY[0,1,2,3,4,5,6]::smallint[])),
     match_local_start       TIME,
     match_local_end         TIME,
     match_duration_seconds  INTEGER CHECK (match_duration_seconds IS NULL OR match_duration_seconds > 0),
     price_cents             INTEGER NOT NULL CHECK (price_cents > 0),
     priority                INTEGER NOT NULL DEFAULT 0,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- A local time window is either fully unset or fully set, and end must be after start.
+    CHECK ((match_local_start IS NULL) = (match_local_end IS NULL)),
+    CHECK (match_local_start IS NULL OR match_local_end > match_local_start)
 );
 CREATE INDEX idx_bookings_price_rules_host ON bookings.price_rules(host_user_id, priority DESC);
 
@@ -80,7 +84,8 @@ CREATE INDEX idx_bookings_price_rules_host ON bookings.price_rules(host_user_id,
 -- ---------------------------------------------------------------------------------------------------
 CREATE TABLE bookings.host_slot_locks (
     lock_id              TEXT PRIMARY KEY,
-    host_user_id         TEXT NOT NULL REFERENCES bookings.profiles(host_user_id) ON DELETE CASCADE,
+    -- RESTRICT (not CASCADE): a profile removal must never silently delete active financial slot locks.
+    host_user_id         TEXT NOT NULL REFERENCES bookings.profiles(host_user_id) ON DELETE RESTRICT,
     slot_start_utc       TIMESTAMPTZ NOT NULL,
     slot_end_utc         TIMESTAMPTZ NOT NULL CHECK (slot_end_utc > slot_start_utc),
     hold_id              TEXT,
@@ -189,9 +194,10 @@ CREATE TABLE bookings.payment_intents (
     quote_expires_at               TIMESTAMPTZ NOT NULL,
     hold_expires_at                TIMESTAMPTZ NOT NULL,
     wallet_attachment_required     BOOLEAN NOT NULL DEFAULT true,
-    platform_fee_bps               INTEGER,
-    platform_fee_cents             INTEGER,
-    host_payout_cents              INTEGER,
+    -- Fee snapshot is mandatory on this fresh schema (the quote always computes it) and must balance.
+    platform_fee_bps               INTEGER NOT NULL CHECK (platform_fee_bps BETWEEN 0 AND 10000),
+    platform_fee_cents             INTEGER NOT NULL CHECK (platform_fee_cents >= 0),
+    host_payout_cents              INTEGER NOT NULL CHECK (host_payout_cents >= 0),
     status                         TEXT NOT NULL DEFAULT 'active' CHECK (status IN (
         'active', 'verifying', 'verified', 'verification_failed', 'verification_rejected',
         'consumed', 'expired', 'superseded'
@@ -204,15 +210,16 @@ CREATE TABLE bookings.payment_intents (
     consumed_wallet_attachment_id  TEXT,
     consumed_at                    TIMESTAMPTZ,
     created_at                     TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at                     TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at                     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT bookings_payment_intents_fee_balances CHECK (platform_fee_cents + host_payout_cents = gross_cents)
 );
 CREATE UNIQUE INDEX idx_bookings_payment_intents_hold ON bookings.payment_intents(hold_id);
 CREATE UNIQUE INDEX idx_bookings_payment_intents_claimed_tx ON bookings.payment_intents(claimed_tx_ref);
 
 -- ---------------------------------------------------------------------------------------------------
--- Session attendance. Heartbeats keep booking_id but a composite FK enforces it matches the session.
--- (High-frequency heartbeats are expected to be coalesced by a per-booking Durable Object writing
--- durable summaries here, rather than one INSERT per 15-30s.)
+-- Session attendance. Heartbeats keep booking_id, with a composite FK enforcing it matches the session.
+-- Raw heartbeat samples are stored as-is, preserving the current evaluator semantics. Any DO-based
+-- heartbeat coalescing is a separate, later change with its own persisted summary contract + parity tests.
 -- ---------------------------------------------------------------------------------------------------
 CREATE TABLE bookings.attendance_sessions (
     session_id    TEXT PRIMARY KEY,
