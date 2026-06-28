@@ -8,9 +8,13 @@ on:
       - "db/known-community-migration-drifts.json"
       - "db/local-control-plane-migration-drifts.json"
       - "db/community-template/migrations/**"
+      - "db/bookings/migrations/**"
       - "references/templates/api-worker-auth-first-slice/**"
       - "scripts/community/apply-sqlite-migrations.sh"
       - "scripts/check-migration-integrity.mjs"
+      - "scripts/control-plane/apply-postgres-migrations.ts"
+      - "scripts/lib/postgres-migrations.ts"
+      - "scripts/bookings/**"
       - "specs/api/**"
   push:
     paths:
@@ -19,9 +23,13 @@ on:
       - "db/known-community-migration-drifts.json"
       - "db/local-control-plane-migration-drifts.json"
       - "db/community-template/migrations/**"
+      - "db/bookings/migrations/**"
       - "references/templates/api-worker-auth-first-slice/**"
       - "scripts/community/apply-sqlite-migrations.sh"
       - "scripts/check-migration-integrity.mjs"
+      - "scripts/control-plane/apply-postgres-migrations.ts"
+      - "scripts/lib/postgres-migrations.ts"
+      - "scripts/bookings/**"
       - "specs/api/**"
   workflow_dispatch:
 
@@ -125,3 +133,36 @@ jobs:
       - name: Show iron-proxy egress summary
         uses: ironsh/iron-proxy-action/summary@fa1fd82ec32396d044deba7040a6db576bec927a
         if: always()
+
+  bookings-migration:
+    # Real-Postgres integration test for the global bookings schema (b0001…): provisions PostgreSQL 17,
+    # bootstraps the extension + roles as owner, runs the real runner as the non-superuser migrator, and
+    # asserts ledger/replay/grants/default-privileges/constraints. Uses the service's published port.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.21
+
+      - name: Run bookings migration integration test
+        env:
+          # Owner/superuser URL to the service; the test creates its own isolated db + roles + extension.
+          BOOKINGS_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
+        run: bun test scripts/bookings/migration-integration.test.ts

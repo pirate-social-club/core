@@ -88,6 +88,27 @@ rtk infisical run --env dev --path /services/control-plane -- \
     --label control-plane
 ```
 
+Global bookings ledger (own `bookings` schema, hosted in the same control-plane Postgres cluster, same
+migrator role/URL — applied as a separate root with its own `bookings` label):
+
+```bash
+rtk infisical run --env dev --path /services/control-plane -- \
+  bun scripts/control-plane/apply-postgres-migrations.ts \
+    --database-url-env CONTROL_PLANE_MIGRATOR_DATABASE_URL \
+    --migrations db/bookings/migrations \
+    --label bookings
+```
+
+Preflight (once per database, before the first `b0001_` apply) — the non-superuser migrator cannot do
+these itself:
+
+- Owner/PlanetScale enables the extension: `CREATE EXTENSION IF NOT EXISTS btree_gist;` (required by the
+  `host_slot_locks` range-exclusion constraint).
+- The migrator role needs `CREATE ON DATABASE <db>` (to create + own the `bookings` schema) and `CREATE
+  ON SCHEMA public` (to own the shared `public.schema_migrations` ledger — already held on the
+  established control-plane DB). Local bookings development requires a real Postgres: the exclusion
+  constraint cannot be emulated in SQLite, so do not bootstrap bookings against the libSQL community runner.
+
 SQLite/libSQL community template:
 
 ```bash

@@ -17,18 +17,29 @@ const allowedDuplicateMigrationPrefixes = new Map([
   ],
 ]);
 
+const numericPrefixPattern = /^(\d{4})_/u;
 const migrationRoots = [
   {
     path: "db/control-plane/migrations",
     label: "control-plane",
+    prefixPattern: numericPrefixPattern,
     minPrefix: 0,
     maxPrefix: 999,
   },
   {
     path: "db/community-template/migrations",
     label: "community-template",
+    prefixPattern: numericPrefixPattern,
     minPrefix: 1000,
     maxPrefix: 1999,
+  },
+  {
+    // Global bookings ledger (own bounded schema). Globally-unique `b####_` names live in the shared
+    // public.schema_migrations ledger; the `b` namespace orders independently of the numeric roots.
+    path: "db/bookings/migrations",
+    label: "bookings",
+    prefixPattern: /^(b\d{4})_/u,
+    prefixFormat: 'a "b####" prefix (e.g. b0001_)',
   },
 ];
 
@@ -93,16 +104,16 @@ function listMigrationFilesAtRef(ref, root) {
     .sort();
 }
 
-function filenamePrefix(filePath) {
+function filenamePrefix(root, filePath) {
   const name = path.basename(filePath);
-  const match = name.match(/^(\d{4})_/u);
+  const match = name.match(root.prefixPattern);
   return match?.[1] ?? null;
 }
 
-function collectPrefixGroups(files) {
+function collectPrefixGroups(root, files) {
   const groups = new Map();
   for (const file of files) {
-    const prefix = filenamePrefix(file);
+    const prefix = filenamePrefix(root, file);
     if (!prefix) continue;
     const entries = groups.get(prefix) ?? [];
     entries.push(file);
@@ -121,17 +132,19 @@ function checkFilenamePrefixes(root, files) {
   const failures = [];
   for (const file of files) {
     const name = path.basename(file);
-    const prefix = filenamePrefix(file);
+    const prefix = filenamePrefix(root, file);
     if (!prefix) {
-      failures.push(`${file}: filename must start with a four-digit numeric prefix followed by "_"`);
+      failures.push(`${file}: ${root.label} migration filename must start with ${root.prefixFormat ?? 'a four-digit numeric prefix'} followed by "_"`);
       continue;
     }
 
-    const numericPrefix = Number(prefix);
-    if (numericPrefix < root.minPrefix || numericPrefix > root.maxPrefix) {
-      failures.push(
-        `${file}: ${root.label} migration prefix ${prefix} must be in ${String(root.minPrefix).padStart(4, "0")}..${String(root.maxPrefix).padStart(4, "0")}`,
-      );
+    if (root.minPrefix !== undefined) {
+      const numericPrefix = Number(prefix);
+      if (numericPrefix < root.minPrefix || numericPrefix > root.maxPrefix) {
+        failures.push(
+          `${file}: ${root.label} migration prefix ${prefix} must be in ${String(root.minPrefix).padStart(4, "0")}..${String(root.maxPrefix).padStart(4, "0")}`,
+        );
+      }
     }
 
     if (name !== name.trim() || name.includes(" ")) {
@@ -144,8 +157,8 @@ function checkFilenamePrefixes(root, files) {
 function checkDuplicatePrefixes(root, headFiles, baseFiles) {
   const failures = [];
   const warnings = [];
-  const headGroups = collectPrefixGroups(headFiles);
-  const baseGroups = collectPrefixGroups(baseFiles);
+  const headGroups = collectPrefixGroups(root, headFiles);
+  const baseGroups = collectPrefixGroups(root, baseFiles);
 
   for (const [prefix, headGroup] of headGroups) {
     if (headGroup.length <= 1) continue;
