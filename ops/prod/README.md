@@ -48,6 +48,19 @@ rtk infisical run --env prod --path /services/control-plane -- \
   --label control-plane
 ```
 
+Global bookings ledger (same cluster + migrator URL; separate root/label). Preflight once per database
+first: owner enables `btree_gist` and the migrator holds `CREATE ON DATABASE` + `CREATE ON SCHEMA public`
+(see `db/README.md`).
+
+```bash
+cd /home/t42/Documents/pirate-workspace/core
+rtk infisical run --env prod --path /services/control-plane -- \
+  rtk bun scripts/control-plane/apply-postgres-migrations.ts \
+  --database-url-env CONTROL_PLANE_MIGRATOR_DATABASE_URL \
+  --migrations db/bookings/migrations \
+  --label bookings
+```
+
 Use the full operator checklist here:
 
 - [production-infisical-human-only-checklist.md](../../docs/runbooks/production-infisical-human-only-checklist.md)
