@@ -33,11 +33,21 @@ function urlFor(opts: { db?: string; user?: string; password?: string }): string
 function connect(opts: { db?: string; user?: string; password?: string }): SQL {
   return new SQL({ url: urlFor(opts), tls: false, max: 1, connectionTimeout: 5 } as Record<string, unknown>);
 }
-async function expectRejected(sql: SQL, statement: string): Promise<void> {
-  let rejected = false;
-  try { await sql.unsafe(statement); } catch { rejected = true; }
-  expect(rejected).toBe(true);
+// Assert the SPECIFIC PostgreSQL SQLSTATE (bun surfaces it on err.errno) so a missing table (42P01) or
+// other unexpected error can never masquerade as a constraint/permission success.
+const SQLSTATE = { check: "23514", notNull: "23502", exclusion: "23P01", permission: "42501" } as const;
+async function expectRejected(sql: SQL, statement: string, sqlstate: string): Promise<void> {
+  let caught: { errno?: string } | undefined;
+  try { await sql.unsafe(statement); } catch (e) { caught = e as { errno?: string }; }
+  expect(caught, `expected rejection with SQLSTATE ${sqlstate}, got success`).toBeDefined();
+  expect(caught?.errno, `expected SQLSTATE ${sqlstate}`).toBe(sqlstate);
 }
+
+// The exact table set b0001 must create in the bookings schema.
+const EXPECTED_TABLES = [
+  "attendance_heartbeats", "attendance_sessions", "availability_exceptions", "availability_rules",
+  "bookings", "holds", "host_slot_locks", "payment_intents", "price_rules", "profiles", "settlement_effects",
+];
 
 // Run the actual migration runner as the non-superuser migrator; returns {applied, skipped}.
 async function runMigrator(): Promise<{ applied: number; skipped: number }> {
@@ -77,9 +87,10 @@ describe.skipIf(!RUN)("bookings global migration (real Postgres)", () => {
     }
     await db.unsafe(`GRANT CREATE ON DATABASE ${TEST_DB} TO control_plane_migrator`);
     // CREATE on public lets the migrator own the shared public.schema_migrations ledger (PG15+ no longer
-    // grants this by default). On the real control-plane DB the migrator already holds it.
+    // grants this by default). On the real control-plane DB the migrator already holds it. No role
+    // membership is granted to the migrator: owning the bookings tables is sufficient to GRANT privileges
+    // to the runtime roles, so the privilege model stays production-shaped.
     await db.unsafe(`GRANT CREATE, USAGE ON SCHEMA public TO control_plane_migrator`);
-    await db.unsafe(`GRANT control_plane_api_rw, control_plane_api_ro TO control_plane_migrator`);
     await db.end();
   });
 
@@ -116,11 +127,11 @@ describe.skipIf(!RUN)("bookings global migration (real Postgres)", () => {
     expect(skipped).toBe(1);
   });
 
-  test("all bookings tables are owned by the migrator", async () => {
+  test("exactly the expected tables exist, all owned by the migrator", async () => {
     const db = connect({ db: TEST_DB });
-    const rows = await db.unsafe(`SELECT tableowner FROM pg_tables WHERE schemaname = 'bookings'`);
+    const rows = await db.unsafe(`SELECT tablename, tableowner FROM pg_tables WHERE schemaname = 'bookings' ORDER BY tablename`);
     await db.end();
-    expect(rows.length).toBeGreaterThanOrEqual(11);
+    expect(rows.map((r: { tablename: string }) => r.tablename)).toEqual(EXPECTED_TABLES);
     for (const r of rows) expect(r.tableowner).toBe("control_plane_migrator");
   });
 
@@ -141,9 +152,9 @@ describe.skipIf(!RUN)("bookings global migration (real Postgres)", () => {
     const ro = connect({ db: TEST_DB, user: "control_plane_api_ro", password: RO_PW });
     const sel = await ro.unsafe(`SELECT host_user_id FROM bookings.profiles WHERE host_user_id='roprobe'`);
     expect(sel.length).toBe(1);
-    await expectRejected(ro, `INSERT INTO bookings.profiles(host_user_id,host_timezone,base_price_cents,default_slot_duration_seconds) VALUES('ro2','UTC',5000,1800)`);
-    await expectRejected(ro, `UPDATE bookings.profiles SET base_price_cents=1 WHERE host_user_id='roprobe'`);
-    await expectRejected(ro, `DELETE FROM bookings.profiles WHERE host_user_id='roprobe'`);
+    await expectRejected(ro, `INSERT INTO bookings.profiles(host_user_id,host_timezone,base_price_cents,default_slot_duration_seconds) VALUES('ro2','UTC',5000,1800)`, SQLSTATE.permission);
+    await expectRejected(ro, `UPDATE bookings.profiles SET base_price_cents=1 WHERE host_user_id='roprobe'`, SQLSTATE.permission);
+    await expectRejected(ro, `DELETE FROM bookings.profiles WHERE host_user_id='roprobe'`, SQLSTATE.permission);
     await ro.end();
     const rw2 = connect({ db: TEST_DB, user: "control_plane_api_rw", password: RW_PW });
     await rw2.unsafe(`DELETE FROM bookings.profiles WHERE host_user_id='roprobe'`);
@@ -160,7 +171,7 @@ describe.skipIf(!RUN)("bookings global migration (real Postgres)", () => {
       const ro = connect({ db: TEST_DB, user: "control_plane_api_ro", password: RO_PW });
       const sel = await ro.unsafe(`SELECT id FROM bookings._probe`); // default privilege => RO read
       expect(sel.length).toBe(1);
-      await expectRejected(ro, `INSERT INTO bookings._probe(id) VALUES('y')`);
+      await expectRejected(ro, `INSERT INTO bookings._probe(id) VALUES('y')`, SQLSTATE.permission);
       await ro.end();
     } finally {
       await mig.unsafe(`DROP TABLE bookings._probe`);
@@ -172,21 +183,25 @@ describe.skipIf(!RUN)("bookings global migration (real Postgres)", () => {
     const rw = connect({ db: TEST_DB, user: "control_plane_api_rw", password: RW_PW });
     await rw.unsafe(`INSERT INTO bookings.profiles(host_user_id,host_timezone,base_price_cents,default_slot_duration_seconds) VALUES('h','UTC',5000,1800) ON CONFLICT DO NOTHING`);
     await rw.unsafe(`INSERT INTO bookings.holds(hold_id,host_user_id,booker_user_id,slot_start_utc,slot_end_utc,price_cents,status,expires_at_utc) VALUES('hld','h','b','2026-07-01 09:00:00+00','2026-07-01 10:00:00+00',5000,'active','2026-07-01 08:50:00+00') ON CONFLICT DO NOTHING`);
-    // weekday cardinality + range (cardinality() rejects empty arrays where array_length() would not)
-    await expectRejected(rw, `INSERT INTO bookings.availability_rules(rule_id,host_user_id,by_weekday,start_local,end_local,slot_duration_seconds) VALUES('r1','h','{}','09:00','17:00',1800)`);
-    await expectRejected(rw, `INSERT INTO bookings.availability_rules(rule_id,host_user_id,by_weekday,start_local,end_local,slot_duration_seconds) VALUES('r2','h','{7}','09:00','17:00',1800)`);
+    // availability weekday cardinality + range (cardinality() rejects empty arrays where array_length() would not)
+    await expectRejected(rw, `INSERT INTO bookings.availability_rules(rule_id,host_user_id,by_weekday,start_local,end_local,slot_duration_seconds) VALUES('r1','h','{}','09:00','17:00',1800)`, SQLSTATE.check);
+    await expectRejected(rw, `INSERT INTO bookings.availability_rules(rule_id,host_user_id,by_weekday,start_local,end_local,slot_duration_seconds) VALUES('r2','h','{7}','09:00','17:00',1800)`, SQLSTATE.check);
     await rw.unsafe(`INSERT INTO bookings.availability_rules(rule_id,host_user_id,by_weekday,start_local,end_local,slot_duration_seconds) VALUES('r3','h','{1,5}','09:00','17:00',1800)`);
-    await expectRejected(rw, `INSERT INTO bookings.availability_rules(rule_id,host_user_id,by_weekday,start_local,end_local,slot_duration_seconds,effective_from_utc,effective_until_utc) VALUES('r4','h','{1}','09:00','17:00',1800,'2026-07-02 00:00:00+00','2026-07-01 00:00:00+00')`);
-    // price-rule half-window
-    await expectRejected(rw, `INSERT INTO bookings.price_rules(price_rule_id,host_user_id,match_local_start,price_cents) VALUES('p1','h','18:00',6000)`);
+    await expectRejected(rw, `INSERT INTO bookings.availability_rules(rule_id,host_user_id,by_weekday,start_local,end_local,slot_duration_seconds,effective_from_utc,effective_until_utc) VALUES('r4','h','{1}','09:00','17:00',1800,'2026-07-02 00:00:00+00','2026-07-01 00:00:00+00')`, SQLSTATE.check);
+    // price-rule weekday (empty + out-of-range) and time window (half-specified + fully-specified-but-reversed)
+    await expectRejected(rw, `INSERT INTO bookings.price_rules(price_rule_id,host_user_id,match_weekday,price_cents) VALUES('pw0','h','{}',6000)`, SQLSTATE.check);
+    await expectRejected(rw, `INSERT INTO bookings.price_rules(price_rule_id,host_user_id,match_weekday,price_cents) VALUES('pw7','h','{7}',6000)`, SQLSTATE.check);
+    await expectRejected(rw, `INSERT INTO bookings.price_rules(price_rule_id,host_user_id,match_local_start,price_cents) VALUES('p1','h','18:00',6000)`, SQLSTATE.check);
+    await expectRejected(rw, `INSERT INTO bookings.price_rules(price_rule_id,host_user_id,match_local_start,match_local_end,price_cents) VALUES('prev','h','20:00','18:00',6000)`, SQLSTATE.check);
+    await rw.unsafe(`INSERT INTO bookings.price_rules(price_rule_id,host_user_id,match_weekday,match_local_start,match_local_end,price_cents) VALUES('pok','h','{1,5}','18:00','20:00',6000)`);
     // fee snapshot mandatory (omitting the fee columns violates NOT NULL)
-    await expectRejected(rw, `INSERT INTO bookings.payment_intents(payment_intent_id,hold_id,chain_id,token_address,token_decimals,token_symbol,recipient_address,amount_atomic,gross_cents,quote_expires_at,hold_expires_at,status,created_at,updated_at) VALUES('pi1','hld',84532,'0xt',6,'USDC','0xr',1000000,5000,now(),now(),'active',now(),now())`);
+    await expectRejected(rw, `INSERT INTO bookings.payment_intents(payment_intent_id,hold_id,chain_id,token_address,token_decimals,token_symbol,recipient_address,amount_atomic,gross_cents,quote_expires_at,hold_expires_at,status,created_at,updated_at) VALUES('pi1','hld',84532,'0xt',6,'USDC','0xr',1000000,5000,now(),now(),'active',now(),now())`, SQLSTATE.notNull);
     // fee snapshot must balance to gross_cents
-    await expectRejected(rw, `INSERT INTO bookings.payment_intents(payment_intent_id,hold_id,chain_id,token_address,token_decimals,token_symbol,recipient_address,amount_atomic,gross_cents,platform_fee_bps,platform_fee_cents,host_payout_cents,quote_expires_at,hold_expires_at,status,created_at,updated_at) VALUES('pi2','hld',84532,'0xt',6,'USDC','0xr',1000000,5000,1000,10,90,now(),now(),'active',now(),now())`);
+    await expectRejected(rw, `INSERT INTO bookings.payment_intents(payment_intent_id,hold_id,chain_id,token_address,token_decimals,token_symbol,recipient_address,amount_atomic,gross_cents,platform_fee_bps,platform_fee_cents,host_payout_cents,quote_expires_at,hold_expires_at,status,created_at,updated_at) VALUES('pi2','hld',84532,'0xt',6,'USDC','0xr',1000000,5000,1000,10,90,now(),now(),'active',now(),now())`, SQLSTATE.check);
     await rw.unsafe(`INSERT INTO bookings.payment_intents(payment_intent_id,hold_id,chain_id,token_address,token_decimals,token_symbol,recipient_address,amount_atomic,gross_cents,platform_fee_bps,platform_fee_cents,host_payout_cents,quote_expires_at,hold_expires_at,status,created_at,updated_at) VALUES('pi3','hld',84532,'0xt',6,'USDC','0xr',1000000,5000,1000,500,4500,now(),now(),'active',now(),now())`);
     // slot exclusion (btree_gist): adjacent accepted, overlap rejected
     await rw.unsafe(`INSERT INTO bookings.host_slot_locks(lock_id,host_user_id,slot_start_utc,slot_end_utc,status) VALUES('l1','h','2026-07-01 09:00:00+00','2026-07-01 10:00:00+00','active')`);
-    await expectRejected(rw, `INSERT INTO bookings.host_slot_locks(lock_id,host_user_id,slot_start_utc,slot_end_utc,status) VALUES('l2','h','2026-07-01 09:30:00+00','2026-07-01 10:30:00+00','active')`);
+    await expectRejected(rw, `INSERT INTO bookings.host_slot_locks(lock_id,host_user_id,slot_start_utc,slot_end_utc,status) VALUES('l2','h','2026-07-01 09:30:00+00','2026-07-01 10:30:00+00','active')`, SQLSTATE.exclusion);
     await rw.unsafe(`INSERT INTO bookings.host_slot_locks(lock_id,host_user_id,slot_start_utc,slot_end_utc,status) VALUES('l3','h','2026-07-01 10:00:00+00','2026-07-01 11:00:00+00','active')`);
     await rw.end();
   });

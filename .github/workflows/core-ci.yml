@@ -12,6 +12,8 @@ on:
       - "references/templates/api-worker-auth-first-slice/**"
       - "scripts/community/apply-sqlite-migrations.sh"
       - "scripts/check-migration-integrity.mjs"
+      - "scripts/control-plane/apply-postgres-migrations.ts"
+      - "scripts/lib/postgres-migrations.ts"
       - "scripts/bookings/**"
       - "specs/api/**"
   push:
@@ -25,6 +27,8 @@ on:
       - "references/templates/api-worker-auth-first-slice/**"
       - "scripts/community/apply-sqlite-migrations.sh"
       - "scripts/check-migration-integrity.mjs"
+      - "scripts/control-plane/apply-postgres-migrations.ts"
+      - "scripts/lib/postgres-migrations.ts"
       - "scripts/bookings/**"
       - "specs/api/**"
   workflow_dispatch:
