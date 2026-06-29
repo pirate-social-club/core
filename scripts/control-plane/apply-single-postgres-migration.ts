@@ -3,6 +3,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
+import { postgresMigrationStatements } from "../lib/postgres-migrations";
 
 type Options = {
   databaseUrlEnv: string;
@@ -108,8 +109,8 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 
   console.log(`apply ${migrationName}`);
   await sql.begin(async (tx) => {
-    if (migrationSql) {
-      await tx.unsafe(migrationSql);
+    for (const statement of postgresMigrationStatements(migrationSql)) {
+      await tx.unsafe(statement);
     }
 
     await tx`
