@@ -327,3 +327,10 @@ one-off migration.
 
 Study packs should be generated lazily per `(post_id, target_language)` on first
 eligible request. Do not pre-generate every possible language pair.
+
+For v1, lazy generation MAY create a ready say-it-back-only pack directly from
+the authoritative community DB lyrics after the caller's access has been
+confirmed. It MUST NOT fabricate translations or multiple-choice distractors.
+Translation-choice exercises require generated/stored translation content and
+distractors; until that pipeline exists, those exercises are absent rather than
+client-generated.
