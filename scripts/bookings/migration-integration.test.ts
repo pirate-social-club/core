@@ -43,7 +43,12 @@ async function expectRejected(sql: SQL, statement: string, sqlstate: string): Pr
   expect(caught?.errno, `expected SQLSTATE ${sqlstate}`).toBe(sqlstate);
 }
 
-// The exact table set b0001 must create in the bookings schema.
+const EXPECTED_MIGRATIONS = [
+  "b0001_bookings_global_schema.sql",
+  "b0002_booking_settlement_review.sql",
+];
+
+// The exact table set the bookings migrations must create in the bookings schema.
 const EXPECTED_TABLES = [
   "attendance_heartbeats", "attendance_sessions", "availability_exceptions", "availability_rules",
   "bookings", "holds", "host_slot_locks", "payment_intents", "price_rules", "profiles", "settlement_effects",
@@ -110,21 +115,21 @@ describe.skipIf(!RUN)("bookings global migration (real Postgres)", () => {
     expect(rows.length).toBe(1);
   });
 
-  test("first apply applies exactly b0001 with a labeled ledger row", async () => {
+  test("first apply applies the expected migrations with labeled ledger rows", async () => {
     const { applied, skipped } = await runMigrator();
-    expect(applied).toBe(1);
+    expect(applied).toBe(EXPECTED_MIGRATIONS.length);
     expect(skipped).toBe(0);
     const db = connect({ db: TEST_DB });
-    const led = await db.unsafe(`SELECT migration_name, migration_label FROM public.schema_migrations WHERE migration_name LIKE 'b0001%'`);
+    const led = await db.unsafe(`SELECT migration_name, migration_label FROM public.schema_migrations WHERE migration_label = 'bookings' ORDER BY migration_name`);
     await db.end();
-    expect(led.length).toBe(1);
-    expect(led[0].migration_label).toBe("bookings");
+    expect(led.map((row: { migration_name: string }) => row.migration_name)).toEqual(EXPECTED_MIGRATIONS);
+    for (const row of led) expect(row.migration_label).toBe("bookings");
   });
 
-  test("replay is idempotent (0 applied, 1 skipped)", async () => {
+  test("replay is idempotent", async () => {
     const { applied, skipped } = await runMigrator();
     expect(applied).toBe(0);
-    expect(skipped).toBe(1);
+    expect(skipped).toBe(EXPECTED_MIGRATIONS.length);
   });
 
   test("exactly the expected tables exist, all owned by the migrator", async () => {
@@ -199,6 +204,10 @@ describe.skipIf(!RUN)("bookings global migration (real Postgres)", () => {
     // fee snapshot must balance to gross_cents
     await expectRejected(rw, `INSERT INTO bookings.payment_intents(payment_intent_id,hold_id,chain_id,token_address,token_decimals,token_symbol,recipient_address,amount_atomic,gross_cents,platform_fee_bps,platform_fee_cents,host_payout_cents,quote_expires_at,hold_expires_at,status,created_at,updated_at) VALUES('pi2','hld',84532,'0xt',6,'USDC','0xr',1000000,5000,1000,10,90,now(),now(),'active',now(),now())`, SQLSTATE.check);
     await rw.unsafe(`INSERT INTO bookings.payment_intents(payment_intent_id,hold_id,chain_id,token_address,token_decimals,token_symbol,recipient_address,amount_atomic,gross_cents,platform_fee_bps,platform_fee_cents,host_payout_cents,quote_expires_at,hold_expires_at,status,created_at,updated_at) VALUES('pi3','hld',84532,'0xt',6,'USDC','0xr',1000000,5000,1000,500,4500,now(),now(),'active',now(),now())`);
+    // settlement-review shape: pending reviews require disputed state, reason, opened_at, and no resolution
+    await rw.unsafe(`INSERT INTO bookings.bookings(booking_id,host_user_id,booker_user_id,slot_start_utc,slot_end_utc,gross_cents,platform_fee_bps,platform_fee_cents,host_payout_cents,status,created_at,updated_at) VALUES('b1','h','b','2026-07-02 09:00:00+00','2026-07-02 10:00:00+00',5000,1000,500,4500,'confirmed',now(),now())`);
+    await expectRejected(rw, `UPDATE bookings.bookings SET status='disputed', settlement_review_status='pending', settlement_review_reason='attendance_ambiguous' WHERE booking_id='b1'`, SQLSTATE.check);
+    await rw.unsafe(`UPDATE bookings.bookings SET status='disputed', settlement_review_status='pending', settlement_review_reason='attendance_ambiguous', settlement_review_opened_at=now(), settlement_review_version=settlement_review_version+1 WHERE booking_id='b1'`);
     // slot exclusion (btree_gist): adjacent accepted, overlap rejected
     await rw.unsafe(`INSERT INTO bookings.host_slot_locks(lock_id,host_user_id,slot_start_utc,slot_end_utc,status) VALUES('l1','h','2026-07-01 09:00:00+00','2026-07-01 10:00:00+00','active')`);
     await expectRejected(rw, `INSERT INTO bookings.host_slot_locks(lock_id,host_user_id,slot_start_utc,slot_end_utc,status) VALUES('l2','h','2026-07-01 09:30:00+00','2026-07-01 10:30:00+00','active')`, SQLSTATE.exclusion);

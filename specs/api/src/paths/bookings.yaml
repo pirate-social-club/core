@@ -166,6 +166,42 @@ bookings_holds_by_hold_id_confirm:
         $ref: ../components/responses.yaml#/NotFound
       "409":
         $ref: ../components/responses.yaml#/Conflict
+bookings_settlement_review_pending:
+  get:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: List pending global booking settlement reviews
+    description: Operator-only endpoint for ambiguous attendance reviews on global bookings.
+    parameters:
+      - in: query
+        name: source_community_id
+        schema:
+          type: string
+          nullable: true
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+      - in: query
+        name: cursor
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Pending settlement reviews
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/BookingSettlementReviewPage
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/Forbidden
 bookings_by_booking_id:
   get:
     x-implemented: true
@@ -189,6 +225,74 @@ bookings_by_booking_id:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
+bookings_by_booking_id_settlement_review:
+  get:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Get a global booking settlement review
+    description: Operator-only endpoint for a global booking settlement review.
+    parameters:
+      - in: path
+        name: booking_id
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Settlement review detail
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/BookingSettlementReviewResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/Forbidden
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+bookings_by_booking_id_settlement_review_resolve:
+  post:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Resolve a global booking settlement review
+    description: Operator-only endpoint that resolves an ambiguous attendance review and resumes settlement.
+    parameters:
+      - in: path
+        name: booking_id
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/bookings.yaml#/ResolveBookingSettlementReviewRequest
+    responses:
+      "200":
+        description: Review resolved and settlement finalized or replayed
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/ResolveBookingSettlementReviewResponse
+      "202":
+        description: Review resolved; settlement remains pending and will be retried
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/ResolveBookingSettlementReviewResponse
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/Forbidden
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
 bookings_by_booking_id_cancel:
   post:
     x-implemented: true

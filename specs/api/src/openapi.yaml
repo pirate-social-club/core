@@ -282,8 +282,14 @@ paths:
     $ref: ./paths/bookings.yaml#/bookings_holds_by_hold_id_quote
   /bookings/holds/{hold_id}/confirm:
     $ref: ./paths/bookings.yaml#/bookings_holds_by_hold_id_confirm
+  /bookings/settlement-review/pending:
+    $ref: ./paths/bookings.yaml#/bookings_settlement_review_pending
   /bookings/{booking_id}:
     $ref: ./paths/bookings.yaml#/bookings_by_booking_id
+  /bookings/{booking_id}/settlement-review:
+    $ref: ./paths/bookings.yaml#/bookings_by_booking_id_settlement_review
+  /bookings/{booking_id}/settlement-review/resolve:
+    $ref: ./paths/bookings.yaml#/bookings_by_booking_id_settlement_review_resolve
   /bookings/{booking_id}/cancel:
     $ref: ./paths/bookings.yaml#/bookings_by_booking_id_cancel
   /bookings/{booking_id}/start:

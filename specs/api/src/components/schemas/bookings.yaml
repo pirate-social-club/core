@@ -16,6 +16,12 @@ BookingViewerRole:
   enum:
     - host
     - booker
+BookingSettlementReviewResolution:
+  type: string
+  enum:
+    - completed
+    - no_show_host
+    - no_show_booker
 BookingView:
   type: object
   required:
@@ -421,6 +427,153 @@ BookingLifecycleResponse:
       enum:
         - host
         - booker
+BookingSettlementReview:
+  type: object
+  required:
+    - object
+    - booking_id
+    - community_id
+    - host_user_id
+    - booker_user_id
+    - slot_start_utc
+    - slot_end_utc
+    - gross_cents
+    - refund_cents
+    - booking_status
+    - review_status
+    - review_reason
+    - review_resolution
+    - review_opened_at
+    - review_resolved_at
+    - review_operator_credential_id
+    - review_operator_actor_id
+    - review_note
+    - review_version
+    - updated_at
+  properties:
+    object:
+      type: string
+      enum:
+        - booking_settlement_review
+    booking_id:
+      type: string
+    community_id:
+      type: string
+      description: Source community attribution, or an empty string when no source community exists.
+    host_user_id:
+      type: string
+    booker_user_id:
+      type: string
+    slot_start_utc:
+      type: string
+      format: date-time
+    slot_end_utc:
+      type: string
+      format: date-time
+    gross_cents:
+      type: integer
+      minimum: 0
+    refund_cents:
+      type: integer
+      minimum: 0
+      nullable: true
+    booking_status:
+      $ref: ./bookings.yaml#/BookingStatus
+    review_status:
+      type: string
+      enum:
+        - pending
+        - resolved
+    review_reason:
+      type: string
+      nullable: true
+      enum:
+        - attendance_ambiguous
+    review_resolution:
+      allOf:
+        - $ref: ./bookings.yaml#/BookingSettlementReviewResolution
+      nullable: true
+    review_opened_at:
+      type: string
+      format: date-time
+      nullable: true
+    review_resolved_at:
+      type: string
+      format: date-time
+      nullable: true
+    review_operator_credential_id:
+      type: string
+      nullable: true
+    review_operator_actor_id:
+      type: string
+      nullable: true
+    review_note:
+      type: string
+      nullable: true
+    review_version:
+      type: integer
+      minimum: 0
+    updated_at:
+      type: string
+      format: date-time
+BookingSettlementReviewPage:
+  type: object
+  required:
+    - object
+    - data
+    - has_more
+    - next_cursor
+  properties:
+    object:
+      type: string
+      enum:
+        - list
+    data:
+      type: array
+      items:
+        $ref: ./bookings.yaml#/BookingSettlementReview
+    has_more:
+      type: boolean
+    next_cursor:
+      type: string
+      nullable: true
+BookingSettlementReviewResponse:
+  type: object
+  required:
+    - review
+  properties:
+    review:
+      $ref: ./bookings.yaml#/BookingSettlementReview
+ResolveBookingSettlementReviewRequest:
+  type: object
+  required:
+    - resolution
+    - expected_review_version
+  properties:
+    resolution:
+      $ref: ./bookings.yaml#/BookingSettlementReviewResolution
+    expected_review_version:
+      type: integer
+      minimum: 0
+    note:
+      type: string
+      nullable: true
+ResolveBookingSettlementReviewResponse:
+  type: object
+  required:
+    - booking
+    - resolution
+    - pending_settlement
+    - replayed
+  properties:
+    booking:
+      $ref: ./bookings.yaml#/BookingLifecycleSnapshot
+    resolution:
+      $ref: ./bookings.yaml#/BookingSettlementReviewResolution
+    pending_settlement:
+      type: boolean
+    replayed:
+      type: boolean
 BookingAgoraBlock:
   type: object
   required:
