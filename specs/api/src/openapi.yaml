@@ -258,6 +258,8 @@ paths:
     $ref: ./paths/song-study.yaml#/communities_by_community_id_posts_by_post_id_study
   /communities/{community_id}/posts/{post_id}/study/attempts:
     $ref: ./paths/song-study.yaml#/communities_by_community_id_posts_by_post_id_study_attempts
+  /communities/{community_id}/posts/{post_id}/study/transcriptions:
+    $ref: ./paths/song-study.yaml#/communities_by_community_id_posts_by_post_id_study_transcriptions
   /communities/{community_id}/comments/{comment_id}/reports:
     $ref: ./paths/communities.yaml#/communities_by_community_id_comments_by_comment_id_reports
   /communities/{community_id}/moderation/cases:
@@ -461,6 +463,8 @@ components:
       $ref: ./components/schemas/song-study.yaml#/SongStudyAttemptRequest
     SongStudyAttemptResult:
       $ref: ./components/schemas/song-study.yaml#/SongStudyAttemptResult
+    SongStudyTranscriptionResponse:
+      $ref: ./components/schemas/song-study.yaml#/SongStudyTranscriptionResponse
     SessionExchangeResponse:
       $ref: ./components/schemas/auth.yaml#/SessionExchangeResponse
     OAuthDeviceAuthorizeRequest:

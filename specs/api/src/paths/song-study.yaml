@@ -249,3 +249,80 @@ communities_by_community_id_posts_by_post_id_study_attempts:
         $ref: ../components/responses.yaml#/Forbidden
       "404":
         $ref: ../components/responses.yaml#/NotFound
+
+communities_by_community_id_posts_by_post_id_study_transcriptions:
+  post:
+    tags:
+      - Song Study
+    summary: Transcribe one study say-it-back recording
+    description: |
+      Transcribes a learner's short say-it-back recording for this song study
+      session. This endpoint is only a transcription step: grading and FSRS
+      advancement still happen at `POST .../study/attempts`.
+
+      Authorization mirrors `GET .../study`: the caller must be authenticated
+      and entitled to study the post. The server validates access before sending
+      audio to the speech-to-text provider.
+
+      Retention: raw audio is not stored by Pirate. The returned final
+      transcript may be submitted to the attempts endpoint, where the final
+      transcript is stored on the attempt event for grading audit/replay.
+
+      Error codes:
+        - `400 bad_request` — missing file, unsupported file type, empty audio,
+          or file too large.
+        - `401 auth_error`  — caller is not authenticated.
+        - `403 forbidden`   — caller is not entitled to study this post.
+        - `404 not_found`   — community or post not found, or study unavailable.
+        - `502 provider_unavailable` — speech-to-text provider failed.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/PostId
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required:
+              - file
+            properties:
+              file:
+                type: string
+                format: binary
+                description: Short say-it-back audio recording.
+            additionalProperties: false
+    responses:
+      "200":
+        description: Final speech-to-text transcript.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/song-study.yaml#/SongStudyTranscriptionResponse
+            example:
+              object: song_study_transcription
+              provider: elevenlabs
+              model: scribe_v2
+              text: I was lost in the midnight waves
+              confidence: null
+              language_code: en
+              language_probability: null
+              duration_seconds: 2
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/Forbidden
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "502":
+        description: Speech-to-text provider unavailable.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/common.yaml#/Error
+            example:
+              code: provider_unavailable
+              message: ElevenLabs transcription failed with http_502
+              retryable: true

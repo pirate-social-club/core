@@ -15,6 +15,7 @@ shapes live in `specs/api/src/paths/song-study.yaml` and
 ```
 GET  /communities/:community_id/posts/:post_id/study
 POST /communities/:community_id/posts/:post_id/study/attempts
+POST /communities/:community_id/posts/:post_id/study/transcriptions
 ```
 
 The route is community-scoped, consistent with other post sub-resources.
@@ -40,6 +41,10 @@ Public / logged-out study is a later product decision that would require
 token-optional access and explicit public/free entitlement handling. Until then,
 unauthenticated callers receive `401 auth_error`, and the `locked` access state
 is only ever observed by authenticated, non-entitled callers.
+
+`POST .../study/transcriptions` also requires authentication and mirrors the
+same entitlement predicate as `GET .../study`; the server MUST validate access
+before sending audio to the speech-to-text provider.
 
 ## Access states
 
@@ -316,6 +321,8 @@ user_id + post_id + line_id + exercise_type + target_language
 - Do not store raw audio.
 - Do not store interim STT partials.
 - Do not store provider debug blobs in D1.
+- The transcription endpoint returns a final transcript only; grading and
+  persistence happen when that transcript is submitted to the attempts endpoint.
 - If temporary debugging artifacts are required, keep them outside D1 with short
   retention and explicit access controls.
 

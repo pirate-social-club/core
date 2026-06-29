@@ -350,3 +350,41 @@ SongStudyAttemptResult:
         Optional human-facing hint derived from the server FSRS update. FSRS
         scheduling itself is server-internal; the client does not compute it.
   additionalProperties: false
+
+SongStudyTranscriptionResponse:
+  type: object
+  description: |
+    Final transcript for one say-it-back recording. Raw audio is not stored by
+    Pirate. The transcript is not itself a grade; clients submit it to
+    `POST .../study/attempts` for server-authoritative grading and FSRS update.
+  required:
+    - object
+    - provider
+    - model
+    - text
+  properties:
+    object:
+      type: string
+      enum:
+        - song_study_transcription
+    provider:
+      type: string
+      enum:
+        - elevenlabs
+    model:
+      type: string
+    text:
+      type: string
+    confidence:
+      type: number
+      nullable: true
+    language_code:
+      type: string
+      nullable: true
+    language_probability:
+      type: number
+      nullable: true
+    duration_seconds:
+      type: number
+      nullable: true
+  additionalProperties: false
