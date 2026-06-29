@@ -1,6 +1,6 @@
 # Phase 0.2: Transaction Audit and D1 Replacement Designs
 
-Status: draft
+Status: current working design
 
 This document audits the five highest-risk interactive transaction sites and specifies the D1 batch and conditional-SQL replacements. Each site has its own atomicity, idempotency, retry, and error mapping plan. The design is the basis for the phase 0.2 implementation that must complete before phase 2 begins.
 

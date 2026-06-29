@@ -1,6 +1,6 @@
 # Phase 0.1: D1 Binding Management Design
 
-Status: draft
+Status: current working design
 
 This document specifies how Pirate manages Cloudflare D1 bindings for one-database-per-community on the API Worker. It is the design that must be implemented and proven end-to-end against a synthetic community before phase 1 begins.
 
