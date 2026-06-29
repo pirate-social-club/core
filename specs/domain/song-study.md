@@ -179,21 +179,25 @@ attempt or review-state store.
 
 ### Shared content vs. per-user state
 
-The shared generated content is not per-user. A song/language study pack is
-created once and reused by all entitled learners; only answer ordering is
-deterministically personalized at response time.
+The shared generated content is not per-user. The source lyric line selection is
+canonical per song, while translation answers, distractors, and explanations are
+localized per target language. Only answer ordering is deterministically
+personalized at response time.
 
 Shared content tables:
 
-- `song_study_pack`
-- `song_study_exercise`
+- `song_study_unit` — canonical source-line review units.
+- `song_study_unit_localization` — target-language translation-choice payloads.
 
 Per-user tables:
 
 - `song_study_attempt`
 - `song_study_review_state`
 
-`source_language` is a song/pack property, not part of every per-user key.
+`source_language` is a song/unit property, not part of every per-user key.
+`say_it_back` availability lives on the source unit. `translation_choice`
+availability lives on the localization row because generation can succeed for
+one target language and fail for another.
 
 ### Table shape sketch
 
@@ -201,46 +205,51 @@ The exact migration belongs in the implementation repo, but the schema should
 follow this shape:
 
 ```sql
-CREATE TABLE song_study_pack (
-  id                 TEXT NOT NULL, -- ssp_*
+CREATE TABLE song_study_unit (
+  id                 TEXT NOT NULL, -- stu_*
   post_id            TEXT NOT NULL,
-  target_language    TEXT NOT NULL,
+  line_id            TEXT NOT NULL,
+  line_index         INTEGER NOT NULL,
   source_language    TEXT,
-  study_pack_version INTEGER NOT NULL,
-  status             TEXT NOT NULL CHECK (status IN
-                       ('ready','processing','unavailable')),
-  unavailable_reason TEXT,
+  prompt_text        TEXT NOT NULL,
+  reference_text     TEXT NOT NULL,
+  say_it_back_status TEXT NOT NULL CHECK (say_it_back_status IN
+                       ('ready','unavailable')),
+  unit_version       INTEGER NOT NULL,
+  max_attempts       INTEGER NOT NULL,
+  created_at         TEXT NOT NULL,
+  updated_at         TEXT NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE (post_id, line_id),
+  FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_song_study_unit_post
+  ON song_study_unit (post_id, line_index);
+
+CREATE TABLE song_study_unit_localization (
+  id                   TEXT NOT NULL, -- sul_*
+  unit_id              TEXT NOT NULL,
+  target_language      TEXT NOT NULL,
+  localization_version INTEGER NOT NULL,
+  status               TEXT NOT NULL CHECK (status IN
+                         ('ready','processing','unavailable')),
+  question             TEXT,
+  translation_text   TEXT,
+  options_json       TEXT,          -- translation_choice options
+  correct_option_id  TEXT,          -- server-side grading secret, never serialized by GET
+  explanation_text   TEXT,
+  max_attempts       INTEGER NOT NULL,
   generated_at       TEXT,
   created_at         TEXT NOT NULL,
   updated_at         TEXT NOT NULL,
   PRIMARY KEY (id),
-  UNIQUE (post_id, target_language, study_pack_version)
+  UNIQUE (unit_id, target_language),
+  FOREIGN KEY (unit_id) REFERENCES song_study_unit(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_song_study_pack_lookup
-  ON song_study_pack (post_id, target_language, status);
-
-CREATE TABLE song_study_exercise (
-  id                 TEXT NOT NULL, -- ex_*
-  pack_id            TEXT NOT NULL,
-  line_id            TEXT NOT NULL,
-  line_index         INTEGER NOT NULL,
-  exercise_type      TEXT NOT NULL CHECK (exercise_type IN
-                       ('say_it_back','translation_choice')),
-  prompt_text        TEXT NOT NULL,
-  question           TEXT,
-  reference_text     TEXT,
-  translation_text   TEXT,
-  options_json       TEXT,          -- translation_choice options
-  correct_option_id  TEXT,          -- server-side grading secret, never serialized by GET
-  max_attempts       INTEGER NOT NULL,
-  created_at         TEXT NOT NULL,
-  PRIMARY KEY (id),
-  FOREIGN KEY (pack_id) REFERENCES song_study_pack(id) ON DELETE CASCADE
-);
-
-CREATE INDEX idx_song_study_exercise_pack
-  ON song_study_exercise (pack_id, line_index);
+CREATE INDEX idx_song_study_unit_localization_lookup
+  ON song_study_unit_localization (target_language, status);
 ```
 
 Attempt events are the source of truth. `study_pack_version` is stamped on each
@@ -268,6 +277,7 @@ CREATE TABLE song_study_attempt (
                        ('again','hard','good','easy')),
   created_at         TEXT NOT NULL,
   PRIMARY KEY (id),
+  FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE CASCADE,
   UNIQUE (user_id, exercise_id, attempt_number),
   UNIQUE (user_id, idempotency_key)
 );
@@ -293,6 +303,7 @@ CREATE TABLE song_study_review_state (
   lapses              INTEGER NOT NULL DEFAULT 0,
   fsrs_params_version INTEGER NOT NULL,
   updated_at          TEXT NOT NULL,
+  FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE CASCADE,
   PRIMARY KEY
     (user_id, post_id, line_id, exercise_type, target_language)
 );
@@ -305,15 +316,26 @@ CREATE INDEX idx_song_study_review_due
 `song_study_attempt`. FSRS parameter changes should recompute schedules from
 attempt events rather than mutating history or resetting learners.
 
-### Pack versions and review continuity
+For `say_it_back`, the `target_language` key slot is the source language because
+the learner is practicing the source lyric pronunciation. For
+`translation_choice`, the same key slot is the requested target language.
 
-`study_pack_version` identifies a generated content revision. It belongs on
-`song_study_pack`, `song_study_exercise`, and historical
-`song_study_attempt` rows for audit and replay.
+`exercise_id` is a stable opaque identifier synthesized from
+`song_study_unit + exercise_type + language`. Attempts remain idempotent by
+`(user_id, exercise_id, attempt_number)` even though translation-choice content
+is assembled from a unit plus localization row.
 
-It MUST NOT be part of the `song_study_review_state` primary key. Regenerating a
-pack — for better translations, distractors, or prompts — must not silently
-reset a learner's schedule for the same stable review unit:
+### Versions and review continuity
+
+`unit_version` identifies source-line/unit revisions. `localization_version`
+identifies target-language generation revisions. Historical
+`song_study_attempt.study_pack_version` stores the relevant version for audit
+and replay (`unit_version` for `say_it_back`, `localization_version` for
+`translation_choice`).
+
+No version is part of the `song_study_review_state` primary key. Regenerating a
+unit or one target-language localization must not silently reset a learner's
+schedule for the same stable review unit:
 
 ```
 user_id + post_id + line_id + exercise_type + target_language
