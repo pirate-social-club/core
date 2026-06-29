@@ -12,6 +12,7 @@ on:
       - "references/templates/api-worker-auth-first-slice/**"
       - "scripts/community/apply-sqlite-migrations.sh"
       - "scripts/check-migration-integrity.mjs"
+      - "scripts/control-plane/**"
       - "scripts/control-plane/apply-postgres-migrations.ts"
       - "scripts/lib/postgres-migrations.ts"
       - "scripts/bookings/**"
@@ -27,6 +28,7 @@ on:
       - "references/templates/api-worker-auth-first-slice/**"
       - "scripts/community/apply-sqlite-migrations.sh"
       - "scripts/check-migration-integrity.mjs"
+      - "scripts/control-plane/**"
       - "scripts/control-plane/apply-postgres-migrations.ts"
       - "scripts/lib/postgres-migrations.ts"
       - "scripts/bookings/**"
@@ -166,3 +168,9 @@ jobs:
           # Owner/superuser URL to the service; the test creates its own isolated db + roles + extension.
           BOOKINGS_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
         run: bun test scripts/bookings/migration-integration.test.ts
+
+      - name: Run operator credentials migration integration test
+        env:
+          # Owner/superuser URL to the service; the test creates its own isolated db + roles.
+          CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
+        run: bun test scripts/control-plane/operator-credentials-migration.test.ts
