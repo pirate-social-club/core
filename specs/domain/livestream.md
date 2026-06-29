@@ -13,6 +13,7 @@ Related docs:
 - [performance.md](./performance.md)
 - [rights-review.md](./rights-review.md)
 - [replay.md](./replay.md)
+- [livestream-recording.md](./livestream-recording.md)
 - [live-segments.md](./live-segments.md)
 
 ## Purpose

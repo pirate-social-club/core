@@ -11,6 +11,7 @@ Related docs:
 - [marketplace.md](./marketplace.md)
 - [monetization.md](./monetization.md)
 - [rights-review.md](./rights-review.md)
+- [livestream-recording.md](./livestream-recording.md)
 
 ## Purpose
 
