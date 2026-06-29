@@ -27,9 +27,10 @@ The server is the **sole authority** on study access and content delivery.
 - The `access` field on the study payload is the only source of truth for
   whether a caller may study and whether exercise content is present.
 - Clients MUST NOT derive study availability or access from the post payload
-  shape (e.g. the presence of inline `timed_lyrics`). Such derivation is
-  permitted only as temporary client scaffolding and MUST be removed once these
-  endpoints exist.
+  shape (e.g. the presence of inline `timed_lyrics`). Post-card surfaces MAY
+  use the server-derived `study_capability` summary on `LocalizedPostResponse`
+  to decide whether to show a Study CTA, but MUST still load `GET .../study`
+  before rendering study content.
 - Study content (lyric text, translations, distractor options) is assembled
   from the authoritative store, gated by entitlement. The server MUST NOT depend
   on the public post payload to source study content.
@@ -227,9 +228,11 @@ CREATE TABLE song_study_exercise (
   exercise_type      TEXT NOT NULL CHECK (exercise_type IN
                        ('say_it_back','translation_choice')),
   prompt_text        TEXT NOT NULL,
+  question           TEXT,
   reference_text     TEXT,
   translation_text   TEXT,
-  options_json       TEXT,          -- translation_choice options, never answer metadata
+  options_json       TEXT,          -- translation_choice options
+  correct_option_id  TEXT,          -- server-side grading secret, never serialized by GET
   max_attempts       INTEGER NOT NULL,
   created_at         TEXT NOT NULL,
   PRIMARY KEY (id),

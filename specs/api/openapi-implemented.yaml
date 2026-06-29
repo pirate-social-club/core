@@ -11096,6 +11096,9 @@ components:
         song_presentation:
           $ref: "#/components/schemas/SongPresentation"
           nullable: true
+        study_capability:
+          $ref: "#/components/schemas/SongStudyCapability"
+          nullable: true
         upvote_count:
           type: integer
           minimum: 0
