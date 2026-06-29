@@ -110,9 +110,10 @@ No fetched exercise carries the correct answer.
   authoritative grade is produced by the attempts endpoint from the submitted
   transcript; the client does not perform the authoritative comparison.
 
-Determinism: distractor selection and ordering are computed server-side,
-deterministically, per `(user, post, exercise)` seed, and fixed in the response.
-No client-facing seed is exposed.
+Determinism: distractor selection and option ordering are computed server-side
+and fixed in the response. Shared generated packs MAY store a canonical option
+order for each exercise; clients MUST render the supplied array order and MUST
+NOT reshuffle locally. No client-facing seed is exposed.
 
 ## Attempts and scheduling
 
@@ -228,7 +229,7 @@ CREATE TABLE song_study_exercise (
   prompt_text        TEXT NOT NULL,
   reference_text     TEXT,
   translation_text   TEXT,
-  options_json       TEXT,          -- translation_choice options + answer metadata
+  options_json       TEXT,          -- translation_choice options, never answer metadata
   max_attempts       INTEGER NOT NULL,
   created_at         TEXT NOT NULL,
   PRIMARY KEY (id),
@@ -335,9 +336,16 @@ one-off migration.
 Study packs should be generated lazily per `(post_id, target_language)` on first
 eligible request. Do not pre-generate every possible language pair.
 
-For v1, lazy generation MAY create a ready say-it-back-only pack directly from
-the authoritative community DB lyrics after the caller's access has been
-confirmed. It MUST NOT fabricate translations or multiple-choice distractors.
-Translation-choice exercises require generated/stored translation content and
-distractors; until that pipeline exists, those exercises are absent rather than
-client-generated.
+For v1, lazy generation MAY create a ready pack directly from the authoritative
+community DB lyrics after the caller's access has been confirmed:
+
+- Say-it-back exercises can be created directly from lyric lines.
+- Translation-choice exercises require server-generated and validated
+  line-level translation content plus distractors before rows are inserted.
+- If translation generation is unavailable or invalid, the server MAY still
+  return a ready say-it-back-only pack rather than failing the whole study
+  experience.
+
+The server MUST NOT fabricate translation-choice answers on the client and MUST
+NOT derive line translations from document-level post localization unless that
+localization is explicitly line-aligned.
