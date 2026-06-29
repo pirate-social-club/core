@@ -163,6 +163,45 @@ const SCHEMA_GROUPS: Record<string, readonly string[]> = {
     "LiveRoomReplayView",
     "LiveRoomReplayAccessView",
   ],
+  bookings: [
+    "BookingStatus",
+    "BookingViewerRole",
+    "BookingView",
+    "BookingListResponse",
+    "BookingDetailResponse",
+    "BookingSlot",
+    "BookingSlotsResponse",
+    "CreateBookingHoldRequest",
+    "BookingHold",
+    "BookingHoldResponse",
+    "BookingPaymentInstructions",
+    "BookingQuote",
+    "BookingQuoteResponse",
+    "ConfirmBookingHoldRequest",
+    "BookingSnapshot",
+    "BookingConfirmResponse",
+    "BookingLifecycleSnapshot",
+    "BookingLifecycleResponse",
+    "BookingAgoraBlock",
+    "AttachBookingSessionResponse",
+    "BookingHeartbeatRequest",
+    "BookingHeartbeatResponse",
+    "HostBookingProfile",
+    "UpsertHostBookingProfileRequest",
+    "HostBookingAvailabilityRule",
+    "CreateHostBookingAvailabilityRuleRequest",
+    "UpdateHostBookingAvailabilityRuleRequest",
+    "HostBookingAvailabilityRuleListResponse",
+    "HostBookingAvailabilityException",
+    "CreateHostBookingAvailabilityExceptionRequest",
+    "UpdateHostBookingAvailabilityExceptionRequest",
+    "HostBookingAvailabilityExceptionListResponse",
+    "HostBookingPriceRule",
+    "CreateHostBookingPriceRuleRequest",
+    "UpdateHostBookingPriceRuleRequest",
+    "HostBookingPriceRuleListResponse",
+    "DeletedBookingConfigResponse",
+  ],
   "song-artifacts": [
     "SongAudioArtifactDescriptor",
     "SongImageArtifactDescriptor",
@@ -209,6 +248,7 @@ export const PATH_GROUP_ORDER = [
   "users",
   "profiles",
   "communities",
+  "bookings",
   "livestreams",
   "questions",
   "handles",
@@ -232,6 +272,7 @@ export const SCHEMA_GROUP_ORDER = [
   "communities-community",
   "market-context",
   "handles",
+  "bookings",
   "livestreams",
   "song-artifacts",
   "posts",
@@ -274,6 +315,9 @@ export function classifyPath(pathname: string): string {
   }
   if (pathname === "/communities") {
     return "communities";
+  }
+  if (pathname.startsWith("/bookings") || pathname.startsWith("/host-bookings")) {
+    return "bookings";
   }
   if (pathname.startsWith("/live-rooms/")) {
     return "livestreams";

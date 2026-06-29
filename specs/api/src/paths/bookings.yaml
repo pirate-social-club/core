@@ -1,0 +1,704 @@
+bookings:
+  get:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: List the caller's global bookings
+    parameters:
+      - in: query
+        name: role
+        schema:
+          $ref: ../components/schemas/bookings.yaml#/BookingViewerRole
+      - in: query
+        name: status
+        description: Comma-separated booking status filter.
+        schema:
+          type: string
+      - in: query
+        name: source_community_id
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Global bookings visible to the caller
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/BookingListResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+bookings_hosts_by_host_user_id_slots:
+  get:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Resolve global booking slots for a host
+    parameters:
+      - in: path
+        name: host_user_id
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: from
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: to
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: tz
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Resolved booking slots
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/BookingSlotsResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+bookings_hosts_by_host_user_id_holds:
+  post:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Create a global booking hold for a host slot
+    parameters:
+      - in: path
+        name: host_user_id
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/bookings.yaml#/CreateBookingHoldRequest
+    responses:
+      "201":
+        description: Booking hold created
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/BookingHoldResponse
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+bookings_holds_by_hold_id_quote:
+  post:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Quote a held global booking slot
+    parameters:
+      - in: path
+        name: hold_id
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: true
+    responses:
+      "200":
+        description: Booking quote and payment instructions
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/BookingQuoteResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+bookings_holds_by_hold_id_confirm:
+  post:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Confirm a held global booking after verified payment
+    parameters:
+      - in: path
+        name: hold_id
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/bookings.yaml#/ConfirmBookingHoldRequest
+    responses:
+      "200":
+        description: Booking was already confirmed
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/BookingConfirmResponse
+      "201":
+        description: Booking confirmed
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/BookingConfirmResponse
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+bookings_by_booking_id:
+  get:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Get a global booking visible to the caller
+    parameters:
+      - in: path
+        name: booking_id
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Booking detail
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/BookingDetailResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+bookings_by_booking_id_cancel:
+  post:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Cancel a global booking
+    parameters:
+      - in: path
+        name: booking_id
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Booking cancelled or already cancelled
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/BookingLifecycleResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+bookings_by_booking_id_start:
+  post:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Start a global booking session
+    parameters:
+      - in: path
+        name: booking_id
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Booking session started or already live
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/BookingLifecycleResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+bookings_by_booking_id_complete:
+  post:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Complete and settle a global booking session
+    parameters:
+      - in: path
+        name: booking_id
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Booking completed or already settled
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/BookingLifecycleResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+bookings_by_booking_id_no_show:
+  post:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Report a no-show on a global booking session
+    parameters:
+      - in: path
+        name: booking_id
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Booking no-show resolution
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/BookingLifecycleResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+bookings_by_booking_id_session_attach:
+  post:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Attach to a global booking session
+    parameters:
+      - in: path
+        name: booking_id
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Private booking session credentials
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/AttachBookingSessionResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+bookings_by_booking_id_session_heartbeat:
+  post:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Record a global booking session heartbeat
+    parameters:
+      - in: path
+        name: booking_id
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/bookings.yaml#/BookingHeartbeatRequest
+    responses:
+      "200":
+        description: Heartbeat recorded
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/BookingHeartbeatResponse
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+host_bookings_me_profile:
+  get:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Get the caller's host booking profile
+    responses:
+      "200":
+        description: Host booking profile
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/HostBookingProfile
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+  post:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Create or update the caller's host booking profile
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/bookings.yaml#/UpsertHostBookingProfileRequest
+    responses:
+      "200":
+        description: Host booking profile updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/HostBookingProfile
+      "201":
+        description: Host booking profile created
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/HostBookingProfile
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+host_bookings_me_profile_publish:
+  post:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Publish the caller's host booking profile
+    responses:
+      "200":
+        description: Published host booking profile
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/HostBookingProfile
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+host_bookings_me_profile_unpublish:
+  post:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Unpublish the caller's host booking profile
+    responses:
+      "200":
+        description: Unpublished host booking profile
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/HostBookingProfile
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+host_bookings_me_availability_rules:
+  get:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: List the caller's host availability rules
+    responses:
+      "200":
+        description: Host availability rules
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/HostBookingAvailabilityRuleListResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+  post:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Create a host availability rule
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/bookings.yaml#/CreateHostBookingAvailabilityRuleRequest
+    responses:
+      "201":
+        description: Host availability rule created
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/HostBookingAvailabilityRule
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+host_bookings_me_availability_rules_by_rule_id:
+  post:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Update a host availability rule
+    parameters:
+      - in: path
+        name: rule_id
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/bookings.yaml#/UpdateHostBookingAvailabilityRuleRequest
+    responses:
+      "200":
+        description: Host availability rule updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/HostBookingAvailabilityRule
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  delete:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Delete a host availability rule
+    parameters:
+      - in: path
+        name: rule_id
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Host availability rule deleted
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/DeletedBookingConfigResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+host_bookings_me_availability_exceptions:
+  get:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: List the caller's host availability exceptions
+    responses:
+      "200":
+        description: Host availability exceptions
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/HostBookingAvailabilityExceptionListResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+  post:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Create a host availability exception
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/bookings.yaml#/CreateHostBookingAvailabilityExceptionRequest
+    responses:
+      "201":
+        description: Host availability exception created
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/HostBookingAvailabilityException
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+host_bookings_me_availability_exceptions_by_exception_id:
+  post:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Update a host availability exception
+    parameters:
+      - in: path
+        name: exception_id
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/bookings.yaml#/UpdateHostBookingAvailabilityExceptionRequest
+    responses:
+      "200":
+        description: Host availability exception updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/HostBookingAvailabilityException
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  delete:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Delete a host availability exception
+    parameters:
+      - in: path
+        name: exception_id
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Host availability exception deleted
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/DeletedBookingConfigResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+host_bookings_me_price_rules:
+  get:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: List the caller's host price rules
+    responses:
+      "200":
+        description: Host price rules
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/HostBookingPriceRuleListResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+  post:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Create a host price rule
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/bookings.yaml#/CreateHostBookingPriceRuleRequest
+    responses:
+      "201":
+        description: Host price rule created
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/HostBookingPriceRule
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+host_bookings_me_price_rules_by_price_rule_id:
+  post:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Update a host price rule
+    parameters:
+      - in: path
+        name: price_rule_id
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/bookings.yaml#/UpdateHostBookingPriceRuleRequest
+    responses:
+      "200":
+        description: Host price rule updated
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/HostBookingPriceRule
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  delete:
+    x-implemented: true
+    tags:
+      - Bookings
+    summary: Delete a host price rule
+    parameters:
+      - in: path
+        name: price_rule_id
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Host price rule deleted
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/DeletedBookingConfigResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
