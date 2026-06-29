@@ -116,6 +116,11 @@ attempt as an **event** (not merely the final state, so the schedule can be
 recomputed if the algorithm or parameters change), advances the FSRS schedule
 for the review unit, and returns the verdict.
 
+- Attempt writes MUST be idempotent. The client supplies an `idempotency_key`;
+  the server deduplicates by `(user_id, exercise_id, attempt_number)` and the
+  idempotency key, returning the original result for an equivalent retry and
+  rejecting conflicting payload reuse. A retry MUST NOT double-record an event
+  or double-advance FSRS.
 - The correct answer is disclosed only once the attempt is spent — a correct
   answer, or an incorrect final attempt (`outcome: revealed`).
 - `say_it_back` grading normalizes the transcript under the **target language's**
@@ -140,3 +145,185 @@ score concept answers "how did this session go?" — the two MUST NOT be conflat
 These endpoints describe **one song's full study pack**. FSRS-scheduled,
 cross-song "due today" review sessions are a separate concern and are not
 modeled here.
+
+## Persistence
+
+Study persistence is community-scoped. The canonical store for study packs,
+attempt events, and review state is the community D1 database because study is
+tied to community-owned song content. This mirrors karaoke attempts: ownership,
+locality, deletion, and privacy boundaries follow the community and the song.
+
+This is intentionally the opposite boundary from global bookings-like data:
+bookings are not owned by a song post, but study data is.
+
+### Privacy posture (v1)
+
+Study is private learner data in v1.
+
+- No public study leaderboards.
+- No community aggregate study surfaces.
+- No moderator/member reads of another learner's attempts by default.
+- Any future social ranking, streak, or aggregate surface requires an explicit
+  opt-in read model and access-control review.
+
+If Pirate later needs a cross-community "due today" study dashboard, publish a
+derived user-level projection/index. That projection is never the canonical
+attempt or review-state store.
+
+### Shared content vs. per-user state
+
+The shared generated content is not per-user. A song/language study pack is
+created once and reused by all entitled learners; only answer ordering is
+deterministically personalized at response time.
+
+Shared content tables:
+
+- `song_study_pack`
+- `song_study_exercise`
+
+Per-user tables:
+
+- `song_study_attempt`
+- `song_study_review_state`
+
+`source_language` is a song/pack property, not part of every per-user key.
+
+### Table shape sketch
+
+The exact migration belongs in the implementation repo, but the schema should
+follow this shape:
+
+```sql
+CREATE TABLE song_study_pack (
+  id                 TEXT NOT NULL, -- ssp_*
+  post_id            TEXT NOT NULL,
+  target_language    TEXT NOT NULL,
+  source_language    TEXT,
+  study_pack_version INTEGER NOT NULL,
+  status             TEXT NOT NULL CHECK (status IN
+                       ('ready','processing','unavailable')),
+  unavailable_reason TEXT,
+  generated_at       TEXT,
+  created_at         TEXT NOT NULL,
+  updated_at         TEXT NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE (post_id, target_language, study_pack_version)
+);
+
+CREATE INDEX idx_song_study_pack_lookup
+  ON song_study_pack (post_id, target_language, status);
+
+CREATE TABLE song_study_exercise (
+  id                 TEXT NOT NULL, -- ex_*
+  pack_id            TEXT NOT NULL,
+  line_id            TEXT NOT NULL,
+  line_index         INTEGER NOT NULL,
+  exercise_type      TEXT NOT NULL CHECK (exercise_type IN
+                       ('say_it_back','translation_choice')),
+  prompt_text        TEXT NOT NULL,
+  reference_text     TEXT,
+  translation_text   TEXT,
+  options_json       TEXT,          -- translation_choice options + answer metadata
+  max_attempts       INTEGER NOT NULL,
+  created_at         TEXT NOT NULL,
+  PRIMARY KEY (id),
+  FOREIGN KEY (pack_id) REFERENCES song_study_pack(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_song_study_exercise_pack
+  ON song_study_exercise (pack_id, line_index);
+```
+
+Attempt events are the source of truth. `study_pack_version` is stamped on each
+attempt for audit/replay, but it is not part of the review-state key.
+
+```sql
+CREATE TABLE song_study_attempt (
+  id                 TEXT NOT NULL, -- sta_*
+  user_id            TEXT NOT NULL,
+  post_id            TEXT NOT NULL,
+  exercise_id        TEXT NOT NULL,
+  line_id            TEXT NOT NULL,
+  exercise_type      TEXT NOT NULL CHECK (exercise_type IN
+                       ('say_it_back','translation_choice')),
+  target_language    TEXT NOT NULL,
+  study_pack_version INTEGER NOT NULL,
+  attempt_number     INTEGER NOT NULL,
+  idempotency_key    TEXT NOT NULL,
+  selected_option_id TEXT,
+  transcript         TEXT,          -- final say-it-back transcript only
+  outcome            TEXT NOT NULL CHECK (outcome IN
+                       ('correct','incorrect','revealed')),
+  feedback_json      TEXT,
+  fsrs_rating        TEXT CHECK (fsrs_rating IN
+                       ('again','hard','good','easy')),
+  created_at         TEXT NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE (user_id, exercise_id, attempt_number),
+  UNIQUE (user_id, idempotency_key)
+);
+
+CREATE INDEX idx_song_study_attempt_review_unit
+  ON song_study_attempt
+     (user_id, post_id, line_id, exercise_type, target_language, created_at);
+
+CREATE TABLE song_study_review_state (
+  user_id             TEXT NOT NULL,
+  post_id             TEXT NOT NULL,
+  line_id             TEXT NOT NULL,
+  exercise_type       TEXT NOT NULL CHECK (exercise_type IN
+                        ('say_it_back','translation_choice')),
+  target_language     TEXT NOT NULL,
+  state               TEXT NOT NULL CHECK (state IN
+                        ('new','learning','review','relearning')),
+  stability           REAL NOT NULL,
+  difficulty          REAL NOT NULL,
+  due_at              TEXT NOT NULL,
+  last_reviewed_at    TEXT,
+  reps                INTEGER NOT NULL DEFAULT 0,
+  lapses              INTEGER NOT NULL DEFAULT 0,
+  fsrs_params_version INTEGER NOT NULL,
+  updated_at          TEXT NOT NULL,
+  PRIMARY KEY
+    (user_id, post_id, line_id, exercise_type, target_language)
+);
+
+CREATE INDEX idx_song_study_review_due
+  ON song_study_review_state (user_id, due_at);
+```
+
+`song_study_review_state` is a projection rebuildable from
+`song_study_attempt`. FSRS parameter changes should recompute schedules from
+attempt events rather than mutating history or resetting learners.
+
+### Pack versions and review continuity
+
+`study_pack_version` identifies a generated content revision. It belongs on
+`song_study_pack`, `song_study_exercise`, and historical
+`song_study_attempt` rows for audit and replay.
+
+It MUST NOT be part of the `song_study_review_state` primary key. Regenerating a
+pack — for better translations, distractors, or prompts — must not silently
+reset a learner's schedule for the same stable review unit:
+
+```
+user_id + post_id + line_id + exercise_type + target_language
+```
+
+### Retention
+
+- Store the final say-it-back transcript per attempt.
+- Do not store raw audio.
+- Do not store interim STT partials.
+- Do not store provider debug blobs in D1.
+- If temporary debugging artifacts are required, keep them outside D1 with short
+  retention and explicit access controls.
+
+### Migration and generation posture
+
+The community database is sharded across live communities, so adding these
+tables requires the established per-community D1 migration runner rather than a
+one-off migration.
+
+Study packs should be generated lazily per `(post_id, target_language)` on first
+eligible request. Do not pre-generate every possible language pair.

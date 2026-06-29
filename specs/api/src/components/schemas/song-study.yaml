@@ -248,11 +248,22 @@ SongStudyAttemptRequest:
     (translation_choice) or `transcript` (say_it_back) must be present, matching
     `type`. The server validates the answer, records the attempt EVENT (not just
     final state), advances the FSRS schedule, and returns the verdict.
+
+    Attempt writes are idempotent. Reusing the same `idempotency_key` for the
+    same equivalent request returns the original result; conflicting reuse is
+    rejected. Retries must not double-record an event or double-advance FSRS.
   required:
+    - idempotency_key
     - exercise_id
     - type
     - attempt_number
   properties:
+    idempotency_key:
+      type: string
+      description: |
+        Client-generated idempotency key for this attempt write. Scoped to the
+        authenticated user; equivalent retries return the original result and
+        conflicting reuse is rejected.
     exercise_id:
       type: string
     type:
