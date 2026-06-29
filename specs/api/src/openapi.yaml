@@ -36,6 +36,7 @@ tags:
   - name: Questions
   - name: Feeds
   - name: Tracks
+  - name: Song Study
   - name: Moderation
   - name: MPP
   - name: Notifications
@@ -253,6 +254,10 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_posts_by_post_id_comments_lock
   /communities/{community_id}/posts/{post_id}/reports:
     $ref: ./paths/communities.yaml#/communities_by_community_id_posts_by_post_id_reports
+  /communities/{community_id}/posts/{post_id}/study:
+    $ref: ./paths/song-study.yaml#/communities_by_community_id_posts_by_post_id_study
+  /communities/{community_id}/posts/{post_id}/study/attempts:
+    $ref: ./paths/song-study.yaml#/communities_by_community_id_posts_by_post_id_study_attempts
   /communities/{community_id}/comments/{comment_id}/reports:
     $ref: ./paths/communities.yaml#/communities_by_community_id_comments_by_comment_id_reports
   /communities/{community_id}/moderation/cases:
@@ -442,6 +447,20 @@ components:
   schemas:
     Error:
       $ref: ./components/schemas/common.yaml#/Error
+    SongStudyPayload:
+      $ref: ./components/schemas/song-study.yaml#/SongStudyPayload
+    SongStudyAccessState:
+      $ref: ./components/schemas/song-study.yaml#/SongStudyAccessState
+    SongStudyLockedReason:
+      $ref: ./components/schemas/song-study.yaml#/SongStudyLockedReason
+    SongStudyUnavailableReason:
+      $ref: ./components/schemas/song-study.yaml#/SongStudyUnavailableReason
+    SongStudyExercise:
+      $ref: ./components/schemas/song-study.yaml#/SongStudyExercise
+    SongStudyAttemptRequest:
+      $ref: ./components/schemas/song-study.yaml#/SongStudyAttemptRequest
+    SongStudyAttemptResult:
+      $ref: ./components/schemas/song-study.yaml#/SongStudyAttemptResult
     SessionExchangeResponse:
       $ref: ./components/schemas/auth.yaml#/SessionExchangeResponse
     OAuthDeviceAuthorizeRequest:

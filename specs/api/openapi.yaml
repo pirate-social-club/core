@@ -37,6 +37,7 @@ tags:
   - name: Questions
   - name: Feeds
   - name: Tracks
+  - name: Song Study
   - name: Moderation
   - name: MPP
   - name: Notifications
@@ -3495,6 +3496,250 @@ paths:
           $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /communities/{community_id}/posts/{post_id}/study:
+    get:
+      tags:
+        - Song Study
+      summary: Fetch the study pack for a song post
+      description: |
+        Returns the canonical study pack for a song post in the given community.
+        The server makes the access decision and is the SOLE authority on whether
+        the caller may study and whether exercise content is included; the client
+        must not derive access from the post payload shape.
+
+        Authentication (v1): this endpoint REQUIRES authentication. Logged-out /
+        public study is a later product decision that would require token-optional
+        access plus public/free entitlement handling; until then unauthenticated
+        callers receive `401 auth_error` and the `locked` state is only ever seen
+        by authenticated, non-entitled callers.
+
+        Access states (returned in the body, not as status codes — except auth):
+          - `ready`       — caller may study; `exercises` populated.
+          - `locked`      — post exists but access denied. Returned with `200`
+                            (NOT `404`) so the client can render the locked study
+                            surface. For a locked song, `ready` requires the
+                            caller to be the author OR hold an active purchaser
+                            entitlement; `viewer_is_author` alone is insufficient.
+          - `processing`  — alignment / pack generation pending.
+          - `unavailable` — song cannot support study.
+
+        Content gating: when `access` is not `ready`, the response contains NO
+        lyric text, NO translations, and NO distractor options. The server
+        assembles study content from the authoritative store gated by
+        entitlement, never from the public post payload.
+
+        Determinism: distractor options are server-shuffled deterministically per
+        (user, post, exercise) seed; the order is fixed in the response. The
+        client renders options in array order and never re-sorts or generates
+        answers.
+
+        Error codes:
+          - `401 auth_error` — caller is not authenticated.
+          - `404 not_found`  — community not found (an existing post the caller
+            cannot access returns `200` with `access: "locked"`, not `404`).
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/PostId"
+        - in: query
+          name: target_language
+          required: false
+          schema:
+            type: string
+          description: |
+            BCP-47 target language to study the song in. A song may be studyable
+            in several target languages; defaults to the caller's content locale
+            when omitted. The resolved pair is echoed in the response and is part
+            of the spaced-repetition review-unit key.
+      responses:
+        "200":
+          description: |
+            Study pack. The `access` field discriminates `ready` / `locked` /
+            `processing` / `unavailable`; exercise content is present only for
+            `ready`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SongStudyPayload"
+              examples:
+                ready:
+                  summary: Entitled caller, pack ready
+                  value:
+                    object: song_study_payload
+                    post_id: post_00000000-0000-4000-8000-000000000001
+                    community_id: comm_00000000-0000-4000-8000-000000000001
+                    access: ready
+                    title: Midnight Waves
+                    artist_name: kevin.tameimpala
+                    artwork_src: https://media.example/cover.jpg
+                    source_language: en
+                    target_language: es
+                    study_pack_version: 1
+                    generated_at: 1800000000
+                    exercise_count: 2
+                    exercises:
+                      - id: ex_say_1
+                        type: say_it_back
+                        line_id: line_001
+                        line_index: 0
+                        prompt_text: I was lost in the midnight waves
+                        reference_text: I was lost in the midnight waves
+                        translation_text: Estaba perdido en las olas de medianoche
+                        max_attempts: 2
+                      - id: ex_choice_1
+                        type: translation_choice
+                        line_id: line_002
+                        line_index: 1
+                        prompt_text: Hold me close until the morning
+                        question: "Translate:"
+                        options:
+                          - id: opt_a
+                            text: Abrázame fuerte hasta la mañana
+                          - id: opt_b
+                            text: Déjame ir antes del amanecer
+                          - id: opt_c
+                            text: Canta conmigo toda la noche
+                        max_attempts: 2
+                locked:
+                  summary: Authenticated but not entitled to a locked song
+                  value:
+                    object: song_study_payload
+                    post_id: post_00000000-0000-4000-8000-000000000002
+                    community_id: comm_00000000-0000-4000-8000-000000000001
+                    access: locked
+                    title: Midnight Waves (Deluxe)
+                    artist_name: kevin.tameimpala
+                    artwork_src: https://media.example/cover-deluxe.jpg
+                    source_language: en
+                    target_language: es
+                    exercise_count: 0
+                    exercises: []
+                    locked_reason: purchase_required
+                processing:
+                  summary: Lyrics alignment / generation pending
+                  value:
+                    object: song_study_payload
+                    post_id: post_00000000-0000-4000-8000-000000000003
+                    community_id: comm_00000000-0000-4000-8000-000000000001
+                    access: processing
+                    title: New Single
+                    exercise_count: 0
+                    exercises: []
+                unavailable:
+                  summary: Song cannot support study
+                  value:
+                    object: song_study_payload
+                    post_id: post_00000000-0000-4000-8000-000000000004
+                    community_id: comm_00000000-0000-4000-8000-000000000001
+                    access: unavailable
+                    title: Instrumental Interlude
+                    exercise_count: 0
+                    exercises: []
+                    unavailable_reason: no_lyrics
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/posts/{post_id}/study/attempts:
+    post:
+      tags:
+        - Song Study
+      summary: Submit a study attempt and receive the server verdict
+      description: |
+        Validates a single attempt at one exercise SERVER-SIDE, records the
+        attempt as an event (not merely the final state), advances the
+        spaced-repetition (FSRS) schedule for the exercise's review unit, and
+        returns the verdict.
+
+        Answer integrity: the correct answer is never resident in the fetched
+        study pack. For `translation_choice`, the correct option is disclosed only
+        in this response and only once the attempt is spent (a correct answer, or
+        an incorrect final attempt → `outcome: revealed`). For `say_it_back`, the
+        server normalizes the submitted transcript under the target language's
+        tokenization / accent / punctuation policy and returns a token-level diff.
+
+        Authentication: required, same posture as the GET.
+
+        Error codes:
+          - `400 bad_request` — body invalid, `attempt_number` exceeds
+            `max_attempts`, or the payload field does not match `type`.
+          - `401 auth_error`  — caller is not authenticated.
+          - `403 forbidden`   — caller is not entitled to study this post
+            (mirrors a `locked` GET).
+          - `404 not_found`   — community, post, or exercise not found.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/PostId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SongStudyAttemptRequest"
+            examples:
+              translation_choice:
+                summary: Multiple-choice selection
+                value:
+                  exercise_id: ex_choice_1
+                  type: translation_choice
+                  attempt_number: 1
+                  selected_option_id: opt_a
+              say_it_back:
+                summary: Spoken transcript
+                value:
+                  exercise_id: ex_say_1
+                  type: say_it_back
+                  attempt_number: 1
+                  transcript: I was lost in the midnight waves
+      responses:
+        "200":
+          description: Attempt verdict.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SongStudyAttemptResult"
+              examples:
+                correct:
+                  summary: Correct multiple-choice answer
+                  value:
+                    object: song_study_attempt_result
+                    exercise_id: ex_choice_1
+                    outcome: correct
+                    attempts_remaining: 1
+                    correct_option_id: opt_a
+                    next_review_hint: good
+                incorrect_not_spent:
+                  summary: Wrong first attempt, answer withheld
+                  value:
+                    object: song_study_attempt_result
+                    exercise_id: ex_choice_1
+                    outcome: incorrect
+                    attempts_remaining: 1
+                say_it_back_partial:
+                  summary: Spoken attempt with token feedback
+                  value:
+                    object: song_study_attempt_result
+                    exercise_id: ex_say_1
+                    outcome: incorrect
+                    attempts_remaining: 1
+                    feedback:
+                      matched:
+                        - I
+                        - was
+                        - in
+                        - the
+                        - midnight
+                        - waves
+                      missing:
+                        - lost
+                      extra: []
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /communities/{community_id}/comments/{comment_id}/reports:
     post:
       tags:
@@ -5216,6 +5461,341 @@ components:
           type: object
           nullable: true
           additionalProperties: true
+    SongStudyPayload:
+      type: object
+      description: |
+        Canonical study pack for one song post. The `access` field is the SOLE
+        authority on whether the caller may study and whether exercise content is
+        present; clients must not re-derive access from the post payload.
+
+        Always-safe metadata (`title`, `artist_name`, `artwork_src`, the language
+        pair) is returned in EVERY access state so the locked/processing surfaces
+        can show context. Lyric / translation / option text appears only when
+        `access` is `ready` (see normative invariants in specs/domain/song-study.md).
+
+        Scope: this is one song's full study pack. FSRS-scheduled, cross-song
+        "due today" sessions are a separate concern and not modeled here.
+      required:
+        - object
+        - post_id
+        - community_id
+        - access
+        - title
+        - exercise_count
+        - exercises
+      properties:
+        object:
+          type: string
+          enum:
+            - song_study_payload
+        post_id:
+          type: string
+        community_id:
+          type: string
+        access:
+          $ref: "#/components/schemas/SongStudyAccessState"
+        title:
+          type: string
+          description: Always returned (also present on the post card).
+        artist_name:
+          type: string
+          nullable: true
+          description: Always-safe metadata; may be returned in any access state.
+        artwork_src:
+          type: string
+          nullable: true
+          description: Always-safe metadata; may be returned in any access state.
+        source_language:
+          type: string
+          nullable: true
+          description: |
+            BCP-47 language of the lyrics. Echoed in every access state so the
+            locked/processing surfaces can label the pair. Part of the FSRS key.
+        target_language:
+          type: string
+          nullable: true
+          description: |
+            BCP-47 study target language (echo of the resolved `target_language`
+            query, or the caller's content locale). Part of the FSRS key.
+        exercise_count:
+          type: integer
+          description: |
+            Number of exercises. MUST equal `exercises.length`. Zero whenever
+            `access` is not `ready`.
+        exercises:
+          type: array
+          description: |
+            Exercises, in presentation order. Empty whenever `access` is not
+            `ready`. Never contains lyric/translation/option text for a
+            non-`ready` pack.
+          items:
+            $ref: "#/components/schemas/SongStudyExercise"
+        study_pack_version:
+          type: integer
+          description: |
+            Generation version of this pack. Bump when generation logic or
+            distractor selection changes so cached packs and historical attempts
+            can be compared/invalidated. Present only when `access` is `ready`.
+        generated_at:
+          type: integer
+          format: int64
+          description: |
+            Unix seconds at which this pack was generated. Present only when
+            `access` is `ready`.
+        locked_reason:
+          $ref: "#/components/schemas/SongStudyLockedReason"
+        unavailable_reason:
+          $ref: "#/components/schemas/SongStudyUnavailableReason"
+      additionalProperties: false
+    SongStudyAccessState:
+      type: string
+      description: |
+        Authoritative access decision for a song's study pack, made server-side.
+        The client never derives this from post payload shape.
+          - `ready`       — caller may study; exercise content is included.
+          - `locked`      — post exists but access is denied. Returned INSTEAD of
+                            404 so the client can render the locked study surface.
+                            Paired with `locked_reason`.
+          - `processing`  — lyrics alignment / study-pack generation is pending.
+                            No exercise content.
+          - `unavailable` — the song cannot support study. Paired with
+                            `unavailable_reason`. No exercise content.
+      enum:
+        - ready
+        - locked
+        - processing
+        - unavailable
+    SongStudyLockedReason:
+      type: string
+      description: Why a study pack is `locked`. Present only when `access` is `locked`.
+      enum:
+        - purchase_required
+        - membership_required
+        - age_required
+    SongStudyUnavailableReason:
+      type: string
+      description: Why a study pack is `unavailable`. Present only when `access` is `unavailable`.
+      enum:
+        - not_song
+        - no_lyrics
+        - unsupported_language
+        - generation_failed
+    SongStudyExercise:
+      description: |
+        A single study exercise. `line_id` is STABLE across fetches and, together
+        with the exercise `type` and the payload's source/target language pair,
+        forms the spaced-repetition (FSRS) review-unit key. `line_index` is
+        presentation order only and carries no scheduling meaning.
+
+        Answer-integrity contract: no exercise variant carries the correct answer.
+        For `translation_choice` the `options` array is server-shuffled and the
+        correct option is NOT identified here — the client renders options in array
+        order and submits a choice to `POST .../study/attempts` for server-side
+        validation. For `say_it_back`, `reference_text` is the visible target line
+        (legitimately visible to an entitled learner); grading of the spoken
+        transcript is performed server-side by the attempts endpoint, which owns
+        normalization and the set of accepted variants.
+      oneOf:
+        - type: object
+          title: SongStudySayItBackExercise
+          required:
+            - id
+            - type
+            - line_id
+            - line_index
+            - prompt_text
+            - reference_text
+            - max_attempts
+          properties:
+            id:
+              type: string
+              description: Opaque, stable exercise identifier.
+            type:
+              type: string
+              enum:
+                - say_it_back
+            line_id:
+              type: string
+              description: |
+                Stable lyric-line identifier. Stable across fetches and pack
+                versions for the same underlying line; the FSRS review-unit key.
+            line_index:
+              type: integer
+              description: Presentation order only. Not a scheduling signal.
+            prompt_text:
+              type: string
+              description: |
+                What is shown/played to the learner (e.g. the line to read back, or
+                a translation to produce from). May equal `reference_text` for a
+                read-back exercise.
+            reference_text:
+              type: string
+              description: |
+                The visible target line the learner is asked to produce. NOT a
+                grading secret: it is the lyric line, which is already visible to an
+                entitled learner. The authoritative grade comes from the attempts
+                endpoint, not from a client-side comparison against this value.
+            translation_text:
+              type: string
+              nullable: true
+              description: Optional translation of the line in the target language.
+            max_attempts:
+              type: integer
+              description: |
+                Maximum attempts before the line is revealed. Server-tunable per
+                exercise/config.
+          additionalProperties: false
+        - type: object
+          title: SongStudyTranslationChoiceExercise
+          required:
+            - id
+            - type
+            - line_id
+            - line_index
+            - prompt_text
+            - question
+            - options
+            - max_attempts
+          properties:
+            id:
+              type: string
+              description: Opaque, stable exercise identifier.
+            type:
+              type: string
+              enum:
+                - translation_choice
+            line_id:
+              type: string
+              description: Stable lyric-line identifier; the FSRS review-unit key.
+            line_index:
+              type: integer
+              description: Presentation order only.
+            prompt_text:
+              type: string
+              description: The source line being asked about.
+            question:
+              type: string
+              description: |
+                Instruction shown to the learner (e.g. "Translate:"). A free string
+                for localization rather than a fixed literal.
+            options:
+              type: array
+              description: |
+                Candidate answers, SERVER-shuffled. The correct option is NOT
+                identified. The client renders options in array order and MUST NOT
+                re-sort or shuffle them.
+              items:
+                type: object
+                required:
+                  - id
+                  - text
+                properties:
+                  id:
+                    type: string
+                  text:
+                    type: string
+                additionalProperties: false
+            max_attempts:
+              type: integer
+              description: Maximum attempts before the answer is revealed. Server-tunable.
+          additionalProperties: false
+    SongStudyAttemptRequest:
+      type: object
+      description: |
+        A single attempt at one exercise. Exactly one of `selected_option_id`
+        (translation_choice) or `transcript` (say_it_back) must be present, matching
+        `type`. The server validates the answer, records the attempt EVENT (not just
+        final state), advances the FSRS schedule, and returns the verdict.
+      required:
+        - exercise_id
+        - type
+        - attempt_number
+      properties:
+        exercise_id:
+          type: string
+        type:
+          type: string
+          enum:
+            - say_it_back
+            - translation_choice
+        attempt_number:
+          type: integer
+          description: |
+            1-based attempt index. The server rejects values greater than the
+            exercise's `max_attempts`.
+        selected_option_id:
+          type: string
+          description: Required for `translation_choice`; omitted otherwise.
+        transcript:
+          type: string
+          description: |
+            Final STT transcript for `say_it_back`; omitted otherwise. The server
+            owns normalization and the accepted-variant policy.
+      additionalProperties: false
+    SongStudyAttemptResult:
+      type: object
+      description: |
+        Server verdict for one submitted attempt. The correct answer is disclosed
+        only once the attempt is spent (a correct answer, or an incorrect final
+        attempt) so the answer is never resident in the client before then.
+      required:
+        - object
+        - exercise_id
+        - outcome
+        - attempts_remaining
+      properties:
+        object:
+          type: string
+          enum:
+            - song_study_attempt_result
+        exercise_id:
+          type: string
+        outcome:
+          type: string
+          enum:
+            - correct
+            - incorrect
+            - revealed
+          description: |
+            `revealed` is returned when the final attempt was incorrect and the
+            answer is now disclosed.
+        attempts_remaining:
+          type: integer
+        correct_option_id:
+          type: string
+          description: |
+            For `translation_choice`, the correct option. Returned ONLY when the
+            attempt is spent (`outcome` is `correct` or `revealed`).
+        feedback:
+          type: object
+          description: |
+            Token-level diff for `say_it_back`, computed server-side under the
+            target language's tokenization / accent / punctuation policy.
+          properties:
+            matched:
+              type: array
+              items:
+                type: string
+            missing:
+              type: array
+              items:
+                type: string
+            extra:
+              type: array
+              items:
+                type: string
+          additionalProperties: false
+        next_review_hint:
+          type: string
+          enum:
+            - again
+            - hard
+            - good
+            - easy
+          description: |
+            Optional human-facing hint derived from the server FSRS update. FSRS
+            scheduling itself is server-internal; the client does not compute it.
+      additionalProperties: false
     SessionExchangeResponse:
       type: object
       required:
