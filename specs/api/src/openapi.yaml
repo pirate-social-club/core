@@ -33,6 +33,7 @@ tags:
   - name: Posts
   - name: Comments
   - name: Livestreams
+  - name: Bookings
   - name: Questions
   - name: Feeds
   - name: Tracks
@@ -271,6 +272,54 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_song_artifacts_by_song_artifact_bundle_id
   /communities/{community_id}/civility-policy:
     $ref: ./paths/communities.yaml#/communities_by_community_id_civility_policy
+  /bookings:
+    $ref: ./paths/bookings.yaml#/bookings
+  /bookings/hosts/{host_user_id}/slots:
+    $ref: ./paths/bookings.yaml#/bookings_hosts_by_host_user_id_slots
+  /bookings/hosts/{host_user_id}/holds:
+    $ref: ./paths/bookings.yaml#/bookings_hosts_by_host_user_id_holds
+  /bookings/holds/{hold_id}/quote:
+    $ref: ./paths/bookings.yaml#/bookings_holds_by_hold_id_quote
+  /bookings/holds/{hold_id}/confirm:
+    $ref: ./paths/bookings.yaml#/bookings_holds_by_hold_id_confirm
+  /bookings/settlement-review/pending:
+    $ref: ./paths/bookings.yaml#/bookings_settlement_review_pending
+  /bookings/{booking_id}:
+    $ref: ./paths/bookings.yaml#/bookings_by_booking_id
+  /bookings/{booking_id}/settlement-review:
+    $ref: ./paths/bookings.yaml#/bookings_by_booking_id_settlement_review
+  /bookings/{booking_id}/settlement-review/resolve:
+    $ref: ./paths/bookings.yaml#/bookings_by_booking_id_settlement_review_resolve
+  /bookings/{booking_id}/cancel:
+    $ref: ./paths/bookings.yaml#/bookings_by_booking_id_cancel
+  /bookings/{booking_id}/start:
+    $ref: ./paths/bookings.yaml#/bookings_by_booking_id_start
+  /bookings/{booking_id}/complete:
+    $ref: ./paths/bookings.yaml#/bookings_by_booking_id_complete
+  /bookings/{booking_id}/no-show:
+    $ref: ./paths/bookings.yaml#/bookings_by_booking_id_no_show
+  /bookings/{booking_id}/session/attach:
+    $ref: ./paths/bookings.yaml#/bookings_by_booking_id_session_attach
+  /bookings/{booking_id}/session/heartbeat:
+    $ref: ./paths/bookings.yaml#/bookings_by_booking_id_session_heartbeat
+  /host-bookings/me/profile:
+    $ref: ./paths/bookings.yaml#/host_bookings_me_profile
+  /host-bookings/me/profile/publish:
+    $ref: ./paths/bookings.yaml#/host_bookings_me_profile_publish
+  /host-bookings/me/profile/unpublish:
+    $ref: ./paths/bookings.yaml#/host_bookings_me_profile_unpublish
+  /host-bookings/me/availability-rules:
+    $ref: ./paths/bookings.yaml#/host_bookings_me_availability_rules
+  /host-bookings/me/availability-rules/{rule_id}:
+    $ref: ./paths/bookings.yaml#/host_bookings_me_availability_rules_by_rule_id
+  /host-bookings/me/availability-exceptions:
+    $ref: ./paths/bookings.yaml#/host_bookings_me_availability_exceptions
+  /host-bookings/me/availability-exceptions/{exception_id}:
+    $ref: ./paths/bookings.yaml#/host_bookings_me_availability_exceptions_by_exception_id
+  /host-bookings/me/price-rules:
+    $ref: ./paths/bookings.yaml#/host_bookings_me_price_rules
+  /host-bookings/me/price-rules/{price_rule_id}:
+    $ref: ./paths/bookings.yaml#/host_bookings_me_price_rules_by_price_rule_id
   /live-rooms/{live_room_id}:
     $ref: ./paths/livestreams.yaml#/live_rooms_by_live_room_id
   /live-rooms/{live_room_id}/access:
@@ -734,6 +783,80 @@ components:
       $ref: ./components/schemas/livestreams.yaml#/LiveRoomReplayView
     LiveRoomReplayAccessView:
       $ref: ./components/schemas/livestreams.yaml#/LiveRoomReplayAccessView
+    BookingStatus:
+      $ref: ./components/schemas/bookings.yaml#/BookingStatus
+    BookingViewerRole:
+      $ref: ./components/schemas/bookings.yaml#/BookingViewerRole
+    BookingView:
+      $ref: ./components/schemas/bookings.yaml#/BookingView
+    BookingListResponse:
+      $ref: ./components/schemas/bookings.yaml#/BookingListResponse
+    BookingDetailResponse:
+      $ref: ./components/schemas/bookings.yaml#/BookingDetailResponse
+    BookingSlot:
+      $ref: ./components/schemas/bookings.yaml#/BookingSlot
+    BookingSlotsResponse:
+      $ref: ./components/schemas/bookings.yaml#/BookingSlotsResponse
+    CreateBookingHoldRequest:
+      $ref: ./components/schemas/bookings.yaml#/CreateBookingHoldRequest
+    BookingHold:
+      $ref: ./components/schemas/bookings.yaml#/BookingHold
+    BookingHoldResponse:
+      $ref: ./components/schemas/bookings.yaml#/BookingHoldResponse
+    BookingPaymentInstructions:
+      $ref: ./components/schemas/bookings.yaml#/BookingPaymentInstructions
+    BookingQuote:
+      $ref: ./components/schemas/bookings.yaml#/BookingQuote
+    BookingQuoteResponse:
+      $ref: ./components/schemas/bookings.yaml#/BookingQuoteResponse
+    ConfirmBookingHoldRequest:
+      $ref: ./components/schemas/bookings.yaml#/ConfirmBookingHoldRequest
+    BookingSnapshot:
+      $ref: ./components/schemas/bookings.yaml#/BookingSnapshot
+    BookingConfirmResponse:
+      $ref: ./components/schemas/bookings.yaml#/BookingConfirmResponse
+    BookingLifecycleSnapshot:
+      $ref: ./components/schemas/bookings.yaml#/BookingLifecycleSnapshot
+    BookingLifecycleResponse:
+      $ref: ./components/schemas/bookings.yaml#/BookingLifecycleResponse
+    BookingAgoraBlock:
+      $ref: ./components/schemas/bookings.yaml#/BookingAgoraBlock
+    AttachBookingSessionResponse:
+      $ref: ./components/schemas/bookings.yaml#/AttachBookingSessionResponse
+    BookingHeartbeatRequest:
+      $ref: ./components/schemas/bookings.yaml#/BookingHeartbeatRequest
+    BookingHeartbeatResponse:
+      $ref: ./components/schemas/bookings.yaml#/BookingHeartbeatResponse
+    HostBookingProfile:
+      $ref: ./components/schemas/bookings.yaml#/HostBookingProfile
+    UpsertHostBookingProfileRequest:
+      $ref: ./components/schemas/bookings.yaml#/UpsertHostBookingProfileRequest
+    HostBookingAvailabilityRule:
+      $ref: ./components/schemas/bookings.yaml#/HostBookingAvailabilityRule
+    CreateHostBookingAvailabilityRuleRequest:
+      $ref: ./components/schemas/bookings.yaml#/CreateHostBookingAvailabilityRuleRequest
+    UpdateHostBookingAvailabilityRuleRequest:
+      $ref: ./components/schemas/bookings.yaml#/UpdateHostBookingAvailabilityRuleRequest
+    HostBookingAvailabilityRuleListResponse:
+      $ref: ./components/schemas/bookings.yaml#/HostBookingAvailabilityRuleListResponse
+    HostBookingAvailabilityException:
+      $ref: ./components/schemas/bookings.yaml#/HostBookingAvailabilityException
+    CreateHostBookingAvailabilityExceptionRequest:
+      $ref: ./components/schemas/bookings.yaml#/CreateHostBookingAvailabilityExceptionRequest
+    UpdateHostBookingAvailabilityExceptionRequest:
+      $ref: ./components/schemas/bookings.yaml#/UpdateHostBookingAvailabilityExceptionRequest
+    HostBookingAvailabilityExceptionListResponse:
+      $ref: ./components/schemas/bookings.yaml#/HostBookingAvailabilityExceptionListResponse
+    HostBookingPriceRule:
+      $ref: ./components/schemas/bookings.yaml#/HostBookingPriceRule
+    CreateHostBookingPriceRuleRequest:
+      $ref: ./components/schemas/bookings.yaml#/CreateHostBookingPriceRuleRequest
+    UpdateHostBookingPriceRuleRequest:
+      $ref: ./components/schemas/bookings.yaml#/UpdateHostBookingPriceRuleRequest
+    HostBookingPriceRuleListResponse:
+      $ref: ./components/schemas/bookings.yaml#/HostBookingPriceRuleListResponse
+    DeletedBookingConfigResponse:
+      $ref: ./components/schemas/bookings.yaml#/DeletedBookingConfigResponse
     MembershipResult:
       $ref: ./components/schemas/communities-core.yaml#/MembershipResult
     CommunityFollowResponse:
