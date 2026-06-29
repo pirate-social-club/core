@@ -6,12 +6,44 @@ export function splitSqlStatements(sql: string): string[] {
   let current = "";
   let inSingleQuote = false;
   let inTrigger = false;
+  let inLineComment = false;
+  let inBlockComment = false;
   let dollarQuoteTag: string | null = null;
 
   for (let index = 0; index < sql.length; index += 1) {
     const char = sql[index];
     const next = sql[index + 1];
     current += char;
+
+    if (inLineComment) {
+      if (char === "\n" || char === "\r") {
+        inLineComment = false;
+      }
+      continue;
+    }
+
+    if (inBlockComment) {
+      if (char === "*" && next === "/") {
+        current += next;
+        index += 1;
+        inBlockComment = false;
+      }
+      continue;
+    }
+
+    if (!inSingleQuote && !dollarQuoteTag && char === "-" && next === "-") {
+      current += next;
+      index += 1;
+      inLineComment = true;
+      continue;
+    }
+
+    if (!inSingleQuote && !dollarQuoteTag && char === "/" && next === "*") {
+      current += next;
+      index += 1;
+      inBlockComment = true;
+      continue;
+    }
 
     if (!inSingleQuote && char === "$") {
       const remainder = sql.slice(index);

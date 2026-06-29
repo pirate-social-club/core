@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { splitSqlStatements } from "./shared/sql-migration";
 
 export type ApplyPostgresMigrationsOptions = {
   databaseUrl: string;
@@ -21,6 +22,10 @@ function checksum(contents: string): string {
 
 function normalizeSql(contents: string): string {
   return contents.replace(/^\s*PRAGMA\s+foreign_keys\s*=\s*ON\s*;\s*$/gim, "").trim();
+}
+
+export function postgresMigrationStatements(contents: string): string[] {
+  return splitSqlStatements(normalizeSql(contents));
 }
 
 function migrationPrefix(migrationName: string): string | null {
@@ -136,8 +141,8 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
       log(`apply ${migrationName}`);
 
       await sql.begin(async (tx) => {
-        if (migrationSql) {
-          await tx.unsafe(migrationSql);
+        for (const statement of postgresMigrationStatements(migrationSql)) {
+          await tx.unsafe(statement);
         }
 
         await tx`
