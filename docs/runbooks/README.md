@@ -10,6 +10,7 @@ Start here:
 - [Infinity Staging Validation](./infinity-staging-validation.md)
 - [Community SLD Dev Smoke](./community-sld-dev-smoke.md)
 - [Community Assistant Voice Staging Smoke](./community-assistant-voice-staging-smoke.md)
+- [Global Bookings Postgres Release Preflight](./global-bookings-postgres-release-preflight.md)
 
 Supporting architecture docs:
 
