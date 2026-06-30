@@ -2667,77 +2667,64 @@ paths:
     get:
       tags:
         - Bookings
-      summary: List the caller's global bookings
-      parameters:
-        - in: query
-          name: role
-          schema:
-            $ref: "#/components/schemas/BookingViewerRole"
-        - in: query
-          name: status
-          description: Comma-separated booking status filter.
-          schema:
-            type: string
-        - in: query
-          name: source_community_id
-          schema:
-            type: string
+      summary: List authenticated user's bookings
       responses:
         "200":
-          description: Global bookings visible to the caller
+          description: Bookings
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BookingListResponse"
-        "401":
-          $ref: "#/components/responses/AuthError"
+                type: object
+                required:
+                  - object
+                  - data
+                  - has_more
+                properties:
+                  object:
+                    type: string
+                    enum:
+                      - list
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Booking"
+                  has_more:
+                    type: boolean
   /bookings/hosts/{host_user_id}/slots:
     get:
       tags:
         - Bookings
-      summary: Resolve global booking slots for a host
-      parameters:
-        - in: path
-          name: host_user_id
-          required: true
-          schema:
-            type: string
-        - in: query
-          name: from
-          schema:
-            type: string
-            format: date-time
-        - in: query
-          name: to
-          schema:
-            type: string
-            format: date-time
-        - in: query
-          name: tz
-          schema:
-            type: string
+      security: []
+      summary: Resolve public bookable slots for a host
       responses:
         "200":
-          description: Resolved booking slots
+          description: Resolved availability window
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/BookingSlotsResponse"
-        "401":
-          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /bookings/booking-hosts/{host_user_id}/slots:
+    get:
+      tags:
+        - Bookings
+      security: []
+      summary: Resolve public bookable slots for a host
+      responses:
+        "200":
+          description: Resolved availability window
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingSlotsResponse"
         "404":
           $ref: "#/components/responses/NotFound"
   /bookings/hosts/{host_user_id}/holds:
     post:
       tags:
         - Bookings
-      summary: Create a global booking hold for a host slot
-      parameters:
-        - in: path
-          name: host_user_id
-          required: true
-          schema:
-            type: string
+      summary: Create a booking hold for a host slot
       requestBody:
         required: true
         content:
@@ -2746,44 +2733,81 @@ paths:
               $ref: "#/components/schemas/CreateBookingHoldRequest"
       responses:
         "201":
-          description: Booking hold created
+          description: Created hold
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BookingHoldResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/AuthError"
+                type: object
+                required:
+                  - hold
+                properties:
+                  hold:
+                    $ref: "#/components/schemas/BookingHold"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /bookings/booking-hosts/{host_user_id}/holds:
+    post:
+      tags:
+        - Bookings
+      summary: Create a booking hold for a host slot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBookingHoldRequest"
+      responses:
+        "201":
+          description: Created hold
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - hold
+                properties:
+                  hold:
+                    $ref: "#/components/schemas/BookingHold"
         "409":
           $ref: "#/components/responses/Conflict"
   /bookings/holds/{hold_id}/quote:
     post:
       tags:
         - Bookings
-      summary: Quote a held global booking slot
-      parameters:
-        - in: path
-          name: hold_id
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: true
+      summary: Quote a booking hold
       responses:
         "200":
-          description: Booking quote and payment instructions
+          description: Booking hold quote and payment instructions
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BookingQuoteResponse"
-        "401":
-          $ref: "#/components/responses/AuthError"
+                type: object
+                required:
+                  - quote
+                properties:
+                  quote:
+                    $ref: "#/components/schemas/BookingQuote"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /bookings/booking-holds/{hold_id}/quote:
+    post:
+      tags:
+        - Bookings
+      summary: Quote a booking hold
+      responses:
+        "200":
+          description: Booking hold quote and payment instructions
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - quote
+                properties:
+                  quote:
+                    $ref: "#/components/schemas/BookingQuote"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -2792,13 +2816,7 @@ paths:
     post:
       tags:
         - Bookings
-      summary: Confirm a held global booking after verified payment
-      parameters:
-        - in: path
-          name: hold_id
-          required: true
-          schema:
-            type: string
+      summary: Confirm a paid booking hold
       requestBody:
         required: true
         content:
@@ -2807,119 +2825,131 @@ paths:
               $ref: "#/components/schemas/ConfirmBookingHoldRequest"
       responses:
         "200":
-          description: Booking was already confirmed
+          description: Idempotently confirmed booking
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BookingConfirmResponse"
+                type: object
+                required:
+                  - booking
+                  - already_confirmed
+                properties:
+                  booking:
+                    $ref: "#/components/schemas/Booking"
+                  already_confirmed:
+                    type: boolean
         "201":
-          description: Booking confirmed
+          description: Newly confirmed booking
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BookingConfirmResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/AuthError"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "409":
-          $ref: "#/components/responses/Conflict"
+                type: object
+                required:
+                  - booking
+                  - already_confirmed
+                properties:
+                  booking:
+                    $ref: "#/components/schemas/Booking"
+                  already_confirmed:
+                    type: boolean
+  /bookings/booking-holds/{hold_id}/confirm:
+    post:
+      tags:
+        - Bookings
+      summary: Confirm a paid booking hold
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmBookingHoldRequest"
+      responses:
+        "200":
+          description: Idempotently confirmed booking
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - booking
+                  - already_confirmed
+                properties:
+                  booking:
+                    $ref: "#/components/schemas/Booking"
+                  already_confirmed:
+                    type: boolean
+        "201":
+          description: Newly confirmed booking
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - booking
+                  - already_confirmed
+                properties:
+                  booking:
+                    $ref: "#/components/schemas/Booking"
+                  already_confirmed:
+                    type: boolean
   /bookings/settlement-review/pending:
     get:
       tags:
         - Bookings
-      summary: List pending global booking settlement reviews
-      description: Operator-only endpoint for ambiguous attendance reviews on global bookings.
-      parameters:
-        - in: query
-          name: source_community_id
-          schema:
-            type: string
-            nullable: true
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-        - in: query
-          name: cursor
-          schema:
-            type: string
+      summary: List pending booking settlement reviews
+      security:
+        - operatorCredentialAuth: []
       responses:
         "200":
-          description: Pending settlement reviews
+          description: Pending booking settlement reviews
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BookingSettlementReviewPage"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/AuthError"
-        "403":
-          $ref: "#/components/responses/Forbidden"
+                type: object
+                additionalProperties: true
   /bookings/{booking_id}:
     get:
       tags:
         - Bookings
-      summary: Get a global booking visible to the caller
-      parameters:
-        - in: path
-          name: booking_id
-          required: true
-          schema:
-            type: string
+      summary: Get a booking visible to the authenticated party
       responses:
         "200":
-          description: Booking detail
+          description: Booking
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BookingDetailResponse"
-        "401":
-          $ref: "#/components/responses/AuthError"
+                type: object
+                required:
+                  - booking
+                properties:
+                  booking:
+                    $ref: "#/components/schemas/Booking"
         "404":
           $ref: "#/components/responses/NotFound"
   /bookings/{booking_id}/settlement-review:
     get:
       tags:
         - Bookings
-      summary: Get a global booking settlement review
-      description: Operator-only endpoint for a global booking settlement review.
-      parameters:
-        - in: path
-          name: booking_id
-          required: true
-          schema:
-            type: string
+      summary: Get a booking settlement review
+      security:
+        - operatorCredentialAuth: []
       responses:
         "200":
-          description: Settlement review detail
+          description: Booking settlement review
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BookingSettlementReviewResponse"
-        "401":
-          $ref: "#/components/responses/AuthError"
-        "403":
-          $ref: "#/components/responses/Forbidden"
+                type: object
+                additionalProperties: true
         "404":
           $ref: "#/components/responses/NotFound"
   /bookings/{booking_id}/settlement-review/resolve:
     post:
       tags:
         - Bookings
-      summary: Resolve a global booking settlement review
-      description: Operator-only endpoint that resolves an ambiguous attendance review and resumes settlement.
-      parameters:
-        - in: path
-          name: booking_id
-          required: true
-          schema:
-            type: string
+      summary: Resolve an ambiguous booking settlement review
+      security:
+        - operatorCredentialAuth: []
       requestBody:
         required: true
         content:
@@ -2928,23 +2958,17 @@ paths:
               $ref: "#/components/schemas/ResolveBookingSettlementReviewRequest"
       responses:
         "200":
-          description: Review resolved and settlement finalized or replayed
+          description: Resolved booking settlement review
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResolveBookingSettlementReviewResponse"
         "202":
-          description: Review resolved; settlement remains pending and will be retried
+          description: Review resolved and settlement remains pending
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResolveBookingSettlementReviewResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/AuthError"
-        "403":
-          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -2953,22 +2977,20 @@ paths:
     post:
       tags:
         - Bookings
-      summary: Cancel a global booking
-      parameters:
-        - in: path
-          name: booking_id
-          required: true
-          schema:
-            type: string
+      summary: Mutate a booking lifecycle state
       responses:
         "200":
-          description: Booking cancelled or already cancelled
+          description: Booking lifecycle action result
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BookingLifecycleResponse"
-        "401":
-          $ref: "#/components/responses/AuthError"
+                type: object
+                additionalProperties: true
+                required:
+                  - booking
+                properties:
+                  booking:
+                    $ref: "#/components/schemas/Booking"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -2977,22 +2999,20 @@ paths:
     post:
       tags:
         - Bookings
-      summary: Start a global booking session
-      parameters:
-        - in: path
-          name: booking_id
-          required: true
-          schema:
-            type: string
+      summary: Mutate a booking lifecycle state
       responses:
         "200":
-          description: Booking session started or already live
+          description: Booking lifecycle action result
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BookingLifecycleResponse"
-        "401":
-          $ref: "#/components/responses/AuthError"
+                type: object
+                additionalProperties: true
+                required:
+                  - booking
+                properties:
+                  booking:
+                    $ref: "#/components/schemas/Booking"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -3001,22 +3021,20 @@ paths:
     post:
       tags:
         - Bookings
-      summary: Complete and settle a global booking session
-      parameters:
-        - in: path
-          name: booking_id
-          required: true
-          schema:
-            type: string
+      summary: Mutate a booking lifecycle state
       responses:
         "200":
-          description: Booking completed or already settled
+          description: Booking lifecycle action result
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BookingLifecycleResponse"
-        "401":
-          $ref: "#/components/responses/AuthError"
+                type: object
+                additionalProperties: true
+                required:
+                  - booking
+                properties:
+                  booking:
+                    $ref: "#/components/schemas/Booking"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -3025,22 +3043,20 @@ paths:
     post:
       tags:
         - Bookings
-      summary: Report a no-show on a global booking session
-      parameters:
-        - in: path
-          name: booking_id
-          required: true
-          schema:
-            type: string
+      summary: Mutate a booking lifecycle state
       responses:
         "200":
-          description: Booking no-show resolution
+          description: Booking lifecycle action result
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BookingLifecycleResponse"
-        "401":
-          $ref: "#/components/responses/AuthError"
+                type: object
+                additionalProperties: true
+                required:
+                  - booking
+                properties:
+                  booking:
+                    $ref: "#/components/schemas/Booking"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -3049,93 +3065,81 @@ paths:
     post:
       tags:
         - Bookings
-      summary: Attach to a global booking session
-      parameters:
-        - in: path
-          name: booking_id
-          required: true
-          schema:
-            type: string
+      summary: Attach to a private booking video session
       responses:
         "200":
-          description: Private booking session credentials
+          description: Agora session attachment
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AttachBookingSessionResponse"
-        "401":
-          $ref: "#/components/responses/AuthError"
+                $ref: "#/components/schemas/BookingSessionAttachResponse"
         "404":
           $ref: "#/components/responses/NotFound"
-        "409":
-          $ref: "#/components/responses/Conflict"
   /bookings/{booking_id}/session/heartbeat:
     post:
       tags:
         - Bookings
-      summary: Record a global booking session heartbeat
-      parameters:
-        - in: path
-          name: booking_id
-          required: true
-          schema:
-            type: string
+      summary: Record a booking video session heartbeat
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/BookingHeartbeatRequest"
+              type: object
+              required:
+                - session_id
+              properties:
+                session_id:
+                  type: string
       responses:
         "200":
-          description: Heartbeat recorded
+          description: Heartbeat accepted
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BookingHeartbeatResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/AuthError"
-        "404":
-          $ref: "#/components/responses/NotFound"
+                type: object
+                required:
+                  - ok
+                properties:
+                  ok:
+                    type: boolean
   /host-bookings/me/profile:
     get:
       tags:
         - Bookings
-      summary: Get the caller's host booking profile
+      summary: Get the authenticated host booking profile
       responses:
         "200":
-          description: Host booking profile
+          description: Host booking profile or empty profile marker
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostBookingProfile"
+                $ref: "#/components/schemas/BookingProfileResponse"
         "401":
           $ref: "#/components/responses/AuthError"
     post:
       tags:
         - Bookings
-      summary: Create or update the caller's host booking profile
+      summary: Upsert the authenticated host booking profile
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpsertHostBookingProfileRequest"
+              $ref: "#/components/schemas/UpdateBookingProfileRequest"
       responses:
         "200":
-          description: Host booking profile updated
+          description: Updated host booking profile
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostBookingProfile"
+                $ref: "#/components/schemas/BookingProfile"
         "201":
-          description: Host booking profile created
+          description: Created host booking profile
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostBookingProfile"
+                $ref: "#/components/schemas/BookingProfile"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -3146,298 +3150,264 @@ paths:
     post:
       tags:
         - Bookings
-      summary: Publish the caller's host booking profile
+      summary: Publish the authenticated host booking profile
       responses:
         "200":
           description: Published host booking profile
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostBookingProfile"
-        "401":
-          $ref: "#/components/responses/AuthError"
-        "404":
-          $ref: "#/components/responses/NotFound"
+                $ref: "#/components/schemas/BookingProfile"
         "409":
           $ref: "#/components/responses/Conflict"
   /host-bookings/me/profile/unpublish:
     post:
       tags:
         - Bookings
-      summary: Unpublish the caller's host booking profile
+      summary: Unpublish the authenticated host booking profile
       responses:
         "200":
           description: Unpublished host booking profile
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostBookingProfile"
-        "401":
-          $ref: "#/components/responses/AuthError"
-        "404":
-          $ref: "#/components/responses/NotFound"
+                $ref: "#/components/schemas/BookingProfile"
   /host-bookings/me/availability-rules:
     get:
       tags:
         - Bookings
-      summary: List the caller's host availability rules
+      summary: List weekly availability rules
       responses:
         "200":
-          description: Host availability rules
+          description: Weekly availability rules
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostBookingAvailabilityRuleListResponse"
-        "401":
-          $ref: "#/components/responses/AuthError"
+                type: object
+                required:
+                  - object
+                  - data
+                  - has_more
+                properties:
+                  object:
+                    type: string
+                    enum:
+                      - list
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AvailabilityRule"
+                  has_more:
+                    type: boolean
     post:
       tags:
         - Bookings
-      summary: Create a host availability rule
+      summary: Create a weekly availability rule
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateHostBookingAvailabilityRuleRequest"
+              $ref: "#/components/schemas/CreateAvailabilityRuleRequest"
       responses:
         "201":
-          description: Host availability rule created
+          description: Created availability rule
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostBookingAvailabilityRule"
+                $ref: "#/components/schemas/AvailabilityRule"
         "400":
           $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/AuthError"
         "409":
           $ref: "#/components/responses/Conflict"
   /host-bookings/me/availability-rules/{rule_id}:
     post:
       tags:
         - Bookings
-      summary: Update a host availability rule
-      parameters:
-        - in: path
-          name: rule_id
-          required: true
-          schema:
-            type: string
+      summary: Update a weekly availability rule
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateHostBookingAvailabilityRuleRequest"
+              $ref: "#/components/schemas/UpdateAvailabilityRuleRequest"
       responses:
         "200":
-          description: Host availability rule updated
+          description: Updated availability rule
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostBookingAvailabilityRule"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/AuthError"
+                $ref: "#/components/schemas/AvailabilityRule"
         "404":
           $ref: "#/components/responses/NotFound"
     delete:
       tags:
         - Bookings
-      summary: Delete a host availability rule
-      parameters:
-        - in: path
-          name: rule_id
-          required: true
-          schema:
-            type: string
+      summary: Delete a weekly availability rule
       responses:
         "200":
-          description: Host availability rule deleted
+          description: Deleted marker
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DeletedBookingConfigResponse"
-        "401":
-          $ref: "#/components/responses/AuthError"
+                type: object
+                additionalProperties: true
         "404":
           $ref: "#/components/responses/NotFound"
   /host-bookings/me/availability-exceptions:
     get:
       tags:
         - Bookings
-      summary: List the caller's host availability exceptions
+      summary: List one-off availability exceptions
       responses:
         "200":
-          description: Host availability exceptions
+          description: Availability exceptions
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostBookingAvailabilityExceptionListResponse"
-        "401":
-          $ref: "#/components/responses/AuthError"
+                type: object
+                required:
+                  - object
+                  - data
+                  - has_more
+                properties:
+                  object:
+                    type: string
+                    enum:
+                      - list
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AvailabilityException"
+                  has_more:
+                    type: boolean
     post:
       tags:
         - Bookings
-      summary: Create a host availability exception
+      summary: Create a one-off availability exception
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateHostBookingAvailabilityExceptionRequest"
+              $ref: "#/components/schemas/CreateAvailabilityExceptionRequest"
       responses:
         "201":
-          description: Host availability exception created
+          description: Created availability exception
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostBookingAvailabilityException"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/AuthError"
-        "409":
-          $ref: "#/components/responses/Conflict"
+                $ref: "#/components/schemas/AvailabilityException"
   /host-bookings/me/availability-exceptions/{exception_id}:
     post:
       tags:
         - Bookings
-      summary: Update a host availability exception
-      parameters:
-        - in: path
-          name: exception_id
-          required: true
-          schema:
-            type: string
+      summary: Update a one-off availability exception
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateHostBookingAvailabilityExceptionRequest"
+              $ref: "#/components/schemas/UpdateAvailabilityExceptionRequest"
       responses:
         "200":
-          description: Host availability exception updated
+          description: Updated availability exception
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostBookingAvailabilityException"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/AuthError"
+                $ref: "#/components/schemas/AvailabilityException"
         "404":
           $ref: "#/components/responses/NotFound"
     delete:
       tags:
         - Bookings
-      summary: Delete a host availability exception
-      parameters:
-        - in: path
-          name: exception_id
-          required: true
-          schema:
-            type: string
+      summary: Delete a one-off availability exception
       responses:
         "200":
-          description: Host availability exception deleted
+          description: Deleted marker
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DeletedBookingConfigResponse"
-        "401":
-          $ref: "#/components/responses/AuthError"
+                type: object
+                additionalProperties: true
         "404":
           $ref: "#/components/responses/NotFound"
   /host-bookings/me/price-rules:
     get:
       tags:
         - Bookings
-      summary: List the caller's host price rules
+      summary: List variable price rules
       responses:
         "200":
-          description: Host price rules
+          description: Variable price rules
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostBookingPriceRuleListResponse"
-        "401":
-          $ref: "#/components/responses/AuthError"
+                type: object
+                required:
+                  - object
+                  - data
+                  - has_more
+                properties:
+                  object:
+                    type: string
+                    enum:
+                      - list
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PriceRule"
+                  has_more:
+                    type: boolean
     post:
       tags:
         - Bookings
-      summary: Create a host price rule
+      summary: Create a variable price rule
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateHostBookingPriceRuleRequest"
+              $ref: "#/components/schemas/CreatePriceRuleRequest"
       responses:
         "201":
-          description: Host price rule created
+          description: Created price rule
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostBookingPriceRule"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/AuthError"
-        "409":
-          $ref: "#/components/responses/Conflict"
+                $ref: "#/components/schemas/PriceRule"
   /host-bookings/me/price-rules/{price_rule_id}:
     post:
       tags:
         - Bookings
-      summary: Update a host price rule
-      parameters:
-        - in: path
-          name: price_rule_id
-          required: true
-          schema:
-            type: string
+      summary: Update a variable price rule
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateHostBookingPriceRuleRequest"
+              $ref: "#/components/schemas/UpdatePriceRuleRequest"
       responses:
         "200":
-          description: Host price rule updated
+          description: Updated price rule
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostBookingPriceRule"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/AuthError"
+                $ref: "#/components/schemas/PriceRule"
         "404":
           $ref: "#/components/responses/NotFound"
     delete:
       tags:
         - Bookings
-      summary: Delete a host price rule
-      parameters:
-        - in: path
-          name: price_rule_id
-          required: true
-          schema:
-            type: string
+      summary: Delete a variable price rule
       responses:
         "200":
-          description: Host price rule deleted
+          description: Deleted marker
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DeletedBookingConfigResponse"
-        "401":
-          $ref: "#/components/responses/AuthError"
+                type: object
+                additionalProperties: true
         "404":
           $ref: "#/components/responses/NotFound"
   /posts/{post_id}:
@@ -3780,6 +3750,11 @@ components:
       name: Authorization
       description: |
         Payment credential sent as `Authorization: Payment ...` on retry after an MPP `402 Payment Required` challenge.
+    operatorCredentialAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: "Operator credential sent as `Authorization: Operator ...`."
   parameters:
     CommunityId:
       in: path
@@ -9932,166 +9907,357 @@ components:
         reason:
           type: string
           nullable: true
-    BookingStatus:
-      type: string
-      enum:
-        - confirmed
-        - live
-        - completed
-        - settled
-        - cancelled_by_host
-        - cancelled_by_booker
-        - no_show_host
-        - no_show_booker
-        - refunded
-        - disputed
-    BookingViewerRole:
-      type: string
-      enum:
+    BookingProfile:
+      type: object
+      additionalProperties: true
+      required:
+        - object
         - host
-        - booker
-    BookingView:
-      type: object
-      required:
-        - object
-        - booking_id
-        - host_user_id
-        - booker_user_id
-        - slot_start_utc
-        - slot_end_utc
-        - gross_cents
-        - platform_fee_cents
-        - host_payout_cents
-        - refund_cents
-        - status
-        - funding_tx_ref
-        - payout_tx_ref
-        - refund_tx_ref
-        - live_room_id
-        - source_community_id
-        - confirmed_at
-        - completed_at
-        - settled_at
-        - cancelled_at
-        - created_at
-        - updated_at
-        - viewer_role
+        - host_timezone
+        - base_price_cents
+        - default_slot_duration_seconds
+        - platform_fee_bps
+        - is_published
+        - created
+        - updated
       properties:
         object:
           type: string
           enum:
-            - booking
-        booking_id:
+            - booking_profile
+        host:
           type: string
-        host_user_id:
+        display_headline:
           type: string
-        booker_user_id:
+          nullable: true
+        bio:
           type: string
-        slot_start_utc:
+          nullable: true
+        topics:
+          type: array
+          nullable: true
+          items:
+            type: string
+        intro_video_ref:
           type: string
-          format: date-time
-        slot_end_utc:
+          nullable: true
+        host_timezone:
           type: string
-          format: date-time
-        gross_cents:
+        base_price_cents:
           type: integer
           minimum: 0
-        platform_fee_cents:
+        default_slot_duration_seconds:
+          type: integer
+          minimum: 60
+        platform_fee_bps:
           type: integer
           minimum: 0
-        host_payout_cents:
+        payout_wallet_address:
+          type: string
+          nullable: true
+        is_published:
+          type: boolean
+        created:
           type: integer
-          minimum: 0
-        refund_cents:
+        updated:
           type: integer
-          minimum: 0
-          nullable: true
-        status:
-          $ref: "#/components/schemas/BookingStatus"
-        funding_tx_ref:
-          type: string
-          nullable: true
-        payout_tx_ref:
-          type: string
-          nullable: true
-        refund_tx_ref:
-          type: string
-          nullable: true
-        live_room_id:
-          type: string
-          nullable: true
-        source_community_id:
-          type: string
-          nullable: true
-        confirmed_at:
-          type: string
-          format: date-time
-          nullable: true
-        completed_at:
-          type: string
-          format: date-time
-          nullable: true
-        settled_at:
-          type: string
-          format: date-time
-          nullable: true
-        cancelled_at:
-          type: string
-          format: date-time
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-        viewer_role:
-          $ref: "#/components/schemas/BookingViewerRole"
-    BookingListResponse:
+    BookingProfileResponse:
+      oneOf:
+        - $ref: "#/BookingProfile"
+        - $ref: "#/BookingProfileEmpty"
+    UpdateBookingProfileRequest:
       type: object
+      additionalProperties: false
+      properties:
+        host_timezone:
+          type: string
+        base_price_cents:
+          type: integer
+          minimum: 0
+        default_slot_duration_seconds:
+          type: integer
+          minimum: 60
+        display_headline:
+          type: string
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        topics:
+          type: array
+          nullable: true
+          items:
+            type: string
+        intro_video_ref:
+          type: string
+          nullable: true
+        platform_fee_bps:
+          type: integer
+          minimum: 0
+        payout_wallet_address:
+          type: string
+          nullable: true
+    AvailabilityRule:
+      type: object
+      additionalProperties: false
       required:
         - object
-        - data
-        - has_more
+        - id
+        - by_weekday
+        - start_local
+        - end_local
+        - slot_duration_seconds
+        - effective_from
+        - effective_until
+        - created
+        - updated
       properties:
         object:
           type: string
           enum:
-            - list
-        data:
+            - availability_rule
+        id:
+          type: string
+        by_weekday:
           type: array
           items:
-            $ref: "#/components/schemas/BookingView"
-        has_more:
-          type: boolean
-    BookingDetailResponse:
+            type: integer
+            minimum: 0
+            maximum: 6
+        start_local:
+          type: string
+        end_local:
+          type: string
+        slot_duration_seconds:
+          type: integer
+          minimum: 60
+        effective_from:
+          type: integer
+          nullable: true
+        effective_until:
+          type: integer
+          nullable: true
+        created:
+          type: integer
+        updated:
+          type: integer
+    CreateAvailabilityRuleRequest:
       type: object
+      additionalProperties: false
       required:
-        - booking
+        - by_weekday
+        - start_local
+        - end_local
+        - slot_duration_seconds
       properties:
-        booking:
-          $ref: "#/components/schemas/BookingView"
-    BookingSlot:
-      type: object
-      required:
-        - startUtc
-        - endUtc
-        - priceCents
-        - available
-      properties:
-        startUtc:
+        by_weekday:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+        start_local:
+          type: string
+        end_local:
+          type: string
+        slot_duration_seconds:
+          type: integer
+          minimum: 60
+        effective_from_utc:
           type: string
           format: date-time
-        endUtc:
+        effective_until_utc:
           type: string
           format: date-time
-        priceCents:
+    UpdateAvailabilityRuleRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        by_weekday:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+        start_local:
+          type: string
+        end_local:
+          type: string
+        slot_duration_seconds:
+          type: integer
+          minimum: 60
+        effective_from_utc:
+          type: string
+          format: date-time
+        effective_until_utc:
+          type: string
+          format: date-time
+    AvailabilityException:
+      type: object
+      additionalProperties: false
+      required:
+        - object
+        - id
+        - kind
+        - start
+        - end
+        - created
+      properties:
+        object:
+          type: string
+          enum:
+            - availability_exception
+        id:
+          type: string
+        kind:
+          type: string
+          enum:
+            - block
+            - open
+        start:
+          type: integer
+        end:
+          type: integer
+        created:
+          type: integer
+    CreateAvailabilityExceptionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - start_utc
+        - end_utc
+      properties:
+        kind:
+          type: string
+          enum:
+            - block
+            - open
+        start_utc:
+          type: string
+          format: date-time
+        end_utc:
+          type: string
+          format: date-time
+    UpdateAvailabilityExceptionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          enum:
+            - block
+            - open
+        start_utc:
+          type: string
+          format: date-time
+        end_utc:
+          type: string
+          format: date-time
+    PriceRule:
+      type: object
+      additionalProperties: false
+      required:
+        - object
+        - id
+        - match_weekday
+        - match_local_start
+        - match_local_end
+        - match_duration_seconds
+        - price_cents
+        - priority
+        - created
+        - updated
+      properties:
+        object:
+          type: string
+          enum:
+            - price_rule
+        id:
+          type: string
+        match_weekday:
+          type: array
+          nullable: true
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+        match_local_start:
+          type: string
+          nullable: true
+        match_local_end:
+          type: string
+          nullable: true
+        match_duration_seconds:
+          type: integer
+          nullable: true
+          minimum: 60
+        price_cents:
           type: integer
           minimum: 0
-        available:
-          type: boolean
+        priority:
+          type: integer
+        created:
+          type: integer
+        updated:
+          type: integer
+    CreatePriceRuleRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - price_cents
+      properties:
+        match_weekday:
+          type: array
+          nullable: true
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+        match_local_start:
+          type: string
+          nullable: true
+        match_local_end:
+          type: string
+          nullable: true
+        match_duration_seconds:
+          type: integer
+          nullable: true
+          minimum: 60
+        price_cents:
+          type: integer
+          minimum: 0
+        priority:
+          type: integer
+    UpdatePriceRuleRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        match_weekday:
+          type: array
+          nullable: true
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+        match_local_start:
+          type: string
+          nullable: true
+        match_local_end:
+          type: string
+          nullable: true
+        match_duration_seconds:
+          type: integer
+          nullable: true
+          minimum: 60
+        price_cents:
+          type: integer
+          minimum: 0
+        priority:
+          type: integer
     BookingSlotsResponse:
       type: object
+      additionalProperties: false
       required:
         - host_timezone
         - viewer_timezone
@@ -10104,9 +10270,10 @@ components:
         slots:
           type: array
           items:
-            $ref: "#/components/schemas/BookingSlot"
+            $ref: "#/ResolvedBookingSlot"
     CreateBookingHoldRequest:
       type: object
+      additionalProperties: false
       required:
         - slot_start_utc
         - slot_end_utc
@@ -10120,100 +10287,9 @@ components:
         source_community_id:
           type: string
           nullable: true
-    BookingHold:
-      type: object
-      required:
-        - hold_id
-        - host_user_id
-        - booker_user_id
-        - slot_start_utc
-        - slot_end_utc
-        - price_cents
-        - status
-        - expires_at_utc
-      properties:
-        hold_id:
-          type: string
-        host_user_id:
-          type: string
-        booker_user_id:
-          type: string
-        source_community_id:
-          type: string
-          nullable: true
-        slot_start_utc:
-          type: string
-          format: date-time
-        slot_end_utc:
-          type: string
-          format: date-time
-        price_cents:
-          type: integer
-          minimum: 0
-        status:
-          type: string
-          enum:
-            - active
-            - quoted
-            - confirmed
-            - expired
-            - released
-        expires_at_utc:
-          type: string
-          format: date-time
-    BookingHoldResponse:
-      type: object
-      required:
-        - hold
-      properties:
-        hold:
-          $ref: "#/components/schemas/BookingHold"
-    BookingPaymentInstructions:
-      type: object
-      required:
-        - payment_intent_id
-        - version
-        - chain_id
-        - token_address
-        - token_decimals
-        - token_symbol
-        - recipient_address
-        - amount_atomic
-        - gross_cents
-        - quote_expires_at
-        - hold_expires_at
-        - wallet_attachment_required
-      properties:
-        payment_intent_id:
-          type: string
-        version:
-          type: integer
-          minimum: 1
-        chain_id:
-          type: integer
-        token_address:
-          type: string
-        token_decimals:
-          type: integer
-        token_symbol:
-          type: string
-        recipient_address:
-          type: string
-        amount_atomic:
-          type: string
-        gross_cents:
-          type: integer
-          minimum: 0
-        quote_expires_at:
-          type: string
-          format: date-time
-        hold_expires_at:
-          type: string
-          format: date-time
-        wallet_attachment_required:
-          type: boolean
     BookingQuote:
       type: object
+      additionalProperties: true
       required:
         - hold_id
         - gross_cents
@@ -10227,31 +10303,20 @@ components:
           type: string
         gross_cents:
           type: integer
-          minimum: 0
         platform_fee_bps:
           type: integer
-          minimum: 0
-          maximum: 10000
         platform_fee_cents:
           type: integer
-          minimum: 0
         host_payout_cents:
           type: integer
-          minimum: 0
         expires_at_utc:
           type: string
           format: date-time
         payment:
-          $ref: "#/components/schemas/BookingPaymentInstructions"
-    BookingQuoteResponse:
-      type: object
-      required:
-        - quote
-      properties:
-        quote:
-          $ref: "#/components/schemas/BookingQuote"
+          $ref: "#/BookingPaymentInstructions"
     ConfirmBookingHoldRequest:
       type: object
+      additionalProperties: false
       required:
         - funding_tx_ref
         - wallet_attachment_id
@@ -10260,11 +10325,11 @@ components:
           type: string
         wallet_attachment_id:
           type: string
-    BookingSnapshot:
+    Booking:
       type: object
+      additionalProperties: true
       required:
         - booking_id
-        - hold_id
         - host_user_id
         - booker_user_id
         - slot_start_utc
@@ -10273,12 +10338,11 @@ components:
         - platform_fee_cents
         - host_payout_cents
         - status
-        - funding_tx_ref
       properties:
         booking_id:
           type: string
-        hold_id:
-          type: string
+        status:
+          $ref: "#/BookingStatus"
         host_user_id:
           type: string
         booker_user_id:
@@ -10291,97 +10355,13 @@ components:
           format: date-time
         gross_cents:
           type: integer
-          minimum: 0
         platform_fee_cents:
           type: integer
-          minimum: 0
         host_payout_cents:
           type: integer
-          minimum: 0
-        status:
-          $ref: "#/components/schemas/BookingStatus"
-        funding_tx_ref:
-          type: string
-          nullable: true
-    BookingConfirmResponse:
+    BookingSessionAttachResponse:
       type: object
-      required:
-        - booking
-        - already_confirmed
-      properties:
-        booking:
-          $ref: "#/components/schemas/BookingSnapshot"
-        already_confirmed:
-          type: boolean
-    BookingLifecycleSnapshot:
-      type: object
-      required:
-        - booking_id
-        - status
-        - refund_cents
-        - refund_tx_ref
-        - payout_tx_ref
-      properties:
-        booking_id:
-          type: string
-        status:
-          $ref: "#/components/schemas/BookingStatus"
-        refund_cents:
-          type: integer
-          minimum: 0
-        refund_tx_ref:
-          type: string
-          nullable: true
-        payout_tx_ref:
-          type: string
-          nullable: true
-    BookingLifecycleResponse:
-      type: object
-      required:
-        - booking
-      properties:
-        booking:
-          $ref: "#/components/schemas/BookingLifecycleSnapshot"
-        already_cancelled:
-          type: boolean
-        already_live:
-          type: boolean
-        already_settled:
-          type: boolean
-        already_resolved:
-          type: boolean
-        cancelled_by:
-          type: string
-          enum:
-            - host
-            - booker
-    BookingAgoraBlock:
-      type: object
-      required:
-        - app_id
-        - channel
-        - uid
-        - token
-        - token_expires_at
-        - configured
-      properties:
-        app_id:
-          type: string
-          nullable: true
-        channel:
-          type: string
-        uid:
-          type: integer
-        token:
-          type: string
-          nullable: true
-        token_expires_at:
-          type: integer
-          nullable: true
-        configured:
-          type: boolean
-    AttachBookingSessionResponse:
-      type: object
+      additionalProperties: true
       required:
         - session_id
         - party
@@ -10398,373 +10378,48 @@ components:
         channel:
           type: string
         agora:
-          $ref: "#/components/schemas/BookingAgoraBlock"
-    BookingHeartbeatRequest:
+          type: object
+          nullable: true
+          additionalProperties: true
+    ResolveBookingSettlementReviewRequest:
       type: object
+      additionalProperties: false
       required:
-        - session_id
+        - resolution
+        - expected_review_version
       properties:
-        session_id:
+        resolution:
           type: string
-    BookingHeartbeatResponse:
+          enum:
+            - completed
+            - no_show_host
+            - no_show_booker
+        expected_review_version:
+          type: integer
+          minimum: 0
+        note:
+          type: string
+          nullable: true
+    ResolveBookingSettlementReviewResponse:
       type: object
+      additionalProperties: true
       required:
-        - ok
+        - booking
+        - resolution
+        - pending_settlement
+        - replayed
       properties:
-        ok:
+        booking:
+          $ref: "#/Booking"
+        resolution:
+          type: string
+          enum:
+            - completed
+            - no_show_host
+            - no_show_booker
+        pending_settlement:
           type: boolean
-    HostBookingProfile:
-      type: object
-      required:
-        - host_user_id
-        - host_timezone
-        - base_price_cents
-        - default_slot_duration_seconds
-        - platform_fee_bps
-        - is_published
-        - topics
-      properties:
-        host_user_id:
-          type: string
-        display_headline:
-          type: string
-          nullable: true
-        bio:
-          type: string
-          nullable: true
-        topics:
-          type: array
-          items:
-            type: string
-        intro_video_ref:
-          type: string
-          nullable: true
-        host_timezone:
-          type: string
-        base_price_cents:
-          type: integer
-          minimum: 0
-        default_slot_duration_seconds:
-          type: integer
-          minimum: 1
-        platform_fee_bps:
-          type: integer
-          minimum: 0
-          maximum: 10000
-        payout_wallet_address:
-          type: string
-          nullable: true
-        is_published:
-          type: boolean
-    UpsertHostBookingProfileRequest:
-      type: object
-      properties:
-        host_timezone:
-          type: string
-        base_price_cents:
-          type: integer
-          minimum: 0
-        default_slot_duration_seconds:
-          type: integer
-          minimum: 1
-        display_headline:
-          type: string
-          nullable: true
-        bio:
-          type: string
-          nullable: true
-        topics:
-          type: array
-          items:
-            type: string
-        intro_video_ref:
-          type: string
-          nullable: true
-        platform_fee_bps:
-          type: integer
-          minimum: 0
-          maximum: 10000
-        payout_wallet_address:
-          type: string
-          nullable: true
-    HostBookingAvailabilityRule:
-      type: object
-      required:
-        - rule_id
-        - by_weekday
-        - start_local
-        - end_local
-        - slot_duration_seconds
-      properties:
-        rule_id:
-          type: string
-        by_weekday:
-          type: array
-          items:
-            type: integer
-            minimum: 0
-            maximum: 6
-        start_local:
-          type: string
-          example: 09:00
-        end_local:
-          type: string
-          example: 17:00
-        slot_duration_seconds:
-          type: integer
-          minimum: 1
-        effective_from_utc:
-          type: string
-          format: date-time
-          nullable: true
-        effective_until_utc:
-          type: string
-          format: date-time
-          nullable: true
-    CreateHostBookingAvailabilityRuleRequest:
-      type: object
-      required:
-        - by_weekday
-        - start_local
-        - end_local
-        - slot_duration_seconds
-      properties:
-        by_weekday:
-          type: array
-          items:
-            type: integer
-            minimum: 0
-            maximum: 6
-        start_local:
-          type: string
-        end_local:
-          type: string
-        slot_duration_seconds:
-          type: integer
-          minimum: 1
-        effective_from_utc:
-          type: string
-          format: date-time
-          nullable: true
-        effective_until_utc:
-          type: string
-          format: date-time
-          nullable: true
-    UpdateHostBookingAvailabilityRuleRequest:
-      type: object
-      properties:
-        by_weekday:
-          type: array
-          items:
-            type: integer
-            minimum: 0
-            maximum: 6
-        start_local:
-          type: string
-        end_local:
-          type: string
-        slot_duration_seconds:
-          type: integer
-          minimum: 1
-        effective_from_utc:
-          type: string
-          format: date-time
-          nullable: true
-        effective_until_utc:
-          type: string
-          format: date-time
-          nullable: true
-    HostBookingAvailabilityRuleListResponse:
-      type: object
-      required:
-        - object
-        - data
-        - has_more
-      properties:
-        object:
-          type: string
-          enum:
-            - list
-        data:
-          type: array
-          items:
-            $ref: "#/components/schemas/HostBookingAvailabilityRule"
-        has_more:
-          type: boolean
-    HostBookingAvailabilityException:
-      type: object
-      required:
-        - exception_id
-        - kind
-        - start_utc
-        - end_utc
-      properties:
-        exception_id:
-          type: string
-        kind:
-          type: string
-          enum:
-            - block
-            - open
-        start_utc:
-          type: string
-          format: date-time
-        end_utc:
-          type: string
-          format: date-time
-    CreateHostBookingAvailabilityExceptionRequest:
-      type: object
-      required:
-        - kind
-        - start_utc
-        - end_utc
-      properties:
-        kind:
-          type: string
-          enum:
-            - block
-            - open
-        start_utc:
-          type: string
-          format: date-time
-        end_utc:
-          type: string
-          format: date-time
-    UpdateHostBookingAvailabilityExceptionRequest:
-      type: object
-      properties:
-        kind:
-          type: string
-          enum:
-            - block
-            - open
-        start_utc:
-          type: string
-          format: date-time
-        end_utc:
-          type: string
-          format: date-time
-    HostBookingAvailabilityExceptionListResponse:
-      type: object
-      required:
-        - object
-        - data
-        - has_more
-      properties:
-        object:
-          type: string
-          enum:
-            - list
-        data:
-          type: array
-          items:
-            $ref: "#/components/schemas/HostBookingAvailabilityException"
-        has_more:
-          type: boolean
-    HostBookingPriceRule:
-      type: object
-      required:
-        - price_rule_id
-        - price_cents
-        - priority
-      properties:
-        price_rule_id:
-          type: string
-        match_weekday:
-          type: array
-          nullable: true
-          items:
-            type: integer
-            minimum: 0
-            maximum: 6
-        match_local_start:
-          type: string
-          nullable: true
-        match_local_end:
-          type: string
-          nullable: true
-        match_duration_seconds:
-          type: integer
-          minimum: 1
-          nullable: true
-        price_cents:
-          type: integer
-          minimum: 0
-        priority:
-          type: integer
-    CreateHostBookingPriceRuleRequest:
-      type: object
-      required:
-        - price_cents
-      properties:
-        match_weekday:
-          type: array
-          items:
-            type: integer
-            minimum: 0
-            maximum: 6
-        match_local_start:
-          type: string
-        match_local_end:
-          type: string
-        match_duration_seconds:
-          type: integer
-          minimum: 1
-        price_cents:
-          type: integer
-          minimum: 0
-        priority:
-          type: integer
-    UpdateHostBookingPriceRuleRequest:
-      type: object
-      properties:
-        match_weekday:
-          type: array
-          items:
-            type: integer
-            minimum: 0
-            maximum: 6
-        match_local_start:
-          type: string
-        match_local_end:
-          type: string
-        match_duration_seconds:
-          type: integer
-          minimum: 1
-        price_cents:
-          type: integer
-          minimum: 0
-        priority:
-          type: integer
-    HostBookingPriceRuleListResponse:
-      type: object
-      required:
-        - object
-        - data
-        - has_more
-      properties:
-        object:
-          type: string
-          enum:
-            - list
-        data:
-          type: array
-          items:
-            $ref: "#/components/schemas/HostBookingPriceRule"
-        has_more:
-          type: boolean
-    DeletedBookingConfigResponse:
-      type: object
-      required:
-        - id
-        - object
-        - deleted
-      properties:
-        id:
-          type: string
-        object:
-          type: string
-        deleted:
+        replayed:
           type: boolean
     MembershipResult:
       type: object
