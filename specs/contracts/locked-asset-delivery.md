@@ -318,9 +318,36 @@ Recommended condition inputs:
 - token identifier or asset entitlement class
 - optional minimum balance
 
-Current v1 implementation name: `TokenGateCondition`.
+Current v1 implementation names: `TokenGateCondition` for legacy buyer-only reads and `CompositeReadConditionV1` for new locked deliveries that need buyer plus owner/moderator reads.
 
-### 5. Signed Access Condition
+### 5. Composite Read Condition
+
+Role:
+
+- authorize durable buyer reads through entitlement tokens
+- authorize owner, moderator, draft-preview, and temporary-share reads through signed access proofs
+- keep every supported locked-asset read path on the same CDR vault instead of forcing fallback delivery for creators or moderators
+
+This is required before locked livestream replay ships. A token-gate-only read condition is insufficient for replay because the host and authorized moderators must be able to preview or re-download a locked replay draft before any buyer entitlement exists. The condition must not ignore signed auxiliary access data when owner/moderator access is expected.
+
+API configuration: new locked deliveries should use the deployed `CompositeReadConditionV1` address via `STORY_COMPOSITE_READ_CONDITION_ADDRESS`. If unset, the API falls back to the legacy token gate for buyer-only compatibility, but that path does not satisfy locked replay release requirements.
+
+Recommended v0 behavior:
+
+- buyer read passes when the caller holds the required entitlement token
+- owner/moderator read passes when the caller presents a valid signed proof for the concrete asset version and scope
+- temporary share read passes when the caller presents a valid scoped, expiring signed proof
+- non-buyer read without a valid signed proof fails
+
+Release-blocking verification:
+
+- creator can recover their own locked asset payload from CDR
+- authorized moderator can recover the payload when scoped for moderation/review
+- buyer can recover the payload through durable entitlement ownership
+- non-buyer cannot recover the payload
+- all checks pass against staging/testnet contracts before locked replay is enabled
+
+### 6. Signed Access Condition
 
 Role:
 

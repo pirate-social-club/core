@@ -18,5 +18,8 @@
     "@tinybirdco/sdk": "^0.0.66",
     "ethers": "^6.16.0",
     "qrcode": "^1.5.4"
+  },
+  "overrides": {
+    "ws": "^8.21.0"
   }
 }

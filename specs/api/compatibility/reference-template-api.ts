@@ -294,6 +294,8 @@ export type CommunityListing = {
   regional_pricing_enabled: boolean;
   donation_partner?: string | null;
   donation_share_bps?: number | null;
+  vinyl_release_provider?: "elasticstage" | null;
+  vinyl_release_url?: string | null;
   created_by_user: string;
   created: number;
 };
@@ -305,6 +307,8 @@ export type CreateCommunityListingRequest = {
   regional_pricing_enabled: boolean;
   donation_partner?: string | null;
   donation_share_bps?: number | null;
+  vinyl_release_provider?: "elasticstage" | null;
+  vinyl_release_url?: string | null;
   status: "draft" | "active" | "paused" | "archived";
 };
 
@@ -340,6 +344,8 @@ export type CommunityPurchase = {
   donation_partner?: string | null;
   donation_share_bps?: number | null;
   donation_amount_cents?: number | null;
+  vinyl_release_provider?: "elasticstage" | null;
+  vinyl_release_url?: string | null;
   purchase_entitlement: string;
   entitlement_kind: "asset_access" | "live_room_access" | "replay_access" | "license";
   entitlement_target_ref: string;
@@ -461,6 +467,8 @@ export type CommunityPurchaseSettlement = {
   donation_partner?: string | null;
   donation_share_bps?: number | null;
   donation_amount_cents?: number | null;
+  vinyl_release_provider?: "elasticstage" | null;
+  vinyl_release_url?: string | null;
   entitlement_kind: "asset_access" | "live_room_access";
   entitlement_target_ref: string;
   purchase_entitlement: string;
@@ -640,6 +648,12 @@ type Comment = {
   agent_ownership_provider_snapshot?: AgentOwnershipProvider | null;
   body: string | null;
   media_refs?: Array<MediaDescriptor>;
+  source_language?: string | null;
+  source_language_confidence?: number | null;
+  source_language_reliable?: boolean;
+  source_language_detector?: string | null;
+  source_language_detected_at?: string | null;
+  source_language_source_hash?: string | null;
   status: "published" | "hidden" | "removed" | "deleted";
   replies_locked?: boolean;
   replies_locked_at?: number | null;
@@ -1257,6 +1271,11 @@ type Post = {
   creator_relation?: PostCreatorRelation | null;
   promotion_disclosure?: PromotionDisclosure | null;
   source_language?: string | null;
+  source_language_confidence?: number | null;
+  source_language_reliable?: boolean;
+  source_language_detector?: string | null;
+  source_language_detected_at?: string | null;
+  source_language_source_hash?: string | null;
   translation_policy?: "none" | "machine_allowed" | "human_only" | "hybrid" | null;
   access_mode?: "public" | "locked" | null;
   asset?: string | null;
