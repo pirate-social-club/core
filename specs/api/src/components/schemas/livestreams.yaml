@@ -693,7 +693,7 @@ LiveRoomReplayAccessDecision:
     decision_reason:
       type: string
       enum:
-        - public
+        - free
         - creator
         - moderator
         - purchase_entitlement
