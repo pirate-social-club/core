@@ -42,6 +42,12 @@
         "oldChecksum": "01f22966d812643e78408d1c0b4835568a6dd928569f33c00dac5d791ff1150d",
         "newChecksum": "e5e341d1e39fc18c3b794cce4ad3579afc9caf6f2b5cc2cf9ff5b14a2bbb71b8",
         "reason": "compatible repair for communities whose voice-policy ledger drift lacks tts_provider"
+      },
+      {
+        "migrationName": "1098_community_karaoke_scoring_policy.sql",
+        "oldChecksum": "runtime-self-heal-1098",
+        "newChecksum": "e18b7b05b513c56587249eec8b22eb59b20192c2873b9132a89b64372ba93946",
+        "reason": "runtime self-heal marker for the karaoke scoring policy migration"
       }
     ],
     "unexpectedMigrationsToRemove": [
