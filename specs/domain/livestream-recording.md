@@ -612,7 +612,7 @@ Optional Agora values:
 - `AGORA_CLOUD_RECORDING_STORAGE_FILE_PREFIX`
 - `AGORA_CLOUD_RECORDING_RESOURCE_EXPIRED_HOURS`
 
-`STORY_COMPOSITE_READ_CONDITION_ADDRESS` is not just a config value. It must be the deployed address of `CompositeReadConditionV1`, whose source and deploy helper live in `contracts/story/delivery/src/CompositeReadConditionV1.sol` and `contracts/story/delivery/scripts/deploy.sh`. Deploy it to the staging Story chain with a funded deployer, then write the deployed address to the staging `/services/api` secret set before syncing the Worker.
+`STORY_COMPOSITE_READ_CONDITION_ADDRESS` is not just a config value. It must be the deployed address of `CompositeReadConditionV1`, whose source and deploy helper live in `contracts/story/delivery/src/CompositeReadConditionV1.sol` and `contracts/story/delivery/scripts/deploy.sh`. Deploy it to the staging Story chain with a funded deployer, then write the deployed address to the staging `/services/api` secret set before syncing the Worker. The deploy script requires `RPC_URL`, deployer credentials or unsigned `DEPLOYER_ADDRESS`, `PUBLISH_OPERATOR`, `SETTLEMENT_OPERATOR`, `ACCESS_PROOF_SIGNER`, `ENTITLEMENT_CLASS_CONFIGURER`, and `OWNER_ADDRESS`; its deployment manifest emits `STORY_COMPOSITE_READ_CONDITION_ADDRESS=$COMPOSITE_READ_CONDITION_V1`.
 
 This mode should:
 
