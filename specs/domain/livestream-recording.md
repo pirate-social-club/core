@@ -581,6 +581,39 @@ The focused staging smoke lives in the API service:
 rtk bun run live-room:smoke:paid-staging -- --recording-enabled --replay-access-mode paid
 ```
 
+Do not run this smoke with placeholder Agora, storage, or CDR values. A placeholder run only proves configuration failure.
+
+Before running the smoke, verify the staging API environment has the existing non-replay media/live values:
+
+- `AGORA_APP_ID`
+- `AGORA_APP_CERTIFICATE`
+- `FILEBASE_MEDIA_BUCKET`
+- `FILEBASE_S3_ENDPOINT`
+- `FILEBASE_S3_REGION`
+- `FILEBASE_S3_ACCESS_KEY`
+- `FILEBASE_S3_SECRET_KEY`
+
+The replay-specific staging delta is:
+
+- `AGORA_CLOUD_RECORDING_CUSTOMER_KEY`
+- `AGORA_CLOUD_RECORDING_CUSTOMER_SECRET`
+- `AGORA_CLOUD_RECORDING_STORAGE_VENDOR`
+- `AGORA_CLOUD_RECORDING_STORAGE_REGION`
+- `AGORA_CLOUD_RECORDING_STORAGE_BUCKET`
+- `AGORA_CLOUD_RECORDING_STORAGE_ACCESS_KEY`
+- `AGORA_CLOUD_RECORDING_STORAGE_SECRET_KEY`
+- `AGORA_CLOUD_RECORDING_CAPTURE_S3_ENDPOINT`
+- `AGORA_CLOUD_RECORDING_CAPTURE_S3_REGION`
+- `STORY_COMPOSITE_READ_CONDITION_ADDRESS`
+
+Optional Agora values:
+
+- `AGORA_CLOUD_RECORDING_BASE_URL`
+- `AGORA_CLOUD_RECORDING_STORAGE_FILE_PREFIX`
+- `AGORA_CLOUD_RECORDING_RESOURCE_EXPIRED_HOURS`
+
+`STORY_COMPOSITE_READ_CONDITION_ADDRESS` is not just a config value. It must be the deployed address of `CompositeReadConditionV1`, whose source and deploy helper live in `contracts/story/delivery/src/CompositeReadConditionV1.sol` and `contracts/story/delivery/scripts/deploy.sh`. Deploy it to the staging Story chain with a funded deployer, then write the deployed address to the staging `/services/api` secret set before syncing the Worker.
+
 This mode should:
 
 - create a paid live room with recording enabled
@@ -597,6 +630,18 @@ Full Base Sepolia settlement and locked replay entitlement verification:
 
 ```bash
 rtk bun run live-room:smoke:paid-staging -- --recording-enabled --replay-access-mode paid --settle-purchase
+```
+
+If reusing an existing provisioned community shard, run the community migration preflight/repair before the smoke so replay migrations and the 1114 commerce rebuild are known-good on that shard:
+
+```bash
+rtk bun scripts/community/repair-community-migration-ledger.ts --community-id <community_id> --execute
+```
+
+Then run the release-gate smoke against that same community:
+
+```bash
+rtk bun run live-room:smoke:paid-staging -- --recording-enabled --replay-access-mode paid --settle-purchase --community-id <community_id> --require-existing-community
 ```
 
 `--replay-access-mode free` verifies Filebase playback without Story CDR. `--replay-access-mode included_with_ticket --settle-purchase` verifies that the original live-ticket entitlement unlocks the locked replay through Story CDR.
