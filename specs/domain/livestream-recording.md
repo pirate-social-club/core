@@ -614,6 +614,13 @@ Optional Agora values:
 
 `STORY_COMPOSITE_READ_CONDITION_ADDRESS` is not just a config value. It must be the deployed address of `CompositeReadConditionV1`, whose source and deploy helper live in `contracts/story/delivery/src/CompositeReadConditionV1.sol` and `contracts/story/delivery/scripts/deploy.sh`. Deploy it to the staging Story chain with a funded deployer, then write the deployed address to the staging `/services/api` secret set before syncing the Worker. The deploy script requires `RPC_URL`, deployer credentials or unsigned `DEPLOYER_ADDRESS`, `PUBLISH_OPERATOR`, `SETTLEMENT_OPERATOR`, `ACCESS_PROOF_SIGNER`, `ENTITLEMENT_CLASS_CONFIGURER`, and `OWNER_ADDRESS`; its deployment manifest emits `STORY_COMPOSITE_READ_CONDITION_ADDRESS=$COMPOSITE_READ_CONDITION_V1`.
 
+For staging smoke unblock, the owner request can be narrowed to one of two deploy paths:
+
+- hot deploy: funded staging deployer private key as `STORY_CONTRACT_OWNER_PRIVATE_KEY`, staging `RPC_URL`, and the four operator/configurer addresses above
+- unsigned deploy: funded staging `DEPLOYER_ADDRESS`, staging `RPC_URL`, and the same operator/configurer addresses; `MODE=unsigned` writes transaction step JSON under `contracts/story/delivery/deployments/<DEPLOY_TAG>/steps/` for owner signing, without exposing the private key to the agent
+
+Use a non-deployer `OWNER_ADDRESS` for managed staging when available; only use `ALLOW_DEPLOYER_OWNER=YES_I_UNDERSTAND_DEPLOYER_RETAINS_ADMIN` for disposable deployments.
+
 This mode should:
 
 - create a paid live room with recording enabled
