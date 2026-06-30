@@ -7,8 +7,10 @@ SongStudyAccessState:
       - `locked`      — post exists but access is denied. Returned INSTEAD of
                         404 so the client can render the locked study surface.
                         Paired with `locked_reason`.
-      - `processing`  — lyrics alignment / study-pack generation is pending.
-                        No exercise content.
+      - `processing`  — no safe local exercises are ready yet and server-side
+                        preparation is pending. In v1, normal first-load lazy
+                        generation returns `ready` with say-it-back exercises
+                        while translation choices are prepared asynchronously.
       - `unavailable` — the song cannot support study. Paired with
                         `unavailable_reason`. No exercise content.
   enum:
@@ -165,6 +167,8 @@ SongStudyPayload:
     pair) is returned in EVERY access state so the locked/processing surfaces
     can show context. Lyric / translation / option text appears only when
     `access` is `ready` (see normative invariants in specs/domain/song-study.md).
+    A ready pack may initially contain only say-it-back exercises; translation
+    choices can appear on later fetches after the async generation job succeeds.
 
     Scope: this is one song's full study pack. FSRS-scheduled, cross-song
     "due today" sessions are a separate concern and not modeled here.
@@ -324,7 +328,7 @@ SongStudyAttemptResult:
       type: object
       description: |
         Token-level diff for `say_it_back`, computed server-side under the
-        target language's tokenization / accent / punctuation policy.
+        source lyric language's tokenization / accent / punctuation policy.
       properties:
         matched:
           type: array

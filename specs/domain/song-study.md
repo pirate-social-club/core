@@ -51,12 +51,17 @@ before sending audio to the speech-to-text provider.
 
 `access` is one of `ready`, `locked`, `processing`, `unavailable`.
 
-- **ready** — the caller may study; exercise content is included.
+- **ready** — the caller may study; exercise content is included. A ready v1
+  response may initially contain only `say_it_back` exercises while
+  target-language `translation_choice` localizations are generated
+  asynchronously.
 - **locked** — the post exists but access is denied. Returned with HTTP `200`
   and `access: "locked"`, **not** `404`, so the client can render the locked
   study surface with context. Paired with `locked_reason`.
-- **processing** — lyrics alignment or study-pack generation is pending. No
-  exercise content.
+- **processing** — no safe local exercises are ready yet and server-side
+  preparation is pending. No exercise content. Normal first-load lazy
+  generation should not block here when local say-it-back units can be created
+  from lyrics.
 - **unavailable** — the song cannot support study. Paired with
   `unavailable_reason`. No exercise content.
 
@@ -130,9 +135,9 @@ for the review unit, and returns the verdict.
   or double-advance FSRS.
 - The correct answer is disclosed only once the attempt is spent — a correct
   answer, or an incorrect final attempt (`outcome: revealed`).
-- `say_it_back` grading normalizes the transcript under the **target language's**
-  tokenization / accent / punctuation policy (whitespace tokenization is not
-  sufficient for space-less scripts) and returns a token-level
+- `say_it_back` grading normalizes the transcript under the **source lyric
+  language's** tokenization / accent / punctuation policy (whitespace
+  tokenization is not sufficient for space-less scripts) and returns a token-level
   matched / missing / extra diff.
 
 ### FSRS mapping (server-internal)
@@ -140,12 +145,14 @@ for the review unit, and returns the verdict.
 Grading is **attempts-based**, deliberately not latency-based for `say_it_back`
 (record + STT round-trip pollute timing):
 
-- correct on the first attempt → good / easy
+- correct on the first attempt → good
 - correct on the second attempt → hard
 - failed after `max_attempts` → again
 
-FSRS answers "when should this review unit reappear?". A separate session/high
-score concept answers "how did this session go?" — the two MUST NOT be conflated.
+The server writes a due interval to `song_study_review_state.due_at` on each
+accepted attempt. FSRS answers "when should this review unit reappear?". A
+separate session/high score concept answers "how did this session go?" — the two
+MUST NOT be conflated.
 
 ## Scope
 
@@ -370,6 +377,10 @@ community DB lyrics after the caller's access has been confirmed:
 - If translation generation is unavailable or invalid, the server MAY still
   return a ready say-it-back-only pack rather than failing the whole study
   experience.
+- First-load lazy generation MUST NOT wait on OpenRouter when local
+  say-it-back units can be created. It should return a ready say-it-back pack,
+  enqueue target-language translation generation, and expose translation-choice
+  exercises on later fetches after the async job succeeds.
 
 The server MUST NOT fabricate translation-choice answers on the client and MUST
 NOT derive line translations from document-level post localization unless that

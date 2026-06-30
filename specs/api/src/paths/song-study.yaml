@@ -1,5 +1,6 @@
 communities_by_community_id_posts_by_post_id_study:
   get:
+    x-implemented: true
     tags:
       - Song Study
     summary: Fetch the study pack for a song post
@@ -22,13 +23,22 @@ communities_by_community_id_posts_by_post_id_study:
                           surface. For a locked song, `ready` requires the
                           caller to be the author OR hold an active purchaser
                           entitlement; `viewer_is_author` alone is insufficient.
-        - `processing`  — alignment / pack generation pending.
+        - `processing`  — no safe local exercises are ready yet and server-side
+                          preparation is pending. Normal first-load lazy
+                          generation returns `ready` with say-it-back exercises
+                          while translation choices are prepared asynchronously.
         - `unavailable` — song cannot support study.
 
       Content gating: when `access` is not `ready`, the response contains NO
       lyric text, NO translations, and NO distractor options. The server
       assembles study content from the authoritative store gated by
       entitlement, never from the public post payload.
+
+      Generation timing: the endpoint does not wait for OpenRouter. When source
+      lyrics can be split locally, the first entitled fetch returns a ready
+      say-it-back pack and queues translation-choice generation in
+      `community_jobs`; later fetches include translation choices after that job
+      succeeds.
 
       Determinism: distractor options are server-shuffled deterministically per
       (user, post, exercise) seed; the order is fixed in the response. The
@@ -144,6 +154,7 @@ communities_by_community_id_posts_by_post_id_study:
 
 communities_by_community_id_posts_by_post_id_study_attempts:
   post:
+    x-implemented: true
     tags:
       - Song Study
     summary: Submit a study attempt and receive the server verdict
@@ -157,8 +168,9 @@ communities_by_community_id_posts_by_post_id_study_attempts:
       study pack. For `translation_choice`, the correct option is disclosed only
       in this response and only once the attempt is spent (a correct answer, or
       an incorrect final attempt → `outcome: revealed`). For `say_it_back`, the
-      server normalizes the submitted transcript under the target language's
-      tokenization / accent / punctuation policy and returns a token-level diff.
+      server normalizes the submitted transcript under the source lyric
+      language's tokenization / accent / punctuation policy and returns a
+      token-level diff.
 
       Authentication: required, same posture as the GET.
 
@@ -252,6 +264,7 @@ communities_by_community_id_posts_by_post_id_study_attempts:
 
 communities_by_community_id_posts_by_post_id_study_transcriptions:
   post:
+    x-implemented: true
     tags:
       - Song Study
     summary: Transcribe one study say-it-back recording

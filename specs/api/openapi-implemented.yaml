@@ -31,6 +31,7 @@ tags:
   - name: Posts
   - name: Comments
   - name: Bookings
+  - name: Song Study
   - name: Moderation
   - name: Notifications
   - name: Jobs
@@ -2387,6 +2388,342 @@ paths:
           $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /communities/{community_id}/posts/{post_id}/study:
+    get:
+      tags:
+        - Song Study
+      summary: Fetch the study pack for a song post
+      description: |
+        Returns the canonical study pack for a song post in the given community.
+        The server makes the access decision and is the SOLE authority on whether
+        the caller may study and whether exercise content is included; the client
+        must not derive access from the post payload shape.
+
+        Authentication (v1): this endpoint REQUIRES authentication. Logged-out /
+        public study is a later product decision that would require token-optional
+        access plus public/free entitlement handling; until then unauthenticated
+        callers receive `401 auth_error` and the `locked` state is only ever seen
+        by authenticated, non-entitled callers.
+
+        Access states (returned in the body, not as status codes — except auth):
+          - `ready`       — caller may study; `exercises` populated.
+          - `locked`      — post exists but access denied. Returned with `200`
+                            (NOT `404`) so the client can render the locked study
+                            surface. For a locked song, `ready` requires the
+                            caller to be the author OR hold an active purchaser
+                            entitlement; `viewer_is_author` alone is insufficient.
+          - `processing`  — no safe local exercises are ready yet and server-side
+                            preparation is pending. Normal first-load lazy
+                            generation returns `ready` with say-it-back exercises
+                            while translation choices are prepared asynchronously.
+          - `unavailable` — song cannot support study.
+
+        Content gating: when `access` is not `ready`, the response contains NO
+        lyric text, NO translations, and NO distractor options. The server
+        assembles study content from the authoritative store gated by
+        entitlement, never from the public post payload.
+
+        Generation timing: the endpoint does not wait for OpenRouter. When source
+        lyrics can be split locally, the first entitled fetch returns a ready
+        say-it-back pack and queues translation-choice generation in
+        `community_jobs`; later fetches include translation choices after that job
+        succeeds.
+
+        Determinism: distractor options are server-shuffled deterministically per
+        (user, post, exercise) seed; the order is fixed in the response. The
+        client renders options in array order and never re-sorts or generates
+        answers.
+
+        Error codes:
+          - `401 auth_error` — caller is not authenticated.
+          - `404 not_found`  — community not found (an existing post the caller
+            cannot access returns `200` with `access: "locked"`, not `404`).
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/PostId"
+        - in: query
+          name: target_language
+          required: false
+          schema:
+            type: string
+          description: |
+            BCP-47 target language to study the song in. A song may be studyable
+            in several target languages; defaults to the caller's content locale
+            when omitted. The resolved pair is echoed in the response and is part
+            of the spaced-repetition review-unit key.
+      responses:
+        "200":
+          description: |
+            Study pack. The `access` field discriminates `ready` / `locked` /
+            `processing` / `unavailable`; exercise content is present only for
+            `ready`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SongStudyPayload"
+              examples:
+                ready:
+                  summary: Entitled caller, pack ready
+                  value:
+                    object: song_study_payload
+                    post_id: post_00000000-0000-4000-8000-000000000001
+                    community_id: comm_00000000-0000-4000-8000-000000000001
+                    access: ready
+                    title: Midnight Waves
+                    artist_name: kevin.tameimpala
+                    artwork_src: https://media.example/cover.jpg
+                    source_language: en
+                    target_language: es
+                    study_pack_version: 1
+                    generated_at: 1800000000
+                    exercise_count: 2
+                    exercises:
+                      - id: ex_say_1
+                        type: say_it_back
+                        line_id: line_001
+                        line_index: 0
+                        prompt_text: I was lost in the midnight waves
+                        reference_text: I was lost in the midnight waves
+                        translation_text: Estaba perdido en las olas de medianoche
+                        max_attempts: 2
+                      - id: ex_choice_1
+                        type: translation_choice
+                        line_id: line_002
+                        line_index: 1
+                        prompt_text: Hold me close until the morning
+                        question: "Translate:"
+                        options:
+                          - id: opt_a
+                            text: Abrázame fuerte hasta la mañana
+                          - id: opt_b
+                            text: Déjame ir antes del amanecer
+                          - id: opt_c
+                            text: Canta conmigo toda la noche
+                        max_attempts: 2
+                locked:
+                  summary: Authenticated but not entitled to a locked song
+                  value:
+                    object: song_study_payload
+                    post_id: post_00000000-0000-4000-8000-000000000002
+                    community_id: comm_00000000-0000-4000-8000-000000000001
+                    access: locked
+                    title: Midnight Waves (Deluxe)
+                    artist_name: kevin.tameimpala
+                    artwork_src: https://media.example/cover-deluxe.jpg
+                    source_language: en
+                    target_language: es
+                    exercise_count: 0
+                    exercises: []
+                    locked_reason: purchase_required
+                processing:
+                  summary: Lyrics alignment / generation pending
+                  value:
+                    object: song_study_payload
+                    post_id: post_00000000-0000-4000-8000-000000000003
+                    community_id: comm_00000000-0000-4000-8000-000000000001
+                    access: processing
+                    title: New Single
+                    exercise_count: 0
+                    exercises: []
+                unavailable:
+                  summary: Song cannot support study
+                  value:
+                    object: song_study_payload
+                    post_id: post_00000000-0000-4000-8000-000000000004
+                    community_id: comm_00000000-0000-4000-8000-000000000001
+                    access: unavailable
+                    title: Instrumental Interlude
+                    exercise_count: 0
+                    exercises: []
+                    unavailable_reason: no_lyrics
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/posts/{post_id}/study/attempts:
+    post:
+      tags:
+        - Song Study
+      summary: Submit a study attempt and receive the server verdict
+      description: |
+        Validates a single attempt at one exercise SERVER-SIDE, records the
+        attempt as an event (not merely the final state), advances the
+        spaced-repetition (FSRS) schedule for the exercise's review unit, and
+        returns the verdict.
+
+        Answer integrity: the correct answer is never resident in the fetched
+        study pack. For `translation_choice`, the correct option is disclosed only
+        in this response and only once the attempt is spent (a correct answer, or
+        an incorrect final attempt → `outcome: revealed`). For `say_it_back`, the
+        server normalizes the submitted transcript under the source lyric
+        language's tokenization / accent / punctuation policy and returns a
+        token-level diff.
+
+        Authentication: required, same posture as the GET.
+
+        Idempotency: the request body includes an `idempotency_key`. Equivalent
+        retries return the original result; conflicting key reuse is rejected.
+        A retry must not double-record an attempt event or double-advance FSRS.
+
+        Error codes:
+          - `400 bad_request` — body invalid, `attempt_number` exceeds
+            `max_attempts`, or the payload field does not match `type`.
+          - `401 auth_error`  — caller is not authenticated.
+          - `403 forbidden`   — caller is not entitled to study this post
+            (mirrors a `locked` GET).
+          - `404 not_found`   — community, post, or exercise not found.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/PostId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SongStudyAttemptRequest"
+            examples:
+              translation_choice:
+                summary: Multiple-choice selection
+                value:
+                  idempotency_key: study_attempt_choice_001
+                  exercise_id: ex_choice_1
+                  type: translation_choice
+                  attempt_number: 1
+                  selected_option_id: opt_a
+              say_it_back:
+                summary: Spoken transcript
+                value:
+                  idempotency_key: study_attempt_say_001
+                  exercise_id: ex_say_1
+                  type: say_it_back
+                  attempt_number: 1
+                  transcript: I was lost in the midnight waves
+      responses:
+        "200":
+          description: Attempt verdict.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SongStudyAttemptResult"
+              examples:
+                correct:
+                  summary: Correct multiple-choice answer
+                  value:
+                    object: song_study_attempt_result
+                    exercise_id: ex_choice_1
+                    outcome: correct
+                    attempts_remaining: 1
+                    correct_option_id: opt_a
+                    next_review_hint: good
+                incorrect_not_spent:
+                  summary: Wrong first attempt, answer withheld
+                  value:
+                    object: song_study_attempt_result
+                    exercise_id: ex_choice_1
+                    outcome: incorrect
+                    attempts_remaining: 1
+                say_it_back_partial:
+                  summary: Spoken attempt with token feedback
+                  value:
+                    object: song_study_attempt_result
+                    exercise_id: ex_say_1
+                    outcome: incorrect
+                    attempts_remaining: 1
+                    feedback:
+                      matched:
+                        - I
+                        - was
+                        - in
+                        - the
+                        - midnight
+                        - waves
+                      missing:
+                        - lost
+                      extra: []
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/posts/{post_id}/study/transcriptions:
+    post:
+      tags:
+        - Song Study
+      summary: Transcribe one study say-it-back recording
+      description: |
+        Transcribes a learner's short say-it-back recording for this song study
+        session. This endpoint is only a transcription step: grading and FSRS
+        advancement still happen at `POST .../study/attempts`.
+
+        Authorization mirrors `GET .../study`: the caller must be authenticated
+        and entitled to study the post. The server validates access before sending
+        audio to the speech-to-text provider.
+
+        Retention: raw audio is not stored by Pirate. The returned final
+        transcript may be submitted to the attempts endpoint, where the final
+        transcript is stored on the attempt event for grading audit/replay.
+
+        Error codes:
+          - `400 bad_request` — missing file, unsupported file type, empty audio,
+            or file too large.
+          - `401 auth_error`  — caller is not authenticated.
+          - `403 forbidden`   — caller is not entitled to study this post.
+          - `404 not_found`   — community or post not found, or study unavailable.
+          - `502 provider_unavailable` — speech-to-text provider failed.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/PostId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Short say-it-back audio recording.
+              additionalProperties: false
+      responses:
+        "200":
+          description: Final speech-to-text transcript.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SongStudyTranscriptionResponse"
+              example:
+                object: song_study_transcription
+                provider: elevenlabs
+                model: scribe_v2
+                text: I was lost in the midnight waves
+                confidence: null
+                language_code: en
+                language_probability: null
+                duration_seconds: 2
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "502":
+          description: Speech-to-text provider unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: provider_unavailable
+                message: ElevenLabs transcription failed with http_502
+                retryable: true
   /communities/{community_id}/comments/{comment_id}/reports:
     post:
       tags:
@@ -4051,6 +4388,8 @@ components:
         pair) is returned in EVERY access state so the locked/processing surfaces
         can show context. Lyric / translation / option text appears only when
         `access` is `ready` (see normative invariants in specs/domain/song-study.md).
+        A ready pack may initially contain only say-it-back exercises; translation
+        choices can appear on later fetches after the async generation job succeeds.
 
         Scope: this is one song's full study pack. FSRS-scheduled, cross-song
         "due today" sessions are a separate concern and not modeled here.
@@ -4135,8 +4474,10 @@ components:
           - `locked`      — post exists but access is denied. Returned INSTEAD of
                             404 so the client can render the locked study surface.
                             Paired with `locked_reason`.
-          - `processing`  — lyrics alignment / study-pack generation is pending.
-                            No exercise content.
+          - `processing`  — no safe local exercises are ready yet and server-side
+                            preparation is pending. In v1, normal first-load lazy
+                            generation returns `ready` with say-it-back exercises
+                            while translation choices are prepared asynchronously.
           - `unavailable` — the song cannot support study. Paired with
                             `unavailable_reason`. No exercise content.
       enum:
@@ -4360,7 +4701,7 @@ components:
           type: object
           description: |
             Token-level diff for `say_it_back`, computed server-side under the
-            target language's tokenization / accent / punctuation policy.
+            source lyric language's tokenization / accent / punctuation policy.
           properties:
             matched:
               type: array
