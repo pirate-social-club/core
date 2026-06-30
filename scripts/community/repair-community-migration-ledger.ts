@@ -45,6 +45,39 @@ type MigrationFile = {
   checksum: string;
 };
 
+function parsePositiveIntEnv(name: string, fallback: number): number {
+  const parsed = Number(String(process.env[name] ?? "").trim());
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
+
+function createTimeoutFetch(timeoutMs: number): typeof fetch {
+  return async (input, init) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const signal = init?.signal;
+    const abortFromCaller = () => controller.abort();
+
+    if (signal?.aborted) {
+      controller.abort();
+    } else {
+      signal?.addEventListener("abort", abortFromCaller, { once: true });
+    }
+
+    try {
+      return await fetch(input, {
+        ...init,
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+      signal?.removeEventListener("abort", abortFromCaller);
+    }
+  };
+}
+
 function usage(exitCode = 1): never {
   console.error(`Usage:
   bun scripts/community/repair-community-migration-ledger.ts [options]
@@ -230,6 +263,7 @@ async function loadDriftPolicy(expectedByName: Map<string, MigrationFile>): Prom
 const options = parseArgs(process.argv.slice(2));
 const controlPlaneDatabaseUrl = requireEnv(options.databaseUrlEnv);
 const wrapKey = requireEnv("TURSO_COMMUNITY_DB_WRAP_KEY");
+const remoteFetchTimeoutMs = parsePositiveIntEnv("COMMUNITY_MIGRATION_REMOTE_FETCH_TIMEOUT_MS", 15_000);
 
 const rows = await listCommunityBindings({
   controlPlaneDatabaseUrl,
@@ -239,6 +273,7 @@ const rows = await listCommunityBindings({
 console.log("community migration ledger repair");
 console.log(`mode: ${options.execute ? "execute" : "dry-run"}`);
 console.log(`selected_communities: ${rows.length}`);
+console.log(`remote_fetch_timeout_ms: ${remoteFetchTimeoutMs}`);
 console.log("");
 
 let checksumRepaired = 0;
@@ -262,6 +297,7 @@ for (const row of rows) {
   const client = createClient({
     url: row.database_url,
     authToken: token,
+    fetch: createTimeoutFetch(remoteFetchTimeoutMs),
   });
   const label = `${row.community_id} ${JSON.stringify(row.display_name)}`;
 
