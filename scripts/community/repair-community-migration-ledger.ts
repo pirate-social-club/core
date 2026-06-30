@@ -8,6 +8,7 @@ import { splitSqlStatements, toRemoteSqliteMigrationStatement } from "../lib/sha
 
 const MIGRATIONS_DIR = resolve(import.meta.dir, "../../db/community-template/migrations");
 const DRIFT_POLICY_PATH = resolve(import.meta.dir, "../../db/known-community-migration-drifts.json");
+const LIVE_ROOM_REPLAY_COMMERCE_TARGETS_MIGRATION = "1114_live_room_replay_commerce_targets.sql";
 
 type Options = {
   databaseUrlEnv: string;
@@ -42,6 +43,13 @@ type MigrationFile = {
   path: string;
   sql: string;
   checksum: string;
+};
+
+type SqlClient = ReturnType<typeof createClient>;
+
+type OrphanCheck = {
+  label: string;
+  sql: string;
 };
 
 function usage(exitCode = 1): never {
@@ -226,6 +234,131 @@ async function loadDriftPolicy(expectedByName: Map<string, MigrationFile>): Prom
   };
 }
 
+async function tableExists(client: SqlClient, tableName: string): Promise<boolean> {
+  const result = await client.execute<{ n: number | bigint | string }>({
+    sql: "SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name = ?",
+    args: [tableName],
+  });
+  return Number(result.rows[0]?.n ?? 0) > 0;
+}
+
+async function runOrphanCheck(client: SqlClient, check: OrphanCheck): Promise<number> {
+  const result = await client.execute<{ n: number | bigint | string }>(check.sql);
+  return Number(result.rows[0]?.n ?? 0);
+}
+
+async function assertLiveRoomReplayCommerceMigrationPreflight(input: {
+  client: SqlClient;
+  actualByName: Map<string, string>;
+}): Promise<void> {
+  if (input.actualByName.has(LIVE_ROOM_REPLAY_COMMERCE_TARGETS_MIGRATION)) {
+    return;
+  }
+
+  const requiredTables = [
+    "communities",
+    "listings",
+    "purchase_quotes",
+    "purchases",
+    "purchase_allocation_legs",
+  ];
+  const existingTables = new Set<string>();
+  for (const tableName of requiredTables) {
+    if (await tableExists(input.client, tableName)) {
+      existingTables.add(tableName);
+    }
+  }
+
+  if (!requiredTables.every((tableName) => existingTables.has(tableName))) {
+    return;
+  }
+
+  const checks: OrphanCheck[] = [
+    {
+      label: "listings.community_id",
+      sql: `
+        SELECT COUNT(*) AS n
+        FROM listings AS child
+        LEFT JOIN communities AS parent
+          ON parent.community_id = child.community_id
+        WHERE parent.community_id IS NULL
+      `,
+    },
+    {
+      label: "purchase_quotes.community_id",
+      sql: `
+        SELECT COUNT(*) AS n
+        FROM purchase_quotes AS child
+        LEFT JOIN communities AS parent
+          ON parent.community_id = child.community_id
+        WHERE parent.community_id IS NULL
+      `,
+    },
+    {
+      label: "purchase_quotes.listing_id",
+      sql: `
+        SELECT COUNT(*) AS n
+        FROM purchase_quotes AS child
+        LEFT JOIN listings AS parent
+          ON parent.listing_id = child.listing_id
+        WHERE parent.listing_id IS NULL
+      `,
+    },
+    {
+      label: "purchases.community_id",
+      sql: `
+        SELECT COUNT(*) AS n
+        FROM purchases AS child
+        LEFT JOIN communities AS parent
+          ON parent.community_id = child.community_id
+        WHERE parent.community_id IS NULL
+      `,
+    },
+    {
+      label: "purchase_allocation_legs.community_id",
+      sql: `
+        SELECT COUNT(*) AS n
+        FROM purchase_allocation_legs AS child
+        LEFT JOIN communities AS parent
+          ON parent.community_id = child.community_id
+        WHERE parent.community_id IS NULL
+      `,
+    },
+    {
+      label: "purchase_allocation_legs.purchase_id",
+      sql: `
+        SELECT COUNT(*) AS n
+        FROM purchase_allocation_legs AS child
+        LEFT JOIN purchases AS parent
+          ON parent.purchase_id = child.purchase_id
+        WHERE parent.purchase_id IS NULL
+      `,
+    },
+    {
+      label: "purchase_allocation_legs.quote_id",
+      sql: `
+        SELECT COUNT(*) AS n
+        FROM purchase_allocation_legs AS child
+        LEFT JOIN purchase_quotes AS parent
+          ON parent.quote_id = child.quote_id
+        WHERE parent.quote_id IS NULL
+      `,
+    },
+  ];
+
+  const failures: string[] = [];
+  for (const check of checks) {
+    const count = await runOrphanCheck(input.client, check);
+    if (count > 0) {
+      failures.push(`${check.label}=${count}`);
+    }
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`${LIVE_ROOM_REPLAY_COMMERCE_TARGETS_MIGRATION}_orphan_preflight_failed:${failures.join(",")}`);
+  }
+}
+
 const options = parseArgs(process.argv.slice(2));
 const controlPlaneDatabaseUrl = requireEnv(options.databaseUrlEnv);
 const wrapKey = requireEnv("TURSO_COMMUNITY_DB_WRAP_KEY");
@@ -345,6 +478,11 @@ for (const row of rows) {
     if (remainingUnexpected.length > 0) {
       throw new Error(`remaining_unexpected_migration:${remainingUnexpected.join(",")}`);
     }
+
+    await assertLiveRoomReplayCommerceMigrationPreflight({
+      client,
+      actualByName,
+    });
 
     if (ledgerRepairs.length > 0 && options.execute) {
       const tx = await client.transaction("write");
