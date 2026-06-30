@@ -408,3 +408,309 @@ LiveRoomReplayAccessView:
     reason:
       type: string
       nullable: true
+LiveRoomRecordingDraft:
+  type: object
+  required:
+    - object
+    - live_room
+    - recording_enabled
+    - replay_status
+    - status
+    - replay_asset
+    - recording
+  properties:
+    object:
+      type: string
+      enum:
+        - live_room_replay_draft
+    live_room:
+      type: string
+    recording_enabled:
+      type: boolean
+    replay_status:
+      type: string
+      enum:
+        - none
+        - processing
+        - review_pending
+        - published
+        - failed
+    status:
+      type: string
+      enum:
+        - not_recorded
+        - processing
+        - ready
+        - published
+        - failed
+    replay_asset:
+      nullable: true
+      $ref: ./livestreams.yaml#/LiveRoomReplayAsset
+    recording:
+      nullable: true
+      $ref: ./livestreams.yaml#/LiveRoomRecording
+LiveRoomRecording:
+  type: object
+  required:
+    - id
+    - provider
+    - status
+    - failure_reason
+    - raw_artifact
+  properties:
+    id:
+      type: string
+    provider:
+      type: string
+      enum:
+        - agora
+    status:
+      type: string
+      enum:
+        - starting
+        - recording
+        - stopping
+        - captured
+        - ingesting
+        - failed
+    failure_reason:
+      type: string
+      nullable: true
+    raw_artifact:
+      nullable: true
+      $ref: ./livestreams.yaml#/LiveRoomRecordingRawArtifact
+LiveRoomRecordingRawArtifact:
+  type: object
+  required:
+    - provider
+    - ipfs_cid
+    - mime_type
+    - size_bytes
+  properties:
+    provider:
+      type: string
+      enum:
+        - filebase
+        - agora_capture
+    ipfs_cid:
+      type: string
+      nullable: true
+      description: Present only for legacy Filebase/IPFS raw artifacts. New replay captures stay private.
+    mime_type:
+      type: string
+    size_bytes:
+      type: integer
+      format: int64
+LiveRoomReplayAsset:
+  type: object
+  required:
+    - id
+    - object
+    - publication_status
+    - title
+    - caption
+    - duration_ms
+    - preview_ref
+    - access_mode
+    - locked_delivery_status
+    - published_at
+    - allocations
+  properties:
+    id:
+      type: string
+    object:
+      type: string
+      enum:
+        - live_room_replay_asset
+    publication_status:
+      type: string
+      enum:
+        - draft
+        - published
+        - failed
+    title:
+      type: string
+    caption:
+      type: string
+      nullable: true
+    duration_ms:
+      type: integer
+      nullable: true
+    preview_ref:
+      type: string
+      nullable: true
+    access_mode:
+      type: string
+      enum:
+        - free
+        - included_with_ticket
+        - paid
+    locked_delivery_status:
+      type: string
+      enum:
+        - none
+        - requested
+        - ready
+        - failed
+    published_at:
+      type: string
+      nullable: true
+    allocations:
+      type: array
+      items:
+        $ref: ./livestreams.yaml#/LiveRoomReplayAllocation
+LiveRoomReplayAllocation:
+  type: object
+  required:
+    - id
+    - participant_user
+    - external_party_ref
+    - role
+    - share_bps
+    - rights_basis
+    - approval_status
+  properties:
+    id:
+      type: string
+    participant_user:
+      type: string
+      nullable: true
+    external_party_ref:
+      type: string
+      nullable: true
+    role:
+      type: string
+    share_bps:
+      type: integer
+      minimum: 0
+      maximum: 10000
+    rights_basis:
+      type: string
+    approval_status:
+      type: string
+      enum:
+        - pending
+        - approved
+        - rejected
+UpdateLiveRoomReplayDraftRequest:
+  type: object
+  properties:
+    title:
+      type: string
+      nullable: true
+    caption:
+      type: string
+      nullable: true
+    preview_ref:
+      type: string
+      nullable: true
+    access_mode:
+      type: string
+      nullable: true
+      enum:
+        - free
+        - included_with_ticket
+        - paid
+    allocations:
+      type: array
+      nullable: true
+      items:
+        $ref: ./livestreams.yaml#/UpdateLiveRoomReplayAllocation
+UpdateLiveRoomReplayAllocation:
+  type: object
+  properties:
+    participant_user:
+      type: string
+      nullable: true
+    external_party_ref:
+      type: string
+      nullable: true
+    role:
+      type: string
+      nullable: true
+    share_bps:
+      type: integer
+      nullable: true
+      minimum: 0
+      maximum: 10000
+PublishLiveRoomReplayDraftRequest:
+  type: object
+  properties:
+    access_mode:
+      type: string
+      enum:
+        - free
+        - included_with_ticket
+        - paid
+    listing:
+      nullable: true
+      $ref: ./communities-community.yaml#/CreateCommunityListingRequest
+LiveRoomReplayAccessDecision:
+  type: object
+  required:
+    - live_room
+    - replay_asset
+    - replay_status
+    - access_mode
+    - locked_delivery_status
+    - access_granted
+    - decision_reason
+    - delivery_kind
+    - delivery_ref
+    - story_cdr_access
+  properties:
+    live_room:
+      type: string
+    replay_asset:
+      type: string
+      nullable: true
+    replay_listing:
+      nullable: true
+      $ref: ./communities-community.yaml#/CommunityListing
+    replay_status:
+      type: string
+      enum:
+        - none
+        - processing
+        - review_pending
+        - published
+        - failed
+    access_mode:
+      type: string
+      enum:
+        - free
+        - included_with_ticket
+        - paid
+    locked_delivery_status:
+      type: string
+      enum:
+        - none
+        - requested
+        - ready
+        - failed
+    access_granted:
+      type: boolean
+    decision_reason:
+      type: string
+      enum:
+        - public
+        - creator
+        - moderator
+        - purchase_entitlement
+        - purchase_required
+        - delivery_pending
+        - not_published
+        - not_available
+    delivery_kind:
+      type: string
+      nullable: true
+      enum:
+        - primary_content_ref
+        - story_cdr_ref
+    delivery_ref:
+      type: string
+      nullable: true
+    story_cdr_access:
+      type: object
+      nullable: true
+      additionalProperties: true

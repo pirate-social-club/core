@@ -115,6 +115,60 @@ public_communities_by_community_id_posts:
         $ref: ../components/responses.yaml#/NotFound
       "429":
         $ref: ../components/responses.yaml#/RateLimited
+public_communities_by_community_id_live_rooms_by_live_room_id_replay_access:
+  get:
+    tags:
+      - Livestreams
+    x-implemented: true
+    security: []
+    summary: Resolve public replay access
+    description: |
+      Returns public replay access state. Only free published replays can grant public access;
+      gated, included-ticket, and paid replays fail closed without an authenticated entitlement.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/LiveRoomId
+    responses:
+      "200":
+        description: Public livestream replay access decision
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/livestreams.yaml#/LiveRoomReplayAccessDecision
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+public_communities_by_community_id_live_rooms_by_live_room_id_replay_content:
+  get:
+    tags:
+      - Livestreams
+    x-implemented: true
+    security: []
+    summary: Fetch public replay bytes
+    description: |
+      Returns replay media bytes only for free published replays. Locked replay content is never
+      served through the public endpoint.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/LiveRoomId
+    responses:
+      "200":
+        description: Public replay media bytes
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      "206":
+        description: Partial public replay media bytes
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
 public_posts_by_post_id:
   get:
     tags:

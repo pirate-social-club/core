@@ -237,6 +237,16 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_join_eligibility
   /communities/{community_id}/live-rooms:
     $ref: ./paths/communities.yaml#/communities_by_community_id_live_rooms
+  /communities/{community_id}/live-rooms/{live_room_id}/recording-draft:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_live_rooms_by_live_room_id_recording_draft
+  /communities/{community_id}/live-rooms/{live_room_id}/replay-draft:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_live_rooms_by_live_room_id_replay_draft
+  /communities/{community_id}/live-rooms/{live_room_id}/replay-draft/publish:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_live_rooms_by_live_room_id_replay_draft_publish
+  /communities/{community_id}/live-rooms/{live_room_id}/replay/access:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_live_rooms_by_live_room_id_replay_access
+  /communities/{community_id}/live-rooms/{live_room_id}/replay/content:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_live_rooms_by_live_room_id_replay_content
   /communities/{community_id}/leave:
     $ref: ./paths/communities.yaml#/communities_by_community_id_leave
   /communities/{community_id}/market-context-policy:
@@ -301,6 +311,10 @@ paths:
     $ref: ./paths/community-machine-access.yaml#/public_communities_by_community_id
   /public-communities/{community_id}/posts:
     $ref: ./paths/community-machine-access.yaml#/public_communities_by_community_id_posts
+  /public-communities/{community_id}/live-rooms/{live_room_id}/replay/access:
+    $ref: ./paths/community-machine-access.yaml#/public_communities_by_community_id_live_rooms_by_live_room_id_replay_access
+  /public-communities/{community_id}/live-rooms/{live_room_id}/replay/content:
+    $ref: ./paths/community-machine-access.yaml#/public_communities_by_community_id_live_rooms_by_live_room_id_replay_content
   /public-posts/{post_id}:
     $ref: ./paths/community-machine-access.yaml#/public_posts_by_post_id
   /public-posts/{post_id}/top-comments:
