@@ -288,6 +288,12 @@ export const ENV_CONTRACT: EnvContract = {
     },
     {
       path: "/services/api",
+      key: "SONG_STUDY_GENERATION_TARGET_LANGUAGE_LIMIT",
+      requiredness: "deferred",
+      validate: isPositiveInteger,
+    },
+    {
+      path: "/services/api",
       key: "OPENAI_API_KEY",
       requiredness: "required_for_hosted",
     },
