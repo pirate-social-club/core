@@ -5,6 +5,7 @@ import {
   inspectCommunityTemplateMigrations,
 } from "../lib/community-bootstrap";
 import { decryptCommunityDbCredential } from "../lib/shared/community-db-credential-crypto";
+import { sanitizePostgresUrlForBunSql } from "../lib/postgres-url";
 
 type Options = {
   databaseUrlEnv: string;
@@ -120,7 +121,7 @@ async function listCommunityBindings(input: {
   communityIds: string[];
   includeProvisioningErrors: boolean;
 }): Promise<CommunityBindingRow[]> {
-  const db = new Bun.SQL(input.controlPlaneDatabaseUrl);
+  const db = new Bun.SQL(sanitizePostgresUrlForBunSql(input.controlPlaneDatabaseUrl));
   const provisioningStates = input.includeProvisioningErrors
     ? ["active", "error"]
     : ["active"];

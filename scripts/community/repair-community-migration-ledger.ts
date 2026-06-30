@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { decryptCommunityDbCredential } from "../lib/shared/community-db-credential-crypto";
 import { splitSqlStatements, toRemoteSqliteMigrationStatement } from "../lib/shared/sql-migration";
+import { sanitizePostgresUrlForBunSql } from "../lib/postgres-url";
 
 const MIGRATIONS_DIR = resolve(import.meta.dir, "../../db/community-template/migrations");
 const DRIFT_POLICY_PATH = resolve(import.meta.dir, "../../db/known-community-migration-drifts.json");
@@ -128,7 +129,7 @@ async function listCommunityBindings(input: {
   controlPlaneDatabaseUrl: string;
   communityIds: string[];
 }): Promise<CommunityBindingRow[]> {
-  const db = new Bun.SQL(input.controlPlaneDatabaseUrl);
+  const db = new Bun.SQL(sanitizePostgresUrlForBunSql(input.controlPlaneDatabaseUrl));
   const clauses = [
     "c.status = 'active'",
     "c.provisioning_state = 'active'",
