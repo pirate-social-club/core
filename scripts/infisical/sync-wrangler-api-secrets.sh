@@ -8,7 +8,8 @@ Usage:
 
 If --api-dir is omitted, the script uses API_DIR or the first available API checkout.
 If --env-file is omitted, the script reads from the current exported environment.
-If --worker-name is omitted, the script syncs the production worker api-core.
+If --worker-name is omitted, the script uses the Worker name from the Wrangler config
+for the selected environment.
 If --wrangler-env is omitted, the script targets Wrangler's top-level environment.
 PROFILE can be:
   core        Core auth/control-plane/community-provisioning path
@@ -36,7 +37,7 @@ EOF
 
 ENV_FILE=""
 API_DIR="${API_DIR:-}"
-WORKER_NAME="api-core"
+WORKER_NAME=""
 WRANGLER_ENV=""
 PROFILE="happy-path"
 
@@ -131,9 +132,12 @@ done
 put_secret() {
   local name="$1"
   local value="${!name:-}"
-  local -a wrangler_args=(secret put "$name" --name "$WORKER_NAME")
+  local -a wrangler_args=(secret put "$name")
   if [[ -z "$value" ]]; then
     return 0
+  fi
+  if [[ -n "$WORKER_NAME" ]]; then
+    wrangler_args+=(--name "$WORKER_NAME")
   fi
   if [[ -n "$WRANGLER_ENV" ]]; then
     wrangler_args+=(--env "$WRANGLER_ENV")
@@ -144,7 +148,7 @@ put_secret() {
   )
 }
 
-echo "syncing API worker secrets to Cloudflare worker: $WORKER_NAME" >&2
+echo "syncing API worker secrets to Cloudflare worker: ${WORKER_NAME:-<wrangler-config>}" >&2
 echo "profile: $PROFILE" >&2
 
 for name in "${required_names[@]}"; do
@@ -157,7 +161,7 @@ done
 
 cat <<EOF
 wrangler API secret sync complete
-worker_name: $WORKER_NAME
+worker_name: ${WORKER_NAME:-<wrangler-config>}
 wrangler_env: ${WRANGLER_ENV:-<top-level>}
 profile: $PROFILE
 required:

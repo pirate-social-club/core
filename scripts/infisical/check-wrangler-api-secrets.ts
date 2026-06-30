@@ -14,7 +14,7 @@ import {
 
 type Options = {
   apiDir: string;
-  workerName: string;
+  workerName: string | null;
   wranglerEnv: string;
   profile: Exclude<SecretProfile, "all">;
   allowExtra: boolean;
@@ -35,7 +35,7 @@ PROFILE: core, happy-path, commerce. Default: happy-path.
 
 Options:
   --api-dir PATH       API service directory. Default: ../api/services/api from core.
-  --worker-name NAME   Cloudflare Worker name. Default: api-core.
+  --worker-name NAME   Cloudflare Worker name. Omit to use the Wrangler config name for the selected environment.
   --wrangler-env ENV   Wrangler environment. Omit for top-level production worker.
   --profile PROFILE    Secret profile to require. Default: happy-path.
   --allow-extra        Warn instead of failing on unmanaged extra secrets.
@@ -46,7 +46,7 @@ Options:
 function parseArgs(argv: string[]): Options {
   const options: Options = {
     apiDir: resolve(process.cwd(), "../api/services/api"),
-    workerName: "api-core",
+    workerName: null,
     wranglerEnv: "",
     profile: "happy-path",
     allowExtra: false,
@@ -62,7 +62,7 @@ function parseArgs(argv: string[]): Options {
         index += 2;
         break;
       case "--worker-name":
-        options.workerName = value ?? "";
+        options.workerName = value?.trim() || null;
         index += 2;
         break;
       case "--wrangler-env":
@@ -91,7 +91,7 @@ function parseArgs(argv: string[]): Options {
     }
   }
 
-  if (!options.apiDir || !options.workerName) {
+  if (!options.apiDir) {
     usage();
   }
 
@@ -100,7 +100,10 @@ function parseArgs(argv: string[]): Options {
 
 function runWranglerSecretList(options: Options): WranglerSecret[] {
   const wrangler = resolve(options.apiDir, "node_modules/.bin/wrangler");
-  const args = ["secret", "list", "--name", options.workerName, "--format", "json"];
+  const args = ["secret", "list", "--format", "json"];
+  if (options.workerName) {
+    args.push("--name", options.workerName);
+  }
   if (options.wranglerEnv) {
     args.push("--env", options.wranglerEnv);
   }
@@ -165,7 +168,7 @@ const managedConfigAsSecrets = extraNames.filter((name) => managedConfigNames.ha
 const unmanagedExtra = extraNames.filter((name) => !managedConfigNames.has(name));
 
 console.log("wrangler API secret audit");
-console.log(`worker_name: ${options.workerName}`);
+console.log(`worker_name: ${options.workerName ?? "<wrangler-config>"}`);
 console.log(`wrangler_env: ${options.wranglerEnv || "<top-level>"}`);
 console.log(`profile: ${options.profile}`);
 console.log(`live_secret_count: ${liveNames.size}`);
