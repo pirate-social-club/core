@@ -505,6 +505,9 @@ CommunityListing:
     live_room:
       type: string
       nullable: true
+    replay_asset:
+      type: string
+      nullable: true
     listing_mode:
       type: string
       enum:
@@ -554,6 +557,9 @@ CreateCommunityListingRequest:
       type: string
       nullable: true
     live_room:
+      type: string
+      nullable: true
+    replay_asset:
       type: string
       nullable: true
     price_cents:
@@ -625,6 +631,7 @@ CommunitySaleAllocationRecipientType:
   type: string
   enum:
     - creator
+    - performer
     - charity
     - community_treasury
 CommunitySaleAllocationSettlementStrategy:
@@ -722,6 +729,9 @@ CommunityPurchase:
       type: string
       nullable: true
     live_room:
+      type: string
+      nullable: true
+    replay_asset:
       type: string
       nullable: true
     buyer_user:
@@ -995,6 +1005,9 @@ CommunityPurchaseQuote:
     live_room:
       type: string
       nullable: true
+    replay_asset:
+      type: string
+      nullable: true
     base_price_cents:
       type: integer
       minimum: 0
@@ -1140,6 +1153,9 @@ CommunityPurchaseSettlement:
     live_room:
       type: string
       nullable: true
+    replay_asset:
+      type: string
+      nullable: true
     settlement_wallet_attachment:
       type: string
     purchase_price_cents:
@@ -1187,6 +1203,7 @@ CommunityPurchaseSettlement:
       enum:
         - asset_access
         - live_room_access
+        - replay_access
     entitlement_target_ref:
       type: string
     purchase_entitlement:

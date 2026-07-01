@@ -1269,6 +1269,9 @@ LocalizedPostResponse:
       $ref: ./communities-core.yaml#/CommunityPreview
       nullable: true
       description: Inline public community preview for post SEO and public traversal clients, when available.
+    viewer_gate_state:
+      $ref: ./posts.yaml#/PostViewerGateState
+      nullable: true
     author_community_role:
       type: string
       enum:
@@ -1290,6 +1293,14 @@ LocalizedPostResponse:
     study_capability:
       $ref: '#/components/schemas/SongStudyCapability'
       nullable: true
+    asset_story:
+      $ref: ./posts.yaml#/PostAssetStorySummary
+      nullable: true
+    derivative_sources:
+      type: array
+      nullable: true
+      items:
+        $ref: ./posts.yaml#/PostDerivativeSource
     upvote_count:
       type: integer
       minimum: 0
@@ -1434,6 +1445,10 @@ MediaDescriptor:
     content_hash:
       type: string
       nullable: true
+    decentralized_storage:
+      type: object
+      nullable: true
+      additionalProperties: true
     duration_ms:
       type: integer
       nullable: true
@@ -1457,6 +1472,124 @@ MediaDescriptor:
       nullable: true
     preview_video:
       $ref: ./song-artifacts.yaml#/SongVideoArtifactDescriptor
+      nullable: true
+PostAssetStorySummary:
+  type: object
+  required:
+    - story_ip
+    - story_royalty_registration_status
+  additionalProperties: false
+  properties:
+    story_ip:
+      type: string
+      nullable: true
+    story_royalty_registration_status:
+      type: string
+      enum:
+        - none
+        - pending
+        - registered
+        - failed
+PostDerivativeSource:
+  type: object
+  required:
+    - source_ref
+    - title
+    - kind
+    - relationship_type
+  additionalProperties: false
+  properties:
+    source_ref:
+      type: string
+    title:
+      type: string
+    kind:
+      type: string
+      enum:
+        - song
+        - video
+        - external
+    relationship_type:
+      type: string
+      enum:
+        - remix_of
+        - references_song
+        - references_video
+        - inspired_by
+        - samples
+    community:
+      type: string
+      nullable: true
+    asset:
+      type: string
+      nullable: true
+    source_post:
+      type: string
+      nullable: true
+    story_ip:
+      type: string
+      nullable: true
+    story_license_terms:
+      type: string
+      nullable: true
+    license_preset:
+      type: string
+      enum:
+        - non-commercial
+        - commercial-use
+        - commercial-remix
+      nullable: true
+    commercial_rev_share_pct:
+      type: integer
+      minimum: 0
+      maximum: 100
+      nullable: true
+    creator_user:
+      type: string
+      nullable: true
+    creator_handle:
+      type: string
+      nullable: true
+    creator_display_name:
+      type: string
+      nullable: true
+PostViewerGateState:
+  type: object
+  required:
+    - community_id
+    - community_display_name
+    - viewer_community_role
+    - viewer_membership_status
+    - membership_gate_summaries
+  additionalProperties: false
+  properties:
+    community_id:
+      type: string
+    community_display_name:
+      type: string
+    viewer_community_role:
+      type: string
+      enum:
+        - owner
+        - admin
+        - moderator
+      nullable: true
+    viewer_membership_status:
+      type: string
+      enum:
+        - member
+        - not_member
+        - banned
+      nullable: true
+    membership_gate_summaries:
+      type: array
+      items:
+        $ref: ./communities-core.yaml#/MembershipGateSummary
+    gate_match_mode:
+      type: string
+      enum:
+        - all
+        - any
       nullable: true
 ImageMediaDescriptor:
   type: object

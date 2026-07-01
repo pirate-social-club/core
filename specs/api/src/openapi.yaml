@@ -265,6 +265,8 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_posts_by_post_id_comments_lock
   /communities/{community_id}/posts/{post_id}/reports:
     $ref: ./paths/communities.yaml#/communities_by_community_id_posts_by_post_id_reports
+  /communities/{community_id}/posts/{post_id}/karaoke/sessions:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_posts_by_post_id_karaoke_sessions
   /communities/{community_id}/posts/{post_id}/study:
     $ref: ./paths/song-study.yaml#/communities_by_community_id_posts_by_post_id_study
   /communities/{community_id}/posts/{post_id}/study/attempts:
@@ -287,6 +289,8 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_song_artifacts
   /communities/{community_id}/song-artifacts/{song_artifact_bundle_id}:
     $ref: ./paths/communities.yaml#/communities_by_community_id_song_artifacts_by_song_artifact_bundle_id
+  /karaoke/sessions/{session_id}/websocket:
+    $ref: ./paths/communities.yaml#/karaoke_sessions_by_session_id_websocket
   /communities/{community_id}/civility-policy:
     $ref: ./paths/communities.yaml#/communities_by_community_id_civility_policy
   /bookings:

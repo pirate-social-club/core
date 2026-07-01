@@ -183,11 +183,15 @@ export type Community = {
   namespace_verification?: string | null;
   route_slug?: string | null;
   pending_namespace_verification_session?: string | null;
+  store_url?: string | null;
+  store_label?: string | null;
+  country_code?: string | null;
   status: "draft" | "active" | "frozen" | "archived" | "deleted";
   provisioning_state: "requested" | "provisioning" | "active" | "rotation_required" | "error";
   artist_identity?: string | null;
   community_agent_user?: string | null;
   membership_mode: "open" | "request" | "gated";
+  karaoke_enabled: boolean;
   allow_anonymous_identity: boolean;
   anonymous_identity_scope?: "community_stable" | "thread_stable" | "post_ephemeral" | null;
   human_verification_lane: HumanVerificationLane;
@@ -289,6 +293,7 @@ export type CommunityListing = {
   community: string;
   asset?: string | null;
   live_room?: string | null;
+  replay_asset?: string | null;
   listing_mode: "fixed_price";
   status: "draft" | "active" | "paused" | "archived";
   price_cents: number;
@@ -304,6 +309,7 @@ export type CommunityListing = {
 export type CreateCommunityListingRequest = {
   asset?: string | null;
   live_room?: string | null;
+  replay_asset?: string | null;
   price_cents: number;
   regional_pricing_enabled: boolean;
   donation_partner?: string | null;
@@ -333,6 +339,7 @@ export type CommunityPurchase = {
   listing: string;
   asset?: string | null;
   live_room?: string | null;
+  replay_asset?: string | null;
   buyer_user: string;
   settlement_wallet_attachment: string;
   purchase_price_cents: number;
@@ -412,6 +419,7 @@ export type CommunityPurchaseQuote = {
   buyer_user: string;
   asset?: string | null;
   live_room?: string | null;
+  replay_asset?: string | null;
   base_price_cents: number;
   pricing_tier?: string | null;
   final_price_cents: number;
@@ -456,6 +464,7 @@ export type CommunityPurchaseSettlement = {
   buyer_user: string;
   asset?: string | null;
   live_room?: string | null;
+  replay_asset?: string | null;
   settlement_wallet_attachment: string;
   purchase_price_cents: number;
   pricing_tier?: string | null;
@@ -470,7 +479,7 @@ export type CommunityPurchaseSettlement = {
   donation_amount_cents?: number | null;
   vinyl_release_provider?: "elasticstage" | null;
   vinyl_release_url?: string | null;
-  entitlement_kind: "asset_access" | "live_room_access";
+  entitlement_kind: "asset_access" | "live_room_access" | "replay_access";
   entitlement_target_ref: string;
   purchase_entitlement: string;
   settled_at: number;
@@ -926,7 +935,7 @@ type CommunitySaleAllocationLeg = (CommunitySaleAllocationSnapshot & {
   failure_reason?: string | null;
 });
 
-type CommunitySaleAllocationRecipientType = "creator" | "charity" | "community_treasury";
+type CommunitySaleAllocationRecipientType = "creator" | "performer" | "charity" | "community_treasury";
 
 type CommunitySaleAllocationSettlementStrategy = "story_payout" | "provider_payout" | "treasury_payout";
 
@@ -1167,6 +1176,7 @@ type MediaDescriptor = {
   mime_type?: string | null;
   size_bytes?: number | null;
   content_hash?: string | null;
+  decentralized_storage?: (Record<string, unknown>) | null;
   duration_ms?: number | null;
   poster_ref?: string | null;
   poster_mime_type?: string | null;

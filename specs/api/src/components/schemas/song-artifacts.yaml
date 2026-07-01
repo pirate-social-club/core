@@ -191,6 +191,12 @@ CreateSongArtifactUploadRequest:
     content_hash:
       type: string
       nullable: true
+    upload_mode:
+      type: string
+      nullable: true
+      enum:
+        - proxy
+        - direct_multipart
 SongArtifactUploadContentRequest:
   type: object
   additionalProperties: false
@@ -705,6 +711,15 @@ AssetAccessResponse:
         - purchase_entitlement
         - purchase_required
         - delivery_pending
+        - preview_pending
+    bundle_preview_status:
+      type: string
+      nullable: true
+      enum:
+        - pending
+        - processing
+        - completed
+        - failed
     delivery_kind:
       type: string
       nullable: true
