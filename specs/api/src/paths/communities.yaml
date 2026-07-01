@@ -1413,6 +1413,167 @@ communities_by_community_id_live_rooms:
         $ref: ../components/responses.yaml#/EligibilityFailed
       "429":
         $ref: ../components/responses.yaml#/RateLimited
+communities_by_community_id_live_rooms_by_live_room_id_recording_draft:
+  get:
+    tags:
+      - Livestreams
+    x-implemented: true
+    summary: Get a host-visible livestream recording draft
+    description: |
+      Returns the recording and replay draft state for a room. Only the host, invited performer,
+      or community owner/admin/moderator may inspect this host review surface.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/LiveRoomId
+    responses:
+      "200":
+        description: Livestream recording draft
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/livestreams.yaml#/LiveRoomRecordingDraft
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_live_rooms_by_live_room_id_replay_draft:
+  get:
+    tags:
+      - Livestreams
+    x-implemented: true
+    summary: Get a host-visible livestream replay draft
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/LiveRoomId
+    responses:
+      "200":
+        description: Livestream replay draft
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/livestreams.yaml#/LiveRoomRecordingDraft
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+  patch:
+    tags:
+      - Livestreams
+    x-implemented: true
+    summary: Update a livestream replay draft
+    description: |
+      Updates host-editable replay metadata and replay royalty allocations before publish.
+      The draft is editable only while the room replay status is `review_pending`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/LiveRoomId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/livestreams.yaml#/UpdateLiveRoomReplayDraftRequest
+    responses:
+      "200":
+        description: Updated livestream replay draft
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/livestreams.yaml#/LiveRoomRecordingDraft
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+communities_by_community_id_live_rooms_by_live_room_id_replay_draft_publish:
+  post:
+    tags:
+      - Livestreams
+    x-implemented: true
+    summary: Publish a livestream replay draft
+    description: |
+      Publishes the replay as free, included with the live ticket, or a separately paid replay.
+      Locked replay modes prepare Story CDR delivery and paid replay may create a replay listing.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/LiveRoomId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/livestreams.yaml#/PublishLiveRoomReplayDraftRequest
+    responses:
+      "200":
+        description: Published livestream replay draft
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/livestreams.yaml#/LiveRoomRecordingDraft
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+communities_by_community_id_live_rooms_by_live_room_id_replay_access:
+  get:
+    tags:
+      - Livestreams
+    x-implemented: true
+    summary: Resolve authenticated replay access
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/LiveRoomId
+    responses:
+      "200":
+        description: Livestream replay access decision
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/livestreams.yaml#/LiveRoomReplayAccessDecision
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_live_rooms_by_live_room_id_replay_content:
+  get:
+    tags:
+      - Livestreams
+    x-implemented: true
+    summary: Fetch authenticated replay bytes
+    description: |
+      Returns replay media bytes for callers with access. Free replays serve the primary recording
+      bytes; locked replay modes serve encrypted Story CDR delivery bytes.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/LiveRoomId
+    responses:
+      "200":
+        description: Replay media bytes
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      "206":
+        description: Partial replay media bytes
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
 communities_by_community_id_leave:
   post:
     tags:

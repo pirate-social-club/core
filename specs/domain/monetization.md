@@ -230,6 +230,7 @@ Interpretation:
 - `solo` and `duet` rooms still settle through the room listing plus the club payout policy first
 - performer allocations only divide the performer-side proceeds after upstream, club, and platform obligations have been resolved
 - if a creator-side donation sidecar is enabled on a live or replay listing, it should reduce the performer-side pool before the final performer allocation split, unless later policy explicitly chooses a different ordering
+- paid live and paid replay allocations may reference an external rightsholder only after that party has a payable Pirate identity or an explicit escrow route; otherwise quote creation must fail rather than creating a payout leg that cannot be settled
 - song-specific live splits still require a later segment or replay-rights model
 - ACRCloud recognition on the live mix or replay may produce evidence for later rights or payout review, but it must not auto-rewrite the live settlement waterfall in real time in v0
 

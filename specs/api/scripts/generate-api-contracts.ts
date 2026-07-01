@@ -348,6 +348,34 @@ const ROUTE_EXPORTS = [
   { name: "communityModerationCaseActions", path: "/communities/{community_id}/moderation/cases/{moderation_case_id}/actions" },
   { name: "communityPreview", path: "/communities/{community_id}/preview" },
   { name: "communityJoinEligibility", path: "/communities/{community_id}/join-eligibility" },
+  {
+    name: "communityLiveRoomRecordingDraft",
+    path: "/communities/{community_id}/live-rooms/{live_room_id}/recording-draft",
+  },
+  {
+    name: "communityLiveRoomReplayDraft",
+    path: "/communities/{community_id}/live-rooms/{live_room_id}/replay-draft",
+  },
+  {
+    name: "communityLiveRoomReplayDraftPublish",
+    path: "/communities/{community_id}/live-rooms/{live_room_id}/replay-draft/publish",
+  },
+  {
+    name: "communityLiveRoomReplayAccess",
+    path: "/communities/{community_id}/live-rooms/{live_room_id}/replay/access",
+  },
+  {
+    name: "communityLiveRoomReplayContent",
+    path: "/communities/{community_id}/live-rooms/{live_room_id}/replay/content",
+  },
+  {
+    name: "publicCommunityLiveRoomReplayAccess",
+    path: "/public-communities/{community_id}/live-rooms/{live_room_id}/replay/access",
+  },
+  {
+    name: "publicCommunityLiveRoomReplayContent",
+    path: "/public-communities/{community_id}/live-rooms/{live_room_id}/replay/content",
+  },
   { name: "communityJoin", path: "/communities/{community_id}/join" },
   { name: "communityMembershipRequests", path: "/communities/{community_id}/membership-requests" },
   {

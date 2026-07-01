@@ -30,6 +30,7 @@ tags:
   - name: Communities
   - name: Posts
   - name: Comments
+  - name: Livestreams
   - name: Bookings
   - name: Song Study
   - name: Moderation
@@ -2095,6 +2096,161 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/live-rooms/{live_room_id}/recording-draft:
+    get:
+      tags:
+        - Livestreams
+      summary: Get a host-visible livestream recording draft
+      description: |
+        Returns the recording and replay draft state for a room. Only the host, invited performer,
+        or community owner/admin/moderator may inspect this host review surface.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/LiveRoomId"
+      responses:
+        "200":
+          description: Livestream recording draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveRoomRecordingDraft"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/live-rooms/{live_room_id}/replay-draft:
+    get:
+      tags:
+        - Livestreams
+      summary: Get a host-visible livestream replay draft
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/LiveRoomId"
+      responses:
+        "200":
+          description: Livestream replay draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveRoomRecordingDraft"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - Livestreams
+      summary: Update a livestream replay draft
+      description: |
+        Updates host-editable replay metadata and replay royalty allocations before publish.
+        The draft is editable only while the room replay status is `review_pending`.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/LiveRoomId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLiveRoomReplayDraftRequest"
+      responses:
+        "200":
+          description: Updated livestream replay draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveRoomRecordingDraft"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /communities/{community_id}/live-rooms/{live_room_id}/replay-draft/publish:
+    post:
+      tags:
+        - Livestreams
+      summary: Publish a livestream replay draft
+      description: |
+        Publishes the replay as free, included with the live ticket, or a separately paid replay.
+        Locked replay modes prepare Story CDR delivery and paid replay may create a replay listing.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/LiveRoomId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublishLiveRoomReplayDraftRequest"
+      responses:
+        "200":
+          description: Published livestream replay draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveRoomRecordingDraft"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /communities/{community_id}/live-rooms/{live_room_id}/replay/access:
+    get:
+      tags:
+        - Livestreams
+      summary: Resolve authenticated replay access
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/LiveRoomId"
+      responses:
+        "200":
+          description: Livestream replay access decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveRoomReplayAccessDecision"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/live-rooms/{live_room_id}/replay/content:
+    get:
+      tags:
+        - Livestreams
+      summary: Fetch authenticated replay bytes
+      description: |
+        Returns replay media bytes for callers with access. Free replays serve the primary recording
+        bytes; locked replay modes serve encrypted Story CDR delivery bytes.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/LiveRoomId"
+      responses:
+        "200":
+          description: Replay media bytes
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Partial replay media bytes
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /communities/{community_id}/posts:
     post:
       tags:
@@ -3768,6 +3924,58 @@ paths:
                 $ref: "#/components/schemas/LocalizedPostResponse"
         "401":
           $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /public-communities/{community_id}/live-rooms/{live_room_id}/replay/access:
+    get:
+      tags:
+        - Livestreams
+      security: []
+      summary: Resolve public replay access
+      description: |
+        Returns public replay access state. Only free published replays can grant public access;
+        gated, included-ticket, and paid replays fail closed without an authenticated entitlement.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/LiveRoomId"
+      responses:
+        "200":
+          description: Public livestream replay access decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveRoomReplayAccessDecision"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /public-communities/{community_id}/live-rooms/{live_room_id}/replay/content:
+    get:
+      tags:
+        - Livestreams
+      security: []
+      summary: Fetch public replay bytes
+      description: |
+        Returns replay media bytes only for free published replays. Locked replay content is never
+        served through the public endpoint.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/LiveRoomId"
+      responses:
+        "200":
+          description: Public replay media bytes
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Partial public replay media bytes
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
         "404":
           $ref: "#/components/responses/NotFound"
   /posts/{post_id}/vote:

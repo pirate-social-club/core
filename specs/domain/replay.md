@@ -11,6 +11,7 @@ Related docs:
 - [marketplace.md](./marketplace.md)
 - [monetization.md](./monetization.md)
 - [rights-review.md](./rights-review.md)
+- [livestream-recording.md](./livestream-recording.md)
 
 ## Purpose
 
@@ -123,6 +124,7 @@ Entitlement resolution rule:
 
 - when replay uses the original live entitlement, replay-access checks must resolve against the viewer's live-room purchase or entitlement record rather than a separate replay listing
 - in this case, replay access may return `allowed` even though `replay_listing_id = null`
+- if a live-room purchase is later refunded, charged back, or administratively revoked, the reused live-room entitlement must also move to a revoked state before replay remains available; replay access must never outlive the entitlement that grants it
 
 ## Replay Publication Rules
 
