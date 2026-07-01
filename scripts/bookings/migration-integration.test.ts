@@ -187,7 +187,7 @@ describe.skipIf(!RUN)("bookings global migration (real Postgres)", () => {
   test("schema constraints reject invalid rows and accept valid ones", async () => {
     const rw = connect({ db: TEST_DB, user: "control_plane_api_rw", password: RW_PW });
     await rw.unsafe(`INSERT INTO bookings.profiles(host_user_id,host_timezone,base_price_cents,default_slot_duration_seconds) VALUES('h','UTC',5000,1800) ON CONFLICT DO NOTHING`);
-    await rw.unsafe(`INSERT INTO bookings.holds(hold_id,host_user_id,booker_user_id,slot_start_utc,slot_end_utc,price_cents,status,expires_at_utc) VALUES('hld','h','b','2026-07-01 09:00:00+00','2026-07-01 10:00:00+00',5000,'active','2026-07-01 08:50:00+00') ON CONFLICT DO NOTHING`);
+    await rw.unsafe(`INSERT INTO bookings.holds(hold_id,host_user_id,booker_user_id,slot_start_utc,slot_end_utc,price_cents,status,expires_at_utc) VALUES('hld','h','b','2026-07-01 09:00:00+00','2026-07-01 10:00:00+00',5000,'active',now() + interval '10 minutes') ON CONFLICT DO NOTHING`);
     // availability weekday cardinality + range (cardinality() rejects empty arrays where array_length() would not)
     await expectRejected(rw, `INSERT INTO bookings.availability_rules(rule_id,host_user_id,by_weekday,start_local,end_local,slot_duration_seconds) VALUES('r1','h','{}','09:00','17:00',1800)`, SQLSTATE.check);
     await expectRejected(rw, `INSERT INTO bookings.availability_rules(rule_id,host_user_id,by_weekday,start_local,end_local,slot_duration_seconds) VALUES('r2','h','{7}','09:00','17:00',1800)`, SQLSTATE.check);
