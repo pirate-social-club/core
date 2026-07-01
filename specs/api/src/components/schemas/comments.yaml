@@ -44,6 +44,15 @@ Comment:
     author_user:
       type: string
       nullable: true
+    author_public_handle:
+      type: string
+      nullable: true
+      description: |
+        Read-time public handle label for a public-identity author, equal to
+        `primary_public_handle.label ?? global_handle.label`. Null for anonymous
+        comments, guest/agent comments, and when the author profile cannot be
+        resolved. Lets clients render the byline on first paint without a
+        separate profile lookup.
     authorship_mode:
       type: string
       enum:
