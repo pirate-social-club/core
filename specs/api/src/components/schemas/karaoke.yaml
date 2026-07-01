@@ -1,0 +1,158 @@
+SongKaraokeLine:
+  type: object
+  required:
+    - id
+    - index
+    - kind
+    - text
+    - start_ms
+    - end_ms
+    - words
+  properties:
+    id:
+      type: string
+    index:
+      type: integer
+    kind:
+      type: string
+      enum:
+        - lyric
+        - section
+    text:
+      type: string
+    start_ms:
+      type: integer
+    end_ms:
+      type: integer
+    words:
+      type: array
+      items:
+        type: object
+        required:
+          - text
+          - start_ms
+          - end_ms
+        properties:
+          text:
+            type: string
+          start_ms:
+            type: integer
+          end_ms:
+            type: integer
+          confidence:
+            type: number
+            nullable: true
+SongKaraokePayload:
+  type: object
+  required:
+    - id
+    - object
+  properties:
+    id:
+      type: string
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - song_karaoke_payload
+    song:
+      type: string
+      nullable: true
+    post:
+      type: string
+      nullable: true
+    community:
+      type: string
+      nullable: true
+    title:
+      type: string
+      nullable: true
+    artist_name:
+      type: string
+      nullable: true
+    artwork_src:
+      type: string
+      nullable: true
+    instrumental_audio_url:
+      type: string
+      nullable: true
+    karaoke_lines:
+      type: array
+      nullable: true
+      items:
+        $ref: ./karaoke.yaml#/SongKaraokeLine
+    raw_lines:
+      type: array
+      nullable: true
+      items:
+        type: object
+        additionalProperties: true
+KaraokeScoringPolicy:
+  oneOf:
+    - type: object
+      required:
+        - kind
+      properties:
+        kind:
+          type: string
+          enum:
+            - disabled
+    - type: object
+      required:
+        - kind
+        - provider
+        - model
+        - retention
+      properties:
+        kind:
+          type: string
+          enum:
+            - enabled
+        provider:
+          type: string
+          enum:
+            - assistant
+            - elevenlabs
+            - mistral
+            - openai
+        model:
+          type: string
+        retention:
+          type: string
+          enum:
+            - not_stored
+        voice_coach_enabled:
+          type: boolean
+KaraokeSession:
+  type: object
+  required:
+    - id
+    - object
+    - attempt
+    - protocol_version
+    - websocket_url
+    - token_expires_at
+    - session_expires_at
+    - scoring_policy
+  properties:
+    id:
+      type: string
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - karaoke_session
+    attempt:
+      type: string
+    protocol_version:
+      type: integer
+      enum:
+        - 1
+    websocket_url:
+      type: string
+    token_expires_at:
+      type: integer
+    session_expires_at:
+      type: integer
+    scoring_policy:
+      $ref: ./karaoke.yaml#/KaraokeScoringPolicy
