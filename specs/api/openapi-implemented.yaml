@@ -6537,6 +6537,9 @@ components:
           type: string
           nullable: true
           description: Public primary wallet address when Pirate product policy exposes wallet-linked identity on profile.
+        is_bookable:
+          type: boolean
+          description: Derived truth — true when this host has published paid 1:1 bookings with availability configured. Drives the profile "Book" tab. Computed read-on-serve on the public-profile path; omitted (treated as false) elsewhere.
         xmtp_inbox:
           type: string
           nullable: true
