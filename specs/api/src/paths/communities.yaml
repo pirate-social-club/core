@@ -1641,8 +1641,14 @@ communities_by_community_id_posts_by_post_id_comments:
               $ref: ../components/schemas/comments.yaml#/Comment
       "401":
         $ref: ../components/responses.yaml#/AuthError
+      # A non-member of a PoW-gated community may comment inline: a missing/invalid
+      # proof returns gate_failed (solvable — fetch a comment_create ALTCHA
+      # challenge and retry). Same shared Error schema as before; only the code +
+      # description differ. (Follow-up: this 403 also carries eligibility_failed —
+      # locked comments / anonymous-disabled — which remains undeclared; declaring
+      # multiple codes needs a combined response, deferred to a contract cleanup.)
       "403":
-        $ref: ../components/responses.yaml#/VerificationRequired
+        $ref: ../components/responses.yaml#/GateFailed
       "404":
         $ref: ../components/responses.yaml#/NotFound
 communities_by_community_id_posts_by_post_id_remove:
