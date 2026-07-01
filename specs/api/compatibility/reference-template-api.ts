@@ -637,6 +637,7 @@ type Comment = {
   thread_root_post: string;
   parent_comment: string | null;
   author_user: string | null;
+  author_public_handle?: string | null;
   authorship_mode: "human_direct" | "user_agent" | "guest";
   agent?: string | null;
   agent_ownership_record?: string | null;
@@ -1241,6 +1242,7 @@ type Post = {
   object: "post";
   community: string;
   author_user?: string | null;
+  author_public_handle?: string | null;
   authorship_mode: "human_direct" | "user_agent";
   agent?: string | null;
   agent_ownership_record?: string | null;
