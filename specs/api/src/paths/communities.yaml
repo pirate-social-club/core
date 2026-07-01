@@ -1890,6 +1890,94 @@ communities_by_community_id_posts_by_post_id_reports:
         $ref: ../components/responses.yaml#/NotFound
       "429":
         $ref: ../components/responses.yaml#/RateLimited
+communities_by_community_id_posts_by_post_id_karaoke_sessions:
+  post:
+    tags:
+      - Karaoke
+    x-implemented: true
+    summary: Create or replay a karaoke session for a post
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/PostId
+      - in: header
+        name: Idempotency-Key
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: header
+        name: x-request-id
+        required: false
+        schema:
+          type: string
+          maxLength: 256
+      - in: header
+        name: origin
+        required: false
+        schema:
+          type: string
+    responses:
+      "201":
+        description: Karaoke session created or replayed
+        headers:
+          X-Request-Id:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/karaoke.yaml#/KaraokeSession
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+      "503":
+        description: Karaoke runtime unavailable
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/common.yaml#/Error
+karaoke_sessions_by_session_id_websocket:
+  get:
+    tags:
+      - Karaoke
+    x-implemented: true
+    summary: Upgrade to the karaoke session WebSocket
+    parameters:
+      - in: path
+        name: session_id
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: token
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: upgrade
+        required: true
+        schema:
+          type: string
+          enum:
+            - websocket
+    responses:
+      "101":
+        description: WebSocket upgrade accepted
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
 communities_by_community_id_comments_by_comment_id_reports:
   post:
     tags:

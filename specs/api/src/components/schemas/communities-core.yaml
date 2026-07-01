@@ -663,12 +663,23 @@ UpdateCommunityRequest:
     banner_ref:
       type: string
       nullable: true
+    store_url:
+      type: string
+      nullable: true
+    store_label:
+      type: string
+      nullable: true
+    country_code:
+      type: string
+      nullable: true
     membership_mode:
       type: string
       enum:
         - open
         - request
         - gated
+    karaoke_enabled:
+      type: boolean
     allow_anonymous_identity:
       type: boolean
     anonymous_identity_scope:
@@ -798,6 +809,7 @@ Community:
     - status
     - provisioning_state
     - membership_mode
+    - karaoke_enabled
     - allow_anonymous_identity
     - human_verification_lane
     - human_verification_lane_origin
@@ -856,6 +868,15 @@ Community:
     pending_namespace_verification_session:
       type: string
       nullable: true
+    store_url:
+      type: string
+      nullable: true
+    store_label:
+      type: string
+      nullable: true
+    country_code:
+      type: string
+      nullable: true
     status:
       type: string
       enum:
@@ -889,6 +910,8 @@ Community:
         - open
         - request
         - gated
+    karaoke_enabled:
+      type: boolean
     allow_anonymous_identity:
       type: boolean
     anonymous_identity_scope:
@@ -1562,12 +1585,23 @@ CommunityPreview:
     banner_ref:
       type: string
       nullable: true
+    store_url:
+      type: string
+      nullable: true
+    store_label:
+      type: string
+      nullable: true
+    country_code:
+      type: string
+      nullable: true
     membership_mode:
       type: string
       enum:
         - open
         - request
         - gated
+    karaoke_enabled:
+      type: boolean
     allow_anonymous_identity:
       type: boolean
     anonymous_identity_scope:
@@ -1645,6 +1679,12 @@ CommunityPreview:
       type: array
       items:
         $ref: ./communities-core.yaml#/MembershipGateSummary
+    gate_match_mode:
+      type: string
+      enum:
+        - all
+        - any
+      nullable: true
     rules:
       type: array
       items:

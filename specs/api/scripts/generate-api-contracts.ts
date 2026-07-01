@@ -399,6 +399,8 @@ const ROUTE_EXPORTS = [
   { name: "communityPostStudy", path: "/communities/{community_id}/posts/{post_id}/study" },
   { name: "communityPostStudyAttempts", path: "/communities/{community_id}/posts/{post_id}/study/attempts" },
   { name: "communityPostStudyTranscriptions", path: "/communities/{community_id}/posts/{post_id}/study/transcriptions" },
+  { name: "communityPostKaraokeSession", path: "/communities/{community_id}/posts/{post_id}/karaoke/sessions" },
+  { name: "karaokeSessionWebsocket", path: "/karaoke/sessions/{session_id}/websocket" },
   { name: "job", path: "/jobs/{job_id}" },
   { name: "post", path: "/posts/{post_id}" },
   { name: "postVote", path: "/posts/{post_id}/vote" },

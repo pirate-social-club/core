@@ -2544,6 +2544,60 @@ paths:
           $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /communities/{community_id}/posts/{post_id}/karaoke/sessions:
+    post:
+      tags:
+        - Karaoke
+      summary: Create or replay a karaoke session for a post
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/PostId"
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: header
+          name: x-request-id
+          required: false
+          schema:
+            type: string
+            maxLength: 256
+        - in: header
+          name: origin
+          required: false
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Karaoke session created or replayed
+          headers:
+            X-Request-Id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KaraokeSession"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: Karaoke runtime unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /communities/{community_id}/posts/{post_id}/study:
     get:
       tags:
@@ -3152,6 +3206,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SongArtifactBundle"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /karaoke/sessions/{session_id}/websocket:
+    get:
+      tags:
+        - Karaoke
+      summary: Upgrade to the karaoke session WebSocket
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: token
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: upgrade
+          required: true
+          schema:
+            type: string
+            enum:
+              - websocket
+      responses:
+        "101":
+          description: WebSocket upgrade accepted
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/AuthError"
         "404":
@@ -8522,12 +8608,23 @@ components:
         banner_ref:
           type: string
           nullable: true
+        store_url:
+          type: string
+          nullable: true
+        store_label:
+          type: string
+          nullable: true
+        country_code:
+          type: string
+          nullable: true
         membership_mode:
           type: string
           enum:
             - open
             - request
             - gated
+        karaoke_enabled:
+          type: boolean
         allow_anonymous_identity:
           type: boolean
         anonymous_identity_scope:
@@ -9053,6 +9150,9 @@ components:
           type: string
           nullable: true
         live_room:
+          type: string
+          nullable: true
+        replay_asset:
           type: string
           nullable: true
         base_price_cents:
@@ -9678,6 +9778,7 @@ components:
         - status
         - provisioning_state
         - membership_mode
+        - karaoke_enabled
         - allow_anonymous_identity
         - human_verification_lane
         - human_verification_lane_origin
@@ -9735,6 +9836,15 @@ components:
         pending_namespace_verification_session:
           type: string
           nullable: true
+        store_url:
+          type: string
+          nullable: true
+        store_label:
+          type: string
+          nullable: true
+        country_code:
+          type: string
+          nullable: true
         status:
           type: string
           enum:
@@ -9768,6 +9878,8 @@ components:
             - open
             - request
             - gated
+        karaoke_enabled:
+          type: boolean
         allow_anonymous_identity:
           type: boolean
         anonymous_identity_scope:
@@ -11849,6 +11961,12 @@ components:
         content_hash:
           type: string
           nullable: true
+        upload_mode:
+          type: string
+          nullable: true
+          enum:
+            - proxy
+            - direct_multipart
     SongArtifactUploadContentRequest:
       type: object
       additionalProperties: false
@@ -12905,6 +13023,9 @@ components:
           $ref: "#/components/schemas/CommunityPreview"
           nullable: true
           description: Inline public community preview for post SEO and public traversal clients, when available.
+        viewer_gate_state:
+          $ref: "#/components/schemas/PostViewerGateState"
+          nullable: true
         author_community_role:
           type: string
           enum:
@@ -12926,6 +13047,14 @@ components:
         study_capability:
           $ref: "#/components/schemas/SongStudyCapability"
           nullable: true
+        asset_story:
+          $ref: "#/components/schemas/PostAssetStorySummary"
+          nullable: true
+        derivative_sources:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/PostDerivativeSource"
         upvote_count:
           type: integer
           minimum: 0
@@ -13017,6 +13146,10 @@ components:
         content_hash:
           type: string
           nullable: true
+        decentralized_storage:
+          type: object
+          nullable: true
+          additionalProperties: true
         duration_ms:
           type: integer
           nullable: true
