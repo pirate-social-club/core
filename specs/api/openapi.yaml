@@ -6770,6 +6770,7 @@ components:
         - no_lyrics
         - unsupported_language
         - generation_failed
+        - missing_transcription_provider
     SongStudyExercise:
       description: |
         A single study exercise. `line_id` is STABLE across fetches and, together
