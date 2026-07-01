@@ -12374,6 +12374,14 @@ components:
           nullable: true
           description: |
             Public read models omit this field for anonymous posts. It remains present for non-anonymous posts and privileged internal reads.
+        author_public_handle:
+          type: string
+          nullable: true
+          description: |
+            Read-time public handle label for a public-identity author, equal to
+            `primary_public_handle.label ?? global_handle.label`. Null for anonymous
+            posts, agent posts, and when the author profile cannot be resolved. Lets
+            clients render the byline on first paint without a separate profile lookup.
         authorship_mode:
           type: string
           enum:
