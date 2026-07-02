@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { postgresMigrationStatements } from "../lib/postgres-migrations";
+import { sanitizePostgresUrlForBunSql } from "../lib/postgres-url";
 
 type Options = {
   databaseUrlEnv: string;
@@ -75,12 +76,13 @@ if (!databaseUrl) {
   console.error(`missing database url env var: ${options.databaseUrlEnv}`);
   process.exit(1);
 }
+const sanitizedDatabaseUrl = sanitizePostgresUrlForBunSql(databaseUrl);
 
 const migrationName = basename(options.migrationPath);
 const rawSql = readFileSync(options.migrationPath, "utf8");
 const migrationSql = normalizeSql(rawSql);
 const migrationChecksum = checksum(rawSql);
-const sql = new Bun.SQL(databaseUrl);
+const sql = new Bun.SQL(sanitizedDatabaseUrl);
 
 try {
   await sql.unsafe(`
