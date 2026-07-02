@@ -30,7 +30,7 @@ This file is the single source of truth for "what secrets exist." It does not co
 | `tuning-knob` | No | Version control | Gas limits, TTLs, batch sizes, fee rates |
 | `subgraph-url` | No | Version control | Goldsky/TheGraph query endpoints |
 | `feature-flag` | No | Version control | Optional behavior toggles |
-| `encrypted-tenant-credential` | Yes | Central control-plane DB | Encrypted per-community Turso DB auth token |
+| `encrypted-tenant-credential` | Yes | Central control-plane DB | Encrypted community-provided integration credential |
 | `database-credential` | Yes | Infisical | Password-bearing Postgres connection strings for the control plane |
 
 ## Inventory
@@ -92,7 +92,7 @@ The API worker cannot start without these. The sync script (`scripts/infisical/s
 | `PIRATE_CHECKOUT_RPC_URL` | `api-key` | Checkout source-chain RPC URL when it embeds provider credentials |
 | `PIRATE_CHECKOUT_SOURCE_CHAIN_ID` | `tuning-knob` | Checkout source chain id; currently carried by the secret sync contract |
 | `PIRATE_CHECKOUT_USDC_TOKEN_ADDRESS` | `contract-address` | Checkout source-chain USDC address; currently carried by the secret sync contract |
-| `PIRATE_CHECKOUT_TX_WAIT_TIMEOUT_MS` | `tuning-knob` | Checkout receipt wait ceiling. Set pilot handle-claim environments to `20000`; missing/empty falls back to 120s. Before the verify-outside-transaction refactor, this also caps the Turso write-lock hold while waiting for RPC confirmation. |
+| `PIRATE_CHECKOUT_TX_WAIT_TIMEOUT_MS` | `tuning-knob` | Checkout receipt wait ceiling. Set pilot handle-claim environments to `20000`; missing/empty falls back to 120s. |
 | `ALTCHA_HMAC_SECRET` | `worker-secret` | HMAC secret for ALTCHA challenge signing (proof-of-work gates and guest comments) |
 | `ALTCHA_HMAC_KEY_SECRET` | `worker-secret` | HMAC key secret for ALTCHA challenge key-prefix signing |
 
@@ -140,9 +140,6 @@ Secrets consumed by private provisioning tooling, not the API worker.
 | Name | Type | Purpose |
 |---|---|---|
 | `CONTROL_PLANE_MIGRATOR_DATABASE_URL` | `database-credential` | Private migration and maintenance connection string |
-| `TURSO_PLATFORM_API_TOKEN` | `api-key` | Turso Platform API root capability |
-| `TURSO_COMMUNITY_DB_WRAP_KEY` | `worker-secret` | Envelope-encryption key for per-community Turso DB credentials |
-| `COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN` | `worker-secret` | Bearer token for the private Turso provision operator |
 
 ### dev:/services/bot-runner
 
@@ -222,8 +219,8 @@ Current CI/CD delivery map:
 | `RELEASE_GITHUB_TOKEN` | Yes | GitHub-native checkout token, pending GitHub App replacement | GitHub Actions secret | Web private-repo checkout steps |
 | `CONTROL_PLANE_DATABASE_URL` | Yes | Infisical `staging:/services/api` | Infisical OIDC | Core staging migration repair job and web staging release migration step |
 | `CONTROL_PLANE_DATABASE_URL` | Yes | Infisical `prod:/services/api` | Infisical OIDC | Core production migration doctor/repair DB jobs |
-| `TURSO_COMMUNITY_DB_WRAP_KEY` | Yes | Infisical `staging:/services/api` and `staging:/services/control-plane` | Infisical OIDC | Core staging migration repair job and web staging release migration step |
-| `TURSO_COMMUNITY_DB_WRAP_KEY` | Yes | Infisical `prod:/services/api` and `prod:/services/control-plane` | Infisical OIDC | Core production migration doctor/repair DB jobs |
+| `CREDENTIAL_WRAP_KEY` | Yes | Infisical `staging:/services/api` | Infisical OIDC / Wrangler sync | API community-provided credential encryption |
+| `CREDENTIAL_WRAP_KEY` | Yes | Infisical `prod:/services/api` | Infisical OIDC / Wrangler sync | API community-provided credential encryption |
 | `AUTH_UPSTREAM_JWT_SHARED_SECRET` | Yes | Infisical `staging:/services/api` | Infisical OIDC | Web live-staging smoke step only, via `github-web-staging-live-browser` |
 | `SONG_PREVIEW_SHARED_SECRET` | Yes | Infisical `staging:/services/api` | Infisical OIDC | Web release staging song-preview container health gate only, via `github-web-staging-live-browser` |
 | `AUTH_UPSTREAM_JWT_ISSUER` | No | GitHub Actions variable public config | GitHub Actions variable | Web live-staging smoke step only |
@@ -278,6 +275,6 @@ The current hosted environment slug is `prod`, not `production`.
 
 ## Naming (resolved)
 
-1. ~~`TURSO_CONTROL_PLANE_DATABASE_URL` vs `CONTROL_PLANE_DATABASE_URL`~~ — **Resolved.** API worker now uses `CONTROL_PLANE_DATABASE_URL` matching the scripts/Infisical convention.
+1. ~~Legacy control-plane database URL names vs `CONTROL_PLANE_DATABASE_URL`~~ — **Resolved.** API worker now uses `CONTROL_PLANE_DATABASE_URL` matching the scripts/Infisical convention.
 2. ~~`AUTH_UPSTREAM_JWT_*` vs `JWT_BASED_AUTH_*`~~ — **Resolved.** `JWT_BASED_AUTH_*` aliases removed. Single canonical naming: `AUTH_UPSTREAM_JWT_ENABLED`, `AUTH_UPSTREAM_JWT_SHARED_SECRET`, `AUTH_UPSTREAM_JWT_ISSUER`, `AUTH_UPSTREAM_JWT_AUDIENCE`.
 3. ~~`REGISTRY_PUBLISHER_URL` vs `REGISTRY_PUBLISHER_BASE_URL`~~ — **Resolved.** `REGISTRY_PUBLISHER_BASE_URL` was a dead name only in the old `json.env`. Deleted from Infisical.

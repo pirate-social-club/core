@@ -6,8 +6,6 @@ const REQUIRED_CONTROL_PLANE_ROLES = [
 ] as const;
 
 const CONTROL_PLANE_RLS_TABLES = [
-  "community_db_credentials",
-  "community_database_bindings",
   "auth_provider_links",
   "verification_sessions",
   "user_attestations",

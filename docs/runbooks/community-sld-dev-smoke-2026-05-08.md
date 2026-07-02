@@ -12,7 +12,7 @@
 
 ## Infra
 
-- Redeployed `community-provision-operator-staging`.
+- Redeployed the staging community provisioning service.
 - Worker version: `0c0080b3-c513-4f08-8556-d2449cbd477b`
 - Provisioning retried through `POST /communities`.
 - Result: `provisioning_state: active`

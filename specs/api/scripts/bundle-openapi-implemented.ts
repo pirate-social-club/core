@@ -145,7 +145,7 @@ function narrowImplementedCreateAndPostSchemas(schemas: unknown): Record<string,
           "aws-ap-northeast-1",
         ],
         description:
-          "Create-time primary Turso group location for the community database. Omit or set auto to use the server default.",
+          "Create-time primary database region for the community database. Omit or set auto to use the server default.",
       },
       avatar_ref: {
         type: "string",
