@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { sanitizePostgresUrlForBunSql } from "./postgres-url";
 import { splitSqlStatements } from "./shared/sql-migration";
 
 export type ApplyPostgresMigrationsOptions = {
@@ -82,7 +83,7 @@ export async function applyPostgresMigrations(
   const label = input.label || migrationsDir.split("/").pop() || "migrations";
   const log = input.logger ?? (() => {});
 
-  const sql = new Bun.SQL(input.databaseUrl);
+  const sql = new Bun.SQL(sanitizePostgresUrlForBunSql(input.databaseUrl));
 
   await sql.unsafe(`
 CREATE TABLE IF NOT EXISTS schema_migrations (
