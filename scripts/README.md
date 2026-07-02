@@ -41,19 +41,12 @@ It is intentionally narrow:
   Read-only comparison of a control-plane `schema_migrations` ledger against the checked Postgres migration root.
 - `scripts/control-plane/reset-control-plane-app-data.ts`
   Truncate control-plane app data while preserving `schema_migrations`; dry-run by default and requires explicit confirmation to execute.
-- `scripts/control-plane/reconcile-community-provisioning-state.ts`
-  Promote valid `provisioning_state=error` communities back to `active`.
-
 ### Community
 
 - `scripts/community/apply-sqlite-migrations.sh`
   Apply `db/community-template/migrations` to a SQLite or libSQL target.
 - `scripts/community/bootstrap-community-db.sh`
   Bootstrap a local community DB from the community template.
-- `scripts/community/bootstrap-community-slice.ts`
-  Create the control-plane rows plus the local community DB for a local slice.
-- `scripts/community/bootstrap-infinity-existing-user.sh`
-  Seed the deterministic Infinity local scenario.
 
 ### Infisical
 

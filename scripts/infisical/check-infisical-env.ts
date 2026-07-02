@@ -308,8 +308,6 @@ async function checkRuntimeRwCapabilities(url: string): Promise<CheckResult> {
       "user_attestations",
       "identity_nullifiers",
       "communities",
-      "community_database_bindings",
-      "community_db_credentials",
       "community_gate_rules",
       "community_post_projections",
       "comment_projections",

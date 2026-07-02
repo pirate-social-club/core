@@ -563,34 +563,32 @@ async function main() {
       throw new Error("community create did not return community_id");
     }
 
-    const bindingRows = await db<{
+    const routingRows = await db<{
       community_id: string;
       display_name: string;
       route_slug: string | null;
       provisioning_state: string;
-      organization_slug: string | null;
-      group_name: string | null;
-      database_name: string | null;
-      database_url: string | null;
-      requires_credentials: number | string | boolean | null;
+      route_provisioning_state: string | null;
+      shard_worker_id: string | null;
+      binding_name: string | null;
+      region: string | null;
     }[]>`
       SELECT
         c.community_id,
         c.display_name,
         c.route_slug,
         c.provisioning_state,
-        b.organization_slug,
-        b.group_name,
-        b.database_name,
-        b.database_url,
-        b.requires_credentials
+        r.provisioning_state AS route_provisioning_state,
+        r.shard_worker_id,
+        r.binding_name,
+        r.region
       FROM communities AS c
-      LEFT JOIN community_database_bindings AS b
-        ON b.community_database_binding_id = c.primary_database_binding_id
+      LEFT JOIN community_database_routing AS r
+        ON r.community_id = c.community_id
       WHERE c.community_id = ${communityId}
       LIMIT 1
     `;
-    const binding = bindingRows[0] ?? null;
+    const routing = routingRows[0] ?? null;
 
     console.log(JSON.stringify({
       status: "created",
@@ -602,21 +600,20 @@ async function main() {
         reused: bootstrap.reused,
       },
       spaces_root_label: options.rootLabel,
-      route_slug: created.community?.route_slug ?? binding?.route_slug ?? null,
+      route_slug: created.community?.route_slug ?? routing?.route_slug ?? null,
       namespace_verification_session_id: namespaceSessionId ?? null,
       namespace_verification_id: namespaceVerificationId,
       community_id: communityId,
       community_status: created.community?.status ?? null,
-      provisioning_state: created.community?.provisioning_state ?? binding?.provisioning_state ?? null,
+      provisioning_state: created.community?.provisioning_state ?? routing?.provisioning_state ?? null,
       job_id: created.job?.job_id ?? null,
       job_status: created.job?.status ?? null,
       job_error_code: created.job?.error_code ?? null,
-      database_binding: binding ? {
-        organization_slug: binding.organization_slug,
-        group_name: binding.group_name,
-        database_name: binding.database_name,
-        database_url: binding.database_url,
-        requires_credentials: binding.requires_credentials === true || binding.requires_credentials === 1 || binding.requires_credentials === "1",
+      d1_routing: routing ? {
+        provisioning_state: routing.route_provisioning_state,
+        shard_worker_id: routing.shard_worker_id,
+        binding_name: routing.binding_name,
+        region: routing.region,
       } : null,
     }, null, 2));
   } finally {

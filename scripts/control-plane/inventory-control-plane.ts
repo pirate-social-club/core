@@ -19,20 +19,6 @@ type FixtureSignal = {
   samples: string[];
 };
 
-type CommunityBindingRow = {
-  community_id: string;
-  display_name: string;
-  status: string;
-  provisioning_state: string;
-  route_slug: string | null;
-  binding_status: string | null;
-  database_url: string | null;
-  organization_slug: string | null;
-  group_name: string | null;
-  database_name: string | null;
-  encryption_key_version: number | null;
-};
-
 type GroupedCountRow = {
   key: string;
   count: number | string;
@@ -46,19 +32,11 @@ type InventoryReport = {
   };
   tableCounts: TableCount[];
   fixtureSignals: FixtureSignal[];
-  bindings: {
-    total: number;
-    fileBacked: number;
-    legacyLibsqlBacked: number;
-    other: number;
-    fileBackedSamples: string[];
-    legacyLibsqlSamples: string[];
-  };
   communities: {
     total: number;
     statusCounts: Array<{ key: string; count: number }>;
     provisioningCounts: Array<{ key: string; count: number }>;
-    rows: CommunityBindingRow[];
+    rows: Array<{ community_id: string; display_name: string; status: string; provisioning_state: string; route_slug: string | null }>;
   };
   assessment: {
     likelyFixtureContamination: boolean;
@@ -349,70 +327,6 @@ async function collectGroupedCounts(
   }));
 }
 
-async function collectBindings(
-  db: Bun.SQL,
-  sampleLimit: number,
-): Promise<InventoryReport["bindings"]> {
-  if (!await tableExists(db, "community_database_bindings")) {
-    return {
-      total: 0,
-      fileBacked: 0,
-      legacyLibsqlBacked: 0,
-      other: 0,
-      fileBackedSamples: [],
-      legacyLibsqlSamples: [],
-    };
-  }
-
-  const countRows = await db<{
-    total: number | string;
-    file_backed: number | string;
-    legacy_libsql_backed: number | string;
-    other: number | string;
-  }[]>`
-    SELECT
-      COUNT(*)::bigint AS total,
-      COUNT(*) FILTER (WHERE database_url LIKE 'file:%')::bigint AS file_backed,
-      COUNT(*) FILTER (WHERE database_url LIKE ${LEGACY_LIBSQL_URL_PATTERN})::bigint AS legacy_libsql_backed,
-      COUNT(*) FILTER (WHERE database_url NOT LIKE 'file:%' AND database_url NOT LIKE ${LEGACY_LIBSQL_URL_PATTERN})::bigint AS other
-    FROM community_database_bindings
-  `;
-
-  const fileRows = await db<{
-    community_id: string;
-    group_name: string;
-    database_name: string;
-    database_url: string;
-  }[]>`
-    SELECT community_id, group_name, database_name, database_url
-    FROM community_database_bindings
-    WHERE database_url LIKE 'file:%'
-    ORDER BY community_id ASC
-    LIMIT ${sampleLimit}
-  `;
-
-  const legacyLibsqlRows = await db<{
-    community_id: string;
-    group_name: string;
-    database_name: string;
-  }[]>`
-    SELECT community_id, group_name, database_name
-    FROM community_database_bindings
-    WHERE database_url LIKE ${LEGACY_LIBSQL_URL_PATTERN}
-    ORDER BY community_id ASC
-    LIMIT ${sampleLimit}
-  `;
-
-  return {
-    total: countValue(countRows[0]?.total),
-    fileBacked: countValue(countRows[0]?.file_backed),
-    legacyLibsqlBacked: countValue(countRows[0]?.legacy_libsql_backed),
-    other: countValue(countRows[0]?.other),
-    fileBackedSamples: fileRows.map((row) => `${row.community_id}:${row.group_name}/${row.database_name}:${row.database_url}`),
-    legacyLibsqlSamples: legacyLibsqlRows.map((row) => `${row.community_id}:${row.group_name}/${row.database_name}`),
-  };
-}
-
 async function collectCommunities(
   db: Bun.SQL,
   sampleLimit: number,
@@ -437,24 +351,12 @@ async function collectCommunities(
       c.display_name,
       c.status,
       c.provisioning_state,
-      c.route_slug,
-      b.status AS binding_status,
-      b.database_url,
-      b.organization_slug,
-      b.group_name,
-      b.database_name,
-      cred.encryption_key_version
+      c.route_slug
     FROM communities AS c
-    LEFT JOIN community_database_bindings AS b
-      ON b.community_database_binding_id = c.primary_database_binding_id
-    LEFT JOIN community_db_credentials AS cred
-      ON cred.community_database_binding_id = b.community_database_binding_id
-     AND cred.status = 'active'
     ORDER BY c.created_at ASC, c.community_id ASC
     LIMIT ${sampleLimit}
   `;
-
-  const rows = await db.unsafe<CommunityBindingRow[]>(rowsSql);
+  const rows = await db.unsafe<InventoryReport["communities"]["rows"]>(rowsSql);
 
   return {
     total: countValue(totalRows[0]?.count),
@@ -466,12 +368,11 @@ async function collectCommunities(
 
 function buildAssessment(input: {
   fixtureSignals: FixtureSignal[];
-  bindings: InventoryReport["bindings"];
   communities: InventoryReport["communities"];
 }): InventoryReport["assessment"] {
   const fixtureCount = input.fixtureSignals.reduce((total, signal) => total + signal.count, 0);
-  const likelyFixtureContamination = fixtureCount > 0 || input.bindings.fileBacked > 0;
-  const likelyLegacyCommunityData = input.bindings.legacyLibsqlBacked > 0;
+  const likelyFixtureContamination = fixtureCount > 0;
+  const likelyLegacyCommunityData = false;
   const mixedFixtureAndOperationalState = likelyFixtureContamination && likelyLegacyCommunityData;
 
   let recommendation = "no strong fixture or operational signal detected";
@@ -486,7 +387,7 @@ function buildAssessment(input: {
       "operational data appears present without obvious fixture contamination; preserve and migrate carefully";
   }
 
-  if (input.communities.total === 0 && input.bindings.total === 0 && fixtureCount === 0) {
+  if (input.communities.total === 0 && fixtureCount === 0) {
     recommendation = "database looks mostly empty; a clean rebuild should be straightforward";
   }
 
@@ -522,19 +423,6 @@ function printText(report: InventoryReport) {
   }
 
   console.log("");
-  console.log("bindings");
-  console.log(`- total: ${report.bindings.total}`);
-  console.log(`- file_backed: ${report.bindings.fileBacked}`);
-  console.log(`- legacy_libsql_backed: ${report.bindings.legacyLibsqlBacked}`);
-  console.log(`- other: ${report.bindings.other}`);
-  for (const sample of report.bindings.fileBackedSamples) {
-    console.log(`  file_sample: ${sample}`);
-  }
-  for (const sample of report.bindings.legacyLibsqlSamples) {
-    console.log(`  legacy_libsql_sample: ${sample}`);
-  }
-
-  console.log("");
   console.log("communities");
   console.log(`- total: ${report.communities.total}`);
   for (const entry of report.communities.statusCounts) {
@@ -545,7 +433,7 @@ function printText(report: InventoryReport) {
   }
   for (const row of report.communities.rows) {
     console.log(
-      `  community: ${row.community_id} status=${row.status} provisioning=${row.provisioning_state} binding=${row.binding_status ?? "null"} url=${row.database_url ?? "null"} key_ver=${row.encryption_key_version ?? "null"}`,
+      `  community: ${row.community_id} status=${row.status} provisioning=${row.provisioning_state} route=${row.route_slug ?? "null"}`,
     );
   }
 
@@ -569,7 +457,6 @@ try {
   const tableNames = await listPublicTables(db);
   const tableCounts = await countTables(db, tableNames);
   const fixtureSignals = await collectFixtureSignals(db, options.sampleLimit);
-  const bindings = await collectBindings(db, options.sampleLimit);
   const communities = await collectCommunities(db, options.sampleLimit);
 
   const report: InventoryReport = {
@@ -580,11 +467,9 @@ try {
     },
     tableCounts,
     fixtureSignals,
-    bindings,
     communities,
     assessment: buildAssessment({
       fixtureSignals,
-      bindings,
       communities,
     }),
   };

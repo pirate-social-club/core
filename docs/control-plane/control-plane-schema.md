@@ -60,10 +60,10 @@ Canonical relational sources:
 - `verification_sessions` and `user_attestations` are the workflow and attestation sources of truth for verification
 - `identity_nullifiers` is the source of truth for provider-keyed personhood uniqueness enforcement
 - `namespace_verification_sessions`, `namespace_verifications`, and their evidence tables are the source of truth for external namespace root proof and accepted namespace-attachment authority
-- `communities` is the source of truth for club-to-database routing
+- `communities` is the source of truth for community identity and lifecycle
+- `community_database_routing` is the source of truth for D1 shard routing
 - `community_money_policies` is the source of truth for explicit attached community funding policy overrides
 - `machine_access_overrides` is the source of truth for platform-level machine-access abuse controls
-- `community_database_bindings` is the source of truth for active community database connection metadata
 
 Derived state:
 
@@ -516,7 +516,6 @@ Columns:
 - `transfer_state` text not null
 - `route_slug` text nullable
 - `namespace_verification_id` text nullable
-- `primary_database_binding_id` text nullable
 - `created_at` timestamptz not null
 - `updated_at` timestamptz not null
 
@@ -533,39 +532,35 @@ Notes:
 - `namespace_verification_id` references an accepted row in `namespace_verifications`
 - because the column existed before the namespace-verification tables were introduced, migration `0005` enforces existence with insert and update triggers plus an index rather than rebuilding the table solely to add a foreign key
 
-### `community_database_bindings`
+### `community_database_routing`
 
 Purpose:
 
-- current and historical mapping from `community_id` to D1 shard binding metadata
+- current mapping from `community_id` to D1 shard binding metadata
 
 Columns:
 
-- `community_database_binding_id` text primary key
-- `community_id` text not null
-- `binding_role` text not null
-- `organization_slug` text not null
-- `group_name` text not null
-- `group_id` text nullable
-- `database_name` text not null
-- `database_id` text nullable
-- `database_url` text not null
-- `location` text nullable
-- `status` text not null
-- `transferred_at` timestamptz nullable
+- `community_id` text primary key
+- `provisioning_state` text not null
+- `shard_worker_id` text nullable
+- `binding_name` text nullable
+- `region` text nullable
+- `migrated_at` timestamptz nullable
+- `decommissioned_at` timestamptz nullable
+- `last_error_at` timestamptz nullable
+- `last_error_message` text nullable
 - `created_at` timestamptz not null
 - `updated_at` timestamptz not null
 
 Constraints and indexes:
 
 - foreign key `community_id -> communities.community_id`
-- unique partial index on `(community_id, binding_role)` where `status = 'active'`
-- unique partial index on `(organization_slug, group_name, database_name)` where `status in ('active', 'pending_transfer')`
+- index on `(shard_worker_id)` where `provisioning_state = 'ready'`
 
 Notes:
 
-- v0 uses one active binding with `binding_role = 'primary'`
-- transfer history stays here even after a group moves to another org
+- ready D1 routes must carry `shard_worker_id`, `binding_name`, and `region`
+- this table replaced the legacy binding registry in migrations `0124` and `0125`
 
 ### `community_money_policies`
 
@@ -637,42 +632,11 @@ Notes:
 - active rows override community policy immediately and surface to clients as `platform_disabled`
 - `expires_at` is optional so incident response can use temporary or manual-revoke controls
 
-### `community_db_credentials`
+### Removed Community Database Registry Tables
 
-> **Removed** by migration `0124` (2026-07-02). This table held encrypted
-> legacy community-database connection tokens; the D1 backend uses service bindings and needs no per-community
-> credentials. Retained below for historical reference only.
-
-Purpose:
-
-- encrypted per-community runtime credential inventory
-
-Columns:
-
-- `community_db_credential_id` text primary key
-- `community_database_binding_id` text not null
-- `credential_kind` text not null
-- `token_name` text not null
-- `encrypted_token` text not null
-- `encryption_key_version` integer not null
-- `token_scope` text not null
-- `status` text not null
-- `issued_at` timestamptz not null
-- `invalidated_at` timestamptz nullable
-- `expires_at` timestamptz nullable
-- `created_at` timestamptz not null
-- `updated_at` timestamptz not null
-
-Constraints and indexes:
-
-- foreign key `community_database_binding_id -> community_database_bindings.community_database_binding_id`
-- unique partial index on `(community_database_binding_id)` where `status = 'active'`
-- unique index on `(token_name)`
-
-Notes:
-
-- the plaintext token never persists here
-- the token ciphertext is encrypted with the shared `CREDENTIAL_WRAP_KEY`
+- `community_db_credentials` was removed by migration `0124`.
+- The legacy community database binding registry was removed by migration `0125`.
+- D1 uses service bindings and `community_database_routing`; no per-community database credentials are stored in the control plane.
 - v0 runtime posture is one active database-scoped token per primary community DB
 
 ## Cross-Community Read Models
