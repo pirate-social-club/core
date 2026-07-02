@@ -6,10 +6,10 @@ This is the logical schema spec for Pirate's Neon-backed root-of-trust control p
 
 Related:
 
-- [turso-sovereignty-adr.md](../adr/turso-sovereignty-adr.md)
-- [turso-data-boundaries.md](./turso-data-boundaries.md)
-- [turso-secret-contract.md](./turso-secret-contract.md)
-- [turso-provisioning-contract.md](./turso-provisioning-contract.md)
+- [turso-sovereignty-adr.md](../adr/turso-sovereignty-adr.md) (historical — Turso backend removed 2026-07-02)
+- [turso-data-boundaries.md](../archive/deturso/turso-data-boundaries.md) (archived)
+- [turso-secret-contract.md](../archive/deturso/turso-secret-contract.md) (archived)
+- [turso-provisioning-contract.md](../archive/deturso/turso-provisioning-contract.md) (archived)
 - [user.md](../../specs/domain/user.md)
 - [community.md](../../specs/domain/community.md)
 
@@ -67,7 +67,7 @@ Canonical relational sources:
 - `communities` is the source of truth for club-to-database routing
 - `community_money_policies` is the source of truth for explicit attached community funding policy overrides
 - `machine_access_overrides` is the source of truth for platform-level machine-access abuse controls
-- `community_database_bindings` and `community_db_credentials` are the source of truth for active community database connection metadata
+- `community_database_bindings` is the source of truth for active community database connection metadata (the `community_db_credentials` table was removed with the Turso backend — migration 0124)
 
 Derived state:
 
@@ -642,6 +642,10 @@ Notes:
 - `expires_at` is optional so incident response can use temporary or manual-revoke controls
 
 ### `community_db_credentials`
+
+> **Removed** by migration `0124` (de-Turso, 2026-07-02). This table held encrypted
+> Turso connection tokens; the D1 backend uses service bindings and needs no per-community
+> credentials. Retained below for historical reference only.
 
 Purpose:
 

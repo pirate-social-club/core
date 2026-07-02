@@ -1,6 +1,11 @@
 # Turso Sovereignty ADR
 
-Status: accepted, amended
+Status: superseded
+
+Superseded 2026-07-02 by the migration of all community databases to the Cloudflare D1
+backend and removal of the Turso backend (control-plane migration `0124`; see
+[docs/archive/deturso/](../archive/deturso/)). Turso is no longer used for community
+databases. Retained as a historical record.
 
 Partially superseded by [control-plane-neon-adr.md](./control-plane-neon-adr.md) for the central control-plane database.
 Amended by the April 2026 Turso quota review: Turso groups are region pools, not community

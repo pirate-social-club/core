@@ -15,6 +15,6 @@ Start here:
 Supporting architecture docs:
 
 - [Control Plane Neon ADR](../adr/control-plane-neon-adr.md)
-- [Turso Provisioning Contract](../control-plane/turso-provisioning-contract.md)
-- [Turso Data Boundaries](../control-plane/turso-data-boundaries.md)
+- [Turso Provisioning Contract](../archive/deturso/turso-provisioning-contract.md)
+- [Turso Data Boundaries](../archive/deturso/turso-data-boundaries.md)
 - [Secrets Inventory](../control-plane/secrets-inventory.md)

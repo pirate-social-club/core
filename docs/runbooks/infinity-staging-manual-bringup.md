@@ -209,7 +209,7 @@ Important:
 Use the schema and contract docs for the exact fields:
 
 - [Control Plane Schema](../control-plane/control-plane-schema.md)
-- [Turso Provisioning Contract](../control-plane/turso-provisioning-contract.md)
+- [Turso Provisioning Contract](../archive/deturso/turso-provisioning-contract.md)
 
 ### 7. Understand the remote bootstrap payload
 

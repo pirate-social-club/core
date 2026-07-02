@@ -26,8 +26,8 @@ Examples by bucket:
 ## Control Plane
 
 - `control-plane/control-plane-schema.md`
-- `control-plane/turso-provisioning-contract.md`
-- `control-plane/turso-secret-contract.md`
+- `archive/deturso/turso-provisioning-contract.md`
+- `archive/deturso/turso-secret-contract.md`
 - `control-plane/secrets-inventory.md`
 
 ## Community
@@ -37,7 +37,7 @@ Examples by bucket:
 ## Operators
 
 - `operators/signer-families.md`
-- `operators/community-provision-operator-runtime-contract.md`
+- `archive/deturso/community-provision-operator-runtime-contract.md`
 - `operators/spaces-verification-runtime-contract.md`
 - `operators/sentinel-operator-runtime-contract.md`
 
