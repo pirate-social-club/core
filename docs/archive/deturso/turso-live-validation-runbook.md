@@ -45,7 +45,7 @@ This means the live private Turso control-plane path is now validated for:
 ## Required Inputs
 
 Operator env file:
-- [scripts/infisical/.env.operator-staging.example](../../scripts/infisical/.env.operator-staging.example:1)
+- [scripts/infisical/.env.operator-staging.example](../../../scripts/infisical/.env.operator-staging.example:1)
 
 API staging env file:
 - `api/services/api/.env.staging.example` in the sibling API repo
@@ -159,7 +159,7 @@ The API must have:
 
 ### 5. Verify staging reads through the remote Turso binding
 
-Use [Infinity Staging Validation](../runbooks/infinity-staging-validation.md:1).
+Use [Infinity Staging Validation](../../runbooks/infinity-staging-validation.md:1).
 
 Minimum acceptance:
 - `GET /communities/infinity` succeeds

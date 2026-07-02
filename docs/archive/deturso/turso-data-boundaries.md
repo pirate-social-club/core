@@ -4,11 +4,11 @@ Explains what belongs in the central Pirate control-plane database, what belongs
 
 Related:
 
-- [turso-sovereignty-adr.md](../adr/turso-sovereignty-adr.md)
-- [control-plane-schema.md](./control-plane-schema.md)
+- [turso-sovereignty-adr.md](../../adr/turso-sovereignty-adr.md)
+- [control-plane-schema.md](../../control-plane/control-plane-schema.md)
 - [turso-provisioning-contract.md](./turso-provisioning-contract.md)
-- [signer-families.md](../operators/signer-families.md)
-- [secrets-inventory.md](./secrets-inventory.md)
+- [signer-families.md](../../operators/signer-families.md)
+- [secrets-inventory.md](../../control-plane/secrets-inventory.md)
 
 ## Principle
 
