@@ -6,6 +6,7 @@ import { resolve } from "node:path";
 import { createClient } from "@libsql/client";
 import { decryptCommunityDbCredential } from "../lib/shared/community-db-credential-crypto";
 import { splitSqlStatements, toRemoteSqliteMigrationStatement } from "../lib/shared/sql-migration";
+import { sanitizePostgresUrlForBunSql } from "../lib/postgres-url";
 
 type Options = {
   databaseUrlEnv: string;
@@ -120,7 +121,7 @@ async function listCommunityBindings(input: {
   controlPlaneDatabaseUrl: string;
   communityIds: string[];
 }): Promise<CommunityBindingRow[]> {
-  const db = new Bun.SQL(input.controlPlaneDatabaseUrl);
+  const db = new Bun.SQL(sanitizePostgresUrlForBunSql(input.controlPlaneDatabaseUrl));
   const clauses = [
     "c.status = 'active'",
     "c.provisioning_state = 'active'",
@@ -226,10 +227,21 @@ for (const row of rows) {
       continue;
     }
 
-    const columns = await client.execute("PRAGMA table_info(posts)");
-    const columnNames = new Set(columns.rows.map((column) => String(column.name ?? "")));
-    const hasSnapshotColumns = columnNames.has("link_enrichment_snapshot_json")
-      && columnNames.has("link_enrichment_synced_at");
+    // Ledger-repair special case ONLY for 1062 (its ALTER TABLE ADD COLUMN is not
+    // idempotent, so when the columns already exist we repair the ledger instead of
+    // re-running the DDL). Every other migration uses the general apply path below,
+    // which runs the (idempotent) statements and records the ledger. Without this
+    // gate the check fired for ALL migrations and silently ledger-repaired them
+    // WITHOUT running their DDL.
+    const isLinkEnrichmentSnapshotMigration =
+      options.migrationName === "1062_link_enrichment_snapshots.sql";
+    let hasSnapshotColumns = false;
+    if (isLinkEnrichmentSnapshotMigration) {
+      const columns = await client.execute("PRAGMA table_info(posts)");
+      const columnNames = new Set(columns.rows.map((column) => String(column.name ?? "")));
+      hasSnapshotColumns = columnNames.has("link_enrichment_snapshot_json")
+        && columnNames.has("link_enrichment_synced_at");
+    }
 
     if (hasSnapshotColumns) {
       console.log(`${options.execute ? "fix " : "DRY "} ${label} columns_present_ledger_missing`);
