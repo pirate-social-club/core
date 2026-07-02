@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
 
+const LEGACY_LIBSQL_URL_PATTERN = "libsql" + "://%";
+
 type Options = {
   databaseUrlEnv: string;
   format: "text" | "json";
@@ -47,10 +49,10 @@ type InventoryReport = {
   bindings: {
     total: number;
     fileBacked: number;
-    tursoBacked: number;
+    legacyLibsqlBacked: number;
     other: number;
     fileBackedSamples: string[];
-    tursoSamples: string[];
+    legacyLibsqlSamples: string[];
   };
   communities: {
     total: number;
@@ -60,7 +62,7 @@ type InventoryReport = {
   };
   assessment: {
     likelyFixtureContamination: boolean;
-    likelyRealCommunityData: boolean;
+    likelyLegacyCommunityData: boolean;
     mixedFixtureAndOperationalState: boolean;
     recommendation: string;
   };
@@ -355,24 +357,24 @@ async function collectBindings(
     return {
       total: 0,
       fileBacked: 0,
-      tursoBacked: 0,
+      legacyLibsqlBacked: 0,
       other: 0,
       fileBackedSamples: [],
-      tursoSamples: [],
+      legacyLibsqlSamples: [],
     };
   }
 
   const countRows = await db<{
     total: number | string;
     file_backed: number | string;
-    turso_backed: number | string;
+    legacy_libsql_backed: number | string;
     other: number | string;
   }[]>`
     SELECT
       COUNT(*)::bigint AS total,
       COUNT(*) FILTER (WHERE database_url LIKE 'file:%')::bigint AS file_backed,
-      COUNT(*) FILTER (WHERE database_url LIKE 'libsql://%')::bigint AS turso_backed,
-      COUNT(*) FILTER (WHERE database_url NOT LIKE 'file:%' AND database_url NOT LIKE 'libsql://%')::bigint AS other
+      COUNT(*) FILTER (WHERE database_url LIKE ${LEGACY_LIBSQL_URL_PATTERN})::bigint AS legacy_libsql_backed,
+      COUNT(*) FILTER (WHERE database_url NOT LIKE 'file:%' AND database_url NOT LIKE ${LEGACY_LIBSQL_URL_PATTERN})::bigint AS other
     FROM community_database_bindings
   `;
 
@@ -389,14 +391,14 @@ async function collectBindings(
     LIMIT ${sampleLimit}
   `;
 
-  const tursoRows = await db<{
+  const legacyLibsqlRows = await db<{
     community_id: string;
     group_name: string;
     database_name: string;
   }[]>`
     SELECT community_id, group_name, database_name
     FROM community_database_bindings
-    WHERE database_url LIKE 'libsql://%'
+    WHERE database_url LIKE ${LEGACY_LIBSQL_URL_PATTERN}
     ORDER BY community_id ASC
     LIMIT ${sampleLimit}
   `;
@@ -404,10 +406,10 @@ async function collectBindings(
   return {
     total: countValue(countRows[0]?.total),
     fileBacked: countValue(countRows[0]?.file_backed),
-    tursoBacked: countValue(countRows[0]?.turso_backed),
+    legacyLibsqlBacked: countValue(countRows[0]?.legacy_libsql_backed),
     other: countValue(countRows[0]?.other),
     fileBackedSamples: fileRows.map((row) => `${row.community_id}:${row.group_name}/${row.database_name}:${row.database_url}`),
-    tursoSamples: tursoRows.map((row) => `${row.community_id}:${row.group_name}/${row.database_name}`),
+    legacyLibsqlSamples: legacyLibsqlRows.map((row) => `${row.community_id}:${row.group_name}/${row.database_name}`),
   };
 }
 
@@ -469,17 +471,17 @@ function buildAssessment(input: {
 }): InventoryReport["assessment"] {
   const fixtureCount = input.fixtureSignals.reduce((total, signal) => total + signal.count, 0);
   const likelyFixtureContamination = fixtureCount > 0 || input.bindings.fileBacked > 0;
-  const likelyRealCommunityData = input.bindings.tursoBacked > 0;
-  const mixedFixtureAndOperationalState = likelyFixtureContamination && likelyRealCommunityData;
+  const likelyLegacyCommunityData = input.bindings.legacyLibsqlBacked > 0;
+  const mixedFixtureAndOperationalState = likelyFixtureContamination && likelyLegacyCommunityData;
 
   let recommendation = "no strong fixture or operational signal detected";
   if (mixedFixtureAndOperationalState) {
     recommendation =
       "do not wipe in place; build a fresh Neon target, classify/import only canonical rows, then cut over";
-  } else if (likelyFixtureContamination && !likelyRealCommunityData) {
+  } else if (likelyFixtureContamination && !likelyLegacyCommunityData) {
     recommendation =
       "fixture contamination appears dominant; a fresh rebuild is likely safer than cleanup in place";
-  } else if (!likelyFixtureContamination && likelyRealCommunityData) {
+  } else if (!likelyFixtureContamination && likelyLegacyCommunityData) {
     recommendation =
       "operational data appears present without obvious fixture contamination; preserve and migrate carefully";
   }
@@ -490,7 +492,7 @@ function buildAssessment(input: {
 
   return {
     likelyFixtureContamination,
-    likelyRealCommunityData,
+    likelyLegacyCommunityData,
     mixedFixtureAndOperationalState,
     recommendation,
   };
@@ -523,13 +525,13 @@ function printText(report: InventoryReport) {
   console.log("bindings");
   console.log(`- total: ${report.bindings.total}`);
   console.log(`- file_backed: ${report.bindings.fileBacked}`);
-  console.log(`- turso_backed: ${report.bindings.tursoBacked}`);
+  console.log(`- legacy_libsql_backed: ${report.bindings.legacyLibsqlBacked}`);
   console.log(`- other: ${report.bindings.other}`);
   for (const sample of report.bindings.fileBackedSamples) {
     console.log(`  file_sample: ${sample}`);
   }
-  for (const sample of report.bindings.tursoSamples) {
-    console.log(`  turso_sample: ${sample}`);
+  for (const sample of report.bindings.legacyLibsqlSamples) {
+    console.log(`  legacy_libsql_sample: ${sample}`);
   }
 
   console.log("");
@@ -550,7 +552,7 @@ function printText(report: InventoryReport) {
   console.log("");
   console.log("assessment");
   console.log(`- likely_fixture_contamination: ${report.assessment.likelyFixtureContamination ? "yes" : "no"}`);
-  console.log(`- likely_real_community_data: ${report.assessment.likelyRealCommunityData ? "yes" : "no"}`);
+  console.log(`- likely_real_community_data: ${report.assessment.likelyLegacyCommunityData ? "yes" : "no"}`);
   console.log(`- mixed_fixture_and_operational_state: ${report.assessment.mixedFixtureAndOperationalState ? "yes" : "no"}`);
   console.log(`- recommendation: ${report.assessment.recommendation}`);
 }

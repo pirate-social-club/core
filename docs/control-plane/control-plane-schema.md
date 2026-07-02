@@ -2,14 +2,10 @@
 
 Defines the first concrete relational schema for Pirate's central control-plane database.
 
-This is the logical schema spec for Pirate's Neon-backed root-of-trust control plane. See [control-plane-neon-adr.md](../adr/control-plane-neon-adr.md).
+This is the logical schema spec for Pirate's Neon-backed root-of-trust control plane.
 
 Related:
 
-- [turso-sovereignty-adr.md](../adr/turso-sovereignty-adr.md) (historical — Turso backend removed 2026-07-02)
-- [turso-data-boundaries.md](../archive/deturso/turso-data-boundaries.md) (archived)
-- [turso-secret-contract.md](../archive/deturso/turso-secret-contract.md) (archived)
-- [turso-provisioning-contract.md](../archive/deturso/turso-provisioning-contract.md) (archived)
 - [user.md](../../specs/domain/user.md)
 - [community.md](../../specs/domain/community.md)
 
@@ -40,7 +36,7 @@ ID posture:
 
 - all primary keys are Pirate-issued opaque text IDs
 - mutable labels, routes, and display names must not be primary keys
-- Turso group and database names are infrastructure identifiers, not application IDs
+- shard worker and database binding names are infrastructure identifiers, not application IDs
 
 Timestamp posture:
 
@@ -67,7 +63,7 @@ Canonical relational sources:
 - `communities` is the source of truth for club-to-database routing
 - `community_money_policies` is the source of truth for explicit attached community funding policy overrides
 - `machine_access_overrides` is the source of truth for platform-level machine-access abuse controls
-- `community_database_bindings` is the source of truth for active community database connection metadata (the `community_db_credentials` table was removed with the Turso backend — migration 0124)
+- `community_database_bindings` is the source of truth for active community database connection metadata
 
 Derived state:
 
@@ -541,7 +537,7 @@ Notes:
 
 Purpose:
 
-- current and historical mapping from `community_id` to Turso group/database endpoints
+- current and historical mapping from `community_id` to D1 shard binding metadata
 
 Columns:
 
@@ -643,8 +639,8 @@ Notes:
 
 ### `community_db_credentials`
 
-> **Removed** by migration `0124` (de-Turso, 2026-07-02). This table held encrypted
-> Turso connection tokens; the D1 backend uses service bindings and needs no per-community
+> **Removed** by migration `0124` (2026-07-02). This table held encrypted
+> legacy community-database connection tokens; the D1 backend uses service bindings and needs no per-community
 > credentials. Retained below for historical reference only.
 
 Purpose:
@@ -676,7 +672,7 @@ Constraints and indexes:
 Notes:
 
 - the plaintext token never persists here
-- the token ciphertext is encrypted with `TURSO_COMMUNITY_DB_WRAP_KEY`
+- the token ciphertext is encrypted with the shared `CREDENTIAL_WRAP_KEY`
 - v0 runtime posture is one active database-scoped token per primary community DB
 
 ## Cross-Community Read Models
@@ -847,5 +843,5 @@ These fixtures are enough to test auth bootstrap, wallet selection, verification
 - no community database credential is stored plaintext at rest
 - no live request path requires joining central SQL to community SQL
 - no community DB may redefine the canonical `user_id`
-- no mutable route or display label may be the only link between a club and its Turso group
+- no mutable route or display label may be the only link between a club and its database binding
 - no projection row is treated as the source of truth over the originating central or community row

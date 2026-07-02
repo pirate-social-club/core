@@ -5,7 +5,6 @@ Status: current working spec
 Related:
 
 - [market-context.md](../../specs/domain/market-context.md)
-- [turso-data-boundaries.md](../archive/deturso/turso-data-boundaries.md)
 - [../db/README.md](../../db/README.md)
 
 ## Purpose

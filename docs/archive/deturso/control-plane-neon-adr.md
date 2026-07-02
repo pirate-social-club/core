@@ -158,10 +158,8 @@ Recommended secrets:
   private connection string for `control_plane_migrator`
 - `CONTROL_PLANE_OWNER_DATABASE_URL`
   break-glass owner connection string stored outside normal service paths; not used by runtime, CI, or routine migrations
-- `TURSO_PLATFORM_API_TOKEN`
-  still required for community Turso provisioning
-- `TURSO_COMMUNITY_DB_WRAP_KEY`
-  still required to envelope-encrypt stored community database credentials
+- `CREDENTIAL_WRAP_KEY`
+  required by the API to envelope-encrypt community-provided integration credentials
 
 Important difference from the old Turso control-plane model:
 

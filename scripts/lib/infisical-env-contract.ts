@@ -132,7 +132,7 @@ export const ENV_CONTRACT: EnvContract = {
     },
     {
       path: "/services/api",
-      key: "TURSO_COMMUNITY_DB_WRAP_KEY",
+      key: "CREDENTIAL_WRAP_KEY",
       requiredness: "required_now",
       validate: is64CharHex,
     },
@@ -293,11 +293,6 @@ export const ENV_CONTRACT: EnvContract = {
       path: "/services/api",
       key: "AGORA_CLOUD_RECORDING_CAPTURE_S3_REGION",
       requiredness: "required_for_staging",
-    },
-    {
-      path: "/services/api",
-      key: "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN",
-      requiredness: "required_now",
     },
     {
       path: "/services/api",
@@ -554,22 +549,6 @@ export const ENV_CONTRACT: EnvContract = {
       validate: isPostgresUrl,
     },
     {
-      path: "/services/control-plane",
-      key: "TURSO_PLATFORM_API_TOKEN",
-      requiredness: "required_now",
-    },
-    {
-      path: "/services/control-plane",
-      key: "TURSO_COMMUNITY_DB_WRAP_KEY",
-      requiredness: "required_now",
-      validate: is64CharHex,
-    },
-    {
-      path: "/services/control-plane",
-      key: "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN",
-      requiredness: "required_now",
-    },
-    {
       path: "/local/control-plane",
       key: "CONTROL_PLANE_OWNER_DATABASE_URL",
       requiredness: "required_for_local_dev",
@@ -578,20 +557,6 @@ export const ENV_CONTRACT: EnvContract = {
   ],
 
   crossPathChecks: [
-    {
-      description: "TURSO_COMMUNITY_DB_WRAP_KEY must match between /services/api and /services/control-plane",
-      check: (secrets) => {
-        const api = secrets.get("TURSO_COMMUNITY_DB_WRAP_KEY__/services/api");
-        const cp = secrets.get("TURSO_COMMUNITY_DB_WRAP_KEY__/services/control-plane");
-        if (!api || !cp || api.value === null || cp.value === null) {
-          return { status: "skip", message: "one or both values missing" };
-        }
-        if (api.value !== cp.value) {
-          return { status: "fail", message: `/services/api has ${api.value.slice(0, 8)}... vs /services/control-plane has ${cp.value.slice(0, 8)}...` };
-        }
-        return { status: "ok" };
-      },
-    },
     {
       description: "Runtime and migrator URLs must point at the same database host",
       check: (secrets) => {
@@ -681,20 +646,6 @@ export const ENV_CONTRACT: EnvContract = {
         return { status: "ok" };
       },
     },
-    {
-      description: "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN must match between /services/api and /services/control-plane",
-      check: (secrets) => {
-        const api = secrets.get("COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN__/services/api");
-        const cp = secrets.get("COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN__/services/control-plane");
-        if (!api || !cp || api.value === null || cp.value === null) {
-          return { status: "skip", message: "one or both values missing" };
-        }
-        if (api.value !== cp.value) {
-          return { status: "fail", message: `/services/api has ${api.value.slice(0, 8)}... vs /services/control-plane has ${cp.value.slice(0, 8)}...` };
-        }
-        return { status: "ok" };
-      },
-    },
   ],
 };
 
@@ -711,19 +662,15 @@ export function secretId(path: string, key: string): string {
 
 export const CORE_SECRET_IDS = [
   "CONTROL_PLANE_DATABASE_URL__/services/api",
-  "TURSO_COMMUNITY_DB_WRAP_KEY__/services/api",
+  "CREDENTIAL_WRAP_KEY__/services/api",
   "AUTH_UPSTREAM_JWT_SHARED_SECRET__/services/api",
   "PIRATE_APP_JWT_PRIVATE_KEY__/services/api",
   "PIRATE_APP_JWT_PUBLIC_KEY__/services/api",
   "PRIVY_APP_SECRET__/services/api",
   "OPENAI_API_KEY__/services/api",
   "PASSPORT_API_KEY__/services/api",
-  "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN__/services/api",
   "PIRATE_ADMIN_TOKEN__/services/api",
   "CONTROL_PLANE_MIGRATOR_DATABASE_URL__/services/control-plane",
-  "TURSO_PLATFORM_API_TOKEN__/services/control-plane",
-  "TURSO_COMMUNITY_DB_WRAP_KEY__/services/control-plane",
-  "COMMUNITY_PROVISION_OPERATOR_AUTH_TOKEN__/services/control-plane",
   "ALTCHA_HMAC_SECRET__/services/api",
   "ALTCHA_HMAC_KEY_SECRET__/services/api",
 ] as const;

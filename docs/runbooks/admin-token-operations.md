@@ -151,7 +151,7 @@ Expected response:
 ```json
 {
   "community": "com_cmt_06c2ff60232d48d397c6d150e242a94d",
-  "database_url": "libsql://...",
+  "database_url": "d1://shard/DB_CMTY_0001",
   "applied": 1,
   "skipped": 61
 }

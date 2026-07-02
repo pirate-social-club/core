@@ -639,11 +639,7 @@ Full Base Sepolia settlement and locked replay entitlement verification:
 rtk bun run live-room:smoke:paid-staging -- --recording-enabled --replay-access-mode paid --settle-purchase
 ```
 
-If reusing an existing provisioned community shard, run the community migration preflight/repair before the smoke so replay migrations and the 1114 commerce rebuild are known-good on that shard:
-
-```bash
-rtk bun scripts/community/repair-community-migration-ledger.ts --community-id <community_id> --execute
-```
+If reusing an existing provisioned community shard, verify the shard has the current community-template schema before the smoke so replay migrations and the 1114 commerce rebuild are known-good on that shard.
 
 Then run the release-gate smoke against that same community:
 

@@ -7997,7 +7997,7 @@ components:
             - aws-eu-west-1
             - aws-ap-south-1
             - aws-ap-northeast-1
-          description: Create-time primary Turso group location for the community database. Omit or set auto to use the server default.
+          description: Create-time primary database region for the community database. Omit or set auto to use the server default.
         localized_text:
           $ref: "#/components/schemas/CommunityTextLocalization"
           nullable: true

@@ -612,13 +612,12 @@ Token encryption:
 
 - Community bot tokens are dynamic community-provided secrets, so they should be stored in
   the control-plane database encrypted at rest.
-- Use the existing community-secret envelope key (`TURSO_COMMUNITY_DB_WRAP_KEY`) through the
+- Use the shared community-secret envelope key (`CREDENTIAL_WRAP_KEY`) through the
   shared credential crypto helpers until a separate Telegram-specific key is introduced.
 - Encrypt tokens with AES-256-GCM using a per-bot random nonce and authenticated associated
   data including `telegram_community_bot_id` and `community_id`.
 - Store the key version so rotation can be introduced without rewriting the table shape.
-- This mirrors the existing posture used for other community-scoped wrapped secrets such as
-  Turso community database credentials.
+- This mirrors the posture used for other community-scoped wrapped integration secrets.
 
 Public API:
 

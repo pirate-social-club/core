@@ -5,7 +5,7 @@
 Use these buckets first:
 
 - `control-plane/`
-  Control-plane schema, secrets, Turso provisioning, and Infisical boundary docs.
+  Control-plane schema, secrets, and Infisical boundary docs.
 - `community/`
   Community registry and cross-plane community contracts.
 - `operators/`
@@ -26,18 +26,15 @@ Examples by bucket:
 ## Control Plane
 
 - `control-plane/control-plane-schema.md`
-- `archive/deturso/turso-provisioning-contract.md`
-- `archive/deturso/turso-secret-contract.md`
 - `control-plane/secrets-inventory.md`
 
 ## Community
 
-- `community/community-registry-plane.md`
+- Historical registry-plane docs live in the archive.
 
 ## Operators
 
 - `operators/signer-families.md`
-- `archive/deturso/community-provision-operator-runtime-contract.md`
 - `operators/spaces-verification-runtime-contract.md`
 - `operators/sentinel-operator-runtime-contract.md`
 

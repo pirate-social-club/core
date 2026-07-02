@@ -16,8 +16,6 @@ Runtime note:
 Related docs:
 
 - [control-plane-schema.md](../docs/control-plane/control-plane-schema.md)
-- [turso-provisioning-contract.md](../docs/control-plane/turso-provisioning-contract.md)
-- [turso-data-boundaries.md](../docs/control-plane/turso-data-boundaries.md)
 
 ## Current Scope
 
@@ -155,7 +153,7 @@ rtk infisical run --env dev --path /services/api -- \
 
 ## Notes
 
-- The community migration files target SQLite-compatible Turso/libSQL DDL.
+- The community migration files target SQLite-compatible DDL for D1 and the local libSQL harness.
 - The control-plane migration files are PostgreSQL-first and apply directly to Neon from `db/control-plane/migrations/`.
 - Post visibility is part of the mainline schema now. New environments should include both the community `posts.visibility` column and the control-plane `community_post_projections.visibility` column from the checked-in migrations and baseline snapshot.
 - Community databases intentionally do not define a `users` table. They reference central Pirate `user_id` values as foreign identifiers, not local user rows.

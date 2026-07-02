@@ -611,7 +611,7 @@ async function main() {
       job_id: created.job?.job_id ?? null,
       job_status: created.job?.status ?? null,
       job_error_code: created.job?.error_code ?? null,
-      turso: binding ? {
+      database_binding: binding ? {
         organization_slug: binding.organization_slug,
         group_name: binding.group_name,
         database_name: binding.database_name,
