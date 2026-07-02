@@ -634,7 +634,7 @@ Notes:
 
 ### Removed Community Database Registry Tables
 
-- `community_db_credentials` was removed by migration `0124`.
+- The legacy credential table was removed by migration `0124`.
 - The legacy community database binding registry was removed by migration `0125`.
 - D1 uses service bindings and `community_database_routing`; no per-community database credentials are stored in the control plane.
 - v0 runtime posture is one active database-scoped token per primary community DB
