@@ -44,9 +44,6 @@
         "reason": "compatible repair for communities whose voice-policy ledger drift lacks tts_provider"
       }
     ],
-    "unexpectedMigrationsToRemove": [
-      "1096_community_karaoke_enabled.sql",
-      "1098_community_karaoke_scoring_policy.sql"
-    ]
+    "unexpectedMigrationsToRemove": []
   }
 }
