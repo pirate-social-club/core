@@ -2934,6 +2934,44 @@ paths:
                 code: provider_unavailable
                 message: ElevenLabs transcription failed with http_502
                 retryable: true
+  /communities/{community_id}/posts/{post_id}/streaks/leaderboard:
+    get:
+      tags:
+        - Song Study
+      summary: Fetch the song streak leaderboard
+      description: |
+        Returns the active per-song study streak leaderboard for an authenticated
+        community reader. Streak liveness is computed at read time; dead rows are
+        omitted from `entries`, while the viewer's own standing is returned even
+        when their streak is no longer alive.
+
+        The write-enable rollout gate affects only streak writes. This read route
+        remains available once deployed and returns an empty board before writes
+        are enabled or before historical seeding runs.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/PostId"
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+            minimum: 1
+      responses:
+        "200":
+          description: Song streak leaderboard.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SongStreakLeaderboard"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /communities/{community_id}/comments/{comment_id}/reports:
     post:
       tags:
