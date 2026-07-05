@@ -32,3 +32,25 @@ the sync path until every non-web caller below either opts into
    songs.
 4. After migration, remove the synchronous client listing dependency from every
    caller before deleting the API sync path.
+
+## Migration 1117 Rollout Gate
+
+`1117_async_post_publish.sql` rebuilds the `posts` table to widen the status
+CHECK constraint and add async publish failure/idempotency columns. Before
+running it on production D1 shards, verify every shard already has the columns
+that the rebuild's `INSERT ... SELECT` reads from prior migrations, including:
+
+- `source_start_ms`
+- `source_duration_ms`
+- `sync_offset_ms`
+- `source_language_confidence`
+- `source_language_reliable`
+- `source_language_detector`
+- `source_language_detected_at`
+- `source_language_source_hash`
+- `song_instrumental_audio_json`
+- `song_vocal_audio_json`
+
+Do not roll 1117 to a shard that fails the column-presence check. Bring the
+shard to the canonical community-template lineage first, then rerun the
+preflight.

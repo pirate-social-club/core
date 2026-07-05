@@ -46,8 +46,8 @@ CreatePostListingDraft:
     - status
   additionalProperties: false
   description: |
-    Listing inputs captured with asynchronous post creation. The server supplies the target
-    asset during finalize; clients must not send `asset`, `live_room`, or `replay_asset`.
+    Listing inputs captured with song post creation. The server supplies the target
+    asset after asset creation; clients must not send `asset`, `live_room`, or `replay_asset`.
   properties:
     price_cents:
       type: integer
@@ -712,9 +712,10 @@ CreatePostRequest:
       $ref: ./posts.yaml#/CreatePostListingDraft
       nullable: true
       description: |
-        Draft listing inputs to persist with the post-create request for asynchronous finalize.
-        The server supplies the created asset during finalize; clients must omit `asset`,
-        `live_room`, and `replay_asset` in post-create requests.
+        Draft listing inputs to create a server-side song asset listing. In sync mode the
+        listing is created after asset creation in the post-create request path. In async mode
+        the draft is persisted and consumed by finalize. The server supplies the created asset;
+        clients must omit `asset`, `live_room`, and `replay_asset` in post-create requests.
     authorship_mode:
       type: string
       enum:

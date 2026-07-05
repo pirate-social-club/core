@@ -12581,9 +12581,10 @@ components:
           $ref: "#/components/schemas/CreatePostListingDraft"
           nullable: true
           description: |
-            Draft listing inputs to persist with the post-create request for asynchronous finalize.
-            The server supplies the created asset during finalize; clients must omit `asset`,
-            `live_room`, and `replay_asset` in post-create requests.
+            Draft listing inputs to create a server-side song asset listing. In sync mode the
+            listing is created after asset creation in the post-create request path. In async mode
+            the draft is persisted and consumed by finalize. The server supplies the created asset;
+            clients must omit `asset`, `live_room`, and `replay_asset` in post-create requests.
         authorship_mode:
           type: string
           enum:
