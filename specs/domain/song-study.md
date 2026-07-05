@@ -80,7 +80,8 @@ These hold for every `GET .../study` response and are testable:
 1. `object` is `song_study_payload`.
 2. `exercise_count == exercises.length`.
 3. If `access == "ready"`:
-   - `exercises.length > 0`;
+   - `exercises.length` may be zero when the learner is caught up for this
+     song;
    - each exercise carries its content (lyric / `reference_text` /
      `translation_text` / `options` as applicable);
    - `study_pack_version` and `generated_at` are present.
@@ -128,11 +129,17 @@ attempt as an **event** (not merely the final state, so the schedule can be
 recomputed if the algorithm or parameters change), advances the FSRS schedule
 for the review unit, and returns the verdict.
 
-- Attempt writes MUST be idempotent. The client supplies an `idempotency_key`;
-  the server deduplicates by `(user_id, exercise_id, attempt_number)` and the
-  idempotency key, returning the original result for an equivalent retry and
-  rejecting conflicting payload reuse. A retry MUST NOT double-record an event
-  or double-advance FSRS.
+- Attempt writes MUST be idempotent: an equivalent retry MUST return the
+  original result and MUST NOT double-record an event or double-advance FSRS,
+  and conflicting payload reuse under the same key MUST be rejected. The client
+  supplies an `idempotency_key`, and the durable idempotency guarantee rests on
+  `(user_id, idempotency_key)`.
+- Attempt numbers are scoped to a showing. First-learn attempts omit
+  `review_session_id` and use the implicit `learn` session. Due review attempts
+  echo the `review_session_id` returned by `GET /study`, allowing attempt 1 in a
+  review to coexist with attempt 1 from first-learn. The server also enforces
+  `(user_id, exercise_id, review_session_id, attempt_number)` to reject duplicate
+  attempt numbers inside the same showing.
 - The correct answer is disclosed only once the attempt is spent — a correct
   answer, or an incorrect final attempt (`outcome: revealed`).
 - `say_it_back` grading normalizes the transcript under the **source lyric
@@ -156,9 +163,9 @@ MUST NOT be conflated.
 
 ## Scope
 
-These endpoints describe **one song's full study pack**. FSRS-scheduled,
-cross-song "due today" review sessions are a separate concern and are not
-modeled here.
+These endpoints describe **one song's study queue**: first-learn exercises not
+yet attempted by the learner plus due FSRS reviews for this song. Cross-song
+"due today" review sessions are a separate concern and are not modeled here.
 
 ## Persistence
 
@@ -268,6 +275,7 @@ CREATE TABLE song_study_attempt (
   user_id            TEXT NOT NULL,
   post_id            TEXT NOT NULL,
   exercise_id        TEXT NOT NULL,
+  review_session_id  TEXT NOT NULL DEFAULT 'learn',
   line_id            TEXT NOT NULL,
   exercise_type      TEXT NOT NULL CHECK (exercise_type IN
                        ('say_it_back','translation_choice')),
@@ -285,7 +293,7 @@ CREATE TABLE song_study_attempt (
   created_at         TEXT NOT NULL,
   PRIMARY KEY (id),
   FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE CASCADE,
-  UNIQUE (user_id, exercise_id, attempt_number),
+  UNIQUE (user_id, exercise_id, review_session_id, attempt_number),
   UNIQUE (user_id, idempotency_key)
 );
 
@@ -328,9 +336,9 @@ the learner is practicing the source lyric pronunciation. For
 `translation_choice`, the same key slot is the requested target language.
 
 `exercise_id` is a stable opaque identifier synthesized from
-`song_study_unit + exercise_type + language`. Attempts remain idempotent by
-`(user_id, exercise_id, attempt_number)` even though translation-choice content
-is assembled from a unit plus localization row.
+`song_study_unit + exercise_type + language`. Attempt numbers are unique only
+inside `(user_id, exercise_id, review_session_id)` so a due review can reuse
+attempt 1 without colliding with first-learn.
 
 ### Versions and review continuity
 
@@ -385,3 +393,127 @@ community DB lyrics after the caller's access has been confirmed:
 The server MUST NOT fabricate translation-choice answers on the client and MUST
 NOT derive line translations from document-level post localization unless that
 localization is explicitly line-aligned.
+
+# Addendum: Review Model & Rollout (2026-07-05)
+
+This addendum supersedes the one-and-done read model and specifies the review
+session rollout. It is written as a **staged rollout spec**, not a design
+survey. The selected implementation keeps `attempt_number` as a request field
+and scopes it with `review_session_id`.
+
+## 1. Current state
+
+- Attempts are already append-only events and already advance
+  `song_study_review_state` (`state`, `stability`, `difficulty`, `due_at`,
+  `reps`, `lapses`) on every accepted attempt.
+- `review_state` key is `(user_id, post_id, line_id, exercise_type,
+  review_language)`, where `review_language` is the **source** language for
+  `say_it_back` and the **target** language for `translation_choice`. The two
+  exercise types for one line therefore already occupy distinct rows and
+  schedule **independently** — this is a property to preserve, not to build.
+- `GET /study` is **one-and-done**: it excludes any exercise the user has ever
+  attempted (`NOT EXISTS song_study_attempt`). It never reads `due_at`, so the
+  FSRS write side is currently dead weight and no line is ever re-served.
+- Two durable uniqueness constraints existed on `song_study_attempt` before
+  this addendum:
+  `UNIQUE(user_id, idempotency_key)` and `UNIQUE(user_id, exercise_id,
+  attempt_number)`. The **second** is what makes re-serving impossible: a second
+  sitting would replay `attempt_number = 1` and hit a 409.
+
+## 2. Target read path
+
+`GET /study` selects **due reviews ∪ first-learn**, in that order:
+
+- Due reviews are read from `song_study_review_state` where `due_at <= :now`,
+  joined to the current unit/localization rows for the same
+  `(post_id, line_id, exercise_type, review_language)`.
+- Each due exercise carries a `review_session_id` minted from the review unit
+  and the due timestamp:
+  `review:<line_id>:<exercise_type>:<review_language>:<due_at>`.
+- First-learn exercises keep the current `NOT EXISTS(song_study_attempt)` filter
+  and omit `review_session_id`.
+- Future-due rows are hidden. A caught-up song returns `access: "ready"` with an
+  empty `exercises` array in v1; a richer `session.next_due_at` field can be
+  added later without changing attempt semantics.
+
+## 3. Attempt identity change
+
+- **Keep** `UNIQUE(user_id, idempotency_key)` as the durable retry guard.
+- Rebuild `song_study_attempt` to add `review_session_id TEXT NOT NULL DEFAULT
+  'learn'`.
+- Replace `UNIQUE(user_id, exercise_id, attempt_number)` with
+  `UNIQUE(user_id, exercise_id, review_session_id, attempt_number)`.
+- First-learn submissions omit `review_session_id` and use `learn`.
+- Review submissions MUST echo the fetched `review_session_id`. The server
+  recomputes the expected ID from the current `song_study_review_state.due_at`
+  and rejects stale, future, or forged IDs.
+
+## 4. Contract
+
+`GET /study` stays **idempotent and side-effect-free** (it is a read of "what is
+due," not a session mint):
+
+```
+GET /study  (access: "ready")
+{
+  access: "ready",
+  exercises: [
+    { exercise_id, type, ..., review_session_id?: string }
+  ]
+}
+```
+
+`POST .../study/attempts`:
+
+```
+{
+  exercise_id, type,
+  review_session_id?,    // only for due review exercises
+  attempt_number,        // 1-based index inside this first-learn/review session
+  idempotency_key,
+  selected_option_id | transcript
+}
+→ { exercise_id, outcome, attempts_remaining, feedback?, next_review_hint? }
+```
+
+## 5. Session builder
+
+The server owns session composition inside `GET`:
+
+- Serve due reviews first, ordered by `due_at`, `line_index`, exercise sort,
+  then exercise id.
+- Then serve first-learn exercises ordered by `line_index`, exercise sort, then
+  exercise id.
+- Per-type scheduling stays **independent** (§1); co-serving `say_it_back` and
+  `translation_choice` for the same line is a **builder policy** over two
+  independently-due rows, not a schema commitment. Difficulty/lapse-weighted
+  ordering is a later refinement.
+
+## 6. Rollout (normative order)
+
+1. **Deploy code dormant behind a read/write gate.** The attempt path must not
+   write `review_session_id` until every shard has the rebuilt table.
+2. **Regenerate the community schema snapshot** so newly provisioned shards get
+   the rebuilt `song_study_attempt` shape.
+3. **Backfill existing shards** with the table rebuild. This is complete only
+   when the new column and scoped unique constraint exist on **all** shards.
+4. **Enable review reads and writes.** `GET /study` may now return due exercises
+   with `review_session_id`, and `POST /study/attempts` accepts those scoped
+   review attempts.
+
+## Landmines
+
+1. **Do NOT offer re-serves before the scoped uniqueness exists everywhere.** A
+   shard still enforcing `UNIQUE(user_id, exercise_id, attempt_number)` will
+   reject the first due review as a duplicate attempt 1.
+2. **This is a live-prod schema change, not pre-users.** Replacing a `UNIQUE` in
+   SQLite/D1 is a table rebuild per community shard. Pilot-scale data makes it
+   cheap, but sequence it as above.
+3. **Review IDs are due-versioned.** A successful review changes `due_at`, which
+   invalidates the previous `review_session_id`. This is intentional: stale tabs
+   should be rejected rather than recording an out-of-date review against a now
+   future-due card.
+4. **The FSRS curve is still a v1 placeholder** (fixed stability/difficulty
+   constants, `fsrs_params_version`). Reading `due_at` makes those intervals
+   **load-bearing** — users will feel them. Calibrate (or at least ensure honest
+   "learning" intervals) before marketing "spaced review."
