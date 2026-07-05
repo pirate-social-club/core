@@ -3394,7 +3394,11 @@ paths:
 
         Required analysis timeout or provider failure should normally resolve to a non-published hold/review outcome rather than publish-first behavior.
 
-        Song post bundle gating: when `post_type = song` and `song_artifact_bundle_id` is provided, the server must reject the request if the referenced bundle is not in `ready` state. Consumed bundles must not be reused for a second song post.
+        Song post bundle gating: when `post_type = song` and `song_artifact_bundle_id` is provided,
+        synchronous publish requests require the referenced bundle to be in `ready` state. Async publish
+        requests (`publish_mode = async`) may use a deferred-analysis bundle in `validating` state; the
+        finalize job performs analysis before public publication and moves failed rights/safety outcomes
+        to the author-visible failed post state. Consumed bundles must not be reused for a second song post.
 
         Market-context enrichment is explicitly async and read-side only. It does not run at post-create time and does not gate publication. Market-context attachment happens after a post is published, for eligible link posts only, based on the community's resolved market-context policy.
       requestBody:
@@ -3524,6 +3528,31 @@ paths:
           $ref: "#/components/responses/AuthError"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /communities/{community_id}/posts/pending:
+    get:
+      tags:
+        - Posts
+      x-implemented: true
+      summary: List the caller's pending posts in a community
+      description: |
+        Returns author-scoped post cards for the authenticated caller's `processing` and `failed`
+        posts. This endpoint intentionally does not alter public feed eligibility or projection
+        materialization; clients merge these items above the normal published feed.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/Locale"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Pending author posts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /communities/{community_id}/posts/{post_id}/comments:
     get:
       tags:
@@ -3596,6 +3625,33 @@ paths:
           $ref: "#/components/responses/EligibilityFailed"
         "404":
           $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/posts/{post_id}/publish-retry:
+    post:
+      tags:
+        - Posts
+      x-implemented: true
+      summary: Retry asynchronous post publication
+      description: |
+        Requests a retry for an author-owned failed asynchronous post when the failure is retryable.
+        The server returns the post to `processing` and enqueues `post_publish_finalize`.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/PostId"
+      responses:
+        "202":
+          description: Retry accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /communities/{community_id}/posts/{post_id}/comments-lock:
     post:
       tags:
@@ -13908,6 +13964,15 @@ components:
         lyrics:
           type: string
           description: Plain-text lyrics used for the mainline v0 song post.
+        analysis_mode:
+          type: string
+          enum:
+            - sync
+            - deferred
+          default: sync
+          description: |
+            Optional bundle analysis mode. Omit or send `sync` for legacy behavior. Send `deferred`
+            only when the post-create request will opt into asynchronous publish finalization.
         genius_annotations_url:
           type: string
           nullable: true
@@ -14268,6 +14333,9 @@ components:
         - link: requires `link_url`; may send `title` and `body`; must not send `media_refs`, `song_artifact_bundle_id`, or `lyrics`
         - song: requires either `song_artifact_bundle_id` or both `media_refs` (at least one `audio/*`) and `lyrics`; must not send `link_url`; `identity_mode` must be `public`; original songs require `license_preset`
         - crosspost: requires `title`, `source_post`, and `source_community`.
+        `publish_mode = async` is currently supported for song posts only. It is an opt-in
+        compatibility boundary for clients that can render processing/failed posts and provide
+        any server-side finalize inputs, including listing drafts.
       oneOf:
         - description: Text posts require at least one of `title` or `body`.
           required:
@@ -14498,6 +14566,23 @@ components:
             Client-supplied deduplication key for create retries. For the same authenticated author,
             reusing the same `idempotency_key` on an equivalent create request must return the
             originally created post rather than creating a duplicate row.
+        publish_mode:
+          type: string
+          enum:
+            - sync
+            - async
+          default: sync
+          description: |
+            Optional publish execution mode. Omit or send `sync` for legacy behavior. Send `async`
+            only for song posts when the client can render `processing`/`failed` post states and
+            poll pending posts.
+        listing_draft:
+          $ref: "#/components/schemas/CreatePostListingDraft"
+          nullable: true
+          description: |
+            Draft listing inputs to persist with the post-create request for asynchronous finalize.
+            The server supplies the created asset during finalize; clients must omit `asset`,
+            `live_room`, and `replay_asset` in post-create requests.
         authorship_mode:
           type: string
           enum:
@@ -14780,7 +14865,9 @@ components:
           type: string
           enum:
             - draft
+            - processing
             - published
+            - failed
             - hidden
             - removed
             - deleted
@@ -14803,6 +14890,15 @@ components:
           enum:
             - public
             - members_only
+        publish_failure_code:
+          $ref: "#/components/schemas/PostPublishFailureCode"
+          nullable: true
+        publish_failure_message:
+          type: string
+          nullable: true
+        publish_failure_retryable:
+          type: boolean
+          nullable: true
         title:
           type: string
           nullable: true

@@ -1626,7 +1626,11 @@ communities_by_community_id_posts:
 
       Required analysis timeout or provider failure should normally resolve to a non-published hold/review outcome rather than publish-first behavior.
 
-      Song post bundle gating: when `post_type = song` and `song_artifact_bundle_id` is provided, the server must reject the request if the referenced bundle is not in `ready` state. Consumed bundles must not be reused for a second song post.
+      Song post bundle gating: when `post_type = song` and `song_artifact_bundle_id` is provided,
+      synchronous publish requests require the referenced bundle to be in `ready` state. Async publish
+      requests (`publish_mode = async`) may use a deferred-analysis bundle in `validating` state; the
+      finalize job performs analysis before public publication and moves failed rights/safety outcomes
+      to the author-visible failed post state. Consumed bundles must not be reused for a second song post.
 
       Market-context enrichment is explicitly async and read-side only. It does not run at post-create time and does not gate publication. Market-context attachment happens after a post is published, for eligible link posts only, based on the community's resolved market-context policy.
     requestBody:
@@ -1756,6 +1760,31 @@ communities_by_community_id_posts:
         $ref: ../components/responses.yaml#/AuthError
       "429":
         $ref: ../components/responses.yaml#/RateLimited
+communities_by_community_id_posts_pending:
+  get:
+    tags:
+      - Posts
+    x-implemented: true
+    summary: List the caller's pending posts in a community
+    description: |
+      Returns author-scoped post cards for the authenticated caller's `processing` and `failed`
+      posts. This endpoint intentionally does not alter public feed eligibility or projection
+      materialization; clients merge these items above the normal published feed.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/Locale
+      - $ref: ../components/parameters.yaml#/Limit
+    responses:
+      "200":
+        description: Pending author posts
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/feeds.yaml#/FeedResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
 communities_by_community_id_posts_by_post_id_comments:
   get:
     tags:
@@ -1828,6 +1857,33 @@ communities_by_community_id_posts_by_post_id_remove:
         $ref: ../components/responses.yaml#/EligibilityFailed
       "404":
         $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_posts_by_post_id_publish_retry:
+  post:
+    tags:
+      - Posts
+    x-implemented: true
+    summary: Retry asynchronous post publication
+    description: |
+      Requests a retry for an author-owned failed asynchronous post when the failure is retryable.
+      The server returns the post to `processing` and enqueues `post_publish_finalize`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/PostId
+    responses:
+      "202":
+        description: Retry accepted
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/posts.yaml#/Post
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
 communities_by_community_id_posts_by_post_id_comments_lock:
   post:
     tags:
