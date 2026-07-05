@@ -257,10 +257,14 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_market_context_policy
   /communities/{community_id}/posts:
     $ref: ./paths/communities.yaml#/communities_by_community_id_posts
+  /communities/{community_id}/posts/pending:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_posts_pending
   /communities/{community_id}/posts/{post_id}/comments:
     $ref: ./paths/communities.yaml#/communities_by_community_id_posts_by_post_id_comments
   /communities/{community_id}/posts/{post_id}/remove:
     $ref: ./paths/communities.yaml#/communities_by_community_id_posts_by_post_id_remove
+  /communities/{community_id}/posts/{post_id}/publish-retry:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_posts_by_post_id_publish_retry
   /communities/{community_id}/posts/{post_id}/comments-lock:
     $ref: ./paths/communities.yaml#/communities_by_community_id_posts_by_post_id_comments_lock
   /communities/{community_id}/posts/{post_id}/reports:

@@ -38,6 +38,38 @@ PromotionDisclosure:
       type: boolean
     affiliation_kind:
       $ref: ./posts.yaml#/PromotionAffiliationKind
+CreatePostListingDraft:
+  type: object
+  required:
+    - price_cents
+    - regional_pricing_enabled
+    - status
+  additionalProperties: false
+  description: |
+    Listing inputs captured with song post creation. The server supplies the target
+    asset after asset creation; clients must not send `asset`, `live_room`, or `replay_asset`.
+  properties:
+    price_cents:
+      type: integer
+      minimum: 0
+    regional_pricing_enabled:
+      type: boolean
+    donation_partner:
+      type: string
+      nullable: true
+    donation_share_bps:
+      type: integer
+      minimum: 0
+      nullable: true
+    vinyl_release_provider:
+      type: string
+      enum:
+        - elasticstage
+      nullable: true
+    vinyl_release_url:
+      type: string
+      format: uri
+      nullable: true
 XEmbedPreview:
   type: object
   additionalProperties: false
@@ -433,6 +465,9 @@ CreatePostRequest:
     - link: requires `link_url`; may send `title` and `body`; must not send `media_refs`, `song_artifact_bundle_id`, or `lyrics`
     - song: requires either `song_artifact_bundle_id` or both `media_refs` (at least one `audio/*`) and `lyrics`; must not send `link_url`; `identity_mode` must be `public`; original songs require `license_preset`
     - crosspost: requires `title`, `source_post`, and `source_community`.
+    `publish_mode = async` is currently supported for song posts only. It is an opt-in
+    compatibility boundary for clients that can render processing/failed posts and provide
+    any server-side finalize inputs, including listing drafts.
   oneOf:
     - description: Text posts require at least one of `title` or `body`.
       required:
@@ -663,6 +698,24 @@ CreatePostRequest:
         Client-supplied deduplication key for create retries. For the same authenticated author,
         reusing the same `idempotency_key` on an equivalent create request must return the
         originally created post rather than creating a duplicate row.
+    publish_mode:
+      type: string
+      enum:
+        - sync
+        - async
+      default: sync
+      description: |
+        Optional publish execution mode. Omit or send `sync` for legacy behavior. Send `async`
+        only for song posts when the client can render `processing`/`failed` post states and
+        poll pending posts.
+    listing_draft:
+      $ref: ./posts.yaml#/CreatePostListingDraft
+      nullable: true
+      description: |
+        Draft listing inputs to create a server-side song asset listing. In sync mode the
+        listing is created after asset creation in the post-create request path. In async mode
+        the draft is persisted and consumed by finalize. The server supplies the created asset;
+        clients must omit `asset`, `live_room`, and `replay_asset` in post-create requests.
     authorship_mode:
       type: string
       enum:
@@ -829,6 +882,23 @@ CreatePostRequest:
       nullable: true
       description: |
         Plain-text lyrics for song posts. Required when post_type is song. Optional for other post types.
+PostPublishFailureCode:
+  type: string
+  description: |
+    Machine-readable failure code for asynchronous post publishing. These codes are shared by
+    API jobs, client rendering, retry decisions, and error reporting.
+  enum:
+    - song_analysis_blocked
+    - song_analysis_review_required
+    - song_rights_reference_required
+    - song_preview_generation_failed
+    - text_moderation_blocked
+    - story_royalty_registration_failed
+    - story_locked_delivery_failed
+    - listing_creation_failed
+    - catalog_sync_failed
+    - provider_unavailable
+    - internal_error
 Post:
   type: object
   description: |
@@ -945,7 +1015,9 @@ Post:
       type: string
       enum:
         - draft
+        - processing
         - published
+        - failed
         - hidden
         - removed
         - deleted
@@ -968,6 +1040,15 @@ Post:
       enum:
         - public
         - members_only
+    publish_failure_code:
+      $ref: ./posts.yaml#/PostPublishFailureCode
+      nullable: true
+    publish_failure_message:
+      type: string
+      nullable: true
+    publish_failure_retryable:
+      type: boolean
+      nullable: true
     title:
       type: string
       nullable: true

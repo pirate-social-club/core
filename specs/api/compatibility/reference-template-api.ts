@@ -1266,12 +1266,15 @@ type Post = {
   disclosed_qualifiers_json?: Array<DisclosedQualifierSnapshot> | null;
   label?: string | null;
   post_type: "text" | "image" | "video" | "link" | "song" | "crosspost";
-  status: "draft" | "published" | "hidden" | "removed" | "deleted";
+  status: "draft" | "processing" | "published" | "failed" | "hidden" | "removed" | "deleted";
   comments_locked?: boolean;
   comments_locked_at?: number | null;
   comments_locked_by_user?: string | null;
   comments_lock_reason?: string | null;
   visibility: "public" | "members_only";
+  publish_failure_code?: PostPublishFailureCode | null;
+  publish_failure_message?: string | null;
+  publish_failure_retryable?: boolean | null;
   title?: string | null;
   body?: string | null;
   caption?: string | null;
@@ -1312,6 +1315,8 @@ type Post = {
 type PostCreatorRelation = "captured" | "created" | "subject" | "authorized_repost" | "fan_work" | "found";
 
 type PostEmbed = (XPostEmbed | YouTubeVideoEmbed | KalshiMarketEmbed | PolymarketMarketEmbed);
+
+type PostPublishFailureCode = "song_analysis_blocked" | "song_analysis_review_required" | "song_rights_reference_required" | "song_preview_generation_failed" | "text_moderation_blocked" | "story_royalty_registration_failed" | "story_locked_delivery_failed" | "listing_creation_failed" | "catalog_sync_failed" | "provider_unavailable" | "internal_error";
 
 type PredictionMarketChartPoint = {
   ts: number;

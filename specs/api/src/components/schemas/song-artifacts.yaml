@@ -140,6 +140,15 @@ CreateSongArtifactBundleRequest:
     lyrics:
       type: string
       description: Plain-text lyrics used for the mainline v0 song post.
+    analysis_mode:
+      type: string
+      enum:
+        - sync
+        - deferred
+      default: sync
+      description: |
+        Optional bundle analysis mode. Omit or send `sync` for legacy behavior. Send `deferred`
+        only when the post-create request will opt into asynchronous publish finalization.
     genius_annotations_url:
       type: string
       nullable: true
