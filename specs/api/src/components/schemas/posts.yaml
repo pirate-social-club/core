@@ -818,6 +818,16 @@ CreatePostRequest:
         - public
         - members_only
       default: public
+    age_gate_policy:
+      type: string
+      enum:
+        - none
+        - 18_plus
+      nullable: true
+      description: |
+        Optional author-declared age gate for the post. `18_plus` is a floor: automated
+        moderation and community defaults may also require the same gate, but clients cannot
+        use `none` to clear a stricter server-derived gate.
     access_mode:
       type: string
       description: |
