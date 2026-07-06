@@ -1,0 +1,134 @@
+SongStreakLeaderboardIdentity:
+  type: object
+  required:
+    - user_id
+  properties:
+    user_id:
+      type: string
+    handle:
+      type: string
+      nullable: true
+    display_name:
+      type: string
+      nullable: true
+    avatar_ref:
+      type: string
+      nullable: true
+  additionalProperties: false
+
+SongStreakLeaderboardEntry:
+  type: object
+  required:
+    - rank
+    - identity
+    - current_streak
+    - best_streak
+    - total_qualified_days
+    - streak_started_date
+    - last_qualified_date
+    - is_viewer
+  properties:
+    rank:
+      type: integer
+    identity:
+      $ref: ./song-streaks.yaml#/SongStreakLeaderboardIdentity
+    current_streak:
+      type: integer
+    best_streak:
+      type: integer
+    total_qualified_days:
+      type: integer
+    streak_started_date:
+      type: string
+      description: UTC date (`YYYY-MM-DD`) that started the current run.
+    last_qualified_date:
+      type: string
+      description: Last UTC date (`YYYY-MM-DD`) that qualified this streak.
+    is_viewer:
+      type: boolean
+  additionalProperties: false
+
+SongStreakViewerStanding:
+  type: object
+  required:
+    - alive
+    - current_streak
+    - best_streak
+    - total_qualified_days
+    - qualified_today
+    - study_attempts_today
+    - study_target_today
+    - karaoke_passed_today
+  properties:
+    alive:
+      type: boolean
+    current_streak:
+      type: integer
+    best_streak:
+      type: integer
+    total_qualified_days:
+      type: integer
+    qualified_today:
+      type: boolean
+    study_attempts_today:
+      type: integer
+    study_target_today:
+      type: integer
+    karaoke_passed_today:
+      type: boolean
+  additionalProperties: false
+
+SongStreakLeaderboard:
+  type: object
+  required:
+    - object
+    - post_id
+    - community_id
+    - date
+    - entries
+    - viewer
+    - total_active_streaks
+  properties:
+    object:
+      type: string
+      enum:
+        - song_streak_leaderboard
+    post_id:
+      type: string
+    community_id:
+      type: string
+    date:
+      type: string
+      description: UTC date (`YYYY-MM-DD`) used for liveness and today progress.
+    entries:
+      type: array
+      items:
+        $ref: ./song-streaks.yaml#/SongStreakLeaderboardEntry
+    viewer:
+      nullable: true
+      oneOf:
+        - $ref: ./song-streaks.yaml#/SongStreakViewerStanding
+    total_active_streaks:
+      type: integer
+  additionalProperties: false
+
+SongStreakSummary:
+  type: object
+  description: Lightweight per-post streak preview for feed and post cards.
+  required:
+    - entries
+    - viewer
+    - total_active_streaks
+  properties:
+    entries:
+      type: array
+      maxItems: 3
+      items:
+        $ref: ./song-streaks.yaml#/SongStreakLeaderboardEntry
+    viewer:
+      nullable: true
+      oneOf:
+        - $ref: ./song-streaks.yaml#/SongStreakViewerStanding
+    total_active_streaks:
+      type: integer
+  additionalProperties: false

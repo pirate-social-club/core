@@ -1374,6 +1374,9 @@ LocalizedPostResponse:
     study_capability:
       $ref: '#/components/schemas/SongStudyCapability'
       nullable: true
+    streak_summary:
+      $ref: ./song-streaks.yaml#/SongStreakSummary
+      nullable: true
     asset_story:
       $ref: ./posts.yaml#/PostAssetStorySummary
       nullable: true
