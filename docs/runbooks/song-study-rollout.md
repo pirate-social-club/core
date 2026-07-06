@@ -148,7 +148,93 @@ For each rollout batch:
 
 Roll back by setting `study_enabled = false` for affected communities. Keep the tables and attempt events; they are additive and can be reused after a fix.
 
-## 8. Staging smoke matrix
+## 8. Due-review and streak GA rollout
+
+The due-review/streak launch is a schema-gated dark rollout. Code may deploy
+before activation, but due-review serving MUST remain disabled until every
+community shard has the 1121 attempt-identity migration.
+
+Required core/API artifacts:
+
+- `1118_song_study_review_sessions.sql` may already be present on staging
+  shards; it is superseded by 1121.
+- `1119_song_streaks.sql` adds `song_engagement_days` and `song_streaks`.
+- `1121_song_study_attempt_identity.sql` rebuilds `song_study_attempt`,
+  removes `review_session_id`, and leaves only
+  `UNIQUE(user_id, idempotency_key)`.
+- API code must default both `SONG_STUDY_DUE_REVIEW_SERVING_ENABLED` and
+  `SONG_STUDY_STREAK_WRITES_ENABLED` to false.
+
+Pre-merge gates:
+
+1. Core migration integrity passes.
+2. Data-preserving 1121 migration test passes: an existing attempt row with
+   `review_session_id` survives, the column is gone, idempotency uniqueness
+   remains, and repeated `(exercise_id, attempt_number)` under a new
+   idempotency key succeeds.
+3. API community schema snapshot is fresh from the same core revision.
+4. Public contracts contain no `review_session_id` / `reviewSessionId`.
+5. API runtime contains no `hasAttemptNumber`, old
+   `attempt_number has already been recorded` conflict path, or
+   `NOT EXISTS song_study_attempt` study-read filter.
+6. Study read path is review-state based:
+   - flag off: serve cards with no `song_study_review_state` row only.
+   - flag on: serve cards with no row OR `due_at <= now`.
+7. Ready-but-caught-up remains `access: "ready"`, `exercises: []`, and session
+   metadata including `next_due_at` when available.
+8. Answer integrity remains server-authoritative: no correct option in GET
+   study payloads; `correct_option_id` is disclosed only by spent attempt
+   responses.
+9. `attempt_number` remains presentation/reveal state and
+   `attempt_number > max_attempts` still returns 400.
+10. Streak materialization is gated and deferred via `waitUntil` when available;
+    the deferred write uses a transaction.
+11. A focused leaderboard route/service test covers ordering, access, identity
+    hydration, viewer standing, and public IDs.
+
+Shard rollout sequence:
+
+1. Deploy core/API/web with both study flags dark.
+2. Canary one low-risk shard. Apply community-template migrations through 1121.
+3. On the canary shard, verify:
+   - `schema_migrations` includes 1118, 1119, 1120 if applicable, and 1121.
+   - `song_study_attempt` has no `review_session_id` column.
+   - `song_study_attempt` has no unique index/constraint on
+     `(user_id, exercise_id, attempt_number)`.
+   - `song_engagement_days` and `song_streaks` exist.
+   - For a local mirror/export of a shard, run:
+
+     ```bash
+     rtk bun scripts/community/verify-song-study-ga-schema.ts --db /path/to/community.db
+     ```
+4. Smoke with both flags still off:
+   - already-reviewed cards do not re-serve even if `due_at <= now`;
+   - first-learn cards still serve;
+   - streak tables are not written.
+5. Expand the same migration to the rest of the shard fleet.
+6. Run an all-shards sweep. Do not proceed unless every ready community shard is
+   at 1121 and has the final `song_study_attempt` identity shape.
+   Use the verifier above as the per-shard acceptance predicate when checking
+   local mirrors/exports; when inspecting D1 directly, reproduce the same
+   `schema_migrations`, `pragma_table_info`, and `pragma_index_*` checks.
+7. Enable `SONG_STUDY_DUE_REVIEW_SERVING_ENABLED`.
+8. Smoke one due review: GET re-serves a due card, attempt 1 under a new
+   idempotency key succeeds, and no attempt-number conflict appears.
+9. Enable `SONG_STUDY_STREAK_WRITES_ENABLED` for the target environment or
+   cohort.
+10. Smoke streak writes: a qualifying study attempt writes
+    `song_engagement_days`, schedules materialization, and the leaderboard
+    returns the viewer standing.
+
+The all-shards 1121 gate is non-negotiable. On any shard that still has the old
+`UNIQUE(user_id, exercise_id, attempt_number)`, due-review re-serving can
+recreate the original repeat-attempt 409 failure.
+
+If the rollout must stop after code deploy, leave both flags false. In that
+state the code should behave like one-and-done Study: new cards serve, reviewed
+cards stay hidden, and streak writes stay dark.
+
+## 9. Staging smoke matrix
 
 Use at least one public song and one locked paid song with lyrics.
 
@@ -179,7 +265,7 @@ Policy and fallback:
 - Invalid provider output does not create answer-bearing localizations.
 - One target language can fail generation without breaking an already-ready different target language.
 
-## 9. Production expansion
+## 10. Production expansion
 
 After staging:
 
@@ -199,6 +285,6 @@ Useful failure signals:
 - route errors from `GET .../study`
 - attempt idempotency conflicts
 
-## 10. Launch notes
+## 11. Launch notes
 
 Attempts now update `song_study_review_state.due_at` with server-side intervals, so "spaced review state is recorded" is accurate. Do not market a full cross-song "due today" review product until there is a user-facing due-review surface that reads those schedules.

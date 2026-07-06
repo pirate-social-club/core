@@ -199,9 +199,10 @@ own surface.
 Now that Phase 0 makes review the sustaining loop, the fixed `STREAK_MIN_STUDY_ATTEMPTS = 10`
 collides with how spaced repetition works. FSRS **deliberately shrinks** daily review volume as a
 user masters a song: once first-learn content is exhausted, the number of *due* review items on a
-given day is often small (a handful), and the review token is bound to a specific `due_at` so the
-same item cannot be re-submitted for credit once reviewed (`isDueReview` + `reviewSessionIdFor`;
-this is a good anti-farm control but also means a user cannot pad to 10 by repeating one item).
+given day is often small (a handful), and server-side due validation is bound to
+`song_study_review_state.due_at` so the same item cannot be re-submitted for credit once reviewed
+(`isDueReview`; this is a good anti-farm control but also means a user cannot pad to 10 by
+repeating one item).
 Consequence: a caught-up learner who does **everything available** may still fall short of 10
 attempts and lose the streak — punishing exactly the mastery the product wants, and pressuring
 users to cram new songs to keep a streak alive.
@@ -263,13 +264,13 @@ loop. Two ways to get one:
   1. A review branch in `listExercises` (or a sibling `listDueReviews`) that, given `userId`,
      returns due units/localizations joined to `song_study_review_state` ordered by `due_at`,
      **bypassing** the `NOT EXISTS(attempt)` exclusion.
-  2. Re-review submission: the current `attemptNumber > max_attempts` guard (`:1778`) plus
-     `UNIQUE(user_id, exercise_id, attempt_number)` block a second pass. Options: (a) scope
-     attempt numbering per **review session** (a new `review_session_id` dimension, cleanest,
-     small migration to the attempt table), or (b) treat each due review as a fresh attempt with
-     a monotonic global `attempt_number` and relax the max-attempts guard for review mode.
-     Recommendation: (a) — it keeps first-learn and review analytics separable and makes the
-     attempt uniqueness meaningful.
+  2. Re-review submission: the current `attemptNumber > max_attempts` guard plus
+     `UNIQUE(user_id, exercise_id, attempt_number)` block a second pass. The durable event
+     identity must move to `(user_id, idempotency_key)` only. `attempt_number` becomes a
+     presentation attempt for the currently served exercise instance: it still drives grading and
+     reveal behavior, but a due review may validly submit `attempt_number = 1` again with a fresh
+     idempotency key. This is the minimal schema change and avoids inventing a durable
+     `review_session_id` identity solely to work around the old uniqueness constraint.
   3. FSRS scheduling on review outcome (already computed by `upsertReviewState`; just exercised
      more than once now).
   This is a **genuine Study feature** — spaced-repetition review — independently valuable and the
@@ -296,9 +297,15 @@ Phase 0 (§7) is therefore a firm prerequisite for a sustained study streak, not
 
 ## 3. Data model
 
-New community-template migration `1119_song_streaks.sql` — **next free prefix is `1119`**
-(re-verified post-Phase-0: `1117_async_post_publish.sql` and `1118_song_study_review_sessions.sql`
-now exist; latest is `1118`, snapshot = 119 migrations). Confirm still-free at implementation time.
+Community-template migrations:
+
+- `1118_song_study_review_sessions.sql` is an already-issued migration that added
+  `review_session_id`; it is superseded for GA by the idempotency-only contract.
+- `1119_song_streaks.sql` adds the streak ledger and materialized board tables.
+- `1121_song_study_attempt_identity.sql` rebuilds `song_study_attempt` so durable attempt dedup is
+  `(user_id, idempotency_key)` only and drops the `review_session_id` workaround. This is the
+  schema prerequisite for due-review re-serving.
+
 Prefix uniqueness is enforced by `core/scripts/check-migration-integrity.mjs`.
 
 Conventions (from 1001/1109): TEXT app-generated ids, `community_id` FK on every table, booleans
@@ -381,17 +388,17 @@ still leads with `INSERT`).
 
 ### 4.1 Study leg — extend `submitPostStudyAttempt`'s existing transaction (synchronous, in-order)
 
-Site (re-verified post-Phase-0, 2026-07-05): `submitPostStudyAttempt` is now at
-`post-study-service.ts:1955-2126`; its write transaction (`withTransaction(db.client,"write",…)`)
-is `2072-2111` — `upsertReviewState` then `INSERT INTO song_study_attempt` (now 17 columns incl.
-`review_session_id`) at 2081-2109. Append the two streak statements **after line 2109, before the
-`return` at 2110**, inside the same transaction. All validation/`throw` sites precede the tx, and
-the idempotency short-circuit (`resultFromAttempt`, 1978-1989) returns *before* entering the tx —
-so the streak hook fires **exactly once per real attempt**, never on an idempotent retry. A single
-hook here covers **both** first-learn (`review_session_id='learn'`) and validated due-review
-submissions — they share this one INSERT path (§0 note; recon §4). Append **two** statements on
-**every** recorded attempt (no outcome gate — §2.4; `:isCorrect` = 1 when `outcome='correct'` else
-0; `:today = substr(now,1,10)`; `:target` = the frozen day target from §2.9):
+Site: `submitPostStudyAttempt`'s write transaction already performs
+`upsertReviewState` and then inserts the `song_study_attempt` event. Append the streak ledger
+write inside that same transaction after the attempt insert. All validation/`throw` sites must
+precede the tx, and the idempotency short-circuit must return before entering the tx, so the
+streak hook fires **exactly once per real attempt**, never on an idempotent retry. A single hook
+here covers both first-learn and validated due-review submissions — they share this one attempt
+event path. Append **Statement A** on **every** recorded attempt (no outcome gate — §2.4;
+`:isCorrect` = 1 when `outcome='correct'` else 0; `:today = substr(now,1,10)`; `:target` = the
+frozen day target from §2.9). Then materialize `song_streaks` from the ledger after the attempt
+transaction commits, preferably via `waitUntil` so the answer verdict is not gated on day-grained
+streak work. If `waitUntil` is unavailable, materialization runs inline before returning.
 
 **Statement A — ledger counter upsert.** `:target` = the frozen day target computed in app code
 before the tx (§2.9): `dueBefore > 0 ? min(10, dueBefore) : 10`. It is consumed **only** by the
@@ -416,8 +423,11 @@ ON CONFLICT (user_id, post_id, activity_date) DO UPDATE SET
   updated_at = :now;
 ```
 
-**Statement B — streak upsert, gated on the day being qualified** (`INSERT … SELECT` reading the
-row Statement A just wrote; inserts 0 or 1 rows).
+**Statement B — streak materialization, gated on the day being qualified.** This may run after the
+attempt response is committed to the platform via `waitUntil`; therefore leaderboard reads are
+eventually consistent with the authoritative ledger. The function opens a fresh community write
+client and wraps the materialization write in its own transaction. Idempotent attempt retries must
+return before scheduling this work, so retries cannot double-count or double-materialize.
 
 > **✅ Load-bearing assumption — PROVEN (spike, 2026-07-05).** Statement B reads
 > `song_engagement_days` *within the same buffered write transaction* that Statement A just wrote
@@ -434,9 +444,9 @@ row Statement A just wrote; inserts 0 or 1 rows).
 > recompute fallback below is NOT needed for the study leg.** (Karaoke still uses recompute for a
 > different reason — out-of-order delivery, §4.2.)
 >
-> Phase 1 task: fold a permanent version of this spike into the committed integration suite. It
-> requires wiring `d1Databases: { DB_CMTY_PILOT, D1_POOL }` into `services/api/vitest.config.ts`
-> (currently absent — which also un-breaks the existing dormant `shard-write.integration.ts`).
+> Phase 1 task: keep a permanent version of this spike in the committed integration suite because
+> the in-transaction form remains a valid fallback and useful D1 contract guard, even though the
+> latency-optimized study path materializes streak rows after the attempt transaction.
 >
 > *Fallback (retained for reference, not used by the study leg):* keep only Statement A in the
 > attempt tx and update `song_streaks` via a second read-then-compute-then-write op after commit
@@ -629,13 +639,15 @@ control plane, never snapshotted into shard rows.
 
 ## 6. Anti-gaming review
 
-- **Study spam:** attempt counting is bounded by `UNIQUE(user_id, exercise_id, attempt_number)` +
-  per-localization `max_attempts` + the finite one-pass pack (§2.8). Under **Path A** (review
-  sessions) the daily ceiling is the number of *due* reviews, which FSRS caps naturally — a user
-  cannot mint unlimited due items. Residual risk: mashing ~10 wrong answers across a handful of
-  exercises in a minute; accepted for v1 (it is engagement, of a sad kind). `study_correct_count`
-  is the pre-provisioned correctness-floor knob (§2.4). Not counted: `transcriptions` calls or
-  payload GETs — only `song_study_attempt` rows.
+- **Study spam:** first-learn attempt counting is bounded by the server serving each new card once
+  and by per-localization `max_attempts`; due-review attempt counting is bounded by FSRS
+  serveability (`due_at <= now`) and the server accepting only currently due review units. Durable
+  retry dedup remains `(user_id, idempotency_key)`. Under **Path A** the daily ceiling is the
+  number of due reviews plus any new cards the server serves, so a user cannot mint unlimited due
+  items. Residual risk: mashing ~10 wrong answers across available exercises in a minute; accepted
+  for v1 (it is engagement, of a sad kind). `study_correct_count` is the pre-provisioned
+  correctness-floor knob (§2.4). Not counted: `transcriptions` calls or payload GETs — only
+  `song_study_attempt` rows.
 - **Karaoke spam:** the pass gate inherits rank-eligibility (server STT, ≥5 measured lines, 85%
   coverage, completed); scores are never client-supplied. Replay is blocked by
   `UNIQUE(session_id, attempt_id)` plus the step-1 pre-write existence check (§4.2).
@@ -653,7 +665,7 @@ control plane, never snapshotted into shard rows.
 
 ### Phase 0 — study repeatability (locked prerequisite; §2.8)
 
-Review read path + review-session submission semantics + tests. Independently shippable and
+Review read path + idempotency-only attempt event identity + tests. Independently shippable and
 independently valuable (spaced-repetition review for Study). **Firm prerequisite for a *sustained*
 study streak** — Phase 1's leaderboard is only as alive as Study's daily loop, which this phase
 creates. Ships and can be validated on its own before any streak code exists.
@@ -665,7 +677,8 @@ creates. Ships and can be validated on its own before any streak code exists.
    `batchWrite`. **Study leg uses the two-statement in-tx path.** Remaining Phase-1 task: wire
    `d1Databases` into the committed `vitest.config.ts` and add a permanent regression version of
    the spike (also un-breaks `shard-write.integration.ts`).
-1. **core PR:** `1119_song_streaks.sql` (§3) + this spec to reviewed status. CI:
+1. **core PR:** `1121_song_study_attempt_identity.sql`, `1119_song_streaks.sql` (§3), and this
+   spec to reviewed status. CI:
    migration-integrity + fresh-SQLite apply cover it.
 2. **api PR (deploys code dormant):**
    - Regenerate the community schema snapshot
@@ -745,6 +758,9 @@ karaoke-rankings).
   determinism; alive-filter boundary (qualified yesterday vs day-before); viewer-dead-streak shape;
   limit clamping; hidden-identity trimming with `+buffer` fetch (§5.4).
 - **Idempotency:** double-submit same idempotency_key (whole batch rolls back, count unchanged).
+- **Deferred materialization:** with `waitUntil` present, the attempt response returns after the
+  ledger row is written but before `song_streaks` is materialized; awaiting the deferred promise
+  creates/updates the streak row. An idempotent retry schedules no deferred materialization.
 - **Backfill/seed:** dry-run diff on a staging shard against the say-it-back fixture
   (study-say-it-back staging fixture, 2026-07-03); assert seeded streaks equal the unit-test fold.
 - **Repeatability (Path A):** after Phase 0, a due review resurfaces and a second-day attempt is

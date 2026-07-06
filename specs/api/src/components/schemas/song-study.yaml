@@ -92,12 +92,6 @@ SongStudyExercise:
             grading secret: it is the lyric line, which is already visible to an
             entitled learner. The authoritative grade comes from the attempts
             endpoint, not from a client-side comparison against this value.
-        review_session_id:
-          type: string
-          description: |
-            Opaque token for a due review serving of this exercise. Omitted for
-            first-learn exercises, which submit under the implicit `learn`
-            session. Clients must echo this value unchanged when present.
         translation_text:
           type: string
           nullable: true
@@ -161,12 +155,6 @@ SongStudyExercise:
         max_attempts:
           type: integer
           description: Maximum attempts before the answer is revealed. Server-tunable.
-        review_session_id:
-          type: string
-          description: |
-            Opaque token for a due review serving of this exercise. Omitted for
-            first-learn exercises, which submit under the implicit `learn`
-            session. Clients must echo this value unchanged when present.
       additionalProperties: false
 
 SongStudySessionSummary:
@@ -322,22 +310,9 @@ SongStudyAttemptRequest:
     attempt_number:
       type: integer
       description: |
-        1-based attempt index within the current first-learn or review
-        session. The server rejects values greater than the exercise's
-        `max_attempts`.
-    review_session_id:
-      type: string
-      description: |
-        Opaque review-session token echoed from a due-review exercise. Omit for
-        first-learn exercises. The server rejects stale, spoofed, or not-yet-due
-        review tokens.
-    target_language:
-      type: string
-      description: |
-        Resolved study target language echoed from the study payload. This keeps
-        server-side streak qualification aligned with the same due-review
-        readiness predicate the learner was served, especially for source-language
-        say-it-back exercises.
+        1-based presentation attempt index within the currently served
+        exercise instance. It drives grading and reveal behavior; durable
+        attempt identity is the idempotency key, not this number.
     selected_option_id:
       type: string
       description: Required for `translation_choice`; omitted otherwise.
