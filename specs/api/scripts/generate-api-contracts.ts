@@ -226,6 +226,7 @@ const TYPE_EXPORTS = [
   { name: "SongStudyTranscriptionResponse", ref: "#/components/schemas/SongStudyTranscriptionResponse" },
   { name: "SongStreakLeaderboard", ref: "#/components/schemas/SongStreakLeaderboard" },
   { name: "SongStreakLeaderboardEntry", ref: "#/components/schemas/SongStreakLeaderboardEntry" },
+  { name: "SongStreakSummary", ref: "#/components/schemas/SongStreakSummary" },
   { name: "SongStreakViewerStanding", ref: "#/components/schemas/SongStreakViewerStanding" },
   { name: "LocalizedPostResponse", ref: "#/components/schemas/LocalizedPostResponse" },
   { name: "LocalizedPostEmbedTranslation", ref: "#/components/schemas/LocalizedPostEmbedTranslation" },

@@ -111,3 +111,24 @@ SongStreakLeaderboard:
     total_active_streaks:
       type: integer
   additionalProperties: false
+
+SongStreakSummary:
+  type: object
+  description: Lightweight per-post streak preview for feed and post cards.
+  required:
+    - entries
+    - viewer
+    - total_active_streaks
+  properties:
+    entries:
+      type: array
+      maxItems: 3
+      items:
+        $ref: ./song-streaks.yaml#/SongStreakLeaderboardEntry
+    viewer:
+      nullable: true
+      oneOf:
+        - $ref: ./song-streaks.yaml#/SongStreakViewerStanding
+    total_active_streaks:
+      type: integer
+  additionalProperties: false

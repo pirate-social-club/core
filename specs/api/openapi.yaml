@@ -15113,6 +15113,9 @@ components:
         study_capability:
           $ref: "#/components/schemas/SongStudyCapability"
           nullable: true
+        streak_summary:
+          $ref: "#/components/schemas/SongStreakSummary"
+          nullable: true
         asset_story:
           $ref: "#/components/schemas/PostAssetStorySummary"
           nullable: true
