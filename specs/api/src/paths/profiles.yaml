@@ -48,6 +48,25 @@ profiles_me:
               $ref: ../components/schemas/profiles.yaml#/Profile
       "401":
         $ref: ../components/responses.yaml#/AuthError
+profiles_me_courtyard_inventory:
+  get:
+    tags:
+      - Profiles
+    x-implemented: true
+    summary: List Courtyard inventory facets from the current user's linked wallets
+    description: |
+      Returns grouped Courtyard-owned inventory from the authenticated user's attached Ethereum and Polygon wallets.
+      The response is intended for community gate authoring; it never accepts wallet, owner, contract, or upstream URL
+      parameters from the caller.
+    responses:
+      "200":
+        description: Courtyard inventory groups visible from linked wallets
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/profiles.yaml#/CourtyardWalletInventoryResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
 profiles_me_xmtp_inbox:
   post:
     tags:
