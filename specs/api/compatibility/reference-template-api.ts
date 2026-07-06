@@ -1275,6 +1275,7 @@ type Post = {
   publish_failure_code?: PostPublishFailureCode | null;
   publish_failure_message?: string | null;
   publish_failure_retryable?: boolean | null;
+  publish_failed_at?: number | null;
   title?: string | null;
   body?: string | null;
   caption?: string | null;
