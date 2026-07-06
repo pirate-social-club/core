@@ -15297,6 +15297,10 @@ components:
         publish_failure_retryable:
           type: boolean
           nullable: true
+        publish_failed_at:
+          type: integer
+          format: int64
+          nullable: true
         title:
           type: string
           nullable: true
