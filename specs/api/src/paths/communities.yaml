@@ -1200,7 +1200,7 @@ communities_by_community_id_join:
 
       - `unique_human` verified through an accepted provider such as `self` or `very`
       - `wallet_score` verified through `passport` with a passing score
-      - operator-approved token-gated exceptions may exist later, but are not configurable through public v0 community creation or public community settings
+      - a passing public-v0 token-holding membership gate from the supported ERC-721 lane
 
       `open` means no extra community-specific gate beyond that platform baseline. `gated` communities must satisfy the platform baseline and then all active membership-scope community gate rules.
     parameters:
