@@ -11,6 +11,7 @@ Start here:
 - [Community SLD Dev Smoke](./community-sld-dev-smoke.md)
 - [Community Assistant Voice Staging Smoke](./community-assistant-voice-staging-smoke.md)
 - [Song Study Rollout](./song-study-rollout.md)
+- [Song Study 1121 Shard Verifier](./song-study-1121-shard-verifier.md)
 
 Supporting architecture docs:
 

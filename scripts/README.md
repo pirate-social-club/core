@@ -47,6 +47,9 @@ It is intentionally narrow:
   Apply `db/community-template/migrations` to a SQLite or libSQL target.
 - `scripts/community/bootstrap-community-db.sh`
   Bootstrap a local community DB from the community template.
+- `scripts/community/verify-song-study-ga-schema.ts`
+  Verify a SQLite/libSQL community DB mirror has the Study due-review/streak GA schema shape after
+  the 1121 attempt-identity migration.
 
 ### Infisical
 

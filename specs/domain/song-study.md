@@ -80,8 +80,10 @@ These hold for every `GET .../study` response and are testable:
 1. `object` is `song_study_payload`.
 2. `exercise_count == exercises.length`.
 3. If `access == "ready"`:
-   - `exercises.length > 0`;
-   - each exercise carries its content (lyric / `reference_text` /
+   - `exercises.length > 0` when work is currently available;
+   - `exercises.length == 0` is allowed only for the caught-up state, where
+     no first-learn or due-review exercise is currently serveable;
+   - each included exercise carries its content (lyric / `reference_text` /
      `translation_text` / `options` as applicable);
    - `study_pack_version` and `generated_at` are present.
 4. If `access != "ready"`:
@@ -129,10 +131,15 @@ recomputed if the algorithm or parameters change), advances the FSRS schedule
 for the review unit, and returns the verdict.
 
 - Attempt writes MUST be idempotent. The client supplies an `idempotency_key`;
-  the server deduplicates by `(user_id, exercise_id, attempt_number)` and the
-  idempotency key, returning the original result for an equivalent retry and
-  rejecting conflicting payload reuse. A retry MUST NOT double-record an event
-  or double-advance FSRS.
+  the durable deduplication guarantee rests on `(user_id, idempotency_key)`.
+  The server returns the original result for an equivalent retry and rejects
+  conflicting payload reuse. A retry MUST NOT double-record an event or
+  double-advance FSRS.
+- `attempt_number` is a presentation attempt within the currently served
+  exercise instance. It drives grading (`first try`, `second try`, `revealed`)
+  and the `max_attempts` guard, but it MUST NOT be used as durable event
+  identity. In particular, a future due review of the same review unit may
+  validly submit `attempt_number = 1` again with a new `idempotency_key`.
 - The correct answer is disclosed only once the attempt is spent — a correct
   answer, or an incorrect final attempt (`outcome: revealed`).
 - `say_it_back` grading normalizes the transcript under the **source lyric
@@ -153,6 +160,48 @@ The server writes a due interval to `song_study_review_state.due_at` on each
 accepted attempt. FSRS answers "when should this review unit reappear?". A
 separate session/high score concept answers "how did this session go?" — the two
 MUST NOT be conflated.
+
+### Due-review serving rollout
+
+Current production Study is intentionally one-and-done: `GET .../study` hides
+already-attempted exercises so the same `attempt_number = 1` is not re-served
+and rejected. That is a short-term replay/409 fix, not the final
+spaced-repetition contract.
+
+The target read path is:
+
+- Build the canonical first-learn candidates from ready study units and
+  localizations.
+- Build due-review candidates by joining `song_study_review_state` on
+  `(user_id, post_id, line_id, exercise_type, target_language)` and selecting
+  rows with `due_at <= now` that are still serveable under the same readiness
+  filters as first-learn (`say_it_back_status = 'ready'`; localization ready
+  with translation/options/correct id present).
+- New cards with no review-state row are due now. Existing rows with
+  `due_at > now` are hidden until their due time.
+- If no first-learn or due-review candidate is serveable, return
+  `access: "ready"`, `exercises: []`, and session metadata including
+  `next_due_at` when every candidate has review state and the next serveable
+  review is in the future.
+
+`GET .../study` remains idempotent and side-effect-free. It reads what is due;
+it does not mint a server-side study session. A client MAY include an opaque
+client-minted `session_id` on attempt writes for grouping/telemetry, but the
+attempt event remains the source of truth.
+
+Rollout requirements:
+
+1. Ship due-read metadata and caught-up payload shape while re-serving remains
+   disabled.
+2. Remove the durable uniqueness constraint on
+   `(user_id, exercise_id, attempt_number)` from every community shard. Keep
+   `(user_id, idempotency_key)`.
+3. Only after step 2 is complete on all shards, enable due-review re-serving.
+   Offering a due review before the old uniqueness constraint is gone can
+   recreate the `attempt_number has already been recorded` failure.
+4. Keep `attempt_number` scoped to presentation/reveal behavior. Do not add a
+   new durable attempt identity dimension unless a separate analytics/session
+   requirement needs it; it is not required for correctness.
 
 ## Scope
 
@@ -285,7 +334,6 @@ CREATE TABLE song_study_attempt (
   created_at         TEXT NOT NULL,
   PRIMARY KEY (id),
   FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE CASCADE,
-  UNIQUE (user_id, exercise_id, attempt_number),
   UNIQUE (user_id, idempotency_key)
 );
 
