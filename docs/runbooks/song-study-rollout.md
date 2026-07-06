@@ -275,6 +275,8 @@ Policy and fallback:
 
 ## 10. Production expansion
 
+### 10.1 Base Song Study
+
 After staging:
 
 1. Deploy core migration bundle.
@@ -292,6 +294,165 @@ Useful failure signals:
 - `Song study translation generation limit exceeded`
 - route errors from `GET .../study`
 - attempt idempotency conflicts
+
+### 10.2 Study streak production go-live
+
+Use this only after the study streak code, web surface, and feed-summary
+batching are merged. As of 2026-07-06, the study leg has been validated on
+staging for:
+
+- a seeded three-day streak that reads as `current_streak = 3` from the full
+  board, single-post payload, and feed payload;
+- a stale three-day streak that qualified through one real deployed study
+  attempt and reset to `current_streak = 1` while preserving
+  `best_streak = 3` and advancing `total_qualified_days = 4`;
+- a feed response containing two song posts, proving the batched
+  multi-post `streak_summary` hydration path.
+
+Important staging caveat: staging is frequently redeployed. Do not assume a
+successful flags-on validation means the active staging Worker still has
+`SONG_STUDY_STREAK_WRITES_ENABLED=true` or
+`SONG_STUDY_DUE_REVIEW_SERVING_ENABLED=true`. Before manual staging
+click-through, inspect or redeploy the active staging Worker with the intended
+flag values.
+
+Production sequence:
+
+1. Confirm target scope.
+   - Decide whether launch is all production communities or a named canary
+     cohort.
+   - Record the target community IDs and their routed D1 shard bindings from
+     the control-plane routing table.
+   - Pick at least one low-traffic canary shard that has real
+     `song_study_attempt` rows. Empty shards do not exercise the 1121 rebuild's
+     data-preservation risk.
+   - Confirm karaoke streak credit is out of scope; production launch is study
+     only.
+2. Keep writes dark.
+   - Confirm production API is deployed with
+     `SONG_STUDY_STREAK_WRITES_ENABLED=false`.
+   - Keep `SONG_STUDY_DUE_REVIEW_SERVING_ENABLED=false` until the 1121 fleet
+     gate passes.
+   - Read paths may remain live; missing streak tables must return empty/null
+     summary data rather than fail feed/post reads.
+3. Verify shard schema coverage before any flag flip.
+   - For every target shard, confirm `schema_migrations` records:
+     - `1118_song_study_review_sessions.sql`
+     - `1119_song_streaks.sql`
+     - `1120_restore_rights_review_cases.sql` when it exists in the target
+       migration set
+     - `1121_song_study_attempt_identity.sql`
+   - Confirm `song_engagement_days` and `song_streaks` exist.
+   - Confirm `song_study_attempt` has no `review_session_id` column.
+   - Confirm `song_study_attempt` has only the final idempotency uniqueness
+     shape, not `(user_id, exercise_id, attempt_number)`.
+   - For local shard mirrors/exports, run:
+
+     ```bash
+     rtk bun scripts/community/verify-song-study-ga-schema.ts --db /path/to/community.db
+     ```
+
+   - For direct D1 inspection, reproduce the predicates in
+     [Song Study 1121 Shard Verifier](./song-study-1121-shard-verifier.md).
+     Ledger-only evidence is not sufficient.
+4. Apply missing migrations if coverage is incomplete.
+   - Apply the full contiguous community-template sequence to missing target
+     shards: `1118_song_study_review_sessions.sql`,
+     `1119_song_streaks.sql`, `1120_restore_rights_review_cases.sql`, and
+     `1121_song_study_attempt_identity.sql`.
+   - `1120_restore_rights_review_cases.sql` is unrelated to streaks but part of
+     the contiguous target migration set. Confirm its code path is already
+     deployed and intended before the DDL pass.
+   - Apply DDL directly to D1 (`wrangler d1 execute` or D1 HTTP API), not through
+     the community shard RPC worker. That worker rejects DDL by design.
+   - Use an idempotent/resumable fleet script that skips already-applied
+     migrations with matching checksums, halts on checksum drift, records
+     per-shard pass/fail state, and backs off on transient D1 rate limits.
+   - Capture BEFORE and AFTER row counts/fingerprints for
+     `song_study_attempt` as described in the 1121 verifier.
+   - Treat `1121_song_study_attempt_identity.sql` as the load-bearing rebuild:
+     it creates `song_study_attempt_next`, copies rows, drops the old table,
+     renames the new table, and recreates indexes. Run in a low-traffic window
+     because concurrent study attempt writes may briefly serialize.
+   - Before the first canary, confirm D1 Time Travel restore is available for
+     the target shard. Time Travel restore is point-in-time and whole-database;
+     it discards writes after the chosen restore point, so record that data-loss
+     window explicitly.
+   - Halt rollout on any canary mismatch; restore the failed shard before
+     touching the rest of the fleet.
+5. Run a dark smoke.
+   - With both flags false, first-learn study still serves and attempts still
+     record.
+   - Already-reviewed cards do not re-serve because due-review serving is off.
+   - A real study attempt does not write or update `song_engagement_days` or
+     `song_streaks`.
+6. Enable due-review serving for the canary scope.
+   - Flip `SONG_STUDY_DUE_REVIEW_SERVING_ENABLED=true` only after every target
+     shard passes 1121.
+   - Smoke one due review: GET returns a due card, submitting attempt 1 under a
+     new idempotency key succeeds, and no attempt-number conflict appears.
+   - Confirm a caught-up song still returns `access: "ready"` with an empty
+     exercise list and session metadata.
+7. Enable streak writes for the canary scope.
+   - Flip `SONG_STUDY_STREAK_WRITES_ENABLED=true`.
+   - Run one real qualifying study smoke. A valid smoke may seed
+     `song_engagement_days` to `study_attempt_count = 9`,
+     `study_target_count = 10`, then submit one real deployed attempt.
+   - Verify all of the following on the same post:
+     - `song_study_attempt` receives the attempt row.
+     - `song_engagement_days` advances to `study_attempt_count = 10` and
+       `qualified = 1`.
+     - `song_streaks` materializes or updates.
+     - `GET /communities/:communityId/posts/:postId/streaks/leaderboard`
+       returns the viewer standing.
+     - `GET /posts/:postId` returns matching `streak_summary.viewer`.
+     - `GET /feed/home` returns matching `streak_summary.viewer` for at least
+       two song posts when possible, so the batched feed reader is exercised.
+8. Validate multi-day behavior before expanding.
+   - Seed or select a user/post with a three-day live streak ending today and
+     confirm board, post payload, and feed payload all report
+     `current_streak = 3`.
+   - Seed or select a stale streak whose `last_qualified_date` is before
+     yesterday, qualify today through one real deployed attempt, and confirm
+     `current_streak = 1`, `best_streak` is preserved, and
+     `total_qualified_days` increments once.
+9. Optional history seed.
+   - History seeding may backfill `song_engagement_days` and `song_streaks`
+     from historical `song_study_attempt` rows so launch is not all one-day
+     streaks.
+   - Historical rows cannot reconstruct frozen point-in-time due counts, so
+     use `study_target_count = 10` for pre-launch days.
+   - Run the same post/feed/board read smoke after seeding.
+10. Expand.
+    - Expand by shard or community cohort only after the canary has no route
+      errors and no unexpected streak-write failures.
+    - Keep an audit table/list of shards checked, migrations observed, flags
+      flipped, and smoke post IDs used.
+
+Rollback:
+
+- To stop new streak writes, set `SONG_STUDY_STREAK_WRITES_ENABLED=false`.
+  Existing `song_engagement_days` and `song_streaks` rows remain as audit data.
+- To stop daily review re-serving, set
+  `SONG_STUDY_DUE_REVIEW_SERVING_ENABLED=false`. This returns Study to the
+  first-learn/caught-up behavior.
+- Do not roll back 1119/1121 DDL in place during an incident. Treat schema
+  rollback as shard restore work, not an application flag rollback.
+- If a smoke shows attempts are written but engagement days are not, first
+  verify the active Worker version and deployed flag values; staging proved
+  this can be caused by an intervening deploy superseding a flags-on validation
+  version.
+
+Production signals to watch during streak launch:
+
+- `[song-study] attempt timing` with `streak_writes_enabled`, `streak_deferred`,
+  and `wait_until_available`.
+- route errors from study attempts and streak leaderboard reads.
+- D1 errors mentioning `song_engagement_days`, `song_streaks`, or
+  `song_study_attempt` uniqueness.
+- feed/home latency and D1 query volume for communities with many song posts.
+- a mismatch between board `viewer`, post `streak_summary.viewer`, and feed
+  `streak_summary.viewer` for the same `(user, post)`.
 
 ## 11. Launch notes
 

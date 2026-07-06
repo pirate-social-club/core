@@ -9,6 +9,23 @@ This is the irreversible gate for due-review and streak GA. Do not enable
 `SONG_STUDY_DUE_REVIEW_SERVING_ENABLED` or
 `SONG_STUDY_STREAK_WRITES_ENABLED` until every target shard passes.
 
+`1121_song_study_attempt_identity.sql` is a table rebuild:
+
+1. `CREATE TABLE song_study_attempt_next (...)`
+2. copy rows from `song_study_attempt`
+3. `DROP TABLE song_study_attempt`
+4. rename `_next` back to `song_study_attempt`
+5. recreate the review lookup index
+
+That is why this runbook treats row-count/fingerprint preservation and restore
+readiness as launch gates. The currently deployed API is already compatible with
+both the pre-1121 and post-1121 table shapes: it no longer writes
+`review_session_id`, and the old table already has `UNIQUE(user_id,
+idempotency_key)`. Applying 1121 to a live shard is therefore an online schema
+hardening step, but it can briefly serialize concurrent study attempt writes
+while the table is rebuilt. Run canaries and fleet rollout in a low-traffic
+window.
+
 ## Precondition
 
 Before the first canary, confirm both facts:
@@ -16,22 +33,47 @@ Before the first canary, confirm both facts:
 - The D1 community-migration runner applies each migration file in a single
   transaction, so a crash during the rebuild rolls back instead of stranding a
   shard between `CREATE`, `INSERT`, `DROP`, and `RENAME`.
-- The shard restore procedure is known and available: backup source, restore
-  command, and the operator who can run it.
+- The runner executes community-template migrations directly against D1
+  (`wrangler d1 execute` or D1 HTTP API), not through the community shard RPC
+  worker. The shard RPC write path intentionally rejects DDL.
+- The shard restore procedure is known and available: D1 Time Travel restore is
+  enabled for the shard, the point-in-time restore command is known, and the
+  operator who can run it is online.
 
-A flag rollback does not undo this migration.
+A flag rollback does not undo this migration. D1 Time Travel restore is
+point-in-time and whole-database; it discards writes made after the selected
+restore point. Record that possible data-loss window before touching a canary.
 
 ## Flow
 
 For each canary shard:
 
 1. Capture the BEFORE row count and fingerprint.
-2. Apply community-template migrations through 1121.
+2. Apply the contiguous community-template migration sequence through 1121:
+   `1118_song_study_review_sessions.sql`,
+   `1119_song_streaks.sql`, `1120_restore_rights_review_cases.sql`, and
+   `1121_song_study_attempt_identity.sql`.
 3. Run every AFTER assertion below.
 4. Halt on any failure, restore the canary shard, and root-cause before touching
    the fleet.
 
 Fleet gate: 100% of target shards pass the same AFTER assertions.
+
+Choose canaries deliberately. A useful canary is a low-traffic community shard
+that already has real `song_study_attempt` rows. An empty attempt table can prove
+the final schema shape, but it does not exercise 1121's data-preservation risk.
+
+The fleet apply tool must be idempotent and resumable: skip migrations already
+recorded with the expected checksum, halt on checksum drift, record per-shard
+status, and back off/retry transient D1 rate-limit or network failures. A
+mid-fleet failure should resume from the passed shard list, not restart the whole
+140-shard operation.
+
+Remote D1 SQL files must not include explicit `BEGIN`, `COMMIT`, or `SAVEPOINT`
+statements; D1 rejects them. Keep the migration body and the
+`schema_migrations` ledger insert in the same uploaded SQL file and rely on
+Wrangler/D1's all-or-original file execution. A canary run on
+`community-d1-pool-0073-prod` verified this behavior on 2026-07-06.
 
 ## 0. BEFORE Capture
 
@@ -53,6 +95,12 @@ FROM (
 ```
 
 Save both outputs. The AFTER values must match exactly.
+
+For remote D1 fleet tooling, prefer a paged client-side SHA-256 fingerprint over
+returning the raw `GROUP_CONCAT` result. The exact row material should be the
+same ordered fields shown above (`id`, `idempotency_key`, `outcome`,
+`fsrs_rating`, `attempt_number`), but hashing client-side avoids D1 result-size
+limits on large shards while preserving an exact before/after equality check.
 
 ## 1. AFTER Schema Shape
 
