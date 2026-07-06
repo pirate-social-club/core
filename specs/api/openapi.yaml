@@ -7148,6 +7148,13 @@ components:
         selected_option_id:
           type: string
           description: Required for `translation_choice`; omitted otherwise.
+        target_language:
+          type: string
+          description: |
+            Optional learner target language for the served Study pack. The server
+            still grades against `exercise_id`; this field lets mixed packs that
+            include source-language say-it-back exercises freeze the day's streak
+            target against the learner's target-language pack.
         transcript:
           type: string
           description: |
