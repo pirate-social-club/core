@@ -332,16 +332,16 @@ Platform baseline join gate:
   - `unique_human` from `self`
   - `unique_human` from `very`
   - `wallet_score` from Human Passport above the platform threshold
-  - an operator-whitelisted token-holding gate when Pirate explicitly enables that exception
+  - a passing public-v0 token-holding membership gate from the supported ERC-721 lane
 - community-specific gate rules are additive and do not replace the platform baseline
-- token-holding gates are operator-whitelisted exceptions only and are not configurable through public community creation or public community settings in v0
+- public v0 token-holding gates are configurable through community creation and community settings only in the narrow supported ERC-721 lanes:
+  - Ethereum mainnet ERC-721 collection holding (`erc721_holding`, hold at least one token)
+  - allowlisted ERC-721 inventory-provider matches (`erc721_inventory_match`), currently Courtyard-backed inventory facets
+- token-holding variants outside those lanes, such as arbitrary ERC-1155 gates, unsupported chains, negative ownership checks, or unconstrained provider/free-form inventory queries, remain deferred/admin-only
 - token-holding gates should use typed config shapes keyed by `gate_type` rather than freeform provider-specific JSON
-- EVM token-holding gates should require CAIP-2 `chain_namespace` values such as `eip155:1` or `eip155:8453`
-- ERC-721 gates should support at least:
-  - `contract_any`
-  - `token_id_allowlist`
-  - `metadata_match`
-- ownership discovery may use an indexer such as Alchemy, but the stored gate contract should remain provider-neutral
+- EVM token-holding gates should require CAIP-2 `chain_namespace` values; public v0 `erc721_holding` is Ethereum mainnet (`eip155:1`)
+- public v0 ERC-721 collection gates support contract-level hold-any semantics; token-id allowlists, generic metadata matches, min-count thresholds, chain selectors, and ERC-1155 are later product/API decisions
+- ownership discovery may use RPCs or allowlisted provider APIs such as Courtyard, but the stored gate contract should remain provider-neutral
 
 ## Verification Policy Compilation
 
