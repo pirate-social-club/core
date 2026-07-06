@@ -191,12 +191,19 @@ Pre-merge gates:
     the deferred write uses a transaction.
 11. A focused leaderboard route/service test covers ordering, access, identity
     hydration, viewer standing, and public IDs.
+12. Run the orphaned-attempt coverage query from
+    [Song Study 1121 Shard Verifier](./song-study-1121-shard-verifier.md) on a
+    prod shard sample. Nonzero means the dark deploy is not perfectly inert for
+    those rows, because already-attempted units without review state can
+    re-serve once under the final `review_state IS NULL` predicate.
 
 Shard rollout sequence:
 
 1. Deploy core/API/web with both study flags dark.
 2. Canary one low-risk shard. Apply community-template migrations through 1121.
-3. On the canary shard, verify:
+3. On the canary shard, run the
+   [Song Study 1121 Shard Verifier](./song-study-1121-shard-verifier.md),
+   including BEFORE/AFTER row-count and fingerprint comparisons. Also verify:
    - `schema_migrations` includes 1118, 1119, 1120 if applicable, and 1121.
    - `song_study_attempt` has no `review_session_id` column.
    - `song_study_attempt` has no unique index/constraint on
@@ -214,9 +221,10 @@ Shard rollout sequence:
 5. Expand the same migration to the rest of the shard fleet.
 6. Run an all-shards sweep. Do not proceed unless every ready community shard is
    at 1121 and has the final `song_study_attempt` identity shape.
-   Use the verifier above as the per-shard acceptance predicate when checking
-   local mirrors/exports; when inspecting D1 directly, reproduce the same
-   `schema_migrations`, `pragma_table_info`, and `pragma_index_*` checks.
+   Use the 1121 shard verifier as the per-shard acceptance predicate when
+   checking local mirrors/exports; when inspecting D1 directly, reproduce the
+   same row-count, fingerprint, `schema_migrations`, `pragma_table_info`, and
+   `pragma_index_*` checks.
 7. Enable `SONG_STUDY_DUE_REVIEW_SERVING_ENABLED`.
 8. Smoke one due review: GET re-serves a due card, attempt 1 under a new
    idempotency key succeeds, and no attempt-number conflict appears.
