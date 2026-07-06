@@ -141,6 +141,8 @@ paths:
     $ref: ./paths/sentinel.yaml#/sentinel_session_by_id
   /profiles/me:
     $ref: ./paths/profiles.yaml#/profiles_me
+  /profiles/me/courtyard-inventory:
+    $ref: ./paths/profiles.yaml#/profiles_me_courtyard_inventory
   /profiles/me/xmtp-inbox:
     $ref: ./paths/profiles.yaml#/profiles_me_xmtp_inbox
   /profiles/me/rename-global-handle:

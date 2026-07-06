@@ -1179,6 +1179,24 @@ paths:
                 $ref: "#/components/schemas/Profile"
         "401":
           $ref: "#/components/responses/AuthError"
+  /profiles/me/courtyard-inventory:
+    get:
+      tags:
+        - Profiles
+      summary: List Courtyard inventory facets from the current user's linked wallets
+      description: |
+        Returns grouped Courtyard-owned inventory from the authenticated user's attached Ethereum and Polygon wallets.
+        The response is intended for community gate authoring; it never accepts wallet, owner, contract, or upstream URL
+        parameters from the caller.
+      responses:
+        "200":
+          description: Courtyard inventory groups visible from linked wallets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourtyardWalletInventoryResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
   /profiles/me/xmtp-inbox:
     post:
       tags:

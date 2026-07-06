@@ -122,6 +122,69 @@ PublicProfileResolution:
           created:
             type: integer
             format: int64
+CourtyardWalletInventoryResponse:
+  type: object
+  required:
+    - groups
+    - unavailable
+  properties:
+    groups:
+      type: array
+      items:
+        $ref: ./profiles.yaml#/CourtyardWalletInventoryGroup
+    unavailable:
+      type: boolean
+      description: True when the Courtyard ownership provider could not be queried; groups will be empty in that case.
+CourtyardWalletInventoryGroup:
+  type: object
+  required:
+    - category
+    - chain_namespace
+    - contract_address
+    - display_label
+    - display_detail
+    - count
+  properties:
+    category:
+      type: string
+      enum:
+        - trading_card
+        - watch
+    chain_namespace:
+      type: string
+      enum:
+        - eip155:1
+        - eip155:137
+    contract_address:
+      type: string
+      description: EIP-55 contract address for an allowlisted Courtyard registry.
+    franchise:
+      type: string
+    subject:
+      type: string
+    brand:
+      type: string
+    model:
+      type: string
+    reference:
+      type: string
+    set:
+      type: string
+    year:
+      type: string
+    grader:
+      type: string
+    grade:
+      type: string
+    condition:
+      type: string
+    display_label:
+      type: string
+    display_detail:
+      type: string
+    count:
+      type: integer
+      minimum: 1
 LinkedHandle:
   type: object
   required:
