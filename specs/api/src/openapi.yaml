@@ -287,6 +287,12 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_moderation_cases_by_moderation_case_id
   /communities/{community_id}/moderation/cases/{moderation_case_id}/actions:
     $ref: ./paths/communities.yaml#/communities_by_community_id_moderation_cases_by_moderation_case_id_actions
+  /communities/{community_id}/rights-review/cases:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_rights_review_cases
+  /communities/{community_id}/rights-review/cases/{rights_review_case_id}:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_rights_review_cases_by_rights_review_case_id
+  /communities/{community_id}/rights-review/cases/{rights_review_case_id}/actions:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_rights_review_cases_by_rights_review_case_id_actions
   /communities/{community_id}/song-artifact-uploads:
     $ref: ./paths/communities.yaml#/communities_by_community_id_song_artifact_uploads
   /communities/{community_id}/song-artifact-uploads/{song_artifact_upload_id}/content:
@@ -479,6 +485,8 @@ components:
       $ref: ./components/parameters.yaml#/JobId
     ModerationCaseId:
       $ref: ./components/parameters.yaml#/ModerationCaseId
+    RightsReviewCaseId:
+      $ref: ./components/parameters.yaml#/RightsReviewCaseId
     VerificationSessionId:
       $ref: ./components/parameters.yaml#/VerificationSessionId
     AgentOwnershipSessionId:
@@ -657,6 +665,18 @@ components:
       $ref: ./components/schemas/moderation.yaml#/CreateUserReportRequest
     CreateModerationActionRequest:
       $ref: ./components/schemas/moderation.yaml#/CreateModerationActionRequest
+    MediaAnalysisResult:
+      $ref: ./components/schemas/moderation.yaml#/MediaAnalysisResult
+    RightsReviewCase:
+      $ref: ./components/schemas/moderation.yaml#/RightsReviewCase
+    RightsReviewCaseListItem:
+      $ref: ./components/schemas/moderation.yaml#/RightsReviewCaseListItem
+    RightsReviewCaseListResponse:
+      $ref: ./components/schemas/moderation.yaml#/RightsReviewCaseListResponse
+    RightsReviewCaseDetail:
+      $ref: ./components/schemas/moderation.yaml#/RightsReviewCaseDetail
+    CreateRightsReviewActionRequest:
+      $ref: ./components/schemas/moderation.yaml#/CreateRightsReviewActionRequest
     UserAgent:
       $ref: ./components/schemas/agents.yaml#/UserAgent
     UserAgentListResponse:

@@ -2148,6 +2148,102 @@ communities_by_community_id_moderation_cases_by_moderation_case_id_actions:
         $ref: ../components/responses.yaml#/EligibilityFailed
       "404":
         $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_rights_review_cases:
+  get:
+    tags:
+      - Moderation
+    x-implemented: true
+    summary: List rights review cases for a community
+    description: |
+      Returns rights review cases opened by media rights analysis, including linked media
+      analysis evidence and a post preview when the case can be associated with a post.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          description: Use `active` for open and under-review cases, `all` for every status, or a comma-separated status list.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+    responses:
+      "200":
+        description: Rights review cases
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/moderation.yaml#/RightsReviewCaseListResponse
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_rights_review_cases_by_rights_review_case_id:
+  get:
+    tags:
+      - Moderation
+    x-implemented: true
+    summary: Read a rights review case
+    description: |
+      Returns one rights review case with its linked media analysis row and post, when present.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/RightsReviewCaseId
+    responses:
+      "200":
+        description: Rights review case detail
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/moderation.yaml#/RightsReviewCaseDetail
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_rights_review_cases_by_rights_review_case_id_actions:
+  post:
+    tags:
+      - Moderation
+    x-implemented: true
+    summary: Apply a rights review action
+    description: |
+      Moves a rights review case into review or closes it with a rights resolution. Terminal
+      `clear`, `clear_with_upstream_refs`, and `block` actions also mark the linked media
+      analysis result resolved.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/RightsReviewCaseId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/moderation.yaml#/CreateRightsReviewActionRequest
+    responses:
+      "200":
+        description: Rights review case detail after action
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/moderation.yaml#/RightsReviewCaseDetail
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
 communities_by_community_id_assets_by_asset_id:
   get:
     tags:

@@ -70,6 +70,12 @@ ModerationCaseId:
   required: true
   schema:
     type: string
+RightsReviewCaseId:
+  in: path
+  name: rights_review_case_id
+  required: true
+  schema:
+    type: string
 VerificationSessionId:
   in: path
   name: verification_session_id
