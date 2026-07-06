@@ -395,19 +395,126 @@ Production sequence:
      exercise list and session metadata.
 7. Enable streak writes for the canary scope.
    - Flip `SONG_STUDY_STREAK_WRITES_ENABLED=true`.
-   - Run one real qualifying study smoke. A valid smoke may seed
-     `song_engagement_days` to `study_attempt_count = 9`,
-     `study_target_count = 10`, then submit one real deployed attempt.
-   - Verify all of the following on the same post:
-     - `song_study_attempt` receives the attempt row.
-     - `song_engagement_days` advances to `study_attempt_count = 10` and
-       `qualified = 1`.
-     - `song_streaks` materializes or updates.
-     - `GET /communities/:communityId/posts/:postId/streaks/leaderboard`
-       returns the viewer standing.
-     - `GET /posts/:postId` returns matching `streak_summary.viewer`.
-     - `GET /feed/home` returns matching `streak_summary.viewer` for at least
-       two song posts when possible, so the batched feed reader is exercised.
+   - Run the post-flip production smoke below before considering the launch
+     complete.
+
+#### 10.2.1 Post-flip production smoke
+
+This smoke is primarily a study-attempt safety check. Streak writes run in the
+same transaction as `song_study_attempt`; if a production-only streak error
+exists, it can roll back the study attempt itself. Keep the rollback ready before
+starting:
+
+```bash
+# rollback trigger: use immediately if any real study attempt returns 5xx,
+# conflicts for a fresh idempotency key, or otherwise fails after the write flag.
+SONG_STUDY_STREAK_WRITES_ENABLED=false
+```
+
+Inputs to record:
+
+- `COMMUNITY_ID`
+- `POST_ID`
+- routed production D1 database name, for example
+  `community-d1-pool-0073-prod`
+- authenticated test user id / handle
+- UTC smoke date (`YYYY-MM-DD`)
+
+Safety gates:
+
+1. `GET /communities/:communityId/posts/:postId/study` succeeds for the
+   authenticated user and returns at least one exercise, or returns due-review
+   exercises for a caught-up song.
+2. Submit study attempts through the real client or the production API:
+
+   ```http
+   POST /communities/:communityId/posts/:postId/study/attempts
+   Authorization: Bearer <token>
+   Content-Type: application/json
+   ```
+
+   Use the exercise payload returned by the study GET and a fresh
+   `idempotency_key` per attempt. Continue until the day qualifies: either ten
+   attempts for a fresh first-learn day, or the frozen due-review target for a
+   due-review day. A seeded smoke may pre-create a ledger row at
+   `study_attempt_count = 9`, `study_target_count = 10`, then submit one real
+   deployed attempt, but the submitted attempt must still go through the
+   production API.
+3. If any attempt fails before qualification, immediately roll back streak writes
+   and diagnose. Do not continue trying attempts on that post.
+
+After the qualifying attempt, run the D1 read-back against the routed shard:
+
+```sql
+SELECT
+  user_id,
+  post_id,
+  activity_date,
+  study_attempt_count,
+  study_correct_count,
+  study_target_count,
+  karaoke_pass_count,
+  qualified,
+  created_at,
+  updated_at
+FROM song_engagement_days
+WHERE user_id = :user_id
+  AND post_id = :post_id
+  AND activity_date = :utc_date;
+
+SELECT
+  user_id,
+  post_id,
+  current_streak,
+  best_streak,
+  total_qualified_days,
+  streak_started_date,
+  last_qualified_date,
+  updated_at
+FROM song_streaks
+WHERE user_id = :user_id
+  AND post_id = :post_id;
+
+SELECT
+  COUNT(*) AS attempt_rows
+FROM song_study_attempt
+WHERE user_id = :user_id
+  AND post_id = :post_id
+  AND attempted_at >= :utc_date || 'T00:00:00.000Z'
+  AND attempted_at < date(:utc_date, '+1 day') || 'T00:00:00.000Z';
+```
+
+Expected D1 assertions:
+
+- `song_study_attempt.attempt_rows` increased by the number of submitted
+  attempts.
+- `song_engagement_days.study_attempt_count >= study_target_count`.
+- `song_engagement_days.qualified = 1`.
+- `song_streaks.current_streak >= 1`.
+- `song_streaks.last_qualified_date = :utc_date`.
+- `song_streaks.total_qualified_days` increments once for this date only; repeat
+  submits/idempotent retries must not add another qualified day.
+
+Then verify read surfaces with the same authenticated viewer:
+
+- `GET /communities/:communityId/posts/:postId/streaks/leaderboard?limit=10`
+  returns viewer standing for the smoke user.
+- `GET /posts/:postId` returns `streak_summary.viewer` matching the board row.
+- `GET /feed/home` returns the same `streak_summary.viewer` for that post. When
+  possible, use a feed containing at least two song posts in the community so the
+  batched feed reader is exercised.
+
+Only after these pass should the rollout be considered live-verified. If board
+or payload reads fail but study attempts continue to succeed, leave
+`SONG_STUDY_STREAK_WRITES_ENABLED=true` only if the D1 rows are correct and the
+failure is clearly read-path/UI-only; otherwise roll back writes while
+diagnosing.
+
+#### 10.2.2 Multi-day validation
+
+After the post-flip production smoke, validate the behaviors that are difficult
+to exercise naturally in one session:
+
 8. Validate multi-day behavior before expanding.
    - Seed or select a user/post with a three-day live streak ending today and
      confirm board, post payload, and feed payload all report
