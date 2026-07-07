@@ -455,6 +455,19 @@ SongArtifactBundle:
     alignment_error:
       type: string
       nullable: true
+    alignment_reason:
+      type: string
+      nullable: true
+      enum:
+        - lyrics_missing
+        - audio_missing
+        - elevenlabs_key_missing
+        - elevenlabs_key_invalid
+        - elevenlabs_rate_limited
+        - elevenlabs_provider_unavailable
+        - elevenlabs_timeout
+        - elevenlabs_invalid_response
+        - alignment_failed
     timed_lyrics_ref:
       type: string
       nullable: true

@@ -12699,6 +12699,19 @@ components:
         alignment_error:
           type: string
           nullable: true
+        alignment_reason:
+          type: string
+          nullable: true
+          enum:
+            - lyrics_missing
+            - audio_missing
+            - elevenlabs_key_missing
+            - elevenlabs_key_invalid
+            - elevenlabs_rate_limited
+            - elevenlabs_provider_unavailable
+            - elevenlabs_timeout
+            - elevenlabs_invalid_response
+            - alignment_failed
         timed_lyrics_ref:
           type: string
           nullable: true
@@ -13529,6 +13542,107 @@ components:
           minimum: 0
           nullable: true
           description: Primary audio duration in milliseconds, when known.
+    SongStudyCapability:
+      type: object
+      description: |
+        Viewer-specific display capability for the Study CTA on post cards. This is
+        an entitlement-aware summary only; exercise content and answer validation
+        remain exclusively behind the `GET .../study` and `POST .../study/attempts`
+        endpoints.
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ready
+            - locked
+            - processing
+            - unavailable
+          description: |
+            Server-derived study availability for this viewer. Clients may use
+            `ready` to show the post-card Study CTA, but MUST load
+            `GET .../study` before rendering study content.
+        exercise_count:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: Optional display hint when a ready pack already exists.
+        source_language:
+          type: string
+          nullable: true
+        target_language:
+          type: string
+          nullable: true
+        reasons:
+          type: array
+          description: Ordered server-derived reasons for the current status. Clients should render the first actionable reason.
+          items:
+            $ref: "#/components/schemas/SongFeatureCapabilityReason"
+    SongKaraokeCapability:
+      type: object
+      description: Viewer-specific display capability for the Sing CTA on post cards.
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ready
+            - locked
+            - processing
+            - failed
+            - unavailable
+        reasons:
+          type: array
+          description: Ordered server-derived reasons for the current status. Clients should render the first actionable reason.
+          items:
+            $ref: "#/components/schemas/SongFeatureCapabilityReason"
+    SongFeatureCapabilityReason:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - kind
+        - owner_action
+      properties:
+        code:
+          type: string
+          enum:
+            - lyrics_missing
+            - lyrics_too_short
+            - exercise_generation_failed
+            - provider_key_missing
+            - provider_key_invalid
+            - provider_rate_limited
+            - provider_unavailable
+            - provider_timeout
+            - provider_invalid_response
+            - instrumental_missing
+            - timed_lyrics_missing
+            - alignment_failed
+            - karaoke_disabled
+            - locked
+        kind:
+          type: string
+          enum:
+            - config
+            - content
+            - processing_failure
+            - entitlement
+            - unavailable
+        owner_action:
+          type: string
+          enum:
+            - none
+            - manage_integrations
+            - retry
+            - edit_song
+            - upload_instrumental
+            - enable_karaoke
+            - buy
     LocalizedPostResponse:
       type: object
       description: |
@@ -13575,6 +13689,9 @@ components:
           nullable: true
         study_capability:
           $ref: "#/components/schemas/SongStudyCapability"
+          nullable: true
+        karaoke_capability:
+          $ref: "#/components/schemas/SongKaraokeCapability"
           nullable: true
         streak_summary:
           $ref: "#/components/schemas/SongStreakSummary"
