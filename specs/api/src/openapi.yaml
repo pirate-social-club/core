@@ -979,6 +979,12 @@ components:
       $ref: ./components/schemas/posts.yaml#/Post
     SongPresentation:
       $ref: ./components/schemas/posts.yaml#/SongPresentation
+    SongStudyCapability:
+      $ref: ./components/schemas/posts.yaml#/SongStudyCapability
+    SongKaraokeCapability:
+      $ref: ./components/schemas/posts.yaml#/SongKaraokeCapability
+    SongFeatureCapabilityReason:
+      $ref: ./components/schemas/posts.yaml#/SongFeatureCapabilityReason
     LocalizedPostResponse:
       $ref: ./components/schemas/posts.yaml#/LocalizedPostResponse
     MediaDescriptor:

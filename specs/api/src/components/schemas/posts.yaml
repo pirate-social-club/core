@@ -1341,6 +1341,74 @@ SongStudyCapability:
     target_language:
       type: string
       nullable: true
+    reasons:
+      type: array
+      description: Ordered server-derived reasons for the current status. Clients should render the first actionable reason.
+      items:
+        $ref: '#/components/schemas/SongFeatureCapabilityReason'
+SongKaraokeCapability:
+  type: object
+  description: Viewer-specific display capability for the Sing CTA on post cards.
+  additionalProperties: false
+  required:
+    - status
+  properties:
+    status:
+      type: string
+      enum:
+        - ready
+        - locked
+        - processing
+        - failed
+        - unavailable
+    reasons:
+      type: array
+      description: Ordered server-derived reasons for the current status. Clients should render the first actionable reason.
+      items:
+        $ref: '#/components/schemas/SongFeatureCapabilityReason'
+SongFeatureCapabilityReason:
+  type: object
+  additionalProperties: false
+  required:
+    - code
+    - kind
+    - owner_action
+  properties:
+    code:
+      type: string
+      enum:
+        - lyrics_missing
+        - lyrics_too_short
+        - exercise_generation_failed
+        - provider_key_missing
+        - provider_key_invalid
+        - provider_rate_limited
+        - provider_unavailable
+        - provider_timeout
+        - provider_invalid_response
+        - instrumental_missing
+        - timed_lyrics_missing
+        - alignment_failed
+        - karaoke_disabled
+        - locked
+    kind:
+      type: string
+      enum:
+        - config
+        - content
+        - processing_failure
+        - entitlement
+        - unavailable
+    owner_action:
+      type: string
+      enum:
+        - none
+        - manage_integrations
+        - retry
+        - edit_song
+        - upload_instrumental
+        - enable_karaoke
+        - buy
 LocalizedPostResponse:
   type: object
   description: |
@@ -1387,6 +1455,9 @@ LocalizedPostResponse:
       nullable: true
     study_capability:
       $ref: '#/components/schemas/SongStudyCapability'
+      nullable: true
+    karaoke_capability:
+      $ref: '#/components/schemas/SongKaraokeCapability'
       nullable: true
     streak_summary:
       $ref: ./song-streaks.yaml#/SongStreakSummary
