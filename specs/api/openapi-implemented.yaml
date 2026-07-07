@@ -5241,6 +5241,30 @@ components:
           description: |
             Optional human-facing hint derived from the server FSRS update. FSRS
             scheduling itself is server-internal; the client does not compute it.
+        study_progress:
+          type: object
+          description: |
+            Server-owned Study progress after this attempt. Present when Study
+            streak writes are enabled. This lets clients render completion/streak
+            state without deriving streak qualification locally.
+          properties:
+            study_attempt_count:
+              type: integer
+            study_correct_count:
+              type: integer
+            study_target_count:
+              type: integer
+            qualified_today:
+              type: boolean
+            current_streak:
+              type: integer
+              description: |
+                The streak count after today's qualification is materialized. May be
+                omitted when the learner has not qualified and no streak exists.
+            next_due_at:
+              type: integer
+              description: Unix timestamp for the next due Study review, when known.
+          additionalProperties: false
       additionalProperties: false
     SongStudyTranscriptionResponse:
       type: object
