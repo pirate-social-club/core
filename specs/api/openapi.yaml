@@ -7242,11 +7242,17 @@ components:
             current_streak:
               type: integer
               description: |
-                The streak count after today's qualification is materialized. May be
-                omitted when the learner has not qualified and no streak exists.
+                The projected streak count after today's qualification is
+                materialized. Zero when the learner has no active streak.
             next_due_at:
               type: integer
               description: Unix timestamp for the next due Study review, when known.
+          required:
+            - study_attempt_count
+            - study_correct_count
+            - study_target_count
+            - qualified_today
+            - current_streak
           additionalProperties: false
       additionalProperties: false
     SongStudyTranscriptionResponse:
