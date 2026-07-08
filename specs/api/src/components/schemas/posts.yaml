@@ -463,7 +463,7 @@ CreatePostRequest:
     - image: requires at least one item in `media_refs` (all items must be `image/*`); must not send `link_url`, `song_artifact_bundle_id`, or `lyrics`
     - video: requires at least one item in `media_refs` (at least one item must be `video/*`); commerce videos may send `access_mode`; locked videos require `license_preset`; must not send `link_url`, `song_artifact_bundle_id`, or `lyrics`
     - link: requires `link_url`; may send `title` and `body`; must not send `media_refs`, `song_artifact_bundle_id`, or `lyrics`
-    - song: requires either `song_artifact_bundle_id` or both `media_refs` (at least one `audio/*`) and `lyrics`; must not send `link_url`; `identity_mode` must be `public`; original songs require `license_preset`
+    - song: requires either `song_artifact_bundle_id` or both `media_refs` (at least one `audio/*`) and `lyrics`; must not send `link_url`; original songs require `license_preset`
     - crosspost: requires `title`, `source_post`, and `source_community`.
     `publish_mode = async` is currently supported for song posts only. It is an opt-in
     compatibility boundary for clients that can render processing/failed posts and provide
@@ -527,7 +527,7 @@ CreatePostRequest:
         Video posts require at least one video in `media_refs`. When `access_mode` is present,
         the first video media ref must resolve to an uploaded `primary_video` artifact and the
         optional `preview_video` descriptor must resolve to an uploaded `preview_video` artifact.
-        The server creates a video commerce asset. Identity must be public for commerce video posts.
+        The server creates a video commerce asset.
       required:
         - post_type
         - media_refs
@@ -603,12 +603,11 @@ CreatePostRequest:
           - required:
               - lyrics
     - description: |
-        Song posts require either `song_artifact_bundle_id` or both `media_refs` (at least one `audio/*`) and `lyrics`. Identity must be public.
+        Song posts require either `song_artifact_bundle_id` or both `media_refs` (at least one `audio/*`) and `lyrics`.
         `access_mode = locked` is only supported for bundle-backed song posts so the post can expose preview-safe media while the asset keeps the full payload gated.
         When `rights_basis = derivative` or `song_mode = remix`, `upstream_asset_refs` must contain at least one entry; this is enforced server-side.
       required:
         - post_type
-        - identity_mode
       anyOf:
         - required:
             - song_artifact_bundle
@@ -622,10 +621,6 @@ CreatePostRequest:
           type: string
           enum:
             - song
-        identity_mode:
-          type: string
-          enum:
-            - public
         access_mode:
           type: string
           enum:
