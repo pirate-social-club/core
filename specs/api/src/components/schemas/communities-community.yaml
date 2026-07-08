@@ -40,7 +40,7 @@ UpdateCommunityDonationPolicyRequest:
 DonationPartnerSummary:
   type: object
   description: |
-    Public/admin-safe summary of a reviewed donation partner. Full payout routing details remain internal to Pirate settlement systems in v0.
+    Public/admin-safe summary of a reviewed donation partner, including the approved payout destination used by settlement.
   required:
     - donation_partner
     - display_name
@@ -57,6 +57,9 @@ DonationPartnerSummary:
       enum:
         - endaoment
     provider_partner_ref:
+      type: string
+      nullable: true
+    payout_destination_ref:
       type: string
       nullable: true
     image_url:
