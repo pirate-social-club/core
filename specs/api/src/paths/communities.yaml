@@ -2001,6 +2001,50 @@ communities_by_community_id_posts_by_post_id_karaoke_sessions:
           application/json:
             schema:
               $ref: ../components/schemas/common.yaml#/Error
+communities_by_community_id_posts_by_post_id_karaoke_leaderboard:
+  get:
+    operationId: communityPostKaraokeLeaderboard
+    x-implemented: true
+    tags:
+      - Karaoke
+    summary: Fetch the karaoke leaderboard for a song post
+    description: |
+      Returns the best eligible karaoke scores for the song's active karaoke revision and scoring tuple.
+      The implementation filters by `(karaoke_revision_id, scoring_version, scoring_provider, scoring_model)`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/PostId
+      - in: query
+        name: scope
+        required: false
+        schema:
+          $ref: ../components/schemas/karaoke.yaml#/KaraokeRankingScope
+        description: Ranking window. Defaults to `all_time`.
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+    responses:
+      "200":
+        description: Karaoke leaderboard
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/karaoke.yaml#/KaraokeSongLeaderboard
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
 karaoke_sessions_by_session_id_websocket:
   get:
     tags:

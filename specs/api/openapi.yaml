@@ -3788,6 +3788,50 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /communities/{community_id}/posts/{post_id}/karaoke/leaderboard:
+    get:
+      operationId: communityPostKaraokeLeaderboard
+      x-implemented: true
+      tags:
+        - Karaoke
+      summary: Fetch the karaoke leaderboard for a song post
+      description: |
+        Returns the best eligible karaoke scores for the song's active karaoke revision and scoring tuple.
+        The implementation filters by `(karaoke_revision_id, scoring_version, scoring_provider, scoring_model)`.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/PostId"
+        - in: query
+          name: scope
+          required: false
+          schema:
+            $ref: "#/components/schemas/KaraokeRankingScope"
+          description: Ranking window. Defaults to `all_time`.
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Karaoke leaderboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KaraokeSongLeaderboard"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /communities/{community_id}/posts/{post_id}/study:
     get:
       x-implemented: true
@@ -14644,6 +14688,10 @@ components:
         lyrics_sha256:
           type: string
           description: SHA-256 digest of `lyrics`, prefixed with `0x`.
+        karaoke_revision_id:
+          type: string
+          nullable: true
+          description: Derived song-side karaoke revision for the current timed lyrics and instrumental artifact.
         genius_annotations_url:
           type: string
           nullable: true
