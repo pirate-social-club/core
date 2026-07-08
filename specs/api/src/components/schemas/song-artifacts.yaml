@@ -396,6 +396,10 @@ SongArtifactBundle:
     lyrics_sha256:
       type: string
       description: SHA-256 digest of `lyrics`, prefixed with `0x`.
+    karaoke_revision_id:
+      type: string
+      nullable: true
+      description: Derived song-side karaoke revision for the current timed lyrics and instrumental artifact.
     genius_annotations_url:
       type: string
       nullable: true

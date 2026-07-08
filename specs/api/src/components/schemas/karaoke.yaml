@@ -156,3 +156,249 @@ KaraokeSession:
       type: integer
     scoring_policy:
       $ref: ./karaoke.yaml#/KaraokeScoringPolicy
+
+KaraokeRankingScope:
+  type: string
+  enum:
+    - all_time
+    - weekly
+
+KaraokeAttemptCompletionReason:
+  type: string
+  enum:
+    - completed
+    - session_error
+    - provider_unavailable
+    - abandoned
+
+KaraokeTimingTrend:
+  type: string
+  enum:
+    - early
+    - late
+    - mixed
+    - on_time
+
+KaraokeAttempt:
+  type: object
+  required:
+    - id
+    - object
+    - session_id
+    - attempt_id
+    - post_id
+    - community_id
+    - karaoke_revision_id
+    - scoring_version
+    - scoring_provider
+    - scoring_model
+    - final_score
+    - lyrics_score
+    - timing_score
+    - timing_trend
+    - scored_line_count
+    - line_count
+    - uncertain_line_count
+    - no_recognition_line_count
+    - low_confidence_line_count
+    - completion_reason
+    - rank_eligible
+    - activity_date
+    - completed_at
+  properties:
+    id:
+      type: string
+    object:
+      type: string
+      enum:
+        - karaoke_attempt
+    session_id:
+      type: string
+    attempt_id:
+      type: string
+    post_id:
+      type: string
+    community_id:
+      type: string
+    karaoke_revision_id:
+      type: string
+      description: Song-side revision derived from scoring-relevant karaoke artifacts.
+    scoring_version:
+      type: integer
+      description: Runtime scoring algorithm version.
+    scoring_provider:
+      type: string
+      description: STT/scoring provider captured from the resolved scoring policy.
+    scoring_model:
+      type: string
+      description: STT/scoring model captured from the resolved scoring policy.
+    final_score:
+      type: integer
+      minimum: 0
+      maximum: 10000
+      description: Final score in basis points.
+    lyrics_score:
+      type: integer
+      minimum: 0
+      maximum: 10000
+      description: Lyric recognition score in basis points.
+    timing_score:
+      type: integer
+      nullable: true
+      minimum: 0
+      maximum: 10000
+      description: Timing score in basis points, null when timing cannot be measured.
+    timing_trend:
+      $ref: ./karaoke.yaml#/KaraokeTimingTrend
+    scored_line_count:
+      type: integer
+    line_count:
+      type: integer
+    uncertain_line_count:
+      type: integer
+    no_recognition_line_count:
+      type: integer
+    low_confidence_line_count:
+      type: integer
+    completion_reason:
+      $ref: ./karaoke.yaml#/KaraokeAttemptCompletionReason
+    rank_eligible:
+      type: boolean
+    activity_date:
+      type: string
+      description: UTC date (`YYYY-MM-DD`) credited for streak progress.
+    completed_at:
+      type: string
+      format: date-time
+  additionalProperties: false
+
+KaraokeLeaderboardIdentity:
+  type: object
+  required:
+    - visibility
+    - display_name
+    - handle
+    - avatar_ref
+  properties:
+    visibility:
+      type: string
+      enum:
+        - visible
+        - anonymized
+    display_name:
+      type: string
+      nullable: true
+    handle:
+      type: string
+      nullable: true
+      description: Full routing handle label when visible, for example `maya.pirate` or `diego.eth`.
+    avatar_ref:
+      type: string
+      nullable: true
+  additionalProperties: false
+
+KaraokeLeaderboardEntry:
+  type: object
+  required:
+    - rank
+    - top_percent
+    - score
+    - reached_at
+    - identity
+    - is_viewer
+  properties:
+    rank:
+      type: integer
+      description: Competition rank (`1, 2, 2, 4`).
+    top_percent:
+      type: integer
+      minimum: 0
+      maximum: 100
+    score:
+      type: integer
+      minimum: 0
+      maximum: 10000
+      description: Best eligible score in basis points.
+    reached_at:
+      type: string
+      format: date-time
+      description: Earliest completion time at which this user reached the best score.
+    identity:
+      $ref: ./karaoke.yaml#/KaraokeLeaderboardIdentity
+    is_viewer:
+      type: boolean
+  additionalProperties: false
+
+KaraokeSongLeaderboard:
+  type: object
+  required:
+    - object
+    - post_id
+    - community_id
+    - scope
+    - karaoke_revision_id
+    - scoring_version
+    - scoring_provider
+    - scoring_model
+    - total_ranked
+    - entries
+    - viewer_rank
+    - viewer_top_percent
+    - viewer_best_score
+    - viewer_best_reached_at
+    - viewer_eligible_attempt_count
+  properties:
+    object:
+      type: string
+      enum:
+        - karaoke_song_leaderboard
+    post_id:
+      type: string
+    community_id:
+      type: string
+    scope:
+      $ref: ./karaoke.yaml#/KaraokeRankingScope
+    period_start:
+      type: string
+      nullable: true
+      format: date-time
+    period_end:
+      type: string
+      nullable: true
+      format: date-time
+    karaoke_revision_id:
+      type: string
+    scoring_version:
+      type: integer
+    scoring_provider:
+      type: string
+    scoring_model:
+      type: string
+    total_ranked:
+      type: integer
+    entries:
+      type: array
+      items:
+        $ref: ./karaoke.yaml#/KaraokeLeaderboardEntry
+    viewer_rank:
+      type: integer
+      nullable: true
+      description: Viewer's competition rank under the active tuple, null when unranked.
+    viewer_top_percent:
+      type: integer
+      nullable: true
+      minimum: 0
+      maximum: 100
+    viewer_best_score:
+      type: integer
+      nullable: true
+      minimum: 0
+      maximum: 10000
+      description: Viewer's best eligible score in basis points under the active tuple.
+    viewer_best_reached_at:
+      type: string
+      nullable: true
+      format: date-time
+    viewer_eligible_attempt_count:
+      type: integer
+  additionalProperties: false

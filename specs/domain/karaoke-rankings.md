@@ -28,7 +28,7 @@ Related:
 
 ## 1. Canonical per-community attempt schema
 
-`db/community-template/migrations/1101_community_karaoke_attempt.sql`
+`db/community-template/migrations/1123_karaoke_attempts.sql`
 
 ```sql
 CREATE TABLE karaoke_attempt (
@@ -37,20 +37,25 @@ CREATE TABLE karaoke_attempt (
   attempt_id           TEXT NOT NULL,            -- runtime attempt within the session
   user_id              TEXT NOT NULL,            -- subject (authenticated). Identity is NOT snapshotted.
   post_id              TEXT NOT NULL,            -- the song post; "per song" == per post
-  karaoke_revision_id  TEXT NOT NULL,            -- explicit immutable package revision (see §2)
-  content_hash         TEXT NOT NULL,            -- canonical content hash, for integrity/dedup only
+  community_id         TEXT NOT NULL,
+  karaoke_revision_id  TEXT NOT NULL,            -- derived song-side artifact revision (see §2)
   scoring_version      INTEGER NOT NULL,         -- runtime algorithm version (see §2)
+  scoring_provider     TEXT NOT NULL,            -- resolved STT/scoring provider
+  scoring_model        TEXT NOT NULL,            -- resolved STT/scoring model
   -- Scores as integer basis points (0..10000) for exact ordering/comparison:
   final_score          INTEGER NOT NULL,
   lyrics_score         INTEGER NOT NULL,
   timing_score         INTEGER,                  -- nullable: no measurable timing
   timing_trend         TEXT NOT NULL,            -- early|late|mixed|on_time
   scored_line_count    INTEGER NOT NULL,
-  total_line_count     INTEGER NOT NULL,
+  line_count           INTEGER NOT NULL,
   uncertain_line_count INTEGER NOT NULL,         -- measurement failures (runtime contract field)
+  no_recognition_line_count INTEGER NOT NULL,
+  low_confidence_line_count INTEGER NOT NULL,
   completion_reason    TEXT NOT NULL CHECK (completion_reason IN
-                          ('completed','aborted','expired','provider_failed')),
+                          ('completed','session_error','provider_unavailable','abandoned')),
   rank_eligible        INTEGER NOT NULL CHECK (rank_eligible IN (0,1)),  -- derived at write (§3)
+  activity_date        TEXT NOT NULL,            -- UTC date credited for streak progress
   completed_at         TEXT NOT NULL,            -- ISO UTC; authoritative for weekly + tie-break
   created_at           TEXT NOT NULL,
   PRIMARY KEY (id),
@@ -58,11 +63,10 @@ CREATE TABLE karaoke_attempt (
 );
 
 CREATE INDEX idx_karaoke_attempt_rank
-  ON karaoke_attempt (post_id, rank_eligible, karaoke_revision_id, scoring_version, final_score DESC);
-CREATE INDEX idx_karaoke_attempt_window
-  ON karaoke_attempt (post_id, rank_eligible, completed_at);
-CREATE INDEX idx_karaoke_attempt_user
-  ON karaoke_attempt (post_id, user_id, completed_at);
+  ON karaoke_attempt (post_id, karaoke_revision_id, scoring_version, scoring_provider,
+                      scoring_model, rank_eligible, final_score DESC, completed_at);
+CREATE INDEX idx_karaoke_attempt_user_post
+  ON karaoke_attempt (user_id, post_id, completed_at DESC);
 ```
 
 Per-line learning detail (`karaoke_attempt_line`) is a later slice (§8); rankings do not
@@ -70,18 +74,21 @@ need it. The results page's "what to practice" runs off the live session summary
 
 ## 2. Stable revision + scoring version
 
-- `scoring_version` — integer constant exported by `@pirate/karaoke-runtime`
+- `scoring_version` — integer constant exported by `@pirate-social-club/karaoke-runtime`
   (`KARAOKE_SCORING_VERSION`). Bumped on any change to weights/algorithm that moves scores.
-- `karaoke_revision_id` — an **explicit, immutable package revision identifier** assigned when
-  a karaoke package version is produced. It is the public identity used for comparability.
-  It is **not** a content hash: hash composition is easy to change accidentally, and
-  instrumental replacement can have licensing implications beyond byte identity.
-- `content_hash` — a canonical content hash stored **alongside** the revision id, used only
-  for integrity verification and dedup. Never the public revision identity.
+- `karaoke_revision_id` — a persisted, derived song-side revision on
+  `song_artifact_bundles` (`0129_control_plane_song_artifact_karaoke_revision.sql`).
+  It is computed at artifact finalize from scoring-relevant song artifacts only:
+  `timed_lyrics_json` plus the instrumental audio descriptor/storage ref. It rotates when the
+  timed lyrics or instrumental changes. It deliberately does **not** include scoring provider,
+  model, retention, or algorithm version.
+- `scoring_provider` / `scoring_model` — captured from the resolved scoring policy on each
+  attempt. Provider/model changes are scoring-side comparability changes, not song revisions.
 - **Comparability rule:** rankings compare only attempts sharing the post's **current**
-  `(karaoke_revision_id, scoring_version)`. Older attempts remain as history but leave the
-  active board. Enforced at query time (no backfill on a bump).
-- Requires `getPostKaraoke` to expose `karaoke_revision_id` (+ `content_hash`); it does not today.
+  `(karaoke_revision_id, scoring_version, scoring_provider, scoring_model)`. Older attempts
+  remain as history but leave the active board. Enforced at query time (no backfill on a bump).
+- Requires artifact finalize to populate `song_artifact_bundles.karaoke_revision_id`; attempts
+  copy the current revision at finalize.
 
 ## 3. Eligibility + completion reason
 
@@ -133,6 +140,7 @@ WITH best AS (
   FROM karaoke_attempt
   WHERE post_id = :post AND rank_eligible = 1
     AND karaoke_revision_id = :rev AND scoring_version = :ver
+    AND scoring_provider = :provider AND scoring_model = :model
 )
 SELECT user_id, final_score AS best, completed_at AS best_reached_at
 FROM best WHERE rn = 1
@@ -165,8 +173,8 @@ visibility ∈ { visible | anonymized | hidden }
 ```
 
 - `GET /communities/{c}/posts/{p}/karaoke/leaderboard?scope=all_time|weekly&limit=`
-  → `{ scope, scoring_version, karaoke_revision_id,
-       your_rank, total_ranked, your_top_percent,
+  → `{ scope, scoring_version, scoring_provider, scoring_model, karaoke_revision_id,
+       viewer_rank, viewer_best_score, viewer_top_percent, total_ranked,
        entries: [{ rank, top_percent, score, identity }] }`
   Scores are basis points (0..10000); the client renders `/100`.
 - `GET /communities/{c}/posts/{p}/karaoke/attempts?user=me`
@@ -199,8 +207,8 @@ Ordered; each step backward-compatible:
 1. **API `karaoke-runtime` parity** — add `uncertainLineCount` and export
    `KARAOKE_SCORING_VERSION`. (Web copy already has `uncertainLineCount`; legacy snapshots
    default it to 0.) **This step only — no persistence until this spec is committed/reviewed.**
-2. `getPostKaraoke` exposes `karaoke_revision_id` (+ `content_hash`).
-3. Migration `1101` adds `karaoke_attempt` (template + apply to live communities).
+2. Artifact finalize computes and stores `song_artifact_bundles.karaoke_revision_id`.
+3. Migration `1123` adds `karaoke_attempt` (template + apply to live communities).
 4. DO finalize → outbox → insert-once. Finalizer tolerates a missing `uncertain_line_count`
    from an older runtime (treat as 0) during the rollout overlap.
 5. Read endpoints (§7).
@@ -209,28 +217,22 @@ Ordered; each step backward-compatible:
 A `scoring_version` bump is coordinated with deploy; the query's version filter retires
 pre-change attempts automatically.
 
-### 9a. Build/dependency reproducibility — hard precondition for persistence
+### 9a. Build/dependency reproducibility — hygiene, not a persistence gate
 
-The API currently consumes the runtime via
-`"@pirate/karaoke-runtime": "file:../../../web-karaoke-rel/packages/karaoke-runtime"`.
-This is **workstation-layout coupling**, not a stable cross-repository dependency: the
-relative path only resolves when `web-karaoke-rel` happens to sit as a sibling worktree.
-A clean checkout or CI runner arranged differently cannot resolve it, and an `api`
-reinstall on a dev box does **not** prove what a production build consumes.
+The API currently consumes the runtime via a local workspace `file:` dependency:
+`"@pirate-social-club/karaoke-runtime": "file:../../../web/packages/karaoke-runtime"`.
+Publishing/versioning that package or moving it into a genuine shared package location remains
+the cleaner long-term build shape.
 
-Therefore:
-
-- **Persistence (steps 3–6) must NOT begin until production API builds have a reproducible,
-  pinned runtime-dependency mechanism** — a published/versioned `@pirate/karaoke-runtime`
-  package or a genuine shared monorepo location. Until then, `scoring_version` cannot be
-  trusted to mean the same algorithm across environments, which undermines rank comparability.
-- Every build must **record the exact runtime source commit/version** it bundled. As of this
-  writing the runtime source is `web-karaoke-rel@release/karaoke-web 42fbce9f`
-  (`uncertainLineCount` + `KARAOKE_SCORING_VERSION = 1`), consumed via the `file:` path above.
+This is no longer a hard gate for attempt persistence because the runtime already exports
+`KARAOKE_SCORING_VERSION` and build provenance. Each persisted attempt records
+`scoring_version`, `scoring_provider`, and `scoring_model`, and ranking queries filter by that
+tuple. A scoring-version or provider/model change therefore retires older attempts from the
+active board without relying on package-layout assumptions.
 
 Follow-up (separate task): publish/version the runtime package or relocate it to a shared
-monorepo path, then repoint the API dependency. The runtime-parity step (1) is safe to land
-under the current mechanism; persistence is not.
+monorepo path, then repoint the API dependency. Do not block the `karaoke_attempt` persistence
+slice on that packaging cleanup.
 
 ## 10. UI surfaces & view-model contracts (PR-locked)
 
@@ -243,8 +245,9 @@ under the current mechanism; persistence is not.
 
 **Deferred (explicitly not built):** cross-song "best singer in this community" ladder, global
 singer leaderboard, cross-community leaderboard. Raw scores compare only within the same
-`(karaoke_revision_id, scoring_version)`; any singer ladder across songs requires a separate
-points/normalization system and must not be inferred from raw averages.
+`(karaoke_revision_id, scoring_version, scoring_provider, scoring_model)`; any singer ladder
+across songs requires a separate points/normalization system and must not be inferred from raw
+averages.
 
 ### 10.2 View models (API-shaped; the UI contract)
 
@@ -383,10 +386,10 @@ Scope is shown as a **season label** ("this week" / "all-time") from `scope`.
 
 ## Resolved decisions
 
-- Revision identity: explicit immutable `karaoke_revision_id` minted whenever any
-  scoring-relevant input changes (timed lyric text, stable line/word identities, line/word
-  timing, instrumental audio, package-embedded scoring config); `content_hash` stored alongside
-  for integrity/dedup only; public id is NOT derived from the hash.
+- Revision identity: persisted derived `karaoke_revision_id` from song-side artifacts only
+  (timed lyric text/word timings and instrumental audio descriptor/storage ref). Scoring-side
+  comparability is carried separately by `scoring_version`, `scoring_provider`, and
+  `scoring_model`.
 - Tie-break: earliest `best_reached_at`.
 - Coverage: `scored / (total - uncertain) >= 0.85`, with `>= 5` measured lines (v1).
 - Identity: server projection with `visibility`; moderation/blocking preserves rank numbers;
@@ -400,41 +403,36 @@ Scope is shown as a **season label** ("this week" / "all-time") from `scope`.
 
 ## Open (non-blocking) questions
 
-- Exact pipeline step that mints `karaoke_revision_id` when scoring-relevant inputs change.
 - Whether to show "weekly activity" on hub cards (would add `weeklyParticipantCount` to the
   `CommunityKaraokeSongStanding` contract).
 
-## 11. Implementation slice (appendix — gated, not a contract amendment)
+## 11. Implementation slice (appendix)
 
 This appendix is a **ready-to-execute implementation plan** for the first persistence slice. It
-is design only: it ships no code, no migration, no endpoint, and does **not** lift the §9a
-reproducibility gate. It executes only **after** the prerequisites below are met. It is tracked
-here so reviewers see the execution path alongside the contract.
+is tracked here so reviewers see the execution path alongside the contract.
 
-### Hard prerequisites (gate intact)
+### Prerequisites
 
-1. This spec is merged (PRs #29 + #30).
-2. Runtime packaging complete: `@pirate/karaoke-runtime@0.1.0` published, the API repinned to
-   it, deployed, and `/__version` verified to show the pinned version/SHA (§9a lifts here).
-3. The `karaoke_revision_id` minting source is decided (open question above) — finalize can't
-   stamp a trustworthy revision id without it.
+1. This spec is merged.
+2. Artifact finalize populates `song_artifact_bundles.karaoke_revision_id` from the derived
+   song-side revision described in §2.
 
 ### Slice scope
 
-1. **Migration** — `db/community-template/migrations/1101_community_karaoke_attempt.sql` (the
-   §1 DDL verbatim; 1100 is current). Apply to the template + ~live communities via the
+1. **Migration** — `db/community-template/migrations/1123_karaoke_attempts.sql` (the
+   §1 DDL verbatim). Apply to the template + live communities via the
    per-community single-migration runner (the one used for 0117). `karaoke_attempt_line` stays
    deferred.
 2. **Revision-id plumbing** (prereq inside the slice) — `getPostKaraokePayload`
-   (`src/lib/posts/post-karaoke-service.ts`) already exposes `karaoke_revision_id` +
-   `content_hash`; session creation (`communities-karaoke-session-routes.ts` →
-   `session-creation-service.ts`) threads it into the DO so the final summary carries it.
+   (`src/lib/posts/post-karaoke-service.ts`) exposes `karaoke_revision_id`; the API resolves
+   the current revision and scoring policy at finalize time from the bundle and
+   `karaoke_session_creation_requests`. The DO sends runtime identity + summary; it does not
+   own community D1 routing or revision computation.
 3. **Finalize write path** (`src/lib/karaoke/session-do.ts`) — the DO already has a
    `SqliteOutboxStore`/`outboxStore` abstraction and terminalizes sessions (the ended path; the
    `provider_failed` finalize near teardown; teardown wipes outbox/snapshots at eviction). Add:
    - On a terminal state with a computed summary, build a finalize record per §1/§3
-     (`id`, `session_id`, `attempt_id`, `user_id`, `post_id`, `revision`/`content_hash`,
-     `scoring_version`, bps scores, counts, `completion_reason`, `rank_eligible` per §3,
+     (`session_id`, `attempt_id`, bps scores, counts, `activity_date`, `completion_reason`,
      `completed_at`) → enqueue to a **finalize outbox** (new record kind). Teardown does **not**
      await the community D1 write (§4 decoupling).
    - An alarm-driven finalizer drains it → writes to the community D1 (via the API worker's
@@ -444,11 +442,12 @@ here so reviewers see the execution path alongside the contract.
 4. **One read endpoint** — new `src/routes/communities-karaoke-leaderboard-routes.ts`:
    `GET /:communityId/posts/:postId/karaoke/leaderboard?scope=all_time|weekly&limit=`. Runs §5's
    best-per-user query on the per-community D1 (filtered to the post's current
-   `karaoke_revision_id` + `scoring_version`), assigns competition rank + server percentile,
+   `karaoke_revision_id`, `scoring_version`, `scoring_provider`, and `scoring_model`),
+   assigns competition rank + server percentile,
    resolves the identity projection (§10.4: deleted/banned excluded pre-rank; viewer-block
    anonymized post-rank, rank preserved; missing → "Pirate singer"), returns the
    `KaraokeSongLeaderboard` shape.
-5. **api-contracts** — add `KaraokeSongLeaderboard` / entry / identity to
+5. **api-contracts** — add `KaraokeSongLeaderboard` / entry / identity / attempt to
    `services/contracts/src/index.ts`, mirroring the web view models so both sides share one type.
 
 ### Out of this slice (follows once the read endpoint is real)
@@ -461,5 +460,4 @@ here so reviewers see the execution path alongside the contract.
 ### Decisions this slice forces (owner's call)
 
 - **DO→D1 transport:** internal RPC from the DO vs a Cloudflare Queue.
-- The two still-open spec items it depends on: the `karaoke_revision_id` minting source and the
-  identity-projection source (public-name/profile join).
+- Identity-projection source (public-name/profile join).

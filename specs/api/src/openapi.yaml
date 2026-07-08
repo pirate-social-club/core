@@ -273,6 +273,8 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_posts_by_post_id_reports
   /communities/{community_id}/posts/{post_id}/karaoke/sessions:
     $ref: ./paths/communities.yaml#/communities_by_community_id_posts_by_post_id_karaoke_sessions
+  /communities/{community_id}/posts/{post_id}/karaoke/leaderboard:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_posts_by_post_id_karaoke_leaderboard
   /communities/{community_id}/posts/{post_id}/study:
     $ref: ./paths/song-study.yaml#/communities_by_community_id_posts_by_post_id_study
   /communities/{community_id}/posts/{post_id}/study/attempts:
