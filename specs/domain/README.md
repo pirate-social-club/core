@@ -64,6 +64,8 @@ Product and system design docs grouped by domain surface.
   Canonical asset model and attachments.
 - `karaoke.md`
   Karaoke-specific behavior and assets.
+- `song-practice-reward-campaigns.md`
+  Funded song-practice reward campaigns, nationality-tiered rates, verification, and payout semantics.
 - `livestream.md`
   Live room and broadcast surface.
 - `live-access-runtime.md`

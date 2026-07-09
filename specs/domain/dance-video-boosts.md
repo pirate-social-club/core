@@ -2,18 +2,26 @@
 
 Status: **draft (spec-only, do not build yet)**.
 
-This feature comes after song-practice rewards. The goal is to let a song owner fund a campaign
-that rewards users for posting a video that references the song, turning the existing video
-soundtrack rights detector into a promotion detector.
+Related docs:
+
+- [song-practice-reward-campaigns.md](./song-practice-reward-campaigns.md)
+
+Use the same funding, owner-consent, treasury accounting, and nationality-tiered reward principles
+defined there unless this doc explicitly says otherwise.
+
+This feature comes after song-practice rewards. The goal is to let an approved rewarder fund a
+campaign that rewards users for posting a video that references the song, turning the existing
+video soundtrack rights detector into a promotion detector.
 
 ## 0. Product shape
 
-A song owner creates a boost campaign for a published catalog song and deposits a USDC budget.
-Users post videos that use or dance to the song. The video-media analysis job extracts an audio
-sample, runs ACRCloud against the platform custom bucket, maps the match back to the song artifact
-bundle, and creates a pending boost reward. A lightweight review queue approves payment. Approved
-rewards accrue in the account-global rewards ledger and cash out through the same unique-human
-gated USDC payout rail as streak rewards.
+An approved rewarder creates a boost campaign for a published catalog song and deposits a USDC
+budget. The song owner must approve third-party campaigns before they attach public cash incentives
+to the song. Users post videos that use or dance to the song. The video-media analysis job extracts
+an audio sample, runs ACRCloud against the platform custom bucket, maps the match back to the song
+artifact bundle, and creates a pending boost reward. A lightweight review queue approves payment.
+Approved rewards accrue in the account-global rewards ledger and cash out through the same
+unique-human gated USDC payout rail as streak rewards.
 
 Non-goals for v1:
 
