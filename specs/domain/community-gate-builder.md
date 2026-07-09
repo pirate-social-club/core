@@ -79,6 +79,37 @@ Document rows carry their provider set (`self` / `zkpassport` chips) inline;
 personhood rows carry `self` / `very` chips. The two vocabularies are
 distinct and must never share state.
 
+### Identity provider extensibility
+
+Personhood and document providers will keep arriving (World ID is
+anticipated; ZKPassport personhood promotion is deferred until it can be
+exercised with real documents). Design constraint: adding a provider must
+not reshape atoms or the editor.
+
+- **Provider registry (data, not code):** per-provider record — id, kind
+  (personhood | document | reputation), capabilities minted, nullifier scope
+  (per-body | per-document | per-app), assurance levels, expiry policy,
+  enabled. Atom validation checks provider ids against the registry instead
+  of hardcoded enums; editor provider chips derive from kind + enabled. The
+  current hardcoded vocabularies (atom validation enums, the
+  `users.capability_provider` CHECK constraint, `identity_nullifiers`
+  provider/mechanism values) migrate to registry-validated values.
+- **What stays code:** proof verification and session flows are inherently
+  per-provider (SDKs, proof formats, containers). The registry governs only
+  vocabulary, display, and acceptance.
+- **Capabilities remain the seam:** providers mint capabilities plus
+  nullifiers; gates consume capabilities. A new personhood provider = a new
+  verification flow + a registry row; zero atom schema changes.
+- **Assurance levels:** providers may carry levels (World ID Orb vs Device).
+  The registry records levels from day one; whether `unique_human` gains an
+  optional minimum-level field is decided when the first multi-level
+  provider lands.
+- **Sybil floor:** a personhood rule accepting multiple providers is exactly
+  as sybil-resistant as its WEAKEST accepted provider (per-document
+  nullifiers admit one identity per passport; per-body scopes admit one per
+  person). Editor copy should surface this when accepted providers diverge
+  in scope.
+
 ## Serializer contract
 
 - The draft model is a tree mirroring `GateExpression`; the flat
@@ -259,8 +290,12 @@ GET /gate-capabilities/nft?chain=eip155:1&contract=0x...
   OpenSea, NFTScan. Criteria: CryptoPunks normalization, ERC-1155 handling,
   post-reveal refresh behavior, rate limits, price. Vendors are replaceable
   by design (owned snapshot).
-- Shape of the generalized snapshot-match atom (collection + canonical trait
-  predicate).
+- Shape of the generalized snapshot-match atom. Recommended: a flat match
+  record mirroring the Courtyard atom — keys ANDed, per-key value allowlists
+  OR'd (the `nationality.allowed[]` precedent). Boolean composition beyond
+  that belongs to the expression tree, not a nested predicate language
+  inside the atom. Gates evaluate against the CURRENT trait snapshot; version
+  pinning lives in tier provenance (evidence), never in policy.
 - ERC-1155 and additional chains as new evaluation modes.
 - ZKPassport → `unique_human` promotion. Today the API stores ZKPassport
   completions as document capabilities only; it records the
