@@ -4630,6 +4630,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RewardCashoutResponse"
+  /me/rewards/cashouts/{cashout_id}:
+    parameters:
+      - name: cashout_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: me_rewards_cashouts_by_cashout_id
+      tags:
+        - Rewards
+      summary: Get an authoritative reward cashout status
+      responses:
+        "200":
+          description: Current cashout status and available balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RewardCashoutResponse"
+        "404":
+          description: Cashout not found for the current user
   /jobs/{job_id}:
     get:
       tags:

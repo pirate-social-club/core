@@ -32,3 +32,25 @@ me_rewards_cashouts:
           application/json:
             schema:
               $ref: ../components/schemas/rewards.yaml#/RewardCashoutResponse
+me_rewards_cashouts_by_cashout_id:
+  parameters:
+    - name: cashout_id
+      in: path
+      required: true
+      schema:
+        type: string
+  get:
+    x-implemented: true
+    operationId: me_rewards_cashouts_by_cashout_id
+    tags:
+      - Rewards
+    summary: Get an authoritative reward cashout status
+    responses:
+      "200":
+        description: Current cashout status and available balance
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/rewards.yaml#/RewardCashoutResponse
+      "404":
+        description: Cashout not found for the current user
