@@ -1,0 +1,140 @@
+RewardVerificationState:
+  type: string
+  enum:
+    - unverified
+    - verified
+    - conflict
+RewardEventKind:
+  type: string
+  enum:
+    - study_streak_day
+    - study_streak_milestone_7
+    - study_streak_milestone_30
+RewardEventSummary:
+  type: object
+  required:
+    - id
+    - user_id
+    - community_id
+    - post_id
+    - activity_date
+    - reward_kind
+    - amount_cents
+    - created_at
+  properties:
+    id:
+      type: string
+    user_id:
+      type: string
+    community_id:
+      type: string
+    post_id:
+      type: string
+    activity_date:
+      type: string
+    reward_kind:
+      $ref: ./rewards.yaml#/RewardEventKind
+    amount_cents:
+      type: integer
+    created_at:
+      type: integer
+      format: int64
+RewardsCashoutSummary:
+  type: object
+  required:
+    - eligible
+    - min_cents
+    - verification_state
+  properties:
+    eligible:
+      type: boolean
+    min_cents:
+      type: integer
+    verification_state:
+      $ref: ./rewards.yaml#/RewardVerificationState
+RewardsSummaryResponse:
+  type: object
+  required:
+    - balance_cents
+    - today_earned_cents
+    - recent_events
+    - cashout
+  properties:
+    balance_cents:
+      type: integer
+    today_earned_cents:
+      type: integer
+    recent_events:
+      type: array
+      items:
+        $ref: ./rewards.yaml#/RewardEventSummary
+    cashout:
+      $ref: ./rewards.yaml#/RewardsCashoutSummary
+RewardPayoutStatus:
+  type: string
+  enum:
+    - submitted
+    - confirmed
+    - failed
+RewardPayoutSummary:
+  type: object
+  required:
+    - id
+    - amount_cents
+    - recipient_address
+    - status
+    - settlement_ref
+    - failure_reason
+  properties:
+    id:
+      type: string
+    amount_cents:
+      type: integer
+    recipient_address:
+      type: string
+    status:
+      $ref: ./rewards.yaml#/RewardPayoutStatus
+    settlement_ref:
+      type: string
+      nullable: true
+    failure_reason:
+      type: string
+      nullable: true
+RewardCashoutWalletProof:
+  type: object
+  required:
+    - type
+    - privy_access_token
+  properties:
+    type:
+      type: string
+      enum:
+        - privy_access_token
+    privy_access_token:
+      type: string
+    wallet_address:
+      type: string
+      nullable: true
+RewardCashoutRequest:
+  type: object
+  required:
+    - amount_cents
+    - idempotency_key
+  properties:
+    amount_cents:
+      type: integer
+    idempotency_key:
+      type: string
+    wallet_proof:
+      nullable: true
+      $ref: ./rewards.yaml#/RewardCashoutWalletProof
+RewardCashoutResponse:
+  type: object
+  required:
+    - payout
+    - balance_cents
+  properties:
+    payout:
+      $ref: ./rewards.yaml#/RewardPayoutSummary
+    balance_cents:
+      type: integer

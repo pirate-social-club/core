@@ -273,6 +273,16 @@ const TYPE_EXPORTS = [
   { name: "NotificationTasksResponse", ref: "#/components/schemas/NotificationTasksResponse" },
   { name: "MarkNotificationsReadRequest", ref: "#/components/schemas/MarkNotificationsReadRequest" },
   { name: "DismissTaskRequest", ref: "#/components/schemas/DismissTaskRequest" },
+  { name: "RewardVerificationState", ref: "#/components/schemas/RewardVerificationState" },
+  { name: "RewardEventKind", ref: "#/components/schemas/RewardEventKind" },
+  { name: "RewardEventSummary", ref: "#/components/schemas/RewardEventSummary" },
+  { name: "RewardsCashoutSummary", ref: "#/components/schemas/RewardsCashoutSummary" },
+  { name: "RewardsSummaryResponse", ref: "#/components/schemas/RewardsSummaryResponse" },
+  { name: "RewardPayoutStatus", ref: "#/components/schemas/RewardPayoutStatus" },
+  { name: "RewardPayoutSummary", ref: "#/components/schemas/RewardPayoutSummary" },
+  { name: "RewardCashoutWalletProof", ref: "#/components/schemas/RewardCashoutWalletProof" },
+  { name: "RewardCashoutRequest", ref: "#/components/schemas/RewardCashoutRequest" },
+  { name: "RewardCashoutResponse", ref: "#/components/schemas/RewardCashoutResponse" },
   { name: "ClaimableRoyaltyItem", ref: "#/components/schemas/ClaimableRoyaltyItem" },
   { name: "ClaimableRoyaltiesResponse", ref: "#/components/schemas/ClaimableRoyaltiesResponse" },
   { name: "RoyaltyActivityItem", ref: "#/components/schemas/RoyaltyActivityItem" },
@@ -449,6 +459,8 @@ const ROUTE_EXPORTS = [
   { name: "notificationsFeed", path: "/notifications/feed" },
   { name: "notificationsMarkRead", path: "/notifications/mark-read" },
   { name: "notificationsDismissTask", path: "/notifications/dismiss-task" },
+  { name: "meRewards", path: "/me/rewards" },
+  { name: "meRewardsCashouts", path: "/me/rewards/cashouts" },
 ] as const;
 
 const GENERATED_FILE_BANNER = `// GENERATED FILE. Edit specs/api/src/** and run \`rtk bun specs/api/scripts/generate-api-contracts.ts\`.\n`;

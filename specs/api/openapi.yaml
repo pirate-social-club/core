@@ -42,6 +42,7 @@ tags:
   - name: Moderation
   - name: MPP
   - name: Notifications
+  - name: Rewards
   - name: Jobs
 paths:
   /.well-known/api-catalog:
@@ -6541,6 +6542,40 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserTask"
+  /me/rewards:
+    get:
+      x-implemented: true
+      operationId: me_rewards
+      tags:
+        - Rewards
+      summary: Get the current user's rewards ledger summary
+      responses:
+        "200":
+          description: Rewards summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RewardsSummaryResponse"
+  /me/rewards/cashouts:
+    post:
+      x-implemented: true
+      operationId: me_rewards_cashouts
+      tags:
+        - Rewards
+      summary: Claim off-chain reward credits to the user's wallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RewardCashoutRequest"
+      responses:
+        "202":
+          description: Cashout submitted or confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RewardCashoutResponse"
   /jobs:
     get:
       tags:
@@ -13676,7 +13711,7 @@ components:
     DonationPartnerSummary:
       type: object
       description: |
-        Public/admin-safe summary of a reviewed donation partner, including the approved payout destination used by settlement.
+        Public/admin-safe summary of a reviewed donation partner. Full payout routing details remain internal to Pirate settlement systems in v0.
       required:
         - donation_partner
         - display_name
@@ -13693,9 +13728,6 @@ components:
           enum:
             - endaoment
         provider_partner_ref:
-          type: string
-          nullable: true
-        payout_destination_ref:
           type: string
           nullable: true
         image_url:
@@ -17118,6 +17150,146 @@ components:
       properties:
         task_id:
           type: string
+    RewardVerificationState:
+      type: string
+      enum:
+        - unverified
+        - verified
+        - conflict
+    RewardEventKind:
+      type: string
+      enum:
+        - study_streak_day
+        - study_streak_milestone_7
+        - study_streak_milestone_30
+    RewardEventSummary:
+      type: object
+      required:
+        - id
+        - user_id
+        - community_id
+        - post_id
+        - activity_date
+        - reward_kind
+        - amount_cents
+        - created_at
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        community_id:
+          type: string
+        post_id:
+          type: string
+        activity_date:
+          type: string
+        reward_kind:
+          $ref: "#/components/schemas/RewardEventKind"
+        amount_cents:
+          type: integer
+        created_at:
+          type: integer
+          format: int64
+    RewardsCashoutSummary:
+      type: object
+      required:
+        - eligible
+        - min_cents
+        - verification_state
+      properties:
+        eligible:
+          type: boolean
+        min_cents:
+          type: integer
+        verification_state:
+          $ref: "#/components/schemas/RewardVerificationState"
+    RewardsSummaryResponse:
+      type: object
+      required:
+        - balance_cents
+        - today_earned_cents
+        - recent_events
+        - cashout
+      properties:
+        balance_cents:
+          type: integer
+        today_earned_cents:
+          type: integer
+        recent_events:
+          type: array
+          items:
+            $ref: "#/components/schemas/RewardEventSummary"
+        cashout:
+          $ref: "#/components/schemas/RewardsCashoutSummary"
+    RewardPayoutStatus:
+      type: string
+      enum:
+        - submitted
+        - confirmed
+        - failed
+    RewardPayoutSummary:
+      type: object
+      required:
+        - id
+        - amount_cents
+        - recipient_address
+        - status
+        - settlement_ref
+        - failure_reason
+      properties:
+        id:
+          type: string
+        amount_cents:
+          type: integer
+        recipient_address:
+          type: string
+        status:
+          $ref: "#/components/schemas/RewardPayoutStatus"
+        settlement_ref:
+          type: string
+          nullable: true
+        failure_reason:
+          type: string
+          nullable: true
+    RewardCashoutWalletProof:
+      type: object
+      required:
+        - type
+        - privy_access_token
+      properties:
+        type:
+          type: string
+          enum:
+            - privy_access_token
+        privy_access_token:
+          type: string
+        wallet_address:
+          type: string
+          nullable: true
+    RewardCashoutRequest:
+      type: object
+      required:
+        - amount_cents
+        - idempotency_key
+      properties:
+        amount_cents:
+          type: integer
+        idempotency_key:
+          type: string
+        wallet_proof:
+          nullable: true
+          $ref: "#/components/schemas/RewardCashoutWalletProof"
+    RewardCashoutResponse:
+      type: object
+      required:
+        - payout
+        - balance_cents
+      properties:
+        payout:
+          $ref: "#/components/schemas/RewardPayoutSummary"
+        balance_cents:
+          type: integer
     ClaimableRoyaltyItem:
       type: object
       required:
