@@ -218,7 +218,7 @@ hardened (allowlist, timeout, cache, pagination cap).
 
 Serialization routing:
 
-- no trait filter → `erc721_holding`
+- no trait filter → `erc721_holding` with optional `min_count` (default 1)
 - trait filter, `trait_source.kind = live_api` (Courtyard) →
   `erc721_inventory_match`
 - trait filter, `trait_source.kind = owned_snapshot` → a generalized
@@ -235,8 +235,8 @@ and one Gengar.
 
 Provenance appears as small copy ("Traits verified via Courtyard" /
 "via trait snapshot vN"), never as a primary field. Known backend gaps
-surfaced honestly in the UI until fixed: `erc721_holding` has no min-count
-(quantity locked at 1), is mainnet-only, and there is no ERC-1155 support.
+surfaced honestly in the UI until fixed: `erc721_holding` is mainnet-only,
+and there is no ERC-1155 support.
 
 ## Capability probe (advisory)
 
