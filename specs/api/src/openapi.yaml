@@ -41,6 +41,7 @@ tags:
   - name: Moderation
   - name: MPP
   - name: Notifications
+  - name: Rewards
   - name: Jobs
 paths:
   /.well-known/api-catalog:
@@ -447,6 +448,10 @@ paths:
     $ref: ./paths/notifications.yaml#/notifications_mark_read
   /notifications/dismiss-task:
     $ref: ./paths/notifications.yaml#/notifications_dismiss_task
+  /me/rewards:
+    $ref: ./paths/rewards.yaml#/me_rewards
+  /me/rewards/cashouts:
+    $ref: ./paths/rewards.yaml#/me_rewards_cashouts
   /jobs:
     $ref: ./paths/jobs.yaml#/jobs
   /jobs/{job_id}:
@@ -1095,6 +1100,26 @@ components:
       $ref: ./components/schemas/notifications.yaml#/MarkNotificationsReadRequest
     DismissTaskRequest:
       $ref: ./components/schemas/notifications.yaml#/DismissTaskRequest
+    RewardVerificationState:
+      $ref: ./components/schemas/rewards.yaml#/RewardVerificationState
+    RewardEventKind:
+      $ref: ./components/schemas/rewards.yaml#/RewardEventKind
+    RewardEventSummary:
+      $ref: ./components/schemas/rewards.yaml#/RewardEventSummary
+    RewardsCashoutSummary:
+      $ref: ./components/schemas/rewards.yaml#/RewardsCashoutSummary
+    RewardsSummaryResponse:
+      $ref: ./components/schemas/rewards.yaml#/RewardsSummaryResponse
+    RewardPayoutStatus:
+      $ref: ./components/schemas/rewards.yaml#/RewardPayoutStatus
+    RewardPayoutSummary:
+      $ref: ./components/schemas/rewards.yaml#/RewardPayoutSummary
+    RewardCashoutWalletProof:
+      $ref: ./components/schemas/rewards.yaml#/RewardCashoutWalletProof
+    RewardCashoutRequest:
+      $ref: ./components/schemas/rewards.yaml#/RewardCashoutRequest
+    RewardCashoutResponse:
+      $ref: ./components/schemas/rewards.yaml#/RewardCashoutResponse
     ClaimableRoyaltyItem:
       $ref: ./components/schemas/notifications.yaml#/ClaimableRoyaltyItem
     ClaimableRoyaltiesResponse:

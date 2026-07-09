@@ -1,0 +1,34 @@
+me_rewards:
+  get:
+    x-implemented: true
+    operationId: me_rewards
+    tags:
+      - Rewards
+    summary: Get the current user's rewards ledger summary
+    responses:
+      "200":
+        description: Rewards summary
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/rewards.yaml#/RewardsSummaryResponse
+me_rewards_cashouts:
+  post:
+    x-implemented: true
+    operationId: me_rewards_cashouts
+    tags:
+      - Rewards
+    summary: Claim off-chain reward credits to the user's wallet
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/rewards.yaml#/RewardCashoutRequest
+    responses:
+      "202":
+        description: Cashout submitted or confirmed
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/rewards.yaml#/RewardCashoutResponse
