@@ -1,6 +1,6 @@
 # Community Tiers and Entitlements
 
-Status: draft (2026-07-09) — direction agreed in design review; not yet implemented
+Status: current working spec — direction agreed in design review; not yet implemented
 
 Related docs:
 
