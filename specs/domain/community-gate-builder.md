@@ -164,13 +164,24 @@ GET /gate-capabilities/nft?chain=eip155:1&contract=0x...
 
 ## Trait-filter authoring paths
 
-1. **Catalog/trait search (primary, blocked):** pick collection → search
+1. **Catalog/trait search (primary):** pick collection → search
    trait namespace/value (subject = Charizard) → optionally narrow
    (grade/set/year) → preview approximate matched class → serialize the exact
-   facet predicate. Blocked on research: does Courtyard expose a stable
-   catalog/search API (not just per-wallet ownership)? Class-size preview
-   additionally needs catalog aggregates; without them, preview degrades to
-   facet-key validation only.
+   facet predicate. Courtyard research on 2026-07-09 found:
+   - `/index/query` is no longer a viable general catalog path (HTTP 410).
+   - `/index/attributes?collection=Watches` and
+     `/index/attributes?collection=Graded%20Cards` expose catalog-level facet
+     dictionaries independent of the creator's wallet. `Graded Cards` is very
+     large and should be fetched/cached server-side, not directly from the UI.
+   - Courtyard's current frontend uses a public Algolia catalog index
+     (`marketplace_prod_asset_ownership`) that supports text search
+     (`query=Charizard`) and returns facet counts such as
+     `metadata.Category`, `metadata.Title/Subject`, `metadata.Set`, and
+     `metadata.Grade`. This is the likely source for interactive trait search
+     and approximate class-size preview.
+   Production work still needs a backend adapter, caching/staleness policy,
+   and normalization from Courtyard/Algolia facet names to Pirate's canonical
+   `erc721_inventory_match.match` keys.
 2. **Inventory-derived shortcut:** "start from an asset I own" — populate a
    facet predicate from the creator's connected-wallet holdings. Useful,
    guaranteed-valid facets, but a labeled stopgap: admins gate on assets they
@@ -180,7 +191,9 @@ GET /gate-capabilities/nft?chain=eip155:1&contract=0x...
 
 ## Open decisions
 
-- Courtyard catalog/search API existence (blocks authoring path 1).
+- Courtyard catalog/search adapter shape: Algolia-backed search plus
+  `/index/attributes` fallback/cache, facet normalization, rate limits, and
+  freshness policy.
 - General NFT indexer selection for non-Courtyard trait gating.
 - ERC-1155 and additional chains as new evaluation modes.
 - ZKPassport → `unique_human` promotion. Gated on: (a) nullifier semantics
