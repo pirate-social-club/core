@@ -59,9 +59,21 @@ superseded by this spec.
 - The serialized atom/depth budget is displayed live and computed on the
   SERIALIZED form, not the visual tree (a two-provider personhood row
   serializes to an OR of two `unique_human` atoms).
-- Assurance-dilution warnings are concrete and inline: an OR group containing
-  `altcha_pow` plus stronger proofs states that completing the anti-bot check
-  alone grants passage.
+- Assurance-dilution warnings are SEMANTIC, not structural. The strong
+  warning ("a browser challenge alone is enough to join") fires only when the
+  WHOLE policy evaluates true under the assignment "`altcha_pow` satisfied,
+  every other atom false". An anti-bot OR nested inside a stronger AND —
+  e.g. `human AND (anti-bot OR score)` — must not warn as if the captcha
+  admits anyone; it gets milder easiest-path-through-this-group copy, since
+  the enclosing conjunction still gates admission. A structural per-group
+  check is locally true but globally misleading.
+- The builder shows a persona simulation ("who gets in"): the serialized
+  policy evaluated against minimal single-capability profiles (bot with
+  captcha, Self-verified human, Very-verified human, score-N wallet,
+  collection holder), rendered as a joins/blocked matrix. Composition
+  confusion that per-group warnings cannot express is answered by concrete
+  admission results; the real implementation derives profiles from the
+  policy's atoms and reuses preview-mode evaluation.
 
 ## Field vocabulary → atom mapping
 
