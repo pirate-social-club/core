@@ -196,10 +196,16 @@ GET /gate-capabilities/nft?chain=eip155:1&contract=0x...
   freshness policy.
 - General NFT indexer selection for non-Courtyard trait gating.
 - ERC-1155 and additional chains as new evaluation modes.
-- ZKPassport → `unique_human` promotion. Gated on: (a) nullifier semantics
-  check (per-document, app-scoped), (b) evidence of real-document completions
-  in prod, (c) staging e2e with `ZKPASSPORT_DEV_MODE`. Decides the Personhood
-  chip set here, retroactive backfill, and the verified-badge population.
+- ZKPassport → `unique_human` promotion. Today the API stores ZKPassport
+  completions as document capabilities only; it records the
+  `zkpassport-unique-identifier` nullifier but does not mint `unique_human` or
+  set the user's global `verification_state`. Production aggregate read on
+  2026-07-09 found 0 ZKPassport sessions, attestations, or active
+  nullifiers, so there is no current backfill population. Promotion is still
+  gated on: (a) final nullifier semantics check (per-document, app-scoped),
+  (b) staging e2e with `ZKPASSPORT_DEV_MODE`, and (c) the product decision
+  that passport-NFC uniqueness should count as personhood. This decides the
+  Personhood chip set here and the verified-badge population.
 - Fungible/native balance gates: new atom family, out of scope for this spec
   (ETH/ERC-20 first; BTC/SOL blocked on wallet-attachment rails; USD
   denomination requires an oracle policy).
