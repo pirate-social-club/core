@@ -387,7 +387,9 @@ GateRuleInput:
           for an allowlisted ERC-721 inventory provider. The public v0 Courtyard lane currently resolves
           against Courtyard's Polygon inventory API (`chain_namespace: eip155:137`) after server-side
           provider validation. Existing stored gates may still read legacy `asset_filter`, but new
-          authoring flows should write `match`.
+          authoring flows should write `match`. Match values may be strings or per-key allowlists of
+          strings; keys are ANDed, values within one key are ORed, and `min_quantity` counts assets
+          matching the whole predicate.
         Deferred/admin-only gates may additionally use:
         - `sanctions_clear`: no extra config required
 GateRule:
@@ -454,7 +456,9 @@ GateRule:
         - `wallet_score`: `minimum_score`
         - `erc721_holding`: `contract_address`
         - `erc721_inventory_match`: `contract_address`, `inventory_provider`, `min_quantity`, and canonical `match`
-          (`asset_filter` is legacy read compatibility)
+          (`asset_filter` is legacy read compatibility). Match values may be strings or per-key
+          allowlists of strings; keys are ANDed, values within one key are ORed, and `min_quantity`
+          counts assets matching the whole predicate.
         Deferred/admin-only gates may additionally use:
         - `sanctions_clear`: no extra config
     status:

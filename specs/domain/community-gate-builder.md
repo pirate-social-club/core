@@ -225,6 +225,14 @@ Serialization routing:
   snapshot-match atom (new; shape open — carries the collection plus the
   canonical trait predicate, evaluated against the owned store)
 
+For `erc721_inventory_match`, `match` is a flat record: keys are ANDed
+together, and each key's value may be either one string or a non-empty
+allowlist of strings. An allowlist ORs within that facet, so
+`{subject: ["Charizard", "Gengar"]}` means either subject qualifies. The
+`min_quantity` threshold counts assets matching the whole predicate: `holds ≥
+2` with `subject: ["Charizard", "Gengar"]` may be satisfied by one Charizard
+and one Gengar.
+
 Provenance appears as small copy ("Traits verified via Courtyard" /
 "via trait snapshot vN"), never as a primary field. Known backend gaps
 surfaced honestly in the UI until fixed: `erc721_holding` has no min-count

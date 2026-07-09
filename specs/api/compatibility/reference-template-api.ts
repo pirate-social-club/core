@@ -1075,7 +1075,7 @@ type GateAtom = {
   chain_namespace?: string;
   contract_address?: string;
   min_quantity?: number;
-  match?: Record<string, unknown>;
+  match?: Record<string, string | string[]>;
 };
 
 type GateExpression = {
