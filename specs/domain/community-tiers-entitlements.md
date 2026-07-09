@@ -90,6 +90,8 @@ reconstruct later; required for policy changes and disputes:
 - tier id + tier version
 - expression version used at claim time
 - evaluator/provider used
+- trait snapshot version (`trait_table_version`) when a snapshot-evaluated
+  trait gate granted the tier
 - timestamp
 - minimal qualifying evidence summary
 

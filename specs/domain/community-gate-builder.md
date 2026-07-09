@@ -117,24 +117,75 @@ collection-level vs trait-level predicates:
   this is not a Courtyard property; on-chain collections have mutable traits
   too.
 
-The backend keeps a trust registry:
+The backend keeps a trust registry — one record per gated collection:
 
 ```
-collection → supported evaluation modes → trusted trait source → freshness/staleness policy
+{
+  chain_namespace, contract_address,
+  standard: erc721 | erc1155 | cryptopunks,
+  evaluation_modes: [collection_holding, trait_match],
+  trait_source: {kind: owned_snapshot, ingestion_vendor}
+              | {kind: live_api, provider: courtyard},
+  freshness: {refresh_interval, on_trait_diff: alert | accept | freeze},
+  current_trait_table_version
+}
 ```
+
+### Owned trait store + propose/confirm evaluation
+
+For generic collections, trait data is OWNED, not queried live. Third-party
+NFT APIs are ingestion and proposal inputs to the adapter, never the live
+gate-evaluation path. Rationale: the standalone NFT-indexing market is
+unstable — Reservoir sunset its NFT API in 2025 (pivoting to Relay) and
+SimpleHash shut down 2025-03-27 after the Phantom acquisition. A vendor's
+death must be an inconvenience (re-point the crawler), not a gate outage.
+
+- **Ingest:** provider-assisted crawl (or raw RPC + `tokenURI` fetches) →
+  `chain + contract + token_id → normalized traits` in our storage, stamped
+  with `trait_table_version`, `source`, `fetched_at`. Feasible because trait
+  gates exist only for registry collections (BAYC = 10k rows), never "all
+  NFTs".
+- **Normalize once, at ingestion:** vendor facet names map to canonical
+  match keys. One normalization concept covers Courtyard/Algolia facets and
+  generic vendor attributes.
+- **Refresh:** scheduled per the registry freshness policy. Each refresh
+  computes a trait DIFF against the prior version — a changed trait silently
+  changes who is eligible (reveals, `baseURI` swaps) — and the registry's
+  `on_trait_diff` policy decides: alert, accept, or freeze the collection's
+  trait gates pending review.
+- **Evaluate (propose/confirm):** a vendor ownership endpoint (or our own
+  owner index) PROPOSES candidate token ids owned by the wallet; candidates
+  join against our trait snapshot; the granting token(s) are CONFIRMED
+  on-chain before admission — `ownerOf(tokenId)` for ERC-721,
+  `balanceOf(wallet, tokenId)` for ERC-1155, the native
+  `punkIndexToAddress` path if CryptoPunks is ever onboarded. A stale or
+  lying proposal can never falsely grant; proposal-source downtime fails
+  closed; confirm cost is one RPC call per granting token.
+- **Vendor-free evaluation (later):** the crawler can additionally maintain
+  a per-collection owner index (scheduled `ownerOf`/multicall sweeps or
+  Transfer-log tailing), making proposal a local query and demoting vendors
+  to ingestion bootstrap only.
+- **ERC-1155 quantity semantics (decide before 1155 ships):** `holds ≥ N`
+  means total matching balance across token ids, not N distinct token ids.
+
+Courtyard remains a live-API source deliberately: its traits and custody
+state describe physical vaulted assets that change off-chain (redemption),
+so Courtyard is the authority of record, not an indexer. Its path is already
+hardened (allowlist, timeout, cache, pagination cap).
 
 Serialization routing:
 
 - no trait filter → `erc721_holding`
-- trait filter, trusted source = courtyard → `erc721_inventory_match`
-- trait filter, future sources (Reservoir / Alchemy / OpenSea /
-  project-hosted) → generalized inventory atom or a new provider-backed
-  strategy (open)
+- trait filter, `trait_source.kind = live_api` (Courtyard) →
+  `erc721_inventory_match`
+- trait filter, `trait_source.kind = owned_snapshot` → a generalized
+  snapshot-match atom (new; shape open — carries the collection plus the
+  canonical trait predicate, evaluated against the owned store)
 
-Provenance appears as small copy ("Traits verified via Courtyard"), never as
-a primary field. Known backend gaps surfaced honestly in the UI until fixed:
-`erc721_holding` has no min-count (quantity locked at 1), is mainnet-only,
-and there is no ERC-1155 support.
+Provenance appears as small copy ("Traits verified via Courtyard" /
+"via trait snapshot vN"), never as a primary field. Known backend gaps
+surfaced honestly in the UI until fixed: `erc721_holding` has no min-count
+(quantity locked at 1), is mainnet-only, and there is no ERC-1155 support.
 
 ## Capability probe (advisory)
 
@@ -167,7 +218,13 @@ GET /gate-capabilities/nft?chain=eip155:1&contract=0x...
 1. **Catalog/trait search (primary):** pick collection → search
    trait namespace/value (subject = Charizard) → optionally narrow
    (grade/set/year) → preview approximate matched class → serialize the exact
-   facet predicate. Courtyard research on 2026-07-09 found:
+   facet predicate. For collections with an owned snapshot, the facet
+   dictionary and class-size preview are served from OUR trait store —
+   vendor catalogs (Alchemy `summarizeNFTAttributes`, OpenSea collection
+   traits, Courtyard's Algolia index) are pre-onboarding evidence, ingestion
+   inputs, and cross-checks for the adapter, not the authoring backend and
+   never the committed production contract. Courtyard ingestion-bootstrap
+   research on 2026-07-09 found:
    - `/index/query` is no longer a viable general catalog path (HTTP 410).
    - `/index/attributes?collection=Watches` and
      `/index/attributes?collection=Graded%20Cards` expose catalog-level facet
@@ -193,8 +250,17 @@ GET /gate-capabilities/nft?chain=eip155:1&contract=0x...
 
 - Courtyard catalog/search adapter shape: Algolia-backed search plus
   `/index/attributes` fallback/cache, facet normalization, rate limits, and
-  freshness policy.
-- General NFT indexer selection for non-Courtyard trait gating.
+  freshness policy. These are ingestion inputs to the adapter, not committed
+  production contracts — pursue a Courtyard-supported catalog path for
+  durability.
+- Ingestion/proposal vendor bake-off for generic collections. Alchemy is the
+  default candidate (`summarizeNFTAttributes` for facet dictionaries,
+  ownership endpoints for crawl/propose); alternates: Moralis, QuickNode,
+  OpenSea, NFTScan. Criteria: CryptoPunks normalization, ERC-1155 handling,
+  post-reveal refresh behavior, rate limits, price. Vendors are replaceable
+  by design (owned snapshot).
+- Shape of the generalized snapshot-match atom (collection + canonical trait
+  predicate).
 - ERC-1155 and additional chains as new evaluation modes.
 - ZKPassport → `unique_human` promotion. Today the API stores ZKPassport
   completions as document capabilities only; it records the
