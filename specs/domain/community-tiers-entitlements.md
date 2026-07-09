@@ -77,10 +77,18 @@ scarce, durable, visible entitlements (names):
   mid-cycle revocation. Precedent already in the system: `unique_human`
   capabilities expire after 90 days into `reverification_required`.
 
-Grace period on failed revalidation: the name does not release instantly —
-N-day notice window to re-qualify, then the name returns to the tier's pool
-(N open). Courtyard physical redemption (token burned/moved on withdrawal)
-needs no special case: it fails the next revalidation exactly like a sale.
+Grace period on failed revalidation: the name does not release instantly. V1
+uses a platform default grace window, not a per-community knob; start at ~30
+days unless implementation research finds a better operational default. The
+owner gets private notices at failed revalidation, T-7, and T-1. The name and
+badge stay publicly functional during grace; public state changes only at
+release, because grace exists to avoid a mid-cycle identity rug. Re-qualification
+must be user-triggerable ("re-check now") so a member who regains eligibility
+does not wait for the next sweep. On release, the name enters a short cooldown
+with right of first refusal for the lapsed member before returning to the open
+pool; otherwise renewal epochs create lapse-sniping incentives. Courtyard
+physical redemption (token burned/moved on withdrawal) needs no special case:
+it fails the next revalidation exactly like a sale.
 
 ## Provenance snapshot (recorded at claim time)
 
@@ -111,3 +119,4 @@ blob — do NOT expose raw token IDs or full inventory in app payloads.
 - Migration path for existing single-policy communities.
 - Renewal epoch source: Handshake-style name renewal cycle vs a
   platform-defined revalidation interval for non-name entitlements (badges).
+- Exact duration for the post-release right-of-first-refusal cooldown.
