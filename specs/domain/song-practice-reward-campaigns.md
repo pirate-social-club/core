@@ -4,6 +4,7 @@ Status: **draft (spec-only, do not build yet)**.
 
 Related docs:
 
+- [song-practice-reward-decisions.md](./song-practice-reward-decisions.md)
 - [dance-video-boosts.md](./dance-video-boosts.md)
 - [community-pricing-policy.md](./community-pricing-policy.md)
 - [purchase-quote-flow.md](./purchase-quote-flow.md)
@@ -12,6 +13,9 @@ Related docs:
 This spec replaces the flat platform-funded rewards product direction with a funded campaign
 model. Streaks remain the habit and leaderboard layer. Cash rewards exist when a rewarder funds a
 campaign for a song.
+
+The accepted V1 decisions in `song-practice-reward-decisions.md` override unresolved or
+contradictory alternatives in this draft.
 
 ## 0. Product shape
 

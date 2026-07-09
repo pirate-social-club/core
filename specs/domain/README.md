@@ -66,6 +66,8 @@ Product and system design docs grouped by domain surface.
   Karaoke-specific behavior and assets.
 - `song-practice-reward-campaigns.md`
   Funded song-practice reward campaigns, nationality-tiered rates, verification, and payout semantics.
+- `song-practice-reward-decisions.md`
+  Accepted V1 decisions for activity scope, qualification, reward periods, identity, and rollout.
 - `livestream.md`
   Live room and broadcast surface.
 - `live-access-runtime.md`
