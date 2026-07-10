@@ -6600,6 +6600,7 @@ paths:
           description: Cashout not found for the current user
   /reward_campaigns:
     post:
+      x-implemented: true
       operationId: reward_campaigns_create
       tags:
         - Rewards
@@ -6627,6 +6628,7 @@ paths:
         schema:
           type: string
     get:
+      x-implemented: true
       operationId: reward_campaigns_retrieve
       tags:
         - Rewards
@@ -6648,6 +6650,7 @@ paths:
         schema:
           type: string
     post:
+      x-implemented: true
       operationId: reward_campaign_funding_quotes_create
       tags:
         - Rewards
@@ -6680,6 +6683,7 @@ paths:
         schema:
           type: string
     post:
+      x-implemented: true
       operationId: reward_campaign_funding_quotes_confirm
       tags:
         - Rewards

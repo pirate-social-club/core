@@ -56,6 +56,7 @@ me_rewards_cashouts_by_cashout_id:
         description: Cashout not found for the current user
 reward_campaigns:
   post:
+    x-implemented: true
     operationId: reward_campaigns_create
     tags:
       - Rewards
@@ -83,6 +84,7 @@ reward_campaigns_by_campaign_id:
       schema:
         type: string
   get:
+    x-implemented: true
     operationId: reward_campaigns_retrieve
     tags:
       - Rewards
@@ -104,6 +106,7 @@ reward_campaign_funding_quotes:
       schema:
         type: string
   post:
+    x-implemented: true
     operationId: reward_campaign_funding_quotes_create
     tags:
       - Rewards
@@ -136,6 +139,7 @@ reward_campaign_funding_quotes_confirm:
       schema:
         type: string
   post:
+    x-implemented: true
     operationId: reward_campaign_funding_quotes_confirm
     tags:
       - Rewards
