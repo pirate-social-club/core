@@ -429,6 +429,45 @@ booking_by_booking_id:
                   $ref: ../components/schemas/bookings.yaml#/Booking
       "404":
         $ref: ../components/responses.yaml#/NotFound
+booking_cancellation_preview:
+  get:
+    tags: [Bookings]
+    x-implemented: true
+    summary: Preview the authoritative financial result of cancelling a booking
+    responses:
+      "200":
+        description: Cancellation consequence at the current instant
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/bookings.yaml#/BookingCancellationPreview
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+booking_cancel:
+  post:
+    tags: [Bookings]
+    x-implemented: true
+    summary: Cancel a booking, checking previously confirmed financial terms when supplied
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/bookings.yaml#/CancelBookingRequest
+    responses:
+      "200":
+        description: Booking cancellation result
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
 booking_action:
   post:
     tags: [Bookings]

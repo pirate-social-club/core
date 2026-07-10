@@ -4950,6 +4950,23 @@ paths:
                     $ref: "#/components/schemas/Booking"
         "404":
           $ref: "#/components/responses/NotFound"
+  /bookings/{booking_id}/cancellation-preview:
+    get:
+      tags:
+        - Bookings
+      x-implemented: true
+      summary: Preview the authoritative financial result of cancelling a booking
+      responses:
+        "200":
+          description: Cancellation consequence at the current instant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingCancellationPreview"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /bookings/{booking_id}/settlement-review:
     get:
       tags:
@@ -5004,20 +5021,21 @@ paths:
       tags:
         - Bookings
       x-implemented: true
-      summary: Mutate a booking lifecycle state
+      summary: Cancel a booking, checking previously confirmed financial terms when supplied
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelBookingRequest"
       responses:
         "200":
-          description: Booking lifecycle action result
+          description: Booking cancellation result
           content:
             application/json:
               schema:
                 type: object
                 additionalProperties: true
-                required:
-                  - booking
-                properties:
-                  booking:
-                    $ref: "#/components/schemas/Booking"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -13695,6 +13713,12 @@ components:
           type: string
         status:
           $ref: "#/BookingStatus"
+        outcome:
+          $ref: "#/BookingOutcome"
+        settlement_status:
+          $ref: "#/BookingSettlementStatus"
+        counterparty:
+          $ref: "#/BookingCounterparty"
         host_user_id:
           type: string
         booker_user_id:
@@ -13711,6 +13735,54 @@ components:
           type: integer
         host_payout_cents:
           type: integer
+    BookingCancellationPreview:
+      type: object
+      additionalProperties: false
+      required:
+        - object
+        - booking_id
+        - cancelled_by
+        - gross_cents
+        - refund_cents
+        - host_payout_cents
+        - platform_fee_cents
+        - previewed_at
+        - policy_cutoff_at
+      properties:
+        object:
+          type: string
+          enum:
+            - booking_cancellation_preview
+        booking_id:
+          type: string
+        cancelled_by:
+          type: string
+          enum:
+            - host
+            - booker
+        gross_cents:
+          type: integer
+        refund_cents:
+          type: integer
+        host_payout_cents:
+          type: integer
+        platform_fee_cents:
+          type: integer
+        previewed_at:
+          type: string
+          format: date-time
+        policy_cutoff_at:
+          type: string
+          format: date-time
+          nullable: true
+    CancelBookingRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        expected_refund_cents:
+          type: integer
+          minimum: 0
+          description: Transitional compatibility field; when provided, cancellation fails if the authoritative refund has changed.
     BookingSessionAttachResponse:
       type: object
       additionalProperties: true
