@@ -452,6 +452,8 @@ paths:
     $ref: ./paths/rewards.yaml#/me_rewards
   /me/rewards/cashouts:
     $ref: ./paths/rewards.yaml#/me_rewards_cashouts
+  /me/rewards/cashouts/{cashout_id}:
+    $ref: ./paths/rewards.yaml#/me_rewards_cashouts_by_cashout_id
   /jobs:
     $ref: ./paths/jobs.yaml#/jobs
   /jobs/{job_id}:
