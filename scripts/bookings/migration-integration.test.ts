@@ -46,6 +46,7 @@ async function expectRejected(sql: SQL, statement: string, sqlstate: string): Pr
 const EXPECTED_MIGRATIONS = [
   "b0001_bookings_global_schema.sql",
   "b0002_booking_settlement_review.sql",
+  "b0003_booking_outcome.sql",
 ];
 
 // The exact table set the bookings migrations must create in the bookings schema.

@@ -332,12 +332,14 @@ paths:
     $ref: ./paths/bookings.yaml#/bookings_settlement_review_pending
   /bookings/{booking_id}:
     $ref: ./paths/bookings.yaml#/booking_by_booking_id
+  /bookings/{booking_id}/cancellation-preview:
+    $ref: ./paths/bookings.yaml#/booking_cancellation_preview
   /bookings/{booking_id}/settlement-review:
     $ref: ./paths/bookings.yaml#/booking_settlement_review
   /bookings/{booking_id}/settlement-review/resolve:
     $ref: ./paths/bookings.yaml#/booking_settlement_review_resolve
   /bookings/{booking_id}/cancel:
-    $ref: ./paths/bookings.yaml#/booking_action
+    $ref: ./paths/bookings.yaml#/booking_cancel
   /bookings/{booking_id}/start:
     $ref: ./paths/bookings.yaml#/booking_action
   /bookings/{booking_id}/complete:
@@ -908,6 +910,10 @@ components:
       $ref: ./components/schemas/bookings.yaml#/ConfirmBookingHoldRequest
     Booking:
       $ref: ./components/schemas/bookings.yaml#/Booking
+    BookingCancellationPreview:
+      $ref: ./components/schemas/bookings.yaml#/BookingCancellationPreview
+    CancelBookingRequest:
+      $ref: ./components/schemas/bookings.yaml#/CancelBookingRequest
     BookingSessionAttachResponse:
       $ref: ./components/schemas/bookings.yaml#/BookingSessionAttachResponse
     ResolveBookingSettlementReviewRequest:
