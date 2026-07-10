@@ -284,6 +284,14 @@ const TYPE_EXPORTS = [
   { name: "RewardCashoutWalletProof", ref: "#/components/schemas/RewardCashoutWalletProof" },
   { name: "RewardCashoutRequest", ref: "#/components/schemas/RewardCashoutRequest" },
   { name: "RewardCashoutResponse", ref: "#/components/schemas/RewardCashoutResponse" },
+  { name: "RewardCampaignStatus", ref: "#/components/schemas/RewardCampaignStatus" },
+  { name: "RewardCampaignEligibleActivity", ref: "#/components/schemas/RewardCampaignEligibleActivity" },
+  { name: "RewardCampaign", ref: "#/components/schemas/RewardCampaign" },
+  { name: "RewardCampaignCreateRequest", ref: "#/components/schemas/RewardCampaignCreateRequest" },
+  { name: "RewardCampaignFundingStatus", ref: "#/components/schemas/RewardCampaignFundingStatus" },
+  { name: "RewardCampaignFundingQuote", ref: "#/components/schemas/RewardCampaignFundingQuote" },
+  { name: "RewardCampaignFundingQuoteRequest", ref: "#/components/schemas/RewardCampaignFundingQuoteRequest" },
+  { name: "RewardCampaignFundingConfirmRequest", ref: "#/components/schemas/RewardCampaignFundingConfirmRequest" },
   { name: "ClaimableRoyaltyItem", ref: "#/components/schemas/ClaimableRoyaltyItem" },
   { name: "ClaimableRoyaltiesResponse", ref: "#/components/schemas/ClaimableRoyaltiesResponse" },
   { name: "RoyaltyActivityItem", ref: "#/components/schemas/RoyaltyActivityItem" },
@@ -462,6 +470,10 @@ const ROUTE_EXPORTS = [
   { name: "notificationsDismissTask", path: "/notifications/dismiss-task" },
   { name: "meRewards", path: "/me/rewards" },
   { name: "meRewardsCashouts", path: "/me/rewards/cashouts" },
+  { name: "rewardCampaigns", path: "/reward_campaigns" },
+  { name: "rewardCampaign", path: "/reward_campaigns/{campaign_id}" },
+  { name: "rewardCampaignFundingQuotes", path: "/reward_campaigns/{campaign_id}/funding_quotes" },
+  { name: "rewardCampaignFundingQuoteConfirm", path: "/reward_campaigns/{campaign_id}/funding_quotes/{funding_quote_id}/confirm" },
 ] as const;
 
 const GENERATED_FILE_BANNER = `// GENERATED FILE. Edit specs/api/src/** and run \`rtk bun specs/api/scripts/generate-api-contracts.ts\`.\n`;
