@@ -82,6 +82,11 @@ Community shards emit append-only qualification events through an outbox. Each e
 Control-plane consumption uses a durable per-community checkpoint and idempotent event keys. It
 must not repeatedly scan a newest-first window of mutable engagement rows.
 
+For the pilot, an implicit Study practice set is fixed by the server's first target count for the
+UTC reward period. Completion requires that many distinct server-issued exercise ids; retrying the
+same exercise does not advance reward completion. The existing correctness-based local streak may
+qualify at a different moment and is not cash-reward evidence.
+
 ## Milestones and caps
 
 - Milestones derive from durable campaign-period qualifications, not `current_streak`.
