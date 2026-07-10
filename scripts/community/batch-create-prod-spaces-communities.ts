@@ -5,6 +5,11 @@ import { createHmac, randomUUID } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import {
+  assertPassportNationalityGateSupported,
+  canonicalPassportNationalityAlias,
+} from "./passport-nationality-codes";
+
 type OwnerConfig = {
   subject: string;
   issuer?: string;
@@ -236,6 +241,8 @@ function canonicalSpacesRoot(value: string): string {
 
 function normalizeCountryCode(code: string): string {
   const upper = code.trim().toUpperCase();
+  const passportAlias = canonicalPassportNationalityAlias(upper);
+  if (passportAlias) return passportAlias;
   if (/^[A-Z]{2}$/.test(upper)) {
     const iso3 = ISO3_BY_ISO2.get(upper);
     if (iso3) return iso3;
@@ -720,6 +727,7 @@ async function main() {
   for (const entry of input.communities) {
     const rootLabel = canonicalSpacesRoot(entry.root);
     const countryCodeIso3 = normalizeCountryCode(entry.country_code);
+    assertPassportNationalityGateSupported(countryCodeIso3);
     communities.push({ ...entry, root_label: rootLabel, country_code_iso3: countryCodeIso3 });
   }
 
