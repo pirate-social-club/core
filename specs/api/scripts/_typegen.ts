@@ -96,6 +96,7 @@ export class TypeGenerator {
   private readonly sourceSchemas: Record<string, unknown>;
   private readonly refToAlias = new Map<string, string>();
   private readonly aliasDefinitions = new Map<string, string>();
+  private readonly refsBeingDefined = new Set<string>();
   private readonly exportNames: Set<string>;
 
   constructor(bundle: BundleSpec, sourceSchemas: Record<string, unknown>, exports: readonly ExportedSchema[]) {
@@ -129,11 +130,19 @@ export class TypeGenerator {
     if (this.aliasDefinitions.has(alias)) {
       return alias;
     }
+    if (this.refsBeingDefined.has(ref)) {
+      return alias;
+    }
 
-    const schema = this.resolveRef(ref);
-    const exported = this.exportNames.has(alias);
-    const declaration = `${exported ? "export " : ""}type ${alias} = ${this.renderSchema(schema)};`;
-    this.aliasDefinitions.set(alias, declaration);
+    this.refsBeingDefined.add(ref);
+    try {
+      const schema = this.resolveRef(ref);
+      const exported = this.exportNames.has(alias);
+      const declaration = `${exported ? "export " : ""}type ${alias} = ${this.renderSchema(schema)};`;
+      this.aliasDefinitions.set(alias, declaration);
+    } finally {
+      this.refsBeingDefined.delete(ref);
+    }
     return alias;
   }
 

@@ -1749,6 +1749,10 @@ PostViewerGateState:
       type: array
       items:
         $ref: ./communities-core.yaml#/MembershipGateSummary
+    membership_gate_expression:
+      $ref: ./communities-core.yaml#/MembershipGateExpressionSummary
+      nullable: true
+      description: Authoritative nested gate policy. Prefer this over the legacy flat summaries and top-level match mode when present.
     gate_match_mode:
       type: string
       enum:
