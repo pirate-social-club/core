@@ -449,7 +449,7 @@ booking_cancel:
   post:
     tags: [Bookings]
     x-implemented: true
-    summary: Cancel a booking using previously confirmed financial terms
+    summary: Cancel a booking, checking previously confirmed financial terms when supplied
     requestBody:
       required: true
       content:

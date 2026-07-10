@@ -3819,7 +3819,7 @@ paths:
     post:
       tags:
         - Bookings
-      summary: Cancel a booking using previously confirmed financial terms
+      summary: Cancel a booking, checking previously confirmed financial terms when supplied
       requestBody:
         required: true
         content:
@@ -11599,6 +11599,8 @@ components:
           $ref: "#/BookingOutcome"
         settlement_status:
           $ref: "#/BookingSettlementStatus"
+        counterparty:
+          $ref: "#/BookingCounterparty"
         host_user_id:
           type: string
         booker_user_id:
@@ -11658,12 +11660,11 @@ components:
     CancelBookingRequest:
       type: object
       additionalProperties: false
-      required:
-        - expected_refund_cents
       properties:
         expected_refund_cents:
           type: integer
           minimum: 0
+          description: Transitional compatibility field; when provided, cancellation fails if the authoritative refund has changed.
     BookingSessionAttachResponse:
       type: object
       additionalProperties: true

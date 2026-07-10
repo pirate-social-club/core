@@ -434,6 +434,19 @@ BookingOutcome:
 BookingSettlementStatus:
   type: string
   enum: [pending, live, settling, settled, refunded, disputed]
+BookingCounterparty:
+  type: object
+  additionalProperties: false
+  required: [user_id, display_name, avatar_ref]
+  properties:
+    user_id:
+      type: string
+    display_name:
+      type: string
+      nullable: true
+    avatar_ref:
+      type: string
+      nullable: true
 Booking:
   type: object
   additionalProperties: true
@@ -447,6 +460,8 @@ Booking:
       $ref: "#/BookingOutcome"
     settlement_status:
       $ref: "#/BookingSettlementStatus"
+    counterparty:
+      $ref: "#/BookingCounterparty"
     host_user_id:
       type: string
     booker_user_id:
@@ -494,11 +509,11 @@ BookingCancellationPreview:
 CancelBookingRequest:
   type: object
   additionalProperties: false
-  required: [expected_refund_cents]
   properties:
     expected_refund_cents:
       type: integer
       minimum: 0
+      description: Transitional compatibility field; when provided, cancellation fails if the authoritative refund has changed.
 BookingSessionAttachResponse:
   type: object
   additionalProperties: true
