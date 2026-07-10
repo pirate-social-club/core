@@ -248,6 +248,7 @@ const TYPE_EXPORTS = [
   { name: "LocalizedPostResponse", ref: "#/components/schemas/LocalizedPostResponse" },
   { name: "LocalizedPostEmbedTranslation", ref: "#/components/schemas/LocalizedPostEmbedTranslation" },
   { name: "MembershipGateSummary", ref: "#/components/schemas/MembershipGateSummary" },
+  { name: "MembershipGateExpressionSummary", ref: "#/components/schemas/MembershipGateExpressionSummary" },
   { name: "CommunityPreview", ref: "#/components/schemas/CommunityPreview" },
   { name: "JoinEligibility", ref: "#/components/schemas/JoinEligibility" },
   { name: "MembershipRequestStatus", ref: "#/components/schemas/MembershipRequestStatus" },
