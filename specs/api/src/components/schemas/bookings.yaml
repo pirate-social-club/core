@@ -437,10 +437,13 @@ BookingSettlementStatus:
 BookingCounterparty:
   type: object
   additionalProperties: false
-  required: [user_id, display_name, avatar_ref]
+  required: [user_id, public_handle, display_name, avatar_ref]
   properties:
     user_id:
       type: string
+    public_handle:
+      type: string
+      nullable: true
     display_name:
       type: string
       nullable: true
