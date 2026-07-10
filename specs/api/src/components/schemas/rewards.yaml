@@ -59,6 +59,7 @@ RewardsSummaryResponse:
     - today_earned_cents
     - recent_events
     - cashout
+    - latest_in_flight_cashout
   properties:
     balance_cents:
       type: integer
@@ -70,6 +71,9 @@ RewardsSummaryResponse:
         $ref: ./rewards.yaml#/RewardEventSummary
     cashout:
       $ref: ./rewards.yaml#/RewardsCashoutSummary
+    latest_in_flight_cashout:
+      nullable: true
+      $ref: ./rewards.yaml#/RewardPayoutSummary
 RewardPayoutStatus:
   type: string
   enum:
