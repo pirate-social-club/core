@@ -73,7 +73,7 @@ reward_campaigns:
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/rewards.yaml#/RewardCampaign
+              $ref: ../components/schemas/rewards.yaml#/PublicRewardOffer
       "409":
         description: Idempotency conflict or an existing live campaign owns the song post
 reward_song_policies_by_target:
@@ -168,7 +168,7 @@ public_reward_campaigns:
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/rewards.yaml#/RewardCampaign
+              $ref: ../components/schemas/rewards.yaml#/PublicRewardOffer
       "404":
         description: No active campaign offer was found
 public_reward_campaigns_by_campaign_id:
@@ -190,7 +190,7 @@ public_reward_campaigns_by_campaign_id:
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/rewards.yaml#/RewardCampaign
+              $ref: ../components/schemas/rewards.yaml#/PublicRewardOffer
       "404":
         description: No active campaign offer was found
 reward_campaign_funding_quotes:

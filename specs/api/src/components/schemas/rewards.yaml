@@ -176,6 +176,22 @@ RewardCampaignEligibleActivity:
     - study
     - karaoke
     - either
+PublicRewardOffer:
+  type: object
+  additionalProperties: false
+  required:
+    - eligible_activity
+    - daily_reward_cents
+    - ends_at
+  properties:
+    eligible_activity:
+      $ref: ./rewards.yaml#/RewardCampaignEligibleActivity
+    daily_reward_cents:
+      type: integer
+      minimum: 1
+    ends_at:
+      type: integer
+      format: int64
 RewardSongOwnerPolicy:
   type: object
   required:
@@ -337,9 +353,13 @@ RewardCampaignCreateRequest:
     milestone_7_cents:
       type: integer
       minimum: 0
+      maximum: 0
+      description: Must remain zero until campaign milestone crediting is implemented.
     milestone_30_cents:
       type: integer
       minimum: 0
+      maximum: 0
+      description: Must remain zero until campaign milestone crediting is implemented.
     reward_period_cap_cents:
       type: integer
       minimum: 1
