@@ -288,6 +288,8 @@ const TYPE_EXPORTS = [
   { name: "RewardCashoutResponse", ref: "#/components/schemas/RewardCashoutResponse" },
   { name: "RewardCampaignStatus", ref: "#/components/schemas/RewardCampaignStatus" },
   { name: "RewardCampaignEligibleActivity", ref: "#/components/schemas/RewardCampaignEligibleActivity" },
+  { name: "RewardSongOwnerPolicy", ref: "#/components/schemas/RewardSongOwnerPolicy" },
+  { name: "RewardSongOwnerPolicyUpdateRequest", ref: "#/components/schemas/RewardSongOwnerPolicyUpdateRequest" },
   { name: "RewardCampaign", ref: "#/components/schemas/RewardCampaign" },
   { name: "RewardCampaignCreateRequest", ref: "#/components/schemas/RewardCampaignCreateRequest" },
   { name: "RewardCampaignFundingStatus", ref: "#/components/schemas/RewardCampaignFundingStatus" },
@@ -474,7 +476,9 @@ const ROUTE_EXPORTS = [
   { name: "meRewards", path: "/me/rewards" },
   { name: "meRewardsCashouts", path: "/me/rewards/cashouts" },
   { name: "rewardCampaigns", path: "/reward_campaigns" },
+  { name: "rewardSongPolicies", path: "/reward_song_policies/{community_id}/{post_id}" },
   { name: "rewardCampaign", path: "/reward_campaigns/{campaign_id}" },
+  { name: "publicRewardCampaign", path: "/public/reward_campaigns/{campaign_id}" },
   { name: "rewardCampaignFundingQuotes", path: "/reward_campaigns/{campaign_id}/funding_quotes" },
   { name: "rewardCampaignFundingQuoteConfirm", path: "/reward_campaigns/{campaign_id}/funding_quotes/{funding_quote_id}/confirm" },
 ] as const;

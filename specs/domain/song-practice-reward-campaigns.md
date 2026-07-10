@@ -1,6 +1,6 @@
 # Song-practice reward campaigns
 
-Status: **implementation in progress behind default-off rewards flags**.
+Status: **historical exploration; not the V1 implementation contract**.
 
 Related docs:
 
@@ -14,24 +14,26 @@ This spec replaces the flat platform-funded rewards product direction with a fun
 model. Streaks remain the habit and leaderboard layer. Cash rewards exist when a rewarder funds a
 campaign for a song.
 
-The accepted V1 decisions in `song-practice-reward-decisions.md` override unresolved or
-contradictory alternatives in this draft.
+The accepted V1 decisions in `song-practice-reward-decisions.md`, the OpenAPI contract, and the
+control-plane migrations are normative. The regional/tiered pricing, country filtering, and
+multi-rate material below is retained only as deferred product research; it must not be used to
+implement or review the uniform-rate pilot.
 
 ## 0. Product shape
 
-Any account may create and fund a reward campaign for a published song. V1 has no owner-approval
-gate: a funded campaign attaches without the song owner's sign-off (owner controls — approve,
-decline, report — are deferred; the existing moderation surface covers abuse). A platform launch
-promotion is just the platform acting as a rewarder through the same campaign machinery.
+Any authenticated account may create and fund a reward campaign for a published song without
+community membership. The current song owner may opt out; that policy is enforced at creation,
+funding, activation, and reservation. A platform launch promotion is just the platform acting as a
+rewarder through the same campaign machinery.
 
-Users earn when they qualify a practice day for that song. A day qualifies when the existing
-song-engagement ledger marks the `(user, song, activity_date)` as qualified:
+Users earn when server-authoritative evidence qualifies a UTC reward period for that song:
 
-- study: the daily study attempt threshold is met; correctness does not matter,
+- study: a server-issued practice set is completed with idempotent unique exercises and the
+  platform engagement floor; correctness does not matter,
 - karaoke: a karaoke pass meets the configured score threshold.
 
-Rewards are per qualified day, not per action. Extra study attempts or extra karaoke passes on the
-same song and day do not earn more.
+Rewards are per qualified reward period, not per action. Extra study attempts or extra karaoke
+passes on the same song and UTC period do not earn more.
 
 Non-goals for v1:
 

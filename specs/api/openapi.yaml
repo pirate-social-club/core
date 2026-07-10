@@ -6638,6 +6638,52 @@ paths:
                 $ref: "#/components/schemas/RewardCampaign"
         "409":
           description: Idempotency conflict or an existing live campaign owns the song post
+  /reward_song_policies/{community_id}/{post_id}:
+    parameters:
+      - name: community_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: post_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      x-implemented: true
+      operationId: reward_song_policies_retrieve
+      tags:
+        - Rewards
+      summary: Get a song owner's third-party reward policy
+      responses:
+        "200":
+          description: Song reward policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RewardSongOwnerPolicy"
+    put:
+      x-implemented: true
+      operationId: reward_song_policies_update
+      tags:
+        - Rewards
+      summary: Update a song owner's third-party reward policy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RewardSongOwnerPolicyUpdateRequest"
+      responses:
+        "200":
+          description: Updated song reward policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RewardSongOwnerPolicy"
+        "404":
+          description: Song policy not found for the current owner
   /reward_campaigns/{campaign_id}:
     parameters:
       - name: campaign_id
@@ -6660,6 +6706,28 @@ paths:
                 $ref: "#/components/schemas/RewardCampaign"
         "404":
           description: Campaign not found
+  /public/reward_campaigns/{campaign_id}:
+    parameters:
+      - name: campaign_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      x-implemented: true
+      operationId: public_reward_campaigns_retrieve
+      tags:
+        - Rewards
+      summary: Retrieve a currently active public song-practice offer
+      responses:
+        "200":
+          description: Active campaign offer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RewardCampaign"
+        "404":
+          description: No active campaign offer was found
   /reward_campaigns/{campaign_id}/funding_quotes:
     parameters:
       - name: campaign_id
@@ -17515,6 +17583,35 @@ components:
         - study
         - karaoke
         - either
+    RewardSongOwnerPolicy:
+      type: object
+      required:
+        - community
+        - post
+        - song_owner
+        - third_party_rewards
+      properties:
+        community:
+          type: string
+        post:
+          type: string
+        song_owner:
+          type: string
+        third_party_rewards:
+          type: string
+          enum:
+            - allowed
+            - blocked
+    RewardSongOwnerPolicyUpdateRequest:
+      type: object
+      required:
+        - third_party_rewards
+      properties:
+        third_party_rewards:
+          type: string
+          enum:
+            - allowed
+            - blocked
     RewardCampaign:
       type: object
       required:
