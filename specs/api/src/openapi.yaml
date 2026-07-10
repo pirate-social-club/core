@@ -458,8 +458,12 @@ paths:
     $ref: ./paths/rewards.yaml#/me_rewards_cashouts_by_cashout_id
   /reward_campaigns:
     $ref: ./paths/rewards.yaml#/reward_campaigns
+  /reward_song_policies/{community_id}/{post_id}:
+    $ref: ./paths/rewards.yaml#/reward_song_policies_by_target
   /reward_campaigns/{campaign_id}:
     $ref: ./paths/rewards.yaml#/reward_campaigns_by_campaign_id
+  /public/reward_campaigns/{campaign_id}:
+    $ref: ./paths/rewards.yaml#/public_reward_campaigns_by_campaign_id
   /reward_campaigns/{campaign_id}/funding_quotes:
     $ref: ./paths/rewards.yaml#/reward_campaign_funding_quotes
   /reward_campaigns/{campaign_id}/funding_quotes/{funding_quote_id}/confirm:
@@ -1140,6 +1144,10 @@ components:
       $ref: ./components/schemas/rewards.yaml#/RewardCampaignStatus
     RewardCampaignEligibleActivity:
       $ref: ./components/schemas/rewards.yaml#/RewardCampaignEligibleActivity
+    RewardSongOwnerPolicy:
+      $ref: ./components/schemas/rewards.yaml#/RewardSongOwnerPolicy
+    RewardSongOwnerPolicyUpdateRequest:
+      $ref: ./components/schemas/rewards.yaml#/RewardSongOwnerPolicyUpdateRequest
     RewardCampaign:
       $ref: ./components/schemas/rewards.yaml#/RewardCampaign
     RewardCampaignCreateRequest:

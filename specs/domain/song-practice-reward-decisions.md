@@ -17,6 +17,14 @@ campaign acceptance suite and treasury controls pass.
 - At most one campaign may be active for a song post at a time. Additional rewarders may top up the
   same campaign only without changing its immutable terms. Competing campaigns are deferred.
 - A song owner may opt out of third-party rewards. Pre-approval is not required for the pilot.
+- Any authenticated user may boost a published song without joining its community. The current
+  song owner may block third-party rewards. The block is checked when a draft is created, when
+  funding is quoted or confirmed, and again before every reward reservation. Existing confirmed
+  funds never become allocatable while a block is active.
+- Draft and funding-state campaigns are visible only to their rewarder, the current song owner,
+  and active community owners/admins/moderators. Active public offers are visible to everyone.
+- A rewarder may have only one unfinished campaign per song post, and draft creation is subject to
+  a platform rate limit. These are abuse controls, not community-membership requirements.
 - Pirate owns qualification and anti-fraud thresholds. Rewarders choose the activity scope, rate,
   budget, start/end time, and duration within platform guardrails.
 
@@ -104,6 +112,9 @@ represented as proof that a user meets an unstated age policy.
 ## Funding, reservations, and display
 
 - V1 funding is direct Base USDC. TON/bridge funding is deferred.
+- The first pilot charges a literal zero platform fee. `funded_cents` is entirely allocatable reward
+  inventory. A future fee must be funded on top of that inventory and accounted separately; it may
+  never be reserved or credited as a user reward.
 - A campaign becomes active only after a uniquely consumed on-chain receipt is verified and bound.
 - Campaign accounting tracks funded, reserved, credited, paid, and refunded cents.
 - Qualification reserves the exact uniform reward before the UI says it was earned.
@@ -127,6 +138,9 @@ Before any funded pilot, tests must cover:
 - more candidates than one reconciler page without starvation,
 - replay and concurrent qualification delivery,
 - campaign budget exhaustion and treasury reconciliation,
+- adversarial receipt rejection (wrong sender, recipient, token, and amount), quote expiry,
+  partial funding, pending/rejected confirmation recovery, and concurrent transaction-hash reuse,
+- campaign counters reconciled against the authoritative reservation/event sums,
 - milestone recovery after outages and streak resets,
 - payout retries after a lost response and wallet changes,
 - real Postgres concurrent cashouts,
