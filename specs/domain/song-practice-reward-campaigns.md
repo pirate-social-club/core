@@ -1,6 +1,6 @@
 # Song-practice reward campaigns
 
-Status: **draft (spec-only, do not build yet)**.
+Status: **implementation in progress behind default-off rewards flags**.
 
 Related docs:
 

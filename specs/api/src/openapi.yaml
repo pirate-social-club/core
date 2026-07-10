@@ -454,6 +454,14 @@ paths:
     $ref: ./paths/rewards.yaml#/me_rewards_cashouts
   /me/rewards/cashouts/{cashout_id}:
     $ref: ./paths/rewards.yaml#/me_rewards_cashouts_by_cashout_id
+  /reward_campaigns:
+    $ref: ./paths/rewards.yaml#/reward_campaigns
+  /reward_campaigns/{campaign_id}:
+    $ref: ./paths/rewards.yaml#/reward_campaigns_by_campaign_id
+  /reward_campaigns/{campaign_id}/funding_quotes:
+    $ref: ./paths/rewards.yaml#/reward_campaign_funding_quotes
+  /reward_campaigns/{campaign_id}/funding_quotes/{funding_quote_id}/confirm:
+    $ref: ./paths/rewards.yaml#/reward_campaign_funding_quotes_confirm
   /jobs:
     $ref: ./paths/jobs.yaml#/jobs
   /jobs/{job_id}:
@@ -1122,6 +1130,22 @@ components:
       $ref: ./components/schemas/rewards.yaml#/RewardCashoutRequest
     RewardCashoutResponse:
       $ref: ./components/schemas/rewards.yaml#/RewardCashoutResponse
+    RewardCampaignStatus:
+      $ref: ./components/schemas/rewards.yaml#/RewardCampaignStatus
+    RewardCampaignEligibleActivity:
+      $ref: ./components/schemas/rewards.yaml#/RewardCampaignEligibleActivity
+    RewardCampaign:
+      $ref: ./components/schemas/rewards.yaml#/RewardCampaign
+    RewardCampaignCreateRequest:
+      $ref: ./components/schemas/rewards.yaml#/RewardCampaignCreateRequest
+    RewardCampaignFundingStatus:
+      $ref: ./components/schemas/rewards.yaml#/RewardCampaignFundingStatus
+    RewardCampaignFundingQuote:
+      $ref: ./components/schemas/rewards.yaml#/RewardCampaignFundingQuote
+    RewardCampaignFundingQuoteRequest:
+      $ref: ./components/schemas/rewards.yaml#/RewardCampaignFundingQuoteRequest
+    RewardCampaignFundingConfirmRequest:
+      $ref: ./components/schemas/rewards.yaml#/RewardCampaignFundingConfirmRequest
     ClaimableRoyaltyItem:
       $ref: ./components/schemas/notifications.yaml#/ClaimableRoyaltyItem
     ClaimableRoyaltiesResponse:

@@ -54,3 +54,108 @@ me_rewards_cashouts_by_cashout_id:
               $ref: ../components/schemas/rewards.yaml#/RewardCashoutResponse
       "404":
         description: Cashout not found for the current user
+reward_campaigns:
+  post:
+    x-implemented: true
+    operationId: reward_campaigns_create
+    tags:
+      - Rewards
+    summary: Create a draft, budget-backed song-practice campaign
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/rewards.yaml#/RewardCampaignCreateRequest
+    responses:
+      "201":
+        description: Draft campaign
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/rewards.yaml#/RewardCampaign
+      "409":
+        description: Idempotency conflict or an existing live campaign owns the song post
+reward_campaigns_by_campaign_id:
+  parameters:
+    - name: campaign_id
+      in: path
+      required: true
+      schema:
+        type: string
+  get:
+    x-implemented: true
+    operationId: reward_campaigns_retrieve
+    tags:
+      - Rewards
+    summary: Retrieve a song-practice reward campaign
+    responses:
+      "200":
+        description: Campaign
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/rewards.yaml#/RewardCampaign
+      "404":
+        description: Campaign not found
+reward_campaign_funding_quotes:
+  parameters:
+    - name: campaign_id
+      in: path
+      required: true
+      schema:
+        type: string
+  post:
+    x-implemented: true
+    operationId: reward_campaign_funding_quotes_create
+    tags:
+      - Rewards
+    summary: Quote a direct Base USDC campaign funding transfer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/rewards.yaml#/RewardCampaignFundingQuoteRequest
+    responses:
+      "201":
+        description: Funding quote
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/rewards.yaml#/RewardCampaignFundingQuote
+      "409":
+        description: Idempotency conflict or campaign terms no longer accept funding
+reward_campaign_funding_quotes_confirm:
+  parameters:
+    - name: campaign_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: funding_quote_id
+      in: path
+      required: true
+      schema:
+        type: string
+  post:
+    x-implemented: true
+    operationId: reward_campaign_funding_quotes_confirm
+    tags:
+      - Rewards
+    summary: Verify and uniquely bind a Base USDC receipt to a campaign
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/rewards.yaml#/RewardCampaignFundingConfirmRequest
+    responses:
+      "200":
+        description: Confirmed or still-confirming funding effect
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/rewards.yaml#/RewardCampaignFundingQuote
+      "409":
+        description: Receipt was already consumed or conflicts with the quote
