@@ -6635,7 +6635,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RewardCampaign"
+                $ref: "#/components/schemas/PublicRewardOffer"
         "409":
           description: Idempotency conflict or an existing live campaign owns the song post
   /reward_song_policies/{community_id}/{post_id}:
@@ -6725,7 +6725,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RewardCampaign"
+                $ref: "#/components/schemas/PublicRewardOffer"
         "404":
           description: No active campaign offer was found
   /public/reward_campaigns:
@@ -6752,7 +6752,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RewardCampaign"
+                $ref: "#/components/schemas/PublicRewardOffer"
         "404":
           description: No active campaign offer was found
   /reward_campaigns/{campaign_id}/funding_quotes:
@@ -17787,9 +17787,13 @@ components:
         milestone_7_cents:
           type: integer
           minimum: 0
+          maximum: 0
+          description: Must remain zero until campaign milestone crediting is implemented.
         milestone_30_cents:
           type: integer
           minimum: 0
+          maximum: 0
+          description: Must remain zero until campaign milestone crediting is implemented.
         reward_period_cap_cents:
           type: integer
           minimum: 1

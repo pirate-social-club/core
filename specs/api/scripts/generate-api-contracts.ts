@@ -288,6 +288,7 @@ const TYPE_EXPORTS = [
   { name: "RewardCashoutResponse", ref: "#/components/schemas/RewardCashoutResponse" },
   { name: "RewardCampaignStatus", ref: "#/components/schemas/RewardCampaignStatus" },
   { name: "RewardCampaignEligibleActivity", ref: "#/components/schemas/RewardCampaignEligibleActivity" },
+  { name: "PublicRewardOffer", ref: "#/components/schemas/PublicRewardOffer" },
   { name: "RewardSongOwnerPolicy", ref: "#/components/schemas/RewardSongOwnerPolicy" },
   { name: "RewardSongOwnerPolicyUpdateRequest", ref: "#/components/schemas/RewardSongOwnerPolicyUpdateRequest" },
   { name: "RewardCampaign", ref: "#/components/schemas/RewardCampaign" },
