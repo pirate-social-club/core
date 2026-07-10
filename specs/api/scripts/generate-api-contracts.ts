@@ -479,6 +479,7 @@ const ROUTE_EXPORTS = [
   { name: "rewardSongPolicies", path: "/reward_song_policies/{community_id}/{post_id}" },
   { name: "rewardCampaign", path: "/reward_campaigns/{campaign_id}" },
   { name: "publicRewardCampaign", path: "/public/reward_campaigns/{campaign_id}" },
+  { name: "publicRewardCampaigns", path: "/public/reward_campaigns" },
   { name: "rewardCampaignFundingQuotes", path: "/reward_campaigns/{campaign_id}/funding_quotes" },
   { name: "rewardCampaignFundingQuoteConfirm", path: "/reward_campaigns/{campaign_id}/funding_quotes/{funding_quote_id}/confirm" },
 ] as const;
