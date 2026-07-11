@@ -137,6 +137,19 @@ represented as proof that a user meets an unstated age policy.
   inventory. A future fee must be funded on top of that inventory and accounted separately; it may
   never be reserved or credited as a user reward.
 - A campaign becomes active only after a uniquely consumed on-chain receipt is verified and bound.
+- Reward funding RPCs must prove their network with an explicit `eth_chainId` response matching the
+  configured campaign chain. Supplying an expected chain id to a static provider is not proof.
+- Funding confirmation prefers the canonical Base `safe` block tag. The receipt block number must
+  be at or below the safe block and its block hash must still match the canonical block at that
+  height. When an RPC does not support `safe`, the pilot requires 30 independently derived block
+  confirmations. Provider convenience confirmation fields are not authoritative.
+- Missing receipts, non-canonical receipt blocks, chain mismatches, and transient RPC failures keep
+  the existing funding effect in its recoverable `confirming` state with the same transaction hash
+  and idempotency key. They never create or claim a second funding effect.
+- A reorg detected before activation prevents confirmation and campaign activation. A reorg
+  detected after activation is a treasury incident: the affected campaign enters a durable
+  operational hold and accrual stops. Existing credited user balances are never silently clawed
+  back. Alert ownership and recovery authorization must be configured before a funded pilot.
 - Campaign accounting tracks funded, reserved, credited, paid, and refunded cents.
 - Qualification reserves the exact uniform reward before the UI says it was earned.
 - Future regional campaigns must reserve the maximum possible liability until rate resolution, then
