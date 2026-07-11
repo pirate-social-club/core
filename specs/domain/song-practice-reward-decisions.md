@@ -82,6 +82,22 @@ Community shards emit append-only qualification events through an outbox. Each e
 Control-plane consumption uses a durable per-community checkpoint and idempotent event keys. It
 must not repeatedly scan a newest-first window of mutable engagement rows.
 
+## Qualification grace and expiry
+
+- A qualification remains claimable for exactly seven 24-hour days from its server-controlled
+  `qualified_at` instant. It expires when the reconciliation clock is greater than or equal to
+  `qualified_at + 7 days`; `reward_period_key` never controls expiry.
+- Unverified qualifications do not reserve campaign budget. Product copy must say
+  `Verify within 7 days to claim` and must not describe an unreserved reward as saved or earned.
+- The reconciler scans only qualifications newer than `now - 7 days`. The credit transaction
+  rechecks expiry after locking the campaign row, so a qualification that reaches its expiry while
+  waiting for the lock is rejected deterministically.
+- Campaign end stops new qualifications. A qualification earned on or before the immutable
+  campaign end remains claimable during its seven-day grace window, subject to remaining budget,
+  owner policy, identity eligibility, and caps. Exhaustion admits no partial or later credit.
+- Campaign terms need no additional grace-period snapshot: terms are database-immutable. Budget
+  availability is intentionally resolved when the verified credit transaction runs.
+
 For the pilot, an implicit Study practice set is fixed by the server's first target count for the
 UTC reward period. Completion requires that many distinct server-issued exercise ids; retrying the
 same exercise does not advance reward completion. The existing correctness-based local streak may
