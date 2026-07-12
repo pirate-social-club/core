@@ -5,6 +5,7 @@ Status: current working spec — direction agreed in design review; not yet impl
 Related docs:
 
 - [community.md](./community.md)
+- [community-gate-catalog-authoring-plan.md](./community-gate-catalog-authoring-plan.md)
 - [community-tiers-entitlements.md](./community-tiers-entitlements.md)
 - [identity-presentation.md](./identity-presentation.md)
 - [handles.md](./handles.md)
