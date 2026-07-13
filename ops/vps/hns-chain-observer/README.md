@@ -51,6 +51,7 @@ The verifier calls only:
 
 - `getnameinfo <root>`
 - `getblockchaininfo`
+- `getblockheader <best-block-hash> true`
 
 The API key belongs in Infisical. Render the same value into the compose secret
 file and the HNS verifier's `HNS_CHAIN_RPC_API_KEY`. Do not place any Handshake
@@ -109,6 +110,10 @@ curl --fail --user "x:${key}" --json \
 curl --fail --user "x:${key}" --json \
   '{"method":"getnameinfo","params":["pirate"]}' \
   http://127.0.0.1:12037/
+# Use bestblockhash from getblockchaininfo in the exact call below.
+curl --fail --user "x:${key}" --json \
+  '{"method":"getblockheader","params":["<bestblockhash>",true]}' \
+  http://127.0.0.1:12037/
 ```
 
 Confirm all of the following:
@@ -140,7 +145,7 @@ rather than weakening RPC validation.
 2. Update the hsd version, release SHA-256, and pinned Node digest in one change.
 3. Build and run the container smoke tests locally.
 4. Stop the observer, snapshot `./data`, deploy the image, and wait for health.
-5. Verify `getnameinfo` and `getblockchaininfo` through the verifier before
+5. Verify `getnameinfo`, `getblockchaininfo`, and `getblockheader` through the verifier before
    re-enabling expiry-gated operations.
 
 Never deploy a floating `latest` image or silently change the chain network.
@@ -164,7 +169,7 @@ silently broaden this exception to new findings.
 ## Shadow Observer
 
 The Blink Labs Go node may run alongside `hsd` as a localhost-only, read-only
-shadow. Diff the complete `getnameinfo` and `getblockchaininfo` responses used
+shadow. Diff the complete `getnameinfo`, `getblockchaininfo`, and `getblockheader` responses used
 by the verifier for at least 30 days, including restart, lag, and reorg cases.
 Shadow output is telemetry only and must never grant a capability.
 

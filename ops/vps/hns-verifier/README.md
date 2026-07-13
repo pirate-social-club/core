@@ -15,7 +15,7 @@ It should:
 
 - verify owner-managed HNS TXT challenges from the live Handshake root resource
 - read root existence and expiry from an authenticated, synced mainnet `hsd`
-  observer through `getnameinfo` and `getblockchaininfo`
+  observer through `getnameinfo`, `getblockchaininfo`, and `getblockheader`
 - talk to the loopback-only PowerDNS API
 - create zones after delegation is observed
 - publish `_pirate.<root>` TXT records for delegated Pirate-managed sessions

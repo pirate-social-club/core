@@ -68,6 +68,8 @@ const OWNER_MANAGED_OBSERVATION_PROVIDER = "hns_parent_chain";
 const ownerManagedResolverTimeoutMs = Number(Bun.env.HNS_OWNER_MANAGED_RESOLVER_TIMEOUT_MS || "2500");
 const defaultHnsRootResourceUrlTemplate = "https://shakeshift.com/name/{root}/resources?fetch=main";
 const HNS_CHAIN_OBSERVATION_PROVIDER = "hsd_json_rpc";
+const HNS_CHAIN_MIN_VERIFICATION_PROGRESS = 0.999;
+const HNS_CHAIN_MAX_FUTURE_BLOCK_SECONDS = 2 * 60 * 60;
 
 function parseCsv(value: string | undefined): string[] | null {
   const entries = value?.split(",").map((entry) => entry.trim()).filter(Boolean) ?? [];
@@ -356,6 +358,39 @@ function readSafeInteger(value: unknown): number | null {
   return typeof value === "number" && Number.isSafeInteger(value) ? value : null;
 }
 
+type HnsRootLeaseObservation = "active" | "unsafe" | "unknown";
+
+function classifyHnsRootLease(nameEnvelope: Record<string, unknown>): HnsRootLeaseObservation {
+  if (nameEnvelope.info == null) {
+    return "unsafe";
+  }
+
+  if (typeof nameEnvelope.info !== "object") {
+    return "unknown";
+  }
+
+  const nameInfo = nameEnvelope.info as Record<string, unknown>;
+  const state = typeof nameInfo.state === "string" ? nameInfo.state.toUpperCase() : null;
+  const registered = typeof nameInfo.registered === "boolean" ? nameInfo.registered : null;
+  if (nameInfo.expired === true) {
+    return "unsafe";
+  }
+
+  switch (state) {
+    case "CLOSED":
+      return registered === true ? "active" : registered === false ? "unsafe" : "unknown";
+    case "OPENING":
+    case "BIDDING":
+    case "REVEAL":
+      return registered === false ? "unsafe" : "unknown";
+    case "REVOKED":
+      return "unsafe";
+    case "LOCKED":
+    default:
+      return "unknown";
+  }
+}
+
 async function inspectExpiryHorizon(rootLabel: string): Promise<ExpiryEvidence> {
   const rpcUrl = getHnsChainRpcUrl();
   const rpcApiKey = getHnsChainRpcApiKey();
@@ -389,6 +424,10 @@ async function inspectExpiryHorizon(rootLabel: string): Promise<ExpiryEvidence> 
     const anchorHeight = readSafeInteger(chainInfo?.blocks);
     const headerHeight = readSafeInteger(chainInfo?.headers);
     const anchorMedianTime = readSafeInteger(chainInfo?.mediantime);
+    const verificationProgress = typeof chainInfo?.verificationprogress === "number"
+      && Number.isFinite(chainInfo.verificationprogress)
+      ? chainInfo.verificationprogress
+      : null;
     const chainNetwork = typeof chainInfo?.chain === "string" ? chainInfo.chain : null;
     const expectedNetwork = Bun.env.HNS_CHAIN_NETWORK?.trim() || "main";
     const anchorBlockHash = typeof chainInfo?.bestblockhash === "string"
@@ -396,18 +435,40 @@ async function inspectExpiryHorizon(rootLabel: string): Promise<ExpiryEvidence> 
       ? chainInfo.bestblockhash.toLowerCase()
       : null;
 
-    const tipAgeSeconds = anchorMedianTime == null
+    if (!anchorBlockHash) {
+      return unknownExpiryEvidence(HNS_CHAIN_OBSERVATION_PROVIDER);
+    }
+
+    const headerResult = await callHnsChainRpc("getblockheader", [anchorBlockHash, true]);
+    const blockHeader = typeof headerResult === "object" && headerResult != null
+      ? headerResult as Record<string, unknown>
+      : null;
+    const blockHeaderHash = typeof blockHeader?.hash === "string"
+      ? blockHeader.hash.toLowerCase()
+      : null;
+    const blockHeaderHeight = readSafeInteger(blockHeader?.height);
+    const blockHeaderTime = readSafeInteger(blockHeader?.time);
+    const blockHeaderMedianTime = readSafeInteger(blockHeader?.mediantime);
+    const blockHeaderConfirmations = readSafeInteger(blockHeader?.confirmations);
+
+    const tipAgeSeconds = blockHeaderTime == null
       ? null
-      : Math.floor(Date.now() / 1000) - anchorMedianTime;
+      : Math.floor(Date.now() / 1000) - blockHeaderTime;
     const blocksRemaining = expiryHeight != null && anchorHeight != null
       ? expiryHeight - anchorHeight
       : null;
     const chainAnchorInvalid = anchorHeight == null
       || headerHeight !== anchorHeight
-      || !anchorBlockHash
       || anchorMedianTime == null
+      || verificationProgress == null
+      || verificationProgress < HNS_CHAIN_MIN_VERIFICATION_PROGRESS
+      || blockHeaderHash !== anchorBlockHash
+      || blockHeaderHeight !== anchorHeight
+      || blockHeaderMedianTime !== anchorMedianTime
+      || blockHeaderConfirmations == null
+      || blockHeaderConfirmations < 1
       || tipAgeSeconds == null
-      || tipAgeSeconds < 0
+      || tipAgeSeconds < -HNS_CHAIN_MAX_FUTURE_BLOCK_SECONDS
       || tipAgeSeconds > maxTipAgeSeconds
       || chainNetwork !== expectedNetwork;
     if (chainAnchorInvalid) {
@@ -427,15 +488,19 @@ async function inspectExpiryHorizon(rootLabel: string): Promise<ExpiryEvidence> 
       };
     }
 
-    const rootMissing = nameEnvelope.info == null
-      || nameInfo?.registered === false
-      || nameInfo?.expired === true
-      || nameInfo?.state !== "CLOSED";
-    if (rootMissing) {
+    const leaseObservation = classifyHnsRootLease(nameEnvelope);
+    if (leaseObservation === "unsafe") {
       return {
         ...unknownExpiryEvidence(HNS_CHAIN_OBSERVATION_PROVIDER, false),
         ...chainAnchorEvidence,
         expiry_horizon_sufficient: false,
+      };
+    }
+
+    if (leaseObservation === "unknown") {
+      return {
+        ...unknownExpiryEvidence(HNS_CHAIN_OBSERVATION_PROVIDER),
+        ...chainAnchorEvidence,
       };
     }
 
@@ -967,7 +1032,7 @@ async function verifyOwnerDnsTxt(body: {
   const verified = observedValues.includes(body.challenge_txt_value);
   const pirateDnsAuthorityVerified = nameservers.some(matchesDefaultNameserver);
   const rootExists = expiryEvidence.expiry_root_exists
-    ?? (rootResource != null ? true : (verified || nameservers.length > 0 ? true : null));
+    ?? (rootResource != null ? true : null);
 
   return {
     verified,
@@ -984,8 +1049,8 @@ async function verifyOwnerDnsTxt(body: {
     ...expiryEvidence,
     routing_enabled: pirateDnsAuthorityVerified,
     pirate_dns_authority_verified: pirateDnsAuthorityVerified,
-    control_class: verified ? "single_holder_root" as const : null,
-    operation_class: verified ? "owner_managed_namespace" as const : null,
+    control_class: verified && rootExists === true ? "single_holder_root" as const : null,
+    operation_class: verified && rootExists === true ? "owner_managed_namespace" as const : null,
     root_label: normalizedRoot,
     zone_name: zoneName,
     challenge_name: challengeName,

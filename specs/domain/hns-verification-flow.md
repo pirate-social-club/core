@@ -277,9 +277,13 @@ For public v0, Pirate may inspect Handshake parent-state such as expiry, `NS`, a
 trusted HNS-aware provider such as Fire HSD.
 
 The v0 expiry path uses authenticated hsd JSON-RPC: `getnameinfo` supplies
-`stats.renewalPeriodEnd`, while `getblockchaininfo` supplies the chain-tip height and hash anchoring
-the calculation. The minimum acceptable remaining lifetime is explicit deployment policy, not a
-hardcoded verifier guess.
+`stats.renewalPeriodEnd`, `getblockchaininfo` supplies chain height, network, verification progress,
+and the best-block hash, and `getblockheader` supplies that block's timestamp for liveness. Median
+time is retained as anchor evidence but is not the freshness clock because its normal lag can
+exceed a tight tip-age policy. The minimum acceptable remaining lifetime is explicit deployment
+policy, not a hardcoded verifier guess. A root is positively active only when hsd reports a
+registered `CLOSED` state; empty/expired/revoked or unregistered auction state is unsafe, while
+claimed `LOCKED` and unrecognized states defer with unknown evidence.
 
 Ownership observation must come from evidence the owner published, split by path:
 

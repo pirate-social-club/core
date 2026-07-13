@@ -93,6 +93,12 @@ describe("hns verifier server", () => {
     rootExists = true,
     rootResourceError = false,
     tipAgeSeconds = 60,
+    medianTipAgeSeconds = tipAgeSeconds,
+    nameState = "CLOSED",
+    registered = rootExists,
+    expired = false,
+    renewals = 1,
+    verificationProgress = 1,
   }: {
     rawHex: string;
     anchorHeight: number;
@@ -101,8 +107,15 @@ describe("hns verifier server", () => {
     rootExists?: boolean;
     rootResourceError?: boolean;
     tipAgeSeconds?: number;
+    medianTipAgeSeconds?: number;
+    nameState?: string;
+    registered?: boolean;
+    expired?: boolean;
+    renewals?: number;
+    verificationProgress?: number;
   }) {
     const requests: Array<{ url: string; authorization: string | null; method: string | null }> = [];
+    const observedAtSeconds = Math.floor(Date.now() / 1000);
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const headers = new Headers(init?.headers);
@@ -117,12 +130,15 @@ describe("hns verifier server", () => {
           return Response.json({
             result: {
               info: rootExists ? {
-                state: "CLOSED",
+                state: nameState,
+                registered,
+                expired,
+                renewals,
                 stats: {
                   renewalPeriodEnd: expiryHeight,
                   blocksUntilExpire: expiryHeight - anchorHeight,
                 },
-              } : {},
+              } : null,
             },
           });
         }
@@ -133,7 +149,19 @@ describe("hns verifier server", () => {
               blocks: anchorHeight,
               headers: anchorHeight,
               bestblockhash: "ab".repeat(32),
-              mediantime: Math.floor(Date.now() / 1000) - tipAgeSeconds,
+              mediantime: observedAtSeconds - medianTipAgeSeconds,
+              verificationprogress: verificationProgress,
+            },
+          });
+        }
+        if (method === "getblockheader") {
+          return Response.json({
+            result: {
+              hash: "ab".repeat(32),
+              height: anchorHeight,
+              time: observedAtSeconds - tipAgeSeconds,
+              mediantime: observedAtSeconds - medianTipAgeSeconds,
+              confirmations: 1,
             },
           });
         }
@@ -247,7 +275,9 @@ describe("hns verifier server", () => {
     expect(body.verified).toBe(true);
     expect(body.ownership_source).toBe("owner_authoritative_dns_txt");
     expect(body.observation_provider).toBe("owner_authoritative_dns");
-    expect(body.operation_class).toBe("owner_managed_namespace");
+    expect(body.root_exists).toBe(null);
+    expect(body.operation_class).toBe(null);
+    expect(body.control_class).toBe(null);
     expect(body.pirate_dns_authority_verified).toBe(false);
 
     resetOwnerManagedProofs();
@@ -297,7 +327,7 @@ describe("hns verifier server", () => {
     resetOwnerManagedProofs();
   });
 
-  test("derives expiry horizon from hsd name state and an anchored chain tip", async () => {
+  test("derives expiry horizon for a renewed CLOSED root from an anchored chain tip", async () => {
     Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "https://example.test/name/{root}/resources?fetch=main";
     Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
     Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
@@ -325,7 +355,7 @@ describe("hns verifier server", () => {
     expect(body.expiry_horizon_blocks).toBe(1_000);
     expect(body.expiry_observation_provider).toBe("hsd_json_rpc");
     expect(requests.filter((request) => request.url === "https://chain.test").map((request) => request.method).sort())
-      .toEqual(["getblockchaininfo", "getnameinfo"]);
+      .toEqual(["getblockchaininfo", "getblockheader", "getnameinfo"]);
     expect(requests.find((request) => request.method === "getnameinfo")?.authorization)
       .toBe(`Basic ${Buffer.from("x:rpc-secret").toString("base64")}`);
 
@@ -458,6 +488,112 @@ describe("hns verifier server", () => {
     expect(body.root_exists).toBe(true);
     expect(body.expiry_horizon_sufficient).toBe(null);
     expect(body.expiry_observation_provider).toBe("hsd_json_rpc");
+
+    resetOwnerManagedProofs();
+  });
+
+  test("uses best-block time instead of lagging median time for tip freshness", async () => {
+    Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "https://example.test/name/{root}/resources?fetch=main";
+    Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
+    Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
+    Bun.env.HNS_EXPIRY_HORIZON_BLOCKS = "1000";
+    Bun.env.HNS_CHAIN_MAX_TIP_AGE_SECONDS = "3600";
+    mockRootAndChainFetch({
+      rawHex: "0001036e73310670697261746500",
+      anchorHeight: 10_000,
+      expiryHeight: 12_500,
+      tipAgeSeconds: 60,
+      medianTipAgeSeconds: 7_200,
+    });
+
+    const response = await handleRequest(new Request(
+      "http://127.0.0.1:4048/inspect-public?root_label=xn--pokmon-dva",
+    ));
+    const body = await response.json();
+    expect(body.expiry_root_exists).toBe(true);
+    expect(body.expiry_horizon_sufficient).toBe(true);
+    expect(body.expiry_anchor_median_time).toBeLessThan(Math.floor(Date.now() / 1000) - 3_600);
+
+    resetOwnerManagedProofs();
+  });
+
+  test("rejects an early-IBD chain even when hsd reports blocks equal to headers", async () => {
+    Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "https://example.test/name/{root}/resources?fetch=main";
+    Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
+    Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
+    Bun.env.HNS_EXPIRY_HORIZON_BLOCKS = "1000";
+    Bun.env.HNS_CHAIN_MAX_TIP_AGE_SECONDS = "3600";
+    mockRootAndChainFetch({
+      rawHex: "0001036e73310670697261746500",
+      anchorHeight: 10_000,
+      expiryHeight: 12_500,
+      verificationProgress: 0.5,
+    });
+
+    const response = await handleRequest(new Request(
+      "http://127.0.0.1:4048/inspect-public?root_label=xn--pokmon-dva",
+    ));
+    const body = await response.json();
+    expect(body.expiry_root_exists).toBe(null);
+    expect(body.expiry_horizon_sufficient).toBe(null);
+    expect(body.expiry_observation_provider).toBe("hsd_json_rpc");
+
+    resetOwnerManagedProofs();
+  });
+
+  test("distinguishes unsafe unregistered states from indeterminate non-CLOSED states", async () => {
+    Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "https://example.test/name/{root}/resources?fetch=main";
+    Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
+    Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
+    Bun.env.HNS_EXPIRY_HORIZON_BLOCKS = "1000";
+    Bun.env.HNS_CHAIN_MAX_TIP_AGE_SECONDS = "3600";
+
+    for (const nameState of ["OPENING", "BIDDING", "REVEAL", "CLOSED"]) {
+      mockRootAndChainFetch({
+        rawHex: "",
+        anchorHeight: 10_000,
+        expiryHeight: 12_500,
+        nameState,
+        registered: false,
+        rootResourceError: true,
+      });
+      const response = await handleRequest(new Request(
+        "http://127.0.0.1:4048/inspect-public?root_label=xn--pokmon-dva",
+      ));
+      const body = await response.json();
+      expect(body.expiry_root_exists).toBe(false);
+      expect(body.expiry_horizon_sufficient).toBe(false);
+    }
+
+    mockRootAndChainFetch({
+      rawHex: "",
+      anchorHeight: 10_000,
+      expiryHeight: 12_500,
+      nameState: "REVOKED",
+      registered: true,
+      rootResourceError: true,
+    });
+    const revokedResponse = await handleRequest(new Request(
+      "http://127.0.0.1:4048/inspect-public?root_label=xn--pokmon-dva",
+    ));
+    expect((await revokedResponse.json()).expiry_root_exists).toBe(false);
+
+    for (const nameState of ["LOCKED", "UNRECOGNIZED"]) {
+      mockRootAndChainFetch({
+        rawHex: "",
+        anchorHeight: 10_000,
+        expiryHeight: 12_500,
+        nameState,
+        registered: false,
+        rootResourceError: true,
+      });
+      const response = await handleRequest(new Request(
+        "http://127.0.0.1:4048/inspect-public?root_label=xn--pokmon-dva",
+      ));
+      const body = await response.json();
+      expect(body.expiry_root_exists).toBe(null);
+      expect(body.expiry_horizon_sufficient).toBe(null);
+    }
 
     resetOwnerManagedProofs();
   });
