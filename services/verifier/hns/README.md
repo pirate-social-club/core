@@ -4,12 +4,13 @@ This service hosts Pirate's PowerDNS-backed HNS verifier and zone-provisioning r
 
 ## Responsibilities
 
-- inspect whether Pirate has already provisioned a delegated HNS child zone
-- verify owner-managed HNS TXT challenges from the live Handshake root resource
+- inspect Handshake parent state without treating Pirate's own zones as ownership evidence
+- verify owner-managed HNS TXT challenges from owner-published evidence
+- derive the expiry horizon from authenticated hsd name state anchored to an observed chain tip
 - create the `<root>.` zone in PowerDNS when Pirate-managed delegation is observed
 - publish `_pirate.<root>` TXT records for delegated Pirate-managed verification sessions
 - trigger PowerDNS rediscovery after zone updates so delegated roots become authoritative immediately
-- verify TXT challenges against the same authoritative source of truth PowerDNS serves
+- verify post-provision authority health against the serving path without reusing it as ownership proof
 
 ## Platform-managed roots
 
@@ -37,6 +38,12 @@ Current platform-managed roots:
 - `HNS_VERIFIER_AUTH_TOKEN`
 - `HNS_ROOT_RESOURCE_URL_TEMPLATE`
 - `HNS_ROOT_RESOURCE_TIMEOUT_MS`
+- `HNS_CHAIN_RPC_URL`
+- `HNS_CHAIN_RPC_API_KEY`
+- `HNS_CHAIN_RPC_TIMEOUT_MS`
+- `HNS_CHAIN_NETWORK`
+- `HNS_CHAIN_MAX_TIP_AGE_SECONDS`
+- `HNS_EXPIRY_HORIZON_BLOCKS`
 - `PDNS_API_URL`
 - `PDNS_API_KEY`
 - `PDNS_DEFAULT_SOA_CONTENT`
@@ -55,6 +62,16 @@ not depend on recursive DNS resolution or `_pirate.<root>` child records.
 
 `HNS_ROOT_RESOURCE_TIMEOUT_MS` bounds the root-resource lookup so the API caller sees a verifier
 result inside its timeout budget.
+
+`HNS_CHAIN_RPC_URL` points at an hsd JSON-RPC endpoint. The verifier calls `getnameinfo` and
+`getblockchaininfo`, computes remaining lifetime from `stats.renewalPeriodEnd - blocks`, and records
+the expiry height, anchor height/hash/time/network, remaining blocks, configured horizon, and
+provider. Set `HNS_EXPIRY_HORIZON_BLOCKS` explicitly to the product's minimum safe remaining
+lifetime and `HNS_CHAIN_MAX_TIP_AGE_SECONDS` to the maximum acceptable chain-tip age. The node must
+also be caught up to its headers and report `HNS_CHAIN_NETWORK` (default `main`). If required
+configuration or evidence is absent, invalid, unavailable, stale, or malformed,
+`expiry_horizon_sufficient` is `null` and all expiry-gated capabilities remain withheld. Root or
+resource existence is never expiry evidence.
 
 For the platform-owned `pirate.` root, prefer an HNS-native nameserver:
 
