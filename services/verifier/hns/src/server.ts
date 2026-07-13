@@ -7,6 +7,14 @@ type InspectResult = {
   root_exists: boolean | null;
   root_control_verified: boolean | null;
   expiry_horizon_sufficient: boolean | null;
+  expiry_height: number | null;
+  expiry_anchor_height: number | null;
+  expiry_anchor_block_hash: string | null;
+  expiry_anchor_median_time: number | null;
+  expiry_chain_network: string | null;
+  expiry_blocks_remaining: number | null;
+  expiry_horizon_blocks: number | null;
+  expiry_observation_provider: string | null;
   routing_enabled: boolean | null;
   pirate_dns_authority_verified: boolean | null;
   control_class: "single_holder_root" | "multisig_controlled_root" | "dao_controlled_root" | "burned_or_immutable_root" | null;
@@ -21,6 +29,19 @@ type InspectResult = {
     records: string[];
   }[];
 };
+
+type ExpiryEvidence = Pick<
+  InspectResult,
+  | "expiry_horizon_sufficient"
+  | "expiry_height"
+  | "expiry_anchor_height"
+  | "expiry_anchor_block_hash"
+  | "expiry_anchor_median_time"
+  | "expiry_chain_network"
+  | "expiry_blocks_remaining"
+  | "expiry_horizon_blocks"
+  | "expiry_observation_provider"
+>;
 
 import { Resolver } from "node:dns/promises";
 import { PowerDnsApiClient, type PowerDnsZoneSnapshot } from "./pdns-store";
@@ -44,6 +65,7 @@ const defaultWildcardIpv4 = Bun.env.HNS_AUTHORITATIVE_WILDCARD_IPV4?.trim() || d
 const OWNER_MANAGED_OBSERVATION_PROVIDER = "hns_parent_chain";
 const ownerManagedResolverTimeoutMs = Number(Bun.env.HNS_OWNER_MANAGED_RESOLVER_TIMEOUT_MS || "2500");
 const defaultHnsRootResourceUrlTemplate = "https://shakeshift.com/name/{root}/resources?fetch=main";
+const HNS_CHAIN_OBSERVATION_PROVIDER = "hsd_json_rpc";
 
 function parseCsv(value: string | undefined): string[] | null {
   const entries = value?.split(",").map((entry) => entry.trim()).filter(Boolean) ?? [];
@@ -80,6 +102,52 @@ function getHnsRootResourceUrlTemplate(): string {
 
 function getHnsRootResourceTimeoutMs(): number {
   return Number(Bun.env.HNS_ROOT_RESOURCE_TIMEOUT_MS || "4000");
+}
+
+function getHnsChainRpcUrl(): string | null {
+  return Bun.env.HNS_CHAIN_RPC_URL?.trim().replace(/\/+$/, "") || null;
+}
+
+function getHnsChainRpcApiKey(): string | null {
+  return Bun.env.HNS_CHAIN_RPC_API_KEY?.trim() || null;
+}
+
+function getHnsChainRpcTimeoutMs(): number {
+  return Number(Bun.env.HNS_CHAIN_RPC_TIMEOUT_MS || "4000");
+}
+
+function getHnsExpiryHorizonBlocks(): number | null {
+  const raw = Bun.env.HNS_EXPIRY_HORIZON_BLOCKS?.trim();
+  if (!raw) {
+    return null;
+  }
+
+  const value = Number(raw);
+  return Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+function getHnsChainMaxTipAgeSeconds(): number | null {
+  const raw = Bun.env.HNS_CHAIN_MAX_TIP_AGE_SECONDS?.trim();
+  if (!raw) {
+    return null;
+  }
+
+  const value = Number(raw);
+  return Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+function unknownExpiryEvidence(provider: string | null = null): ExpiryEvidence {
+  return {
+    expiry_horizon_sufficient: null,
+    expiry_height: null,
+    expiry_anchor_height: null,
+    expiry_anchor_block_hash: null,
+    expiry_anchor_median_time: null,
+    expiry_chain_network: null,
+    expiry_blocks_remaining: null,
+    expiry_horizon_blocks: getHnsExpiryHorizonBlocks(),
+    expiry_observation_provider: provider,
+  };
 }
 
 function requirePowerDnsStore(): PowerDnsApiClient {
@@ -246,6 +314,137 @@ async function withRootResourceTimeout<T>(operation: Promise<T>): Promise<T> {
   }
 }
 
+async function withHnsChainRpcTimeout<T>(operation: Promise<T>): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error("HNS chain RPC query timed out")),
+          getHnsChainRpcTimeoutMs(),
+        );
+      }),
+    ]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+async function callHnsChainRpc(method: string, params: unknown[] = []): Promise<unknown> {
+  const rpcUrl = getHnsChainRpcUrl();
+  if (!rpcUrl) {
+    throw new Error("HNS_CHAIN_RPC_URL is not configured");
+  }
+
+  const apiKey = getHnsChainRpcApiKey();
+  const response = await withHnsChainRpcTimeout(fetch(rpcUrl, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+      authorization: `Basic ${Buffer.from(`x:${apiKey ?? ""}`).toString("base64")}`,
+    },
+    body: JSON.stringify({ method, params }),
+  }));
+
+  if (!response.ok) {
+    throw new Error(`HNS chain RPC ${method} failed with status ${response.status}`);
+  }
+
+  const payload = await response.json() as {
+    result?: unknown;
+    error?: unknown;
+  };
+  if (payload.error != null || !("result" in payload)) {
+    throw new Error(`HNS chain RPC ${method} returned an error`);
+  }
+  return payload.result;
+}
+
+function readSafeInteger(value: unknown): number | null {
+  return typeof value === "number" && Number.isSafeInteger(value) ? value : null;
+}
+
+async function inspectExpiryHorizon(rootLabel: string): Promise<ExpiryEvidence> {
+  const rpcUrl = getHnsChainRpcUrl();
+  const rpcApiKey = getHnsChainRpcApiKey();
+  const horizonBlocks = getHnsExpiryHorizonBlocks();
+  const maxTipAgeSeconds = getHnsChainMaxTipAgeSeconds();
+  if (!rpcUrl || !rpcApiKey || horizonBlocks == null || maxTipAgeSeconds == null) {
+    return unknownExpiryEvidence();
+  }
+
+  try {
+    const [nameResult, chainResult] = await Promise.all([
+      callHnsChainRpc("getnameinfo", [normalizeRootLabel(rootLabel)]),
+      callHnsChainRpc("getblockchaininfo"),
+    ]);
+    const nameInfo = typeof nameResult === "object" && nameResult != null
+      && "info" in nameResult && typeof nameResult.info === "object" && nameResult.info != null
+      ? nameResult.info as Record<string, unknown>
+      : null;
+    const stats = nameInfo && typeof nameInfo.stats === "object" && nameInfo.stats != null
+      ? nameInfo.stats as Record<string, unknown>
+      : null;
+    const chainInfo = typeof chainResult === "object" && chainResult != null
+      ? chainResult as Record<string, unknown>
+      : null;
+    const expiryHeight = readSafeInteger(stats?.renewalPeriodEnd);
+    const reportedBlocksRemaining = readSafeInteger(stats?.blocksUntilExpire);
+    const anchorHeight = readSafeInteger(chainInfo?.blocks);
+    const headerHeight = readSafeInteger(chainInfo?.headers);
+    const anchorMedianTime = readSafeInteger(chainInfo?.mediantime);
+    const chainNetwork = typeof chainInfo?.chain === "string" ? chainInfo.chain : null;
+    const expectedNetwork = Bun.env.HNS_CHAIN_NETWORK?.trim() || "main";
+    const anchorBlockHash = typeof chainInfo?.bestblockhash === "string"
+      && /^[0-9a-f]{64}$/i.test(chainInfo.bestblockhash)
+      ? chainInfo.bestblockhash.toLowerCase()
+      : null;
+
+    const tipAgeSeconds = anchorMedianTime == null
+      ? null
+      : Math.floor(Date.now() / 1000) - anchorMedianTime;
+    const blocksRemaining = expiryHeight != null && anchorHeight != null
+      ? expiryHeight - anchorHeight
+      : null;
+    if (
+      nameInfo?.state !== "CLOSED"
+      || expiryHeight == null
+      || anchorHeight == null
+      || headerHeight !== anchorHeight
+      || !anchorBlockHash
+      || anchorMedianTime == null
+      || tipAgeSeconds == null
+      || tipAgeSeconds < 0
+      || tipAgeSeconds > maxTipAgeSeconds
+      || chainNetwork !== expectedNetwork
+      || blocksRemaining == null
+      || reportedBlocksRemaining == null
+      || Math.abs(reportedBlocksRemaining - blocksRemaining) > 1
+    ) {
+      return unknownExpiryEvidence(HNS_CHAIN_OBSERVATION_PROVIDER);
+    }
+
+    return {
+      expiry_horizon_sufficient: blocksRemaining >= horizonBlocks,
+      expiry_height: expiryHeight,
+      expiry_anchor_height: anchorHeight,
+      expiry_anchor_block_hash: anchorBlockHash,
+      expiry_anchor_median_time: anchorMedianTime,
+      expiry_chain_network: chainNetwork,
+      expiry_blocks_remaining: blocksRemaining,
+      expiry_horizon_blocks: horizonBlocks,
+      expiry_observation_provider: HNS_CHAIN_OBSERVATION_PROVIDER,
+    };
+  } catch {
+    return unknownExpiryEvidence(HNS_CHAIN_OBSERVATION_PROVIDER);
+  }
+}
+
 function readDnsNameFromResource(buffer: Buffer, offset: number): { name: string; offset: number } {
   const labels: string[] = [];
   let cursor = offset;
@@ -380,7 +579,7 @@ function deriveInspectionFields(zoneExists: boolean) {
     return {
       root_exists: null,
       root_control_verified: null,
-      expiry_horizon_sufficient: null,
+      ...unknownExpiryEvidence(),
       routing_enabled: null,
       pirate_dns_authority_verified: false,
       control_class: null,
@@ -391,7 +590,7 @@ function deriveInspectionFields(zoneExists: boolean) {
   return {
     root_exists: true,
     root_control_verified: null,
-    expiry_horizon_sufficient: true,
+    ...unknownExpiryEvidence(),
     routing_enabled: true,
     pirate_dns_authority_verified: true,
     control_class: "single_holder_root" as const,
@@ -444,7 +643,10 @@ async function inspectOwnerManagedRoot(rootLabel: string, challengeHost?: string
   const normalizedRoot = normalizeRootLabel(rootLabel);
   const zoneName = normalizeZoneName(normalizedRoot);
   const challengeName = zoneName;
-  const rootResource = await fetchOwnerManagedRootResource(normalizedRoot);
+  const [rootResource, expiryEvidence] = await Promise.all([
+    fetchOwnerManagedRootResource(normalizedRoot),
+    inspectExpiryHorizon(normalizedRoot),
+  ]);
   const nameservers = rootResource?.nameservers ?? [];
   const observedTxtValues = rootResource?.txtValues ?? [];
   const rootExists = rootResource != null;
@@ -478,7 +680,7 @@ async function inspectOwnerManagedRoot(rootLabel: string, challengeHost?: string
     ],
     root_exists: rootExists,
     root_control_verified: challengePresent,
-    expiry_horizon_sufficient: rootExists ? true : null,
+    ...expiryEvidence,
     routing_enabled: pirateDnsAuthorityVerified,
     pirate_dns_authority_verified: pirateDnsAuthorityVerified,
     control_class: rootExists ? "single_holder_root" : null,
@@ -625,7 +827,7 @@ async function verifyTxt(body: {
     failure_reason: "ownership_observation_unavailable",
     root_exists: null,
     root_control_verified: false,
-    expiry_horizon_sufficient: null,
+    ...unknownExpiryEvidence(),
     routing_enabled: null,
     pirate_dns_authority_verified: null,
     control_class: null,
@@ -682,7 +884,10 @@ async function verifyParentChainTxt(body: {
 }) {
   const normalizedRoot = normalizeRootLabel(body.root_label);
   const zoneName = normalizeZoneName(normalizedRoot);
-  const rootResource = await fetchOwnerManagedRootResource(normalizedRoot);
+  const [rootResource, expiryEvidence] = await Promise.all([
+    fetchOwnerManagedRootResource(normalizedRoot),
+    inspectExpiryHorizon(normalizedRoot),
+  ]);
   const nameservers = rootResource?.nameservers ?? [];
   const observedValues = rootResource?.txtValues ?? [];
   const rootExists = rootResource != null;
@@ -703,7 +908,7 @@ async function verifyParentChainTxt(body: {
     observed_values: observedValues,
     root_exists: rootExists,
     root_control_verified: verified,
-    expiry_horizon_sufficient: rootExists ? true : null,
+    ...expiryEvidence,
     routing_enabled: pirateDnsAuthorityVerified,
     pirate_dns_authority_verified: pirateDnsAuthorityVerified,
     control_class: rootExists ? "single_holder_root" as const : null,
@@ -728,12 +933,13 @@ async function verifyOwnerDnsTxt(body: {
   // expiry are on-chain facts, so they must still come from the parent chain —
   // DNS cannot attest to them, and leaving expiry unknown would silently
   // withhold club attachment from every owner-managed root.
-  const [observedValues, nameservers, rootResource] = await Promise.all([
+  const [observedValues, nameservers, rootResource, expiryEvidence] = await Promise.all([
     resolveOwnerManagedTxt(challengeName),
     resolveOwnerManagedNs(normalizedRoot),
     isOwnerManagedRootResourceConfigured()
       ? fetchOwnerManagedRootResource(normalizedRoot)
       : Promise.resolve(null),
+    inspectExpiryHorizon(normalizedRoot),
   ]);
   const verified = observedValues.includes(body.challenge_txt_value);
   const pirateDnsAuthorityVerified = nameservers.some(matchesDefaultNameserver);
@@ -751,7 +957,7 @@ async function verifyOwnerDnsTxt(body: {
     observed_values: observedValues,
     root_exists: rootExists,
     root_control_verified: verified,
-    expiry_horizon_sufficient: rootResource != null ? true : null,
+    ...expiryEvidence,
     routing_enabled: pirateDnsAuthorityVerified,
     pirate_dns_authority_verified: pirateDnsAuthorityVerified,
     control_class: verified ? "single_holder_root" as const : null,

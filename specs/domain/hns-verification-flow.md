@@ -218,6 +218,13 @@ Outcomes:
 - if existing Pirate routing or delegation is detected, record it as evidence during inspection but do not treat it as fresh creator-bound control proof
 - if inspection succeeds, generate a TXT challenge
 
+Expiry is an independent chain assertion. Pirate must not infer
+`expiry_horizon_sufficient = true` from root existence, resource existence, successful TXT control,
+or delegation. The verifier must record the expiry height, observed chain-tip height, hash, time,
+and network, remaining blocks, configured minimum-horizon blocks, and observation provider.
+Missing, unavailable, stale, malformed, wrong-network, or unanchored expiry evidence yields
+`expiry_horizon_sufficient = null`, which fails closed for every expiry-gated capability.
+
 ### 3. Issue TXT Challenge
 
 Pirate issues a TXT challenge for root-control proof.
@@ -268,6 +275,11 @@ Once the creator publishes the TXT record, Pirate verifies it.
 
 For public v0, Pirate may inspect Handshake parent-state such as expiry, `NS`, and glue through one
 trusted HNS-aware provider such as Fire HSD.
+
+The v0 expiry path uses authenticated hsd JSON-RPC: `getnameinfo` supplies
+`stats.renewalPeriodEnd`, while `getblockchaininfo` supplies the chain-tip height and hash anchoring
+the calculation. The minimum acceptable remaining lifetime is explicit deployment policy, not a
+hardcoded verifier guess.
 
 Ownership observation must come from evidence the owner published, split by path:
 
