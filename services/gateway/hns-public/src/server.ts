@@ -368,9 +368,34 @@ function createCanonicalUrl(requestUrl: URL, scheme: string): string {
   return nextUrl.toString();
 }
 
+const INTERNAL_HEADER_PREFIX = "x-pirate-hns-";
+const CREDENTIAL_HEADERS = ["authorization", "cookie", "proxy-authorization"];
+const READ_ONLY_METHODS = new Set(["GET", "HEAD"]);
+
+/**
+ * The gateway is the trust boundary: downstream (the app Worker) accepts
+ * x-pirate-hns-* only from this gateway's IP + token. A public client can send
+ * those headers too, so every inbound one must be DELETED before we set the
+ * server-derived values — otherwise the gateway would launder attacker-supplied
+ * routing context (community id/route) behind its own legitimate token.
+ */
 function buildProxyHeaders(request: Request, url: URL, env: HnsPublicGatewayEnv): Headers {
   const headers = new Headers(request.headers);
   headers.delete("host");
+
+  for (const name of [...headers.keys()]) {
+    if (name.toLowerCase().startsWith(INTERNAL_HEADER_PREFIX)) {
+      headers.delete(name);
+    }
+  }
+
+  // Plain HTTP is a public, read-only surface: no credentials may ride over it.
+  if (!isSecureRequest(request)) {
+    for (const name of CREDENTIAL_HEADERS) {
+      headers.delete(name);
+    }
+  }
+
   headers.set("accept-encoding", "identity");
   headers.set("x-pirate-hns-host", url.hostname);
   const forwarderToken = env.HNS_PUBLIC_FORWARDER_AUTH_TOKEN?.trim();
@@ -380,11 +405,37 @@ function buildProxyHeaders(request: Request, url: URL, env: HnsPublicGatewayEnv)
   return headers;
 }
 
+/**
+ * Scheme of the ORIGINAL client request. The fronting proxy owns
+ * x-forwarded-proto (both shipped examples overwrite it, and the gateway binds
+ * localhost only), so it is not client-controllable. Absent header => assume
+ * http, i.e. fail closed to the read-only surface.
+ */
+function isSecureRequest(request: Request): boolean {
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim().toLowerCase();
+  return forwardedProto === "https";
+}
+
 function buildProxyBodyInit(request: Request): RequestInit & { duplex?: "half" } {
-  if (request.method === "GET" || request.method === "HEAD") {
+  if (READ_ONLY_METHODS.has(request.method)) {
     return {};
   }
   return { body: request.body, duplex: "half" };
+}
+
+// HNS clients without DANE validation browse over plain HTTP, so HTTP stays
+// served — but strictly read-only (see web/docs/auth-origin-spec.md:
+// non-canonical origins are public/read-first). Writes must use a canonical
+// HTTPS origin.
+function rejectUnsafeMethodOverHttp(request: Request): Response | null {
+  if (isSecureRequest(request) || READ_ONLY_METHODS.has(request.method)) {
+    return null;
+  }
+  return renderErrorPage(
+    "HTTPS required",
+    "Writes are not accepted over plain HTTP on Handshake hosts. Use an HTTPS-capable HNS client or the canonical Pirate origin.",
+    405,
+  );
 }
 
 function rebaseUrlToOrigin(requestUrl: string, targetOrigin: string): string {
@@ -468,6 +519,11 @@ export async function handleRequest(
   const url = new URL(request.url);
   if (url.pathname === "/health") {
     return Response.json({ ok: true });
+  }
+
+  const unsafeOverHttp = rejectUnsafeMethodOverHttp(request);
+  if (unsafeOverHttp) {
+    return unsafeOverHttp;
   }
 
   const rootSuffix = env.HNS_PUBLIC_GATEWAY_ROOT_SUFFIX?.trim() || "pirate";

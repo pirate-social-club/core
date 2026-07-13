@@ -192,13 +192,13 @@ describe("handleRequest", () => {
     expect(html).toContain('property="og:title" content="Night Signal • Pirate Agent"');
   });
 
-  test("proxies api.pirate to the API origin, preserving path, method, and body", async () => {
+  test("proxies api.pirate writes over HTTPS, preserving path, method, and body", async () => {
     const calls: Array<{ url: string; method: string; body: string; headers: Headers }> = [];
     const response = await handleRequest(
-      new Request("http://api.pirate/communities/crew/posts?sort=top", {
+      new Request("https://api.pirate/communities/crew/posts?sort=top", {
         method: "POST",
         body: JSON.stringify({ title: "ahoy" }),
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", "x-forwarded-proto": "https" },
       }),
       { ...env, HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "shared-secret" },
       async (url, init) => {
@@ -219,6 +219,135 @@ describe("handleRequest", () => {
     expect(calls[0].body).toBe(JSON.stringify({ title: "ahoy" }));
     expect(calls[0].headers.get("x-pirate-hns-host")).toBe("api.pirate");
     expect(calls[0].headers.has("host")).toBe(false);
+  });
+
+  test("rejects writes over plain HTTP without reaching any origin", async () => {
+    for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+      const response = await handleRequest(
+        new Request("http://api.pirate/communities/crew/posts", {
+          method,
+          ...(method === "DELETE" ? {} : { body: "{}" }),
+        }),
+        env,
+        async () => {
+          throw new Error("plain-HTTP writes must never reach an origin");
+        },
+      );
+      expect(response.status).toBe(405);
+    }
+  });
+
+  test("treats a missing x-forwarded-proto as insecure (fails closed)", async () => {
+    const response = await handleRequest(
+      new Request("https://api.pirate/posts", { method: "POST", body: "{}" }),
+      env,
+      async () => {
+        throw new Error("must not reach an origin without a proxy-owned https marker");
+      },
+    );
+    expect(response.status).toBe(405);
+  });
+
+  test("strips credentials from plain-HTTP reads", async () => {
+    const calls: Headers[] = [];
+    const response = await handleRequest(
+      new Request("http://app.pirate/c/crew", {
+        headers: {
+          authorization: "Bearer secret-token",
+          cookie: "session=abc",
+          "proxy-authorization": "Basic zzz",
+        },
+      }),
+      env,
+      async (_url, init) => {
+        calls.push(new Headers(init?.headers));
+        return new Response("app page");
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(calls[0].has("authorization")).toBe(false);
+    expect(calls[0].has("cookie")).toBe(false);
+    expect(calls[0].has("proxy-authorization")).toBe(false);
+  });
+
+  test("forwards credentials over HTTPS", async () => {
+    const calls: Headers[] = [];
+    await handleRequest(
+      new Request("https://app.pirate/c/crew", {
+        headers: { authorization: "Bearer secret-token", "x-forwarded-proto": "https" },
+      }),
+      env,
+      async (_url, init) => {
+        calls.push(new Headers(init?.headers));
+        return new Response("app page");
+      },
+    );
+
+    expect(calls[0].get("authorization")).toBe("Bearer secret-token");
+  });
+
+  test("strips client-supplied x-pirate-hns-* headers before setting derived values", async () => {
+    const calls: Headers[] = [];
+    await handleRequest(
+      new Request("https://app.pirate/", {
+        headers: {
+          "x-forwarded-proto": "https",
+          // A public client trying to launder routing context through the
+          // gateway's legitimate token + trusted IP.
+          "x-pirate-hns-community-id": "com_victim",
+          "x-pirate-hns-community-route": "victim",
+          "x-pirate-hns-host": "evil.pirate",
+          "x-pirate-hns-root": "evil",
+          "x-pirate-hns-trusted-forwarder": "1",
+          "x-pirate-hns-forwarder-token": "guessed-secret",
+        },
+      }),
+      { ...env, HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "real-secret" },
+      async (_url, init) => {
+        calls.push(new Headers(init?.headers));
+        return new Response("app page");
+      },
+    );
+
+    // Server-derived host wins; no attacker-supplied routing context survives.
+    expect(calls[0].get("x-pirate-hns-host")).toBe("app.pirate");
+    expect(calls[0].get("x-pirate-hns-forwarder-token")).toBe("real-secret");
+    expect(calls[0].has("x-pirate-hns-community-id")).toBe(false);
+    expect(calls[0].has("x-pirate-hns-community-route")).toBe(false);
+    expect(calls[0].has("x-pirate-hns-root")).toBe(false);
+    expect(calls[0].has("x-pirate-hns-trusted-forwarder")).toBe(false);
+  });
+
+  test("imported-root proxying overwrites spoofed community headers with resolved values", async () => {
+    const calls: Array<{ url: string; headers: Headers }> = [];
+    await handleRequest(
+      new Request("https://xn--pokmon-dva/", {
+        headers: {
+          "x-forwarded-proto": "https",
+          "x-pirate-hns-community-id": "com_attacker",
+          "x-pirate-hns-community-route": "attacker",
+          "x-pirate-hns-subdomain": "spoofed",
+        },
+      }),
+      env,
+      async (url, init) => {
+        calls.push({ url: String(url), headers: new Headers(init?.headers) });
+        if (String(url).endsWith("/public-namespaces/xn--pokmon-dva")) {
+          return Response.json({
+            root_label: "xn--pokmon-dva",
+            namespace_verification: "nv_test",
+            community: { id: "com_real", display_name: "Real", route_slug: "real-route" },
+          });
+        }
+        return new Response("community page");
+      },
+    );
+
+    expect(calls[1].headers.get("x-pirate-hns-community-id")).toBe("com_real");
+    expect(calls[1].headers.get("x-pirate-hns-community-route")).toBe("real-route");
+    // No subdomain in this host, so the spoofed subdomain header must be gone.
+    expect(calls[1].headers.has("x-pirate-hns-subdomain")).toBe(false);
   });
 
   test("proxies app.pirate to the app origin with forwarded host and token", async () => {
