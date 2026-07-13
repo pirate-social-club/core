@@ -192,6 +192,102 @@ describe("handleRequest", () => {
     expect(html).toContain('property="og:title" content="Night Signal • Pirate Agent"');
   });
 
+  test("proxies api.pirate to the API origin, preserving path, method, and body", async () => {
+    const calls: Array<{ url: string; method: string; body: string; headers: Headers }> = [];
+    const response = await handleRequest(
+      new Request("http://api.pirate/communities/crew/posts?sort=top", {
+        method: "POST",
+        body: JSON.stringify({ title: "ahoy" }),
+        headers: { "content-type": "application/json" },
+      }),
+      { ...env, HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "shared-secret" },
+      async (url, init) => {
+        calls.push({
+          url: String(url),
+          method: init?.method ?? "GET",
+          body: init?.body ? await new Response(init.body as BodyInit).text() : "",
+          headers: new Headers(init?.headers),
+        });
+        return Response.json({ ok: true });
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe("https://api.pirate.sc/communities/crew/posts?sort=top");
+    expect(calls[0].method).toBe("POST");
+    expect(calls[0].body).toBe(JSON.stringify({ title: "ahoy" }));
+    expect(calls[0].headers.get("x-pirate-hns-host")).toBe("api.pirate");
+    expect(calls[0].headers.has("host")).toBe(false);
+  });
+
+  test("proxies app.pirate to the app origin with forwarded host and token", async () => {
+    const calls: Array<{ url: string; headers: Headers }> = [];
+    const response = await handleRequest(
+      new Request("https://app.pirate/c/crew?sort=top"),
+      { ...env, HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "shared-secret" },
+      async (url, init) => {
+        calls.push({ url: String(url), headers: new Headers(init?.headers) });
+        return new Response("app page");
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe("https://pirate.sc/c/crew?sort=top");
+    expect(calls[0].headers.get("x-pirate-hns-host")).toBe("app.pirate");
+    expect(calls[0].headers.get("x-pirate-hns-forwarder-token")).toBe("shared-secret");
+  });
+
+  test("proxies the bare root apex to the app origin", async () => {
+    const calls: string[] = [];
+    const response = await handleRequest(
+      new Request("http://pirate/"),
+      env,
+      async (url) => {
+        calls.push(String(url));
+        return new Response("app page");
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(calls).toEqual(["https://pirate.sc/"]);
+  });
+
+  test("returns 404 for reserved hosts that have no explicit route", async () => {
+    const response = await handleRequest(new Request("https://admin.pirate/"), env, async () => {
+      throw new Error("reserved hosts must not reach any origin");
+    });
+    expect(response.status).toBe(404);
+  });
+
+  test("resolves arbitrary community roots over both http and https", async () => {
+    for (const scheme of ["http", "https"] as const) {
+      const calls: string[] = [];
+      const response = await handleRequest(
+        new Request(`${scheme}://arbitrary-root/posts/42`),
+        env,
+        async (url) => {
+          calls.push(String(url));
+          if (String(url).endsWith("/public-namespaces/arbitrary-root")) {
+            return Response.json({
+              root_label: "arbitrary-root",
+              namespace_verification: "nv_test",
+              community: { id: "com_1", display_name: "Arbitrary", route_slug: "arbitrary-root" },
+            });
+          }
+          return new Response("community page");
+        },
+      );
+
+      expect(response.status).toBe(200);
+      expect(calls).toEqual([
+        "https://api.pirate.sc/public-namespaces/arbitrary-root",
+        "https://pirate.sc/posts/42",
+      ]);
+    }
+  });
+
   test("proxies verified imported HNS roots without rewriting the path", async () => {
     const calls: Array<{ url: string; headers: Headers }> = [];
     const response = await handleRequest(

@@ -368,6 +368,51 @@ function createCanonicalUrl(requestUrl: URL, scheme: string): string {
   return nextUrl.toString();
 }
 
+function buildProxyHeaders(request: Request, url: URL, env: HnsPublicGatewayEnv): Headers {
+  const headers = new Headers(request.headers);
+  headers.delete("host");
+  headers.set("accept-encoding", "identity");
+  headers.set("x-pirate-hns-host", url.hostname);
+  const forwarderToken = env.HNS_PUBLIC_FORWARDER_AUTH_TOKEN?.trim();
+  if (forwarderToken) {
+    headers.set("x-pirate-hns-forwarder-token", forwarderToken);
+  }
+  return headers;
+}
+
+function buildProxyBodyInit(request: Request): RequestInit & { duplex?: "half" } {
+  if (request.method === "GET" || request.method === "HEAD") {
+    return {};
+  }
+  return { body: request.body, duplex: "half" };
+}
+
+function rebaseUrlToOrigin(requestUrl: string, targetOrigin: string): string {
+  const nextUrl = new URL(requestUrl);
+  const originUrl = new URL(targetOrigin);
+  nextUrl.protocol = originUrl.protocol;
+  nextUrl.host = originUrl.host;
+  return nextUrl.toString();
+}
+
+// Explicit first-party proxying (api.<root> -> API origin, app.<root> and the
+// bare root apex -> app origin) so routing does not depend on the fronting
+// proxy getting reserved hosts right.
+async function proxyReservedHostRequest(input: {
+  request: Request;
+  url: URL;
+  targetOrigin: string;
+  env: HnsPublicGatewayEnv;
+  fetchImpl: typeof fetch;
+}): Promise<Response> {
+  return input.fetchImpl(rebaseUrlToOrigin(input.request.url, input.targetOrigin), {
+    headers: buildProxyHeaders(input.request, input.url, input.env),
+    method: input.request.method,
+    redirect: "manual",
+    ...buildProxyBodyInit(input.request),
+  });
+}
+
 async function proxyImportedNamespaceRequest(input: {
   request: Request;
   url: URL;
@@ -398,31 +443,20 @@ async function proxyImportedNamespaceRequest(input: {
   }
 
   const resolution = await namespaceResponse.json() as PublicNamespaceResolution;
-  const appUrl = new URL(input.request.url);
-  const appOriginUrl = new URL(input.appOrigin);
-  appUrl.protocol = appOriginUrl.protocol;
-  appUrl.host = appOriginUrl.host;
-
-  const headers = new Headers(input.request.headers);
-  headers.delete("host");
-  headers.set("accept-encoding", "identity");
+  const headers = buildProxyHeaders(input.request, input.url, input.env);
   headers.set("accept", input.request.headers.get("accept") ?? "text/html");
-  headers.set("x-pirate-hns-host", input.url.hostname);
   headers.set("x-pirate-hns-root", resolution.root_label);
   headers.set("x-pirate-hns-community-id", resolution.community.id);
   headers.set("x-pirate-hns-community-route", resolution.community.route_slug);
-  const forwarderToken = input.env.HNS_PUBLIC_FORWARDER_AUTH_TOKEN?.trim();
-  if (forwarderToken) {
-    headers.set("x-pirate-hns-forwarder-token", forwarderToken);
-  }
   if (input.namespaceHost.subdomain) {
     headers.set("x-pirate-hns-subdomain", input.namespaceHost.subdomain);
   }
 
-  return input.fetchImpl(appUrl.toString(), {
+  return input.fetchImpl(rebaseUrlToOrigin(input.request.url, input.appOrigin), {
     headers,
     method: input.request.method,
     redirect: "manual",
+    ...buildProxyBodyInit(input.request),
   });
 }
 
@@ -439,6 +473,16 @@ export async function handleRequest(
   const rootSuffix = env.HNS_PUBLIC_GATEWAY_ROOT_SUFFIX?.trim() || "pirate";
   const agentSuffix = env.HNS_PUBLIC_GATEWAY_AGENT_SUFFIX?.trim() || "clawitzer";
   const externalScheme = env.HNS_PUBLIC_GATEWAY_EXTERNAL_SCHEME?.trim() || "https";
+  const apiOrigin = env.HNS_PUBLIC_API_ORIGIN?.trim() || "https://api.pirate.sc";
+  const appOrigin = env.HNS_PUBLIC_APP_ORIGIN?.trim() || "https://pirate.sc";
+
+  const hostname = url.hostname.trim().toLowerCase().replace(/\.+$/u, "");
+  if (hostname === `api.${rootSuffix}`) {
+    return proxyReservedHostRequest({ request, url, targetOrigin: apiOrigin, env, fetchImpl });
+  }
+  if (hostname === `app.${rootSuffix}` || hostname === rootSuffix) {
+    return proxyReservedHostRequest({ request, url, targetOrigin: appOrigin, env, fetchImpl });
+  }
 
   let target = extractPublicProfileHost(url.hostname, rootSuffix);
   let isAgent = false;
@@ -447,9 +491,6 @@ export async function handleRequest(
     target = extractPublicProfileHost(url.hostname, agentSuffix);
     isAgent = true;
   }
-
-  const apiOrigin = env.HNS_PUBLIC_API_ORIGIN?.trim() || "https://api.pirate.sc";
-  const appOrigin = env.HNS_PUBLIC_APP_ORIGIN?.trim() || "https://pirate.sc";
 
   if (!target) {
     const namespaceHost = extractImportedNamespaceHost(url.hostname, [rootSuffix, agentSuffix]);

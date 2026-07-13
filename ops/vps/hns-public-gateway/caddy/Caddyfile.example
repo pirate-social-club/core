@@ -1,24 +1,32 @@
-app.pirate {
-  reverse_proxy https://pirate.sc {
-    header_up Host pirate.sc
-    header_up X-Pirate-HNS-Host {host}
-  }
+# All HNS hostnames route through the Bun gateway (127.0.0.1:4049), which owns
+# routing: app.<root>/apex -> app origin, api.<root> -> API origin, usernames ->
+# public profile pages, other reserved hosts -> 404, and ANY other hostname ->
+# dynamic /public-namespaces/:root resolution. Keeping routing in the gateway
+# (tested code) instead of proxy config means the catchall genuinely covers
+# arbitrary community roots.
+#
+# The gateway injects x-pirate-hns-host and the forwarder token itself
+# (HNS_PUBLIC_FORWARDER_AUTH_TOKEN in its env) — do not add header_up overrides
+# for those here.
+#
+# HTTPS for HNS names cannot use ACME (no ICANN CA). `tls internal` with
+# on-demand issuance serves per-host certs signed by Caddy's local CA; publish
+# matching DANE-EE TLSA records (and DS-anchored DNSSEC) for clients that
+# validate DANE. Plain HTTP stays available for HNS clients without DANE
+# support — non-canonical origins are public/read-only in the app
+# (web/docs/auth-origin-spec.md), so no credentials ride over it.
+
+{
+  local_certs
 }
 
-api.pirate {
-  reverse_proxy https://api.pirate.sc {
-    header_up Host api.pirate.sc
-    header_up X-Pirate-HNS-Host {host}
+https:// {
+  tls internal {
+    on_demand
   }
-}
-
-*.pirate {
-  @reserved host app.pirate api.pirate
-  respond @reserved 404
-
   reverse_proxy 127.0.0.1:4049
 }
 
-*.clawitzer {
+http:// {
   reverse_proxy 127.0.0.1:4049
 }
