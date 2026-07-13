@@ -27,6 +27,10 @@ const mock = Bun.serve({
       body,
     });
 
+    if (url.pathname.endsWith("/metadata/TSIG-ALLOW-AXFR")) {
+      return Response.json({ kind: "TSIG-ALLOW-AXFR", metadata: (body as { metadata: string[] }).metadata });
+    }
+
     const zoneMatch = url.pathname.match(/^\/api\/v1\/servers\/localhost\/zones\/([^/]+)(\/rectify|\/notify)?$/);
     if (zoneMatch) {
       const zoneName = decodeURIComponent(zoneMatch[1]!);
@@ -79,11 +83,12 @@ function applyRrsets(zone: { rrsets: unknown[] }, rrsets: RrsetPayload[]) {
   }
 }
 
-function client(): PowerDnsApiClient {
+function client(overrides: { zoneKind?: "Master" | "Native"; axfrTsigKeyName?: string | null } = {}): PowerDnsApiClient {
   return new PowerDnsApiClient({
     apiUrl: `http://127.0.0.1:${mock.port}`,
     apiKey: "test-key",
     defaultSoaContent: "ns1.pirate dns.pirate 0 3600 900 1209600 300",
+    ...overrides,
   });
 }
 
@@ -159,6 +164,25 @@ describe("PowerDnsApiClient", () => {
     await client().ensureZone(ENSURE_INPUT);
     expect(requests.some((entry) => entry.path.endsWith("/rectify") && entry.method === "PUT")).toBe(true);
     expect(requests.some((entry) => entry.path.endsWith("/notify") && entry.method === "PUT")).toBe(true);
+  });
+
+  test("creates Master zones so NOTIFY is not a silent no-op", async () => {
+    await client().ensureZone(ENSURE_INPUT);
+    const created = requests.find((entry) => entry.method === "POST")!.body as { kind: string };
+    expect(created.kind).toBe("Master");
+  });
+
+  test("skips NOTIFY for Native zones, which PowerDNS would silently drop", async () => {
+    await client({ zoneKind: "Native" }).ensureZone(ENSURE_INPUT);
+    expect(requests.some((entry) => entry.path.endsWith("/notify"))).toBe(false);
+  });
+
+  test("grants the secondary's TSIG key AXFR on newly provisioned zones", async () => {
+    await client({ axfrTsigKeyName: "pirate-axfr" }).ensureZone(ENSURE_INPUT);
+    const metadata = requests.find((entry) => entry.path.endsWith("/metadata/TSIG-ALLOW-AXFR"));
+    expect(metadata?.method).toBe("PUT");
+    expect(metadata?.contentType).toBe("application/json");
+    expect((metadata?.body as { metadata: string[] }).metadata).toEqual(["pirate-axfr"]);
   });
 
   test("ensureZone is idempotent for repeated identical input", async () => {
