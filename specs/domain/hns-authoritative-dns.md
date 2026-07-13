@@ -33,7 +33,7 @@ This doc does not define:
 
 - the exact user onboarding UX
 - the exact Handshake wallet or registrar workflow used to publish root records
-- the DANE or certificate hardening path for browser trust
+- support guarantees for clients that do not implement DNSSEC+DANE
 
 ## Core Distinction
 
@@ -109,6 +109,8 @@ For `infinity/` and `profile.infinity` to resolve in HNS-aware environments, Pir
 - a registered Handshake root name such as `infinity`
 - Handshake `NS` records for that root, or equivalent supported Handshake delegation records
 - reachable authoritative nameservers for the `infinity.` zone
+- a DS record in the Handshake parent that authenticates the signed child zone
+- TLSA records and a gateway certificate whose key matches them for native HTTPS
 - a synced, authenticated Handshake chain observer for root existence and
   expiry-horizon enforcement
 - zone records inside `infinity.` for:
@@ -283,6 +285,75 @@ If Pirate is operating `infinity.`, the authoritative zone should typically cont
 - optional wildcard records for app routing when Pirate wants `*.infinity`
 
 This means `profile.infinity` is not a special Handshake feature. It is an ordinary subdomain in the delegated `infinity.` zone.
+
+## Native HTTPS and DANE
+
+Native HNS HTTPS is a DNSSEC+DANE capability, not an ICANN Web-PKI capability.
+Pirate must not claim universal browser support. The supported client matrix is
+the set of HNS clients that validate the Handshake DS, child-zone DNSSEC, and
+RFC 6698/RFC 7671 TLSA records.
+
+The canonical public gateway uses DANE-EE with selector SPKI and SHA-256:
+
+```text
+TLSA 3 1 1 <sha256(subjectPublicKeyInfo)>
+```
+
+The catchall gateway deliberately serves one explicitly managed certificate
+and key for all HNS SNI values. With DANE-EE, RFC 7671 binds the server identity
+through the DNSSEC-authenticated TLSA association and does not require a SAN
+match or certificate validity interval for authentication. This avoids a race
+between dynamic host authorization, per-host certificate issuance, and TLSA
+publication.
+
+Caddy's `tls internal { on_demand }` mode is not the canonical DANE mode. Caddy
+uses a distinct key for each hostname by default, so one wildcard TLSA digest
+cannot authenticate all of those leaves. That mode is valid only for clients
+that separately trust Caddy's private CA.
+
+TLSA owner placement must preserve DNS wildcard semantics:
+
+- apex HTTPS: `_443._tcp.<zone>.`
+- wildcard-only web names: TLSA at `*.<zone>.`, which synthesizes the TLSA
+  answer when no closer explicit node exists
+- explicit web nodes: `_443._tcp.<host>.<zone>.`
+
+Do not pre-create `_443._tcp.app.<zone>` merely because `app` may exist later.
+That owner creates `app.<zone>` as an empty non-terminal and can stop wildcard A
+synthesis for `app.<zone>`. Explicit TLSA owners are generated only from
+existing concrete web-address records.
+
+Certificate-key rollover is two-phase and stateful:
+
+1. publish old and new `3 1 1` associations together in one API PATCH per zone
+2. rectify DNSSEC and notify the secondary
+3. wait at least two TLSA TTLs and re-read every selected zone; never shorten
+   the old TTL as part of the same rotation
+4. atomically switch one symlink to a complete, versioned certificate/key pair
+   and reload the gateway
+5. while new-zone provisioning still publishes old+new, probe the real gateway
+   IP with SNI and prove the served leaf SPKI is the new association
+6. change new-zone provisioning to new-only, repeat the live proof, and only
+   then remove the old association
+
+The verifier's new-zone template must carry the same association set throughout
+each phase: old+new before prepare and during the waiting window, then new-only
+before retirement. The rollout tool rejects mismatched configuration so a zone
+created concurrently cannot omit the new key or resurrect the old one later.
+The saved prepared-zone set cannot be narrowed at readiness or retirement, and
+any concurrent managed-owner, association, or TTL drift fails closed. Operator
+commands authenticate to the running verifier and compare its active set and
+TTL; reading a duplicate variable from the operator shell is not sufficient.
+
+Initial bring-up follows the same ordering without inventing an old key:
+publish the initial association, wait two TTLs, activate the static gateway
+certificate, prove it over TLS, and finalize the rollout state.
+
+TLSA publication must fail closed for unsigned zones. PowerDNS backend DNSSEC
+support alone is insufficient: the zone needs active signing keys, and the
+matching DS must be published in the Handshake parent before external clients
+can authenticate the chain. Existing unsigned or recovered zones must never be
+silently assigned new keys, because that can invalidate a still-published DS.
 
 ## Verification Assertions
 

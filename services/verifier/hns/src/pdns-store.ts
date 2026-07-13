@@ -1,3 +1,5 @@
+import { buildManagedTlsaRrsets } from "./tlsa";
+
 export type PowerDnsRrsetSummary = {
   name: string;
   type: string;
@@ -20,6 +22,10 @@ export type PowerDnsRrsetInput = {
   records: string[];
 };
 
+export type PowerDnsRrsetMutation = PowerDnsRrsetInput & {
+  changetype?: "REPLACE" | "DELETE";
+};
+
 export type EnsureZoneInput = {
   zoneName: string;
   nameservers: string[];
@@ -29,11 +35,14 @@ export type EnsureZoneInput = {
   wildcardIpv4?: string | null;
   ttl: number;
   extraRrsets?: PowerDnsRrsetInput[];
+  tlsaAssociations?: string[];
+  tlsaTtl?: number;
 };
 
 export type EnsureZoneResult = {
   zone: PowerDnsZoneSnapshot;
   created: boolean;
+  dsRecords: string[];
 };
 
 type ApiZone = {
@@ -46,6 +55,12 @@ type ApiZone = {
     ttl: number;
     records: { content: string; disabled: boolean }[];
   }[];
+};
+
+type ApiCryptokey = {
+  active?: boolean;
+  published?: boolean;
+  ds?: string[];
 };
 
 export type PowerDnsApiClientConfig = {
@@ -61,6 +76,8 @@ export type PowerDnsApiClientConfig = {
   zoneKind?: "Master" | "Native";
   /** TSIG key name granted TSIG-ALLOW-AXFR on every provisioned zone. */
   axfrTsigKeyName?: string | null;
+  /** Generate DNSSEC keys for newly created zones. Never mutates existing unsigned zones. */
+  secureNewZones?: boolean;
 };
 
 /**
@@ -76,6 +93,7 @@ export class PowerDnsApiClient {
   private readonly defaultSoaContent: string;
   private readonly zoneKind: "Master" | "Native";
   private readonly axfrTsigKeyName: string | null;
+  private readonly secureNewZones: boolean;
 
   constructor(config: PowerDnsApiClientConfig) {
     this.apiUrl = config.apiUrl.replace(/\/+$/, "");
@@ -84,6 +102,14 @@ export class PowerDnsApiClient {
     this.defaultSoaContent = config.defaultSoaContent;
     this.zoneKind = config.zoneKind ?? "Master";
     this.axfrTsigKeyName = config.axfrTsigKeyName ?? null;
+    this.secureNewZones = config.secureNewZones ?? false;
+  }
+
+  async listZoneNames(): Promise<string[]> {
+    const response = await this.request("GET", `/servers/${this.serverId}/zones?dnssec=true`);
+    await assertOk(response, "list zones");
+    const zones = await response.json() as ApiZone[];
+    return zones.map((zone) => canonical(zone.name)).sort();
   }
 
   async getZoneByName(zoneName: string): Promise<PowerDnsZoneSnapshot | null> {
@@ -105,14 +131,19 @@ export class PowerDnsApiClient {
   async ensureZone(input: EnsureZoneInput): Promise<EnsureZoneResult> {
     const zoneName = canonical(input.zoneName);
     const rrsets = buildManagedRrsets(input);
+    const hasTlsa = (input.tlsaAssociations?.length ?? 0) > 0;
     let created = false;
     let existing = await this.getZoneByName(zoneName);
 
     if (!existing) {
+      if (hasTlsa && !this.secureNewZones) {
+        throw new Error(`refusing to publish TLSA in new unsigned zone ${zoneName}`);
+      }
       const response = await this.request("POST", `/servers/${this.serverId}/zones`, {
         name: zoneName,
         kind: this.zoneKind,
         soa_edit_api: "DEFAULT",
+        ...(this.secureNewZones ? { dnssec: true, api_rectify: true } : {}),
         rrsets: [
           {
             name: zoneName,
@@ -135,6 +166,10 @@ export class PowerDnsApiClient {
         await assertOk(response, `create zone ${zoneName}`);
         created = true;
       }
+    }
+
+    if (!created && hasTlsa && !existing?.dnssec) {
+      throw new Error(`refusing to publish TLSA in existing unsigned zone ${zoneName}`);
     }
 
     if (!created) {
@@ -160,7 +195,56 @@ export class PowerDnsApiClient {
       throw new Error(`zone ${zoneName} missing after write`);
     }
 
-    if (zone.dnssec) {
+    await this.finalizeZoneWrite(zoneName, zone.dnssec);
+
+    return {
+      zone,
+      created,
+      dsRecords: zone.dnssec ? await this.getPublishedDsRecords(zoneName) : [],
+    };
+  }
+
+  async replaceRrsets(zoneNameInput: string, rrsets: PowerDnsRrsetInput[]): Promise<PowerDnsZoneSnapshot> {
+    return this.mutateRrsets(zoneNameInput, rrsets);
+  }
+
+  async mutateRrsets(
+    zoneNameInput: string,
+    rrsets: PowerDnsRrsetMutation[],
+  ): Promise<PowerDnsZoneSnapshot> {
+    const zoneName = canonical(zoneNameInput);
+    const existing = await this.getZoneByName(zoneName);
+    if (!existing) {
+      throw new Error(`zone ${zoneName} does not exist`);
+    }
+    const response = await this.request("PATCH", this.zonePath(zoneName), {
+      rrsets: rrsets.map(toMutationPayload),
+    });
+    await assertOk(response, `patch zone ${zoneName}`);
+    await this.finalizeZoneWrite(zoneName, existing.dnssec);
+    const zone = await this.getZoneByName(zoneName);
+    if (!zone) {
+      throw new Error(`zone ${zoneName} missing after write`);
+    }
+    return zone;
+  }
+
+  async getPublishedDsRecords(zoneNameInput: string): Promise<string[]> {
+    const zoneName = canonical(zoneNameInput);
+    const response = await this.request("GET", `${this.zonePath(zoneName)}/cryptokeys`);
+    await assertOk(response, `get DNSSEC keys for ${zoneName}`);
+    const keys = await response.json() as ApiCryptokey[];
+    return [...new Set(keys
+      .filter((key) => key.active !== false && key.published !== false)
+      .flatMap((key) => key.ds ?? []))].sort();
+  }
+
+  private zonePath(zoneName: string): string {
+    return `/servers/${this.serverId}/zones/${encodeURIComponent(canonical(zoneName))}`;
+  }
+
+  private async finalizeZoneWrite(zoneName: string, dnssec: boolean): Promise<void> {
+    if (dnssec) {
       const response = await this.request("PUT", `${this.zonePath(zoneName)}/rectify`);
       await assertOk(response, `rectify zone ${zoneName}`);
     }
@@ -171,12 +255,6 @@ export class PowerDnsApiClient {
       const notifyResponse = await this.request("PUT", `${this.zonePath(zoneName)}/notify`);
       await assertOk(notifyResponse, `notify zone ${zoneName}`);
     }
-
-    return { zone, created };
-  }
-
-  private zonePath(zoneName: string): string {
-    return `/servers/${this.serverId}/zones/${encodeURIComponent(canonical(zoneName))}`;
   }
 
   private async request(method: string, path: string, body?: unknown): Promise<Response> {
@@ -223,13 +301,31 @@ function buildManagedRrsets(input: EnsureZoneInput) {
     rrsets.push({ ...extra, name: canonical(extra.name) });
   }
 
-  return rrsets.map((rrset) => ({
-    name: rrset.name,
+  rrsets.push(...buildManagedTlsaRrsets({
+    zoneName,
+    ttl: input.tlsaTtl ?? input.ttl,
+    associations: input.tlsaAssociations ?? [],
+    explicitWebHosts: input.profileIpv4 ? [`profile.${zoneName}`] : [],
+  }));
+
+  return rrsets.map(toReplacePayload);
+}
+
+function toReplacePayload(rrset: PowerDnsRrsetInput) {
+  return toMutationPayload({ ...rrset, changetype: "REPLACE" });
+}
+
+function toMutationPayload(rrset: PowerDnsRrsetMutation) {
+  const changetype = rrset.changetype ?? "REPLACE";
+  return {
+    name: canonical(rrset.name),
     type: rrset.type,
     ttl: rrset.ttl,
-    changetype: "REPLACE" as const,
-    records: rrset.records.map((content) => ({ content, disabled: false })),
-  }));
+    changetype,
+    records: changetype === "DELETE"
+      ? []
+      : rrset.records.map((content) => ({ content, disabled: false })),
+  };
 }
 
 function toSnapshot(zone: ApiZone): PowerDnsZoneSnapshot {

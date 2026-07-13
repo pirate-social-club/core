@@ -57,6 +57,52 @@ Recommended deploy root:
 - `env/hns-public-gateway.env.example`
 - `systemd/pirate-hns-public-gateway.service`
 - `caddy/Caddyfile.example`
+- `caddy/Caddyfile.dane.example`
 - `nginx/hns-public-gateway.conf.example`
 
 The systemd template intentionally runs `bun` directly, not `rtk`.
+
+## Public DNSSEC + DANE mode
+
+`caddy/Caddyfile.dane.example` is the canonical public HNS HTTPS mode. It loads
+one deliberately managed certificate/key for the catchall gateway. All signed
+zones publish the certificate's SPKI digest as `TLSA 3 1 1` through the
+authoritative-DNS rollover tool.
+
+This shared certificate is intentional. Under DANE-EE, the DNSSEC TLSA binding
+is the service identity and RFC 7671 does not apply certificate-name matching.
+It lets one gateway certificate serve arbitrary verified roots without a
+per-host certificate/TLSA race.
+
+The existing `Caddyfile.example` remains useful only where clients already
+trust Caddy's private CA. Its on-demand certificates have distinct keys and
+must not be described as matching one wildcard DANE-EE association.
+
+Generate the initial key and certificate in a root-owned, versioned directory.
+The Caddy config reads both through one `current` symlink so a rotation cannot
+briefly pair a new certificate with an old private key:
+
+```bash
+install -d -o root -g caddy -m 0750 /etc/caddy/hns-dane/v1
+umask 077
+openssl ecparam -name prime256v1 -genkey -noout -out /etc/caddy/hns-dane/v1/key.pem
+openssl req -new -x509 -sha256 -days 397 \
+  -key /etc/caddy/hns-dane/v1/key.pem \
+  -out /etc/caddy/hns-dane/v1/cert.pem \
+  -subj '/CN=Pirate HNS DANE gateway'
+chown root:caddy /etc/caddy/hns-dane/v1/key.pem /etc/caddy/hns-dane/v1/cert.pem
+chmod 0640 /etc/caddy/hns-dane/v1/key.pem
+chmod 0644 /etc/caddy/hns-dane/v1/cert.pem
+ln -s v1 /etc/caddy/hns-dane/current
+```
+
+These ownership examples assume the packaged Linux service runs as user/group
+`caddy`. For a container or a different service account, grant only that
+runtime group read/traverse access; never make the private key world-readable.
+
+Do not reload Caddy with a new key until `manage-tlsa.ts ready` succeeds. After
+`ready`, create `current.next` pointing to the complete next version and rename
+it over `current` in one filesystem operation before reloading Caddy. After the
+reload, `manage-tlsa.ts retire` connects to the edge IP with an explicit SNI
+name and refuses to remove the old association unless the served leaf SPKI
+matches the prepared next certificate.

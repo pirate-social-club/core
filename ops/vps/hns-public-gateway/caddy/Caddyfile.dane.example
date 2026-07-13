@@ -1,0 +1,24 @@
+# Canonical public HNS HTTPS mode. Every SNI receives the same explicitly
+# managed certificate/key. DNSSEC-authenticated DANE-EE TLSA 3 1 1 records bind
+# that SPKI to each HNS service name; RFC 7671 therefore does not require the
+# certificate SAN or validity interval to establish the DANE identity.
+#
+# Do not combine this with `tls internal { on_demand }`: Caddy creates distinct
+# per-host keys by default, which cannot match one shared wildcard TLSA digest.
+# Rotate the key only through ops/vps/hns-authoritative-dns/manage-tlsa.ts.
+{
+	# Plain HTTP is intentionally available for HNS clients without DANE. The
+	# Bun gateway enforces read-only methods and removes credentials.
+	auto_https disable_redirects
+}
+
+https:// {
+	# `current` is one symlink to a versioned directory containing both files.
+	# Swap that symlink atomically only after manage-tlsa.ts ready succeeds.
+	tls /etc/caddy/hns-dane/current/cert.pem /etc/caddy/hns-dane/current/key.pem
+	reverse_proxy 127.0.0.1:4049
+}
+
+http:// {
+	reverse_proxy 127.0.0.1:4049
+}
