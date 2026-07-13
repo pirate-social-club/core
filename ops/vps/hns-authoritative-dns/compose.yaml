@@ -1,13 +1,24 @@
 services:
   powerdns:
-    image: powerdns/pdns-auth-50
+    # 5.1 pinned by digest; integration-tested against this compose file.
+    image: powerdns/pdns-auth-51@sha256:f976e753a1de8ec62636203ecb12ae5fa3d1055601be167de53f1f673e0abe59
     container_name: pirate-hns-authdns
     restart: unless-stopped
-    ports:
-      - "173.199.93.117:53:53/udp"
-      - "173.199.93.117:53:53/tcp"
-      - "127.0.0.1:8081:8081/tcp"
-    entrypoint: ["/bin/sh", "-lc", "umask 0002 && exec /usr/local/sbin/pdns_server-startup"]
+    # Host networking: the webserver/API must be reachable on the host's
+    # loopback by the verifier (127.0.0.1:8081). Under bridge networking a
+    # published port cannot reach a service bound to the CONTAINER's loopback,
+    # and binding the API to 0.0.0.0 inside the container would widen it.
+    # Matches the spaced/subsd services, which are also host-networked.
+    network_mode: host
+    entrypoint: ["/bin/sh", "-lc", "umask 0002 && exec /usr/local/sbin/pdns_server-startup $$@", "--"]
+    # Host-specific values come in as args because pdns.conf is a static mount
+    # and the image does not expand env vars inside it.
+    command:
+      - --local-address=${EDGE_PUBLIC_IP:?set EDGE_PUBLIC_IP},127.0.0.1
+      - --api-key=${PDNS_API_KEY:?set PDNS_API_KEY}
+      - --also-notify=${NS2_IP:?set NS2_IP (secondary nameserver)}
     volumes:
-      - ./config/pdns.conf:/etc/pdns/pdns.conf:ro
+      # /etc/powerdns, NOT /etc/pdns — this image reads the former, so the old
+      # path meant pdns.conf was silently never loaded at all.
+      - ./config/pdns.conf:/etc/powerdns/pdns.conf:ro
       - ./data:/var/lib/powerdns
