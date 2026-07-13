@@ -134,24 +134,25 @@ export class PowerDnsApiClient {
       } else {
         await assertOk(response, `create zone ${zoneName}`);
         created = true;
-
-        // Grant the secondary's TSIG key AXFR on this zone. Without this, every
-        // newly delegated community zone would be unreplicated (allow-axfr-ips
-        // denies by IP; TSIG-ALLOW-AXFR is what actually authorizes transfers).
-        if (this.axfrTsigKeyName) {
-          const metadata = await this.request(
-            "PUT",
-            `${this.zonePath(zoneName)}/metadata/TSIG-ALLOW-AXFR`,
-            { kind: "TSIG-ALLOW-AXFR", metadata: [this.axfrTsigKeyName] },
-          );
-          await assertOk(metadata, `grant TSIG-ALLOW-AXFR on ${zoneName}`);
-        }
       }
     }
 
     if (!created) {
       const response = await this.request("PATCH", this.zonePath(zoneName), { rrsets });
       await assertOk(response, `patch zone ${zoneName}`);
+    }
+
+    // Converge AXFR authorization on EVERY ensure, not only first creation.
+    // Recovered zones, 409 creation races, and retries after a metadata failure
+    // must all repair TSIG-ALLOW-AXFR instead of remaining silently
+    // unreplicated forever.
+    if (this.axfrTsigKeyName) {
+      const metadata = await this.request(
+        "PUT",
+        `${this.zonePath(zoneName)}/metadata/TSIG-ALLOW-AXFR`,
+        { kind: "TSIG-ALLOW-AXFR", metadata: [this.axfrTsigKeyName] },
+      );
+      await assertOk(metadata, `grant TSIG-ALLOW-AXFR on ${zoneName}`);
     }
 
     const zone = await this.getZoneByName(zoneName);

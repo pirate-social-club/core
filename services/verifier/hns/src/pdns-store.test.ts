@@ -177,12 +177,18 @@ describe("PowerDnsApiClient", () => {
     expect(requests.some((entry) => entry.path.endsWith("/notify"))).toBe(false);
   });
 
-  test("grants the secondary's TSIG key AXFR on newly provisioned zones", async () => {
-    await client({ axfrTsigKeyName: "pirate-axfr" }).ensureZone(ENSURE_INPUT);
-    const metadata = requests.find((entry) => entry.path.endsWith("/metadata/TSIG-ALLOW-AXFR"));
-    expect(metadata?.method).toBe("PUT");
-    expect(metadata?.contentType).toBe("application/json");
-    expect((metadata?.body as { metadata: string[] }).metadata).toEqual(["pirate-axfr"]);
+  test("converges the secondary's TSIG key AXFR on new and existing zones", async () => {
+    const api = client({ axfrTsigKeyName: "pirate-axfr" });
+    await api.ensureZone(ENSURE_INPUT);
+    await api.ensureZone(ENSURE_INPUT);
+
+    const metadata = requests.filter((entry) => entry.path.endsWith("/metadata/TSIG-ALLOW-AXFR"));
+    expect(metadata).toHaveLength(2);
+    for (const request of metadata) {
+      expect(request.method).toBe("PUT");
+      expect(request.contentType).toBe("application/json");
+      expect((request.body as { metadata: string[] }).metadata).toEqual(["pirate-axfr"]);
+    }
   });
 
   test("ensureZone is idempotent for repeated identical input", async () => {
