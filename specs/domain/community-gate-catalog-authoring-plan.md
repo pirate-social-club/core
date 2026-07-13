@@ -73,8 +73,7 @@ Returns stable source ids and authoring capabilities:
       "fixed_match": { "category": "trading_card" },
       "facet_keys": ["franchise", "subject", "set", "year", "grader", "grade"],
       "max_values_per_facet": 10,
-      "min_quantity_supported": true,
-      "provenance_label": "Traits verified via Courtyard"
+      "min_quantity_supported": true
     }
   ]
 }
@@ -175,8 +174,8 @@ unused endpoint.
    may produce an unhandled rejection.
 6. Use or delete `probeContract` and `estimateMatchCount`. The production
    interface contains only methods with a rendered consumer and acceptance test.
-7. Keep provenance visible beside trait controls and preserve read-only rendering
-   for loaded Courtyard rules whenever capability data is unavailable.
+7. Preserve read-only rendering for loaded Courtyard rules whenever capability
+   data is unavailable.
 
 ## Verification matrix
 
@@ -202,7 +201,7 @@ unused endpoint.
 - Source rejection renders unavailable/retry and preserves the current atom.
 - Debounce and stale-response tests prove old queries cannot overwrite new ones.
 - Desktop and mobile rendered tests cover long chips, ten selected values,
-  provenance, loading, unavailable, and empty results.
+  loading, unavailable, and empty results.
 
 ### Staging
 

@@ -68,13 +68,11 @@ superseded by this spec.
   admits anyone; it gets milder easiest-path-through-this-group copy, since
   the enclosing conjunction still gates admission. A structural per-group
   check is locally true but globally misleading.
-- The builder shows a persona simulation ("who gets in"): the serialized
-  policy evaluated against minimal single-capability profiles (bot with
-  captcha, Self-verified human, Very-verified human, score-N wallet,
-  collection holder), rendered as a joins/blocked matrix. Composition
-  confusion that per-group warnings cannot express is answered by concrete
-  admission results; the real implementation derives profiles from the
-  policy's atoms and reuses preview-mode evaluation.
+- The builder does not include a hypothetical-member or "who gets in"
+  simulator. In practice this duplicated the live rule summary while adding
+  controls (for example, a zero-valued asset quantity) that did not help an
+  admin author the policy. Admission behavior remains covered by policy
+  evaluation tests rather than an interactive authoring-panel preview.
 
 ## Field vocabulary → atom mapping
 
@@ -234,10 +232,8 @@ allowlist of strings. An allowlist ORs within that facet, so
 2` with `subject: ["Charizard", "Gengar"]` may be satisfied by one Charizard
 and one Gengar.
 
-Provenance appears as small copy ("Traits verified via Courtyard" /
-"via trait snapshot vN"), never as a primary field. Known backend gaps
-surfaced honestly in the UI until fixed: `erc721_holding` is mainnet-only,
-and there is no ERC-1155 support.
+Known backend gaps are surfaced honestly in the UI until fixed:
+`erc721_holding` is mainnet-only, and there is no ERC-1155 support.
 
 ## Capability probe (advisory)
 
