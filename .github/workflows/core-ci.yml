@@ -18,6 +18,7 @@ on:
       - "scripts/bookings/**"
       - "specs/api/**"
   push:
+    branches: [main]
     paths:
       - ".github/workflows/core-ci.yml"
       - "db/control-plane/migrations/**"
@@ -38,13 +39,17 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: core-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   openapi:
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           fetch-depth: 0
 
@@ -55,7 +60,7 @@ jobs:
           warn: true
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
           bun-version: 1.2.21
 
@@ -156,10 +161,10 @@ jobs:
           --health-retries 10
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
           bun-version: 1.2.21
 
