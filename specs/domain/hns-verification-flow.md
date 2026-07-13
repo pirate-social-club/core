@@ -441,11 +441,49 @@ If these checks fail, create must be rejected before any club state is written.
 
 Accepted HNS verification is not permanent.
 
-Pirate should support at least:
+The accepted verification carries a bounded freshness lease in `expires_at`.
+Enforcement paths must reject an expired lease even if a scheduled worker has
+not yet changed the stored `status` or capability projection.
+
+Pirate must run a scheduled revalidation sweep that:
+
+- selects accepted HNS verifications whose expiry assertion has never been
+  revalidated or whose revalidation interval has elapsed
+- re-observes root existence and the expiry horizon through the authenticated,
+  synced chain observer
+- writes a `revalidation_snapshot` evidence bundle for every completed
+  observation
+- updates `last_revalidated_at` only from a completed chain observation, never
+  from a backfill or an unavailable observer
+- extends `expires_at` only when the root still exists and the expiry horizon is
+  sufficient
+- marks `expiry_horizon_sufficient` and its derived capabilities stale when the
+  observed horizon is insufficient; it does not extend the freshness lease
+- immediately marks the accepted verification stale and withholds all
+  root-derived capabilities when the chain says the root no longer exists
+- marks the accepted verification stale when observation remains unavailable
+  until its existing freshness lease expires
+
+The revalidation interval and freshness lease must both be comfortably shorter
+than the configured expiry horizon. This creates a fail-closed bound: if the
+scheduler or observer is down, routing and new attachment stop at `expires_at`
+rather than trusting the last successful result forever.
+
+Stale verification must not auto-reactivate from an expiry-only observation.
+A root that disappeared may have been registered by a new owner; restoration
+therefore requires a fresh creator-bound ownership challenge and a new accepted
+verification.
+
+Legacy rule: HNS expiry assertions accepted before authenticated chain evidence
+must be queued for explicit observation by clearing only their
+`last_revalidated_at`. Their stored value must not be backfilled, reinterpreted,
+or treated as fresh before the sweep records a new `hsd_json_rpc` evidence
+bundle.
+
+Pirate should also support:
 
 - challenge expiration before acceptance
-- accepted-session expiration or revalidation window
-- manual or scheduled revalidation after acceptance
+- manual revalidation after acceptance
 - capability downgrade when delegation or expiry changes
 
 Recommended product consequences:

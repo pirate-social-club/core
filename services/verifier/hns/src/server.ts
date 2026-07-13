@@ -6,6 +6,7 @@ type InspectResult = {
   challenge_present: boolean;
   root_exists: boolean | null;
   root_control_verified: boolean | null;
+  expiry_root_exists: boolean | null;
   expiry_horizon_sufficient: boolean | null;
   expiry_height: number | null;
   expiry_anchor_height: number | null;
@@ -32,6 +33,7 @@ type InspectResult = {
 
 type ExpiryEvidence = Pick<
   InspectResult,
+  | "expiry_root_exists"
   | "expiry_horizon_sufficient"
   | "expiry_height"
   | "expiry_anchor_height"
@@ -136,8 +138,12 @@ function getHnsChainMaxTipAgeSeconds(): number | null {
   return Number.isSafeInteger(value) && value >= 0 ? value : null;
 }
 
-function unknownExpiryEvidence(provider: string | null = null): ExpiryEvidence {
+function unknownExpiryEvidence(
+  provider: string | null = null,
+  rootExists: boolean | null = null,
+): ExpiryEvidence {
   return {
+    expiry_root_exists: rootExists,
     expiry_horizon_sufficient: null,
     expiry_height: null,
     expiry_anchor_height: null,
@@ -314,26 +320,6 @@ async function withRootResourceTimeout<T>(operation: Promise<T>): Promise<T> {
   }
 }
 
-async function withHnsChainRpcTimeout<T>(operation: Promise<T>): Promise<T> {
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-
-  try {
-    return await Promise.race([
-      operation,
-      new Promise<never>((_, reject) => {
-        timeout = setTimeout(
-          () => reject(new Error("HNS chain RPC query timed out")),
-          getHnsChainRpcTimeoutMs(),
-        );
-      }),
-    ]);
-  } finally {
-    if (timeout) {
-      clearTimeout(timeout);
-    }
-  }
-}
-
 async function callHnsChainRpc(method: string, params: unknown[] = []): Promise<unknown> {
   const rpcUrl = getHnsChainRpcUrl();
   if (!rpcUrl) {
@@ -341,15 +327,16 @@ async function callHnsChainRpc(method: string, params: unknown[] = []): Promise<
   }
 
   const apiKey = getHnsChainRpcApiKey();
-  const response = await withHnsChainRpcTimeout(fetch(rpcUrl, {
+  const response = await fetch(rpcUrl, {
     method: "POST",
+    signal: AbortSignal.timeout(getHnsChainRpcTimeoutMs()),
     headers: {
       accept: "application/json",
       "content-type": "application/json",
       authorization: `Basic ${Buffer.from(`x:${apiKey ?? ""}`).toString("base64")}`,
     },
     body: JSON.stringify({ method, params }),
-  }));
+  });
 
   if (!response.ok) {
     throw new Error(`HNS chain RPC ${method} failed with status ${response.status}`);
@@ -383,9 +370,13 @@ async function inspectExpiryHorizon(rootLabel: string): Promise<ExpiryEvidence> 
       callHnsChainRpc("getnameinfo", [normalizeRootLabel(rootLabel)]),
       callHnsChainRpc("getblockchaininfo"),
     ]);
-    const nameInfo = typeof nameResult === "object" && nameResult != null
-      && "info" in nameResult && typeof nameResult.info === "object" && nameResult.info != null
-      ? nameResult.info as Record<string, unknown>
+    const nameEnvelope = typeof nameResult === "object" && nameResult != null
+      && "info" in nameResult
+      ? nameResult as Record<string, unknown>
+      : null;
+    const nameInfo = nameEnvelope
+      && typeof nameEnvelope.info === "object" && nameEnvelope.info != null
+      ? nameEnvelope.info as Record<string, unknown>
       : null;
     const stats = nameInfo && typeof nameInfo.stats === "object" && nameInfo.stats != null
       ? nameInfo.stats as Record<string, unknown>
@@ -411,25 +402,57 @@ async function inspectExpiryHorizon(rootLabel: string): Promise<ExpiryEvidence> 
     const blocksRemaining = expiryHeight != null && anchorHeight != null
       ? expiryHeight - anchorHeight
       : null;
-    if (
-      nameInfo?.state !== "CLOSED"
-      || expiryHeight == null
-      || anchorHeight == null
+    const chainAnchorInvalid = anchorHeight == null
       || headerHeight !== anchorHeight
       || !anchorBlockHash
       || anchorMedianTime == null
       || tipAgeSeconds == null
       || tipAgeSeconds < 0
       || tipAgeSeconds > maxTipAgeSeconds
-      || chainNetwork !== expectedNetwork
+      || chainNetwork !== expectedNetwork;
+    if (chainAnchorInvalid) {
+      return unknownExpiryEvidence(HNS_CHAIN_OBSERVATION_PROVIDER);
+    }
+
+    const chainAnchorEvidence = {
+      expiry_anchor_height: anchorHeight,
+      expiry_anchor_block_hash: anchorBlockHash,
+      expiry_anchor_median_time: anchorMedianTime,
+      expiry_chain_network: chainNetwork,
+    };
+    if (!nameEnvelope) {
+      return {
+        ...unknownExpiryEvidence(HNS_CHAIN_OBSERVATION_PROVIDER),
+        ...chainAnchorEvidence,
+      };
+    }
+
+    const rootMissing = nameEnvelope.info == null
+      || nameInfo?.registered === false
+      || nameInfo?.expired === true
+      || nameInfo?.state !== "CLOSED";
+    if (rootMissing) {
+      return {
+        ...unknownExpiryEvidence(HNS_CHAIN_OBSERVATION_PROVIDER, false),
+        ...chainAnchorEvidence,
+        expiry_horizon_sufficient: false,
+      };
+    }
+
+    if (
+      expiryHeight == null
       || blocksRemaining == null
       || reportedBlocksRemaining == null
       || Math.abs(reportedBlocksRemaining - blocksRemaining) > 1
     ) {
-      return unknownExpiryEvidence(HNS_CHAIN_OBSERVATION_PROVIDER);
+      return {
+        ...unknownExpiryEvidence(HNS_CHAIN_OBSERVATION_PROVIDER, true),
+        ...chainAnchorEvidence,
+      };
     }
 
     return {
+      expiry_root_exists: true,
       expiry_horizon_sufficient: blocksRemaining >= horizonBlocks,
       expiry_height: expiryHeight,
       expiry_anchor_height: anchorHeight,
@@ -649,7 +672,7 @@ async function inspectOwnerManagedRoot(rootLabel: string, challengeHost?: string
   ]);
   const nameservers = rootResource?.nameservers ?? [];
   const observedTxtValues = rootResource?.txtValues ?? [];
-  const rootExists = rootResource != null;
+  const rootExists = expiryEvidence.expiry_root_exists ?? (rootResource != null ? true : null);
   const pirateDnsAuthorityVerified = nameservers.some(matchesDefaultNameserver);
   const challengePresent = observedTxtValues.length > 0;
 
@@ -657,11 +680,11 @@ async function inspectOwnerManagedRoot(rootLabel: string, challengeHost?: string
     root_label: normalizedRoot,
     zone_name: zoneName,
     challenge_name: challengeName,
-    zone_exists: rootExists,
+    zone_exists: rootResource != null,
     challenge_present: challengePresent,
     nameservers: nameservers.length > 0 ? nameservers : defaultNameservers,
     observation_provider: OWNER_MANAGED_OBSERVATION_PROVIDER,
-    failure_reason: rootExists
+    failure_reason: rootResource != null
       ? challengePresent ? null : "challenge_not_published"
       : "root_resource_unavailable",
     rrsets: [
@@ -683,8 +706,8 @@ async function inspectOwnerManagedRoot(rootLabel: string, challengeHost?: string
     ...expiryEvidence,
     routing_enabled: pirateDnsAuthorityVerified,
     pirate_dns_authority_verified: pirateDnsAuthorityVerified,
-    control_class: rootExists ? "single_holder_root" : null,
-    operation_class: rootExists ? "owner_managed_namespace" : null,
+    control_class: rootExists === true ? "single_holder_root" : null,
+    operation_class: rootExists === true ? "owner_managed_namespace" : null,
   };
 }
 
@@ -890,7 +913,7 @@ async function verifyParentChainTxt(body: {
   ]);
   const nameservers = rootResource?.nameservers ?? [];
   const observedValues = rootResource?.txtValues ?? [];
-  const rootExists = rootResource != null;
+  const rootExists = expiryEvidence.expiry_root_exists ?? (rootResource != null ? true : null);
   const pirateDnsAuthorityVerified = nameservers.some(matchesDefaultNameserver);
   const verified = observedValues.includes(body.challenge_txt_value);
 
@@ -911,8 +934,8 @@ async function verifyParentChainTxt(body: {
     ...expiryEvidence,
     routing_enabled: pirateDnsAuthorityVerified,
     pirate_dns_authority_verified: pirateDnsAuthorityVerified,
-    control_class: rootExists ? "single_holder_root" as const : null,
-    operation_class: rootExists
+    control_class: rootExists === true ? "single_holder_root" as const : null,
+    operation_class: rootExists === true
       ? (pirateDnsAuthorityVerified ? "pirate_delegated_namespace" as const : "owner_managed_namespace" as const)
       : null,
     root_label: normalizedRoot,
@@ -943,7 +966,8 @@ async function verifyOwnerDnsTxt(body: {
   ]);
   const verified = observedValues.includes(body.challenge_txt_value);
   const pirateDnsAuthorityVerified = nameservers.some(matchesDefaultNameserver);
-  const rootExists = rootResource != null ? true : (verified || nameservers.length > 0 ? true : null);
+  const rootExists = expiryEvidence.expiry_root_exists
+    ?? (rootResource != null ? true : (verified || nameservers.length > 0 ? true : null));
 
   return {
     verified,

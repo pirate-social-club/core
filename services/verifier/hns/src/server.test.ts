@@ -90,12 +90,16 @@ describe("hns verifier server", () => {
     anchorHeight,
     expiryHeight,
     chainError = false,
+    rootExists = true,
+    rootResourceError = false,
     tipAgeSeconds = 60,
   }: {
     rawHex: string;
     anchorHeight: number;
     expiryHeight: number;
     chainError?: boolean;
+    rootExists?: boolean;
+    rootResourceError?: boolean;
     tipAgeSeconds?: number;
   }) {
     const requests: Array<{ url: string; authorization: string | null; method: string | null }> = [];
@@ -112,13 +116,13 @@ describe("hns verifier server", () => {
         if (method === "getnameinfo") {
           return Response.json({
             result: {
-              info: {
+              info: rootExists ? {
                 state: "CLOSED",
                 stats: {
                   renewalPeriodEnd: expiryHeight,
                   blocksUntilExpire: expiryHeight - anchorHeight,
                 },
-              },
+              } : {},
             },
           });
         }
@@ -133,6 +137,10 @@ describe("hns verifier server", () => {
             },
           });
         }
+      }
+
+      if (rootResourceError) {
+        return new Response("unavailable", { status: 503 });
       }
 
       return Response.json([
@@ -308,6 +316,7 @@ describe("hns verifier server", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.expiry_horizon_sufficient).toBe(true);
+    expect(body.expiry_root_exists).toBe(true);
     expect(body.expiry_height).toBe(12_500);
     expect(body.expiry_anchor_height).toBe(10_000);
     expect(body.expiry_anchor_block_hash).toBe("ab".repeat(32));
@@ -319,6 +328,60 @@ describe("hns verifier server", () => {
       .toEqual(["getblockchaininfo", "getnameinfo"]);
     expect(requests.find((request) => request.method === "getnameinfo")?.authorization)
       .toBe(`Basic ${Buffer.from("x:rpc-secret").toString("base64")}`);
+
+    resetOwnerManagedProofs();
+  });
+
+  test("uses the authenticated chain observer for root existence when the resource scraper is unavailable", async () => {
+    Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "https://example.test/name/{root}/resources?fetch=main";
+    Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
+    Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
+    Bun.env.HNS_EXPIRY_HORIZON_BLOCKS = "1000";
+    Bun.env.HNS_CHAIN_MAX_TIP_AGE_SECONDS = "3600";
+    mockRootAndChainFetch({
+      rawHex: "",
+      anchorHeight: 10_000,
+      expiryHeight: 12_500,
+      rootResourceError: true,
+    });
+
+    const response = await handleRequest(new Request(
+      "http://127.0.0.1:4048/inspect-public?root_label=xn--pokmon-dva",
+    ));
+
+    const body = await response.json();
+    expect(body.root_exists).toBe(true);
+    expect(body.zone_exists).toBe(false);
+    expect(body.expiry_root_exists).toBe(true);
+    expect(body.expiry_horizon_sufficient).toBe(true);
+
+    resetOwnerManagedProofs();
+  });
+
+  test("reports an absent chain root as definitively insufficient", async () => {
+    Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "https://example.test/name/{root}/resources?fetch=main";
+    Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
+    Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
+    Bun.env.HNS_EXPIRY_HORIZON_BLOCKS = "1000";
+    Bun.env.HNS_CHAIN_MAX_TIP_AGE_SECONDS = "3600";
+    mockRootAndChainFetch({
+      rawHex: "",
+      anchorHeight: 10_000,
+      expiryHeight: 12_500,
+      rootExists: false,
+      rootResourceError: true,
+    });
+
+    const response = await handleRequest(new Request(
+      "http://127.0.0.1:4048/inspect-public?root_label=xn--pokmon-dva",
+    ));
+
+    const body = await response.json();
+    expect(body.root_exists).toBe(false);
+    expect(body.expiry_root_exists).toBe(false);
+    expect(body.expiry_horizon_sufficient).toBe(false);
+    expect(body.expiry_anchor_height).toBe(10_000);
+    expect(body.expiry_observation_provider).toBe("hsd_json_rpc");
 
     resetOwnerManagedProofs();
   });

@@ -17,5 +17,8 @@ Current slices:
   PowerDNS-based authoritative DNS deployment assets for Pirate-managed HNS roots.
 - `hns-verifier/`
   Deployment assets and env templates for the PowerDNS-backed HNS verifier/provisioner.
+- `hns-chain-observer/` (required bring-up slice; deployment assets pending)
+  Keyless mainnet `hsd` node used for authenticated root-expiry observation and
+  post-acceptance revalidation. This is not a wallet or authoritative DNS role.
 - `spaces-verifier/`
   Deployment assets and env templates for the VPS-hosted Spaces verifier stack.

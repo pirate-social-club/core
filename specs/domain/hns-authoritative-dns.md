@@ -109,6 +109,8 @@ For `infinity/` and `profile.infinity` to resolve in HNS-aware environments, Pir
 - a registered Handshake root name such as `infinity`
 - Handshake `NS` records for that root, or equivalent supported Handshake delegation records
 - reachable authoritative nameservers for the `infinity.` zone
+- a synced, authenticated Handshake chain observer for root existence and
+  expiry-horizon enforcement
 - zone records inside `infinity.` for:
   - the apex `infinity.`
   - `profile.infinity.`
@@ -124,6 +126,7 @@ Public v0 should assume Pirate runs, or contracts for, authoritative DNS for the
 Minimum requirement:
 
 - one always-on authoritative DNS deployment
+- one always-on Handshake chain observer
 
 Recommended production posture:
 
@@ -139,11 +142,19 @@ because it supports writable backends and an HTTP API that match Pirate's provis
 
 Pirate may also run an HTTP reverse proxy on the same host if native HNS web traffic should be forwarded into the existing Pirate app stack.
 
+The initial chain observer is a keyless `hsd` node on mainnet with its wallet
+plugin disabled. Its RPC API must be authenticated and bound to localhost or an
+equivalently private service network. The verifier uses `getnameinfo` plus
+`getblockchaininfo` and rejects stale, unsynced, wrong-network, or malformed
+responses. This node is on the security path for namespace attachment and
+revalidation even though it has no serving-DNS or wallet role.
+
 One VPS may host multiple roles if that is the cheapest operational path:
 
 - authoritative DNS for delegated HNS zones
 - the Pirate reverse proxy for native HNS web routes
 - the verification API and verifier workers
+- keyless `hsd` chain observation
 - the separate Spaces verifier runtime
 
 That consolidation is acceptable for public v0 as long as the logical responsibilities stay separate:
@@ -154,25 +165,38 @@ That consolidation is acceptable for public v0 as long as the logical responsibi
 
 ## What Pirate Does Not Need To Run
 
-Pirate does not need a full archival Handshake node just to serve the `infinity.` zone.
+Pirate does not need an archival or wallet-bearing Handshake node to serve the
+`infinity.` zone. It does now need a synced chain node for expiry enforcement.
 
 Important:
 
 - authoritative DNS for `infinity.` is cheap and lightweight
-- a full-chain Handshake node is not required on the authoritative DNS server
+- archival indexes and a Handshake wallet are not required for the observer
 - a recursive HNS resolver such as `hnsd` is optional and solves a different problem
 
 Operationally:
 
 - authoritative DNS answers questions about the `infinity.` zone
 - recursive HNS resolvers help users look up Handshake names
-- Handshake chain infrastructure is only needed to publish or update the root's on-chain delegation records
+- Handshake chain observation is required to accept and revalidate namespaces;
+  wallet-bearing chain infrastructure is needed only to publish or update
+  Pirate-controlled root records
 
 Recommended v0 posture:
 
-- do not run a full Handshake node on the authoritative DNS host
-- if Pirate self-hosts Handshake chain operations, use a separate pruned or otherwise lighter-weight chain setup for root-record updates
+- run a keyless `hsd` observer, preferably isolated from the public DNS and web
+  listeners even when it shares the same VPS
+- disable the wallet plugin and expose authenticated RPC only to the verifier
+- if Pirate self-hosts Handshake write operations, keep the wallet and signing
+  material separate from the observer and public edge
 - Pirate may instead rely on an external registrar or operational provider for publishing Handshake root updates
+
+An alternate node implementation may run alongside `hsd` as a read-only shadow
+observer. Bind its RPC to localhost, store no keys, and diff the exact
+`getnameinfo`/`getblockchaininfo` evidence consumed by the verifier for an
+extended period before considering promotion. Shadow disagreement must never
+grant capability; `hsd` remains authoritative until the alternate observer has
+earned replacement status through production evidence.
 
 ## Cloudflare Posture
 
@@ -196,8 +220,9 @@ The minimum practical public v0 topology is:
 
 1. one small always-on VPS
 2. PowerDNS Authoritative serving one or more HNS zones such as `infinity.`
-3. Handshake root records delegating each HNS root to those nameservers
-4. optional reverse proxy on the same VPS forwarding native HNS web traffic into Pirate's existing app stack
+3. a keyless, synced, authenticated `hsd` observer on mainnet
+4. Handshake root records delegating each HNS root to those nameservers
+5. optional reverse proxy on the same VPS forwarding native HNS web traffic into Pirate's existing app stack
 
 This topology should support many communities because one authoritative DNS service can host many HNS zones at once.
 
@@ -208,7 +233,9 @@ Examples:
 - `label.`
 - `festival.`
 
-The cost driver is not community count. The cost driver is whether Pirate also chooses to run heavy Handshake chain infrastructure on the same machine, which public v0 should avoid.
+The cost driver is not community count. The chain observer adds persistent disk,
+initial-sync time, and monitoring requirements; it should be capacity-planned
+independently from the lightweight authoritative DNS workload.
 
 ## Canonical Backing Model
 
@@ -378,13 +405,14 @@ Recommended sequence:
 4. publish Handshake root delegation records that point to those nameservers
 5. add native HNS web proxying only where needed
 
-This is the simplest deployment model that makes `infinity/` and `profile.infinity` genuinely resolvable in HNS-aware environments without requiring Pirate to run a large archival Handshake node.
+This is the simplest deployment model that makes `infinity/` and `profile.infinity` genuinely resolvable in HNS-aware environments while keeping the required Handshake observer keyless and non-archival.
 
 ## Public V0 Delivery Plan
 
 To get HNS working end-to-end with the least ambiguity:
 
-1. Ship one supported HNS path first: Pirate-managed authoritative DNS on a single VPS.
+1. Ship one supported HNS path first: Pirate-managed authoritative DNS plus a
+   keyless `hsd` observer on the VPS/private service network.
 2. In the frontend, ask the user to update only the Handshake parent delegation records in their HNS root-management tool:
    - `NS`
    - any needed glue records
