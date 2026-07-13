@@ -15,18 +15,24 @@
 # validate DANE. Plain HTTP stays available for HNS clients without DANE
 # support — non-canonical origins are public/read-only in the app
 # (web/docs/auth-origin-spec.md), so no credentials ride over it.
-
 {
-  local_certs
+	local_certs
+	# Required with on-demand TLS: Caddy sends ?domain=<SNI> to this loopback-only
+	# permission service and issues only on a 2xx response. The gateway checks
+	# first-party profile/agent existence or a currently routable verified HNS
+	# namespace. Never expose port 4050 publicly.
+	on_demand_tls {
+		ask http://127.0.0.1:4050/ask
+	}
 }
 
 https:// {
-  tls internal {
-    on_demand
-  }
-  reverse_proxy 127.0.0.1:4049
+	tls internal {
+		on_demand
+	}
+	reverse_proxy 127.0.0.1:4049
 }
 
 http:// {
-  reverse_proxy 127.0.0.1:4049
+	reverse_proxy 127.0.0.1:4049
 }

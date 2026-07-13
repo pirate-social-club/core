@@ -20,6 +20,8 @@ It is the server-side counterpart to Freedom's HNS browsing path:
 - call `GET /public-agents/:handle`
 - render the same public agent surface used for the ICANN fallback
 - redirect renamed handles to the current HNS host
+- serve Caddy's loopback-only on-demand TLS permission check and authorize only
+  hostnames backed by real first-party or verified namespace routes
 
 ## Environment
 
@@ -30,6 +32,9 @@ It is the server-side counterpart to Freedom's HNS browsing path:
 - `HNS_PUBLIC_GATEWAY_EXTERNAL_SCHEME`
 - `HNS_PUBLIC_API_ORIGIN`
 - `HNS_PUBLIC_APP_ORIGIN`
+- `HNS_PUBLIC_CADDY_ASK_PORT` (always bound to `127.0.0.1`)
+- `HNS_PUBLIC_CADDY_ASK_DB_PATH`
+- `HNS_PUBLIC_CADDY_MAX_HOSTS_PER_NAMESPACE`
 
 ## Local Usage
 

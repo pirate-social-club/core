@@ -1,4 +1,13 @@
 import type { PublicAgentResolution, PublicProfileResolution } from "@pirate/api-contracts";
+import {
+  CaddyNamespaceIssuanceStore,
+  DEFAULT_CADDY_MAX_HOSTS_PER_NAMESPACE,
+  handleCaddyAskRequest,
+  type CaddyAskEnv,
+} from "./caddy-ask";
+import { extractImportedNamespaceHost, extractPublicProfileHost } from "./hostnames";
+
+export { extractImportedNamespaceHost, extractPublicProfileHost } from "./hostnames";
 
 type PublicNamespaceResolution = {
   root_label: string;
@@ -10,29 +19,11 @@ type PublicNamespaceResolution = {
   };
 };
 
-export type HnsPublicGatewayEnv = {
-  HNS_PUBLIC_GATEWAY_ROOT_SUFFIX?: string;
-  HNS_PUBLIC_GATEWAY_AGENT_SUFFIX?: string;
+export type HnsPublicGatewayEnv = CaddyAskEnv & {
   HNS_PUBLIC_GATEWAY_EXTERNAL_SCHEME?: string;
-  HNS_PUBLIC_API_ORIGIN?: string;
   HNS_PUBLIC_APP_ORIGIN?: string;
   HNS_PUBLIC_FORWARDER_AUTH_TOKEN?: string;
 };
-
-const RESERVED_HOSTS = new Set([
-  "www",
-  "api",
-  "api-staging",
-  "spaces",
-  "app",
-  "admin",
-  "assets",
-  "static",
-  "cdn",
-  "dev",
-  "staging",
-  "profile",
-]);
 
 export function buildCommunityPath(communityId: string, routeSlug: string | null): string {
   return `/c/${encodeURIComponent(routeSlug || communityId)}`;
@@ -52,60 +43,6 @@ function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
-}
-
-export function extractPublicProfileHost(
-  hostname: string,
-  rootSuffix: string,
-): { handleLabel: string; hostSuffix: string } | null {
-  const normalizedHostname = hostname.trim().toLowerCase().replace(/\.+$/u, "");
-  const normalizedSuffix = rootSuffix.trim().toLowerCase().replace(/\.+$/u, "");
-
-  if (!normalizedHostname || !normalizedSuffix) {
-    return null;
-  }
-
-  if (!normalizedHostname.endsWith(`.${normalizedSuffix}`)) {
-    return null;
-  }
-
-  const subdomain = normalizedHostname.slice(0, -(normalizedSuffix.length + 1));
-  if (!subdomain || subdomain.includes(".") || RESERVED_HOSTS.has(subdomain)) {
-    return null;
-  }
-
-  return { handleLabel: subdomain, hostSuffix: normalizedSuffix };
-}
-
-export function extractImportedNamespaceHost(
-  hostname: string,
-  reservedSuffixes: string[],
-): { rootLabel: string; subdomain: string | null } | null {
-  const normalizedHostname = hostname.trim().toLowerCase().replace(/\.+$/u, "");
-  if (!normalizedHostname || normalizedHostname === "localhost" || normalizedHostname.includes(":")) {
-    return null;
-  }
-
-  for (const suffix of reservedSuffixes) {
-    const normalizedSuffix = suffix.trim().toLowerCase().replace(/\.+$/u, "");
-    if (!normalizedSuffix) {
-      continue;
-    }
-    if (normalizedHostname === normalizedSuffix || normalizedHostname.endsWith(`.${normalizedSuffix}`)) {
-      return null;
-    }
-  }
-
-  const labels = normalizedHostname.split(".").filter(Boolean);
-  const rootLabel = labels[labels.length - 1];
-  if (!rootLabel || !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(rootLabel)) {
-    return null;
-  }
-
-  return {
-    rootLabel,
-    subdomain: labels.length > 1 ? labels.slice(0, -1).join(".") : null,
-  };
 }
 
 function formatJoinedLabel(createdAt: string): string {
@@ -645,6 +582,27 @@ export async function handleRequest(
 if (import.meta.main) {
   const host = Bun.env.HNS_PUBLIC_GATEWAY_HOST?.trim() || "127.0.0.1";
   const port = Number(Bun.env.HNS_PUBLIC_GATEWAY_PORT || "4049");
+  const caddyAskPort = Number(Bun.env.HNS_PUBLIC_CADDY_ASK_PORT || "4050");
+  const caddyAskDatabasePath = Bun.env.HNS_PUBLIC_CADDY_ASK_DB_PATH?.trim()
+    || "/var/lib/pirate-hns/caddy-ask.sqlite";
+  const configuredNamespaceHostLimit = Number(
+    Bun.env.HNS_PUBLIC_CADDY_MAX_HOSTS_PER_NAMESPACE
+      || String(DEFAULT_CADDY_MAX_HOSTS_PER_NAMESPACE),
+  );
+  const caddyNamespaceIssuanceStore = new CaddyNamespaceIssuanceStore(
+    caddyAskDatabasePath,
+    configuredNamespaceHostLimit,
+  );
+
+  Bun.serve({
+    // Security boundary: never make the certificate permission service
+    // configurable onto a public interface.
+    hostname: "127.0.0.1",
+    port: caddyAskPort,
+    fetch(request) {
+      return handleCaddyAskRequest(request, Bun.env, fetch, caddyNamespaceIssuanceStore);
+    },
+  });
 
   Bun.serve({
     hostname: host,
@@ -655,4 +613,5 @@ if (import.meta.main) {
   });
 
   console.log(`[hns-public-gateway] listening on http://${host}:${port}`);
+  console.log(`[hns-public-gateway] Caddy ask listening on http://127.0.0.1:${caddyAskPort}/ask`);
 }
