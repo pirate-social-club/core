@@ -368,6 +368,102 @@ function createCanonicalUrl(requestUrl: URL, scheme: string): string {
   return nextUrl.toString();
 }
 
+const INTERNAL_HEADER_PREFIX = "x-pirate-hns-";
+const CREDENTIAL_HEADERS = ["authorization", "cookie", "proxy-authorization"];
+const READ_ONLY_METHODS = new Set(["GET", "HEAD"]);
+
+/**
+ * The gateway is the trust boundary: downstream (the app Worker) accepts
+ * x-pirate-hns-* only from this gateway's IP + token. A public client can send
+ * those headers too, so every inbound one must be DELETED before we set the
+ * server-derived values — otherwise the gateway would launder attacker-supplied
+ * routing context (community id/route) behind its own legitimate token.
+ */
+function buildProxyHeaders(request: Request, url: URL, env: HnsPublicGatewayEnv): Headers {
+  const headers = new Headers(request.headers);
+  headers.delete("host");
+
+  for (const name of [...headers.keys()]) {
+    if (name.toLowerCase().startsWith(INTERNAL_HEADER_PREFIX)) {
+      headers.delete(name);
+    }
+  }
+
+  // Plain HTTP is a public, read-only surface: no credentials may ride over it.
+  if (!isSecureRequest(request)) {
+    for (const name of CREDENTIAL_HEADERS) {
+      headers.delete(name);
+    }
+  }
+
+  headers.set("accept-encoding", "identity");
+  headers.set("x-pirate-hns-host", url.hostname);
+  const forwarderToken = env.HNS_PUBLIC_FORWARDER_AUTH_TOKEN?.trim();
+  if (forwarderToken) {
+    headers.set("x-pirate-hns-forwarder-token", forwarderToken);
+  }
+  return headers;
+}
+
+/**
+ * Scheme of the ORIGINAL client request. The fronting proxy owns
+ * x-forwarded-proto (both shipped examples overwrite it, and the gateway binds
+ * localhost only), so it is not client-controllable. Absent header => assume
+ * http, i.e. fail closed to the read-only surface.
+ */
+function isSecureRequest(request: Request): boolean {
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim().toLowerCase();
+  return forwardedProto === "https";
+}
+
+function buildProxyBodyInit(request: Request): RequestInit & { duplex?: "half" } {
+  if (READ_ONLY_METHODS.has(request.method)) {
+    return {};
+  }
+  return { body: request.body, duplex: "half" };
+}
+
+// HNS clients without DANE validation browse over plain HTTP, so HTTP stays
+// served — but strictly read-only (see web/docs/auth-origin-spec.md:
+// non-canonical origins are public/read-first). Writes must use a canonical
+// HTTPS origin.
+function rejectUnsafeMethodOverHttp(request: Request): Response | null {
+  if (isSecureRequest(request) || READ_ONLY_METHODS.has(request.method)) {
+    return null;
+  }
+  return renderErrorPage(
+    "HTTPS required",
+    "Writes are not accepted over plain HTTP on Handshake hosts. Use an HTTPS-capable HNS client or the canonical Pirate origin.",
+    405,
+  );
+}
+
+function rebaseUrlToOrigin(requestUrl: string, targetOrigin: string): string {
+  const nextUrl = new URL(requestUrl);
+  const originUrl = new URL(targetOrigin);
+  nextUrl.protocol = originUrl.protocol;
+  nextUrl.host = originUrl.host;
+  return nextUrl.toString();
+}
+
+// Explicit first-party proxying (api.<root> -> API origin, app.<root> and the
+// bare root apex -> app origin) so routing does not depend on the fronting
+// proxy getting reserved hosts right.
+async function proxyReservedHostRequest(input: {
+  request: Request;
+  url: URL;
+  targetOrigin: string;
+  env: HnsPublicGatewayEnv;
+  fetchImpl: typeof fetch;
+}): Promise<Response> {
+  return input.fetchImpl(rebaseUrlToOrigin(input.request.url, input.targetOrigin), {
+    headers: buildProxyHeaders(input.request, input.url, input.env),
+    method: input.request.method,
+    redirect: "manual",
+    ...buildProxyBodyInit(input.request),
+  });
+}
+
 async function proxyImportedNamespaceRequest(input: {
   request: Request;
   url: URL;
@@ -398,31 +494,20 @@ async function proxyImportedNamespaceRequest(input: {
   }
 
   const resolution = await namespaceResponse.json() as PublicNamespaceResolution;
-  const appUrl = new URL(input.request.url);
-  const appOriginUrl = new URL(input.appOrigin);
-  appUrl.protocol = appOriginUrl.protocol;
-  appUrl.host = appOriginUrl.host;
-
-  const headers = new Headers(input.request.headers);
-  headers.delete("host");
-  headers.set("accept-encoding", "identity");
+  const headers = buildProxyHeaders(input.request, input.url, input.env);
   headers.set("accept", input.request.headers.get("accept") ?? "text/html");
-  headers.set("x-pirate-hns-host", input.url.hostname);
   headers.set("x-pirate-hns-root", resolution.root_label);
   headers.set("x-pirate-hns-community-id", resolution.community.id);
   headers.set("x-pirate-hns-community-route", resolution.community.route_slug);
-  const forwarderToken = input.env.HNS_PUBLIC_FORWARDER_AUTH_TOKEN?.trim();
-  if (forwarderToken) {
-    headers.set("x-pirate-hns-forwarder-token", forwarderToken);
-  }
   if (input.namespaceHost.subdomain) {
     headers.set("x-pirate-hns-subdomain", input.namespaceHost.subdomain);
   }
 
-  return input.fetchImpl(appUrl.toString(), {
+  return input.fetchImpl(rebaseUrlToOrigin(input.request.url, input.appOrigin), {
     headers,
     method: input.request.method,
     redirect: "manual",
+    ...buildProxyBodyInit(input.request),
   });
 }
 
@@ -432,6 +517,11 @@ export async function handleRequest(
   fetchImpl: typeof fetch = fetch,
 ): Promise<Response> {
   const url = new URL(request.url);
+  const unsafeOverHttp = rejectUnsafeMethodOverHttp(request);
+  if (unsafeOverHttp) {
+    return unsafeOverHttp;
+  }
+
   if (url.pathname === "/health") {
     return Response.json({ ok: true });
   }
@@ -439,6 +529,16 @@ export async function handleRequest(
   const rootSuffix = env.HNS_PUBLIC_GATEWAY_ROOT_SUFFIX?.trim() || "pirate";
   const agentSuffix = env.HNS_PUBLIC_GATEWAY_AGENT_SUFFIX?.trim() || "clawitzer";
   const externalScheme = env.HNS_PUBLIC_GATEWAY_EXTERNAL_SCHEME?.trim() || "https";
+  const apiOrigin = env.HNS_PUBLIC_API_ORIGIN?.trim() || "https://api.pirate.sc";
+  const appOrigin = env.HNS_PUBLIC_APP_ORIGIN?.trim() || "https://pirate.sc";
+
+  const hostname = url.hostname.trim().toLowerCase().replace(/\.+$/u, "");
+  if (hostname === `api.${rootSuffix}`) {
+    return proxyReservedHostRequest({ request, url, targetOrigin: apiOrigin, env, fetchImpl });
+  }
+  if (hostname === `app.${rootSuffix}` || hostname === rootSuffix) {
+    return proxyReservedHostRequest({ request, url, targetOrigin: appOrigin, env, fetchImpl });
+  }
 
   let target = extractPublicProfileHost(url.hostname, rootSuffix);
   let isAgent = false;
@@ -447,9 +547,6 @@ export async function handleRequest(
     target = extractPublicProfileHost(url.hostname, agentSuffix);
     isAgent = true;
   }
-
-  const apiOrigin = env.HNS_PUBLIC_API_ORIGIN?.trim() || "https://api.pirate.sc";
-  const appOrigin = env.HNS_PUBLIC_APP_ORIGIN?.trim() || "https://pirate.sc";
 
   if (!target) {
     const namespaceHost = extractImportedNamespaceHost(url.hostname, [rootSuffix, agentSuffix]);

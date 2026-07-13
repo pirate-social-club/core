@@ -1,56 +1,23 @@
-server {
-  listen 80;
-  server_name app.pirate;
-
-  location / {
-    proxy_set_header Host pirate.sc;
-    proxy_set_header X-Pirate-HNS-Host $host;
-    proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Forwarded-Proto https;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_ssl_server_name on;
-    proxy_ssl_name pirate.sc;
-    proxy_pass https://pirate.sc;
-  }
-}
+# All HNS hostnames route through the Bun gateway (127.0.0.1:4049), which owns
+# routing (app/api/apex, usernames, reserved-host 404s, and the dynamic
+# arbitrary-root catchall via /public-namespaces/:root). The gateway injects
+# x-pirate-hns-host and the forwarder token itself.
+#
+# default_server makes this a true catchall: arbitrary verified community
+# roots (any hostname) reach the gateway instead of dying in proxy config.
+# For HTTPS, terminate TLS with per-zone self-signed certs + DANE-EE TLSA
+# records under DNSSEC; plain HTTP stays available for HNS clients without
+# DANE support (non-canonical origins are public/read-only in the app).
 
 server {
-  listen 80;
-  server_name api.pirate;
-
-  location / {
-    proxy_set_header Host api.pirate.sc;
-    proxy_set_header X-Pirate-HNS-Host $host;
-    proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Forwarded-Proto https;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_ssl_server_name on;
-    proxy_ssl_name api.pirate.sc;
-    proxy_pass https://api.pirate.sc;
-  }
-}
-
-server {
-  listen 80;
-  server_name ~^(?<label>[a-z0-9-]+)\.pirate$;
+  listen 80 default_server;
+  listen [::]:80 default_server;
+  server_name _;
 
   location / {
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Forwarded-Proto https;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_pass http://127.0.0.1:4049;
-  }
-}
-
-server {
-  listen 80;
-  server_name ~^(?<label>[a-z0-9-]+)\.clawitzer$;
-
-  location / {
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_pass http://127.0.0.1:4049;
   }
