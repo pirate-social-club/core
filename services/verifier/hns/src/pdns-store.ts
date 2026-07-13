@@ -53,6 +53,14 @@ export type PowerDnsApiClientConfig = {
   apiKey: string;
   serverId?: string;
   defaultSoaContent: string;
+  /**
+   * Native zones are NEVER notified: PowerDNS silently drops NOTIFY for them,
+   * so a secondary would never learn about changes. Zones must be Master
+   * (primary=yes in pdns.conf) for AXFR/NOTIFY replication to actually work.
+   */
+  zoneKind?: "Master" | "Native";
+  /** TSIG key name granted TSIG-ALLOW-AXFR on every provisioned zone. */
+  axfrTsigKeyName?: string | null;
 };
 
 /**
@@ -66,12 +74,16 @@ export class PowerDnsApiClient {
   private readonly apiKey: string;
   private readonly serverId: string;
   private readonly defaultSoaContent: string;
+  private readonly zoneKind: "Master" | "Native";
+  private readonly axfrTsigKeyName: string | null;
 
   constructor(config: PowerDnsApiClientConfig) {
     this.apiUrl = config.apiUrl.replace(/\/+$/, "");
     this.apiKey = config.apiKey;
     this.serverId = config.serverId ?? "localhost";
     this.defaultSoaContent = config.defaultSoaContent;
+    this.zoneKind = config.zoneKind ?? "Master";
+    this.axfrTsigKeyName = config.axfrTsigKeyName ?? null;
   }
 
   async getZoneByName(zoneName: string): Promise<PowerDnsZoneSnapshot | null> {
@@ -99,7 +111,7 @@ export class PowerDnsApiClient {
     if (!existing) {
       const response = await this.request("POST", `/servers/${this.serverId}/zones`, {
         name: zoneName,
-        kind: "Native",
+        kind: this.zoneKind,
         soa_edit_api: "DEFAULT",
         rrsets: [
           {
@@ -130,6 +142,19 @@ export class PowerDnsApiClient {
       await assertOk(response, `patch zone ${zoneName}`);
     }
 
+    // Converge AXFR authorization on EVERY ensure, not only first creation.
+    // Recovered zones, 409 creation races, and retries after a metadata failure
+    // must all repair TSIG-ALLOW-AXFR instead of remaining silently
+    // unreplicated forever.
+    if (this.axfrTsigKeyName) {
+      const metadata = await this.request(
+        "PUT",
+        `${this.zonePath(zoneName)}/metadata/TSIG-ALLOW-AXFR`,
+        { kind: "TSIG-ALLOW-AXFR", metadata: [this.axfrTsigKeyName] },
+      );
+      await assertOk(metadata, `grant TSIG-ALLOW-AXFR on ${zoneName}`);
+    }
+
     const zone = await this.getZoneByName(zoneName);
     if (!zone) {
       throw new Error(`zone ${zoneName} missing after write`);
@@ -140,8 +165,12 @@ export class PowerDnsApiClient {
       await assertOk(response, `rectify zone ${zoneName}`);
     }
 
-    const notifyResponse = await this.request("PUT", `${this.zonePath(zoneName)}/notify`);
-    await assertOk(notifyResponse, `notify zone ${zoneName}`);
+    // PowerDNS accepts /notify on Native zones but silently does nothing, so
+    // only notify when the zone is actually a primary.
+    if (this.zoneKind === "Master") {
+      const notifyResponse = await this.request("PUT", `${this.zonePath(zoneName)}/notify`);
+      await assertOk(notifyResponse, `notify zone ${zoneName}`);
+    }
 
     return { zone, created };
   }

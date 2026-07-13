@@ -90,6 +90,8 @@ function requirePowerDnsStore(): PowerDnsApiClient {
     apiUrl: pdnsApiUrl,
     apiKey: pdnsApiKey,
     defaultSoaContent,
+    zoneKind: Bun.env.PDNS_ZONE_KIND?.trim() === "Native" ? "Native" : "Master",
+    axfrTsigKeyName: Bun.env.PDNS_AXFR_TSIG_KEY_NAME?.trim() || null,
   });
 }
 

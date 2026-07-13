@@ -167,9 +167,35 @@ RewardCampaignStatus:
     - scheduled
     - active
     - paused
+    - operational_hold
     - exhausted
     - ended
     - canceled
+RewardCampaignIncidentRecoveryRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - incident_version
+    - resolution_note
+  properties:
+    incident_version:
+      type: integer
+      minimum: 1
+    resolution_note:
+      type: string
+      minLength: 1
+      maxLength: 2000
+RewardCampaignIncidentRecoveryResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - campaign_id
+    - status
+  properties:
+    campaign_id:
+      type: string
+    status:
+      $ref: ./rewards.yaml#/RewardCampaignStatus
 RewardCampaignEligibleActivity:
   type: string
   enum:

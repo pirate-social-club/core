@@ -193,6 +193,46 @@ public_reward_campaigns_by_campaign_id:
               $ref: ../components/schemas/rewards.yaml#/PublicRewardOffer
       "404":
         description: No active campaign offer was found
+operator_reward_campaign_incident_recovery:
+  parameters:
+    - name: campaign_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: incident_id
+      in: path
+      required: true
+      schema:
+        type: string
+  post:
+    x-implemented: true
+    operationId: operator_reward_campaign_incident_recover
+    tags:
+      - Rewards
+    summary: Recover a healthy campaign from an operational hold
+    description: Requires an operator credential with the rewards:campaign-incidents:resolve scope.
+    security:
+      - operatorCredentialAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/rewards.yaml#/RewardCampaignIncidentRecoveryRequest
+    responses:
+      "200":
+        description: Incident resolved and campaign lifecycle restored
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/rewards.yaml#/RewardCampaignIncidentRecoveryResponse
+      "401":
+        description: Missing or invalid operator credential
+      "403":
+        description: Operator credential lacks the recovery scope
+      "409":
+        description: Incident changed, campaign is unhealthy, or another holding incident remains
 reward_campaign_funding_quotes:
   parameters:
     - name: campaign_id

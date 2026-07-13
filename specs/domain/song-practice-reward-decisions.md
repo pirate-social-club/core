@@ -162,6 +162,18 @@ Future APIs return structured `exact`, `range`, or `up_to` display semantics. A 
 when its floor is guaranteed. `Up to` is used when zero or exclusion is possible. `Max` is reserved
 for rewarder configuration and reporting.
 
+## Operational holds and alert ownership
+
+- Platform incidents use the distinct durable `operational_hold` state; owner policy continues to use `paused`.
+- An accounting-counter mismatch or definitive loss of a previously confirmed funding receipt opens a durable incident. Two monitor observations are required before a non-terminal campaign is held. RPC errors, unavailable safe heads, and other ambiguous reads are monitor failures and never evidence that funding disappeared.
+- Holds apply only to `scheduled`, `active`, or owner-`paused` campaigns and only for accounting mismatch or definitive finality loss. An anomaly on an `ended` or `exhausted` campaign is alert-only and never destroys its terminal lifecycle state.
+- Confirmed funding effects created before block provenance was persisted remain nullable and produce a standing coverage-gap incident and alert, never a hold. Before any pilot enablement, operators backfill block number/hash from the configured chain and verify canonicality; provenance is never invented from campaign timestamps.
+- Held campaigns publish no offer and admit no new reservation or credit. Existing credits and submitted payouts are never clawed back. Reservation-to-credit remains one transaction, so an open reserved row is itself an accounting incident.
+- Every incident records immutable opening evidence, occurrence count, last-seen time, named alert owner and destination, and successful delivery time. Missing ownership configuration makes the monitor fail closed before scanning; it must not create an unowned incident.
+- Recovery is an explicit authorized operation. It requires healthy accounting and funding checks, resolves every open incident with operator identity and note, and restores the exact lifecycle state captured before the hold.
+- The recovery HTTP surface uses the dedicated `/operator/reward_campaigns/{campaign_id}/incidents/{incident_id}/recover` namespace and operator-credential scope `rewards:campaign-incidents:resolve`. This deliberately differs from user-authenticated `/reward_campaigns/*` routes so user middleware cannot intercept or authorize treasury recovery.
+- The seven-day qualification grace remains wall-clock based during a hold. Qualifications do not reserve inventory and the accepted pilot policy intentionally does not promise compensation for platform downtime.
+
 ## Rollout controls
 
 Accrual, reads, payouts, and campaigns have independent default-off flags. A staging deployment
