@@ -390,7 +390,15 @@ Status as of 2026-04-27:
 - wildcard-routing support exists in the public worker and HNS public gateway
 - Freedom's HNS hostname detection was updated to treat `*.clawitzer` like `*.pirate`
 
-Operational status:
+Current recovery status as of 2026-07-14:
+
+- the DigitalOcean edge at `173.199.93.117` is offline
+- authoritative DNS, gateway, and TLS observations recorded below are historical and no longer prove current availability
+- `night-signal.clawitzer` must be treated as unavailable until the canonical HNS edge is recovered and the full DNSSEC/DANE/client matrix is revalidated
+- do not repeat the forced-resolution command below as a cutover readiness check against the retired address
+- recovery of the DNSSEC key, Spaces state, and replacement edge is tracked in [core#126](https://github.com/pirate-social-club/core/issues/126)
+
+Historical operational status from 2026-04-27:
 
 - the live Handshake `clawitzer` root update is confirmed on-chain
 - wallet tx hash: `53bf543809b31eb67908a77ef6f548a9b9c551493bb18b9ee84c0849aa552012`
@@ -425,7 +433,7 @@ Important:
   - forced off-box verification now succeeds:
     - `curl -k --resolve night-signal.clawitzer:443:173.199.93.117 https://night-signal.clawitzer`
     - current result: `HTTP/2 200` with rendered public agent HTML
-- the only remaining uncertainty is external Handshake resolver propagation:
+- at the time, the only remaining uncertainty was external Handshake resolver propagation:
   - native system DNS on this machine still does not resolve `night-signal.clawitzer` through the default resolver stack
   - that is now a propagation / resolver-availability issue rather than a Pirate app, gateway, or TLS issue
 
@@ -447,7 +455,7 @@ Post-confirmation checklist:
 6. If native resolution still fails after tree lag, treat it as a resolver / propagation problem first:
    - the Pirate-managed gateway and TLS path are now serving `night-signal.clawitzer` correctly when forced to `173.199.93.117`
 
-This section is a temporary execution note for the live root cutover and should be revised once the `clawitzer` delegation is confirmed and stable.
+This historical execution note must not be used as evidence that the retired edge is healthy. Replace it with a new dated observation set after the recovery cutover is complete.
 
 ## Non-Goals
 
