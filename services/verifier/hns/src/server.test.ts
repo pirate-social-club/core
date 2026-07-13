@@ -108,8 +108,34 @@ describe("hns verifier server", () => {
     expect(body.zone_name).toBe("xn--pokmon-dva.");
   });
 
-  test("supports API-facing public TXT verification endpoint", async () => {
+  test("fails closed when no owner-published observation path is configured", async () => {
     resetOwnerManagedProofs();
+    const response = await handleRequest(new Request("http://127.0.0.1:4048/verify-txt-public", {
+      method: "POST",
+      body: JSON.stringify({
+        root_label: "xn--pokmon-dva",
+        challenge_host: "_pirate.xn--pokmon-dva",
+        challenge_txt_value: "pirate-verification=nvs_test",
+      }),
+    }));
+
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body.verified).toBe(false);
+    expect(body.failure_reason).toBe("ownership_observation_unavailable");
+    expect(body.ownership_source).toBe(null);
+    expect(body.root_control_verified).toBe(false);
+  });
+
+  test("verifies owner-managed ownership via the owner's authoritative DNS", async () => {
+    resetOwnerManagedProofs();
+    Bun.env.HNS_OWNER_MANAGED_RESOLVERS = "192.0.2.53";
+    Resolver.prototype.resolveTxt = async function (name: string) {
+      expect(name).toBe("_pirate.xn--pokmon-dva.");
+      return [["pirate-verification=nvs_test"]];
+    } as typeof Resolver.prototype.resolveTxt;
+    Resolver.prototype.resolveNs = async () => ["ns9.owner.example"];
+
     const response = await handleRequest(new Request("http://127.0.0.1:4048/verify-txt-public", {
       method: "POST",
       body: JSON.stringify({
@@ -121,9 +147,29 @@ describe("hns verifier server", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.verified).toBe(false);
-    expect(body.failure_reason).toBe("zone_not_provisioned");
-    expect(body.root_exists).toBe(false);
+    expect(body.verified).toBe(true);
+    expect(body.ownership_source).toBe("owner_authoritative_dns_txt");
+    expect(body.observation_provider).toBe("owner_authoritative_dns");
+    expect(body.operation_class).toBe("owner_managed_namespace");
+    expect(body.pirate_dns_authority_verified).toBe(false);
+
+    resetOwnerManagedProofs();
+  });
+
+  test("authority-health reports unprovisioned zones without claiming ownership", async () => {
+    resetOwnerManagedProofs();
+    const response = await handleRequest(new Request(
+      "http://127.0.0.1:4048/authority-health?root_label=xn--pokmon-dva&challenge_host=_pirate.xn--pokmon-dva",
+    ));
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.zone_provisioned).toBe(false);
+    expect(body.challenge_present).toBe(false);
+    expect(body.challenge_served).toBe(null);
+    expect(body.observation_provider).toBe("powerdns_api");
+    expect("verified" in body).toBe(false);
+    expect("root_control_verified" in body).toBe(false);
   });
 
   test("public inspect can read owner-managed HNS root resources", async () => {

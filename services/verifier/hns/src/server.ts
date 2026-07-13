@@ -588,69 +588,100 @@ async function verifyTxt(body: {
     return json({ error: "root_label and challenge_txt_value are required" }, { status: 400 });
   }
 
+  // Ownership must come from evidence the owner published: the Handshake
+  // parent root resource (Pirate-managed path) or the owner's own
+  // authoritative DNS (owner-managed path). Pirate's own zones are NEVER an
+  // ownership source — reading back a record Pirate wrote proves nothing
+  // about the requesting user. See specs/domain/hns-authoritative-dns.md,
+  // "Verification Assertions".
   if (isOwnerManagedRootResourceConfigured()) {
-    return verifyOwnerManagedTxt({
+    const parentChain = await verifyParentChainTxt({
+      root_label: rootLabel,
+      challenge_txt_value: challengeTxtValue,
+    });
+    if (parentChain.verified || !isOwnerManagedResolverConfigured()) {
+      return json(parentChain);
+    }
+    const ownerDns = await verifyOwnerDnsTxt({
       root_label: rootLabel,
       challenge_host: body.challenge_host,
       challenge_txt_value: challengeTxtValue,
     });
+    return json(ownerDns.verified ? ownerDns : parentChain);
   }
 
+  if (isOwnerManagedResolverConfigured()) {
+    return json(await verifyOwnerDnsTxt({
+      root_label: rootLabel,
+      challenge_host: body.challenge_host,
+      challenge_txt_value: challengeTxtValue,
+    }));
+  }
+
+  return json({
+    verified: false,
+    observation_provider: null,
+    ownership_source: null,
+    failure_reason: "ownership_observation_unavailable",
+    root_exists: null,
+    root_control_verified: false,
+    expiry_horizon_sufficient: null,
+    routing_enabled: null,
+    pirate_dns_authority_verified: null,
+    control_class: null,
+    operation_class: null,
+  }, { status: 503 });
+}
+
+// Assertion-3 health check: after ownership + delegation pass and the child
+// zone is provisioned, confirm the zone exists in the authoritative backend
+// and (when health resolvers are configured) that _pirate.<root> is actually
+// served. Never ownership evidence.
+async function authorityHealth(rootLabel: string, challengeHost?: string | null) {
   const store = requirePowerDnsStore();
   const normalizedRoot = normalizeRootLabel(rootLabel);
   const zoneName = normalizeZoneName(normalizedRoot);
-  const challengeName = normalizeChallengeName(normalizedRoot, body.challenge_host);
+  const challengeName = normalizeChallengeName(normalizedRoot, challengeHost);
   const zone = await store.getZoneByName(zoneName);
 
-  if (!zone) {
-    return json({
-      verified: false,
-      observation_provider: DELEGATED_OBSERVATION_PROVIDER,
-      failure_reason: "zone_not_provisioned",
-      root_exists: false,
-      root_control_verified: false,
-      expiry_horizon_sufficient: false,
-      routing_enabled: false,
-      pirate_dns_authority_verified: false,
-      control_class: null,
-      operation_class: null,
-    });
+  const challengeRrset = zone?.rrsets.find(
+    (entry) => entry.name === toStorageName(challengeName) && entry.type === "TXT",
+  ) ?? null;
+
+  let challengeServed: boolean | null = null;
+  const healthResolvers = parseResolverCsv(Bun.env.HNS_AUTHORITY_HEALTH_RESOLVERS);
+  if (zone && healthResolvers.length > 0) {
+    const resolver = new Resolver();
+    resolver.setServers(healthResolvers);
+    try {
+      const served = (await withOwnerManagedResolverTimeout(resolver.resolveTxt(challengeName)))
+        .map((chunks) => chunks.join(""))
+        .map(normalizeTxtRecordContent);
+      challengeServed = challengeRrset != null
+        && challengeRrset.records.map(normalizeTxtRecordContent).every((value) => served.includes(value));
+    } catch {
+      challengeServed = false;
+    }
   }
 
-  const rrset = zone.rrsets.find((entry) => entry.name === toStorageName(challengeName) && entry.type === "TXT") ?? null;
-  const observedValues = rrset?.records.map((record) => normalizeTxtRecordContent(record)) ?? [];
-  const verified = observedValues.includes(challengeTxtValue);
-
   return json({
-    verified,
-    observation_provider: DELEGATED_OBSERVATION_PROVIDER,
-    failure_reason: verified
-      ? null
-      : rrset == null
-        ? "challenge_not_published"
-        : "challenge_mismatch",
-    observed_values: observedValues,
-    root_exists: true,
-    root_control_verified: verified,
-    expiry_horizon_sufficient: true,
-    routing_enabled: true,
-    pirate_dns_authority_verified: true,
-    control_class: "single_holder_root",
-    operation_class: "pirate_delegated_namespace",
     root_label: normalizedRoot,
     zone_name: zoneName,
     challenge_name: challengeName,
+    zone_provisioned: zone != null,
+    challenge_present: challengeRrset != null,
+    challenge_served: challengeServed,
+    nameservers: zone?.nameservers.map(withTrailingDot) ?? [],
+    observation_provider: DELEGATED_OBSERVATION_PROVIDER,
   });
 }
 
-async function verifyOwnerManagedTxt(body: {
+async function verifyParentChainTxt(body: {
   root_label: string;
-  challenge_host?: string | null;
   challenge_txt_value: string;
 }) {
   const normalizedRoot = normalizeRootLabel(body.root_label);
   const zoneName = normalizeZoneName(normalizedRoot);
-  const challengeName = zoneName;
   const rootResource = await fetchOwnerManagedRootResource(normalizedRoot);
   const nameservers = rootResource?.nameservers ?? [];
   const observedValues = rootResource?.txtValues ?? [];
@@ -658,9 +689,10 @@ async function verifyOwnerManagedTxt(body: {
   const pirateDnsAuthorityVerified = nameservers.some(matchesDefaultNameserver);
   const verified = observedValues.includes(body.challenge_txt_value);
 
-  return json({
+  return {
     verified,
     observation_provider: OWNER_MANAGED_OBSERVATION_PROVIDER,
+    ownership_source: verified ? "hns_parent_chain_txt" : null,
     failure_reason: verified
       ? null
       : rootResource == null
@@ -674,12 +706,60 @@ async function verifyOwnerManagedTxt(body: {
     expiry_horizon_sufficient: rootExists ? true : null,
     routing_enabled: pirateDnsAuthorityVerified,
     pirate_dns_authority_verified: pirateDnsAuthorityVerified,
-    control_class: rootExists ? "single_holder_root" : null,
-    operation_class: rootExists ? "owner_managed_namespace" : null,
+    control_class: rootExists ? "single_holder_root" as const : null,
+    operation_class: rootExists
+      ? (pirateDnsAuthorityVerified ? "pirate_delegated_namespace" as const : "owner_managed_namespace" as const)
+      : null,
+    root_label: normalizedRoot,
+    zone_name: zoneName,
+    challenge_name: zoneName,
+  };
+}
+
+async function verifyOwnerDnsTxt(body: {
+  root_label: string;
+  challenge_host?: string | null;
+  challenge_txt_value: string;
+}) {
+  const normalizedRoot = normalizeRootLabel(body.root_label);
+  const zoneName = normalizeZoneName(normalizedRoot);
+  const challengeName = normalizeChallengeName(normalizedRoot, body.challenge_host);
+  // Ownership comes from the owner's OWN authoritative DNS. Root existence and
+  // expiry are on-chain facts, so they must still come from the parent chain —
+  // DNS cannot attest to them, and leaving expiry unknown would silently
+  // withhold club attachment from every owner-managed root.
+  const [observedValues, nameservers, rootResource] = await Promise.all([
+    resolveOwnerManagedTxt(challengeName),
+    resolveOwnerManagedNs(normalizedRoot),
+    isOwnerManagedRootResourceConfigured()
+      ? fetchOwnerManagedRootResource(normalizedRoot)
+      : Promise.resolve(null),
+  ]);
+  const verified = observedValues.includes(body.challenge_txt_value);
+  const pirateDnsAuthorityVerified = nameservers.some(matchesDefaultNameserver);
+  const rootExists = rootResource != null ? true : (verified || nameservers.length > 0 ? true : null);
+
+  return {
+    verified,
+    observation_provider: "owner_authoritative_dns",
+    ownership_source: verified ? "owner_authoritative_dns_txt" : null,
+    failure_reason: verified
+      ? null
+      : observedValues.length === 0
+        ? "challenge_not_published"
+        : "challenge_mismatch",
+    observed_values: observedValues,
+    root_exists: rootExists,
+    root_control_verified: verified,
+    expiry_horizon_sufficient: rootResource != null ? true : null,
+    routing_enabled: pirateDnsAuthorityVerified,
+    pirate_dns_authority_verified: pirateDnsAuthorityVerified,
+    control_class: verified ? "single_holder_root" as const : null,
+    operation_class: verified ? "owner_managed_namespace" as const : null,
     root_label: normalizedRoot,
     zone_name: zoneName,
     challenge_name: challengeName,
-  });
+  };
 }
 
 export async function handleRequest(request: Request) {
@@ -719,6 +799,18 @@ export async function handleRequest(request: Request) {
         return json({
           error: error instanceof Error ? error.message : "inspect failed",
         }, { status: 500 });
+      }
+    }
+
+    if (url.pathname === "/authority-health") {
+      const rootLabel = url.searchParams.get("root_label");
+      if (!rootLabel?.trim()) {
+        return json({ error: "root_label is required" }, { status: 400 });
+      }
+      try {
+        return await authorityHealth(rootLabel, url.searchParams.get("challenge_host"));
+      } catch (error) {
+        return json({ error: error instanceof Error ? error.message : "authority health check failed" }, { status: 502 });
       }
     }
 

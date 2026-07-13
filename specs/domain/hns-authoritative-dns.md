@@ -224,15 +224,18 @@ The recommended split is:
 
 1. delegation inspection reads Handshake parent data such as `NS` and glue posture
 2. authoritative DNS serves the delegated `<root>.` child zone
-3. challenge publication writes `_pirate.<root>` into Pirate's child-zone backing store
-4. `/verify-txt` reads from that same authoritative child-zone backing store, either directly or by
-   querying the authoritative server that serves it
+3. health publication writes `_pirate.<root>` into Pirate's child zone through the
+   PowerDNS API
+4. the authority-health check reads that record back through the serving path
 
 Important:
 
 - after `NS` delegation, parent-side TXT state in the Handshake root resource is not the authoritative `_pirate.<root>` source
 - `spaced` or other Handshake-parent inspection can prove delegation posture
-- it cannot replace the child-zone authoritative data path for delegated TXT verification
+- reading `_pirate.<root>` back from Pirate's own child zone proves serving
+  health only — ownership proof always comes from records the owner published
+  (parent-chain TXT, or the owner's own authoritative DNS), per the
+  Verification Assertions section
 
 Recommended public-v0 implementation:
 
@@ -253,32 +256,83 @@ If Pirate is operating `infinity.`, the authoritative zone should typically cont
 
 This means `profile.infinity` is not a special Handshake feature. It is an ordinary subdomain in the delegated `infinity.` zone.
 
+## Verification Assertions
+
+Verification is three independent assertions. They must never be conflated, and
+the third must never be treated as the first.
+
+### 1. Root ownership (creator-bound)
+
+Proof that the requesting user controls the root. It must come from a record
+only the root owner can publish — never from a record Pirate published itself.
+
+- Pirate-managed path: the owner publishes the session-bound nonce as a TXT
+  value in the Handshake parent root resource. This is on-chain ownership
+  evidence, observed from the parent chain. It must not be described to users
+  or recorded in evidence as DNS `_pirate.<root>` proof — after delegation the
+  parent resource is not the `_pirate.<root>` data path.
+- Owner-managed path: the owner publishes the session-bound nonce at
+  `_pirate.<root>` through their own, already-working authoritative DNS,
+  observed through independent resolvers.
+
+Anti-circularity rule: Pirate must never accept a TXT value served from
+Pirate's own authoritative backend as ownership proof. Pirate publishing
+`_pirate.<root>` and then reading it back proves only that Pirate can write to
+its own database.
+
+### 2. Delegation
+
+Independent observation of the Handshake parent record set: `NS` (and glue,
+and `DS` when published) pointing at Pirate-operated nameservers. Observed
+from parent-chain data, not from Pirate's own zones.
+
+A single root-resource update by the owner may carry both the session TXT
+(assertion 1, Pirate-managed path) and the delegation records (assertion 2).
+
+### 3. Operational authority health
+
+Only after ownership and delegation both pass, Pirate provisions the `<root>.`
+child zone on its authoritative DNS, publishes `_pirate.<root>` there, and
+queries it back through the serving path. This confirms the authority actually
+serves the delegated zone. It is recorded as health evidence
+(`authority_health_verified`), never as ownership proof.
+
 ## Verification Order
 
-For the public v0 TXT proof model, authoritative DNS setup must happen before TXT verification at `_pirate.<root>` can succeed.
+Pirate-managed path:
 
-Recommended order:
+1. the owner starts a session and receives a session-bound nonce
+2. the owner updates the Handshake parent root resource: the session TXT value
+   plus `NS`/glue delegation records pointing at Pirate nameservers (one update
+   may carry both)
+3. Pirate independently observes the parent resource: ownership (assertion 1)
+   and delegation (assertion 2)
+4. both pass → Pirate provisions the `<root>.` child zone and publishes
+   `_pirate.<root>` in it
+5. Pirate queries `_pirate.<root>` through the authoritative serving path and
+   records the result as authority health (assertion 3)
+6. the session is accepted on assertions 1+2; assertion 3 gates routing
+   claims, not acceptance
 
-1. the owner chooses whether the root will stay owner-managed or delegate to Pirate-managed authoritative DNS
-2. if Pirate-managed DNS is chosen, the owner publishes Handshake `NS` and any required glue records that point at Pirate nameservers
-3. Pirate detects that delegation posture and provisions the `<root>.` child zone on its authoritative DNS service
-4. Pirate publishes `_pirate.<root>` with the session-bound TXT challenge value in that child-zone backing store
-5. the authoritative DNS service serves `_pirate.<root>` from the same backing store
-6. Pirate verifies creator-bound control against the delegated authoritative zone
-7. the owner may keep the root on Pirate-managed nameservers or later move elsewhere subject to later revalidation
+Owner-managed path:
 
-Alternative owner-managed path:
-
-1. the owner keeps authoritative DNS elsewhere
-2. the owner serves `_pirate.<root>` on that already-working authoritative DNS
-3. Pirate verifies creator-bound control there
+1. the owner starts a session and receives a session-bound nonce
+2. the owner publishes `_pirate.<root>` on their own authoritative DNS
+3. Pirate observes it through independent resolvers (assertion 1) and observes
+   the parent record set for routing posture (assertion 2 evidence, informational
+   unless the owner also wants Pirate-managed routing)
+4. the session is accepted on assertion 1; no child zone is provisioned
 
 Important:
 
-- owner-managed authoritative DNS is sufficient for TXT proof
-- owner-managed authoritative DNS is also sufficient for HNS-native routing such as `profile.infinity`
-- Pirate-managed nameserver delegation is a separate operational choice and should not be required just to verify club attachment eligibility
-- but if Pirate chooses a public-v0 implementation that only automates Pirate-managed DNS first, the product must say that plainly in UX instead of implying that parent-side HNS root-resource edits alone will populate the delegated child zone
+- owner-managed authoritative DNS is sufficient for ownership proof and for
+  HNS-native routing such as `profile.infinity`
+- Pirate-managed nameserver delegation is a separate operational choice and
+  should not be required just to verify club attachment eligibility
+- but if Pirate chooses a public-v0 implementation that only automates
+  Pirate-managed DNS first, the product must say that plainly in UX instead of
+  implying that parent-side HNS root-resource edits alone will populate the
+  delegated child zone
 
 ## Verification Implications
 
