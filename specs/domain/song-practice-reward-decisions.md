@@ -172,6 +172,7 @@ for rewarder configuration and reporting.
 - Every incident records immutable opening evidence, occurrence count, last-seen time, named alert owner and destination, and successful delivery time. Missing ownership configuration makes the monitor fail closed before scanning; it must not create an unowned incident.
 - Recovery is an explicit authorized operation. It requires healthy accounting and funding checks, resolves every open incident with operator identity and note, and restores the exact lifecycle state captured before the hold.
 - The recovery HTTP surface uses the dedicated `/operator/reward_campaigns/{campaign_id}/incidents/{incident_id}/recover` namespace and operator-credential scope `rewards:campaign-incidents:resolve`. This deliberately differs from user-authenticated `/reward_campaigns/*` routes so user middleware cannot intercept or authorize treasury recovery.
+- Monitor state never overloads one timestamp with two meanings: `last_attempted_scan_at` proves scheduler liveness, while nullable `last_successful_scan_at` proves complete finality coverage. A wholly blind finality page alerts immediately; stale/never-complete coverage and rate-based partial degradation alert independently with distinct dedupe identities.
 - The seven-day qualification grace remains wall-clock based during a hold. Qualifications do not reserve inventory and the accepted pilot policy intentionally does not promise compensation for platform downtime.
 
 ## Rollout controls
