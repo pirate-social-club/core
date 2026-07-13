@@ -167,6 +167,7 @@ RewardCampaignStatus:
     - scheduled
     - active
     - paused
+    - operational_hold
     - exhausted
     - ended
     - canceled
