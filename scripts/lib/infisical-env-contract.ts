@@ -68,6 +68,21 @@ function isHttpUrl(value: string): string | null {
   }
 }
 
+function isHttpsUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") {
+      return `expected https:// URL, got ${url.protocol}//`;
+    }
+    if (!url.hostname) {
+      return "missing hostname";
+    }
+    return null;
+  } catch {
+    return "not a valid URL";
+  }
+}
+
 function is64CharHex(value: string): string | null {
   if (!/^[0-9a-f]{64}$/.test(value)) {
     return "expected 64-character lowercase hex string";
@@ -99,6 +114,19 @@ function isEvmAddress(value: string): string | null {
 function isEvmPrivateKey(value: string): string | null {
   if (!/^0x[0-9a-fA-F]{64}$/.test(value)) {
     return "expected 0x-prefixed 32-byte EVM private key";
+  }
+  return null;
+}
+
+function isRewardCampaignChainId(value: string): string | null {
+  return value === "8453" || value === "84532"
+    ? null
+    : "expected Base mainnet (8453) or Base Sepolia (84532) chain id";
+}
+
+function isOperatorCredential(value: string): string | null {
+  if (!/^opc_[0-9a-f]{32}\.[A-Za-z0-9_-]{32,}$/.test(value)) {
+    return "expected opc_<32 lowercase hex>.<base64url secret>";
   }
   return null;
 }
@@ -475,6 +503,82 @@ export const ENV_CONTRACT: EnvContract = {
     },
     {
       path: "/services/api",
+      key: "REWARDS_CAMPAIGN_CHAIN_ID",
+      requiredness: "required_for_staging",
+      validate: isRewardCampaignChainId,
+    },
+    {
+      path: "/services/api",
+      key: "REWARDS_CAMPAIGN_USDC_TOKEN_ADDRESS",
+      requiredness: "required_for_staging",
+      validate: isEvmAddress,
+    },
+    {
+      path: "/services/api",
+      key: "REWARDS_CAMPAIGN_TREASURY_ADDRESS",
+      requiredness: "required_for_staging",
+      validate: isEvmAddress,
+    },
+    {
+      path: "/services/api",
+      key: "REWARDS_CAMPAIGN_RPC_URL",
+      requiredness: "required_for_staging",
+      validate: isHttpsUrl,
+    },
+    {
+      path: "/services/api",
+      key: "REWARDS_CAMPAIGN_ALERT_OWNER",
+      requiredness: "required_for_staging",
+    },
+    {
+      path: "/services/api",
+      key: "REWARDS_CAMPAIGN_ALERT_DESTINATION",
+      requiredness: "required_for_staging",
+    },
+    {
+      path: "/services/api",
+      key: "REWARDS_CAMPAIGN_QUOTE_TTL_SECONDS",
+      requiredness: "required_for_staging",
+      validate: isPositiveInteger,
+    },
+    {
+      path: "/services/api",
+      key: "REWARDS_CAMPAIGN_MIN_BUDGET_CENTS",
+      requiredness: "required_for_staging",
+      validate: isPositiveInteger,
+    },
+    {
+      path: "/services/api",
+      key: "REWARDS_CAMPAIGN_MAX_BUDGET_CENTS",
+      requiredness: "required_for_staging",
+      validate: isPositiveInteger,
+    },
+    {
+      path: "/services/api",
+      key: "REWARDS_CAMPAIGN_MAX_REWARD_CENTS",
+      requiredness: "required_for_staging",
+      validate: isPositiveInteger,
+    },
+    {
+      path: "/services/api",
+      key: "REWARDS_CAMPAIGN_MIN_DURATION_SECONDS",
+      requiredness: "required_for_staging",
+      validate: isPositiveInteger,
+    },
+    {
+      path: "/services/api",
+      key: "REWARDS_CAMPAIGN_MAX_DURATION_SECONDS",
+      requiredness: "required_for_staging",
+      validate: isPositiveInteger,
+    },
+    {
+      path: "/services/api",
+      key: "PIRATE_REWARD_CAMPAIGN_OPERATOR_CREDENTIAL",
+      requiredness: "required_for_staging",
+      validate: isOperatorCredential,
+    },
+    {
+      path: "/services/api",
       key: "BASE_MAINNET_RPC_URL",
       requiredness: "deferred",
       validate: isHttpUrl,
@@ -557,6 +661,28 @@ export const ENV_CONTRACT: EnvContract = {
   ],
 
   crossPathChecks: [
+    {
+      description: "Reward campaign guardrails must be internally consistent",
+      check: (secrets) => {
+        const value = (key: string): number | null => {
+          const secret = secrets.get(`${key}__/services/api`);
+          if (!secret || secret.value === null || !/^[1-9][0-9]*$/.test(secret.value)) return null;
+          return Number(secret.value);
+        };
+        const quoteTtl = value("REWARDS_CAMPAIGN_QUOTE_TTL_SECONDS");
+        const minBudget = value("REWARDS_CAMPAIGN_MIN_BUDGET_CENTS");
+        const maxBudget = value("REWARDS_CAMPAIGN_MAX_BUDGET_CENTS");
+        const minDuration = value("REWARDS_CAMPAIGN_MIN_DURATION_SECONDS");
+        const maxDuration = value("REWARDS_CAMPAIGN_MAX_DURATION_SECONDS");
+        if ([quoteTtl, minBudget, maxBudget, minDuration, maxDuration].some((item) => item === null)) {
+          return { status: "skip", message: "one or more reward campaign guardrails missing or invalid" };
+        }
+        if (quoteTtl! > 86_400) return { status: "fail", message: "quote TTL exceeds 86400 seconds" };
+        if (minBudget! > maxBudget!) return { status: "fail", message: "minimum budget exceeds maximum" };
+        if (minDuration! > maxDuration!) return { status: "fail", message: "minimum duration exceeds maximum" };
+        return { status: "ok" };
+      },
+    },
     {
       description: "Runtime and migrator URLs must point at the same database host",
       check: (secrets) => {
@@ -711,12 +837,26 @@ export const COMMERCE_SECRET_IDS = [
   "PIRATE_CHECKOUT_SOURCE_CHAIN_ID__/services/api",
   "PIRATE_CHECKOUT_USDC_TOKEN_ADDRESS__/services/api",
   "PIRATE_CHECKOUT_SMOKE_BUYER_PRIVATE_KEY__/services/api",
+  "REWARDS_CAMPAIGN_CHAIN_ID__/services/api",
+  "REWARDS_CAMPAIGN_USDC_TOKEN_ADDRESS__/services/api",
+  "REWARDS_CAMPAIGN_TREASURY_ADDRESS__/services/api",
+  "REWARDS_CAMPAIGN_RPC_URL__/services/api",
+  "REWARDS_CAMPAIGN_ALERT_OWNER__/services/api",
+  "REWARDS_CAMPAIGN_ALERT_DESTINATION__/services/api",
+  "REWARDS_CAMPAIGN_QUOTE_TTL_SECONDS__/services/api",
+  "REWARDS_CAMPAIGN_MIN_BUDGET_CENTS__/services/api",
+  "REWARDS_CAMPAIGN_MAX_BUDGET_CENTS__/services/api",
+  "REWARDS_CAMPAIGN_MAX_REWARD_CENTS__/services/api",
+  "REWARDS_CAMPAIGN_MIN_DURATION_SECONDS__/services/api",
+  "REWARDS_CAMPAIGN_MAX_DURATION_SECONDS__/services/api",
+  "PIRATE_REWARD_CAMPAIGN_OPERATOR_CREDENTIAL__/services/api",
 ] as const;
 
 const NON_WRANGLER_API_SECRET_NAMES = new Set([
   "TINYBIRD_TOKEN",
   "TINYBIRD_URL",
   "PIRATE_CHECKOUT_SMOKE_BUYER_PRIVATE_KEY",
+  "PIRATE_REWARD_CAMPAIGN_OPERATOR_CREDENTIAL",
 ]);
 
 export function profileSecretIds(profile: SecretProfile): Set<string> | null {

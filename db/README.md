@@ -56,6 +56,17 @@ Use the directories themselves as the authoritative source:
 - `db/community-template/migrations/`
   Current community-template sequence starts at `1001_...` and continues through the latest checked-in migration.
 
+Production applies the complete pending sequence, not a feature-selected subset. Before every apply:
+
+- query the live `schema_migrations` ledger and compare it with the exact checked-out migration root
+- review every pending file, including migrations owned by unrelated workstreams
+- notify those owners before applying their migrations as part of another rollout
+- record the exact applied set and aggregate data effects in the rollout evidence
+
+Once recorded in a production ledger, a migration file is immutable; later schema changes require a
+new migration. A merged dark feature is not evidence that its schema has reached production, and a
+missing table must never be treated as an intentional feature gate.
+
 For Postgres control-plane runs, the migration runner treats `0000_control_plane_baseline_postgres.sql`
 as a fresh-database snapshot that supersedes the historical `0001_...0046_...` chain.
 It will:
