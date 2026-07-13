@@ -48,6 +48,24 @@ describe("extractImportedNamespaceHost", () => {
     });
   });
 
+  test("accepts consensus-valid underscores only in the HNS root label", () => {
+    expect(extractImportedNamespaceHost("tame_impala", ["pirate", "clawitzer"])).toEqual({
+      rootLabel: "tame_impala",
+      subdomain: null,
+    });
+    expect(extractImportedNamespaceHost("app.tame_impala", ["pirate", "clawitzer"])).toEqual({
+      rootLabel: "tame_impala",
+      subdomain: "app",
+    });
+    expect(extractImportedNamespaceHost("bad_subdomain.tame_impala", ["pirate", "clawitzer"])).toBeNull();
+  });
+
+  test("rejects root labels excluded by Handshake consensus", () => {
+    for (const hostname of ["_leading", "trailing_", "-leading", "trailing-", "localhost", "a".repeat(64)]) {
+      expect(extractImportedNamespaceHost(hostname, ["pirate", "clawitzer"])).toBeNull();
+    }
+  });
+
   test("does not treat first-party suffix hosts as imported roots", () => {
     expect(extractImportedNamespaceHost("app.pirate", ["pirate", "clawitzer"])).toBeNull();
     expect(extractImportedNamespaceHost("night-signal.clawitzer", ["pirate", "clawitzer"])).toBeNull();
@@ -176,6 +194,30 @@ describe("handleCaddyAskRequest", () => {
         store,
       );
       expect(denied.status).toBe(403);
+    } finally {
+      store.close();
+    }
+  });
+
+  test("allows certificate issuance for a verified underscore HNS root", async () => {
+    const store = new CaddyNamespaceIssuanceStore(":memory:");
+    const calls: string[] = [];
+    try {
+      const response = await handleCaddyAskRequest(
+        new Request("http://127.0.0.1:4050/ask?domain=app.tame_impala"),
+        env,
+        async (url) => {
+          calls.push(String(url));
+          return Response.json({
+            root_label: "tame_impala",
+            namespace_verification: "nv_underscore",
+          });
+        },
+        store,
+      );
+
+      expect(response.status).toBe(204);
+      expect(calls).toEqual(["https://api.pirate.sc/public-namespaces/tame_impala"]);
     } finally {
       store.close();
     }
@@ -652,6 +694,31 @@ describe("handleRequest", () => {
         "https://pirate.sc/posts/42",
       ]);
     }
+  });
+
+  test("routes a verified underscore HNS root through the dynamic gateway", async () => {
+    const calls: string[] = [];
+    const response = await handleRequest(
+      new Request("https://app.tame_impala/posts/42"),
+      env,
+      async (url) => {
+        calls.push(String(url));
+        if (String(url).endsWith("/public-namespaces/tame_impala")) {
+          return Response.json({
+            root_label: "tame_impala",
+            namespace_verification: "nv_underscore",
+            community: { id: "com_underscore", display_name: "Tame Impala", route_slug: "tame-impala" },
+          });
+        }
+        return new Response("community app");
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(calls).toEqual([
+      "https://api.pirate.sc/public-namespaces/tame_impala",
+      "https://pirate.sc/posts/42",
+    ]);
   });
 
   test("proxies verified imported HNS roots without rewriting the path", async () => {

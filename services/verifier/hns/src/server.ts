@@ -49,6 +49,7 @@ import { Resolver } from "node:dns/promises";
 import { PowerDnsApiClient, type PowerDnsZoneSnapshot } from "./pdns-store";
 import { parseDaneEeAssociations } from "./tlsa";
 import { json, requireBearerAuth } from "../../shared/http";
+import { isCanonicalHnsRootLabel } from "../../../hns/root-label";
 
 const verifierHost = Bun.env.HNS_VERIFIER_HOST?.trim() || "127.0.0.1";
 const verifierPort = Number(Bun.env.HNS_VERIFIER_PORT || "4048");
@@ -184,11 +185,17 @@ function requirePowerDnsStore(): PowerDnsApiClient {
   });
 }
 
+class InvalidHnsRootLabelError extends Error {}
+
+function verifierErrorStatus(error: unknown, fallback: number): number {
+  return error instanceof InvalidHnsRootLabelError ? 400 : fallback;
+}
+
 function normalizeRootLabel(value: string): string {
   const trimmed = value.trim().normalize("NFKC").toLowerCase().replace(/\/+$/, "");
   const normalized = normalizeIdnaRootLabel(trimmed);
-  if (!/^[a-z0-9_-]+$/.test(normalized)) {
-    throw new Error("root_label must be a single Handshake TLD label");
+  if (!isCanonicalHnsRootLabel(normalized)) {
+    throw new InvalidHnsRootLabelError("root_label must be a single Handshake TLD label");
   }
   return normalized;
 }
@@ -1117,7 +1124,7 @@ export async function handleRequest(request: Request) {
       } catch (error) {
         return json({
           error: error instanceof Error ? error.message : "inspect failed",
-        }, { status: 500 });
+        }, { status: verifierErrorStatus(error, 500) });
       }
     }
 
@@ -1129,7 +1136,10 @@ export async function handleRequest(request: Request) {
       try {
         return await authorityHealth(rootLabel, url.searchParams.get("challenge_host"));
       } catch (error) {
-        return json({ error: error instanceof Error ? error.message : "authority health check failed" }, { status: 502 });
+        return json(
+          { error: error instanceof Error ? error.message : "authority health check failed" },
+          { status: verifierErrorStatus(error, 502) },
+        );
       }
     }
 
@@ -1144,7 +1154,7 @@ export async function handleRequest(request: Request) {
       } catch (error) {
         return json({
           error: error instanceof Error ? error.message : "publish failed",
-        }, { status: 500 });
+        }, { status: verifierErrorStatus(error, 500) });
       }
     }
 
@@ -1159,7 +1169,7 @@ export async function handleRequest(request: Request) {
       } catch (error) {
         return json({
           error: error instanceof Error ? error.message : "zone ensure failed",
-        }, { status: 500 });
+        }, { status: verifierErrorStatus(error, 500) });
       }
     }
 
@@ -1174,7 +1184,7 @@ export async function handleRequest(request: Request) {
       } catch (error) {
         return json({
           error: error instanceof Error ? error.message : "TXT verification failed",
-        }, { status: 500 });
+        }, { status: verifierErrorStatus(error, 500) });
       }
     }
 

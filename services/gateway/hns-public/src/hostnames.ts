@@ -1,3 +1,5 @@
+import { isCanonicalHnsRootLabel } from "../../../hns/root-label";
+
 const RESERVED_HOSTS = new Set([
   "www",
   "api",
@@ -20,9 +22,15 @@ export function normalizeHnsHostname(value: string | null): string | null {
   }
 
   const labels = normalized.split(".");
-  if (labels.some((label) => (
-    !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(label)
-  ))) {
+  const rootLabel = labels.at(-1);
+  const subdomainLabels = labels.slice(0, -1);
+  if (
+    !rootLabel
+    || !isCanonicalHnsRootLabel(rootLabel)
+    || subdomainLabels.some((label) => (
+      !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(label)
+    ))
+  ) {
     return null;
   }
 
