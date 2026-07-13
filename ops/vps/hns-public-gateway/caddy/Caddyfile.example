@@ -9,14 +9,16 @@
 # (HNS_PUBLIC_FORWARDER_AUTH_TOKEN in its env) — do not add header_up overrides
 # for those here.
 #
-# HTTPS for HNS names cannot use ACME (no ICANN CA). `tls internal` with
-# on-demand issuance serves per-host certs signed by Caddy's local CA; publish
-# matching DANE-EE TLSA records (and DS-anchored DNSSEC) for clients that
-# validate DANE. Plain HTTP stays available for HNS clients without DANE
-# support — non-canonical origins are public/read-only in the app
-# (web/docs/auth-origin-spec.md), so no credentials ride over it.
+# This is the local/trusted-private-CA variant. Caddy creates a different key
+# for each on-demand hostname, so one wildcard DANE-EE TLSA association CANNOT
+# authenticate these certificates. Use Caddyfile.dane.example for the public
+# DNSSEC+DANE path. Plain HTTP stays available for HNS clients without DANE
+# support — non-canonical origins are public/read-only in the app.
 {
 	local_certs
+	# Preserve the explicit http:// reverse proxy below. The Bun gateway, not
+	# Caddy, enforces GET/HEAD-only behavior and strips credentials on HTTP.
+	auto_https disable_redirects
 	# Required with on-demand TLS: Caddy sends ?domain=<SNI> to this loopback-only
 	# permission service and issues only on a 2xx response. The gateway checks
 	# first-party profile/agent existence or a currently routable verified HNS

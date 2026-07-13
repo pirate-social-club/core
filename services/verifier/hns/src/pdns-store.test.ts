@@ -31,6 +31,19 @@ const mock = Bun.serve({
       return Response.json({ kind: "TSIG-ALLOW-AXFR", metadata: (body as { metadata: string[] }).metadata });
     }
 
+    const cryptokeyMatch = url.pathname.match(/^\/api\/v1\/servers\/localhost\/zones\/([^/]+)\/cryptokeys$/);
+    if (cryptokeyMatch && request.method === "GET") {
+      const zoneName = decodeURIComponent(cryptokeyMatch[1]!);
+      if (!zones.get(zoneName)?.dnssec) {
+        return Response.json({ error: "Not Found" }, { status: 404 });
+      }
+      return Response.json([{
+        active: true,
+        published: true,
+        ds: ["24637 13 2 ABCDEF"],
+      }]);
+    }
+
     const zoneMatch = url.pathname.match(/^\/api\/v1\/servers\/localhost\/zones\/([^/]+)(\/rectify|\/notify)?$/);
     if (zoneMatch) {
       const zoneName = decodeURIComponent(zoneMatch[1]!);
@@ -49,12 +62,16 @@ const mock = Bun.serve({
       return Response.json(zone);
     }
 
+    if (url.pathname === "/api/v1/servers/localhost/zones" && request.method === "GET") {
+      return Response.json([...zones.values()]);
+    }
+
     if (url.pathname === "/api/v1/servers/localhost/zones" && request.method === "POST") {
-      const payload = body as { name: string; rrsets: RrsetPayload[] };
+      const payload = body as { name: string; dnssec?: boolean; rrsets: RrsetPayload[] };
       if (zones.has(payload.name)) {
         return Response.json({ error: "Conflict" }, { status: 409 });
       }
-      const zone = { name: payload.name, dnssec: false, serial: 1, rrsets: [] as unknown[] };
+      const zone = { name: payload.name, dnssec: payload.dnssec === true, serial: 1, rrsets: [] as unknown[] };
       applyRrsets(zone, payload.rrsets);
       zones.set(payload.name, zone);
       return Response.json(zone, { status: 201 });
@@ -83,7 +100,11 @@ function applyRrsets(zone: { rrsets: unknown[] }, rrsets: RrsetPayload[]) {
   }
 }
 
-function client(overrides: { zoneKind?: "Master" | "Native"; axfrTsigKeyName?: string | null } = {}): PowerDnsApiClient {
+function client(overrides: {
+  zoneKind?: "Master" | "Native";
+  axfrTsigKeyName?: string | null;
+  secureNewZones?: boolean;
+} = {}): PowerDnsApiClient {
   return new PowerDnsApiClient({
     apiUrl: `http://127.0.0.1:${mock.port}`,
     apiKey: "test-key",
@@ -132,6 +153,48 @@ describe("PowerDnsApiClient", () => {
     expect(types).toContain("crew.|A");
     expect(types).toContain("*.crew.|A");
     expect(types).toContain("_pirate.crew.|TXT");
+    expect(result.dsRecords).toEqual([]);
+  });
+
+  test("signs new TLSA zones in the creation write and returns DS material", async () => {
+    const result = await client({ secureNewZones: true }).ensureZone({
+      ...ENSURE_INPUT,
+      profileIpv4: "203.0.113.10",
+      tlsaAssociations: [`3 1 1 ${"A".repeat(64)}`],
+      tlsaTtl: 600,
+    });
+
+    const posted = requests.find((entry) => entry.method === "POST")!.body as {
+      dnssec: boolean;
+      api_rectify: boolean;
+      rrsets: RrsetPayload[];
+    };
+    expect(posted.dnssec).toBe(true);
+    expect(posted.api_rectify).toBe(true);
+    expect(posted.rrsets.filter((rrset) => rrset.type === "TLSA").map((rrset) => rrset.name)).toEqual([
+      "*.crew.",
+      "_443._tcp.crew.",
+      "_443._tcp.profile.crew.",
+    ]);
+    expect(posted.rrsets.filter((rrset) => rrset.type === "TLSA").every((rrset) => rrset.ttl === 600))
+      .toBe(true);
+    expect(result.zone.dnssec).toBe(true);
+    expect(result.dsRecords).toEqual(["24637 13 2 ABCDEF"]);
+    expect(requests.some((entry) => entry.path.endsWith("/rectify"))).toBe(true);
+  });
+
+  test("refuses TLSA publication when DNSSEC is not active", async () => {
+    await expect(client().ensureZone({
+      ...ENSURE_INPUT,
+      tlsaAssociations: [`3 1 1 ${"A".repeat(64)}`],
+    })).rejects.toThrow("new unsigned zone");
+    expect(requests.some((entry) => entry.method === "POST")).toBe(false);
+
+    await client().ensureZone(ENSURE_INPUT);
+    await expect(client({ secureNewZones: true }).ensureZone({
+      ...ENSURE_INPUT,
+      tlsaAssociations: [`3 1 1 ${"A".repeat(64)}`],
+    })).rejects.toThrow("existing unsigned zone");
   });
 
   test("converges an existing zone with a single PATCH that omits the SOA", async () => {
@@ -208,6 +271,25 @@ describe("PowerDnsApiClient", () => {
     expect(zone?.name).toBe("crew");
     expect(zone?.nameservers).toEqual(["ns1.pirate.", "ns2.pirate."]);
     expect(zone?.rrsets.every((rrset) => !rrset.name.endsWith("."))).toBe(true);
+  });
+
+  test("lists zones and atomically replaces TLSA before rectify and notify", async () => {
+    await client({ secureNewZones: true }).ensureZone(ENSURE_INPUT);
+    requests.length = 0;
+
+    const api = client();
+    expect(await api.listZoneNames()).toEqual(["crew."]);
+    await api.replaceRrsets("crew", [{
+      name: "*.crew.",
+      type: "TLSA",
+      ttl: 300,
+      records: [`3 1 1 ${"A".repeat(64)}`, `3 1 1 ${"B".repeat(64)}`],
+    }]);
+
+    const patch = requests.find((entry) => entry.method === "PATCH")!;
+    expect((patch.body as { rrsets: RrsetPayload[] }).rrsets).toHaveLength(1);
+    expect(requests.some((entry) => entry.path.endsWith("/rectify"))).toBe(true);
+    expect(requests.some((entry) => entry.path.endsWith("/notify"))).toBe(true);
   });
 
   test("surfaces PowerDNS error bodies on failure", async () => {

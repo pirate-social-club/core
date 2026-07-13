@@ -47,6 +47,7 @@ type ExpiryEvidence = Pick<
 
 import { Resolver } from "node:dns/promises";
 import { PowerDnsApiClient, type PowerDnsZoneSnapshot } from "./pdns-store";
+import { parseDaneEeAssociations } from "./tlsa";
 import { json, requireBearerAuth } from "../../shared/http";
 
 const verifierHost = Bun.env.HNS_VERIFIER_HOST?.trim() || "127.0.0.1";
@@ -64,6 +65,9 @@ const defaultApexIpv4 = Bun.env.HNS_AUTHORITATIVE_APEX_IPV4?.trim() || null;
 const defaultNameserverIpv4 = Bun.env.HNS_AUTHORITATIVE_NAMESERVER_IPV4?.trim() || defaultApexIpv4;
 const defaultProfileIpv4 = Bun.env.HNS_AUTHORITATIVE_PROFILE_IPV4?.trim() || defaultApexIpv4;
 const defaultWildcardIpv4 = Bun.env.HNS_AUTHORITATIVE_WILDCARD_IPV4?.trim() || defaultApexIpv4;
+const defaultTlsaAssociations = parseDaneEeAssociations(Bun.env.HNS_AUTHORITATIVE_TLSA_ASSOCIATIONS);
+const defaultTlsaTtl = parseTlsaTtl(Bun.env.HNS_AUTHORITATIVE_TLSA_TTL, defaultTtl);
+const defaultSecureNewZones = Bun.env.PDNS_SECURE_NEW_ZONES?.trim().toLowerCase() === "true";
 const OWNER_MANAGED_OBSERVATION_PROVIDER = "hns_parent_chain";
 const ownerManagedResolverTimeoutMs = Number(Bun.env.HNS_OWNER_MANAGED_RESOLVER_TIMEOUT_MS || "2500");
 const defaultHnsRootResourceUrlTemplate = "https://shakeshift.com/name/{root}/resources?fetch=main";
@@ -74,6 +78,14 @@ const HNS_CHAIN_MAX_FUTURE_BLOCK_SECONDS = 2 * 60 * 60;
 function parseCsv(value: string | undefined): string[] | null {
   const entries = value?.split(",").map((entry) => entry.trim()).filter(Boolean) ?? [];
   return entries.length > 0 ? entries.map(withTrailingDot) : null;
+}
+
+function parseTlsaTtl(value: string | undefined, fallback: number): number {
+  const ttl = Number(value ?? fallback);
+  if (!Number.isSafeInteger(ttl) || ttl < 60 || ttl > 86_400) {
+    throw new Error("HNS_AUTHORITATIVE_TLSA_TTL must be an integer between 60 and 86400 seconds");
+  }
+  return ttl;
 }
 
 function withTrailingDot(value: string): string {
@@ -168,6 +180,7 @@ function requirePowerDnsStore(): PowerDnsApiClient {
     defaultSoaContent,
     zoneKind: Bun.env.PDNS_ZONE_KIND?.trim() === "Native" ? "Native" : "Master",
     axfrTsigKeyName: Bun.env.PDNS_AXFR_TSIG_KEY_NAME?.trim() || null,
+    secureNewZones: defaultSecureNewZones,
   });
 }
 
@@ -808,6 +821,8 @@ async function publishTxt(body: {
     profileIpv4: body.profile_ipv4?.trim() || defaultProfileIpv4,
     wildcardIpv4: body.wildcard_ipv4?.trim() || defaultWildcardIpv4,
     ttl: defaultTtl,
+    tlsaAssociations: defaultTlsaAssociations,
+    tlsaTtl: defaultTlsaTtl,
     extraRrsets: [{
       name: challengeName,
       type: "TXT",
@@ -825,6 +840,8 @@ async function publishTxt(body: {
     zone_created: ensured.created,
     nameservers,
     observation_provider: DELEGATED_OBSERVATION_PROVIDER,
+    dnssec: zone.dnssec,
+    ds_records: ensured.dsRecords,
     rrsets: summarizeZone(zone),
   });
 }
@@ -854,6 +871,8 @@ async function ensureZone(body: {
     profileIpv4: body.profile_ipv4?.trim() || defaultProfileIpv4,
     wildcardIpv4: body.wildcard_ipv4?.trim() || defaultWildcardIpv4,
     ttl: defaultTtl,
+    tlsaAssociations: defaultTlsaAssociations,
+    tlsaTtl: defaultTlsaTtl,
   });
 
   return json({
@@ -862,6 +881,8 @@ async function ensureZone(body: {
     zone_created: ensured.created,
     nameservers,
     observation_provider: DELEGATED_OBSERVATION_PROVIDER,
+    dnssec: ensured.zone.dnssec,
+    ds_records: ensured.dsRecords,
     rrsets: summarizeZone(ensured.zone),
   });
 }
@@ -1075,6 +1096,9 @@ export async function handleRequest(request: Request) {
         owner_managed_resolver_timeout_ms: ownerManagedResolverTimeoutMs,
         hns_root_resource_url_template: getHnsRootResourceUrlTemplate(),
         hns_root_resource_timeout_ms: getHnsRootResourceTimeoutMs(),
+        authoritative_secure_new_zones: defaultSecureNewZones,
+        authoritative_tlsa_associations: defaultTlsaAssociations,
+        authoritative_tlsa_ttl: defaultTlsaTtl,
         requires_bearer_auth: verifierAuthToken != null,
       });
     }

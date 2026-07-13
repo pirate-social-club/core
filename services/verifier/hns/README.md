@@ -9,7 +9,8 @@ This service hosts Pirate's PowerDNS-backed HNS verifier and zone-provisioning r
 - derive the expiry horizon from authenticated hsd name state anchored to an observed chain tip
 - create the `<root>.` zone in PowerDNS when Pirate-managed delegation is observed
 - publish `_pirate.<root>` TXT records for delegated Pirate-managed verification sessions
-- trigger PowerDNS rediscovery after zone updates so delegated roots become authoritative immediately
+- create DNSSEC keys for new zones only when explicitly enabled and return the DS records needed in Handshake
+- publish configured DANE-EE TLSA associations only into DNSSEC-signed zones
 - verify post-provision authority health against the serving path without reusing it as ownership proof
 
 ## Platform-managed roots
@@ -47,6 +48,7 @@ Current platform-managed roots:
 - `PDNS_API_URL`
 - `PDNS_API_KEY`
 - `PDNS_DEFAULT_SOA_CONTENT`
+- `PDNS_SECURE_NEW_ZONES`
 - `HNS_AUTHORITY_HEALTH_RESOLVERS`
 - `HNS_AUTHORITATIVE_NAMESERVERS`
 - `HNS_AUTHORITATIVE_TTL`
@@ -54,6 +56,28 @@ Current platform-managed roots:
 - `HNS_AUTHORITATIVE_APEX_IPV4`
 - `HNS_AUTHORITATIVE_PROFILE_IPV4`
 - `HNS_AUTHORITATIVE_WILDCARD_IPV4`
+- `HNS_AUTHORITATIVE_TLSA_ASSOCIATIONS`
+- `HNS_AUTHORITATIVE_TLSA_TTL`
+
+`PDNS_SECURE_NEW_ZONES=true` asks PowerDNS to generate signing keys as part of
+new-zone creation. It never signs an existing unsigned zone. `/ensure-zone` and
+`/publish-txt` return `dnssec` and `ds_records`; the matching DS still must be
+published in the Handshake parent before the child zone is externally secure.
+
+`HNS_AUTHORITATIVE_TLSA_ASSOCIATIONS` is a comma-separated overlap set of
+strict `3 1 1 <SPKI-SHA256>` records managed by the DANE rollout tool. If it is
+non-empty, an unsigned zone fails closed instead of receiving unauthenticated
+TLSA data.
+
+`HNS_AUTHORITATIVE_TLSA_TTL` must match the rollover operator. Readiness fails
+if any managed TLSA TTL drifts, and `prepare` refuses to shorten a previously
+published TTL because resolvers may still cache the old association for that
+longer interval.
+
+Authenticated `/health` responses expose the active association set, TLSA TTL,
+and new-zone DNSSEC flag. These values are not secrets; the operator CLI uses
+them to prove the running verifier—not merely its own shell—has converged before
+each lifecycle phase.
 
 `HNS_ROOT_RESOURCE_URL_TEMPLATE` points at a trusted Handshake chain/resource reader. The template
 must contain `{root}` and defaults to `https://shakeshift.com/name/{root}/resources?fetch=main`.

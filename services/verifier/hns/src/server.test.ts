@@ -189,6 +189,9 @@ describe("hns verifier server", () => {
     const body = await response.json();
     expect(body.ok).toBe(true);
     expect(body.observation_provider).toBe("powerdns_api");
+    expect(body.authoritative_secure_new_zones).toBe(false);
+    expect(body.authoritative_tlsa_associations).toEqual([]);
+    expect(body.authoritative_tlsa_ttl).toBe(300);
   });
 
   test("supports API-facing public inspect endpoint for punycode HNS roots", async () => {

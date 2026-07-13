@@ -82,6 +82,125 @@ provisions, so newly delegated community zones replicate without editing any
 config. Verified against this compose file: AXFR from a non-allowlisted source
 without TSIG is refused; with the TSIG key it transfers the full signed zone.
 
+## DNSSEC is an explicit serving prerequisite
+
+Setting `gsqlite3-dnssec=yes` only enables backend support; it does not sign a
+zone. When `PDNS_SECURE_NEW_ZONES=true`, the HNS verifier asks the PowerDNS API
+to create new zones with `dnssec: true` and `api_rectify: true`. PowerDNS then
+generates key material in the creation operation, and `/ensure-zone` returns
+the active DS records that the root owner must publish in Handshake.
+
+Safety rules:
+
+- existing unsigned zones are never silently assigned a new key
+- configuring TLSA associations while a selected zone is unsigned fails closed
+- a signed child zone is not externally authenticated until its matching DS is
+  published in the Handshake parent and independently validated
+- recover the existing key for tag `24637` before touching the `pirate.` DS;
+  otherwise perform a deliberate DS rollover instead of generating over it
+
+Back up the PowerDNS SQLite database and cryptokeys before enabling automated
+creation. The private DNSSEC key and the matching parent DS are one lifecycle.
+
+## DANE-EE TLSA lifecycle
+
+The public gateway uses one explicitly managed catchall certificate/key and
+publishes `TLSA 3 1 1 <SPKI-SHA256>` in DNSSEC-signed zones. Do not publish a
+single wildcard digest for Caddy's on-demand internal certificates: those use
+different keys per hostname.
+
+Managed owners are:
+
+- `_443._tcp.<zone>.` for the apex
+- `*.<zone>.` for names that exist only through wildcard DNS
+- `_443._tcp.<host>.<zone>.` only when `<host>.<zone>.` is already an explicit
+  A, AAAA, CNAME, HTTPS, or SVCB node
+
+That last rule matters. Creating `_443._tcp.app.<zone>` also creates
+`app.<zone>` as an empty non-terminal. If `app.<zone>` previously depended on
+wildcard A synthesis, an eager explicit TLSA record would make its A lookup
+return NODATA. The tool derives explicit TLSA owners from concrete web nodes
+instead of hard-coding `app`, `api`, or `profile`.
+
+The stateful tool is:
+
+```bash
+# Configure/restart the verifier with this association before bootstrap so a
+# concurrently-created zone cannot omit it. The CLI authenticates to the
+# verifier and checks its live /health response; an operator-shell export alone
+# is deliberately insufficient.
+# HNS_AUTHORITATIVE_TLSA_ASSOCIATIONS='3 1 1 <initial-spki-sha256>'
+export HNS_VERIFIER_URL=http://127.0.0.1:4048
+export HNS_VERIFIER_AUTH_TOKEN='<from Infisical>'
+export HNS_AUTHORITATIVE_TLSA_TTL=300
+bun ops/vps/hns-authoritative-dns/manage-tlsa.ts bootstrap \
+  --cert /etc/caddy/hns-dane/current/cert.pem
+
+bun ops/vps/hns-authoritative-dns/manage-tlsa.ts ready
+
+# after ready: install/reload the static DANE Caddy config, then prove the
+# actual served SPKI before changing any provisioning configuration
+bun ops/vps/hns-authoritative-dns/manage-tlsa.ts activated \
+  --probe-address <edge-ip> --probe-host app.pirate
+
+# Re-probe and finalize the bootstrap.
+bun ops/vps/hns-authoritative-dns/manage-tlsa.ts retire \
+  --probe-address <edge-ip> --probe-host app.pirate
+```
+
+Subsequent key rollover:
+
+```bash
+# First update/restart the verifier with BOTH associations. The tool refuses
+# prepare unless the running verifier reports that overlap set and matching
+# TTL, or if this TTL is shorter than any existing managed TLSA TTL.
+# HNS_AUTHORITATIVE_TLSA_ASSOCIATIONS='3 1 1 <old>,3 1 1 <new>'
+export HNS_AUTHORITATIVE_TLSA_TTL=300
+bun ops/vps/hns-authoritative-dns/manage-tlsa.ts prepare \
+  --current-cert /etc/caddy/hns-dane/current/cert.pem \
+  --next-cert /etc/caddy/hns-dane/v2/cert.pem
+
+bun ops/vps/hns-authoritative-dns/manage-tlsa.ts ready
+# Only now swap the one directory symlink, which switches cert+key together,
+# then reload Caddy. `mv -T` requires GNU coreutils (the documented Linux VPS).
+ln -s v2 /etc/caddy/hns-dane/current.next
+mv -T /etc/caddy/hns-dane/current.next /etc/caddy/hns-dane/current
+# systemctl reload caddy
+# Keep the verifier on old+new until this proves the live gateway is new.
+bun ops/vps/hns-authoritative-dns/manage-tlsa.ts activated \
+  --probe-address <edge-ip> --probe-host app.pirate
+# Then update/restart the verifier with only the new association before retire,
+# or a later ensure-zone write could reintroduce the old record.
+# HNS_AUTHORITATIVE_TLSA_ASSOCIATIONS='3 1 1 <new>'
+bun ops/vps/hns-authoritative-dns/manage-tlsa.ts retire \
+  --probe-address <edge-ip> --probe-host app.pirate
+```
+
+`prepare` publishes old and new associations together in one PATCH per zone,
+rectifies signed zones, and notifies secondaries. `ready` enforces a two-TTL
+wait and re-reads every currently selected zone, including zones created during
+the overlap. It refuses a shrunken zone selection, changed TTL, stale TLSA
+owner, or unknown association. `retire` probes the real gateway certificate
+using the requested SNI and removes the old association only when the served
+SPKI is the prepared new value. Unknown or concurrently changed TLSA data and
+unsigned zones stop the rollout. `activated` proves that Caddy actually loaded
+the new key while the verifier still provisions old+new; this prevents a failed
+reload from making concurrently created zones new-only while the gateway still
+serves the old key. `retire` repeats the live proof after the verifier changes
+to new-only.
+The tool authenticates to the running verifier and checks its reported
+association set and TLSA TTL at each phase, so a missed/failed service restart
+cannot race the bulk rollout or resurrect a retired key. It also requires the
+verifier and operator to report the same PowerDNS API URL, preventing a valid
+configuration check against one DNS authority followed by writes to another.
+Operator commands take an exclusive state-file lock. After an abnormal process
+exit, verify that no rollout command is still running before removing a stale
+`<state-path>.lock` file.
+
+The tool proves the PowerDNS control-plane state and the served certificate. A
+production cutover must additionally query the primary, TSIG secondary, and an
+independent validating HNS resolver to prove DNSSEC and TLSA serving end to end.
+
 ## Canonical Source of Truth
 
 The PowerDNS backend is the authoritative child-zone source of truth for Pirate-managed HNS roots.
@@ -115,6 +234,8 @@ Do not use parent-side TXT values in the Handshake root resource as the source o
   Base PowerDNS configuration for a writable authoritative deployment.
 - `env/pdns.env.example`
   Example runtime env contract for the API-enabled authoritative server.
+- `manage-tlsa.ts` and `tlsa-rollover.ts`
+  Fail-closed initial publication and two-phase DANE-EE key rotation.
 
 ## Public V0 Notes
 
