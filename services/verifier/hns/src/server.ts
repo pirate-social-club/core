@@ -722,12 +722,20 @@ async function verifyOwnerDnsTxt(body: {
   const normalizedRoot = normalizeRootLabel(body.root_label);
   const zoneName = normalizeZoneName(normalizedRoot);
   const challengeName = normalizeChallengeName(normalizedRoot, body.challenge_host);
-  const [observedValues, nameservers] = await Promise.all([
+  // Ownership comes from the owner's OWN authoritative DNS. Root existence and
+  // expiry are on-chain facts, so they must still come from the parent chain —
+  // DNS cannot attest to them, and leaving expiry unknown would silently
+  // withhold club attachment from every owner-managed root.
+  const [observedValues, nameservers, rootResource] = await Promise.all([
     resolveOwnerManagedTxt(challengeName),
     resolveOwnerManagedNs(normalizedRoot),
+    isOwnerManagedRootResourceConfigured()
+      ? fetchOwnerManagedRootResource(normalizedRoot)
+      : Promise.resolve(null),
   ]);
   const verified = observedValues.includes(body.challenge_txt_value);
   const pirateDnsAuthorityVerified = nameservers.some(matchesDefaultNameserver);
+  const rootExists = rootResource != null ? true : (verified || nameservers.length > 0 ? true : null);
 
   return {
     verified,
@@ -739,9 +747,9 @@ async function verifyOwnerDnsTxt(body: {
         ? "challenge_not_published"
         : "challenge_mismatch",
     observed_values: observedValues,
-    root_exists: verified || nameservers.length > 0 ? true : null,
+    root_exists: rootExists,
     root_control_verified: verified,
-    expiry_horizon_sufficient: null,
+    expiry_horizon_sufficient: rootResource != null ? true : null,
     routing_enabled: pirateDnsAuthorityVerified,
     pirate_dns_authority_verified: pirateDnsAuthorityVerified,
     control_class: verified ? "single_holder_root" as const : null,
