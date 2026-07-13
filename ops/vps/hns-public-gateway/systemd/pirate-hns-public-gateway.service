@@ -6,6 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=pirate-hns
+StateDirectory=pirate-hns
 WorkingDirectory=/srv/pirate-hns/app
 EnvironmentFile=/srv/pirate-hns/config/hns-public-gateway.env
 ExecStart=/usr/bin/env bun services/gateway/hns-public/src/server.ts

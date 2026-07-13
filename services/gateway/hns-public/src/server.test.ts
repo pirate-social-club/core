@@ -1,5 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { extractImportedNamespaceHost, extractPublicProfileHost, handleRequest } from "./server";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { CaddyNamespaceIssuanceStore, handleCaddyAskRequest } from "./caddy-ask";
+import {
+  extractImportedNamespaceHost,
+  extractPublicProfileHost,
+  handleRequest,
+} from "./server";
 
 describe("extractPublicProfileHost", () => {
   test("extracts a simple pirate hostname", () => {
@@ -43,6 +51,224 @@ describe("extractImportedNamespaceHost", () => {
   test("does not treat first-party suffix hosts as imported roots", () => {
     expect(extractImportedNamespaceHost("app.pirate", ["pirate", "clawitzer"])).toBeNull();
     expect(extractImportedNamespaceHost("night-signal.clawitzer", ["pirate", "clawitzer"])).toBeNull();
+  });
+});
+
+describe("handleCaddyAskRequest", () => {
+  const env = {
+    HNS_PUBLIC_GATEWAY_ROOT_SUFFIX: "pirate",
+    HNS_PUBLIC_GATEWAY_AGENT_SUFFIX: "clawitzer",
+    HNS_PUBLIC_API_ORIGIN: "https://api.pirate.sc",
+  };
+
+  test("allows only explicit first-party service hosts without an API lookup", async () => {
+    for (const domain of ["pirate", "app.pirate", "api.pirate"]) {
+      const response = await handleCaddyAskRequest(
+        new Request(`http://127.0.0.1:4050/ask?domain=${domain}`),
+        env,
+        async () => {
+          throw new Error("explicit service hosts must not need the API");
+        },
+      );
+      expect(response.status).toBe(204);
+    }
+
+    const denied = await handleCaddyAskRequest(
+      new Request("http://127.0.0.1:4050/ask?domain=admin.pirate"),
+      env,
+      async () => {
+        throw new Error("reserved hosts must not reach the API");
+      },
+    );
+    expect(denied.status).toBe(403);
+  });
+
+  test("allows an existing public profile and denies a missing profile", async () => {
+    const calls: string[] = [];
+    const fetchImpl: typeof fetch = async (url) => {
+      calls.push(String(url));
+      return new Response(null, { status: String(url).includes("missing") ? 404 : 200 });
+    };
+
+    const allowed = await handleCaddyAskRequest(
+      new Request("http://127.0.0.1:4050/ask?domain=blackbeard.pirate"),
+      env,
+      fetchImpl,
+    );
+    const denied = await handleCaddyAskRequest(
+      new Request("http://127.0.0.1:4050/ask?domain=missing.pirate"),
+      env,
+      fetchImpl,
+    );
+
+    expect(allowed.status).toBe(204);
+    expect(denied.status).toBe(403);
+    expect(calls).toEqual([
+      "https://api.pirate.sc/public-profiles/blackbeard",
+      "https://api.pirate.sc/public-profiles/missing",
+    ]);
+  });
+
+  test("allows an existing public agent", async () => {
+    const calls: string[] = [];
+    const response = await handleCaddyAskRequest(
+      new Request("http://127.0.0.1:4050/ask?domain=night-signal.clawitzer"),
+      env,
+      async (url) => {
+        calls.push(String(url));
+        return new Response(null, { status: 200 });
+      },
+    );
+
+    expect(response.status).toBe(204);
+    expect(calls).toEqual(["https://api.pirate.sc/public-agents/night-signal"]);
+  });
+
+  test("allows apex and subdomain issuance only for API-confirmed routed namespaces", async () => {
+    const store = new CaddyNamespaceIssuanceStore(":memory:", 2);
+    try {
+      for (const domain of ["xn--pokmon-dva", "v.xn--pokmon-dva"]) {
+        const calls: string[] = [];
+        const response = await handleCaddyAskRequest(
+          new Request(`http://127.0.0.1:4050/ask?domain=${domain}`),
+          env,
+          async (url) => {
+            calls.push(String(url));
+            return Response.json({
+              root_label: "xn--pokmon-dva",
+              namespace_verification: "nv_epoch_1",
+            });
+          },
+          store,
+        );
+
+        expect(response.status).toBe(204);
+        expect(calls).toEqual(["https://api.pirate.sc/public-namespaces/xn--pokmon-dva"]);
+      }
+
+      const quotaExceeded = await handleCaddyAskRequest(
+        new Request("http://127.0.0.1:4050/ask?domain=third.xn--pokmon-dva"),
+        env,
+        async () => Response.json({
+          root_label: "xn--pokmon-dva",
+          namespace_verification: "nv_epoch_1",
+        }),
+        store,
+      );
+      expect(quotaExceeded.status).toBe(429);
+
+      // An already-recorded hostname remains renewable after the quota fills.
+      const renewal = await handleCaddyAskRequest(
+        new Request("http://127.0.0.1:4050/ask?domain=v.xn--pokmon-dva"),
+        env,
+        async () => Response.json({
+          root_label: "xn--pokmon-dva",
+          namespace_verification: "nv_epoch_1",
+        }),
+        store,
+      );
+      expect(renewal.status).toBe(204);
+
+      const denied = await handleCaddyAskRequest(
+        new Request("http://127.0.0.1:4050/ask?domain=v.unverified-root"),
+        env,
+        async () => new Response(null, { status: 404 }),
+        store,
+      );
+      expect(denied.status).toBe(403);
+    } finally {
+      store.close();
+    }
+  });
+
+  test("starts a fresh bounded hostname quota for a new ownership verification epoch", async () => {
+    const store = new CaddyNamespaceIssuanceStore(":memory:", 1);
+    let namespaceVerification = "nv_epoch_1";
+    const ask = (domain: string) => handleCaddyAskRequest(
+      new Request(`http://127.0.0.1:4050/ask?domain=${domain}`),
+      env,
+      async () => Response.json({
+        root_label: "community-root",
+        namespace_verification: namespaceVerification,
+      }),
+      store,
+    );
+
+    try {
+      expect((await ask("a.community-root")).status).toBe(204);
+      expect((await ask("b.community-root")).status).toBe(429);
+      namespaceVerification = "nv_epoch_2";
+      expect((await ask("b.community-root")).status).toBe(204);
+      expect((await ask("a.community-root")).status).toBe(429);
+    } finally {
+      store.close();
+    }
+  });
+
+  test("persists namespace hostname grants across gateway restarts", () => {
+    const directory = mkdtempSync(join(tmpdir(), "pirate-caddy-ask-"));
+    const databasePath = join(directory, "issuance.sqlite");
+    const input = {
+      hostname: "v.community-root",
+      rootLabel: "community-root",
+      namespaceVerification: "nv_epoch_1",
+    };
+
+    try {
+      const first = new CaddyNamespaceIssuanceStore(databasePath, 1);
+      try {
+        expect(first.authorize(input)).toBe(true);
+      } finally {
+        first.close();
+      }
+
+      const reopened = new CaddyNamespaceIssuanceStore(databasePath, 1);
+      try {
+        expect(reopened.authorize(input)).toBe(true);
+        expect(reopened.authorize({ ...input, hostname: "other.community-root" })).toBe(false);
+      } finally {
+        reopened.close();
+      }
+    } finally {
+      rmSync(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("fails closed on API errors and malformed ask requests", async () => {
+    const store = new CaddyNamespaceIssuanceStore(":memory:");
+    try {
+      const unavailable = await handleCaddyAskRequest(
+        new Request("http://127.0.0.1:4050/ask?domain=community-root"),
+        env,
+        async () => new Response(null, { status: 500 }),
+        store,
+      );
+      expect(unavailable.status).toBe(503);
+    } finally {
+      store.close();
+    }
+
+    const missingStore = await handleCaddyAskRequest(
+      new Request("http://127.0.0.1:4050/ask?domain=community-root"),
+      env,
+      async () => Response.json({
+        root_label: "community-root",
+        namespace_verification: "nv_epoch_1",
+      }),
+    );
+    expect(missingStore.status).toBe(503);
+
+    for (const request of [
+      new Request("http://127.0.0.1:4050/ask"),
+      new Request("http://127.0.0.1:4050/ask?domain=bad%20host"),
+      new Request("http://127.0.0.1:4050/not-ask?domain=pirate"),
+      new Request("http://127.0.0.1:4050/ask?domain=pirate", { method: "POST" }),
+    ]) {
+      const response = await handleCaddyAskRequest(request, env, async () => {
+        throw new Error("malformed asks must not reach the API");
+      });
+      expect([403, 404, 405]).toContain(response.status);
+    }
   });
 });
 
