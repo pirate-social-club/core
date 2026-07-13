@@ -73,6 +73,12 @@ configuration or evidence is absent, invalid, unavailable, stale, or malformed,
 `expiry_horizon_sufficient` is `null` and all expiry-gated capabilities remain withheld. Root or
 resource existence is never expiry evidence.
 
+The observer also emits `expiry_root_exists`. A valid synchronized chain tip
+plus an empty, expired, or non-registered `getnameinfo` result yields `false`;
+malformed or unavailable chain evidence yields `null`. Revalidation can
+therefore distinguish a missing root from an unavailable resource scraper
+without promoting either condition to positive evidence.
+
 For the platform-owned `pirate.` root, prefer an HNS-native nameserver:
 
 - child zone NS: `ns1.pirate.`

@@ -31,12 +31,19 @@ See [hns-authoritative-dns.md](../../../specs/domain/hns-authoritative-dns.md).
 - writable backend via SQLite for single-node public v0
 - PowerDNS HTTP API bound to loopback
 - Pirate HNS verifier/provisioner calling the API to create zones and publish `_pirate.<root>` TXT records
+- a separate keyless, synced mainnet `hsd` process with authenticated RPC bound
+  to loopback/private networking for expiry observation and revalidation
 
 SQLite is the fastest way to get to one working VPS.
 
 If the single-node control plane grows, move to PostgreSQL later without changing the product model.
 
 ## Bring-up
+
+Do not enable namespace attachment or the API revalidation sweep until `hsd`
+has completed initial sync, reports `blocks == headers`, matches the configured
+network, and satisfies the configured maximum tip age. The observer has no
+wallet and no DNS-serving role.
 
 Required env (no defaults — a stale value here publishes records pointing at a
 machine we do not control):

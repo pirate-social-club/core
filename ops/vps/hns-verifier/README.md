@@ -14,6 +14,8 @@ This service is the application-facing control layer for HNS namespace verificat
 It should:
 
 - verify owner-managed HNS TXT challenges from the live Handshake root resource
+- read root existence and expiry from an authenticated, synced mainnet `hsd`
+  observer through `getnameinfo` and `getblockchaininfo`
 - talk to the loopback-only PowerDNS API
 - create zones after delegation is observed
 - publish `_pirate.<root>` TXT records for delegated Pirate-managed sessions
@@ -21,6 +23,17 @@ It should:
 
 Owner-managed root-resource queries must use a trusted Handshake chain/resource reader and set
 `HNS_ROOT_RESOURCE_TIMEOUT_MS` to keep verifier responses inside the API timeout budget.
+
+`HNS_CHAIN_RPC_URL`, `HNS_CHAIN_RPC_API_KEY`,
+`HNS_CHAIN_MAX_TIP_AGE_SECONDS`, and `HNS_EXPIRY_HORIZON_BLOCKS` are required
+before namespace attachment or scheduled revalidation can succeed. The RPC
+listener must not be public. Run `hsd` keyless (`--no-wallet`) on mainnet and do
+not place Pirate's root wallet or signing keys on this host.
+
+Suggested policy values for operator review, not silent defaults:
+
+- `HNS_EXPIRY_HORIZON_BLOCKS=12960` (approximately 90 days at the target block interval)
+- `HNS_CHAIN_MAX_TIP_AGE_SECONDS=1800` (30 minutes; use 3600 only if observation shows false rejections)
 
 Expose the public API through a neutral verifier hostname, for example:
 
