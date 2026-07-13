@@ -224,6 +224,18 @@ describe("hns verifier server", () => {
     expect(body.failure_reason).toBe("zone_not_provisioned");
   });
 
+  test("rejects root labels outside the hsd covenant grammar", async () => {
+    for (const rootLabel of ["_leading", "trailing_", "-leading", "trailing-", "a".repeat(64), "localhost"]) {
+      const response = await handleRequest(new Request(
+        `http://127.0.0.1:4048/inspect-public?root_label=${encodeURIComponent(rootLabel)}`,
+      ));
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: "root_label must be a single Handshake TLD label",
+      });
+    }
+  });
+
   test("normalizes Unicode HNS roots to the same public inspect result", async () => {
     resetOwnerManagedProofs();
     const response = await handleRequest(new Request(
