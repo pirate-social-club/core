@@ -63,19 +63,22 @@ not depend on recursive DNS resolution or `_pirate.<root>` child records.
 `HNS_ROOT_RESOURCE_TIMEOUT_MS` bounds the root-resource lookup so the API caller sees a verifier
 result inside its timeout budget.
 
-`HNS_CHAIN_RPC_URL` points at an hsd JSON-RPC endpoint. The verifier calls `getnameinfo` and
-`getblockchaininfo`, computes remaining lifetime from `stats.renewalPeriodEnd - blocks`, and records
-the expiry height, anchor height/hash/time/network, remaining blocks, configured horizon, and
-provider. Set `HNS_EXPIRY_HORIZON_BLOCKS` explicitly to the product's minimum safe remaining
-lifetime and `HNS_CHAIN_MAX_TIP_AGE_SECONDS` to the maximum acceptable chain-tip age. The node must
-also be caught up to its headers and report `HNS_CHAIN_NETWORK` (default `main`). If required
-configuration or evidence is absent, invalid, unavailable, stale, or malformed,
+`HNS_CHAIN_RPC_URL` points at an hsd JSON-RPC endpoint. The verifier calls `getnameinfo`,
+`getblockchaininfo`, and `getblockheader` for the reported best-block hash. It computes remaining
+lifetime from `stats.renewalPeriodEnd - blocks`, anchors freshness to the best block's own timestamp
+rather than lagging median time, and records the expiry height, anchor height/hash/median
+time/network, remaining blocks, configured horizon, and provider. Set
+`HNS_EXPIRY_HORIZON_BLOCKS` explicitly to the product's minimum safe remaining lifetime and
+`HNS_CHAIN_MAX_TIP_AGE_SECONDS` to the maximum acceptable best-block age. The node must report at
+least `0.999` verification progress, be caught up to its headers, and report `HNS_CHAIN_NETWORK`
+(default `main`). If required configuration or evidence is absent, invalid, unavailable, stale, or malformed,
 `expiry_horizon_sufficient` is `null` and all expiry-gated capabilities remain withheld. Root or
 resource existence is never expiry evidence.
 
 The observer also emits `expiry_root_exists`. A valid synchronized chain tip
-plus an empty, expired, or non-registered `getnameinfo` result yields `false`;
-malformed or unavailable chain evidence yields `null`. Revalidation can
+plus an empty, expired, revoked, or unregistered auction/closed `getnameinfo` result yields
+`false`. A claimed `LOCKED` state, an unrecognized state, or malformed/unavailable chain evidence
+yields `null` rather than being misreported as deletion. Revalidation can
 therefore distinguish a missing root from an unavailable resource scraper
 without promoting either condition to positive evidence.
 

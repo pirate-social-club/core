@@ -144,10 +144,11 @@ Pirate may also run an HTTP reverse proxy on the same host if native HNS web tra
 
 The initial chain observer is a keyless `hsd` node on mainnet with its wallet
 plugin disabled. Its RPC API must be authenticated and bound to localhost or an
-equivalently private service network. The verifier uses `getnameinfo` plus
-`getblockchaininfo` and rejects stale, unsynced, wrong-network, or malformed
-responses. This node is on the security path for namespace attachment and
-revalidation even though it has no serving-DNS or wallet role.
+equivalently private service network. The verifier uses `getnameinfo`,
+`getblockchaininfo`, and `getblockheader` and rejects stale, early-sync,
+wrong-network, inconsistent-anchor, or malformed responses. This node is on the
+security path for namespace attachment and revalidation even though it has no
+serving-DNS or wallet role.
 
 One VPS may host multiple roles if that is the cheapest operational path:
 
@@ -193,7 +194,7 @@ Recommended v0 posture:
 
 An alternate node implementation may run alongside `hsd` as a read-only shadow
 observer. Bind its RPC to localhost, store no keys, and diff the exact
-`getnameinfo`/`getblockchaininfo` evidence consumed by the verifier for an
+`getnameinfo`/`getblockchaininfo`/`getblockheader` evidence consumed by the verifier for an
 extended period before considering promotion. Shadow disagreement must never
 grant capability; `hsd` remains authoritative until the alternate observer has
 earned replacement status through production evidence.
