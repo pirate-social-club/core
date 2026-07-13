@@ -1,46 +1,23 @@
 import { describe, expect, test } from "bun:test";
-import { Database } from "bun:sqlite";
 import { Resolver } from "node:dns/promises";
-import { mkdtempSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 
-Bun.env.PDNS_SQLITE_DATABASE = createPowerDnsTestDatabase();
+// Empty-zone mock of the PowerDNS HTTP API: every zone lookup 404s, which
+// exercises the same "zone_not_provisioned" paths the SQLite fixture used to.
+const pdnsMock = Bun.serve({
+  hostname: "127.0.0.1",
+  port: 0,
+  fetch() {
+    return Response.json({ error: "Not Found" }, { status: 404 });
+  },
+});
+
+Bun.env.PDNS_API_URL = `http://127.0.0.1:${pdnsMock.port}`;
+Bun.env.PDNS_API_KEY = "test-key";
 Bun.env.HNS_OWNER_MANAGED_RESOLVER_TIMEOUT_MS = "25";
 Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "";
 Bun.env.HNS_ROOT_RESOURCE_TIMEOUT_MS = "25";
 
 const { handleRequest } = await import("./server");
-
-function createPowerDnsTestDatabase(): string {
-  const path = join(mkdtempSync(join(tmpdir(), "pirate-hns-verifier-")), "pdns.sqlite3");
-  const db = new Database(path, { create: true, strict: true });
-  try {
-    db.exec(`
-      CREATE TABLE domains (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        type TEXT NOT NULL
-      );
-
-      CREATE TABLE records (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        domain_id INTEGER NOT NULL,
-        name TEXT NOT NULL,
-        type TEXT NOT NULL,
-        content TEXT NOT NULL,
-        ttl INTEGER,
-        prio INTEGER,
-        disabled INTEGER NOT NULL DEFAULT 0,
-        ordername TEXT,
-        auth INTEGER NOT NULL DEFAULT 1
-      );
-    `);
-  } finally {
-    db.close();
-  }
-  return path;
-}
 
 describe("hns verifier server", () => {
   const originalOwnerManagedResolvers = Bun.env.HNS_OWNER_MANAGED_RESOLVERS;
@@ -86,7 +63,7 @@ describe("hns verifier server", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.ok).toBe(true);
-    expect(body.observation_provider).toBe("powerdns_sqlite");
+    expect(body.observation_provider).toBe("powerdns_api");
   });
 
   test("supports API-facing public inspect endpoint for punycode HNS roots", async () => {

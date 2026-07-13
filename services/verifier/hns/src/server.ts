@@ -23,16 +23,17 @@ type InspectResult = {
 };
 
 import { Resolver } from "node:dns/promises";
-import { PowerDnsStore, type PowerDnsZoneSnapshot } from "./pdns-store";
+import { PowerDnsApiClient, type PowerDnsZoneSnapshot } from "./pdns-store";
 import { json, requireBearerAuth } from "../../shared/http";
 
 const verifierHost = Bun.env.HNS_VERIFIER_HOST?.trim() || "127.0.0.1";
 const verifierPort = Number(Bun.env.HNS_VERIFIER_PORT || "4048");
 const verifierAuthToken = Bun.env.HNS_VERIFIER_AUTH_TOKEN?.trim() || null;
 
-const pdnsSqliteDatabase = Bun.env.PDNS_SQLITE_DATABASE?.trim() || "/srv/pirate-hns/authdns/data/pdns.sqlite3";
-const defaultSoaContent = Bun.env.PDNS_DEFAULT_SOA_CONTENT?.trim() || "ns1.pirate dns.pirate 0 3600 900 1209600 300";
-const rediscoverCommand = Bun.env.PDNS_REDISCOVER_COMMAND?.trim() || "docker exec pirate-hns-authdns /usr/local/bin/pdns_control rediscover";
+const pdnsApiUrl = Bun.env.PDNS_API_URL?.trim() || "http://127.0.0.1:8081";
+const pdnsApiKey = Bun.env.PDNS_API_KEY?.trim() || null;
+const defaultSoaContent = Bun.env.PDNS_DEFAULT_SOA_CONTENT?.trim() || "ns1.pirate. dns.pirate. 0 3600 900 1209600 300";
+const DELEGATED_OBSERVATION_PROVIDER = "powerdns_api";
 
 const defaultNameservers = parseCsv(Bun.env.HNS_AUTHORITATIVE_NAMESERVERS) ?? ["ns1.pirate."];
 const defaultTtl = Number(Bun.env.HNS_AUTHORITATIVE_TTL || "300");
@@ -81,20 +82,15 @@ function getHnsRootResourceTimeoutMs(): number {
   return Number(Bun.env.HNS_ROOT_RESOURCE_TIMEOUT_MS || "4000");
 }
 
-function requirePowerDnsStore(): PowerDnsStore {
-  return new PowerDnsStore(pdnsSqliteDatabase, defaultSoaContent);
-}
-
-async function rediscoverZones() {
-  const proc = Bun.spawn(["/bin/sh", "-lc", rediscoverCommand], {
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const exitCode = await proc.exited;
-  if (exitCode !== 0) {
-    const stderr = await new Response(proc.stderr).text();
-    throw new Error(stderr.trim() || `rediscover command failed with exit code ${exitCode}`);
+function requirePowerDnsStore(): PowerDnsApiClient {
+  if (!pdnsApiKey) {
+    throw new Error("PDNS_API_KEY is not configured");
   }
+  return new PowerDnsApiClient({
+    apiUrl: pdnsApiUrl,
+    apiKey: pdnsApiKey,
+    defaultSoaContent,
+  });
 }
 
 function normalizeRootLabel(value: string): string {
@@ -409,7 +405,7 @@ async function inspectRoot(rootLabel: string, challengeHost?: string | null): Pr
   const store = requirePowerDnsStore();
   const zoneName = normalizeZoneName(rootLabel);
   const challengeName = normalizeChallengeName(rootLabel, challengeHost);
-  const zone = store.getZoneByName(zoneName);
+  const zone = await store.getZoneByName(zoneName);
 
   if (!zone) {
     return {
@@ -419,7 +415,7 @@ async function inspectRoot(rootLabel: string, challengeHost?: string | null): Pr
       zone_exists: false,
       challenge_present: false,
       nameservers: defaultNameservers,
-      observation_provider: "powerdns_sqlite",
+      observation_provider: DELEGATED_OBSERVATION_PROVIDER,
       failure_reason: "zone_not_provisioned",
       rrsets: [],
       ...deriveInspectionFields(false),
@@ -435,7 +431,7 @@ async function inspectRoot(rootLabel: string, challengeHost?: string | null): Pr
     zone_exists: true,
     challenge_present: challengePresent,
     nameservers: zone.nameservers.length > 0 ? zone.nameservers.map(withTrailingDot) : defaultNameservers,
-    observation_provider: "powerdns_sqlite",
+    observation_provider: DELEGATED_OBSERVATION_PROVIDER,
     failure_reason: challengePresent ? null : "challenge_not_published",
     rrsets: summarizeZone(zone),
     ...deriveInspectionFields(true),
@@ -510,7 +506,9 @@ async function publishTxt(body: {
   const challengeName = normalizeChallengeName(normalizedRoot, body.challenge_host);
   const nameservers = body.nameservers?.map(withTrailingDot) ?? defaultNameservers;
 
-  const ensured = store.ensureZone({
+  // Publish the challenge in the same API write as the managed zone rrsets so
+  // observers never see the zone without its challenge.
+  const ensured = await store.ensureZone({
     zoneName,
     nameservers,
     nameserverIpv4: defaultNameserverIpv4,
@@ -518,14 +516,14 @@ async function publishTxt(body: {
     profileIpv4: body.profile_ipv4?.trim() || defaultProfileIpv4,
     wildcardIpv4: body.wildcard_ipv4?.trim() || defaultWildcardIpv4,
     ttl: defaultTtl,
+    extraRrsets: [{
+      name: challengeName,
+      type: "TXT",
+      ttl: defaultTtl,
+      records: [escapeTxtRecord(challengeTxtValue)],
+    }],
   });
-
-  store.replaceRecordSet(zoneName, challengeName, "TXT", defaultTtl, [escapeTxtRecord(challengeTxtValue)]);
-  await rediscoverZones();
-  const zone = store.getZoneByName(zoneName);
-  if (!zone) {
-    throw new Error(`zone not found after publish: ${zoneName}`);
-  }
+  const zone = ensured.zone;
 
   return json({
     root_label: normalizedRoot,
@@ -534,7 +532,7 @@ async function publishTxt(body: {
     challenge_txt_value: challengeTxtValue,
     zone_created: ensured.created,
     nameservers,
-    observation_provider: "powerdns_sqlite",
+    observation_provider: DELEGATED_OBSERVATION_PROVIDER,
     rrsets: summarizeZone(zone),
   });
 }
@@ -556,7 +554,7 @@ async function ensureZone(body: {
   const zoneName = normalizeZoneName(normalizedRoot);
   const nameservers = body.nameservers?.map(withTrailingDot) ?? defaultNameservers;
 
-  const ensured = store.ensureZone({
+  const ensured = await store.ensureZone({
     zoneName,
     nameservers,
     nameserverIpv4: defaultNameserverIpv4,
@@ -566,14 +564,12 @@ async function ensureZone(body: {
     ttl: defaultTtl,
   });
 
-  await rediscoverZones();
-
   return json({
     root_label: normalizedRoot,
     zone_name: zoneName,
     zone_created: ensured.created,
     nameservers,
-    observation_provider: "powerdns_sqlite",
+    observation_provider: DELEGATED_OBSERVATION_PROVIDER,
     rrsets: summarizeZone(ensured.zone),
   });
 }
@@ -602,12 +598,12 @@ async function verifyTxt(body: {
   const normalizedRoot = normalizeRootLabel(rootLabel);
   const zoneName = normalizeZoneName(normalizedRoot);
   const challengeName = normalizeChallengeName(normalizedRoot, body.challenge_host);
-  const zone = store.getZoneByName(zoneName);
+  const zone = await store.getZoneByName(zoneName);
 
   if (!zone) {
     return json({
       verified: false,
-      observation_provider: "powerdns_sqlite",
+      observation_provider: DELEGATED_OBSERVATION_PROVIDER,
       failure_reason: "zone_not_provisioned",
       root_exists: false,
       root_control_verified: false,
@@ -625,7 +621,7 @@ async function verifyTxt(body: {
 
   return json({
     verified,
-    observation_provider: "powerdns_sqlite",
+    observation_provider: DELEGATED_OBSERVATION_PROVIDER,
     failure_reason: verified
       ? null
       : rrset == null
@@ -696,8 +692,8 @@ export async function handleRequest(request: Request) {
         ok: true,
         bind_host: verifierHost,
         bind_port: verifierPort,
-        pdns_sqlite_database: pdnsSqliteDatabase,
-        observation_provider: isOwnerManagedRootResourceConfigured() ? OWNER_MANAGED_OBSERVATION_PROVIDER : "powerdns_sqlite",
+        pdns_api_url: pdnsApiUrl,
+        observation_provider: isOwnerManagedRootResourceConfigured() ? OWNER_MANAGED_OBSERVATION_PROVIDER : DELEGATED_OBSERVATION_PROVIDER,
         owner_managed_resolvers: getOwnerManagedResolvers(),
         owner_managed_resolver_timeout_ms: ownerManagedResolverTimeoutMs,
         hns_root_resource_url_template: getHnsRootResourceUrlTemplate(),

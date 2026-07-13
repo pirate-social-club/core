@@ -1,19 +1,3 @@
-import { Database } from "bun:sqlite";
-
-type DomainRow = {
-  id: number;
-  name: string;
-  type: string;
-};
-
-type RecordRow = {
-  id: number;
-  name: string;
-  type: string;
-  content: string;
-  ttl: number | null;
-};
-
 export type PowerDnsRrsetSummary = {
   name: string;
   type: string;
@@ -22,9 +6,18 @@ export type PowerDnsRrsetSummary = {
 };
 
 export type PowerDnsZoneSnapshot = {
-  domain: DomainRow;
+  name: string;
+  serial: number;
+  dnssec: boolean;
   nameservers: string[];
   rrsets: PowerDnsRrsetSummary[];
+};
+
+export type PowerDnsRrsetInput = {
+  name: string;
+  type: string;
+  ttl: number;
+  records: string[];
 };
 
 export type EnsureZoneInput = {
@@ -35,6 +28,7 @@ export type EnsureZoneInput = {
   profileIpv4?: string | null;
   wildcardIpv4?: string | null;
   ttl: number;
+  extraRrsets?: PowerDnsRrsetInput[];
 };
 
 export type EnsureZoneResult = {
@@ -42,174 +36,226 @@ export type EnsureZoneResult = {
   created: boolean;
 };
 
-export class PowerDnsStore {
-  constructor(
-    private readonly databasePath: string,
-    private readonly defaultSoaContent: string,
-  ) {}
+type ApiZone = {
+  name: string;
+  serial?: number;
+  dnssec?: boolean;
+  rrsets?: {
+    name: string;
+    type: string;
+    ttl: number;
+    records: { content: string; disabled: boolean }[];
+  }[];
+};
 
-  getZoneByName(zoneName: string): PowerDnsZoneSnapshot | null {
-    const db = this.open();
-    try {
-      return this.getZoneSnapshot(db, zoneName);
-    } finally {
-      db.close();
-    }
+export type PowerDnsApiClientConfig = {
+  apiUrl: string;
+  apiKey: string;
+  serverId?: string;
+  defaultSoaContent: string;
+};
+
+/**
+ * Typed client for the PowerDNS authoritative HTTP API. All zone mutations go
+ * through the API (never the backend database) so validation, DNSSEC
+ * rectification, SOA serial management (SOA-EDIT-API) and secondary NOTIFY
+ * behave the way PowerDNS documents them.
+ */
+export class PowerDnsApiClient {
+  private readonly apiUrl: string;
+  private readonly apiKey: string;
+  private readonly serverId: string;
+  private readonly defaultSoaContent: string;
+
+  constructor(config: PowerDnsApiClientConfig) {
+    this.apiUrl = config.apiUrl.replace(/\/+$/, "");
+    this.apiKey = config.apiKey;
+    this.serverId = config.serverId ?? "localhost";
+    this.defaultSoaContent = config.defaultSoaContent;
   }
 
-  ensureZone(input: EnsureZoneInput): EnsureZoneResult {
-    const db = this.open();
-    try {
-      let snapshot = this.getZoneSnapshot(db, input.zoneName);
-      let created = false;
-
-      if (!snapshot) {
-        this.insertDomain(db, input.zoneName);
-        created = true;
-      }
-
-      const domain = this.requireDomain(db, input.zoneName);
-
-      this.replaceRecordSetForDomain(db, domain.id, input.zoneName, "SOA", input.ttl, [this.defaultSoaContent]);
-      this.replaceRecordSetForDomain(db, domain.id, input.zoneName, "NS", input.ttl, input.nameservers);
-
-      if (input.nameserverIpv4) {
-        const zoneStorageName = toStorageName(input.zoneName);
-        for (const nameserver of input.nameservers) {
-          const normalizedNameserver = toStorageName(nameserver);
-          if (normalizedNameserver === zoneStorageName || normalizedNameserver.endsWith(`.${zoneStorageName}`)) {
-            this.replaceRecordSetForDomain(db, domain.id, normalizedNameserver, "A", input.ttl, [input.nameserverIpv4]);
-          }
-        }
-      }
-
-      if (input.apexIpv4) {
-        this.replaceRecordSetForDomain(db, domain.id, input.zoneName, "A", input.ttl, [input.apexIpv4]);
-      }
-      if (input.profileIpv4) {
-        this.replaceRecordSetForDomain(db, domain.id, `profile.${input.zoneName}`, "A", input.ttl, [input.profileIpv4]);
-      }
-      if (input.wildcardIpv4) {
-        this.replaceRecordSetForDomain(db, domain.id, `*.${input.zoneName}`, "A", input.ttl, [input.wildcardIpv4]);
-      }
-
-      snapshot = this.requireZoneSnapshot(db, input.zoneName);
-      return { zone: snapshot, created };
-    } finally {
-      db.close();
-    }
-  }
-
-  replaceRecordSet(zoneName: string, name: string, type: string, ttl: number, contents: string[]) {
-    const db = this.open();
-    try {
-      const domain = this.requireDomain(db, zoneName);
-      this.replaceRecordSetForDomain(db, domain.id, name, type, ttl, contents);
-    } finally {
-      db.close();
-    }
-  }
-
-  private open(): Database {
-    return new Database(this.databasePath, {
-      create: false,
-      strict: true,
-    });
-  }
-
-  private insertDomain(db: Database, zoneName: string) {
-    db.query(
-      `INSERT INTO domains (name, type) VALUES (?, 'NATIVE')`,
-    ).run(toStorageName(zoneName));
-  }
-
-  private requireDomain(db: Database, zoneName: string): DomainRow {
-    const domain = db.query(
-      `SELECT id, name, type FROM domains WHERE name = ? COLLATE NOCASE LIMIT 1`,
-    ).get(toStorageName(zoneName)) as DomainRow | null;
-
-    if (!domain) {
-      throw new Error(`zone not found: ${zoneName}`);
-    }
-
-    return domain;
-  }
-
-  private getZoneSnapshot(db: Database, zoneName: string): PowerDnsZoneSnapshot | null {
-    const domain = db.query(
-      `SELECT id, name, type FROM domains WHERE name = ? COLLATE NOCASE LIMIT 1`,
-    ).get(toStorageName(zoneName)) as DomainRow | null;
-
-    if (!domain) {
+  async getZoneByName(zoneName: string): Promise<PowerDnsZoneSnapshot | null> {
+    const response = await this.request("GET", this.zonePath(zoneName));
+    if (response.status === 404) {
       return null;
     }
+    await assertOk(response, `get zone ${zoneName}`);
+    return toSnapshot(await response.json() as ApiZone);
+  }
 
-    const records = db.query(
-      `SELECT id, name, type, content, ttl
-       FROM records
-       WHERE domain_id = ?
-       ORDER BY name ASC, type ASC, id ASC`,
-    ).all(domain.id) as RecordRow[];
+  /**
+   * Idempotently create or converge a zone. Every managed rrset (NS, glue,
+   * apex/profile/wildcard A, plus caller-supplied extras such as a TXT
+   * challenge) is applied in a single zone creation or a single PATCH, so
+   * observers never see a partially-published zone. The SOA is only written at
+   * creation; afterwards SOA-EDIT-API owns serial management.
+   */
+  async ensureZone(input: EnsureZoneInput): Promise<EnsureZoneResult> {
+    const zoneName = canonical(input.zoneName);
+    const rrsets = buildManagedRrsets(input);
+    let created = false;
+    let existing = await this.getZoneByName(zoneName);
 
-    const grouped = new Map<string, PowerDnsRrsetSummary>();
-    for (const record of records) {
-      const key = `${record.name}|${record.type}`;
-      const existing = grouped.get(key);
-      if (existing) {
-        existing.records.push(record.content);
-        continue;
-      }
-      grouped.set(key, {
-        name: record.name,
-        type: record.type,
-        ttl: record.ttl ?? null,
-        records: [record.content],
+    if (!existing) {
+      const response = await this.request("POST", `/servers/${this.serverId}/zones`, {
+        name: zoneName,
+        kind: "Native",
+        soa_edit_api: "DEFAULT",
+        rrsets: [
+          {
+            name: zoneName,
+            type: "SOA",
+            ttl: input.ttl,
+            changetype: "REPLACE",
+            records: [{ content: canonicalSoaContent(this.defaultSoaContent), disabled: false }],
+          },
+          ...rrsets,
+        ],
       });
-    }
 
-    const rrsets = [...grouped.values()];
-    const nameservers = rrsets
-      .filter((rrset) => rrset.name === toStorageName(zoneName) && rrset.type === "NS")
-      .flatMap((rrset) => rrset.records);
-
-    return {
-      domain,
-      nameservers,
-      rrsets,
-    };
-  }
-
-  private requireZoneSnapshot(db: Database, zoneName: string): PowerDnsZoneSnapshot {
-    const snapshot = this.getZoneSnapshot(db, zoneName);
-    if (!snapshot) {
-      throw new Error(`zone not found: ${zoneName}`);
-    }
-    return snapshot;
-  }
-
-  private replaceRecordSetForDomain(db: Database, domainId: number, name: string, type: string, ttl: number, contents: string[]) {
-    const normalizedName = toStorageName(name);
-    const normalizedContents = contents.map((content) => type === "NS" ? toStorageName(content) : content);
-
-    const replace = db.transaction((currentDomainId: number, currentName: string, currentType: string, currentTtl: number, currentContents: string[]) => {
-      db.query(
-        `DELETE FROM records WHERE domain_id = ? AND name = ? AND type = ?`,
-      ).run(currentDomainId, currentName, currentType);
-
-      const insert = db.query(
-        `INSERT INTO records (domain_id, name, type, content, ttl, prio, disabled, ordername, auth)
-         VALUES (?, ?, ?, ?, ?, NULL, 0, NULL, 1)`,
-      );
-
-      for (const content of currentContents) {
-        insert.run(currentDomainId, currentName, currentType, content, currentTtl);
+      if (response.status === 409) {
+        // Lost a creation race — converge via PATCH below.
+        existing = await this.getZoneByName(zoneName);
+        if (!existing) {
+          throw new Error(`zone ${zoneName} conflicted on create but cannot be fetched`);
+        }
+      } else {
+        await assertOk(response, `create zone ${zoneName}`);
+        created = true;
       }
-    });
+    }
 
-    replace(domainId, normalizedName, type, ttl, normalizedContents);
+    if (!created) {
+      const response = await this.request("PATCH", this.zonePath(zoneName), { rrsets });
+      await assertOk(response, `patch zone ${zoneName}`);
+    }
+
+    const zone = await this.getZoneByName(zoneName);
+    if (!zone) {
+      throw new Error(`zone ${zoneName} missing after write`);
+    }
+
+    if (zone.dnssec) {
+      const response = await this.request("PUT", `${this.zonePath(zoneName)}/rectify`);
+      await assertOk(response, `rectify zone ${zoneName}`);
+    }
+
+    const notifyResponse = await this.request("PUT", `${this.zonePath(zoneName)}/notify`);
+    await assertOk(notifyResponse, `notify zone ${zoneName}`);
+
+    return { zone, created };
+  }
+
+  private zonePath(zoneName: string): string {
+    return `/servers/${this.serverId}/zones/${encodeURIComponent(canonical(zoneName))}`;
+  }
+
+  private async request(method: string, path: string, body?: unknown): Promise<Response> {
+    return fetch(`${this.apiUrl}/api/v1${path}`, {
+      method,
+      headers: {
+        "x-api-key": this.apiKey,
+        accept: "application/json",
+        ...(body === undefined ? {} : { "content-type": "application/json" }),
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
   }
 }
 
-function toStorageName(value: string): string {
+function buildManagedRrsets(input: EnsureZoneInput) {
+  const zoneName = canonical(input.zoneName);
+  const rrsets: PowerDnsRrsetInput[] = [
+    {
+      name: zoneName,
+      type: "NS",
+      ttl: input.ttl,
+      records: input.nameservers.map(canonical),
+    },
+  ];
+
+  if (input.nameserverIpv4) {
+    for (const nameserver of input.nameservers.map(canonical)) {
+      if (nameserver === zoneName || nameserver.endsWith(`.${zoneName}`)) {
+        rrsets.push({ name: nameserver, type: "A", ttl: input.ttl, records: [input.nameserverIpv4] });
+      }
+    }
+  }
+  if (input.apexIpv4) {
+    rrsets.push({ name: zoneName, type: "A", ttl: input.ttl, records: [input.apexIpv4] });
+  }
+  if (input.profileIpv4) {
+    rrsets.push({ name: `profile.${zoneName}`, type: "A", ttl: input.ttl, records: [input.profileIpv4] });
+  }
+  if (input.wildcardIpv4) {
+    rrsets.push({ name: `*.${zoneName}`, type: "A", ttl: input.ttl, records: [input.wildcardIpv4] });
+  }
+  for (const extra of input.extraRrsets ?? []) {
+    rrsets.push({ ...extra, name: canonical(extra.name) });
+  }
+
+  return rrsets.map((rrset) => ({
+    name: rrset.name,
+    type: rrset.type,
+    ttl: rrset.ttl,
+    changetype: "REPLACE" as const,
+    records: rrset.records.map((content) => ({ content, disabled: false })),
+  }));
+}
+
+function toSnapshot(zone: ApiZone): PowerDnsZoneSnapshot {
+  const rrsets: PowerDnsRrsetSummary[] = (zone.rrsets ?? []).map((rrset) => ({
+    // Names are exposed without the trailing dot to match how callers compare
+    // against normalized challenge/zone names.
+    name: stripTrailingDot(rrset.name),
+    type: rrset.type,
+    ttl: rrset.ttl ?? null,
+    records: rrset.records.filter((record) => !record.disabled).map((record) => record.content),
+  }));
+
+  const zoneStorageName = stripTrailingDot(zone.name);
+  const nameservers = rrsets
+    .filter((rrset) => rrset.name === zoneStorageName && rrset.type === "NS")
+    .flatMap((rrset) => rrset.records);
+
+  return {
+    name: zoneStorageName,
+    serial: zone.serial ?? 0,
+    dnssec: zone.dnssec ?? false,
+    nameservers,
+    rrsets,
+  };
+}
+
+async function assertOk(response: Response, action: string): Promise<void> {
+  if (response.ok) {
+    return;
+  }
+  let detail = "";
+  try {
+    const body = await response.json() as { error?: string };
+    detail = body.error ?? "";
+  } catch {
+    // non-JSON error body
+  }
+  throw new Error(`PowerDNS API ${action} failed with status ${response.status}${detail ? `: ${detail}` : ""}`);
+}
+
+// The API validates SOA content strictly: MNAME and RNAME must be canonical
+// (trailing dot). Legacy configs carry unqualified names that the old direct
+// SQLite writes accepted without validation.
+function canonicalSoaContent(value: string): string {
+  const fields = value.trim().split(/\s+/);
+  if (fields.length < 2) {
+    return value;
+  }
+  return [canonical(fields[0]!), canonical(fields[1]!), ...fields.slice(2)].join(" ");
+}
+
+function canonical(value: string): string {
+  return value.endsWith(".") ? value : `${value}.`;
+}
+
+function stripTrailingDot(value: string): string {
   return value.replace(/\.$/, "");
 }
