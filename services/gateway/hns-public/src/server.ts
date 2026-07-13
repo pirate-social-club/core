@@ -517,13 +517,13 @@ export async function handleRequest(
   fetchImpl: typeof fetch = fetch,
 ): Promise<Response> {
   const url = new URL(request.url);
-  if (url.pathname === "/health") {
-    return Response.json({ ok: true });
-  }
-
   const unsafeOverHttp = rejectUnsafeMethodOverHttp(request);
   if (unsafeOverHttp) {
     return unsafeOverHttp;
+  }
+
+  if (url.pathname === "/health") {
+    return Response.json({ ok: true });
   }
 
   const rootSuffix = env.HNS_PUBLIC_GATEWAY_ROOT_SUFFIX?.trim() || "pirate";

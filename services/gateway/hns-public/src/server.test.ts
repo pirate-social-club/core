@@ -60,6 +60,17 @@ describe("handleRequest", () => {
     expect(await response.json()).toEqual({ ok: true });
   });
 
+  test("does not exempt health from the plain-HTTP read-only policy", async () => {
+    const response = await handleRequest(
+      new Request("http://app.pirate/health", { method: "POST" }),
+      env,
+      async () => {
+        throw new Error("plain-HTTP writes must never reach an origin");
+      },
+    );
+    expect(response.status).toBe(405);
+  });
+
   test("redirects renamed handles to canonical host", async () => {
     const response = await handleRequest(
       new Request("http://oldname.pirate/"),
