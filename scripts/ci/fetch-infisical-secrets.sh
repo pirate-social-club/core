@@ -19,6 +19,15 @@ for name in "${required_env[@]}"; do
   fi
 done
 
+curl_retry=(
+  --retry 4
+  --retry-delay 2
+  --retry-max-time 90
+  --retry-connrefused
+  --connect-timeout 10
+  --max-time 60
+)
+
 audience="${INFISICAL_GITHUB_AUDIENCE:-https://github.com/pirate-social-club}"
 encoded_audience="$(
   AUDIENCE="$audience" node -e 'process.stdout.write(encodeURIComponent(process.env.AUDIENCE));'
@@ -26,6 +35,7 @@ encoded_audience="$(
 
 oidc_response="$(
   curl -fsS \
+    "${curl_retry[@]}" \
     -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
     "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${encoded_audience}"
 )"
@@ -37,6 +47,7 @@ login_payload="$(
 )"
 infisical_token="$(
   curl -fsS \
+    "${curl_retry[@]}" \
     -X POST "https://app.infisical.com/api/v1/auth/oidc-auth/login" \
     -H "Content-Type: application/json" \
     --data "$login_payload" \
@@ -45,7 +56,7 @@ infisical_token="$(
 
 fetch_secret() {
   local name="$1"
-  curl -fsS --get "https://app.infisical.com/api/v4/secrets/$name" \
+  curl -fsS "${curl_retry[@]}" --get "https://app.infisical.com/api/v4/secrets/$name" \
     -H "Authorization: Bearer $infisical_token" \
     --data-urlencode "projectId=$INFISICAL_PROJECT_ID" \
     --data-urlencode "environment=$INFISICAL_ENV" \
