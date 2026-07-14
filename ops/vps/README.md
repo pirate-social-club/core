@@ -15,6 +15,8 @@ Current slices:
 
 - `hns-authoritative-dns/`
   PowerDNS-based authoritative DNS deployment assets for Pirate-managed HNS roots.
+- `hns-secondary-dns/`
+  Independent PowerDNS secondary with signed-NOTIFY autoprovisioning and TSIG-authenticated AXFR.
 - `hns-verifier/`
   Deployment assets and env templates for the PowerDNS-backed HNS verifier/provisioner.
 - `hns-chain-observer/`

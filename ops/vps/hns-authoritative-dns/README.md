@@ -60,7 +60,8 @@ writable by it, and the SQLite schema must exist before first start):
 ```bash
 mkdir -p data && sudo chown -R 953:953 data
 docker run --rm --user 953:953 -v "$PWD/data:/var/lib/powerdns" \
-  --entrypoint /bin/sh powerdns/pdns-auth-51 \
+  --entrypoint /bin/sh \
+  powerdns/pdns-auth-51@sha256:f976e753a1de8ec62636203ecb12ae5fa3d1055601be167de53f1f673e0abe59 \
   -c 'sqlite3 /var/lib/powerdns/pdns.sqlite3 < /usr/local/share/doc/pdns/schema.sqlite3.sql'
 
 docker compose up -d
@@ -240,6 +241,6 @@ Do not use parent-side TXT values in the Handshake root resource as the source o
 ## Public V0 Notes
 
 - one VPS can host PowerDNS plus the separate verifier services
-- add a second authoritative nameserver later for redundancy
+- deploy the tracked `hns-secondary-dns` role on another provider before publishing NS/DS
 - SQLite is acceptable for public v0 if traffic is modest and backups are disciplined
 - do not use a read-only zone-file workflow as the long-term HNS path
