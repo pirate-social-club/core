@@ -19,6 +19,8 @@ Current slices:
   Independent PowerDNS secondary with signed-NOTIFY autoprovisioning and TSIG-authenticated AXFR.
 - `hns-state-backup/`
   Consistent, client-side-encrypted backups of the non-reconstructible HNS/Spaces edge state.
+- `hns-local-test/`
+  Local primary/secondary DNSSEC, signed-NOTIFY, and TSIG/AXFR integration harness.
 - `hns-verifier/`
   Deployment assets and env templates for the PowerDNS-backed HNS verifier/provisioner.
 - `hns-chain-observer/`
