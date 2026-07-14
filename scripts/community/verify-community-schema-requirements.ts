@@ -43,12 +43,19 @@ import { writeFile } from "node:fs/promises"
 import { dirname, resolve } from "node:path"
 
 import { extractWranglerJson } from "./lib/fleet-d1-migration"
-import { type Artifacts, expectedArtifacts } from "./community-schema-artifacts"
+import { type Artifacts, artifactCount, expectedArtifacts } from "./community-schema-artifacts"
 
 type Requirements = {
   version: number
   unconditional: string[]
   features?: Record<string, { flags: string[]; migrations: string[]; note?: string }>
+  /**
+   * Migrations the gate cannot attest by schema (triggers, views, drops, data
+   * migrations) — checked by ledger checksum ONLY. Each MUST carry a rationale,
+   * so "we can't verify this" is a deliberate, reviewed decision, never a silent
+   * gap. Keying by migration filename.
+   */
+  ledger_only?: Record<string, string>
 }
 
 type ShardStatus =
@@ -101,6 +108,9 @@ export function buildProbe(
       ),
       ...exp.artifacts.columns.map(
         ([t, c]) => `(SELECT COUNT(*) FROM pragma_table_info('${t}') WHERE name='${c}')`,
+      ),
+      ...exp.artifacts.indexes.map(
+        (idx) => `(SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='${idx}')`,
       ),
     ]
     parts.push(`(${artifacts.length ? artifacts.join(" + ") : "0"}) AS a${i}`)
@@ -211,13 +221,40 @@ async function main() {
 
   // Filenames + checksums come from the PINNED Core commit — the same source the
   // deployed code was built against.
-  const expected = new Map<string, { checksum: string; artifacts: Artifacts }>()
+  const ledgerOnly = req.ledger_only ?? {}
+  const expected = new Map<string, { checksum: string; artifacts: Artifacts; ledgerOnly: boolean }>()
+  const attestationGaps: string[] = []
   for (const name of requiredSet) {
     const sql = await readFile(resolve(o.migrationsDir, name), "utf8")
+    const artifacts = expectedArtifacts(sql)
+    const declaredLedgerOnly = name in ledgerOnly
+
+    // A migration the gate cannot fully attest by schema — no checkable artifacts,
+    // or DDL it does not recognize (trigger/view/drop/data) — must be an explicit,
+    // rationalised manifest decision. Otherwise "artifacts satisfied" would silently
+    // mean "we checked nothing and trusted the ledger", which is the whole failure
+    // mode this gate exists to remove.
+    if (!declaredLedgerOnly && (artifactCount(artifacts) === 0 || artifacts.unrecognized.length > 0)) {
+      const why =
+        artifactCount(artifacts) === 0
+          ? "produces no schema artifacts the gate can verify"
+          : `contains DDL the gate cannot attest: ${artifacts.unrecognized.join(", ")}`
+      attestationGaps.push(`  ${name}: ${why}`)
+    }
     expected.set(name, {
       checksum: createHash("sha256").update(sql).digest("hex"),
-      artifacts: expectedArtifacts(sql),
+      artifacts,
+      ledgerOnly: declaredLedgerOnly,
     })
+  }
+  if (attestationGaps.length > 0) {
+    console.error(
+      `::error::Requirements manifest ${o.requirements} lists migrations the gate cannot fully attest by schema:\n` +
+        `${attestationGaps.join("\n")}\n` +
+        `Either extend the artifact deriver, or add each to "ledger_only" with a rationale ` +
+        `(the gate will then verify only its ledger checksum, deliberately).`,
+    )
+    process.exit(2)
   }
 
   const raw = (await readFile(o.wranglerConfig, "utf8")).replace(/^\s*\/\/.*$/gm, "")
@@ -262,12 +299,27 @@ async function main() {
 
         requiredSet.forEach((name, i) => {
           const exp = expected.get(name)!
-          const artifactCount = exp.artifacts.tables.length + exp.artifacts.columns.length
+          const expectedCount = artifactCount(exp.artifacts)
           const present = Number(row[`a${i}`] ?? 0)
-          const all = artifactCount > 0 && present === artifactCount
+          const all = expectedCount > 0 && present === expectedCount
           const none = present === 0
           const ledgered = Number(row[`l${i}`] ?? 0) === 1
           const checksumOk = Number(row[`k${i}`] ?? 0) === 1
+
+          if (exp.ledgerOnly) {
+            // No verifiable schema by manifest decision: the ledger checksum IS the
+            // attestation. Still fully checked — just against the ledger alone.
+            if (!ledgered) {
+              if (status === SATISFIED) status = "missing_migration"
+              missing.push(name)
+              details.push(`${name}: NOT APPLIED (ledger-only)`)
+            } else if (!checksumOk) {
+              status = "checksum_mismatch"
+              missing.push(name)
+              details.push(`${name}: ledger-only, but records a DIFFERENT migration of that name`)
+            }
+            return
+          }
 
           if (ledgered && !checksumOk) {
             status = "checksum_mismatch"
@@ -276,8 +328,8 @@ async function main() {
           } else if (!all && !none) {
             status = "partial_artifacts"
             missing.push(name)
-            details.push(`${name}: half-applied (${present}/${artifactCount} artifacts)`)
-          } else if (ledgered && none && artifactCount > 0) {
+            details.push(`${name}: half-applied (${present}/${expectedCount} artifacts)`)
+          } else if (ledgered && none && expectedCount > 0) {
             status = "ledger_present_artifacts_missing"
             missing.push(name)
             details.push(`${name}: ledger says applied but the schema is absent`)
