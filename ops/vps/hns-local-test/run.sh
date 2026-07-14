@@ -41,6 +41,7 @@ expected_tlsa_hash="$(
 expected_tlsa="3 1 1 $expected_tlsa_hash"
 
 "${compose[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true
+"${compose[@]}" build dns-tools
 "${compose[@]}" up --detach --build primary secondary
 
 for _ in $(seq 1 60); do
@@ -65,15 +66,18 @@ tsig_secret="$(openssl rand -base64 32 | tr -d '\n')"
 # unknown zone. This is defense in depth around signed autoprimary.
 "${compose[@]}" run --rm --no-deps --entrypoint dig dns-tools \
   @secondary refused-test. SOA +opcode=notify +tries=1 +time=1 >/dev/null 2>&1 || true
-if "${compose[@]}" exec -T secondary pdnsutil zone show refused-test. >/dev/null 2>&1; then
-  echo "unsigned unknown-zone NOTIFY was accepted" >&2
-  exit 1
-fi
+for _ in $(seq 1 5); do
+  if "${compose[@]}" exec -T secondary pdnsutil zone show refused-test. >/dev/null 2>&1; then
+    echo "unsigned unknown-zone NOTIFY was accepted" >&2
+    exit 1
+  fi
+  sleep 1
+done
 
 provision_zone() {
   "${compose[@]}" run --rm --no-deps \
-    --volume "$test_run_dir:/anchors:ro" \
-    --env HNS_LOCAL_TLSA_CERT_PATH=/anchors/gateway-cert.pem \
+    --volume "$test_run_dir:/anchors" \
+    --env HNS_LOCAL_DS_PATH=/anchors/api-ds \
     provisioner /workspace/ops/vps/hns-local-test/provision-zone.ts "$1"
 }
 
@@ -88,6 +92,14 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 "${compose[@]}" exec -T secondary pdnsutil zone show crew. >/dev/null
+
+# Bootstrap TLSA only after the initial signed-NOTIFY autoprovisioning settles,
+# so this is a normal signed update rather than a second concurrent create.
+"${compose[@]}" run --rm --no-deps \
+  --volume "$test_run_dir:/anchors" \
+  --env HNS_LOCAL_TLSA_CERT_PATH=/anchors/gateway-cert.pem \
+  --env HNS_LOCAL_TLSA_STATE_PATH=/anchors/tlsa-rollover.json \
+  provisioner /workspace/ops/vps/hns-local-test/bootstrap-tlsa.ts
 
 dig_in_tools() {
   "${compose[@]}" run --rm --no-deps --entrypoint dig dns-tools "$@"
@@ -126,6 +138,21 @@ for type in SOA DNSKEY; do
   fi
 done
 
+"${compose[@]}" run --rm --no-deps \
+  --volume "$test_run_dir:/anchors" \
+  --entrypoint /bin/sh dns-tools -lc '
+    dig @primary crew. DNSKEY +noall +answer > /anchors/crew.dnskey
+    dnssec-dsfromkey -2 -f /anchors/crew.dnskey crew. > /anchors/recomputed-ds
+    dnssec-dsfromkey -a SHA384 -f /anchors/crew.dnskey crew. >> /anchors/recomputed-ds
+  '
+awk '{ print tolower($1), $2, $3, tolower($4) }' "$test_run_dir/api-ds" | sort > "$test_run_dir/api-ds.normalized"
+awk '{ for (i = 1; i <= NF; i++) if ($i == "DS") print tolower($(i + 1)), $(i + 2), $(i + 3), tolower($(i + 4)) }' \
+  "$test_run_dir/recomputed-ds" | sort > "$test_run_dir/recomputed-ds.normalized"
+if ! diff -u "$test_run_dir/api-ds.normalized" "$test_run_dir/recomputed-ds.normalized"; then
+  echo "PowerDNS API DS material does not match an independent DNSKEY derivation" >&2
+  exit 1
+fi
+
 secondary_key_count="$("${compose[@]}" exec -T secondary sqlite3 \
   /var/lib/powerdns/pdns.sqlite3 'SELECT COUNT(*) FROM cryptokeys;')"
 if [[ "$secondary_key_count" != "0" ]]; then
@@ -149,7 +176,12 @@ for server in primary secondary; do
     --entrypoint delv dns-tools \
     -a /anchors/crew.keys +root=crew "@$server" crew. A +short >/dev/null
 
-  for owner in _443._tcp.crew _443._tcp.profile.crew _443._tcp.alice.crew; do
+  for owner in \
+    _443._tcp.crew \
+    _443._tcp.app.crew \
+    _443._tcp.api.crew \
+    _443._tcp.profile.crew \
+    _443._tcp.alice.crew; do
     tlsa_answer="$(dig_in_tools "@$server" "$owner" TLSA +short +tries=1 +time=2)"
     normalized_tlsa="$(awk '{printf "%s %s %s ", $1, $2, $3; for (i = 4; i <= NF; i++) printf "%s", $i; print ""}' <<< "$tlsa_answer")"
     if [[ "${normalized_tlsa^^}" != "$expected_tlsa" ]]; then
