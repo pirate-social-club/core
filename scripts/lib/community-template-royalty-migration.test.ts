@@ -26,11 +26,30 @@ function applyMigrations(order: string[]): Database {
 
 function schemaFingerprint(db: Database): string {
   const rows = db
-    .query<{ sql: string | null }, []>(
-      "SELECT sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY type, name",
+    .query<{ name: string; type: string; sql: string | null }, []>(
+      "SELECT name, type, sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY type, name",
     )
     .all();
-  return rows.map((row) => row.sql).join("\n");
+  return rows.map((row) => {
+    if (row.type !== "table" || row.name !== "assets") return row.sql;
+
+    // ALTER TABLE appends columns, so equivalent upgrade histories can produce
+    // different CREATE TABLE text solely from column order. Compare the assets
+    // table semantically while retaining raw SQL checks for every other object.
+    return db
+      .query<{
+        cid: number;
+        name: string;
+        type: string;
+        notnull: number;
+        dflt_value: string | null;
+        pk: number;
+      }, []>("PRAGMA table_info(assets)")
+      .all()
+      .map(({ cid: _cid, ...column }) => JSON.stringify(column))
+      .sort()
+      .join("\n");
+  }).join("\n");
 }
 
 describe("community-template royalty-allocation migrations", () => {
