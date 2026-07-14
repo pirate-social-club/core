@@ -76,8 +76,18 @@ export SPACES_DATA_DIR="$test_root/spaces"
 export HNS_RUNTIME_STATE_DIR="$test_root/runtime"
 export HNS_DANE_CERT_DIR="$test_root/dane"
 export BACKUP_QUIESCE_UNITS="subsd.service verifier.service spaced.service"
+# This stub-based test has no real S3 endpoint; the integration harness
+# (ops/vps/hns-local-test) covers BACKUP_RETENTION_VERIFY=true against MinIO.
+export BACKUP_RETENTION_VERIFY=false
 
-"$here/hns-state-backup.sh"
+if ! "$here/hns-state-backup.sh" 2> "$test_root/stderr"; then
+  cat "$test_root/stderr" >&2
+  exit 1
+fi
+if ! grep -q "retention verification" "$test_root/stderr" && ! grep -q "BACKUP_RETENTION_VERIFY=false" "$test_root/stderr"; then
+  echo "expected a loud warning when retention verification is disabled" >&2
+  exit 1
+fi
 
 expected_events=$'stop subsd.service\nstop verifier.service\nstop spaced.service\nage\nstart spaced.service\nstart verifier.service\nstart subsd.service'
 actual_before_upload="$(sed '/^rclone /d' "$TEST_EVENT_LOG")"
@@ -96,10 +106,13 @@ checksum="$archive.sha256"
   sha256sum --check "$(basename "$checksum")"
 )
 
-tar --zstd --list --file "$archive" | grep -Fxq 'powerdns/pdns.sqlite3'
-tar --zstd --list --file "$archive" | grep -Fq "${SPACES_DATA_DIR#/}/subsd/state"
-tar --zstd --list --file "$archive" | grep -Fq "${HNS_RUNTIME_STATE_DIR#/}/state"
-tar --zstd --list --file "$archive" | grep -Fq "${HNS_DANE_CERT_DIR#/}/cert.pem"
+# A single captured listing avoids grep -q racing tar into SIGPIPE under
+# pipefail.
+archive_listing="$(tar --zstd --list --file "$archive")"
+grep -Fxq 'powerdns/pdns.sqlite3' <<< "$archive_listing"
+grep -Fq "${SPACES_DATA_DIR#/}/subsd/state" <<< "$archive_listing"
+grep -Fq "${HNS_RUNTIME_STATE_DIR#/}/state" <<< "$archive_listing"
+grep -Fq "${HNS_DANE_CERT_DIR#/}/cert.pem" <<< "$archive_listing"
 
 if find "$BACKUP_STAGING_ROOT" -mindepth 1 -maxdepth 1 -type d | grep -q .; then
   echo "backup staging run directory was not cleaned" >&2

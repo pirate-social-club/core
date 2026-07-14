@@ -1,15 +1,12 @@
 [Unit]
-Description=Encrypted backup of Pirate HNS and Spaces edge state
-After=network-online.target
-Wants=network-online.target
-OnFailure=pirate-hns-state-backup-alert@%n.service
+Description=Ops-alert webhook notification for failed unit %i
 
 [Service]
 Type=oneshot
 User=root
 Group=root
 EnvironmentFile=/srv/pirate-hns/config/hns-state-backup.env
-ExecStart=/srv/pirate-hns/app/ops/vps/hns-state-backup/hns-state-backup.sh
+ExecStart=/srv/pirate-hns/app/ops/vps/hns-state-backup/alert-on-failure.sh %i
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectClock=true
@@ -20,6 +17,3 @@ ProtectKernelTunables=true
 RestrictRealtime=true
 LockPersonality=true
 UMask=0077
-
-[Install]
-WantedBy=multi-user.target

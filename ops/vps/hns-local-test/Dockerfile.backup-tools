@@ -3,7 +3,7 @@ FROM powerdns/pdns-auth-51@sha256:f976e753a1de8ec62636203ecb12ae5fa3d1055601be16
 USER root
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends age bind9-dnsutils ca-certificates rclone zstd \
+  && apt-get install -y --no-install-recommends age bind9-dnsutils ca-certificates curl python3 rclone zstd \
   && rm -rf /var/lib/apt/lists/*
 
 ENTRYPOINT []
