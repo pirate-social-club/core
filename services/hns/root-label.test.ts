@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { isCanonicalHnsRootLabel } from "./root-label";
+import {
+  isCanonicalHnsRootLabel,
+  isCanonicalPirateHnsRootLabel,
+} from "./root-label";
 
 describe("isCanonicalHnsRootLabel", () => {
   test("matches the hsd covenant root-label grammar", () => {
@@ -24,5 +27,11 @@ describe("isCanonicalHnsRootLabel", () => {
     ]) {
       expect(isCanonicalHnsRootLabel(value)).toBe(false);
     }
+  });
+
+  test("keeps consensus grammar separate from Pirate's canonical IDNA policy", () => {
+    expect(isCanonicalHnsRootLabel("xn--0")).toBe(true);
+    expect(isCanonicalPirateHnsRootLabel("xn--pokmon-dva")).toBe(true);
+    expect(isCanonicalPirateHnsRootLabel("xn--0")).toBe(false);
   });
 });

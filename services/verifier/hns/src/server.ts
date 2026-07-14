@@ -49,7 +49,7 @@ import { Resolver } from "node:dns/promises";
 import { PowerDnsApiClient, type PowerDnsZoneSnapshot } from "./pdns-store";
 import { parseDaneEeAssociations } from "./tlsa";
 import { json, requireBearerAuth } from "../../shared/http";
-import { isCanonicalHnsRootLabel } from "../../../hns/root-label";
+import { isCanonicalPirateHnsRootLabel } from "../../../hns/root-label";
 
 const verifierHost = Bun.env.HNS_VERIFIER_HOST?.trim() || "127.0.0.1";
 const verifierPort = Number(Bun.env.HNS_VERIFIER_PORT || "4048");
@@ -194,7 +194,7 @@ function verifierErrorStatus(error: unknown, fallback: number): number {
 function normalizeRootLabel(value: string): string {
   const trimmed = value.trim().normalize("NFKC").toLowerCase().replace(/\/+$/, "");
   const normalized = normalizeIdnaRootLabel(trimmed);
-  if (!isCanonicalHnsRootLabel(normalized)) {
+  if (!isCanonicalPirateHnsRootLabel(normalized)) {
     throw new InvalidHnsRootLabelError("root_label must be a single Handshake TLD label");
   }
   return normalized;

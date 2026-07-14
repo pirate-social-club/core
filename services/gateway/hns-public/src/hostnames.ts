@@ -1,4 +1,4 @@
-import { isCanonicalHnsRootLabel } from "../../../hns/root-label";
+import { isCanonicalPirateHnsRootLabel } from "../../../hns/root-label";
 
 const RESERVED_HOSTS = new Set([
   "www",
@@ -26,7 +26,7 @@ export function normalizeHnsHostname(value: string | null): string | null {
   const subdomainLabels = labels.slice(0, -1);
   if (
     !rootLabel
-    || !isCanonicalHnsRootLabel(rootLabel)
+    || !isCanonicalPirateHnsRootLabel(rootLabel)
     || subdomainLabels.some((label) => (
       !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(label)
     ))
