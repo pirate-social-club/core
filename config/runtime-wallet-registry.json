@@ -24,8 +24,8 @@
     },
     "production": {
       "story": {
-        "chainId": 1514,
-        "explorer": "https://storyscan.io/address/",
+        "chainId": 1315,
+        "explorer": "https://aeneid.storyscan.io/address/",
         "wallets": {
           "operator": { "address": "0xc77Ad4de7d179FFFBa417cA24c055d86Af69F4BB", "keyEnv": "STORY_OPERATOR_PRIVATE_KEY", "guardEnv": "STORY_OPERATOR_PKP_ADDRESS", "nativeFloor": "0.5" },
           "cdrWriter": { "address": "0x9d5Dc963A948a77091c905854fB9036CbFA9e9FB", "keyEnv": "STORY_CDR_WRITER_PRIVATE_KEY", "guardEnv": "STORY_CDR_WRITER_PKP_ADDRESS", "nativeFloor": "0.25" },
