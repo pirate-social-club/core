@@ -23,6 +23,11 @@ The IP allowlist is defense in depth, not authentication. TSIG authenticates
 the NOTIFY and AXFR relationship. Keep port 53 UDP/TCP public; keep SSH limited
 to the operator network.
 
+PowerDNS stores and compares the autoprimary nameserver in canonical SQL form
+without a trailing dot. Register `ns2.pirate`, even though zone NS RDATA is
+rendered as `ns2.pirate.`. A trailing dot in the autoprimary row causes valid
+NOTIFY processing to fail with "no backend willing to host".
+
 ## One-time bootstrap
 
 Copy this directory to the secondary host and create a real environment file
