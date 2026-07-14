@@ -67,6 +67,15 @@ export HNS_RUNTIME_STATE_DIR=/test/work/runtime
 export HNS_DANE_CERT_DIR=/test/work/dane
 export BACKUP_QUIESCE_UNITS="subsd.service verifier.service spaced.service"
 
+# Exercise the production post-upload retention verification against MinIO,
+# whose test bucket enforces a 1-day default COMPLIANCE lock.
+export BACKUP_RETENTION_VERIFY=true
+export BACKUP_S3_ENDPOINT=http://minio:9000
+export BACKUP_S3_REGION=us-east-1
+export BACKUP_S3_ACCESS_KEY_ID=localminio
+export BACKUP_S3_SECRET_ACCESS_KEY=localminio-secret
+export BACKUP_MIN_RETENTION_DAYS=1
+
 rm -f /test/systemctl-events
 /workspace/ops/vps/hns-state-backup/hns-state-backup.sh
 
@@ -118,4 +127,45 @@ test -f /test/restore/test/work/dane/cert.pem
 # the encrypted archive. A restore operator must hand it back to the image uid.
 chown -R 953:953 /test/restore/powerdns
 
-echo "real age + rclone backup/decrypt/restore round-trip passed"
+# Negative retention test: the bucket's real 1-day lock must be rejected as
+# weaker than an inflated policy, and the run must fail. Upload to a separate
+# prefix so the positive path's single-archive assertion stays valid.
+if BACKUP_RCLONE_REMOTE="local:hns-backups/weak-policy" BACKUP_MIN_RETENTION_DAYS=999 \
+  /workspace/ops/vps/hns-state-backup/hns-state-backup.sh >/test/weak-policy.out 2>&1; then
+  echo "backup succeeded despite retention weaker than policy" >&2
+  exit 1
+fi
+if ! grep -q "weaker than the 999-day policy" /test/weak-policy.out; then
+  echo "weak-policy run failed for an unexpected reason:" >&2
+  cat /test/weak-policy.out >&2
+  exit 1
+fi
+
+# Alert delivery test: the OnFailure hook must POST an ops-alerts-shaped
+# {"text": ...} body to the webhook.
+python3 - <<'EOF' &
+from http.server import BaseHTTPRequestHandler, HTTPServer
+class Handler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        body = self.rfile.read(int(self.headers.get("content-length", "0")))
+        with open("/test/alert-body.json", "wb") as f:
+            f.write(body)
+        self.send_response(200)
+        self.end_headers()
+    def log_message(self, *args):
+        pass
+HTTPServer(("127.0.0.1", 8925), Handler).handle_request()
+EOF
+stub_pid=$!
+sleep 1
+OPS_ALERT_WEBHOOK_URL=http://127.0.0.1:8925/ \
+  /workspace/ops/vps/hns-state-backup/alert-on-failure.sh pirate-hns-state-backup.service
+wait "$stub_pid"
+python3 - <<'EOF'
+import json
+body = json.load(open("/test/alert-body.json"))
+assert "pirate-hns-state-backup.service" in body["text"], body
+assert "FAILED" in body["text"], body
+EOF
+
+echo "real age + rclone backup/decrypt/restore round-trip passed (incl. retention policy + alert hook)"
