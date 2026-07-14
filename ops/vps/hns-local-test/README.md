@@ -10,6 +10,9 @@ It exercises:
 - real PowerDNS 5.1 containers pinned to the production digest
 - real `PowerDnsApiClient.ensureZone`
 - DNSSEC key generation, rectification, and DS derivation
+- DANE-EE TLSA derivation from a disposable certificate, publication at apex,
+  explicit-profile, and wildcard-synthesized owners, and signature validation
+  through both authorities
 - per-zone `TSIG-ALLOW-AXFR` convergence
 - unsigned AXFR rejection and TSIG-authenticated AXFR success
 - signed-NOTIFY autoprovisioning of a previously unknown secondary zone
