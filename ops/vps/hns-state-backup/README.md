@@ -71,6 +71,9 @@ install -o root -g root -m 0644 \
 install -o root -g root -m 0644 \
   ops/vps/hns-state-backup/systemd/pirate-hns-state-backup.timer \
   /etc/systemd/system/pirate-hns-state-backup.timer
+install -o root -g root -m 0644 \
+  ops/vps/hns-state-backup/systemd/pirate-hns-state-backup-alert@.service \
+  /etc/systemd/system/pirate-hns-state-backup-alert@.service
 systemctl daemon-reload
 ```
 
@@ -84,9 +87,18 @@ journalctl -u pirate-hns-state-backup.service --since today
 systemctl enable --now pirate-hns-state-backup.timer
 ```
 
-Confirm the remote object has provider-enforced retention. Attempting to delete
-or overwrite that test snapshot with the production application credential
-must fail.
+With `BACKUP_RETENTION_VERIFY=true` every run proves the provider applied
+COMPLIANCE retention at least `BACKUP_MIN_RETENTION_DAYS` long to the objects
+it just uploaded, and fails otherwise — catching a bucket whose default
+retention was later removed or weakened. Additionally attempt to delete or
+overwrite a test snapshot with the production application credential once
+after install; that must fail.
+
+Failed runs fire `pirate-hns-state-backup-alert@%n.service`, which posts to
+`OPS_ALERT_WEBHOOK_URL` (the same webhook the API's ops-alerts sink uses).
+Note this only alerts on runs that *fail* — if the timer stops firing
+entirely, nothing alerts. Pair it with external dead-man monitoring on the
+newest object age in the backup bucket.
 
 ## Restore drill
 
