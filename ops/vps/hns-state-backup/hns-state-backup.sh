@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+umask 077
+
+require_env() {
+  local name="$1"
+  if [[ -z "${!name:-}" ]]; then
+    echo "missing required environment variable: $name" >&2
+    exit 1
+  fi
+}
+
+require_command() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "required command not found: $1" >&2
+    exit 1
+  fi
+}
+
+require_absolute_path() {
+  local name="$1"
+  local value="${!name:-}"
+  if [[ "$value" != /* || "$value" == *$'\n'* ]]; then
+    echo "$name must be an absolute single-line path" >&2
+    exit 1
+  fi
+}
+
+for name in BACKUP_RCLONE_REMOTE BACKUP_AGE_RECIPIENT; do
+  require_env "$name"
+done
+
+for name in BACKUP_STAGING_ROOT PDNS_SQLITE_DB SPACES_DATA_DIR HNS_RUNTIME_STATE_DIR HNS_DANE_CERT_DIR; do
+  require_absolute_path "$name"
+done
+
+for command in age date flock hostname mktemp rclone sha256sum sqlite3 stat systemctl tar tr; do
+  require_command "$command"
+done
+
+if [[ ! -f "$PDNS_SQLITE_DB" ]]; then
+  echo "PowerDNS SQLite database not found: $PDNS_SQLITE_DB" >&2
+  exit 1
+fi
+
+mkdir -p "$BACKUP_STAGING_ROOT"
+chmod 0700 "$BACKUP_STAGING_ROOT"
+
+exec 9>"$BACKUP_STAGING_ROOT/backup.lock"
+if ! flock -n 9; then
+  echo "another HNS state backup is already running" >&2
+  exit 1
+fi
+
+run_dir="$(mktemp -d "$BACKUP_STAGING_ROOT/run.XXXXXXXX")"
+declare -a restart_units=()
+
+restart_quiesced_units() {
+  local status=0
+  local index
+  local -a failed_units=()
+
+  for ((index=${#restart_units[@]} - 1; index >= 0; index -= 1)); do
+    if ! systemctl start "${restart_units[$index]}"; then
+      echo "failed to restart ${restart_units[$index]} after backup" >&2
+      failed_units+=("${restart_units[$index]}")
+      status=1
+    fi
+  done
+
+  restart_units=("${failed_units[@]}")
+  return "$status"
+}
+
+cleanup() {
+  local status=$?
+
+  trap - EXIT INT TERM
+  if ! restart_quiesced_units; then
+    status=1
+  fi
+
+  rm -rf -- "$run_dir"
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 130' INT TERM
+
+mkdir -p "$run_dir/powerdns"
+sqlite_snapshot="$run_dir/powerdns/pdns.sqlite3"
+if [[ "$sqlite_snapshot" == *"'"* ]]; then
+  echo "generated SQLite snapshot path is not safely representable" >&2
+  exit 1
+fi
+sqlite3 "$PDNS_SQLITE_DB" ".backup '$sqlite_snapshot'"
+if [[ "$(sqlite3 "$sqlite_snapshot" 'PRAGMA integrity_check;')" != "ok" ]]; then
+  echo "PowerDNS SQLite snapshot failed integrity_check" >&2
+  exit 1
+fi
+
+read -r -a requested_units <<< "${BACKUP_QUIESCE_UNITS:-}"
+for unit in "${requested_units[@]}"; do
+  if systemctl is-active --quiet "$unit"; then
+    restart_units+=("$unit")
+    systemctl stop "$unit"
+  fi
+done
+
+declare -a tar_args=(
+  --create
+  --zstd
+  --file -
+  --numeric-owner
+  --acls
+  --xattrs
+  --one-file-system
+  -C "$run_dir"
+  powerdns
+)
+
+for path in "$SPACES_DATA_DIR" "$HNS_RUNTIME_STATE_DIR" "$HNS_DANE_CERT_DIR"; do
+  if [[ -e "$path" ]]; then
+    tar_args+=(-C / "${path#/}")
+  fi
+done
+
+timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+host="$(hostname -s | tr -cd 'A-Za-z0-9._-')"
+archive_name="hns-edge-${host:-unknown}-${timestamp}.tar.zst.age"
+archive_path="$run_dir/$archive_name"
+
+tar "${tar_args[@]}" | age --recipient "$BACKUP_AGE_RECIPIENT" --output "$archive_path"
+if [[ ! -s "$archive_path" ]]; then
+  echo "encrypted backup archive is empty" >&2
+  exit 1
+fi
+
+# The archive is now a consistent point-in-time image. Restore service before
+# network upload so the quiescence window does not include provider latency.
+restart_quiesced_units
+
+(
+  cd "$run_dir"
+  sha256sum "$archive_name" > "$archive_name.sha256"
+)
+remote_base="${BACKUP_RCLONE_REMOTE%/}"
+rclone copyto "$archive_path" "$remote_base/$archive_name" --immutable
+rclone copyto "$archive_path.sha256" "$remote_base/$archive_name.sha256" --immutable
+
+echo "uploaded encrypted HNS edge snapshot: $archive_name ($(stat -c %s "$archive_path") bytes)"

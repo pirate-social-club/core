@@ -100,8 +100,10 @@ Safety rules:
 - recover the existing key for tag `24637` before touching the `pirate.` DS;
   otherwise perform a deliberate DS rollover instead of generating over it
 
-Back up the PowerDNS SQLite database and cryptokeys before enabling automated
-creation. The private DNSSEC key and the matching parent DS are one lifecycle.
+Deploy and restore-test the tracked
+[`hns-state-backup`](../hns-state-backup/README.md) role before enabling
+automated creation. The private DNSSEC key in the PowerDNS SQLite database and
+the matching parent DS are one lifecycle.
 
 ## DANE-EE TLSA lifecycle
 
