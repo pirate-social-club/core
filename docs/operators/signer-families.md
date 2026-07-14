@@ -1,8 +1,8 @@
 # Signer Families
 
-Canonical record of every signer identity, its on-chain authority, and its allowed contract interactions.
+Architecture and role-design reference for signer families. Some addresses below describe the retired Lit/PKP design and are retained for migration history; they are not runtime configuration.
 
-This is the single source of truth for signer addresses. Runtime config, deployment scripts, and on-chain grant checklists must reference this file, not duplicate addresses.
+The canonical hosted-runtime address and funding inventory is `config/runtime-wallet-registry.json`. Runtime secrets live in Infisical and must carry matching `*_ADDRESS` guards.
 
 No Lit control-plane details live here. See `config/lit-families.json` for execute groups, usage keys, and action CIDs.
 
@@ -12,7 +12,7 @@ No Lit control-plane details live here. See `config/lit-families.json` for execu
 - A family is either `direct-key`, `pkp`, `multisig`, or `eoa`. It cannot be two of these at once.
 - No automatic fallback from PKP to direct key. If a PKP family needs a fallback, it is an explicit operational decision with a manual cutover.
 - On-chain grants are tracked here. Lit execution mechanics are tracked separately.
-- If a signer address appears anywhere else in the repo, it must match the address here. If it does not match, this file wins.
+- Hosted runtime addresses must match `config/runtime-wallet-registry.json`; deployment manifests remain evidence of their specific deployment and grants.
 
 ## Families
 

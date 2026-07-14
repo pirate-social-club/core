@@ -61,3 +61,27 @@ describe("reward campaign Infisical contract", () => {
     expect(check?.check(base)).toEqual({ status: "fail", message: "minimum budget exceeds maximum" });
   });
 });
+
+describe("Story signer Infisical contract", () => {
+  test("requires isolated role keys and address guards without a catch-all fallback", () => {
+    const required = [
+      "STORY_OPERATOR_PRIVATE_KEY",
+      "STORY_OPERATOR_PKP_ADDRESS",
+      "STORY_ENTITLEMENT_CLASS_CONFIGURER_PRIVATE_KEY",
+      "STORY_ENTITLEMENT_CLASS_CONFIGURER_ADDRESS",
+      "STORY_CDR_WRITER_PRIVATE_KEY",
+      "STORY_CDR_WRITER_PKP_ADDRESS",
+      "STORY_ACCESS_CONTROLLER_PRIVATE_KEY",
+      "STORY_ACCESS_CONTROLLER_PKP_ADDRESS",
+      "MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY",
+      "MUSIC_PURCHASE_STORY_SETTLEMENT_PKP_ADDRESS",
+    ] as const;
+    for (const key of required) {
+      const spec = ENV_CONTRACT.secrets.find((candidate) => candidate.path === "/services/api" && candidate.key === key);
+      expect(spec?.requiredness).toBe("required_for_hosted");
+      expect(COMMERCE_SECRET_IDS).toContain(secretId("/services/api", key));
+    }
+    expect(ENV_CONTRACT.secrets.some((candidate) => candidate.key === "STORY_RUNTIME_PRIVATE_KEY")).toBe(false);
+    expect(COMMERCE_SECRET_IDS).not.toContain(secretId("/services/api", "STORY_RUNTIME_PRIVATE_KEY"));
+  });
+});

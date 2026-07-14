@@ -1,7 +1,7 @@
 {
   "$schema": "lit-families.schema.json",
   "version": 1,
-  "description": "Machine-readable Lit control-plane inventory. This is the single source of truth for PKP addresses, execute groups, action CIDs, and usage key bindings. Runtime config and doctor scripts must read from this file, not from scattered env vars.",
+  "description": "Historical Lit control-plane inventory for PKP addresses, execute groups, action CIDs, and usage key bindings. Hosted runtime wallets are canonical in config/runtime-wallet-registry.json.",
   "environments": {
     "dev": {
       "litApiBaseUrl": "https://api.dev.litprotocol.com",

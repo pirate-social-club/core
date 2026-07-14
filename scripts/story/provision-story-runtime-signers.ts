@@ -8,6 +8,7 @@ import { spawnSync } from "node:child_process"
 
 const SECRET_NAMES = [
   "STORY_OPERATOR_PRIVATE_KEY",
+  "STORY_ENTITLEMENT_CLASS_CONFIGURER_PRIVATE_KEY",
   "STORY_CDR_WRITER_PRIVATE_KEY",
   "STORY_ACCESS_CONTROLLER_PRIVATE_KEY",
   "MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY",
@@ -19,6 +20,7 @@ type CliOptions = {
   env: string
   path: string
   rotate: boolean
+  signers: Set<SecretName>
 }
 
 function parseArgs(argv: string[]): CliOptions {
@@ -26,6 +28,7 @@ function parseArgs(argv: string[]): CliOptions {
     env: process.env.INFISICAL_ENV || "dev",
     path: "/services/api",
     rotate: false,
+    signers: new Set(),
   }
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -44,13 +47,22 @@ function parseArgs(argv: string[]): CliOptions {
       options.rotate = true
       continue
     }
+    if (arg === "--signer" || arg.startsWith("--signer=")) {
+      const value = arg === "--signer" ? argv[index + 1] : arg.slice("--signer=".length)
+      if (arg === "--signer") index += 1
+      if (!SECRET_NAMES.includes(value as SecretName)) {
+        throw new Error(`unknown signer: ${value}`)
+      }
+      options.signers.add(value as SecretName)
+      continue
+    }
     if (arg === "-h" || arg === "--help") {
       console.log([
         "Usage:",
-        "  rtk bun scripts/story/provision-story-runtime-signers.ts [--env dev] [--path /services/api] [--rotate]",
+        "  rtk bun scripts/story/provision-story-runtime-signers.ts [--env dev] [--path /services/api] [--rotate] [--signer NAME]",
         "",
         "By default this only creates missing direct Story signer keys in Infisical.",
-        "Use --rotate to replace the existing keys with newly generated ones.",
+        "Use --rotate to replace existing keys. Repeat --signer to limit the operation.",
       ].join("\n"))
       process.exit(0)
     }
@@ -100,6 +112,7 @@ async function main(): Promise<void> {
   const retained: SecretName[] = []
 
   for (const name of SECRET_NAMES) {
+    if (options.signers.size > 0 && !options.signers.has(name)) continue
     if (!options.rotate && existing.has(name)) {
       retained.push(name)
       continue

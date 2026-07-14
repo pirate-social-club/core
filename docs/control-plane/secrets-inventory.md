@@ -83,8 +83,8 @@ The API worker cannot start without these. The sync script (`scripts/infisical/s
 | `ELEVENLABS_API_KEY` | `api-key` | ElevenLabs API key for song forced alignment |
 | `CONTROL_PLANE_DATABASE_URL` | `database-credential` | Runtime connection string for the Neon control-plane database |
 | `PIRATE_ADMIN_TOKEN` | `worker-secret` | Production admin/operator token for namespace attach, manifest apply, and launch seed operations |
-| `STORY_RUNTIME_PRIVATE_KEY` | `private-key` | Shared Story Aeneid runtime fallback signer |
 | `STORY_OPERATOR_PRIVATE_KEY` | `private-key` | Story asset publish/register signer |
+| `STORY_ENTITLEMENT_CLASS_CONFIGURER_PRIVATE_KEY` | `private-key` | Story entitlement-class configuration signer |
 | `STORY_CDR_WRITER_PRIVATE_KEY` | `private-key` | Story CDR writer signer |
 | `STORY_ACCESS_CONTROLLER_PRIVATE_KEY` | `private-key` | Story access proof signer |
 | `MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY` | `private-key` | Music purchase settlement signer |
