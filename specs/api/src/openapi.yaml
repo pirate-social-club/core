@@ -456,6 +456,8 @@ paths:
     $ref: ./paths/rewards.yaml#/me_rewards_cashouts
   /me/rewards/cashouts/{cashout_id}:
     $ref: ./paths/rewards.yaml#/me_rewards_cashouts_by_cashout_id
+  /reward_campaign_capabilities:
+    $ref: ./paths/rewards.yaml#/reward_campaign_capabilities
   /reward_campaigns:
     $ref: ./paths/rewards.yaml#/reward_campaigns
   /reward_song_policies/{community_id}/{post_id}:

@@ -4668,6 +4668,20 @@ paths:
                 $ref: "#/components/schemas/RewardCashoutResponse"
         "404":
           description: Cashout not found for the current user
+  /reward_campaign_capabilities:
+    get:
+      operationId: reward_campaign_capabilities_retrieve
+      tags:
+        - Rewards
+      summary: Get live campaign-creation guardrails
+      description: Clients validate proposed campaign terms against the running configuration rather than hardcoding it, and hide the boost entry point entirely when the surface is disabled.
+      responses:
+        "200":
+          description: Campaign creation capabilities
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RewardCampaignCapabilities"
   /reward_campaigns:
     post:
       operationId: reward_campaigns_create
