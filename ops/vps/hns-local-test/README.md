@@ -24,6 +24,23 @@ Run:
 bash ops/vps/hns-local-test/run.sh
 ```
 
+Run the real backup/restore proof separately:
+
+```bash
+bash ops/vps/hns-local-test/backup-roundtrip.sh
+```
+
+That test uses real `age` encryption/decryption, real `rclone` S3 transfers,
+and a local MinIO bucket with default COMPLIANCE retention. It verifies the
+locked object version cannot be deleted, restores and integrity-checks the
+PowerDNS database, then boots the pinned PowerDNS image from the restored copy
+and validates its DNSSEC answers. `systemctl` alone is simulated so the test
+cannot stop unrelated workstation services.
+
+This proves S3 Object Lock behavior locally. It does not replace a one-time
+live Backblaze B2 check of default retention and restricted application-key
+permissions before production backups are trusted.
+
 The harness deletes its isolated containers, network, volumes, generated
 DNSSEC keys, and test TSIG secret on exit. It never reads production secrets,
 contacts a Handshake wallet, or publishes DNS records.
