@@ -55,8 +55,49 @@ type Status =
   | "checksum_mismatch" // ledger records a DIFFERENT 1127 -> refuse
   | "ledger_without_columns" // ledger says applied, columns absent -> refuse
   | "partial_columns" // some columns only -> refuse
-  | "schema_not_ready" // no assets / no schema_migrations table
+  | "schema_not_ready" // no assets / no schema_migrations table -> refuse
+  | "missing_from_config" // allocated in the pool but absent from the shard config -> refuse
   | "error"
+
+/**
+ * Statuses that mean "we do not positively understand this shard". ANY of these
+ * fails the run. `missing_from_config` and `schema_not_ready` are here because
+ * silently skipping them is precisely how a stale shard config once hid 178 live
+ * shards from a fleet migration.
+ */
+const BLOCKING_STATUSES: readonly Status[] = [
+  "checksum_mismatch",
+  "ledger_without_columns",
+  "partial_columns",
+  "schema_not_ready",
+  "missing_from_config",
+  "error",
+]
+
+const ANSI = /\[[0-9;?]*[A-Za-z]/g
+
+/**
+ * `wrangler d1 execute --file` interleaves upload progress and ANSI control
+ * sequences with its JSON payload on STDOUT, so the output is not parseable
+ * as-is. Strip ANSI, then take the FIRST bracket from which the remainder parses
+ * as a JSON array.
+ *
+ * Scanning forward (not backward) matters: a nested `[` — e.g. the one opening
+ * `"results": [...]` — would also parse, but as the WRONG value. The first
+ * position that parses cleanly to the end is the true top-level payload.
+ */
+export function extractWranglerJson(stdout: string): unknown[] {
+  const clean = stdout.replace(ANSI, "").replace(/\r/g, "")
+  for (let i = clean.indexOf("["); i !== -1; i = clean.indexOf("[", i + 1)) {
+    try {
+      const parsed = JSON.parse(clean.slice(i))
+      if (Array.isArray(parsed)) return parsed
+    } catch {
+      // Not the payload — a bracket inside progress text. Keep scanning.
+    }
+  }
+  throw new Error(`no JSON array payload found in wrangler output: ${clean.slice(0, 200)}`)
+}
 
 type ShardResult = {
   binding: string
@@ -136,6 +177,11 @@ function parseArgs(): Options {
   if (options.execute && !options.resumeFile && !options.only) {
     throw new Error("--execute against the fleet requires --resume-file")
   }
+  // A concurrency of 0 (or NaN, from a typo) would spawn no workers, do no work,
+  // and still write a clean-looking manifest.
+  if (!Number.isInteger(options.concurrency) || options.concurrency < 1) {
+    throw new Error(`--concurrency must be a positive integer, got "${get("--concurrency")}"`)
+  }
   return options
 }
 
@@ -158,15 +204,12 @@ async function wranglerJson(options: Options, db: string, args: string[]): Promi
   ])
   await proc.exited
   if (proc.exitCode !== 0) throw new Error(`wrangler d1 execute ${db} failed: ${err.trim()}`)
-  // With --file, wrangler prints upload progress ("Checking if file needs
-  // uploading", spinner lines) to STDOUT before the JSON payload, so the output
-  // is not parseable as-is. Take the payload from the first top-level bracket.
-  const start = out.indexOf("[")
-  const payload = start === -1 ? out : out.slice(start)
   try {
-    return JSON.parse(payload)
-  } catch {
-    throw new Error(`wrangler d1 execute ${db} returned unparseable JSON: ${out.slice(0, 200)}`)
+    return extractWranglerJson(out) as any[]
+  } catch (error) {
+    throw new Error(
+      `wrangler d1 execute ${db} returned unparseable output: ${error instanceof Error ? error.message : String(error)}`,
+    )
   }
 }
 
@@ -276,16 +319,41 @@ async function main() {
   const { sql, checksum } = await migrationSql(options)
   const map = await shardMap(options)
 
-  let bindings = await loadedBindings(options)
+  const bindings = await loadedBindings(options)
+  // The pool is authoritative for "which shards are live". If it is empty, our
+  // view of the fleet is broken — never treat that as "no work to do".
+  if (bindings.length === 0) {
+    throw new Error(
+      `${options.poolDb} reported ZERO allocated+loaded shards. That is not a no-op — it means the pool query or environment is wrong. Refusing to continue.`,
+    )
+  }
+
   const targets: Array<{ binding: string; name: string; id: string }> = []
+  // A binding that is allocated in the pool but absent from the shard config is
+  // NOT skippable: that is exactly how a stale config once hid 178 live shards
+  // from a fleet migration. Record it as blocking and fail the run.
+  const missingFromConfig: ShardResult[] = []
   for (const b of bindings) {
     const entry = map.get(b)
     if (!entry) {
-      console.warn(`warning ${b} is allocated in the pool but absent from the shard config — skipping`)
+      missingFromConfig.push({
+        binding: b,
+        database_name: "(unknown — not in shard config)",
+        database_id: "(unknown)",
+        status: "missing_from_config",
+        action: "none",
+        detail: `allocated+loaded in ${options.poolDb} but absent from ${options.wranglerConfig}. The config is stale or wrong — resolve it from a clean origin/main checkout.`,
+      })
       continue
     }
     if (options.only && entry.name !== options.only) continue
     targets.push({ binding: b, name: entry.name, id: entry.id })
+  }
+
+  if (options.only && targets.length !== 1) {
+    throw new Error(
+      `--only ${options.only} matched ${targets.length} shards among the allocated+loaded set; expected exactly 1. Check the name and the --prod flag.`,
+    )
   }
 
   const done = new Set<string>()
@@ -331,8 +399,13 @@ async function main() {
   }
   await Promise.all(Array.from({ length: Math.min(options.concurrency, Math.max(pending.length, 1)) }, worker))
 
+  // Shards absent from the config never got classified — they must still surface.
+  results.push(...missingFromConfig)
+
   const summary: Record<string, number> = {}
   for (const r of results) summary[r.status] = (summary[r.status] ?? 0) + 1
+
+  const skippedByResume = targets.length - pending.length
 
   await mkdir(dirname(options.manifest), { recursive: true })
   await writeFile(
@@ -343,7 +416,17 @@ async function main() {
         migration: MIGRATION,
         checksum,
         executed: options.execute,
-        allocated_loaded_shards: targets.length,
+        // Provenance: which config decided the fleet's membership. A stale config
+        // here is the difference between migrating 205 shards and migrating 26.
+        shard_config: options.wranglerConfig,
+        shard_config_bindings: map.size,
+        pool_db: options.poolDb,
+        allocated_loaded_shards: targets.length + missingFromConfig.length,
+        classified: results.length - skippedByResume,
+        skipped_by_resume_file: skippedByResume,
+        // A resume file skips shards WITHOUT reclassifying them, so a run that used
+        // one is an execution record, not proof of final state.
+        is_full_verification: !options.resumeFile && !options.only,
         summary,
         shards: results,
       },
@@ -355,18 +438,28 @@ async function main() {
   console.log("\nsummary:", JSON.stringify(summary))
   console.log(`manifest: ${options.manifest}`)
 
-  const blocking = results.filter((r) =>
-    ["checksum_mismatch", "ledger_without_columns", "partial_columns", "error"].includes(r.status),
-  )
+  const blocking = results.filter((r) => BLOCKING_STATUSES.includes(r.status))
   if (blocking.length > 0) {
-    console.error(`\n${blocking.length} shard(s) need human review before any fleet write:`)
-    for (const b of blocking) console.error(`  ${b.database_name}: ${b.status} — ${b.detail ?? ""}`)
+    console.error(`\n${blocking.length} shard(s) need human review — refusing to report success:`)
+    for (const b of blocking) console.error(`  ${b.database_name} [${b.binding}]: ${b.status} — ${b.detail ?? ""}`)
     process.exit(2)
   }
-  if (!options.execute) {
+
+  if (options.execute) {
+    console.log(
+      "\nEXECUTION COMPLETE. This run used a resume file and/or --only, so it is an execution\n" +
+        "record, NOT proof of final state. Re-run WITHOUT --execute, --resume-file or --only to\n" +
+        "obtain a full read-only verification of the fleet before declaring this done.",
+    )
+  } else {
     const todo = results.filter((r) => r.status === "needs_migration" || r.status === "needs_ledger_backfill")
-    console.log(`\ndry run: ${todo.length} shard(s) would be written. Re-run with --execute --confirm-time-travel.`)
+    if (!options.resumeFile && !options.only && todo.length === 0) {
+      console.log(`\nFULL VERIFICATION: all ${results.length} allocated+loaded shards are ok_recorded.`)
+    } else {
+      console.log(`\ndry run: ${todo.length} shard(s) would be written. Re-run with --execute --confirm-time-travel.`)
+    }
   }
 }
 
-await main()
+// Only run when invoked directly, so the pure helpers above stay unit-testable.
+if (import.meta.main) await main()
