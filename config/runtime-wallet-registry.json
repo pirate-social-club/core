@@ -35,8 +35,8 @@
         }
       },
       "base": {
-        "chainId": 8453,
-        "explorer": "https://basescan.org/address/",
+        "chainId": 84532,
+        "explorer": "https://sepolia.basescan.org/address/",
         "wallets": {
           "checkout": { "address": "0xEd115cff0bf6746Ca7A9E2C184FC4Bb6184A1b40", "keyEnv": "PIRATE_CHECKOUT_OPERATOR_PRIVATE_KEY", "guardEnv": "PIRATE_CHECKOUT_OPERATOR_ADDRESS", "nativeFloor": "0.001", "usdcFloor": "1.0" },
           "booking": { "address": "0xbBA024600cba5F375AfdCeC401f7dcCB3D515829", "keyEnv": "PIRATE_BOOKING_SETTLEMENT_OPERATOR_PRIVATE_KEY", "guardEnv": "PIRATE_BOOKING_SETTLEMENT_OPERATOR_ADDRESS", "nativeFloor": "0.001", "usdcFloor": "1.0" }
