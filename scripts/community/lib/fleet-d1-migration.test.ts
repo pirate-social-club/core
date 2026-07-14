@@ -1,10 +1,67 @@
 import { describe, expect, test } from "bun:test"
+import { readFileSync } from "node:fs"
+import { resolve } from "node:path"
 
 import { SPEC as OUTBOX_SPEC } from "../apply-reward-outbox-d1-migration"
 import { SPEC as STORY_SPEC } from "../apply-story-metadata-refs-d1-migration"
-import { BLOCKING_STATUSES, classificationSql, classifyRow } from "./fleet-d1-migration"
+import {
+  BLOCKING_STATUSES,
+  classificationSql,
+  classifyRow,
+  executionBody,
+  type MigrationSpec,
+} from "./fleet-d1-migration"
 
 const CHECKSUM = "a".repeat(64)
+
+const MIGRATIONS_DIR = resolve(import.meta.dir, "../../../db/community-template/migrations")
+
+/** Read the REAL migration off disk, so this test cannot drift from what ships. */
+function realMigration(spec: MigrationSpec): string {
+  return readFileSync(resolve(MIGRATIONS_DIR, spec.migration), "utf8")
+}
+
+describe("executionBody — the exact bytes sent to D1", () => {
+  // Regression: an earlier version split the SQL on ";" and dropped any segment whose
+  // trimmed text began with "--". That silently discarded the FIRST statement of any
+  // migration opening with a comment. 1126 opens with a comment, so its CREATE TABLE
+  // vanished and only the CREATE INDEX survived — which would have failed on all 93
+  // production shards. Assert against the real files, not a fixture.
+  test("1126 keeps its CREATE TABLE even though the file opens with comments", () => {
+    const sql = realMigration(OUTBOX_SPEC)
+    expect(sql.trimStart().startsWith("--")).toBe(true) // the precondition that broke it
+
+    const body = executionBody(sql, OUTBOX_SPEC, CHECKSUM)
+    expect(body).toContain("CREATE TABLE reward_qualification_outbox")
+    expect(body).toContain("CREATE INDEX idx_reward_qualification_outbox_sequence")
+    expect(body).toContain("INSERT INTO schema_migrations")
+    expect(body).toContain("1126_reward_qualification_outbox.sql")
+  })
+
+  test("1127 keeps every ALTER TABLE", () => {
+    const sql = realMigration(STORY_SPEC)
+    const body = executionBody(sql, STORY_SPEC, CHECKSUM)
+    for (const column of STORY_SPEC.creates.kind === "columns" ? STORY_SPEC.creates.columns : []) {
+      expect(body).toContain(`ADD COLUMN ${column}`)
+    }
+    expect(body).toContain("INSERT INTO schema_migrations")
+  })
+
+  test("the migration SQL is passed through verbatim — never parsed or rewritten", () => {
+    const sql = realMigration(OUTBOX_SPEC)
+    const body = executionBody(sql, OUTBOX_SPEC, CHECKSUM)
+    // Everything before the appended ledger line is byte-identical to the trimmed file.
+    expect(body.startsWith(sql.trim())).toBe(true)
+    // Comments survive: they are valid SQL and there is no reason to touch the file.
+    expect(body).toContain("-- Append-only")
+  })
+
+  test("the ledger INSERT is appended so schema and ledger move together", () => {
+    const body = executionBody(realMigration(OUTBOX_SPEC), OUTBOX_SPEC, CHECKSUM)
+    expect(body.indexOf("CREATE TABLE")).toBeLessThan(body.indexOf("INSERT INTO schema_migrations"))
+    expect(body).toContain(CHECKSUM)
+  })
+})
 
 /** A shard where nothing has been applied yet. */
 function bareOutboxRow(overrides: Record<string, number | string> = {}) {

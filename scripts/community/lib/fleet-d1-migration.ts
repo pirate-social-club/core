@@ -331,11 +331,28 @@ async function classify(
   return classifyRow(spec, rows, checksum)
 }
 
-function splitStatements(sql: string): string[] {
-  return sql
-    .split(";")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !s.startsWith("--"))
+export function ledgerStatement(spec: MigrationSpec, checksum: string): string {
+  return `INSERT INTO schema_migrations (migration_name, migration_label, checksum) VALUES ('${spec.migration}', '${spec.label}', '${checksum}');`
+}
+
+/**
+ * The exact bytes sent to `wrangler d1 execute --file`.
+ *
+ * The migration SQL is TRUSTED and passed through VERBATIM — never parsed, split
+ * or rewritten. An earlier version split on ";" and dropped any segment whose
+ * trimmed text began with "--", which silently discarded the FIRST statement of any
+ * migration that opens with a comment. 1127 survived only by accident (it starts
+ * directly with `ALTER TABLE`); 1126 opens with a comment, so its `CREATE TABLE`
+ * vanished and only the `CREATE INDEX` remained — which would have failed on all 93
+ * shards. Comments are valid SQL and D1 accepts them; there is no reason to touch
+ * the file.
+ *
+ * Schema + ledger go in ONE file: remote D1 rejects explicit BEGIN/COMMIT, but
+ * wrangler applies a file with all-or-original semantics, so they move together and
+ * a shard is never left with the objects but no ledger row.
+ */
+export function executionBody(sql: string, spec: MigrationSpec, checksum: string): string {
+  return `${sql.trim()}\n${ledgerStatement(spec, checksum)}\n`
 }
 
 async function applyToShard(
@@ -346,19 +363,14 @@ async function applyToShard(
   sql: string,
   checksum: string,
 ): Promise<"applied_migration" | "backfilled_ledger"> {
-  const ledger = `INSERT INTO schema_migrations (migration_name, migration_label, checksum) VALUES ('${spec.migration}', '${spec.label}', '${checksum}');`
-
   if (status === "needs_ledger_backfill") {
     // Objects already exist. DO NOT replay the DDL — it would fail. Ledger only.
-    await wranglerJson(options, db, ["--command", ledger])
+    await wranglerJson(options, db, ["--command", ledgerStatement(spec, checksum)])
     return "backfilled_ledger"
   }
 
-  // Schema + ledger in ONE file: remote D1 rejects explicit BEGIN/COMMIT, but
-  // wrangler applies a file with all-or-original semantics, so they move together.
-  const body = splitStatements(sql).join(";\n") + ";"
   const file = `/tmp/${spec.migration.split("_")[0]}-${db}.sql`
-  await writeFile(file, `${body}\n${ledger}\n`)
+  await writeFile(file, executionBody(sql, spec, checksum))
   await wranglerJson(options, db, ["--file", file])
   return "applied_migration"
 }
