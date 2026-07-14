@@ -236,6 +236,17 @@ describe("hns verifier server", () => {
     }
   });
 
+  test("rejects malformed punycode allowed by the raw consensus grammar", async () => {
+    const response = await handleRequest(new Request(
+      "http://127.0.0.1:4048/inspect-public?root_label=xn--0",
+    ));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "root_label must be a single Handshake TLD label",
+    });
+  });
+
   test("normalizes Unicode HNS roots to the same public inspect result", async () => {
     resetOwnerManagedProofs();
     const response = await handleRequest(new Request(

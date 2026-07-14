@@ -66,6 +66,10 @@ describe("extractImportedNamespaceHost", () => {
     }
   });
 
+  test("rejects malformed punycode at the product boundary", () => {
+    expect(extractImportedNamespaceHost("app.xn--0", ["pirate", "clawitzer"])).toBeNull();
+  });
+
   test("does not treat first-party suffix hosts as imported roots", () => {
     expect(extractImportedNamespaceHost("app.pirate", ["pirate", "clawitzer"])).toBeNull();
     expect(extractImportedNamespaceHost("night-signal.clawitzer", ["pirate", "clawitzer"])).toBeNull();
