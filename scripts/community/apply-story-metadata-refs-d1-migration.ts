@@ -39,14 +39,14 @@ import { createHash } from "node:crypto"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { dirname, resolve } from "node:path"
 
-const MIGRATION = "1127_asset_story_metadata_refs.sql"
+import { type Artifacts, expectedArtifacts, extractWranglerJson } from "./community-shard-schema"
+
+// Re-exported: existing callers and tests import this from here.
+export { extractWranglerJson }
+
+const DEFAULT_MIGRATION = "1127_asset_story_metadata_refs.sql"
+let MIGRATION = DEFAULT_MIGRATION
 const MIGRATION_LABEL = "community-template"
-const COLUMNS = [
-  "story_ip_metadata_uri",
-  "story_ip_metadata_hash",
-  "story_nft_metadata_uri",
-  "story_nft_metadata_hash",
-] as const
 
 type Status =
   | "ok_recorded" // ledger + all columns, checksum matches -> nothing to do
@@ -74,30 +74,6 @@ const BLOCKING_STATUSES: readonly Status[] = [
   "error",
 ]
 
-const ANSI = /\[[0-9;?]*[A-Za-z]/g
-
-/**
- * `wrangler d1 execute --file` interleaves upload progress and ANSI control
- * sequences with its JSON payload on STDOUT, so the output is not parseable
- * as-is. Strip ANSI, then take the FIRST bracket from which the remainder parses
- * as a JSON array.
- *
- * Scanning forward (not backward) matters: a nested `[` — e.g. the one opening
- * `"results": [...]` — would also parse, but as the WRONG value. The first
- * position that parses cleanly to the end is the true top-level payload.
- */
-export function extractWranglerJson(stdout: string): unknown[] {
-  const clean = stdout.replace(ANSI, "").replace(/\r/g, "")
-  for (let i = clean.indexOf("["); i !== -1; i = clean.indexOf("[", i + 1)) {
-    try {
-      const parsed = JSON.parse(clean.slice(i))
-      if (Array.isArray(parsed)) return parsed
-    } catch {
-      // Not the payload — a bracket inside progress text. Keep scanning.
-    }
-  }
-  throw new Error(`no JSON array payload found in wrangler output: ${clean.slice(0, 200)}`)
-}
 
 type ShardResult = {
   binding: string
@@ -109,6 +85,7 @@ type ShardResult = {
 }
 
 type Options = {
+  migration: string
   wranglerConfig: string
   migrationsDir: string
   env?: string
@@ -167,6 +144,7 @@ function parseArgs(): Options {
     confirmTimeTravel: argv.includes("--confirm-time-travel"),
     manifest: resolve(get("--manifest") ?? `tmp/1127-${prod ? "prod" : "staging"}-manifest.json`),
     resumeFile: get("--resume-file") ? resolve(get("--resume-file")!) : undefined,
+    migration: get("--migration") ?? DEFAULT_MIGRATION,
     only: get("--only"),
     concurrency: Number(get("--concurrency") ?? "8"),
     cwd: dirname(resolve(wranglerConfig)),
@@ -240,43 +218,66 @@ async function migrationSql(options: Options): Promise<{ sql: string; checksum: 
   return { sql, checksum: createHash("sha256").update(sql).digest("hex") }
 }
 
-async function classify(options: Options, db: string, checksum: string): Promise<{ status: Status; detail?: string }> {
-  const cols = COLUMNS.map(
-    (c) => `(SELECT COUNT(*) FROM pragma_table_info('assets') WHERE name='${c}') AS ${c}`,
-  ).join(",\n  ")
+async function classify(
+  options: Options,
+  db: string,
+  checksum: string,
+  artifacts: Artifacts,
+): Promise<{ status: Status; detail?: string }> {
+  // Artifacts come from the migration SQL, so this works for ANY community-template
+  // migration — not just 1127. `altered` tables must already exist for an ALTER to
+  // apply; if one is missing the shard is not ready and we refuse rather than guess.
+  const checks = [
+    ...artifacts.tables.map(
+      (t, i) => `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${t}') AS t${i}`,
+    ),
+    ...artifacts.columns.map(
+      ([t, c], i) => `(SELECT COUNT(*) FROM pragma_table_info('${t}') WHERE name='${c}') AS c${i}`,
+    ),
+    ...artifacts.altered.map(
+      (t, i) => `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${t}') AS base${i}`,
+    ),
+  ]
   const rows = (
     await wranglerJson(options, db, [
       "--command",
       `SELECT
-  (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='assets') AS has_assets,
   (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='schema_migrations') AS has_ledger,
-  (SELECT COALESCE(GROUP_CONCAT(checksum), '') FROM schema_migrations WHERE migration_name='${MIGRATION}') AS ledger_checksum,
-  ${cols}`,
+  (SELECT COALESCE(GROUP_CONCAT(checksum), '') FROM schema_migrations WHERE migration_name='${MIGRATION}') AS ledger_checksum${checks.length ? ",\n  " + checks.join(",\n  ") : ""}`,
     ])
   )[0].results[0] as Record<string, number | string>
 
-  if (Number(row(rows, "has_assets")) !== 1 || Number(row(rows, "has_ledger")) !== 1) {
-    return { status: "schema_not_ready", detail: "assets or schema_migrations table absent" }
+  if (Number(row(rows, "has_ledger")) !== 1) {
+    return { status: "schema_not_ready", detail: "schema_migrations table absent" }
   }
-  const present = COLUMNS.filter((c) => Number(row(rows, c)) === 1)
+  const missingBase = artifacts.altered.filter((_, i) => Number(row(rows, `base${i}`)) !== 1)
+  if (missingBase.length > 0) {
+    return { status: "schema_not_ready", detail: `base table(s) absent: ${missingBase.join(", ")}` }
+  }
+
+  const total = artifacts.tables.length + artifacts.columns.length
+  const present =
+    artifacts.tables.filter((_, i) => Number(row(rows, `t${i}`)) === 1).length +
+    artifacts.columns.filter((_, i) => Number(row(rows, `c${i}`)) === 1).length
   const recorded = String(rows.ledger_checksum ?? "")
 
-  if (present.length > 0 && present.length < COLUMNS.length) {
-    return { status: "partial_columns", detail: `present: ${present.join(", ")}` }
+  if (present > 0 && present < total) {
+    return { status: "partial_columns", detail: `${present}/${total} artifacts present` }
   }
-  const allColumns = present.length === COLUMNS.length
+  const allPresent = total > 0 && present === total
 
   if (recorded) {
     if (recorded !== checksum) {
       return { status: "checksum_mismatch", detail: `ledger=${recorded.slice(0, 12)} expected=${checksum.slice(0, 12)}` }
     }
-    return allColumns
+    return allPresent
       ? { status: "ok_recorded" }
-      : { status: "ledger_without_columns", detail: "ledger records 1127 but columns are absent" }
+      : { status: "ledger_without_columns", detail: `ledger records ${MIGRATION} but its schema is absent` }
   }
-  // No ledger row. 1127 is plain ADD COLUMN — replaying it where the columns
-  // already exist would fail with "duplicate column name". Backfill the ledger.
-  return allColumns ? { status: "needs_ledger_backfill" } : { status: "needs_migration" }
+  // No ledger row. ADD COLUMN / CREATE TABLE migrations cannot be blindly replayed
+  // (ADD COLUMN fails with "duplicate column name"), so where the schema already
+  // exists we backfill the LEDGER ONLY.
+  return allPresent ? { status: "needs_ledger_backfill" } : { status: "needs_migration" }
 }
 
 function row(r: Record<string, number | string>, key: string): number | string {
@@ -316,7 +317,9 @@ async function applyToShard(
 
 async function main() {
   const options = parseArgs()
+  MIGRATION = options.migration
   const { sql, checksum } = await migrationSql(options)
+  const artifacts = expectedArtifacts(sql)
   const map = await shardMap(options)
 
   const bindings = await loadedBindings(options)
@@ -381,7 +384,7 @@ async function main() {
       const t = pending[idx++]
       const base = { binding: t.binding, database_name: t.name, database_id: t.id }
       try {
-        const { status, detail } = await classify(options, t.name, checksum)
+        const { status, detail } = await classify(options, t.name, checksum, artifacts)
         let action: ShardResult["action"] = "none"
         const writable = status === "needs_migration" || status === "needs_ledger_backfill"
         if (options.execute && writable) {
