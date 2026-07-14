@@ -71,8 +71,8 @@ It is intentionally narrow:
 
 The active paid-song mainline uses direct private keys from Infisical `/services/api`:
 
-- `STORY_RUNTIME_PRIVATE_KEY`
 - `STORY_OPERATOR_PRIVATE_KEY`
+- `STORY_ENTITLEMENT_CLASS_CONFIGURER_PRIVATE_KEY`
 - `STORY_CDR_WRITER_PRIVATE_KEY`
 - `STORY_ACCESS_CONTROLLER_PRIVATE_KEY`
 - `MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY`

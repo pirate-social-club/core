@@ -1,8 +1,8 @@
 # Funds Ledger
 
-Canonical record of every address that holds value, why it holds value, and who controls it.
+Policy reference for why wallet classes hold value, who refills them, and how they are cut off.
 
-This is the single source of truth for funded-wallet inventory. Everything else references this, not the other way around.
+The canonical hosted-runtime address and floor inventory is `config/runtime-wallet-registry.json`. The tables below describe the broader target architecture and must not be used to resolve current addresses or numeric runtime floors.
 
 Do not restate addresses from this file in wrangler.toml, release manifests, or deployment notes. Link here instead.
 
@@ -45,12 +45,7 @@ Do not restate addresses from this file in wrangler.toml, release manifests, or 
 
 ## Address Resolution
 
-Actual addresses are not hardcoded in this file. They resolve from:
-
-- signer-family canonical addresses: `docs/operators/signer-families.md`
-- PKP control-plane addresses: `config/lit-families.json`
-
-When those files disagree, this ledger is not authoritative on which address is correct. It is authoritative on which addresses hold value and what to do about it.
+Current hosted addresses and enforced floors resolve from `config/runtime-wallet-registry.json`. Infisical holds private keys and matching public-address guards; neither this document nor the retired Lit configuration overrides that registry.
 
 ## Refill Procedure
 

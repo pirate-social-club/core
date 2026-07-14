@@ -1,0 +1,47 @@
+{
+  "$schemaVersion": 1,
+  "description": "Canonical registry of hosted runtime wallets. Secret values remain in Infisical; *_ADDRESS guards must match these addresses.",
+  "environments": {
+    "staging": {
+      "story": {
+        "chainId": 1315,
+        "explorer": "https://aeneid.storyscan.io/address/",
+        "wallets": {
+          "operator": { "address": "0x48395f2DEb54bCc46BC89B8e3149bAA2696d8ef0", "keyEnv": "STORY_OPERATOR_PRIVATE_KEY", "guardEnv": "STORY_OPERATOR_PKP_ADDRESS", "nativeFloor": "0.5" },
+          "cdrWriter": { "address": "0x5a0A2dBA24c6DBFDb38Be6f5fD74E72A213a0196", "keyEnv": "STORY_CDR_WRITER_PRIVATE_KEY", "guardEnv": "STORY_CDR_WRITER_PKP_ADDRESS", "nativeFloor": "0.25" },
+          "accessController": { "address": "0x1bf68815e281BC8ba46ADc4e5f648d001B94Cf2D", "keyEnv": "STORY_ACCESS_CONTROLLER_PRIVATE_KEY", "guardEnv": "STORY_ACCESS_CONTROLLER_PKP_ADDRESS", "nativeFloor": "0.25" },
+          "entitlementConfigurer": { "address": "0xbE03F72356A82F830811c1f487Bc18400CB85734", "keyEnv": "STORY_ENTITLEMENT_CLASS_CONFIGURER_PRIVATE_KEY", "guardEnv": "STORY_ENTITLEMENT_CLASS_CONFIGURER_ADDRESS", "nativeFloor": "0.25" },
+          "settlement": { "address": "0x526331ddA08972173C485b874956818E8a0b7D2F", "keyEnv": "MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY", "guardEnv": "MUSIC_PURCHASE_STORY_SETTLEMENT_PKP_ADDRESS", "nativeFloor": "0.25" }
+        }
+      },
+      "base": {
+        "chainId": 84532,
+        "explorer": "https://sepolia.basescan.org/address/",
+        "wallets": {
+          "checkout": { "address": "0x053228674F055FBb94d1B8118638F61a4a6ee512", "keyEnv": "PIRATE_CHECKOUT_OPERATOR_PRIVATE_KEY", "guardEnv": "PIRATE_CHECKOUT_OPERATOR_ADDRESS", "nativeFloor": "0.001", "usdcFloor": "1.0" }
+        }
+      }
+    },
+    "production": {
+      "story": {
+        "chainId": 1514,
+        "explorer": "https://storyscan.io/address/",
+        "wallets": {
+          "operator": { "address": "0xc77Ad4de7d179FFFBa417cA24c055d86Af69F4BB", "keyEnv": "STORY_OPERATOR_PRIVATE_KEY", "guardEnv": "STORY_OPERATOR_PKP_ADDRESS", "nativeFloor": "0.5" },
+          "cdrWriter": { "address": "0x9d5Dc963A948a77091c905854fB9036CbFA9e9FB", "keyEnv": "STORY_CDR_WRITER_PRIVATE_KEY", "guardEnv": "STORY_CDR_WRITER_PKP_ADDRESS", "nativeFloor": "0.25" },
+          "accessController": { "address": "0xc77Ad4de7d179FFFBa417cA24c055d86Af69F4BB", "keyEnv": "STORY_ACCESS_CONTROLLER_PRIVATE_KEY", "guardEnv": "STORY_ACCESS_CONTROLLER_PKP_ADDRESS", "nativeFloor": "0.25" },
+          "entitlementConfigurer": { "address": "0xcf5775B5e62D6e9859d136d5083fd005a5b8D04B", "keyEnv": "STORY_ENTITLEMENT_CLASS_CONFIGURER_PRIVATE_KEY", "guardEnv": "STORY_ENTITLEMENT_CLASS_CONFIGURER_ADDRESS", "nativeFloor": "0.25" },
+          "settlement": { "address": "0xc74Dd94a7d67f976CDb817eEf09d6f0E4a9fe9c7", "keyEnv": "MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY", "guardEnv": "MUSIC_PURCHASE_STORY_SETTLEMENT_PKP_ADDRESS", "nativeFloor": "0.25" }
+        }
+      },
+      "base": {
+        "chainId": 8453,
+        "explorer": "https://basescan.org/address/",
+        "wallets": {
+          "checkout": { "address": "0xEd115cff0bf6746Ca7A9E2C184FC4Bb6184A1b40", "keyEnv": "PIRATE_CHECKOUT_OPERATOR_PRIVATE_KEY", "guardEnv": "PIRATE_CHECKOUT_OPERATOR_ADDRESS", "nativeFloor": "0.001", "usdcFloor": "1.0" },
+          "booking": { "address": "0xbBA024600cba5F375AfdCeC401f7dcCB3D515829", "keyEnv": "PIRATE_BOOKING_SETTLEMENT_OPERATOR_PRIVATE_KEY", "guardEnv": "PIRATE_BOOKING_SETTLEMENT_OPERATOR_ADDRESS", "nativeFloor": "0.001", "usdcFloor": "1.0" }
+        }
+      }
+    }
+  }
+}
