@@ -38,6 +38,7 @@ function schemaFingerprint(db: Database): string {
     // table semantically while retaining raw SQL checks for every other object.
     return db
       .query<{
+        cid: number;
         name: string;
         type: string;
         notnull: number;
@@ -45,7 +46,7 @@ function schemaFingerprint(db: Database): string {
         pk: number;
       }, []>("PRAGMA table_info(assets)")
       .all()
-      .map((column) => JSON.stringify(column))
+      .map(({ cid: _cid, ...column }) => JSON.stringify(column))
       .sort()
       .join("\n");
   }).join("\n");
