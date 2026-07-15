@@ -103,6 +103,16 @@ describe("applyPostgresMigrations", () => {
     expect(statements).toContain("GRANT SELECT ON TABLE operator_credentials TO control_plane_ops_ro;");
   });
 
+  test("0143 observed funding receipts use observation-shaped identity and global claims", () => {
+    const migration = readFileSync("db/control-plane/migrations/0143_control_plane_observed_funding_receipts.sql", "utf8");
+    const statements = postgresMigrationStatements(migration);
+
+    expect(statements.some((statement) => statement.includes("CREATE TABLE observed_funding_receipts"))).toBe(true);
+    expect(migration).toContain("UNIQUE (chain_id, token_address, tx_hash, log_index)");
+    expect(migration).toContain("observed_funding_receipts_consumer_unique");
+    expect(migration).toContain("WHERE match_status = 'unmatched' AND finality_status = 'canonical'");
+  });
+
   test("b0001 bookings migration comments do not create stray statements", () => {
     const migration = readFileSync("db/bookings/migrations/b0001_bookings_global_schema.sql", "utf8");
     const statements = postgresMigrationStatements(migration);
