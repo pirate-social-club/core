@@ -1,6 +1,7 @@
 # Community Gate Builder
 
-Status: current working spec — direction agreed in design review; not yet implemented
+Status: generic builder implemented and staging-verified; production flag off;
+catalog-backed trait authoring deferred
 
 Related docs:
 
@@ -15,12 +16,33 @@ Related docs:
 Authoring model and serialization contract for community gate policies
 (`community_gate_policies.expression_json`). Replaces the flat draft editor
 with a boolean query builder that can author and round-trip the full backend
-expression model. Concept validated in web Storybook (`BooleanQueryBuilder`
-story, web branch `feat/gate-editor-boolean-builder`).
+expression model. The generic builder is implemented in web; its original
+Storybook prototype is retained as design and acceptance coverage.
 
 This spec covers eligibility authoring only. Mapping gate outcomes to
 entitlements (tiers, name claims, badges) is
 [community-tiers-entitlements.md](./community-tiers-entitlements.md).
+
+## Implementation status
+
+- The generic boolean tree builder is implemented on web `main`, including
+  nested AND/OR groups, canonical serialization, full current-atom client
+  validation, localized validation/source errors, live policy summary, and
+  preservation of atoms unknown to the current web build.
+- The builder is enabled in staging builds and was verified through an
+  authenticated moderator create/save/reload flow against the real staging
+  API on 2026-07-15. The persisted canonical nested policy matched the
+  authored tree, invalid atoms blocked save with an inline error, and desktop
+  and mobile layouts passed overflow checks.
+- Production remains on the legacy editor because
+  `VITE_GATE_TREE_BUILDER_ENABLED` is intentionally absent from the
+  production build. Enabling it is a separate rollout decision.
+- Catalog-backed collection and trait authoring is not implemented. The web
+  application does not yet wire a real collection capability source, so the
+  Courtyard card/watch catalog flow remains Storybook-only and existing
+  inventory-match rules are read-only. The related
+  [catalog authoring plan](./community-gate-catalog-authoring-plan.md) remains
+  the implementation contract for that work.
 
 ## Background: the backend model (already live)
 
@@ -35,9 +57,10 @@ entitlements (tiers, name claims, badges) is
 - Evaluation returns a per-branch trace and required-action set; enforce mode
   short-circuits, preview mode evaluates all children.
 
-The current editor is a flat draft list with a global match mode; it cannot
-represent trees. That editor and its advanced-policy preserve banner are
-superseded by this spec.
+The legacy production editor is a flat draft list with a global match mode;
+it cannot represent trees. The implemented tree builder supersedes that
+editor when the feature flag is enabled; until then, the legacy editor and
+its advanced-policy preserve banner remain the production path.
 
 ## Builder grammar
 
