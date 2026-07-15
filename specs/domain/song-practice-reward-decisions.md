@@ -42,6 +42,12 @@ A human may receive at most one daily campaign reward for a song and reward peri
 through both Study and Karaoke does not produce two daily rewards. The qualification evidence must
 snapshot whether the accepted basis was `study`, `karaoke`, or `both`.
 
+This limit is independent of campaign identity. The control plane claims the unique human, song
+post, reward period, and reward kind in the same transaction that creates the reservation. A later
+campaign on the same song cannot create a second daily claim for that human and UTC period. The
+claim snapshots the song artifact identity for auditability, but artifact replacement does not
+reset the post-level daily limit.
+
 ## Study qualification
 
 Cash rewards measure completed practice, not mastery.
