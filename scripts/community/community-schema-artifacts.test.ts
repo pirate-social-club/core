@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { Database } from "bun:sqlite"
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 
@@ -111,5 +112,34 @@ describe("expectedArtifacts — real migration files", () => {
     expect(a.columns).toEqual([])
     expect(a.unrecognized).toEqual([])
     expect(artifactCount(a)).toBe(3)
+  })
+
+  test("1130_story_registration_effect_request_identity: 3 immutable request columns", () => {
+    const a = expectedArtifacts(readMigration("1130_story_registration_effect_request_identity.sql"))
+    expect(a.columns).toEqual([
+      ["story_registration_effects", "chain_id"],
+      ["story_registration_effects", "signer_address"],
+      ["story_registration_effects", "call_data_hash"],
+    ])
+    expect(a.altered).toEqual(["story_registration_effects"])
+    expect(a.unrecognized).toEqual([])
+    expect(artifactCount(a)).toBe(3)
+  })
+
+  test("1130 executes on a populated SQLite table and backfills fail-closed sentinels", () => {
+    const db = new Database(":memory:")
+    try {
+      db.exec("CREATE TABLE story_registration_effects (effect_key TEXT PRIMARY KEY)")
+      db.exec("INSERT INTO story_registration_effects (effect_key) VALUES ('legacy-effect')")
+      db.exec(readMigration("1130_story_registration_effect_request_identity.sql"))
+
+      expect(db.query(`
+        SELECT chain_id, signer_address, call_data_hash
+        FROM story_registration_effects
+        WHERE effect_key = 'legacy-effect'
+      `).get()).toEqual({ chain_id: 0, signer_address: "", call_data_hash: "" })
+    } finally {
+      db.close()
+    }
   })
 })

@@ -42,6 +42,12 @@
         "oldChecksum": "01f22966d812643e78408d1c0b4835568a6dd928569f33c00dac5d791ff1150d",
         "newChecksum": "e5e341d1e39fc18c3b794cce4ad3579afc9caf6f2b5cc2cf9ff5b14a2bbb71b8",
         "reason": "compatible repair for communities whose voice-policy ledger drift lacks tts_provider"
+      },
+      {
+        "migrationName": "1129_story_registration_effects.sql",
+        "oldChecksum": "a426c3cb09508680ba5ec28745ac7bcd3d07118ba6d6e45f578a900b06449f66",
+        "newChecksum": "0b79f3bdd44a6b1382a5cee9481fb217fd3b1135febd1722864cc0e7d637c052",
+        "reason": "restore repository bytes to the checksum applied and attested across the production fleet; request identity moved to 1130"
       }
     ],
     "unexpectedMigrationsToRemove": []
