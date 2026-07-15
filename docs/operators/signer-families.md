@@ -9,8 +9,8 @@ No Lit control-plane details live here. See `config/lit-families.json` for execu
 ## Policies
 
 - Each family has exactly one canonical signer address per environment.
-- A family is either `direct-key`, `pkp`, `multisig`, or `eoa`. It cannot be two of these at once.
-- No automatic fallback from PKP to direct key. If a PKP family needs a fallback, it is an explicit operational decision with a manual cutover.
+- A deployed family has one active signing backend: `direct-key`, `pkp`, or `multisig`. Historical PKP identities are not runtime fallbacks.
+- Hosted runtime backend and address claims must agree with `config/runtime-wallet-registry.json` and the API signer resolver. `config/lit-families.json` is historical inventory, not evidence that hosted execution still uses PKP.
 - On-chain grants are tracked here. Lit execution mechanics are tracked separately.
 - Hosted runtime addresses must match `config/runtime-wallet-registry.json`; deployment manifests remain evidence of their specific deployment and grants.
 
@@ -21,42 +21,56 @@ No Lit control-plane details live here. See `config/lit-families.json` for execu
 | Field | Value |
 |---|---|
 | Chain | Story Aeneid (1315) |
-| Signer kind | `pkp` |
-| Canonical signer address | `0x7f969455cFe240927F1ACe4E23000685Ad224dA7` |
-| Purpose | Presentation attach, karaoke attach, canonical publish pointer, lyrics write, study-set fulfill, locked-asset publish binding |
-| Allowed contracts | `TrackPresentationRegistryV1`, `CanonicalLyricsRegistryV1`, `StudySetRegistryV1`, `AssetPublishCoordinatorV1` |
-| Allowed methods | `setPublishPresentationAsDelegate`, `setPublishKaraokeAsDelegate`, `setCanonicalPublish`, `setLyrics`, `overwriteLyrics`, `fulfill`, `publishAssetVersion(...)` |
+| Signer kind | `direct-key` in the hosted API; retired PKP metadata remains in `config/lit-families.json` |
+| Canonical signer address | Per environment in `config/runtime-wallet-registry.json` (`story.wallets.operator`) |
+| Purpose | Story IP registration plus presentation attach, karaoke attach, canonical publish pointer, lyrics write, study-set fulfill, and locked-asset publish binding |
+| Allowed contracts | Story Protocol registration contracts/SPG NFT, `TrackPresentationRegistryV1`, `CanonicalLyricsRegistryV1`, `StudySetRegistryV1`, `AssetPublishCoordinatorV1` |
+| Allowed methods | Story SDK original/derivative registration, `setPublishPresentationAsDelegate`, `setPublishKaraokeAsDelegate`, `setCanonicalPublish`, `setLyrics`, `overwriteLyrics`, `fulfill`, `publishAssetVersion(...)` |
 | Required on-chain grants | `isOperator(...)` on CanonicalLyricsRegistryV1 and StudySetRegistryV1; presentation delegate is per-publish, not a global role; `isPublishOperator(...)` on `AssetPublishCoordinatorV1` |
 | Funding requirement | Yes — gas for on-chain txs. See `docs/product/funds-ledger.md` |
-| Fallback status | Re-keyed after Lit control-plane drift on the inherited `0xA994...` operator PKP. No direct-key fallback. |
+| Fallback status | Direct-key is the current hosted backend. There is no automatic fallback to the retired PKP path. |
 
 ### story-access-controller
 
 | Field | Value |
 |---|---|
 | Chain | Story Aeneid (1315) |
-| Signer kind | `pkp` |
-| Canonical signer address | `0x2125952f22Ad971df5645E31a613fe42DCC42c48` |
+| Signer kind | `direct-key` in the hosted API; offchain signing only |
+| Canonical signer address | Per environment in `config/runtime-wallet-registry.json` (`story.wallets.accessController`) |
 | Purpose | Sign short-lived Story CDR access proofs for temporary shares and delegated reads |
 | Allowed contracts | `PirateSignerRegistry`, `SignedAccessConditionV1` |
 | Allowed methods | Offchain EIP-712 `AccessProof` signatures verified by `SignedAccessConditionV1` |
 | Required on-chain grants | Must be activated in `PirateSignerRegistry`; no purchase-time `grantAccess(...)` role should exist in v2 |
 | Funding requirement | No — proof signing only. This family should not be pre-funded in `docs/product/funds-ledger.md` |
-| Fallback status | None. No direct-key fallback exists for this family. |
+| Fallback status | Direct-key is the current hosted backend. The retired PKP is not an automatic fallback. |
 
 ### story-cdr-writer
 
 | Field | Value |
 |---|---|
 | Chain | Story Aeneid (1315) |
-| Signer kind | `pkp` |
-| Canonical signer address | `0x7d65696d4d0342d0baba3beaee9ca3a30696cb8c` |
+| Signer kind | `direct-key` in the hosted API |
+| Canonical signer address | Per environment in `config/runtime-wallet-registry.json` (`story.wallets.cdrWriter`) |
 | Purpose | Allocate Story CDR vaults and write encrypted song data keys during locked-song publish |
 | Allowed contracts | Story CDR (`0xcccccc0000000000000000000000000000000005`) |
 | Allowed methods | `allocate(...)`, `write(...)` |
-| Required on-chain grants | None beyond owning/funding the PKP for CDR fee-bearing txs; the signer is constrained by Lit action to the CDR contract and those methods only |
+| Required on-chain grants | None beyond owning/funding the signer for CDR fee-bearing transactions |
 | Funding requirement | Yes — gas plus CDR allocate/write fees. See `docs/product/funds-ledger.md` |
-| Fallback status | None. This must stay PKP-only. |
+| Fallback status | Direct-key is the current hosted backend. The retired PKP is not an automatic fallback. |
+
+### story-entitlement-class-configurer
+
+| Field | Value |
+|---|---|
+| Chain | Story Aeneid (1315) |
+| Signer kind | `direct-key` in the hosted API |
+| Canonical signer address | Per environment in `config/runtime-wallet-registry.json` (`story.wallets.entitlementConfigurer`) |
+| Purpose | Configure entitlement classes required by Story publish flows |
+| Allowed contracts | Configured purchase-entitlement class-configurer contract |
+| Allowed methods | `configureEntitlementClass(...)` used by `story-publish-service.ts` |
+| Required on-chain grants | Contract-specific class-configurer authorization |
+| Funding requirement | Yes — gas for configuration transactions. See `docs/product/funds-ledger.md` |
+| Fallback status | No automatic fallback. |
 
 ### story-feed-registrar
 
@@ -77,14 +91,14 @@ No Lit control-plane details live here. See `config/lit-families.json` for execu
 | Field | Value |
 |---|---|
 | Chain | Story Aeneid (1315) |
-| Signer kind | `pkp` |
-| Canonical signer address | `0xfB1E0bbE209C1B75f8E365F3055bfF4b0a24702B` |
-| Purpose | Execute purchase settlement on `MarketplaceSettlementV1`; future upgrade path may also cover royalty-sync flows |
-| Allowed contracts | `MarketplaceSettlementV1`, `PurchaseEntitlementToken` (indirect minter relationship), WIP token (`approve`) and `RoyaltyModule` for future upgrade paths |
-| Allowed methods | `settlePurchase(...)`; future upgrade path may add `approve(...)`, `payRoyaltyOnBehalf(...)`, `claimRevenueOnBehalf(...)`, `transferToVault(...)` |
-| Required on-chain grants | `isSettlementOperator(...)` on `MarketplaceSettlementV1`; `PurchaseEntitlementToken.isSettlementMinter(MarketplaceSettlementV1)` must be true so settlement can mint entitlements indirectly |
+| Signer kind | `direct-key` in the hosted API; retired PKP metadata remains in `config/lit-families.json` |
+| Canonical signer address | Per environment in `config/runtime-wallet-registry.json` (`story.wallets.settlement`) |
+| Purpose | Pay purchase royalties, transfer descendant royalty to parent vaults, and mint purchase entitlements |
+| Allowed contracts | Story `RoyaltyModule`, WIP token integration used by the Story SDK, and `PurchaseEntitlementToken` |
+| Allowed methods | `payRoyaltyOnBehalf(...)`, `transferToVault(...)`, `mintEntitlement(...)`; the historical PKP action describes `settlePurchase(...)` |
+| Required on-chain grants | The settlement signer must be an authorized direct minter on `PurchaseEntitlementToken`; royalty calls follow Story Protocol caller and token-balance rules |
 | Funding requirement | Yes — gas + may hold WIP temporarily. See `docs/product/funds-ledger.md` |
-| Fallback status | Do not configure a direct-key fallback. Migrate as PKP-only. |
+| Fallback status | Direct-key is the current hosted backend. The retired PKP is not an automatic fallback. |
 
 ### story-sponsor
 
@@ -187,6 +201,10 @@ No Lit control-plane details live here. See `config/lit-families.json` for execu
 ## Audit Notes
 
 Addresses marked TBD must be audited before use.
+
+The executable hosted inventory, including serialization and journal coverage, is
+`docs/operators/runtime-chain-writer-inventory.md`. It must be updated whenever a
+new signing call site is added.
 
 The contract-owner address `0xBAFB9D9e...` should only be the contract owner. Signing responsibilities belong to the dedicated signer families above.
 
