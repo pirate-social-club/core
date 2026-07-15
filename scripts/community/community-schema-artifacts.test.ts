@@ -88,4 +88,28 @@ describe("expectedArtifacts — real migration files", () => {
     expect(a.unrecognized).toEqual([])
     expect(artifactCount(a)).toBe(4)
   })
+
+  test("1128_community_job_attempt_leases: 2 columns + 1 index", () => {
+    const a = expectedArtifacts(readMigration("1128_community_job_attempt_leases.sql"))
+    expect(a.columns).toEqual([
+      ["community_jobs", "attempt_id"],
+      ["community_jobs", "lease_expires_at"],
+    ])
+    expect(a.indexes).toEqual(["idx_community_jobs_running_lease"])
+    expect(a.altered).toEqual(["community_jobs"])
+    expect(a.unrecognized).toEqual([])
+    expect(artifactCount(a)).toBe(3)
+  })
+
+  test("1129_story_registration_effects: journal table + 2 indexes", () => {
+    const a = expectedArtifacts(readMigration("1129_story_registration_effects.sql"))
+    expect(a.tables).toEqual(["story_registration_effects"])
+    expect(a.indexes).toEqual([
+      "idx_story_registration_effects_asset",
+      "idx_story_registration_effects_reconciliation",
+    ])
+    expect(a.columns).toEqual([])
+    expect(a.unrecognized).toEqual([])
+    expect(artifactCount(a)).toBe(3)
+  })
 })
