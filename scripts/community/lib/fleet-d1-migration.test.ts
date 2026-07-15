@@ -4,6 +4,7 @@ import { resolve } from "node:path"
 
 import { SPEC as OUTBOX_SPEC } from "../apply-reward-outbox-d1-migration"
 import { SPEC as STORY_SPEC } from "../apply-story-metadata-refs-d1-migration"
+import { SPEC as STUDY_RUN_SPEC } from "../apply-song-study-generation-runs-d1-migration"
 import {
   BLOCKING_STATUSES,
   classificationSql,
@@ -45,6 +46,13 @@ describe("executionBody — the exact bytes sent to D1", () => {
       expect(body).toContain(`ADD COLUMN ${column}`)
     }
     expect(body).toContain("INSERT INTO schema_migrations")
+  })
+
+  test("1131 keeps the durable run table, index, and ledger write together", () => {
+    const body = executionBody(realMigration(STUDY_RUN_SPEC), STUDY_RUN_SPEC, CHECKSUM)
+    expect(body).toContain("CREATE TABLE song_study_generation_run")
+    expect(body).toContain("CREATE INDEX idx_song_study_generation_run_status")
+    expect(body).toContain("1131_song_study_generation_runs.sql")
   })
 
   test("the migration SQL is passed through verbatim — never parsed or rewritten", () => {
@@ -161,6 +169,14 @@ describe("classificationSql", () => {
     const sql = classificationSql(STORY_SPEC)
     expect(sql).toContain("pragma_table_info('assets')")
     expect(sql).toContain("name='story_ip_metadata_uri'")
+  })
+
+  test("probes the 1131 table and both required FK parents", () => {
+    const sql = classificationSql(STUDY_RUN_SPEC)
+    expect(sql).toContain("name='song_study_generation_run'")
+    expect(sql).toContain("name='posts'")
+    expect(sql).toContain("name='community_jobs'")
+    expect(sql).toContain("migration_name='1131_song_study_generation_runs.sql'")
   })
 })
 
