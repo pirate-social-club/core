@@ -248,6 +248,11 @@ export const ENV_CONTRACT: EnvContract = {
     },
     {
       path: "/services/api",
+      key: "SONG_PREVIEW_SHARED_SECRET",
+      requiredness: "required_for_hosted",
+    },
+    {
+      path: "/services/api",
       key: "ELEVENLABS_API_KEY",
       requiredness: "required_for_hosted",
     },
@@ -477,7 +482,7 @@ export const ENV_CONTRACT: EnvContract = {
     {
       path: "/services/api",
       key: "STORY_COMPOSITE_READ_CONDITION_ADDRESS",
-      requiredness: "required_for_staging",
+      requiredness: "required_for_hosted",
       validate: isEvmAddress,
     },
     {
@@ -842,6 +847,7 @@ export const COMMERCE_SECRET_IDS = [
   "ACRCLOUD_ACCESS_KEY__/services/api",
   "ACRCLOUD_ACCESS_SECRET__/services/api",
   "ACRCLOUD_PERSONAL_ACCESS_TOKEN__/services/api",
+  "SONG_PREVIEW_SHARED_SECRET__/services/api",
   "ELEVENLABS_API_KEY__/services/api",
   "AGORA_APP_CERTIFICATE__/services/api",
   "AGORA_CLOUD_RECORDING_CUSTOMER_KEY__/services/api",

@@ -80,6 +80,7 @@ The API worker cannot start without these. The sync script (`scripts/infisical/s
 | `OPENROUTER_API_KEY` | `api-key` | OpenRouter API key for song lyrics age-gate classification |
 | `ACRCLOUD_ACCESS_KEY` | `api-key` | ACRCloud access key for song audio identification |
 | `ACRCLOUD_ACCESS_SECRET` | `api-key` | ACRCloud access secret for song audio identification signing |
+| `SONG_PREVIEW_SHARED_SECRET` | `worker-secret` | Authenticates API requests to the hosted song-preview service |
 | `ELEVENLABS_API_KEY` | `api-key` | ElevenLabs API key for song forced alignment |
 | `CONTROL_PLANE_DATABASE_URL` | `database-credential` | Runtime connection string for the Neon control-plane database |
 | `PIRATE_ADMIN_TOKEN` | `worker-secret` | Production admin/operator token for namespace attach, manifest apply, and launch seed operations |
@@ -222,7 +223,7 @@ Current CI/CD delivery map:
 | `CREDENTIAL_WRAP_KEY` | Yes | Infisical `staging:/services/api` | Infisical OIDC / Wrangler sync | API community-provided credential encryption |
 | `CREDENTIAL_WRAP_KEY` | Yes | Infisical `prod:/services/api` | Infisical OIDC / Wrangler sync | API community-provided credential encryption |
 | `AUTH_UPSTREAM_JWT_SHARED_SECRET` | Yes | Infisical `staging:/services/api` | Infisical OIDC | Web live-staging smoke step only, via `github-web-staging-live-browser` |
-| `SONG_PREVIEW_SHARED_SECRET` | Yes | Infisical `staging:/services/api` | Infisical OIDC | Web release staging song-preview container health gate only, via `github-web-staging-live-browser` |
+| `SONG_PREVIEW_SHARED_SECRET` | Yes | Infisical `staging:/services/api`, `prod:/services/api` | Infisical OIDC / Wrangler sync | API-to-preview-service authentication and staging release health checks |
 | `AUTH_UPSTREAM_JWT_ISSUER` | No | GitHub Actions variable public config | GitHub Actions variable | Web live-staging smoke step only |
 | `AUTH_UPSTREAM_JWT_AUDIENCE` | No | GitHub Actions variable public config | GitHub Actions variable | Web live-staging smoke step only |
 | `APPLE_ID` | Yes | Infisical signing/notarization path | GitHub Actions secret | Freedom Browser notarization step only |
