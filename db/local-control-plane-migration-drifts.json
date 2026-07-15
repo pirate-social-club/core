@@ -19,8 +19,14 @@
       {
         "migrationName": "0142_control_plane_reward_song_period_claims.sql",
         "oldChecksum": "303cc12acc1be67d9ffa59025dd90931746159f842016ec8d2f2b99061bbe0aa",
-        "newChecksum": "5ac75b36e9affda65f0f8a39599a9e68fc2ab1c7fa8977d9cad2209f38051419",
-        "reason": "pre-deployment repair: cast the legacy text reward period during the claim backfill"
+        "newChecksum": "8f226033af799763258e759d7fee7501aef9e658c5c523887ea85e84439f144f",
+        "reason": "pre-deployment repair: cast legacy text reward period and creation timestamp during the claim backfill"
+      },
+      {
+        "migrationName": "0142_control_plane_reward_song_period_claims.sql",
+        "oldChecksum": "5ac75b36e9affda65f0f8a39599a9e68fc2ab1c7fa8977d9cad2209f38051419",
+        "newChecksum": "8f226033af799763258e759d7fee7501aef9e658c5c523887ea85e84439f144f",
+        "reason": "pre-deployment repair follow-up: cast the legacy text creation timestamp during the claim backfill"
       }
     ]
   }
