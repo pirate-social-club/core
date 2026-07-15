@@ -202,6 +202,61 @@ RewardCampaignEligibleActivity:
     - study
     - karaoke
     - either
+RewardCampaignCapabilities:
+  type: object
+  additionalProperties: false
+  description: >-
+    Live campaign-creation guardrails, so a client validates against the running
+    configuration instead of hardcoding it. When enabled is false the surface is
+    dark and every other field is zero or empty; clients must hide the entry
+    point rather than offer an action the API will refuse.
+
+    Deliberately excludes the campaign RPC URL, which may carry a provider
+    credential, and the treasury address, which the scoped funding quote supplies.
+  required:
+    - enabled
+    - min_budget_cents
+    - max_budget_cents
+    - max_reward_cents
+    - min_duration_seconds
+    - max_duration_seconds
+    - default_duration_seconds
+    - eligible_activities
+    - chain_id
+    - token_address
+  properties:
+    enabled:
+      type: boolean
+    min_budget_cents:
+      type: integer
+      minimum: 0
+    max_budget_cents:
+      type: integer
+      minimum: 0
+    max_reward_cents:
+      type: integer
+      minimum: 0
+    min_duration_seconds:
+      type: integer
+      minimum: 0
+    max_duration_seconds:
+      type: integer
+      minimum: 0
+    default_duration_seconds:
+      type: integer
+      minimum: 0
+      description: >-
+        Server-owned pilot duration, already clamped inside the configured
+        duration guardrails so a client can never propose a rejected duration.
+    eligible_activities:
+      type: array
+      items:
+        $ref: ./rewards.yaml#/RewardCampaignEligibleActivity
+    chain_id:
+      type: integer
+      minimum: 0
+    token_address:
+      type: string
 PublicRewardOffer:
   type: object
   additionalProperties: false
