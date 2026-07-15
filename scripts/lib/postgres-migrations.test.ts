@@ -35,13 +35,19 @@ describe("applyPostgresMigrations", () => {
     expect(migrationChecksumMatches({
       migrationName: "0142_control_plane_reward_song_period_claims.sql",
       existingChecksum: "303cc12acc1be67d9ffa59025dd90931746159f842016ec8d2f2b99061bbe0aa",
-      currentChecksum: "8f226033af799763258e759d7fee7501aef9e658c5c523887ea85e84439f144f",
+      currentChecksum: "b1fe7ab9ba6f4820fa90f8c2efbf15c440d9944ee3da03633467499204a01a29",
     })).toBe(true);
 
     expect(migrationChecksumMatches({
       migrationName: "0142_control_plane_reward_song_period_claims.sql",
       existingChecksum: "5ac75b36e9affda65f0f8a39599a9e68fc2ab1c7fa8977d9cad2209f38051419",
-      currentChecksum: "8f226033af799763258e759d7fee7501aef9e658c5c523887ea85e84439f144f",
+      currentChecksum: "b1fe7ab9ba6f4820fa90f8c2efbf15c440d9944ee3da03633467499204a01a29",
+    })).toBe(true);
+
+    expect(migrationChecksumMatches({
+      migrationName: "0142_control_plane_reward_song_period_claims.sql",
+      existingChecksum: "8f226033af799763258e759d7fee7501aef9e658c5c523887ea85e84439f144f",
+      currentChecksum: "b1fe7ab9ba6f4820fa90f8c2efbf15c440d9944ee3da03633467499204a01a29",
     })).toBe(true);
 
     expect(migrationChecksumMatches({
