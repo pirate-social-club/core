@@ -31,6 +31,20 @@ describe("applyPostgresMigrations", () => {
     })).toBe(false);
   });
 
+  test("accepts only the recorded pre-deployment repair for the reward claim migration", () => {
+    expect(migrationChecksumMatches({
+      migrationName: "0142_control_plane_reward_song_period_claims.sql",
+      existingChecksum: "303cc12acc1be67d9ffa59025dd90931746159f842016ec8d2f2b99061bbe0aa",
+      currentChecksum: "5ac75b36e9affda65f0f8a39599a9e68fc2ab1c7fa8977d9cad2209f38051419",
+    })).toBe(true);
+
+    expect(migrationChecksumMatches({
+      migrationName: "0142_control_plane_reward_song_period_claims.sql",
+      existingChecksum: "303cc12acc1be67d9ffa59025dd90931746159f842016ec8d2f2b99061bbe0aa",
+      currentChecksum: "unexpected",
+    })).toBe(false);
+  });
+
   test("splits multi-statement Postgres migrations so grants cannot be skipped", () => {
     const statements = postgresMigrationStatements(`
       -- Leading comments stay attached to the first real statement.

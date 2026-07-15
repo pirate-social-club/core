@@ -15,6 +15,12 @@
         "migrationName": "0000_control_plane_baseline_postgres.sql",
         "oldChecksum": "bfc099cb71802011cc5bfc994a72fd170f04bc212a4a76e19a1b55d6e46dc810",
         "reason": "local community postable projection baseline drift before avatar_ref and membership_has_altcha_pow were added"
+      },
+      {
+        "migrationName": "0142_control_plane_reward_song_period_claims.sql",
+        "oldChecksum": "303cc12acc1be67d9ffa59025dd90931746159f842016ec8d2f2b99061bbe0aa",
+        "newChecksum": "5ac75b36e9affda65f0f8a39599a9e68fc2ab1c7fa8977d9cad2209f38051419",
+        "reason": "pre-deployment repair: cast the legacy text reward period during the claim backfill"
       }
     ]
   }
