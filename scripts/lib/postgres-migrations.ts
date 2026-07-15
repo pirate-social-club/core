@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import compatibleDriftPolicy from "../../db/local-control-plane-migration-drifts.json";
 import { sanitizePostgresUrlForBunSql } from "./postgres-url";
 import { splitSqlStatements } from "./shared/sql-migration";
 
@@ -44,6 +45,14 @@ export function migrationChecksumMatches(input: {
   }
 
   if (input.migrationName === "0000_control_plane_baseline_postgres.sql") {
+    return true;
+  }
+
+  if (compatibleDriftPolicy.controlPlane.compatibleChecksumDrifts.some((drift) =>
+    drift.migrationName === input.migrationName
+    && drift.oldChecksum === input.existingChecksum
+    && (!("newChecksum" in drift) || drift.newChecksum === input.currentChecksum)
+  )) {
     return true;
   }
 

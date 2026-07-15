@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -54,6 +55,18 @@ function git(args, options = {}) {
 function gitMaybe(args) {
   try {
     return git(args, { allowFailure: true });
+  } catch {
+    return null;
+  }
+}
+
+function gitRawMaybe(args) {
+  try {
+    return execFileSync("git", args, {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
   } catch {
     return null;
   }
@@ -200,6 +213,35 @@ function changedMigrationFilesSince(baseRef) {
     .filter(Boolean);
 }
 
+function compatibleControlPlaneDrifts() {
+  const policyPath = path.join(repoRoot, localControlPlaneDriftPolicyPath);
+  if (!fs.existsSync(policyPath)) return [];
+  try {
+    const policy = JSON.parse(fs.readFileSync(policyPath, "utf8"));
+    return Array.isArray(policy?.controlPlane?.compatibleChecksumDrifts)
+      ? policy.controlPlane.compatibleChecksumDrifts
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function sha256(contents) {
+  return createHash("sha256").update(contents).digest("hex");
+}
+
+function isCompatibleControlPlaneEdit(filePath, oldContents, newContents) {
+  if (!filePath.startsWith("db/control-plane/migrations/")) return false;
+  const migrationName = path.basename(filePath);
+  const oldChecksum = sha256(oldContents);
+  const newChecksum = sha256(newContents);
+  return compatibleControlPlaneDrifts().some((drift) =>
+    drift?.migrationName === migrationName
+    && drift?.oldChecksum === oldChecksum
+    && drift?.newChecksum === newChecksum
+  );
+}
+
 function checkImmutableAppliedMigrations(baseRef) {
   const failures = [];
   for (const line of changedMigrationFilesSince(baseRef)) {
@@ -210,6 +252,14 @@ function checkImmutableAppliedMigrations(baseRef) {
     if (statusCode === "A") continue;
 
     if (statusCode === "M" || statusCode === "D") {
+      if (statusCode === "M") {
+        const oldContents = gitRawMaybe(["show", `${baseRef}:${firstPath}`]);
+        const newPath = path.join(repoRoot, firstPath);
+        if (oldContents !== null && fs.existsSync(newPath)
+          && isCompatibleControlPlaneEdit(firstPath, oldContents, fs.readFileSync(newPath, "utf8"))) {
+          continue;
+        }
+      }
       failures.push(`${firstPath}: existing migration files are immutable; add a new migration instead of ${statusCode === "M" ? "editing" : "deleting"} this one`);
       continue;
     }
@@ -234,7 +284,9 @@ function checkImmutableWorkingTreeMigrations() {
 
   for (const line of output.split("\n").map((entry) => entry.trimEnd()).filter(Boolean)) {
     const status = line.slice(0, 2);
-    const filePath = line.slice(3);
+    // git() trims the aggregate output, which removes the first porcelain
+    // column's leading space from an unstaged first entry.
+    const filePath = line[1] === " " && line[2] !== " " ? line.slice(2) : line.slice(3);
     if (!status || !filePath || status === "??" || status.includes("A")) {
       continue;
     }
@@ -245,6 +297,14 @@ function checkImmutableWorkingTreeMigrations() {
     }
 
     if (status.includes("M") || status.includes("D")) {
+      if (status.includes("M")) {
+        const oldContents = gitRawMaybe(["show", `HEAD:${filePath}`]);
+        const newPath = path.join(repoRoot, filePath);
+        if (oldContents !== null && fs.existsSync(newPath)
+          && isCompatibleControlPlaneEdit(filePath, oldContents, fs.readFileSync(newPath, "utf8"))) {
+          continue;
+        }
+      }
       failures.push(`${filePath}: existing migration files are immutable; add a new migration instead`);
     }
   }
@@ -337,7 +397,6 @@ async function checkLocalControlPlaneDriftPolicy() {
     return failures;
   }
 
-  const { createHash } = await import("node:crypto");
   const controlPlaneFiles = new Map(
     listMigrationFilesAtHead(migrationRoots[0]).map((file) => [path.basename(file), file]),
   );
@@ -345,6 +404,7 @@ async function checkLocalControlPlaneDriftPolicy() {
   for (const drift of drifts) {
     const migrationName = String(drift?.migrationName ?? "");
     const oldChecksum = String(drift?.oldChecksum ?? "");
+    const newChecksum = String(drift?.newChecksum ?? "");
     const reason = String(drift?.reason ?? "");
     if (!migrationName || !oldChecksum || !reason) {
       failures.push(`${localControlPlaneDriftPolicyPath}: drift entries require migrationName, oldChecksum, and reason`);
@@ -361,6 +421,9 @@ async function checkLocalControlPlaneDriftPolicy() {
     const currentChecksum = createHash("sha256").update(sql).digest("hex");
     if (oldChecksum === currentChecksum) {
       failures.push(`${localControlPlaneDriftPolicyPath}: ${migrationName} oldChecksum must differ from current migration checksum`);
+    }
+    if (newChecksum && newChecksum !== currentChecksum) {
+      failures.push(`${localControlPlaneDriftPolicyPath}: ${migrationName} newChecksum must match current migration checksum ${currentChecksum}`);
     }
   }
 
