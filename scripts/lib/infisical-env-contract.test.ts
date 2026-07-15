@@ -85,3 +85,13 @@ describe("Story signer Infisical contract", () => {
     expect(COMMERCE_SECRET_IDS).not.toContain(secretId("/services/api", "STORY_RUNTIME_PRIVATE_KEY"));
   });
 });
+
+describe("hosted song pipeline Infisical contract", () => {
+  test("requires preview authentication and the composite read condition in every hosted environment", () => {
+    for (const key of ["SONG_PREVIEW_SHARED_SECRET", "STORY_COMPOSITE_READ_CONDITION_ADDRESS"] as const) {
+      const spec = ENV_CONTRACT.secrets.find((candidate) => candidate.path === "/services/api" && candidate.key === key);
+      expect(spec?.requiredness).toBe("required_for_hosted");
+      expect(COMMERCE_SECRET_IDS).toContain(secretId("/services/api", key));
+    }
+  });
+});
