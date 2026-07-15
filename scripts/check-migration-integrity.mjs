@@ -226,6 +226,19 @@ function compatibleControlPlaneDrifts() {
   }
 }
 
+function compatibleCommunityDrifts() {
+  const policyPath = path.join(repoRoot, communityDriftPolicyPath);
+  if (!fs.existsSync(policyPath)) return [];
+  try {
+    const policy = JSON.parse(fs.readFileSync(policyPath, "utf8"));
+    return Array.isArray(policy?.communityTemplate?.checksumRepairs)
+      ? policy.communityTemplate.checksumRepairs
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 function sha256(contents) {
   return createHash("sha256").update(contents).digest("hex");
 }
@@ -242,6 +255,23 @@ function isCompatibleControlPlaneEdit(filePath, oldContents, newContents) {
   );
 }
 
+function isCompatibleCommunityEdit(filePath, oldContents, newContents) {
+  if (!filePath.startsWith("db/community-template/migrations/")) return false;
+  const migrationName = path.basename(filePath);
+  const oldChecksum = sha256(oldContents);
+  const newChecksum = sha256(newContents);
+  return compatibleCommunityDrifts().some((drift) =>
+    drift?.migrationName === migrationName
+    && drift?.oldChecksum === oldChecksum
+    && drift?.newChecksum === newChecksum
+  );
+}
+
+function isCompatibleMigrationEdit(filePath, oldContents, newContents) {
+  return isCompatibleControlPlaneEdit(filePath, oldContents, newContents)
+    || isCompatibleCommunityEdit(filePath, oldContents, newContents);
+}
+
 function checkImmutableAppliedMigrations(baseRef) {
   const failures = [];
   for (const line of changedMigrationFilesSince(baseRef)) {
@@ -256,7 +286,7 @@ function checkImmutableAppliedMigrations(baseRef) {
         const oldContents = gitRawMaybe(["show", `${baseRef}:${firstPath}`]);
         const newPath = path.join(repoRoot, firstPath);
         if (oldContents !== null && fs.existsSync(newPath)
-          && isCompatibleControlPlaneEdit(firstPath, oldContents, fs.readFileSync(newPath, "utf8"))) {
+          && isCompatibleMigrationEdit(firstPath, oldContents, fs.readFileSync(newPath, "utf8"))) {
           continue;
         }
       }
@@ -301,7 +331,7 @@ function checkImmutableWorkingTreeMigrations() {
         const oldContents = gitRawMaybe(["show", `HEAD:${filePath}`]);
         const newPath = path.join(repoRoot, filePath);
         if (oldContents !== null && fs.existsSync(newPath)
-          && isCompatibleControlPlaneEdit(filePath, oldContents, fs.readFileSync(newPath, "utf8"))) {
+          && isCompatibleMigrationEdit(filePath, oldContents, fs.readFileSync(newPath, "utf8"))) {
           continue;
         }
       }

@@ -18,7 +18,7 @@ function applyMigrations(db: Database, files: string[]): void {
 describe("community job and Story registration migrations", () => {
   test("fresh databases receive the lease and immutable Story journal schema", () => {
     const db = new Database(":memory:")
-    applyMigrations(db, migrationFilesThrough("1129_story_registration_effects.sql"))
+    applyMigrations(db, migrationFilesThrough("1130_story_registration_effect_request_identity.sql"))
 
     const jobColumns = db
       .query<{ name: string }, []>("PRAGMA table_info(community_jobs)")
@@ -66,6 +66,7 @@ describe("community job and Story registration migrations", () => {
     applyMigrations(db, [
       "1128_community_job_attempt_leases.sql",
       "1129_story_registration_effects.sql",
+      "1130_story_registration_effect_request_identity.sql",
     ])
 
     expect(db.query<{ status: string; attempt_id: string | null }, []>(
