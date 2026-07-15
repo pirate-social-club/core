@@ -48,6 +48,10 @@ campaign on the same song cannot create a second daily claim for that human and 
 claim snapshots the song artifact identity for auditability, but artifact replacement does not
 reset the post-level daily limit.
 
+Any future flow that releases, voids, or refunds an uncredited reservation must delete its
+song-period claim in the same transaction; otherwise the unpaid human remains locked out for that
+song and reward period.
+
 ## Study qualification
 
 Cash rewards measure completed practice, not mastery.
