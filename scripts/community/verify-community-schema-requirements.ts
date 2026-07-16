@@ -163,6 +163,9 @@ export function buildProbe(
       ...exp.artifacts.indexes.map(
         (idx) => `(SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='${idx}')`,
       ),
+      ...exp.artifacts.absentIndexes.map(
+        (idx) => `(SELECT COUNT(*) = 0 FROM sqlite_master WHERE type='index' AND name='${idx}')`,
+      ),
     ]
     parts.push(`(${artifacts.length ? artifacts.join(" + ") : "0"}) AS a${i}`)
   })
