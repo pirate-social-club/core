@@ -33,6 +33,7 @@
 import { createHash } from "node:crypto"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { dirname, resolve } from "node:path"
+import { partitionQuarantinedBindings } from "./community-shard-quarantine"
 
 /** The schema objects a migration creates. Presence is how a shard is classified. */
 export type ObjectSpec =
@@ -103,6 +104,7 @@ export type Options = {
   migrationsDir: string
   env?: string
   poolDb: string
+  quarantineRegistry: string
   prod: boolean
   execute: boolean
   confirmTimeTravel: boolean
@@ -250,6 +252,7 @@ Options:
   --prod                   Target the production fleet. Default: staging.
   --only DB_NAME           Canary a single database.
   --manifest PATH          Write the classification manifest / results here.
+  --quarantines PATH       Versioned quarantine registry.
   --resume-file PATH       Record completed shards; re-runs skip them.
   --concurrency N          Default 8.
   --execute                Write. Without it, this is a read-only dry run.
@@ -277,6 +280,7 @@ export function parseArgs(spec: MigrationSpec, scriptPath: string): Options {
     // is `env.production`. Passing `--env staging` would not resolve.
     env: prod ? "production" : undefined,
     poolDb: prod ? "community-d1-shard-pool-prod" : "community-d1-shard-pool-staging",
+    quarantineRegistry: resolve(get("--quarantines") ?? resolve(import.meta.dir, "../community-shard-quarantines.json")),
     prod,
     execute: argv.includes("--execute"),
     confirmTimeTravel: argv.includes("--confirm-time-travel"),
@@ -409,13 +413,25 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
   const { sql, checksum } = await migrationSql(options, spec)
   const map = await shardMap(options)
 
-  const bindings = await loadedBindings(options)
+  const allocatedBindings = await loadedBindings(options)
   // The pool is authoritative for "which shards are live". If it is empty, our
   // view of the fleet is broken — never treat that as "no work to do".
-  if (bindings.length === 0) {
+  if (allocatedBindings.length === 0) {
     throw new Error(
       `${options.poolDb} reported ZERO allocated+loaded shards. That is not a no-op — it means the pool query or environment is wrong. Refusing to continue.`,
     )
+  }
+  const partition = await partitionQuarantinedBindings(
+    options.quarantineRegistry,
+    options.prod ? "production" : "staging",
+    allocatedBindings,
+    new Set(map.keys()),
+  )
+  const bindings = partition.live
+  if (bindings.length === 0) throw new Error("quarantine policy leaves ZERO live shards; refusing to continue")
+  if (options.only) {
+    const quarantined = partition.quarantined.find((q) => map.get(q.binding)?.name === options.only)
+    if (quarantined) throw new Error(`--only ${options.only} targets quarantined binding ${quarantined.binding}`)
   }
 
   const targets: Array<{ binding: string; name: string; id: string }> = []
@@ -461,7 +477,7 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
     `fleet=${options.prod ? "PRODUCTION" : "staging"}  migration=${spec.migration}  checksum=${checksum.slice(0, 12)}`,
   )
   console.log(
-    `allocated+loaded shards: ${targets.length}  (already done: ${done.size})  mode=${options.execute ? "EXECUTE" : "DRY RUN (read-only)"}`,
+    `allocated+loaded: ${allocatedBindings.length}  live: ${bindings.length}  quarantined: ${partition.quarantined.length}  (already done: ${done.size})  mode=${options.execute ? "EXECUTE" : "DRY RUN (read-only)"}`,
   )
 
   const results: ShardResult[] = []
@@ -515,7 +531,12 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
         shard_config: options.wranglerConfig,
         shard_config_bindings: map.size,
         pool_db: options.poolDb,
-        allocated_loaded_shards: targets.length + missingFromConfig.length,
+        allocated_loaded_shards: allocatedBindings.length,
+        live_shards: bindings.length,
+        quarantined_shards: partition.quarantined.length,
+        quarantine_registry: options.quarantineRegistry,
+        quarantine_registry_checksum: partition.registryChecksum,
+        quarantines: partition.quarantined,
         classified: results.length - skippedByResume,
         skipped_by_resume_file: skippedByResume,
         // A resume file skips shards WITHOUT reclassifying them, so a run that used
