@@ -942,12 +942,18 @@ communities_by_community_id_purchase_settlements:
           schema:
             $ref: ../components/schemas/communities-community.yaml#/CommunityPurchaseSettlementRequest
     responses:
-      "200":
+      "201":
         description: Community purchase settled
         content:
           application/json:
             schema:
               $ref: ../components/schemas/communities-community.yaml#/CommunityPurchaseSettlement
+      "202":
+        description: Story settlement admitted and still awaiting finality
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-community.yaml#/CommunityPurchaseSettlementPending
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "404":
