@@ -144,7 +144,7 @@ type ShardReport = {
  */
 export function buildProbe(
   required: string[],
-  expected: Map<string, { checksum: string; artifacts: Artifacts }>,
+  expected: ReadonlyMap<string, { checksum: string; artifacts: Artifacts }>,
 ): string {
   const parts: string[] = []
   required.forEach((name, i) => {
@@ -255,6 +255,35 @@ async function wranglerJson(o: Options, db: string, sql: string): Promise<any[]>
     }
   }
   throw new Error(`wrangler d1 execute ${db} failed after ${maxAttempts} attempts: ${lastError}`)
+}
+
+type ProbeRunner = (sql: string) => Promise<Record<string, number>>
+
+/** D1 occasionally rejects a large, otherwise valid multi-migration SELECT with
+ * API error 7500 on a specific database. Preserve the one-query fleet fast path,
+ * but attest that shard migration-by-migration after the combined probe has
+ * exhausted its own retries. Every required result is still read and remapped;
+ * any failed single probe remains a blocking shard error. */
+export async function probeShard(
+  required: string[],
+  expected: ReadonlyMap<string, { checksum: string; artifacts: Artifacts }>,
+  run: ProbeRunner,
+): Promise<Record<string, number>> {
+  try {
+    return await run(buildProbe(required, expected))
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error)
+    if (!/\bcode=7500\b/.test(detail)) throw error
+
+    const merged: Record<string, number> = {}
+    for (const [i, name] of required.entries()) {
+      const row = await run(buildProbe([name], expected))
+      merged[`l${i}`] = Number(row.l0 ?? 0)
+      merged[`k${i}`] = Number(row.k0 ?? 0)
+      merged[`a${i}`] = Number(row.a0 ?? 0)
+    }
+    return merged
+  }
 }
 
 /** Wrangler --json writes structured API failures to stdout while configuration
@@ -391,14 +420,14 @@ async function main() {
 
   // ONE query per shard. A release gate that costs 3 round-trips per shard takes
   // 10+ minutes over 200 shards and will not survive contact with a pipeline.
-  const probe = buildProbe(requiredSet, expected)
-
   let idx = 0
   async function worker() {
     while (idx < targets.length) {
       const { binding, db } = targets[idx++]
       try {
-        const row = (await wranglerJson(o, db, probe))[0].results[0] as Record<string, number>
+        const row = await probeShard(requiredSet, expected, async (sql) =>
+          (await wranglerJson(o, db, sql))[0].results[0] as Record<string, number>,
+        )
         const missing: string[] = []
         let status: ShardStatus = SATISFIED
         const details: string[] = []

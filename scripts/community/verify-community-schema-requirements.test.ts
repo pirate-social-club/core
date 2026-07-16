@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 
-import { buildProbe, validateRequirements, wranglerFailureDetail } from "./verify-community-schema-requirements"
+import { buildProbe, probeShard, validateRequirements, wranglerFailureDetail } from "./verify-community-schema-requirements"
 
 const base = {
   version: 1,
@@ -54,6 +54,40 @@ describe("schema requirements probe", () => {
     expect(probe).toContain(
       "SELECT COUNT(*) = 0 FROM sqlite_master WHERE type='index' AND name='idx_namespace_bindings_active_community'",
     )
+  })
+
+  test("falls back migration-by-migration only for D1 error 7500 and remaps aliases", async () => {
+    const required = ["one.sql", "two.sql"]
+    const expected = new Map(required.map((name) => [name, {
+      checksum: name,
+      artifacts: {
+        tables: [], columns: [], indexes: [], absentIndexes: [], altered: [], unrecognized: [],
+      },
+    }]))
+    const calls: string[] = []
+    const row = await probeShard(required, expected, async (sql) => {
+      calls.push(sql)
+      if (calls.length === 1) throw new Error("APIError code=7500: internal error")
+      return calls.length === 2 ? { l0: 1, k0: 1, a0: 2 } : { l0: 1, k0: 0, a0: 3 }
+    })
+
+    expect(calls).toHaveLength(3)
+    expect(row).toEqual({ l0: 1, k0: 1, a0: 2, l1: 1, k1: 0, a1: 3 })
+  })
+
+  test("does not mask non-7500 combined probe failures", async () => {
+    const expected = new Map([["one.sql", {
+      checksum: "one",
+      artifacts: {
+        tables: [], columns: [], indexes: [], absentIndexes: [], altered: [], unrecognized: [],
+      },
+    }]])
+    let calls = 0
+    await expect(probeShard(["one.sql"], expected, async () => {
+      calls += 1
+      throw new Error("authentication failed")
+    })).rejects.toThrow("authentication failed")
+    expect(calls).toBe(1)
   })
 })
 
