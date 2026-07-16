@@ -9430,6 +9430,7 @@ components:
             - altcha_pow
             - erc721_holding
             - erc721_inventory_match
+            - asset_balance
         proof_requirements:
           type: array
           nullable: true
@@ -9457,6 +9458,7 @@ components:
               authoring flows should write `match`. Match values may be strings or per-key allowlists of
               strings; keys are ANDed, values within one key are ORed, and `min_quantity` counts assets
               matching the whole predicate.
+            - `asset_balance`: canonical CAIP-19 `asset_id` and base-10 atomic-unit `min_amount_atomic`
             Deferred/admin-only gates may additionally use:
             - `sanctions_clear`: no extra config required
     GateRule:
@@ -9503,6 +9505,7 @@ components:
             - wallet_score
             - erc721_holding
             - erc721_inventory_match
+            - asset_balance
         proof_requirements:
           type: array
           nullable: true
@@ -9526,6 +9529,7 @@ components:
               (`asset_filter` is legacy read compatibility). Match values may be strings or per-key
               allowlists of strings; keys are ANDed, values within one key are ORed, and `min_quantity`
               counts assets matching the whole predicate.
+            - `asset_balance`: canonical CAIP-19 `asset_id` and base-10 atomic-unit `min_amount_atomic`
             Deferred/admin-only gates may additionally use:
             - `sanctions_clear`: no extra config
         status:

@@ -363,6 +363,7 @@ GateRuleInput:
         - altcha_pow
         - erc721_holding
         - erc721_inventory_match
+        - asset_balance
     proof_requirements:
       type: array
       nullable: true
@@ -390,6 +391,7 @@ GateRuleInput:
           authoring flows should write `match`. Match values may be strings or per-key allowlists of
           strings; keys are ANDed, values within one key are ORed, and `min_quantity` counts assets
           matching the whole predicate.
+        - `asset_balance`: canonical CAIP-19 `asset_id` and base-10 atomic-unit `min_amount_atomic`
         Deferred/admin-only gates may additionally use:
         - `sanctions_clear`: no extra config required
 GateRule:
@@ -436,6 +438,7 @@ GateRule:
         - wallet_score
         - erc721_holding
         - erc721_inventory_match
+        - asset_balance
     proof_requirements:
       type: array
       nullable: true
@@ -459,6 +462,7 @@ GateRule:
           (`asset_filter` is legacy read compatibility). Match values may be strings or per-key
           allowlists of strings; keys are ANDed, values within one key are ORed, and `min_quantity`
           counts assets matching the whole predicate.
+        - `asset_balance`: canonical CAIP-19 `asset_id` and base-10 atomic-unit `min_amount_atomic`
         Deferred/admin-only gates may additionally use:
         - `sanctions_clear`: no extra config
     status:
@@ -1420,6 +1424,7 @@ MembershipGateSummary:
         - altcha_pow
         - erc721_holding
         - erc721_inventory_match
+        - asset_balance
     accepted_providers:
       type: array
       nullable: true
@@ -1486,6 +1491,15 @@ MembershipGateSummary:
       type: string
       nullable: true
       description: Provider-normalized asset category for inventory-match gates, such as `trading_card` or `watch`.
+    asset_id:
+      type: string
+      nullable: true
+      description: Canonical CAIP-19 asset identifier for an asset-balance gate.
+    min_amount_atomic:
+      type: string
+      nullable: true
+      pattern: ^[1-9][0-9]*$
+      description: Required balance in the asset's smallest indivisible unit.
 MembershipGateExpressionSummary:
   oneOf:
     - $ref: ./communities-core.yaml#/MembershipGateExpressionGate
@@ -2040,6 +2054,7 @@ GateAtom:
         - altcha_pow
         - erc721_holding
         - erc721_inventory_match
+        - asset_balance
     provider:
       type: string
       enum:
@@ -2084,6 +2099,13 @@ GateAtom:
       minimum: 1
       maximum: 100
       description: Minimum matching inventory assets required by an `erc721_inventory_match` atom.
+    asset_id:
+      type: string
+      description: Canonical CAIP-19 asset identifier for an `asset_balance` atom.
+    min_amount_atomic:
+      type: string
+      pattern: ^[1-9][0-9]*$
+      description: Required balance in atomic units for an `asset_balance` atom.
     match:
       type: object
       additionalProperties: true
@@ -2135,6 +2157,17 @@ GateTraceNode:
     required_age:
       type: integer
       nullable: true
+    asset_id:
+      type: string
+      nullable: true
+    required_amount_atomic:
+      type: string
+      nullable: true
+      pattern: ^[1-9][0-9]*$
+    current_amount_atomic:
+      type: string
+      nullable: true
+      pattern: ^[0-9]+$
     children:
       type: array
       items:
@@ -2212,6 +2245,7 @@ RequiredActionNode:
         - altcha_pow
         - erc721_holding
         - erc721_inventory_match
+        - asset_balance
     scope:
       type: string
     required_age:
@@ -2241,6 +2275,17 @@ RequiredActionNode:
       minimum: 1
       maximum: 100
       description: Minimum ERC-721 assets needed to satisfy the required wallet action.
+    asset_id:
+      type: string
+    required_amount_atomic:
+      type: string
+      pattern: ^[1-9][0-9]*$
+    current_amount_atomic:
+      type: string
+      pattern: ^[0-9]+$
+    shortfall_amount_atomic:
+      type: string
+      pattern: ^[1-9][0-9]*$
 RequiredAction:
   type: object
   required:
@@ -2283,6 +2328,7 @@ RequiredAction:
         - altcha_pow
         - erc721_holding
         - erc721_inventory_match
+        - asset_balance
     scope:
       type: string
     required_age:
@@ -2309,3 +2355,14 @@ RequiredAction:
       type: string
     min_quantity:
       type: integer
+    asset_id:
+      type: string
+    required_amount_atomic:
+      type: string
+      pattern: ^[1-9][0-9]*$
+    current_amount_atomic:
+      type: string
+      pattern: ^[0-9]+$
+    shortfall_amount_atomic:
+      type: string
+      pattern: ^[1-9][0-9]*$

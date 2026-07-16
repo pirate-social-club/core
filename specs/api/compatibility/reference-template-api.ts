@@ -1075,7 +1075,7 @@ type DonationPartnerSummary = {
 };
 
 type GateAtom = {
-  type: "unique_human" | "minimum_age" | "nationality" | "gender" | "wallet_score" | "altcha_pow" | "erc721_holding" | "erc721_inventory_match";
+  type: "unique_human" | "minimum_age" | "nationality" | "gender" | "wallet_score" | "altcha_pow" | "erc721_holding" | "erc721_inventory_match" | "asset_balance";
   provider?: "self" | "zkpassport" | "very" | "passport" | "courtyard" | "altcha" | null;
   accepted_providers?: Array<"self" | "zkpassport"> | null;
   minimum_age?: number;
@@ -1085,6 +1085,8 @@ type GateAtom = {
   contract_address?: string;
   min_count?: number;
   min_quantity?: number;
+  asset_id?: string;
+  min_amount_atomic?: string;
   match?: Record<string, unknown>;
 };
 
@@ -1105,7 +1107,7 @@ type GateRule = {
   community: string;
   scope: "membership" | "viewer" | "posting";
   gate_family: "token_holding" | "identity_proof";
-  gate_type: "unique_human" | "age_over_18" | "minimum_age" | "nationality" | "gender" | "wallet_score" | "erc721_holding" | "erc721_inventory_match";
+  gate_type: "unique_human" | "age_over_18" | "minimum_age" | "nationality" | "gender" | "wallet_score" | "erc721_holding" | "erc721_inventory_match" | "asset_balance";
   proof_requirements?: Array<ProofRequirement> | null;
   chain_namespace?: string | null;
   gate_config?: (Record<string, unknown>) | null;
