@@ -1074,6 +1074,7 @@ type GateAtom = {
   minimum_score?: number;
   chain_namespace?: string;
   contract_address?: string;
+  min_count?: number;
   min_quantity?: number;
   match?: Record<string, unknown>;
 };
