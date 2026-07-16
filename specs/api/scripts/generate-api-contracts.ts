@@ -44,6 +44,8 @@ const TYPE_EXPORTS = [
   { name: "PublicProfileResolution", ref: "#/components/schemas/PublicProfileResolution" },
   { name: "CourtyardWalletInventoryResponse", ref: "#/components/schemas/CourtyardWalletInventoryResponse" },
   { name: "CourtyardWalletInventoryGroup", ref: "#/components/schemas/CourtyardWalletInventoryGroup" },
+  { name: "AssetBalanceCapability", ref: "#/components/schemas/AssetBalanceCapability" },
+  { name: "AssetBalanceCapabilityListResponse", ref: "#/components/schemas/AssetBalanceCapabilityListResponse" },
   { name: "NftGateCapabilitySource", ref: "#/components/schemas/NftGateCapabilitySource" },
   { name: "NftGateCapabilitySourceListResponse", ref: "#/components/schemas/NftGateCapabilitySourceListResponse" },
   { name: "NftGateFacetValue", ref: "#/components/schemas/NftGateFacetValue" },
@@ -320,6 +322,7 @@ const ROUTE_EXPORTS = [
   { name: "usersMe", path: "/users/me" },
   { name: "profilesMe", path: "/profiles/me" },
   { name: "profilesMeCourtyardInventory", path: "/profiles/me/courtyard-inventory" },
+  { name: "gateCapabilitiesAssets", path: "/gate-capabilities/assets" },
   { name: "gateCapabilitiesNftSources", path: "/gate-capabilities/nft/sources" },
   {
     name: "gateCapabilitiesNftSourceFacetValues",
