@@ -238,11 +238,23 @@ async function wranglerJson(o: Options, db: string, sql: string): Promise<any[]>
     "--command",
     sql,
   ]
-  const proc = Bun.spawn(cmd, { cwd: o.cwd, stdout: "pipe", stderr: "pipe" })
-  const [out, err] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()])
-  await proc.exited
-  if (proc.exitCode !== 0) throw new Error(`wrangler d1 execute ${db} failed: ${wranglerFailureDetail(out, err)}`)
-  return extractWranglerJson(out) as any[]
+  const maxAttempts = 4
+  let lastError = "unknown Wrangler failure"
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const proc = Bun.spawn(cmd, { cwd: o.cwd, stdout: "pipe", stderr: "pipe" })
+    const [out, err] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()])
+    await proc.exited
+    try {
+      if (proc.exitCode !== 0) throw new Error(wranglerFailureDetail(out, err))
+      return extractWranglerJson(out) as any[]
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error)
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 500 * (2 ** (attempt - 1))))
+      }
+    }
+  }
+  throw new Error(`wrangler d1 execute ${db} failed after ${maxAttempts} attempts: ${lastError}`)
 }
 
 /** Wrangler --json writes structured API failures to stdout while configuration
