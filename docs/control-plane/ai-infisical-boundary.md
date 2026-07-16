@@ -20,13 +20,16 @@ This includes:
 
 ## Operator Escape Hatch
 
-For production launch operations, a human operator may approve a one-shot
+For production launch operations or read-only production diagnostics, a human operator may approve a one-shot
 Infisical command in an AI shell when all of these constraints hold:
 
 - the command is explicitly reviewed before execution
 - the command uses `rtk infisical run --env prod --path /services/api -- ...`
-- the command is limited to community launch, namespace attach, manifest apply,
-  or launch seed operations that require `PIRATE_ADMIN_TOKEN`
+- the command is limited to either:
+  - community launch, namespace attach, manifest apply, or launch seed operations
+    that require `PIRATE_ADMIN_TOKEN`; or
+  - an explicitly requested read-only query that reports operational state without
+    printing credentials, connection strings, tokens, or unrelated secret values
 - admin impersonation is limited to the intended operator actor and, for seed
   content, to routes using the `launch_seed` operation class
 - stdout and stderr must not print raw environment variables or secret values
@@ -57,8 +60,8 @@ AI workflows must not:
 - persist raw secrets into repo files
 - write secret values into machine-readable config inventories
 - expand access from one approved secret to broader secret inventory access
-- use the operator escape hatch for exploratory commands, shell inspection, or
-  unrelated production access
+- use the operator escape hatch for unrequested exploratory commands, general shell
+  inspection, or production access unrelated to the approved operation
 
 ## Follow-Up
 
@@ -66,4 +69,4 @@ Later revisions may define tighter rules for:
 
 - single-secret injection wrappers for `PIRATE_ADMIN_TOKEN`
 - local development escape hatches
-- audit logging for operator-assisted secret use
+- narrower secret injection wrappers and audit logging for operator-assisted secret use
