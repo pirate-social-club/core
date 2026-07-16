@@ -53,7 +53,7 @@ Community creation requires control of the corresponding external root:
 - `/c/kanye` requires control of HNS `.kanye`
 - `/c/@kanye` requires control of Spaces `@kanye`
 
-One club may later attach additional verified roots as mirrors.
+One club may attach additional verified roots as mirrors.
 
 ## Canonical Community Routes
 
@@ -69,7 +69,14 @@ Rules:
 - users must learn this distinction because HNS `.kanye` and Spaces `@kanye` are different sovereign roots
 - Pirate should not hide this distinction behind extra path segments or internal resolver slugs
 - the corresponding external root must already exist and be controlled by the creator at community creation time
-- a club has exactly one primary namespace in v0, but may attach additional verified namespace mirrors later
+- a club has exactly one active primary namespace and may attach multiple independently verified namespace mirrors
+
+Implementation status (2026-07-16):
+
+- control-plane migration `0145` introduces the community-to-verification binding collection and backfills the existing scalar namespace as `primary`
+- community-shard migration `1133` replaces the one-active-namespace constraint with one active primary plus multiple active mirrors
+- `communities.namespace_verification_id` remains a transitional compatibility projection of the active primary; new code must use the binding collection when enumerating or resolving all namespaces
+- namespace-addressed APIs, public mirror routing, and the multi-namespace UI remain rollout work and must not be inferred merely from schema presence
 
 ## Community-Local User Handles
 

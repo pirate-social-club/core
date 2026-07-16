@@ -305,6 +305,10 @@ CommunityHandleQuoteRequest:
   properties:
     desired_label:
       type: string
+    namespace_verification:
+      type: string
+      nullable: true
+      description: Optional verified namespace selector. Omit to quote against the community primary namespace.
 CommunityHandlePaymentInstructions:
   type: object
   required:

@@ -38,6 +38,11 @@ import { dirname, resolve } from "node:path"
 export type ObjectSpec =
   | { kind: "columns"; table: string; columns: readonly string[] }
   | { kind: "columns_by_table"; columns: readonly { table: string; column: string }[] }
+  | {
+      kind: "schema_objects"
+      columns: readonly { table: string; column: string }[]
+      indexes: readonly string[]
+    }
   | { kind: "tables"; tables: readonly string[] }
 
 export type MigrationSpec = {
@@ -146,9 +151,18 @@ export function classificationSql(spec: MigrationSpec): string {
       ? spec.creates.columns
         .map(({ table, column }) => `(SELECT COUNT(*) FROM pragma_table_info('${table}') WHERE name='${column}') AS obj_${table}__${column}`)
         .join(",\n  ")
-      : spec.creates.tables
-        .map((t) => `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${t}') AS obj_${t}`)
-        .join(",\n  ")
+      : spec.creates.kind === "schema_objects"
+        ? [
+            ...spec.creates.columns.map(({ table, column }) =>
+              `(SELECT COUNT(*) FROM pragma_table_info('${table}') WHERE name='${column}') AS obj_${table}__${column}`
+            ),
+            ...spec.creates.indexes.map((index) =>
+              `(SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='${index}') AS obj_index__${index}`
+            ),
+          ].join(",\n  ")
+        : spec.creates.tables
+          .map((t) => `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${t}') AS obj_${t}`)
+          .join(",\n  ")
 
   return `SELECT
   (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='schema_migrations') AS has_ledger,
@@ -161,6 +175,12 @@ function objectNames(spec: MigrationSpec): readonly string[] {
   if (spec.creates.kind === "columns") return spec.creates.columns
   if (spec.creates.kind === "columns_by_table") {
     return spec.creates.columns.map(({ table, column }) => `${table}__${column}`)
+  }
+  if (spec.creates.kind === "schema_objects") {
+    return [
+      ...spec.creates.columns.map(({ table, column }) => `${table}__${column}`),
+      ...spec.creates.indexes.map((index) => `index__${index}`),
+    ]
   }
   return spec.creates.tables
 }

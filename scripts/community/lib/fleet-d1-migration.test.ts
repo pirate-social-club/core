@@ -6,6 +6,7 @@ import { SPEC as OUTBOX_SPEC } from "../apply-reward-outbox-d1-migration"
 import { SPEC as STORY_SPEC } from "../apply-story-metadata-refs-d1-migration"
 import { SPEC as STUDY_RUN_SPEC } from "../apply-song-study-generation-runs-d1-migration"
 import { SPEC as SETTLEMENT_RECOVERY_SPEC } from "../apply-paid-purchase-settlement-recovery-d1-migration"
+import { SPEC as MULTI_NAMESPACE_SPEC } from "../apply-multi-namespace-bindings-d1-migration"
 import {
   BLOCKING_STATUSES,
   classificationSql,
@@ -65,6 +66,13 @@ describe("executionBody — the exact bytes sent to D1", () => {
     expect(body).toContain("1132_paid_purchase_settlement_recovery.sql")
   })
 
+  test("1133 attests its role column and both replacement indexes", () => {
+    const sql = classificationSql(MULTI_NAMESPACE_SPEC)
+    expect(sql).toContain("obj_namespace_bindings__namespace_role")
+    expect(sql).toContain("obj_index__idx_namespace_bindings_active_primary_community")
+    expect(sql).toContain("obj_index__idx_namespace_bindings_active_verification")
+  })
+
   test("the migration SQL is passed through verbatim — never parsed or rewritten", () => {
     const sql = realMigration(OUTBOX_SPEC)
     const body = executionBody(sql, OUTBOX_SPEC, CHECKSUM)
@@ -118,6 +126,30 @@ function bareSettlementRecoveryRow(overrides: Record<string, number | string> = 
     ...overrides,
   }
 }
+
+function bareMultiNamespaceRow(overrides: Record<string, number | string> = {}) {
+  return {
+    has_ledger: 1,
+    ledger_checksum: "",
+    req_namespace_bindings: 1,
+    obj_namespace_bindings__namespace_role: 0,
+    obj_index__idx_namespace_bindings_active_primary_community: 0,
+    obj_index__idx_namespace_bindings_active_verification: 0,
+    ...overrides,
+  }
+}
+
+describe("classifyRow — 1133 mixed schema objects", () => {
+  test("a role column without both replacement indexes is a blocking partial state", () => {
+    expect(classifyRow(MULTI_NAMESPACE_SPEC, bareMultiNamespaceRow({
+      obj_namespace_bindings__namespace_role: 1,
+      obj_index__idx_namespace_bindings_active_primary_community: 1,
+    }), CHECKSUM)).toEqual({
+      status: "partial_objects",
+      detail: "present: namespace_bindings__namespace_role, index__idx_namespace_bindings_active_primary_community",
+    })
+  })
+})
 
 describe("classifyRow — 1126 reward outbox (CREATE TABLE)", () => {
   test("no ledger and no table: apply DDL + ledger", () => {
