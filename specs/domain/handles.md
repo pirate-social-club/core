@@ -288,7 +288,9 @@ Suggested v0 policy fields:
 - `reserved_label_pricing_json` nullable
 - `generated_label_policy` nullable
 - `membership_required_for_claim`
-- `gate_required_for_claim`
+- `claim_gate_mode`
+- `claim_gate_expression_ref` nullable
+- `eligibility_timing`
 - `lease_duration_days`
 - `grace_duration_days`
 - `renewal_price_policy` nullable
@@ -324,8 +326,26 @@ Suggested meanings:
   A policy object for system-suggested available names, including optional ontology/vocabulary sets and numeric suffix format.
 - `membership_required_for_claim`
   If true, the user must first be a member of the club before claiming a namespace handle.
-- `gate_required_for_claim`
-  If true, the user must satisfy the club's viewer/posting/token gate policy before claiming a namespace handle.
+- `claim_gate_mode`
+  - `none`: no token or community gate is evaluated for this namespace's claims
+  - `inherit_community`: evaluate the club's current membership gate at claim time
+  - `explicit`: evaluate the gate expression referenced by `claim_gate_expression_ref`, independently of the club's membership gate
+- `claim_gate_expression_ref`
+  Required when `claim_gate_mode = explicit` and null otherwise. The reference resolves to a versioned gate expression using the same gate primitives as community membership. Gate expressions belong to the namespace policy, so mirrors may require different assets from the primary namespace.
+- `eligibility_timing`
+  - `claim_time`: eligibility is evaluated atomically when the claim is committed; later loss of the qualifying asset does not invalidate the handle
+  - `continuous`: eligibility is re-evaluated for continued use under an explicitly defined suspension and restoration policy
+
+`gate_required_for_claim` is a legacy boolean shorthand for `claim_gate_mode = inherit_community`. New contracts and persisted policies should use the explicit model above rather than adding behavior to the boolean.
+
+Claim-gate semantics:
+
+- eligibility is namespace-local: passing the primary namespace gate does not imply eligibility for a mirror
+- claim authorization must evaluate the selected namespace's policy; membership checks performed earlier in a session are not sufficient evidence
+- gate evaluation and handle reservation must be bound to the same claim attempt so eligibility cannot be bypassed between quote and commit
+- a qualifying holding is non-consumptive and non-exclusive by default; the same NFT or token balance may satisfy gates for multiple namespaces and users do not allocate or escrow assets to a handle
+- exclusive or consumptive eligibility is outside v0 because it requires asset allocation, locking, or escrow semantics
+- `continuous` is not a synonym for silent revocation; each policy must define suspension, restoration, grace, and resolution behavior before continuous enforcement can be enabled
 - `trust_discount_policy`
   Optional future discount policy based on trusted native signals. Disabled by default in v0. See [karma.md](./karma.md) for the canonical karma model.
 
@@ -333,6 +353,14 @@ V0 defaults:
 
 These defaults apply only once a namespace has enabled public community-local handle claims.
 New public communities may carry a `standard` policy record while `club_local_handle_claims_enabled = false`.
+
+- `claim_gate_mode = none`
+- `claim_gate_expression_ref = null`
+- `eligibility_timing = claim_time`
+
+The `membership_gated` template instead defaults to `claim_gate_mode = inherit_community`.
+An explicit per-namespace asset requirement must opt into `claim_gate_mode = explicit`
+and identify its versioned expression.
 
 - `8+` characters
   Claimable by any verified eligible member
