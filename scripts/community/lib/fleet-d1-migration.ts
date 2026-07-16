@@ -37,6 +37,7 @@ import { dirname, resolve } from "node:path"
 /** The schema objects a migration creates. Presence is how a shard is classified. */
 export type ObjectSpec =
   | { kind: "columns"; table: string; columns: readonly string[] }
+  | { kind: "columns_by_table"; columns: readonly { table: string; column: string }[] }
   | { kind: "tables"; tables: readonly string[] }
 
 export type MigrationSpec = {
@@ -139,11 +140,15 @@ export function classificationSql(spec: MigrationSpec): string {
     .join(",\n  ")
   const objects = spec.creates.kind === "columns"
     ? spec.creates.columns
-      .map((c) => `(SELECT COUNT(*) FROM pragma_table_info('${(spec.creates as { table: string }).table}') WHERE name='${c}') AS obj_${c}`)
+      .map((c) => `(SELECT COUNT(*) FROM pragma_table_info('${spec.creates.table}') WHERE name='${c}') AS obj_${c}`)
       .join(",\n  ")
-    : spec.creates.tables
-      .map((t) => `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${t}') AS obj_${t}`)
-      .join(",\n  ")
+    : spec.creates.kind === "columns_by_table"
+      ? spec.creates.columns
+        .map(({ table, column }) => `(SELECT COUNT(*) FROM pragma_table_info('${table}') WHERE name='${column}') AS obj_${table}__${column}`)
+        .join(",\n  ")
+      : spec.creates.tables
+        .map((t) => `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${t}') AS obj_${t}`)
+        .join(",\n  ")
 
   return `SELECT
   (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='schema_migrations') AS has_ledger,
@@ -153,7 +158,11 @@ export function classificationSql(spec: MigrationSpec): string {
 }
 
 function objectNames(spec: MigrationSpec): readonly string[] {
-  return spec.creates.kind === "columns" ? spec.creates.columns : spec.creates.tables
+  if (spec.creates.kind === "columns") return spec.creates.columns
+  if (spec.creates.kind === "columns_by_table") {
+    return spec.creates.columns.map(({ table, column }) => `${table}__${column}`)
+  }
+  return spec.creates.tables
 }
 
 function cell(r: Record<string, number | string>, key: string): number | string {
