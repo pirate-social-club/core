@@ -241,8 +241,38 @@ async function wranglerJson(o: Options, db: string, sql: string): Promise<any[]>
   const proc = Bun.spawn(cmd, { cwd: o.cwd, stdout: "pipe", stderr: "pipe" })
   const [out, err] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()])
   await proc.exited
-  if (proc.exitCode !== 0) throw new Error(`wrangler d1 execute ${db} failed: ${err.trim() || "(no stderr)"}`)
+  if (proc.exitCode !== 0) throw new Error(`wrangler d1 execute ${db} failed: ${wranglerFailureDetail(out, err)}`)
   return extractWranglerJson(out) as any[]
+}
+
+/** Wrangler --json writes structured API failures to stdout while configuration
+ * warnings go to stderr. Prefer the structured body and omit account/database
+ * identifiers from manifests and CI logs. */
+export function wranglerFailureDetail(stdout: string, stderr: string): string {
+  const out = stdout.trim()
+  if (out) {
+    try {
+      const parsed = JSON.parse(out) as {
+        error?: { name?: unknown; code?: unknown; text?: unknown; notes?: Array<{ text?: unknown }> }
+      }
+      if (parsed.error) {
+        const name = typeof parsed.error.name === "string" ? parsed.error.name : "APIError"
+        const code = typeof parsed.error.code === "number" || typeof parsed.error.code === "string"
+          ? ` code=${String(parsed.error.code)}`
+          : ""
+        const notes = parsed.error.notes
+          ?.map((note) => typeof note.text === "string" ? note.text.trim() : "")
+          .filter(Boolean)
+          .join("; ")
+        const message = notes || (typeof parsed.error.text === "string" ? parsed.error.text.trim() : "request failed")
+        return `${name}${code}: ${message}`
+      }
+    } catch {
+      // Fall through to bounded raw output for non-JSON CLI failures.
+    }
+  }
+  const raw = out || stderr.trim() || "(no stdout or stderr)"
+  return raw.length > 2_000 ? `${raw.slice(0, 2_000)}…` : raw
 }
 
 /** The pool is authoritative for which shards are LIVE — not a prior artifact. */
