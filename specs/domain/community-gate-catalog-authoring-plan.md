@@ -1,6 +1,6 @@
 # Community Gate Catalog Authoring Plan
 
-Status: implementation plan for the Courtyard catalog authoring slice
+Status: implementation in progress; lossless-array and owned-inventory stopgap shipped
 
 Parent specification:
 
@@ -20,16 +20,14 @@ remain outside this slice.
 
 ## Current gaps
 
-- Web defines `CollectionCapabilitySource`, but production provides no
-  implementation to `GateTreeBuilder`.
+- Production currently injects an owned-inventory stopgap implementation of
+  `CollectionCapabilitySource`; the API-backed searchable catalog remains unbuilt.
 - `searchFacetValues` is called only with an empty query; typed remote search,
   debounce, cancellation, and stale-response protection are absent.
 - `probeContract` and `estimateMatchCount` exist in the interface but are not
   consumed by the builder.
-- The editor converts array facets to comma-joined strings and writes one value.
-  Editing `{subject: ["Charizard", "Gengar"]}` would therefore change it to the
-  literal string `"Charizard, Gengar"`.
-- Source loading promises have no user-visible unavailable/retry state.
+- Typed remote search, debounce, pagination, and actionable retry states remain
+  unbuilt. Loaded arrays are lossless, and unresolved sources now remain read-only.
 
 ## Non-negotiable invariants
 
@@ -51,8 +49,10 @@ remain outside this slice.
 
 ## Proposed API surface
 
-The capability namespace extends the advisory probe already defined by the
-parent specification.
+The first executable capability contract contains only the two operations with
+production builder consumers: trusted source listing and facet-value search.
+The advisory contract probe and match estimate remain deferred until a rendered
+consumer and acceptance test exist.
 
 ### Trusted sources
 
@@ -83,15 +83,6 @@ Ethereum and Polygon registry entries are separate source records even when
 their facet catalogs share an upstream collection. Source ids are stable Pirate
 identifiers, not vendor index names.
 
-### Contract probe
-
-`GET /gate-capabilities/nft?chain=eip155:1&contract=0x...`
-
-Retains the parent specification's cached advisory probe. Trusted Courtyard
-registries resolve to the corresponding source descriptor. A valid ERC-721 with
-no trusted trait adapter reports collection-level support with an explicit
-`trait_filters_unsupported_reason`.
-
 ### Facet values
 
 `GET /gate-capabilities/nft/sources/{source_id}/facets/{facet_key}/values?q=char&cursor=...&limit=25`
@@ -111,29 +102,10 @@ size before calling the adapter. Results use canonical facet values and stable
 pagination. Empty query returns the source's useful leading values; it must not
 materialize the full graded-card dictionary.
 
-### Match estimate
-
-`POST /gate-capabilities/nft/sources/{source_id}/estimate`
-
-```json
-{
-  "match": {
-    "category": "trading_card",
-    "franchise": "Pokemon",
-    "subject": ["Charizard", "Gengar"]
-  }
-}
-```
-
-Returns `{ "approximate_count": 801 }` or
-`{ "approximate_count": null, "reason": "unavailable" }`. The request uses the
-same match normalizer as save validation. Estimates are informative and never
-used for admission.
-
 All endpoint response types land in core/OpenAPI before API or web integration.
-If implementation evidence shows that probe or estimate has no product consumer,
-remove that method from `CollectionCapabilitySource` rather than shipping an
-unused endpoint.
+`probeContract` and `estimateMatchCount` should be removed from
+`CollectionCapabilitySource` unless a product consumer is implemented before the
+API-backed source lands.
 
 ## API implementation
 
