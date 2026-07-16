@@ -84,6 +84,14 @@ describe("Story signer Infisical contract", () => {
     expect(ENV_CONTRACT.secrets.some((candidate) => candidate.key === "STORY_RUNTIME_PRIVATE_KEY")).toBe(false);
     expect(COMMERCE_SECRET_IDS).not.toContain(secretId("/services/api", "STORY_RUNTIME_PRIVATE_KEY"));
   });
+
+  test("syncs coordinator-exclusive signer secrets without requiring admission readiness", () => {
+    for (const key of ["STORY_COORDINATOR_SIGNER_PRIVATE_KEY", "STORY_COORDINATOR_SIGNER_ADDRESS"] as const) {
+      const spec = ENV_CONTRACT.secrets.find((candidate) => candidate.path === "/services/api" && candidate.key === key);
+      expect(spec?.requiredness).toBe("deferred");
+      expect(COMMERCE_SECRET_IDS).toContain(secretId("/services/api", key));
+    }
+  });
 });
 
 describe("hosted song pipeline Infisical contract", () => {
