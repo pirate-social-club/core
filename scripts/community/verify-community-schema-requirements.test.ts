@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 
-import { validateRequirements } from "./verify-community-schema-requirements"
+import { buildProbe, validateRequirements } from "./verify-community-schema-requirements"
 
 const base = {
   version: 1,
@@ -34,5 +34,25 @@ describe("schema requirements policy validation", () => {
         two: { flags: ["TWO"], migrations: ["1133_multi_namespace_bindings.sql"] },
       },
     })).toThrow("overlaps policy classes features.one and features.two")
+  })
+})
+
+describe("schema requirements probe", () => {
+  test("counts a dropped index as satisfied only when it is absent", () => {
+    const migration = "1133_multi_namespace_bindings.sql"
+    const probe = buildProbe([migration], new Map([[migration, {
+      checksum: "abc",
+      artifacts: {
+        tables: [],
+        columns: [],
+        indexes: [],
+        absentIndexes: ["idx_namespace_bindings_active_community"],
+        altered: [],
+        unrecognized: [],
+      },
+    }]]))
+    expect(probe).toContain(
+      "SELECT COUNT(*) = 0 FROM sqlite_master WHERE type='index' AND name='idx_namespace_bindings_active_community'",
+    )
   })
 })

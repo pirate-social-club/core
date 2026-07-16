@@ -24,6 +24,8 @@ export type Artifacts = {
   columns: Array<[string, string]>
   /** Indexes the migration CREATEs. */
   indexes: string[]
+  /** Indexes the migration DROPs and which therefore must be absent. */
+  absentIndexes: string[]
   /** Tables the migration ALTERs — these must already exist for it to apply. */
   altered: string[]
   /**
@@ -36,7 +38,7 @@ export type Artifacts = {
 
 /** Total number of checkable schema objects this migration is expected to create. */
 export function artifactCount(a: Artifacts): number {
-  return a.tables.length + a.columns.length + a.indexes.length
+  return a.tables.length + a.columns.length + a.indexes.length + a.absentIndexes.length
 }
 
 /**
@@ -57,12 +59,14 @@ export function expectedArtifacts(sql: string): Artifacts {
   const tables: string[] = []
   const columns: Array<[string, string]> = []
   const indexes: string[] = []
+  const absentIndexes: string[] = []
   const altered = new Set<string>()
   const unrecognized: string[] = []
 
   const createTable = /^CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?["'`]?(\w+)["'`]?/i
   const addColumn = /^ALTER\s+TABLE\s+["'`]?(\w+)["'`]?\s+ADD\s+COLUMN\s+["'`]?(\w+)["'`]?/i
   const createIndex = /^CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?["'`]?(\w+)["'`]?/i
+  const dropIndex = /^DROP\s+INDEX\s+(?:IF\s+EXISTS\s+)?["'`]?(\w+)["'`]?/i
 
   for (const stmt of statements(sql)) {
     let m: RegExpMatchArray | null
@@ -73,11 +77,13 @@ export function expectedArtifacts(sql: string): Artifacts {
       altered.add(m[1])
     } else if ((m = stmt.match(createIndex))) {
       indexes.push(m[1])
+    } else if ((m = stmt.match(dropIndex))) {
+      absentIndexes.push(m[1])
     } else {
       // Record just the leading keywords, never full statement text (which could
       // contain values), so this is safe to print in CI logs.
       unrecognized.push(stmt.split(/\s+/).slice(0, 3).join(" "))
     }
   }
-  return { tables, columns, indexes, altered: [...altered], unrecognized }
+  return { tables, columns, indexes, absentIndexes, altered: [...altered], unrecognized }
 }

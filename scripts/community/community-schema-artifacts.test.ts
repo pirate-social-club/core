@@ -37,6 +37,13 @@ describe("expectedArtifacts — synthetic", () => {
     expect(a.unrecognized).toContain("UPDATE t SET")
   })
 
+  test("DROP INDEX is a checkable absence artifact", () => {
+    const a = expectedArtifacts("DROP INDEX IF EXISTS idx_old;")
+    expect(a.absentIndexes).toEqual(["idx_old"])
+    expect(a.unrecognized).toEqual([])
+    expect(artifactCount(a)).toBe(1)
+  })
+
   test("commented-out DDL never becomes an artifact", () => {
     const a = expectedArtifacts("-- CREATE INDEX idx_ghost ON t(c);\nCREATE INDEX idx_real ON t(c);")
     expect(a.indexes).toEqual(["idx_real"])
@@ -141,6 +148,19 @@ describe("expectedArtifacts — real migration files", () => {
     } finally {
       db.close()
     }
+  })
+
+  test("1133_multi_namespace_bindings: role column, replacement indexes, and removed legacy index", () => {
+    const a = expectedArtifacts(readMigration("1133_multi_namespace_bindings.sql"))
+    expect(a.columns).toEqual([["namespace_bindings", "namespace_role"]])
+    expect(a.indexes).toEqual([
+      "idx_namespace_bindings_active_primary_community",
+      "idx_namespace_bindings_active_verification",
+    ])
+    expect(a.absentIndexes).toEqual(["idx_namespace_bindings_active_community"])
+    expect(a.altered).toEqual(["namespace_bindings"])
+    expect(a.unrecognized).toEqual([])
+    expect(artifactCount(a)).toBe(4)
   })
 
   test("1134_story_settlement_coordinator_mirror: effect columns + transaction table + fencing indexes", () => {
