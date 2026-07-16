@@ -1,5 +1,6 @@
 gate_capabilities_nft_sources:
   get:
+    x-implemented: true
     tags:
       - Gate Capabilities
     summary: List trusted NFT gate authoring sources
@@ -24,6 +25,7 @@ gate_capabilities_nft_sources:
 
 gate_capabilities_nft_source_facet_values:
   get:
+    x-implemented: true
     tags:
       - Gate Capabilities
     summary: Search trusted NFT facet values
