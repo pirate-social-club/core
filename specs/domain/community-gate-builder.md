@@ -1,6 +1,6 @@
 # Community Gate Builder
 
-Status: generic builder implemented and staging-verified; production flag off;
+Status: generic builder production-enabled; NFT authoring mid-migration;
 catalog-backed trait authoring deferred
 
 Related docs:
@@ -34,9 +34,8 @@ entitlements (tiers, name claims, badges) is
   API on 2026-07-15. The persisted canonical nested policy matched the
   authored tree, invalid atoms blocked save with an inline error, and desktop
   and mobile layouts passed overflow checks.
-- Production remains on the legacy editor because
-  `VITE_GATE_TREE_BUILDER_ENABLED` is intentionally absent from the
-  production build. Enabling it is a separate rollout decision.
+- The builder was enabled in production on 2026-07-15. Its generic gate
+  grammar is live, while NFT authoring remains mid-migration.
 - Catalog-backed collection and trait authoring is not implemented. The web
   application does not yet wire a real collection capability source, so the
   Courtyard card/watch catalog flow remains Storybook-only and existing

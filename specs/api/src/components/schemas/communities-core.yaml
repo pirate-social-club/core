@@ -1477,7 +1477,7 @@ MembershipGateSummary:
       nullable: true
       minimum: 1
       maximum: 100
-      description: Minimum matching ERC-721 assets required by inventory-match gates.
+      description: Minimum ERC-721 assets required by collection-holding or inventory-match gates.
     asset_filter_label:
       type: string
       nullable: true
@@ -2074,8 +2074,16 @@ GateAtom:
       type: string
     contract_address:
       type: string
+    min_count:
+      type: integer
+      minimum: 1
+      maximum: 100
+      description: Minimum ERC-721 collection balance required by an `erc721_holding` atom.
     min_quantity:
       type: integer
+      minimum: 1
+      maximum: 100
+      description: Minimum matching inventory assets required by an `erc721_inventory_match` atom.
     match:
       type: object
       additionalProperties: true
@@ -2230,6 +2238,9 @@ RequiredActionNode:
       type: string
     min_quantity:
       type: integer
+      minimum: 1
+      maximum: 100
+      description: Minimum ERC-721 assets needed to satisfy the required wallet action.
 RequiredAction:
   type: object
   required:
