@@ -342,6 +342,9 @@ Platform baseline join gate:
 - EVM token-holding gates should require CAIP-2 `chain_namespace` values; public v0 `erc721_holding` is Ethereum mainnet (`eip155:1`)
 - public v0 ERC-721 collection gates support contract-level hold-any semantics; token-id allowlists, generic metadata matches, min-count thresholds, chain selectors, and ERC-1155 are later product/API decisions
 - ownership discovery may use RPCs or allowlisted provider APIs such as Courtyard, but the stored gate contract should remain provider-neutral
+- fungible/native token thresholds use the provider-neutral `asset_balance` contract defined in
+  `community-asset-balance-gates.md`; public authoring remains disabled until its evaluator registry,
+  EVM adapters, and presentation contracts are implemented
 
 ## Verification Policy Compilation
 
