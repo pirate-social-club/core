@@ -94,11 +94,13 @@ touching secrets with the wrong account.
 
 ## Branch Workflow
 
-All work commits directly to `main`. No feature branches, no task branches.
+All changes land through pull requests because `main` is protected and its required checks
+must pass before merge.
 
-- commit to `main` in the owning child repo for every completed change
-- do not create feature or task branches until the project is stable enough for multiple contributors
-- if a task spans multiple child repos, commit to `main` in each repo separately
+- create a focused feature or task branch in the owning child repo
+- push that branch and open a pull request targeting `main`
+- use the repository's normal squash-merge or merge-queue workflow; do not bypass branch protection
+- if a task spans multiple child repos, use a separate branch and pull request in each repo
 
 When a task belongs to a child repo:
 

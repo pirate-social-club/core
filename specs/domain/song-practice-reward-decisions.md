@@ -25,8 +25,10 @@ campaign acceptance suite and treasury controls pass.
   and active community owners/admins/moderators. Active public offers are visible to everyone.
 - A rewarder may have only one unfinished campaign per song post, and draft creation is subject to
   a platform rate limit. These are abuse controls, not community-membership requirements.
-- Pirate owns qualification and anti-fraud thresholds. Rewarders choose the activity scope, rate,
-  budget, start/end time, and duration within platform guardrails.
+- Pirate owns the structural qualification and anti-fraud floors. Rewarders choose the activity
+  scope, Karaoke score threshold, rate, budget, start/end time, and duration within platform
+  guardrails. The first pilot cannot configure a Karaoke threshold below the platform's 70% event
+  emission floor.
 
 ## Activity scope
 
@@ -69,9 +71,12 @@ feedback, FSRS scheduling, and mastery metrics. Raw client attempt counts are ne
 
 ## Karaoke qualification
 
-Karaoke qualification remains server-authoritative and requires a completed, rank-eligible attempt.
-The score, measured-line, coverage, scoring-version, and provider evidence are snapshotted. Pirate
-may strengthen replay/liveness controls without changing campaign terms.
+Karaoke qualification remains server-authoritative and requires a completed, rank-eligible attempt
+whose final score meets the campaign's immutable `min_score_bps`. The first pilot accepts thresholds
+from 7000 through 10000 basis points; lower thresholds require emitting structurally valid attempts
+that are not leaderboard eligible. The score, measured-line, coverage, scoring-version, and provider
+evidence are snapshotted. Pirate may strengthen replay/liveness controls without changing campaign
+terms.
 
 ## Reward periods and durable evidence
 

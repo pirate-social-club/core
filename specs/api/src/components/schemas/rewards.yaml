@@ -262,11 +262,17 @@ PublicRewardOffer:
   additionalProperties: false
   required:
     - eligible_activity
+    - min_score_bps
     - daily_reward_cents
     - ends_at
   properties:
     eligible_activity:
       $ref: ./rewards.yaml#/RewardCampaignEligibleActivity
+    min_score_bps:
+      type: integer
+      minimum: 7000
+      maximum: 10000
+      description: Minimum final Karaoke score in basis points. Ignored for Study qualifications.
     daily_reward_cents:
       type: integer
       minimum: 1
@@ -314,6 +320,7 @@ RewardCampaign:
     - song_owner
     - status
     - eligible_activity
+    - min_score_bps
     - daily_reward_cents
     - milestone_7_cents
     - milestone_30_cents
@@ -349,6 +356,11 @@ RewardCampaign:
       $ref: ./rewards.yaml#/RewardCampaignStatus
     eligible_activity:
       $ref: ./rewards.yaml#/RewardCampaignEligibleActivity
+    min_score_bps:
+      type: integer
+      minimum: 7000
+      maximum: 10000
+      description: Immutable minimum final Karaoke score in basis points. Ignored for Study qualifications.
     daily_reward_cents:
       type: integer
       minimum: 1
@@ -413,6 +425,7 @@ RewardCampaignCreateRequest:
     - community
     - post
     - eligible_activity
+    - min_score_bps
     - daily_reward_cents
     - milestone_7_cents
     - milestone_30_cents
@@ -428,6 +441,11 @@ RewardCampaignCreateRequest:
       type: string
     eligible_activity:
       $ref: ./rewards.yaml#/RewardCampaignEligibleActivity
+    min_score_bps:
+      type: integer
+      minimum: 7000
+      maximum: 10000
+      description: Minimum final Karaoke score in basis points. V1 cannot accept a value below the platform emission floor.
     daily_reward_cents:
       type: integer
       minimum: 1
