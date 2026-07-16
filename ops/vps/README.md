@@ -27,5 +27,8 @@ Current slices:
   Keyless mainnet `hsd` node used for authenticated root-expiry observation and
   post-acceptance revalidation. The tracked deployment is release/digest pinned,
   pruned, loopback-only, and contains no wallet or DNS-serving role.
+- `hns-renewal-wallet/`
+  Design-only trust role for manually renewing Pirate-owned Handshake roots. It is a third host
+  role and must not be colocated with either authoritative DNS host or the keyless observer.
 - `spaces-verifier/`
   Deployment assets and env templates for the VPS-hosted Spaces verifier stack.

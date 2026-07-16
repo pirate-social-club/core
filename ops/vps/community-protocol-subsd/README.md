@@ -1,16 +1,40 @@
 # Community Protocol subsd VPS Assets
 
-Persistent `subsd` runtime for Pirate community handle protocol issuance.
+Status: **BLOCKED — DO NOT DEPLOY**.
 
-This service should run next to the existing Spaces verifier stack because it needs local access to
+These files are historical deployment evidence for the deleted community protocol issuer stack.
+The former API source path `services/community-protocol-subsd` no longer exists, and no supported
+consumer completes `community_handle_protocol_issuances`. Starting the pinned image would restore
+neither the issuer nor end-to-end issuance. Tracking: core issue #126.
+
+The commerce API must reject `issuance_mode=spaces_subspace` while this status applies.
+
+## Rebuild exit criteria
+
+Do not remove the block until all of the following exist:
+
+- maintained issuer and `subsd` source in an explicitly owned repository
+- a versioned API-to-issuer contract with idempotency and terminal failure semantics
+- durable reconciliation from `issuing` to `issued` or `failed`
+- recovery behavior for a paid claim when issuance cannot complete
+- current wallet custody, backup, and restore procedures
+- a staging proof covering restart, duplicate delivery, and failed-batch recovery
+- a production deployment whose internal-only network boundary has been verified
+
+The material below describes the retired boundary and must not be used as a runbook.
+
+## Retired shape
+
+The intended service was a persistent `subsd` runtime for Pirate community handle protocol issuance.
+
+This service was intended to run next to the Spaces verifier stack because it needed local access to
 `spaced` and the operator wallet that can operate parent Spaces such as `@pesto`.
 
 ## Boundary
 
-- `subsd` is internal-only. Do not expose it through Caddy or a public hostname.
-- It binds through Docker host networking and is consumed by `community-protocol-issuer`.
-- Its data directory is durable and must be backed up with the Spaces verifier data.
-- It is safe to restart; local protocol state lives under `/srv/pirate-spaces/data/subsd`.
+- `subsd` was internal-only and was not to be exposed through Caddy or a public hostname.
+- It bound through Docker host networking and was consumed by `community-protocol-issuer`.
+- Its data directory was durable and required wallet-aware backup handling.
 
 ## Files
 
@@ -19,43 +43,16 @@ This service should run next to the existing Spaces verifier stack because it ne
 - `systemd/pirate-community-protocol-subsd.service`
   Docker-backed service unit.
 
-## Deploy Shape
+## Historical image
 
-Build and push the image from the API repo:
+The old build command referred to the deleted API path `services/community-protocol-subsd` and has
+been removed so this document cannot be mistaken for a working deployment procedure.
 
-```bash
-rtk docker build --platform linux/amd64 -t t3333333k/community-protocol-subsd:staging services/community-protocol-subsd
-rtk docker push t3333333k/community-protocol-subsd:staging
-```
-
-Current staging image:
+Historical staging image; retained for provenance only, not approved for deployment:
 
 ```text
 t3333333k/community-protocol-subsd@sha256:be9ac7cff697a576d7926707531e9b0c580c5368dfe7b06e59dd12c80cbf5618
 ```
 
-On the VPS:
-
-```bash
-sudo mkdir -p /srv/pirate-spaces/config /srv/pirate-spaces/data/subsd
-sudo cp ops/vps/community-protocol-subsd/env/subsd.env.example /srv/pirate-spaces/config/subsd.env
-sudo cp ops/vps/community-protocol-subsd/systemd/pirate-community-protocol-subsd.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now pirate-community-protocol-subsd.service
-```
-
-Then operate the parent Space once:
-
-```bash
-curl -fsS -X POST http://127.0.0.1:7777/spaces/%40pesto/operate
-curl -fsS http://127.0.0.1:7777/spaces/%40pesto
-```
-
-Set the issuer:
-
-```text
-COMMUNITY_PROTOCOL_ISSUER_SUBSD_BASE_URL=http://127.0.0.1:7777
-```
-
-If the issuer runs on a different host, use a private network URL or an SSH tunnel. Do not publish
-`subsd` on the internet.
+The former VPS procedure is intentionally withdrawn. Do not run the old systemd unit or operate a
+parent Space from this service until the rebuild exit criteria are met.

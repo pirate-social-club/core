@@ -45,6 +45,10 @@ has completed initial sync, reports `blocks == headers`, matches the configured
 network, and satisfies the configured maximum tip age. The observer has no
 wallet and no DNS-serving role.
 
+Neither this primary DNS host nor the independent secondary may hold the Handshake root wallet.
+Name renewal belongs to the separate, currently design-only
+[`hns-renewal-wallet`](../hns-renewal-wallet/README.md) host role.
+
 Required env (no defaults — a stale value here publishes records pointing at a
 machine we do not control):
 

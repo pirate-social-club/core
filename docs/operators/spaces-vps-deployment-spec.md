@@ -1,6 +1,11 @@
 # Spaces VPS Deployment Spec
 
-Status: production shape for the VPS-hosted Spaces verifier at `verifier.pirate.sc/spaces`
+Status: **NOT DEPLOYED**. This is the intended production shape; it is not evidence that
+`verifier.pirate.sc/spaces` is reachable or that Pirate can complete a Spaces verification.
+
+The previously used public address points at retired infrastructure. Treat health checks, DNS,
+TLS, API configuration, and one real end-to-end verification as cutover requirements, not as
+already-satisfied facts.
 
 Related:
 
@@ -17,13 +22,17 @@ Related:
 Run the Spaces verifier sidecar on the VPS so Pirate API can inspect Spaces roots and verify
 session-bound Fabric publishes without running `spaced` inside the API worker.
 
-The VPS-hosted slice provides:
+The deployable verification slice provides:
 
 - a persistent `spaced` instance
-- a separate protocol `spaced` instance for `subsd`
 - a colocated `spaces-verifier` HTTP service
 - outbound Bitcoin RPC access through Chainstack
 - a public HTTPS verifier endpoint for Pirate API
+
+Protocol subspace issuance is a separate, blocked slice. The former `subsd`/issuer source was
+removed from the API repository. Do not deploy `protocol-spaced`, the pinned historical `subsd`
+image, or enable `issuance_mode=spaces_subspace` until a replacement issuer has been designed,
+implemented, and exercised end to end. See `ops/vps/community-protocol-subsd/README.md`.
 
 `pirate-api` remains separately deployed. Its only cross-boundary contract is the verifier HTTP API.
 
@@ -60,8 +69,8 @@ The VPS checkout must preserve the repo tree. Do not flatten verifier files into
    - binds only to `127.0.0.1`
    - is reserved for the verification path
 
-2. `protocol-spaced`
-   - runs on the VPS
+2. `protocol-spaced` — **BLOCKED / NOT DEPLOYABLE**
+   - was intended to run on the VPS
    - stores protocol issuance chain/wallet state under `/srv/pirate-spaces/data/protocol-spaced`
    - uses a `spaces_client` build compatible with `subsd`
    - talks to Chainstack for Bitcoin RPC
@@ -74,8 +83,8 @@ The VPS checkout must preserve the repo tree. Do not flatten verifier files into
    - shells out to the prebuilt native verifier binary
    - binds to `127.0.0.1:4047`
 
-4. `community-protocol-subsd`
-   - runs on the VPS for protocol subspace issuance
+4. `community-protocol-subsd` — **BLOCKED / NOT DEPLOYABLE**
+   - was intended to run on the VPS for protocol subspace issuance
    - talks to `protocol-spaced` over `127.0.0.1`
    - keeps durable `subsd` state under `/srv/pirate-spaces/data/subsd`
    - binds internally on `127.0.0.1:7777` through host networking
@@ -91,11 +100,14 @@ The VPS checkout must preserve the repo tree. Do not flatten verifier files into
 
 ## Ports
 
-Recommended internal ports:
+Active verification ports:
 
 - `spaced`: `127.0.0.1:7225`
-- `protocol-spaced`: `127.0.0.1:7226`
 - `spaces-verifier`: `127.0.0.1:4047`
+
+Reserved historical protocol-issuance ports; do not bind them while that slice is blocked:
+
+- `protocol-spaced`: `127.0.0.1:7226`
 - `community-protocol-subsd`: `127.0.0.1:7777`
 
 Expose only the verifier over HTTPS. `spaced`, `protocol-spaced`, and `community-protocol-subsd`
@@ -110,7 +122,7 @@ must not be publicly reachable.
 - `BITCOIN_RPC_PASS`
 - `SPACED_DATA_DIR=/srv/pirate-spaces/data/spaced`
 
-`/srv/pirate-spaces/config/protocol-spaced.env`:
+Future `/srv/pirate-spaces/config/protocol-spaced.env` contract; do not render or deploy yet:
 
 - `SPACED_BIN=/srv/pirate-spaces/bin/spaced-0.1.1`
 - `SPACED_RPC_URL=http://127.0.0.1:7226`
@@ -140,27 +152,20 @@ Do not set `SPACES_NATIVE_ALLOW_BUILD_FALLBACK=true` on the VPS.
 Use `systemd` units:
 
 - `pirate-spaced.service`
-- `pirate-protocol-spaced.service`
 - `pirate-spaces-verifier.service`
 
-`pirate-spaces-verifier.service` runs:
+`pirate-spaces-verifier.service` runs from `/srv/pirate-spaces/app`:
 
 ```text
 bun services/verifier/spaces/src/server.ts
 ```
 
-`pirate-community-protocol-subsd.service` runs the pinned Docker image described in
-`ops/vps/community-protocol-subsd`.
+`pirate-community-protocol-subsd.service` is retained only as historical deployment evidence.
+Its pinned image must not be started; there is no supported issuer consumer for it.
 
-`pirate-protocol-spaced.service` must use a protocol-compatible `spaced` binary and its own data
-directory. Do not upgrade the verifier `spaced` in place unless the existing verifier data format
-has been tested against that exact binary.
-
-from:
-
-```text
-/srv/pirate-spaces/app
-```
+Do not install or start `pirate-protocol-spaced.service`. A future rebuild must use a
+protocol-compatible `spaced` binary and its own data directory. Do not upgrade the verifier
+`spaced` in place unless the existing verifier data format has been tested against that exact binary.
 
 ## Build Strategy
 
@@ -188,6 +193,8 @@ Do not compile Rust on each service restart.
 6. Confirm `GET https://verifier.pirate.sc/spaces/health`.
 7. Confirm `GET https://verifier.pirate.sc/spaces/inspect?root_label=@pirate`.
 8. Confirm `POST https://verifier.pirate.sc/spaces/verify-publish` with a known session challenge when available.
+
+This sequence brings up verification only. It does not enable community protocol issuance.
 
 ## Cutover Rule
 

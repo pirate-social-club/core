@@ -13,7 +13,7 @@ This keeps Pirate ownership and the Spaces product boundary visible from the rep
 
 | What it is | GitHub repo name | Status |
 | --- | --- | --- |
-| Live VPS verifier API | `pirate-spaces-verifier` | Active name if extracted; current source lives in `core` |
+| Intended VPS verifier API | `pirate-spaces-verifier` | Not deployed; active name if extracted, current source lives in `core` |
 | Fabric record publisher | `pirate-spaces-publisher` | Active |
 | Superseded digest-signing helper | `pirate-spaces-signer` | Archive |
 | Superseded Fabric publisher | `spaces-publisher` | Archive |
@@ -21,13 +21,14 @@ This keeps Pirate ownership and the Spaces product boundary visible from the rep
 
 ## Active Runtime Ownership
 
-The live verifier service currently stays in `core`:
+The verifier service source currently stays in `core`:
 
 - [services/verifier/spaces](../../services/verifier/spaces)
 - [ops/vps/spaces-verifier](../../ops/vps/spaces-verifier)
 
-It is deployed on the VPS behind `https://verifier.pirate.sc/spaces`. If this service is extracted into a
-standalone repo, use `pirate-spaces-verifier`.
+It is not deployed. `https://verifier.pirate.sc/spaces` is the intended cutover endpoint, not a
+current health claim. If this service is extracted into a standalone repo, use
+`pirate-spaces-verifier`.
 
 The active publisher CLI name is `pirate-spaces-publisher`. The local source used by this workspace
 lives at:

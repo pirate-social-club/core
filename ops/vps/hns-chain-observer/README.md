@@ -10,6 +10,9 @@ It is a prerequisite for enabling namespace attachment. It is not:
 - a wallet
 - a root-record signing or publishing service
 
+It also cannot renew a name. Renewal belongs to the separate, wallet-bearing
+[`hns-renewal-wallet`](../hns-renewal-wallet/README.md) trust role, which is currently design-only.
+
 ## Runtime
 
 The tracked runtime builds Handshake `hsd` v8.0.0 from its upstream release
