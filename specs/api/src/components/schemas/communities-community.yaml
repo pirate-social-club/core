@@ -1211,6 +1211,37 @@ CommunityPurchaseSettlement:
     settled_at:
       type: integer
       format: int64
+CommunityPurchaseSettlementPending:
+  type: object
+  description: |
+    Returned after a Story settlement plan has durable coordinator ownership but has not yet reached finality. Clients should poll by retrying the same idempotent settlement request; delivery remains unavailable until the canonical settlement response is returned.
+  required:
+    - object
+    - community
+    - quote
+    - purchase
+    - coordinator_plan_ref
+    - status
+  additionalProperties: false
+  properties:
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - community_purchase_settlement_pending
+    community:
+      type: string
+    quote:
+      type: string
+    purchase:
+      type: string
+    coordinator_plan_ref:
+      type: string
+      pattern: ^0x[0-9a-fA-F]{64}$
+    status:
+      type: string
+      enum:
+        - settlement_pending
 CommunityPurchaseSettlementFailureRequest:
   type: object
   description: |

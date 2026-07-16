@@ -1884,12 +1884,18 @@ paths:
             schema:
               $ref: "#/components/schemas/CommunityPurchaseSettlementRequest"
       responses:
-        "200":
+        "201":
           description: Community purchase settled
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/CommunityPurchaseSettlement"
+        "202":
+          description: Story settlement admitted and still awaiting finality
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityPurchaseSettlementPending"
         "401":
           $ref: "#/components/responses/AuthError"
         "404":

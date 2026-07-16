@@ -34,6 +34,7 @@ const EXPORTS = [
   { name: "CommunityPurchaseQuote", ref: "#/components/schemas/CommunityPurchaseQuote" },
   { name: "CommunityPurchaseSettlementRequest", ref: "#/components/schemas/CommunityPurchaseSettlementRequest" },
   { name: "CommunityPurchaseSettlement", ref: "#/components/schemas/CommunityPurchaseSettlement" },
+  { name: "CommunityPurchaseSettlementPending", ref: "#/components/schemas/CommunityPurchaseSettlementPending" },
   {
     name: "CommunityPurchaseSettlementFailureRequest",
     ref: "#/components/schemas/CommunityPurchaseSettlementFailureRequest",
