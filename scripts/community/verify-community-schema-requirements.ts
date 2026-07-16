@@ -43,6 +43,7 @@ import { writeFile } from "node:fs/promises"
 import { dirname, resolve } from "node:path"
 
 import { extractWranglerJson } from "./lib/fleet-d1-migration"
+import { partitionQuarantinedBindings } from "./lib/community-shard-quarantine"
 import { type Artifacts, artifactCount, expectedArtifacts } from "./community-schema-artifacts"
 
 type Requirements = {
@@ -125,6 +126,7 @@ type Options = {
   prod: boolean
   features: string[]
   manifest: string
+  quarantineRegistry: string
   concurrency: number
   cwd: string
 }
@@ -144,7 +146,7 @@ Verify that every LIVE community shard satisfies the pinned API's schema require
   bun scripts/community/verify-community-schema-requirements.ts \\
     --requirements <api>/services/api/community-schema-requirements.json \\
     --wrangler-config <api>/services/community-d1-shard/wrangler.jsonc \\
-    [--prod] [--features rewards] [--manifest PATH] [--concurrency N]
+    [--prod] [--features rewards] [--manifest PATH] [--quarantines PATH] [--concurrency N]
 
 READ-ONLY. Exits non-zero unless every allocated+loaded shard is satisfied.
 --features adds that feature's migrations to the required set; omit it and those
@@ -164,6 +166,7 @@ migrations are NOT required (that is how 1126 stays feature-conditional).
     prod,
     features: (get("--features") ?? "").split(",").map((f) => f.trim()).filter(Boolean),
     manifest: resolve(get("--manifest") ?? `tmp/community-schema-${prod ? "prod" : "staging"}.json`),
+    quarantineRegistry: resolve(get("--quarantines") ?? resolve(import.meta.dir, "community-shard-quarantines.json")),
     concurrency,
     cwd: dirname(resolve(wranglerConfig)),
   }
@@ -263,7 +266,15 @@ async function main() {
   const map = new Map<string, string>()
   for (const e of entries) if (e.binding.startsWith("DB_CMTY")) map.set(e.binding, e.database_name)
 
-  const bindings = await liveBindings(o)
+  const allocatedBindings = await liveBindings(o)
+  const partition = await partitionQuarantinedBindings(
+    o.quarantineRegistry,
+    o.prod ? "production" : "staging",
+    allocatedBindings,
+    new Set(map.keys()),
+  )
+  const bindings = partition.live
+  if (bindings.length === 0) throw new Error("quarantine policy leaves ZERO live shards; refusing to pass the release gate")
   const reports: ShardReport[] = []
   const targets: Array<{ binding: string; db: string }> = []
   for (const b of bindings) {
@@ -379,7 +390,12 @@ async function main() {
         features_checked: o.features,
         required_migrations: requiredSet,
         feature_migrations: featureRequired,
+        allocated_loaded_shards: allocatedBindings.length,
         live_shards: bindings.length,
+        quarantined_shards: partition.quarantined.length,
+        quarantine_registry: o.quarantineRegistry,
+        quarantine_registry_checksum: partition.registryChecksum,
+        quarantines: partition.quarantined,
         classified: reports.length,
         summary,
         shards: reports,
@@ -389,7 +405,7 @@ async function main() {
     )}\n`,
   )
 
-  console.log(`fleet=${o.prod ? "PRODUCTION" : "staging"}  live shards=${bindings.length}`)
+  console.log(`fleet=${o.prod ? "PRODUCTION" : "staging"}  allocated+loaded=${allocatedBindings.length}  live=${bindings.length}  quarantined=${partition.quarantined.length}`)
   console.log(`required (unconditional): ${req.unconditional.join(", ")}`)
   console.log(
     `required (features ${o.features.join(",") || "none"}): ${Object.values(featureRequired).flat().join(", ") || "none"}`,
@@ -418,7 +434,7 @@ async function main() {
     process.exit(2)
   }
 
-  console.log(`\nPASS: all ${bindings.length} live shards satisfy the pinned API's schema requirements.`)
+  console.log(`\nPASS: all ${bindings.length} live shards satisfy the pinned API's schema requirements; ${partition.quarantined.length} explicitly quarantined.`)
 }
 
 if (import.meta.main) await main()
