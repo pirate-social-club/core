@@ -29,6 +29,7 @@ tags:
   - name: Profiles
   - name: Public Names
   - name: Communities
+  - name: Gate Capabilities
   - name: Handles
   - name: Posts
   - name: Comments
@@ -478,6 +479,10 @@ paths:
     $ref: ./paths/jobs.yaml#/jobs
   /jobs/{job_id}:
     $ref: ./paths/jobs.yaml#/jobs_by_job_id
+  /gate-capabilities/nft/sources:
+    $ref: ./paths/gate-capabilities.yaml#/gate_capabilities_nft_sources
+  /gate-capabilities/nft/sources/{source_id}/facets/{facet_key}/values:
+    $ref: ./paths/gate-capabilities.yaml#/gate_capabilities_nft_source_facet_values
 components:
   securitySchemes:
     bearerAuth:
@@ -572,6 +577,18 @@ components:
     RateLimited:
       $ref: ./components/responses.yaml#/RateLimited
   schemas:
+    NftGateCapabilitySource:
+      $ref: ./components/schemas/gate-capabilities.yaml#/NftGateCapabilitySource
+    NftGateInventoryMatch:
+      $ref: ./components/schemas/gate-capabilities.yaml#/NftGateInventoryMatch
+    NftGateCapabilitySourceListResponse:
+      $ref: ./components/schemas/gate-capabilities.yaml#/NftGateCapabilitySourceListResponse
+    NftGateFacetValue:
+      $ref: ./components/schemas/gate-capabilities.yaml#/NftGateFacetValue
+    NftGateFacetValuePage:
+      $ref: ./components/schemas/gate-capabilities.yaml#/NftGateFacetValuePage
+    NftGateCatalogUnavailableResponse:
+      $ref: ./components/schemas/gate-capabilities.yaml#/NftGateCatalogUnavailableResponse
     Error:
       $ref: ./components/schemas/common.yaml#/Error
     SongStudyPayload:
