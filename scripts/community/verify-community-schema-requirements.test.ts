@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 
-import { buildProbe, validateRequirements } from "./verify-community-schema-requirements"
+import { buildProbe, validateRequirements, wranglerFailureDetail } from "./verify-community-schema-requirements"
 
 const base = {
   version: 1,
@@ -54,5 +54,26 @@ describe("schema requirements probe", () => {
     expect(probe).toContain(
       "SELECT COUNT(*) = 0 FROM sqlite_master WHERE type='index' AND name='idx_namespace_bindings_active_community'",
     )
+  })
+})
+
+describe("wrangler failure diagnostics", () => {
+  test("surfaces the stdout JSON error instead of stderr configuration warnings", () => {
+    const stdout = JSON.stringify({
+      error: {
+        text: "request path containing a database id failed",
+        notes: [{ text: "internal error; reference = ref_123 [code: 7500]" }],
+        name: "APIError",
+        code: 7500,
+        accountTag: "secret-account-id",
+      },
+    })
+    expect(wranglerFailureDetail(stdout, "very long configuration warning")).toBe(
+      "APIError code=7500: internal error; reference = ref_123 [code: 7500]",
+    )
+  })
+
+  test("bounds an unstructured fallback", () => {
+    expect(wranglerFailureDetail("", "x".repeat(3_000))).toBe(`${"x".repeat(2_000)}…`)
   })
 })
