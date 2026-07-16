@@ -1,5 +1,7 @@
 # Spaces Verifier VPS Assets
 
+Status: **NOT DEPLOYED**. These are tracked deployment assets, not evidence of a live verifier.
+
 This directory contains tracked deployment assets for the VPS-hosted Spaces verification slice.
 
 Use it together with the runtime code in
