@@ -184,4 +184,18 @@ describe("expectedArtifacts — real migration files", () => {
     expect(a.unrecognized).toEqual([])
     expect(artifactCount(a)).toBe(11)
   })
+
+  test("1135_namespace_handle_claim_gates: policy selectors + versioned expression table", () => {
+    const a = expectedArtifacts(readMigration("1135_namespace_handle_claim_gates.sql"))
+    expect(a.columns).toEqual([
+      ["namespace_handle_policies", "claim_gate_mode"],
+      ["namespace_handle_policies", "claim_gate_expression_ref"],
+      ["namespace_handle_policies", "eligibility_timing"],
+    ])
+    expect(a.tables).toEqual(["namespace_handle_claim_gate_policies"])
+    expect(a.indexes).toEqual(["idx_namespace_handle_claim_gate_policies_updated"])
+    expect(a.altered).toEqual(["namespace_handle_policies"])
+    expect(a.unrecognized).toEqual([])
+    expect(artifactCount(a)).toBe(5)
+  })
 })

@@ -238,6 +238,10 @@ CommunityHandlePolicy:
     - policy_template
     - pricing_model
     - claims_enabled
+    - claim_gate_mode
+    - claim_gate_expression_ref
+    - claim_gate_expression
+    - eligibility_timing
     - settings
     - updated_at
   properties:
@@ -270,6 +274,24 @@ CommunityHandlePolicy:
       nullable: true
     claims_enabled:
       type: boolean
+    claim_gate_mode:
+      type: string
+      enum:
+        - none
+        - inherit_community
+        - explicit
+    claim_gate_expression_ref:
+      type: string
+      nullable: true
+      readOnly: true
+    claim_gate_expression:
+      $ref: ./communities-core.yaml#/GatePolicy
+      nullable: true
+    eligibility_timing:
+      type: string
+      enum:
+        - claim_time
+        - continuous
     settings:
       $ref: ./handles.yaml#/CommunityHandlePolicySettings
     updated_at:
@@ -295,6 +317,20 @@ UpdateCommunityHandlePolicyRequest:
         - gated_then_flat
     claims_enabled:
       type: boolean
+    claim_gate_mode:
+      type: string
+      enum:
+        - none
+        - inherit_community
+        - explicit
+    claim_gate_expression:
+      $ref: ./communities-core.yaml#/GatePolicy
+      nullable: true
+    eligibility_timing:
+      type: string
+      enum:
+        - claim_time
+        - continuous
     settings:
       $ref: ./handles.yaml#/CommunityHandlePolicySettings
       nullable: true
