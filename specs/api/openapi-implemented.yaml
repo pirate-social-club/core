@@ -4961,6 +4961,29 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /gate-capabilities/assets:
+    get:
+      tags:
+        - Gate Capabilities
+      summary: List supported asset-balance gate assets
+      description: |
+        Returns the canonical server-owned asset registry available to authenticated authoring
+        clients. Display metadata is advisory; the canonical CAIP-19 asset id and save-time server
+        validation remain authoritative. RPC endpoints and provider credentials are never exposed.
+      operationId: listAssetBalanceGateCapabilities
+      responses:
+        "200":
+          description: Supported asset-balance gate assets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssetBalanceCapabilityListResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /gate-capabilities/nft/sources/{source_id}/facets/{facet_key}/values:
     get:
       tags:
@@ -5365,6 +5388,55 @@ components:
           $ref: "#/components/schemas/NftGateInventoryMatch"
         min_quantity_supported:
           type: boolean
+    AssetBalanceCapability:
+      type: object
+      additionalProperties: false
+      required:
+        - asset_id
+        - label
+        - chain_namespace
+        - standard
+        - symbol
+        - decimals
+      properties:
+        asset_id:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: Canonical CAIP-19 asset identifier accepted in an asset_balance atom.
+        label:
+          type: string
+          minLength: 1
+          maxLength: 160
+        chain_namespace:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: CAIP-2 chain id embedded in asset_id.
+        standard:
+          type: string
+          enum:
+            - native
+            - erc20
+        symbol:
+          type: string
+          minLength: 1
+          maxLength: 32
+        decimals:
+          type: integer
+          minimum: 0
+          maximum: 255
+    AssetBalanceCapabilityListResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - assets
+      properties:
+        assets:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/AssetBalanceCapability"
     NftGateInventoryMatch:
       type: object
       maxProperties: 32
