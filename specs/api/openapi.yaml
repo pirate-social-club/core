@@ -6932,6 +6932,7 @@ paths:
           $ref: "#/components/responses/NotFound"
   /gate-capabilities/nft/sources:
     get:
+      x-implemented: true
       tags:
         - Gate Capabilities
       summary: List trusted NFT gate authoring sources
@@ -6955,6 +6956,7 @@ paths:
           $ref: "#/components/responses/RateLimited"
   /gate-capabilities/nft/sources/{source_id}/facets/{facet_key}/values:
     get:
+      x-implemented: true
       tags:
         - Gate Capabilities
       summary: Search trusted NFT facet values

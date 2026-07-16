@@ -28,6 +28,7 @@ tags:
   - name: Profiles
   - name: Public Names
   - name: Communities
+  - name: Gate Capabilities
   - name: Posts
   - name: Comments
   - name: Livestreams
@@ -4931,6 +4932,98 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
+  /gate-capabilities/nft/sources:
+    get:
+      tags:
+        - Gate Capabilities
+      summary: List trusted NFT gate authoring sources
+      description: |
+        Returns stable Pirate source descriptors available to an authenticated community moderator.
+        The response is advisory; save-time gate validation remains authoritative. Vendor index names,
+        endpoints, and credentials are never exposed through this surface.
+      operationId: listNftGateCapabilitySources
+      responses:
+        "200":
+          description: Trusted NFT gate authoring sources
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NftGateCapabilitySourceListResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /gate-capabilities/nft/sources/{source_id}/facets/{facet_key}/values:
+    get:
+      tags:
+        - Gate Capabilities
+      summary: Search trusted NFT facet values
+      description: |
+        Searches one canonical facet within a trusted source. Empty queries return a bounded leading
+        page and never materialize the complete upstream dictionary. A source outage is explicit and
+        must not be interpreted as an empty successful result.
+      operationId: searchNftGateFacetValues
+      parameters:
+        - name: source_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+        - name: facet_key
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 120
+            default: ""
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 512
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 25
+      responses:
+        "200":
+          description: Canonical facet-value page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NftGateFacetValuePage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: No usable current or last-known-good catalog data is available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NftGateCatalogUnavailableResponse"
 components:
   securitySchemes:
     bearerAuth:
