@@ -47,9 +47,11 @@ import { partitionQuarantinedBindings } from "./lib/community-shard-quarantine"
 import { type Artifacts, artifactCount, expectedArtifacts } from "./community-schema-artifacts"
 
 type Requirements = {
+  $comment?: string | string[]
   version: number
   unconditional: string[]
   features?: Record<string, { flags: string[]; migrations: string[]; note?: string }>
+  deferred?: Record<string, { rationale: string }>
   /**
    * Migrations the gate cannot attest by schema (triggers, views, drops, data
    * migrations) — checked by ledger checksum ONLY. Each MUST carry a rationale,
@@ -57,6 +59,54 @@ type Requirements = {
    * gap. Keying by migration filename.
    */
   ledger_only?: Record<string, string>
+}
+
+const REQUIREMENT_KEYS = new Set(["$comment", "version", "unconditional", "features", "deferred", "ledger_only"])
+
+/** Parse policy as data, not TypeScript wishful thinking. Unknown or overlapping
+ * classes are blocking so a plausible-looking manifest field can never be inert. */
+export function validateRequirements(value: unknown, source = "requirements manifest"): Requirements {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${source}: expected a JSON object`)
+  }
+  const raw = value as Record<string, unknown>
+  const unknown = Object.keys(raw).filter((key) => !REQUIREMENT_KEYS.has(key))
+  if (unknown.length > 0) throw new Error(`${source}: unknown top-level key(s): ${unknown.join(", ")}`)
+  if (raw.version !== 1) throw new Error(`${source}: unsupported version ${String(raw.version)}`)
+  if (!Array.isArray(raw.unconditional) || raw.unconditional.some((name) => typeof name !== "string" || !name)) {
+    throw new Error(`${source}: unconditional must be an array of migration filenames`)
+  }
+  const features = raw.features ?? {}
+  const deferred = raw.deferred ?? {}
+  if (!features || typeof features !== "object" || Array.isArray(features)) {
+    throw new Error(`${source}: features must be an object`)
+  }
+  if (!deferred || typeof deferred !== "object" || Array.isArray(deferred)) {
+    throw new Error(`${source}: deferred must be an object`)
+  }
+  const classes = new Map<string, string>()
+  const claim = (migration: string, policyClass: string) => {
+    const prior = classes.get(migration)
+    if (prior) throw new Error(`${source}: ${migration} overlaps policy classes ${prior} and ${policyClass}`)
+    classes.set(migration, policyClass)
+  }
+  for (const migration of raw.unconditional as string[]) claim(migration, "unconditional")
+  for (const [feature, spec] of Object.entries(features as Record<string, any>)) {
+    if (!spec || !Array.isArray(spec.flags) || !Array.isArray(spec.migrations)) {
+      throw new Error(`${source}: feature ${feature} requires flags and migrations arrays`)
+    }
+    for (const migration of spec.migrations) {
+      if (typeof migration !== "string" || !migration) throw new Error(`${source}: feature ${feature} has an invalid migration`)
+      claim(migration, `features.${feature}`)
+    }
+  }
+  for (const [migration, spec] of Object.entries(deferred as Record<string, any>)) {
+    if (!spec || typeof spec.rationale !== "string" || !spec.rationale.trim()) {
+      throw new Error(`${source}: deferred ${migration} requires a rationale`)
+    }
+    claim(migration, "deferred")
+  }
+  return raw as Requirements
 }
 
 type ShardStatus =
@@ -210,7 +260,7 @@ async function liveBindings(o: Options): Promise<string[]> {
 
 async function main() {
   const o = parseArgs()
-  const req: Requirements = JSON.parse(await readFile(o.requirements, "utf8"))
+  const req = validateRequirements(JSON.parse(await readFile(o.requirements, "utf8")), o.requirements)
 
   const required = [...req.unconditional]
   const featureRequired: Record<string, string[]> = {}
