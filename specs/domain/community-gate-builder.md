@@ -346,9 +346,10 @@ GET /gate-capabilities/nft?chain=eip155:1&contract=0x...
   (b) staging e2e with `ZKPASSPORT_DEV_MODE`, and (c) the product decision
   that passport-NFC uniqueness should count as personhood. This decides the
   Personhood chip set here and the verified-badge population.
-- Fungible/native balance gates: new atom family, out of scope for this spec
-  (ETH/ERC-20 first; BTC/SOL blocked on wallet-attachment rails; USD
-  denomination requires an oracle policy).
+- Fungible/native balance gates: the provider-neutral `asset_balance` family is defined in
+  `community-asset-balance-gates.md`; implementation remains out of scope for this builder spec
+  (ETH/ERC-20 first; Bitcoin has an attachment rail but still needs a UTXO evaluator; Solana still
+  needs its wallet-proof rail; USD denomination requires an oracle policy).
 
 ## Non-goals
 
