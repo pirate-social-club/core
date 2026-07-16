@@ -142,4 +142,26 @@ describe("expectedArtifacts — real migration files", () => {
       db.close()
     }
   })
+
+  test("1134_story_settlement_coordinator_mirror: effect columns + transaction table + fencing indexes", () => {
+    const a = expectedArtifacts(readMigration("1134_story_settlement_coordinator_mirror.sql"))
+    expect(a.columns).toEqual([
+      ["purchase_settlement_effects", "request_fingerprint"],
+      ["purchase_settlement_effects", "coordinator_plan_ref"],
+      ["purchase_settlement_effects", "coordinator_state"],
+      ["purchase_settlement_effects", "coordinator_version"],
+      ["purchase_settlement_effects", "reconciliation_reason"],
+      ["purchase_settlement_effects", "last_reconciled_at"],
+      ["purchase_settlement_effects", "finality_confirmed_at"],
+    ])
+    expect(a.tables).toEqual(["purchase_settlement_transactions"])
+    expect(a.indexes).toEqual([
+      "idx_purchase_settlement_transactions_effect_step",
+      "idx_purchase_settlement_transactions_coordinator_step",
+      "idx_purchase_settlement_transactions_signer_nonce",
+    ])
+    expect(a.altered).toEqual(["purchase_settlement_effects"])
+    expect(a.unrecognized).toEqual([])
+    expect(artifactCount(a)).toBe(11)
+  })
 })

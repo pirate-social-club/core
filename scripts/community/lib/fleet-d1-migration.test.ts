@@ -7,6 +7,7 @@ import { SPEC as STORY_SPEC } from "../apply-story-metadata-refs-d1-migration"
 import { SPEC as STUDY_RUN_SPEC } from "../apply-song-study-generation-runs-d1-migration"
 import { SPEC as SETTLEMENT_RECOVERY_SPEC } from "../apply-paid-purchase-settlement-recovery-d1-migration"
 import { SPEC as MULTI_NAMESPACE_SPEC } from "../apply-multi-namespace-bindings-d1-migration"
+import { SPEC as STORY_SETTLEMENT_MIRROR_SPEC } from "../apply-story-settlement-coordinator-mirror-d1-migration"
 import {
   BLOCKING_STATUSES,
   classificationSql,
@@ -71,6 +72,21 @@ describe("executionBody — the exact bytes sent to D1", () => {
     expect(sql).toContain("obj_namespace_bindings__namespace_role")
     expect(sql).toContain("obj_index__idx_namespace_bindings_active_primary_community")
     expect(sql).toContain("obj_index__idx_namespace_bindings_active_verification")
+  })
+
+  test("1134 keeps the effect mirror, transaction journal, fencing indexes, and ledger together", () => {
+    const body = executionBody(
+      realMigration(STORY_SETTLEMENT_MIRROR_SPEC),
+      STORY_SETTLEMENT_MIRROR_SPEC,
+      CHECKSUM,
+    )
+    expect(body).toContain("ADD COLUMN request_fingerprint")
+    expect(body).toContain("ADD COLUMN coordinator_plan_ref")
+    expect(body).toContain("CREATE TABLE purchase_settlement_transactions")
+    expect(body).toContain("idx_purchase_settlement_transactions_effect_step")
+    expect(body).toContain("idx_purchase_settlement_transactions_coordinator_step")
+    expect(body).toContain("idx_purchase_settlement_transactions_signer_nonce")
+    expect(body).toContain("1134_story_settlement_coordinator_mirror.sql")
   })
 
   test("the migration SQL is passed through verbatim — never parsed or rewritten", () => {
@@ -139,6 +155,46 @@ function bareMultiNamespaceRow(overrides: Record<string, number | string> = {}) 
   }
 }
 
+function bareStorySettlementMirrorRow(overrides: Record<string, number | string> = {}) {
+  return {
+    has_ledger: 1,
+    ledger_checksum: "",
+    req_purchase_settlement_effects: 1,
+    obj_purchase_settlement_effects__request_fingerprint: 0,
+    obj_purchase_settlement_effects__coordinator_plan_ref: 0,
+    obj_purchase_settlement_effects__coordinator_state: 0,
+    obj_purchase_settlement_effects__coordinator_version: 0,
+    obj_purchase_settlement_effects__reconciliation_reason: 0,
+    obj_purchase_settlement_effects__last_reconciled_at: 0,
+    obj_purchase_settlement_effects__finality_confirmed_at: 0,
+    obj_purchase_settlement_transactions__purchase_settlement_transaction_id: 0,
+    obj_purchase_settlement_transactions__purchase_settlement_effect_id: 0,
+    obj_purchase_settlement_transactions__step_key: 0,
+    obj_purchase_settlement_transactions__step_kind: 0,
+    obj_purchase_settlement_transactions__ordinal: 0,
+    obj_purchase_settlement_transactions__call_identity_hash: 0,
+    obj_purchase_settlement_transactions__coordinator_step_ref: 0,
+    obj_purchase_settlement_transactions__state: 0,
+    obj_purchase_settlement_transactions__chain_id: 0,
+    obj_purchase_settlement_transactions__signer_address: 0,
+    obj_purchase_settlement_transactions__nonce: 0,
+    obj_purchase_settlement_transactions__tx_hash: 0,
+    obj_purchase_settlement_transactions__block_number: 0,
+    obj_purchase_settlement_transactions__block_hash: 0,
+    obj_purchase_settlement_transactions__attempt_count: 0,
+    obj_purchase_settlement_transactions__last_error_code: 0,
+    obj_purchase_settlement_transactions__prepared_at: 0,
+    obj_purchase_settlement_transactions__broadcast_at: 0,
+    obj_purchase_settlement_transactions__mined_at: 0,
+    obj_purchase_settlement_transactions__confirmed_at: 0,
+    obj_purchase_settlement_transactions__updated_at: 0,
+    obj_index__idx_purchase_settlement_transactions_effect_step: 0,
+    obj_index__idx_purchase_settlement_transactions_coordinator_step: 0,
+    obj_index__idx_purchase_settlement_transactions_signer_nonce: 0,
+    ...overrides,
+  }
+}
+
 describe("classifyRow — 1133 mixed schema objects", () => {
   test("a role column without both replacement indexes is a blocking partial state", () => {
     expect(classifyRow(MULTI_NAMESPACE_SPEC, bareMultiNamespaceRow({
@@ -148,6 +204,34 @@ describe("classifyRow — 1133 mixed schema objects", () => {
       status: "partial_objects",
       detail: "present: namespace_bindings__namespace_role, index__idx_namespace_bindings_active_primary_community",
     })
+  })
+})
+
+describe("classifyRow — 1134 Story settlement coordinator mirror", () => {
+  test("a partially-created transaction mirror blocks fleet rollout", () => {
+    const result = classifyRow(
+      STORY_SETTLEMENT_MIRROR_SPEC,
+      bareStorySettlementMirrorRow({
+        obj_purchase_settlement_effects__request_fingerprint: 1,
+        obj_purchase_settlement_effects__coordinator_plan_ref: 1,
+        obj_index__idx_purchase_settlement_transactions_effect_step: 1,
+      }),
+      CHECKSUM,
+    )
+    expect(result.status).toBe("partial_objects")
+    expect(result.detail).toContain("purchase_settlement_effects__request_fingerprint")
+    expect(result.detail).toContain("index__idx_purchase_settlement_transactions_effect_step")
+  })
+
+  test("all mirror objects with no ledger row backfill the ledger without replaying DDL", () => {
+    const present = Object.fromEntries(
+      Object.keys(bareStorySettlementMirrorRow())
+        .filter((key) => key.startsWith("obj_"))
+        .map((key) => [key, 1]),
+    )
+    expect(
+      classifyRow(STORY_SETTLEMENT_MIRROR_SPEC, bareStorySettlementMirrorRow(present), CHECKSUM),
+    ).toEqual({ status: "needs_ledger_backfill" })
   })
 })
 
