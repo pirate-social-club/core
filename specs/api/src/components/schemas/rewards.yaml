@@ -264,6 +264,7 @@ PublicRewardOffer:
     - eligible_activity
     - min_score_bps
     - daily_reward_cents
+    - chain_id
     - ends_at
   properties:
     eligible_activity:
@@ -276,6 +277,10 @@ PublicRewardOffer:
     daily_reward_cents:
       type: integer
       minimum: 1
+    chain_id:
+      type: integer
+      minimum: 0
+      description: EVM chain ID of the USDC reward settlement network.
     ends_at:
       type: integer
       format: int64
