@@ -2,7 +2,7 @@
 
 export type VerificationCapabilityState = {
   state: "unverified" | "pending" | "verified" | "expired";
-  provider?: "self" | "very" | null;
+  provider?: "self" | "zkpassport" | "very" | null;
   proof_type?: "unique_human" | null;
   mechanism?: string | null;
   verified_at?: number | null;
@@ -71,7 +71,7 @@ export type User = {
   }) | null;
   primary_wallet_attachment?: string | null;
   verification_state: "unverified" | "pending" | "verified" | "reverification_required";
-  capability_provider?: "self" | "very" | null;
+  capability_provider?: "self" | "zkpassport" | "very" | null;
   verification_capabilities: VerificationCapabilities;
   verified_at?: number | null;
   created: number;
@@ -1075,6 +1075,7 @@ type DonationPartnerSummary = {
 };
 
 type GateAtom = {
+  gate_id?: string;
   type: "unique_human" | "minimum_age" | "nationality" | "gender" | "wallet_score" | "altcha_pow" | "erc721_holding" | "erc721_inventory_match" | "asset_balance";
   provider?: "self" | "zkpassport" | "very" | "passport" | "courtyard" | "altcha" | null;
   accepted_providers?: Array<"self" | "zkpassport"> | null;
