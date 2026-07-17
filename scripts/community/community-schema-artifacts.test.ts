@@ -211,4 +211,14 @@ describe("expectedArtifacts — real migration files", () => {
     expect(a.unrecognized).toEqual([])
     expect(artifactCount(a)).toBe(3)
   })
+
+  test("1137_community_handle_payment_reservation_cap: one active payment per user", () => {
+    const a = expectedArtifacts(readMigration("1137_community_handle_payment_reservation_cap.sql"))
+    expect(a.columns).toEqual([])
+    expect(a.tables).toEqual([])
+    expect(a.indexes).toEqual(["idx_community_handle_label_reservations_active_payment_user"])
+    expect(a.altered).toEqual([])
+    expect(a.unrecognized).toEqual([])
+    expect(artifactCount(a)).toBe(1)
+  })
 })
