@@ -2,6 +2,25 @@
 
 Status: current working spec
 
+Implementation status (2026-07-17):
+
+- implemented in production: namespace-scoped quotes and claims (USD-cent pricing settled via
+  USDC checkout), per-namespace handle policies and inventories including mirrors, claim
+  eligibility gates (`claim_gate_mode = none | inherit_community | explicit`, including EVM
+  asset-balance gate sources) enforced at claim time with non-consumptive holdings, owner
+  reserve/revoke, reserved labels with per-label pricing, generated `.pirate` onboarding
+  handles, paid `.pirate` upgrades
+- claims for newly attached namespaces default to disabled; owners must deliberately configure
+  policy and enable commerce
+- protocol-level Spaces sub-space issuance (`spaces_subspace`) is disabled while the issuer
+  stack is unavailable; namespace bindings without a policy row fail closed
+- not yet implemented: lease/grace/renewal lifecycle (claimed handles are currently perpetual;
+  the perpetual-versus-lease decision is open), auctions, transfers, trust discounts,
+  club-custom generated-name ontologies, claim rate limiting and bot protection, platform-wide
+  reserved root-label enforcement
+- externally resolvable handles additionally depend on the verification and authoritative-DNS
+  infrastructure, which is not yet deployed
+
 Related docs:
 
 - [community.md](./community.md)

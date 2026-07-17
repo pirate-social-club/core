@@ -71,12 +71,13 @@ Rules:
 - the corresponding external root must already exist and be controlled by the creator at community creation time
 - a club has exactly one active primary namespace and may attach multiple independently verified namespace mirrors
 
-Implementation status (2026-07-16):
+Implementation status (2026-07-17):
 
 - control-plane migration `0145` introduces the community-to-verification binding collection and backfills the existing scalar namespace as `primary`
-- community-shard migration `1133` replaces the one-active-namespace constraint with one active primary plus multiple active mirrors
+- community-shard migration `1133` replaces the one-active-namespace constraint with one active primary plus multiple active mirrors; both migrations are applied fleet-wide in production
 - `communities.namespace_verification_id` remains a transitional compatibility projection of the active primary; new code must use the binding collection when enumerating or resolving all namespaces
-- namespace-addressed APIs, public mirror routing, and the multi-namespace UI remain rollout work and must not be inferred merely from schema presence
+- namespace-addressed handle/policy APIs, mirror route resolution, and the multi-namespace claim UI (namespace picker, per-namespace policy, route-family-correct handle rendering) are shipped to production
+- live attachment of new roots still requires the verification and authoritative-DNS infrastructure to be deployed; external resolution of any namespace remains pending that same infrastructure
 
 ## Community-Local User Handles
 
