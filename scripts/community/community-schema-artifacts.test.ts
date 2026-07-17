@@ -198,4 +198,17 @@ describe("expectedArtifacts — real migration files", () => {
     expect(a.unrecognized).toEqual([])
     expect(artifactCount(a)).toBe(5)
   })
+
+  test("1136_community_handle_label_reservations: shared acquisition mutex", () => {
+    const a = expectedArtifacts(readMigration("1136_community_handle_label_reservations.sql"))
+    expect(a.columns).toEqual([])
+    expect(a.tables).toEqual(["community_handle_label_reservations"])
+    expect(a.indexes).toEqual([
+      "idx_community_handle_label_reservations_active_label",
+      "idx_community_handle_label_reservations_active_expiry",
+    ])
+    expect(a.altered).toEqual([])
+    expect(a.unrecognized).toEqual([])
+    expect(artifactCount(a)).toBe(3)
+  })
 })
