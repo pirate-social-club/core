@@ -1412,6 +1412,13 @@ MembershipGateSummary:
   required:
     - gate_type
   properties:
+    gate_id:
+      type: string
+      nullable: true
+      pattern: ^[A-Za-z0-9_-]{1,64}$
+      description: >-
+        Opaque identity of the policy atom represented by this summary. Unique within a policy and
+        stable across reordering and edits. Null only for legacy policies not yet assigned identities.
     gate_type:
       type: string
       enum:
@@ -2060,6 +2067,12 @@ GateAtom:
   required:
     - type
   properties:
+    gate_id:
+      type: string
+      pattern: ^[A-Za-z0-9_-]{1,64}$
+      description: >-
+        Opaque identity for this atom, unique within its policy and stable across reordering and edits.
+        Optional only to permit migration of policies created before gate identities were introduced.
     type:
       type: string
       enum:
@@ -2159,6 +2172,24 @@ GateTraceNode:
         - or
     gate_type:
       type: string
+    gate_id:
+      type: string
+      nullable: true
+      pattern: ^[A-Za-z0-9_-]{1,64}$
+      description: >-
+        Identity copied from the evaluated policy atom. Null only while evaluating a legacy atom that
+        has not yet been assigned an identity.
+    outcome:
+      type: string
+      nullable: true
+      enum:
+        - passed
+        - action_required
+        - terminal_mismatch
+        - provider_unavailable
+      description: >-
+        Classified evaluation result for a gate leaf. Null on operator nodes and legacy responses.
+        Clients should use this field instead of inferring availability or remediation from reason text.
     provider:
       type: string
     passed:
