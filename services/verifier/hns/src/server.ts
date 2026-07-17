@@ -71,7 +71,6 @@ const defaultTlsaTtl = parseTlsaTtl(Bun.env.HNS_AUTHORITATIVE_TLSA_TTL, defaultT
 const defaultSecureNewZones = Bun.env.PDNS_SECURE_NEW_ZONES?.trim().toLowerCase() === "true";
 const OWNER_MANAGED_OBSERVATION_PROVIDER = "hns_parent_chain";
 const ownerManagedResolverTimeoutMs = Number(Bun.env.HNS_OWNER_MANAGED_RESOLVER_TIMEOUT_MS || "2500");
-const defaultHnsRootResourceUrlTemplate = "https://shakeshift.com/name/{root}/resources?fetch=main";
 const HNS_CHAIN_OBSERVATION_PROVIDER = "hsd_json_rpc";
 const HNS_CHAIN_MIN_VERIFICATION_PROGRESS = 0.999;
 const HNS_CHAIN_MAX_FUTURE_BLOCK_SECONDS = 2 * 60 * 60;
@@ -110,15 +109,7 @@ function isOwnerManagedResolverConfigured(): boolean {
 }
 
 function isOwnerManagedRootResourceConfigured(): boolean {
-  return getHnsRootResourceUrlTemplate().length > 0;
-}
-
-function getHnsRootResourceUrlTemplate(): string {
-  return Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE?.trim() ?? defaultHnsRootResourceUrlTemplate;
-}
-
-function getHnsRootResourceTimeoutMs(): number {
-  return Number(Bun.env.HNS_ROOT_RESOURCE_TIMEOUT_MS || "4000");
+  return Boolean(getHnsChainRpcUrl() && getHnsChainRpcApiKey());
 }
 
 function getHnsChainRpcUrl(): string | null {
@@ -319,26 +310,6 @@ async function resolveOwnerManagedTxt(name: string): Promise<string[]> {
       .filter(Boolean);
   } catch {
     return [];
-  }
-}
-
-async function withRootResourceTimeout<T>(operation: Promise<T>): Promise<T> {
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-
-  try {
-    return await Promise.race([
-      operation,
-      new Promise<never>((_, reject) => {
-        timeout = setTimeout(
-          () => reject(new Error("HNS root resource query timed out")),
-          getHnsRootResourceTimeoutMs(),
-        );
-      }),
-    ]);
-  } finally {
-    if (timeout) {
-      clearTimeout(timeout);
-    }
   }
 }
 
@@ -553,76 +524,23 @@ async function inspectExpiryHorizon(rootLabel: string): Promise<ExpiryEvidence> 
   }
 }
 
-function readDnsNameFromResource(buffer: Buffer, offset: number): { name: string; offset: number } {
-  const labels: string[] = [];
-  let cursor = offset;
-
-  while (cursor < buffer.length) {
-    const length = buffer[cursor];
-    cursor += 1;
-    if (length === 0) {
-      return { name: `${labels.join(".")}.`, offset: cursor };
-    }
-
-    if (cursor + length > buffer.length) {
-      throw new Error("invalid HNS resource name");
-    }
-
-    labels.push(buffer.subarray(cursor, cursor + length).toString("ascii"));
-    cursor += length;
+function parseHnsRootResource(payload: unknown): { nameservers: string[]; txtValues: string[] } | null {
+  if (typeof payload !== "object" || payload == null || !("records" in payload)
+    || !Array.isArray(payload.records)) {
+    return null;
   }
 
-  throw new Error("unterminated HNS resource name");
-}
-
-function decodeHnsResourceHex(rawHex: string): { nameservers: string[]; txtValues: string[] } {
-  const buffer = Buffer.from(rawHex, "hex");
   const nameservers: string[] = [];
   const txtValues: string[] = [];
-  let offset = buffer[0] === 0 ? 1 : 0;
-
-  while (offset < buffer.length) {
-    const type = buffer[offset];
-    offset += 1;
-
-    if (type === 1) {
-      const decoded = readDnsNameFromResource(buffer, offset);
-      nameservers.push(normalizeNsRecord(decoded.name));
-      offset = decoded.offset;
-      continue;
+  for (const record of payload.records) {
+    if (typeof record !== "object" || record == null || !("type" in record)) continue;
+    const typedRecord = record as Record<string, unknown>;
+    if (typedRecord.type === "NS" && typeof typedRecord.ns === "string") {
+      nameservers.push(normalizeNsRecord(typedRecord.ns));
+    } else if (typedRecord.type === "TXT" && Array.isArray(typedRecord.txt)
+      && typedRecord.txt.every((chunk) => typeof chunk === "string")) {
+      txtValues.push(normalizeTxtRecordContent(typedRecord.txt.join("")));
     }
-
-    if (type === 6) {
-      const chunkCount = buffer[offset] ?? 0;
-      offset += 1;
-      const chunks: string[] = [];
-
-      for (let index = 0; index < chunkCount; index += 1) {
-        const length = buffer[offset];
-        offset += 1;
-        if (offset + length > buffer.length) {
-          throw new Error("invalid HNS TXT resource");
-        }
-        chunks.push(buffer.subarray(offset, offset + length).toString("utf8"));
-        offset += length;
-      }
-
-      txtValues.push(normalizeTxtRecordContent(chunks.join("")));
-      continue;
-    }
-
-    if (type === 0) {
-      offset += 5 + (buffer[offset + 4] ?? 0);
-      continue;
-    }
-
-    if (type === 2) {
-      const decoded = readDnsNameFromResource(buffer, offset);
-      offset = decoded.offset + 4;
-      continue;
-    }
-
-    throw new Error(`unsupported HNS resource record type ${type}`);
   }
 
   return {
@@ -631,41 +549,17 @@ function decodeHnsResourceHex(rawHex: string): { nameservers: string[]; txtValue
   };
 }
 
-function extractLiveResourceHexFromExplorerPayload(payload: unknown): string | null {
-  const html = Array.isArray(payload) && typeof payload[2] === "object" && payload[2] != null
-    && "html" in payload[2] && typeof payload[2].html === "string"
-    ? payload[2].html
-    : null;
-  if (!html) {
-    return null;
-  }
-
-  const liveResourceMatch = html.match(/<strong class="highlight-green">Live<\/strong>[\s\S]*?<div class="tab-raw">([0-9a-f]+)<\/div>/i);
-  return liveResourceMatch?.[1] ?? null;
-}
-
 async function fetchOwnerManagedRootResource(rootLabel: string): Promise<{
   nameservers: string[];
   txtValues: string[];
 } | null> {
   const normalizedRoot = normalizeRootLabel(rootLabel);
-  const urlTemplate = getHnsRootResourceUrlTemplate();
-  if (!urlTemplate) {
+  if (!isOwnerManagedRootResourceConfigured()) {
     return null;
   }
-  const url = urlTemplate.replace("{root}", encodeURIComponent(normalizedRoot));
 
   try {
-    const response = await withRootResourceTimeout(fetch(url, {
-      headers: { accept: "application/json" },
-    }));
-    if (!response.ok) {
-      return null;
-    }
-
-    const payload = await response.json();
-    const rawHex = extractLiveResourceHexFromExplorerPayload(payload);
-    return rawHex ? decodeHnsResourceHex(rawHex) : null;
+    return parseHnsRootResource(await callHnsChainRpc("getnameresource", [normalizedRoot]));
   } catch {
     return null;
   }
@@ -1101,8 +995,7 @@ export async function handleRequest(request: Request) {
         observation_provider: isOwnerManagedRootResourceConfigured() ? OWNER_MANAGED_OBSERVATION_PROVIDER : DELEGATED_OBSERVATION_PROVIDER,
         owner_managed_resolvers: getOwnerManagedResolvers(),
         owner_managed_resolver_timeout_ms: ownerManagedResolverTimeoutMs,
-        hns_root_resource_url_template: getHnsRootResourceUrlTemplate(),
-        hns_root_resource_timeout_ms: getHnsRootResourceTimeoutMs(),
+        hns_root_resource_provider: HNS_CHAIN_OBSERVATION_PROVIDER,
         authoritative_secure_new_zones: defaultSecureNewZones,
         authoritative_tlsa_associations: defaultTlsaAssociations,
         authoritative_tlsa_ttl: defaultTlsaTtl,

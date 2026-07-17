@@ -196,7 +196,7 @@ Recommended v0 posture:
 
 An alternate node implementation may run alongside `hsd` as a read-only shadow
 observer. Bind its RPC to localhost, store no keys, and diff the exact
-`getnameinfo`/`getblockchaininfo`/`getblockheader` evidence consumed by the verifier for an
+`getnameinfo`/`getnameresource`/`getblockchaininfo`/`getblockheader` evidence consumed by the verifier for an
 extended period before considering promotion. Shadow disagreement must never
 grant capability; `hsd` remains authoritative until the alternate observer has
 earned replacement status through production evidence.

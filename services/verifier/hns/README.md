@@ -37,8 +37,6 @@ Current platform-managed roots:
 - `HNS_VERIFIER_HOST`
 - `HNS_VERIFIER_PORT`
 - `HNS_VERIFIER_AUTH_TOKEN`
-- `HNS_ROOT_RESOURCE_URL_TEMPLATE`
-- `HNS_ROOT_RESOURCE_TIMEOUT_MS`
 - `HNS_CHAIN_RPC_URL`
 - `HNS_CHAIN_RPC_API_KEY`
 - `HNS_CHAIN_RPC_TIMEOUT_MS`
@@ -79,16 +77,10 @@ and new-zone DNSSEC flag. These values are not secrets; the operator CLI uses
 them to prove the running verifier—not merely its own shell—has converged before
 each lifecycle phase.
 
-`HNS_ROOT_RESOURCE_URL_TEMPLATE` points at a trusted Handshake chain/resource reader. The template
-must contain `{root}` and defaults to `https://shakeshift.com/name/{root}/resources?fetch=main`.
-Owner-managed verification reads the live root resource and checks the apex TXT value there. It does
-not depend on recursive DNS resolution or `_pirate.<root>` child records.
-
-`HNS_ROOT_RESOURCE_TIMEOUT_MS` bounds the root-resource lookup so the API caller sees a verifier
-result inside its timeout budget.
-
 `HNS_CHAIN_RPC_URL` points at an hsd JSON-RPC endpoint. The verifier calls `getnameinfo`,
-`getblockchaininfo`, and `getblockheader` for the reported best-block hash. It computes remaining
+`getnameresource`, `getblockchaininfo`, and `getblockheader` for the reported best-block hash.
+`getnameresource` supplies the live parent resource used for owner-managed apex TXT proof and NS
+delegation checks; no third-party explorer is in the ownership path. The verifier computes remaining
 lifetime from `stats.renewalPeriodEnd - blocks`, anchors freshness to the best block's own timestamp
 rather than lagging median time, and records the expiry height, anchor height/hash/median
 time/network, remaining blocks, configured horizon, and provider. Set
@@ -103,7 +95,7 @@ The observer also emits `expiry_root_exists`. A valid synchronized chain tip
 plus an empty, expired, revoked, or unregistered auction/closed `getnameinfo` result yields
 `false`. A claimed `LOCKED` state, an unrecognized state, or malformed/unavailable chain evidence
 yields `null` rather than being misreported as deletion. Revalidation can
-therefore distinguish a missing root from an unavailable resource scraper
+therefore distinguish a missing root from unavailable observer evidence
 without promoting either condition to positive evidence.
 
 For the platform-owned `pirate.` root, prefer an HNS-native nameserver:

@@ -53,6 +53,7 @@ The node must:
 The verifier calls only:
 
 - `getnameinfo <root>`
+- `getnameresource <root>`
 - `getblockchaininfo`
 - `getblockheader <best-block-hash> true`
 
@@ -148,7 +149,7 @@ rather than weakening RPC validation.
 2. Update the hsd version, release SHA-256, and pinned Node digest in one change.
 3. Build and run the container smoke tests locally.
 4. Stop the observer, snapshot `./data`, deploy the image, and wait for health.
-5. Verify `getnameinfo`, `getblockchaininfo`, and `getblockheader` through the verifier before
+5. Verify `getnameinfo`, `getnameresource`, `getblockchaininfo`, and `getblockheader` through the verifier before
    re-enabling expiry-gated operations.
 
 Never deploy a floating `latest` image or silently change the chain network.
@@ -172,7 +173,7 @@ silently broaden this exception to new findings.
 ## Shadow Observer
 
 The Blink Labs Go node may run alongside `hsd` as a localhost-only, read-only
-shadow. Diff the complete `getnameinfo`, `getblockchaininfo`, and `getblockheader` responses used
+shadow. Diff the complete `getnameinfo`, `getnameresource`, `getblockchaininfo`, and `getblockheader` responses used
 by the verifier for at least 30 days, including restart, lag, and reorg cases.
 Shadow output is telemetry only and must never grant a capability.
 
