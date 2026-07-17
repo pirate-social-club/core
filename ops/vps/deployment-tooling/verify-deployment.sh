@@ -2,4 +2,11 @@
 # Drift check for systemd timers and scripted use: identical to
 # deployment-status.sh but exits nonzero when any drift is detected.
 set -euo pipefail
-exec "$(dirname "$(readlink -f "$0")")/deployment-status.sh" --verify "$@"
+bin_dir="$(dirname "$(readlink -f "$0")")"
+"$bin_dir/deployment-status.sh" --verify "$@"
+
+# Report successful verification so the remote dead-man can detect a dead
+# host, timer, or credential. Staged roles may omit monitoring configuration.
+if [[ -n "${OPS_ALERT_WEBHOOK_URL:-}" && -n "${DEPLOY_ROOT:-}" ]]; then
+  "$bin_dir/heartbeat.sh"
+fi

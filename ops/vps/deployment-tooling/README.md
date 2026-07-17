@@ -116,9 +116,10 @@ sudo systemctl status --no-pager pirate-deployment-verify@observer.service
 ```
 
 Failures post to the ops-alerts webhook using the same payload shape as the
-backup role. Remember the standing lesson: `OnFailure` cannot catch a dead
-timer — external dead-man monitoring on "most recent successful verification"
-belongs with the general monitoring role, not here.
+backup role. Successful checks also POST an authenticated role heartbeat when
+the webhook, token file, and deploy root are configured. The API alerts when
+an expected role has not checked in for 36 hours, covering dead hosts and dead
+timers that cannot trigger `OnFailure` locally.
 
 ## What is deliberately NOT here
 
