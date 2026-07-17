@@ -114,6 +114,9 @@ curl --fail --user "x:${key}" --json \
 curl --fail --user "x:${key}" --json \
   '{"method":"getnameinfo","params":["pirate"]}' \
   http://127.0.0.1:12037/
+curl --fail --user "x:${key}" --json \
+  '{"method":"getnameresource","params":["pirate"]}' \
+  http://127.0.0.1:12037/
 # Use bestblockhash from getblockchaininfo in the exact call below.
 curl --fail --user "x:${key}" --json \
   '{"method":"getblockheader","params":["<bestblockhash>",true]}' \
@@ -125,6 +128,9 @@ Confirm all of the following:
 - the reported chain is `main`
 - `verificationprogress >= 0.999`
 - `blocks == headers`
+- `getnameinfo pirate` reports the expected registered root
+- `getnameresource pirate` returns the live structured `records` array; inspect its NS, glue, DS,
+  and TXT values rather than treating an HTTP 200 alone as success
 - the verifier accepts the best-block anchor and configured tip-age policy
 - a request without Basic authentication returns `401`
 - no wallet API is listening on `12039`
