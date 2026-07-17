@@ -14,8 +14,9 @@ Implementation status (2026-07-17):
   policy and enable commerce
 - protocol-level Spaces sub-space issuance (`spaces_subspace`) is disabled while the issuer
   stack is unavailable; namespace bindings without a policy row fail closed
-- not yet implemented: lease/grace/renewal lifecycle (claimed handles are currently perpetual;
-  the perpetual-versus-lease decision is open), auctions, transfers, trust discounts,
+- lifecycle decision: v0 claims are perpetual licensed rights; lease/grace/renewal is a
+  deferred, explicitly versioned product mode and must not be retrofitted onto existing claims
+- not yet implemented: optional lease/grace/renewal lifecycle, auctions, transfers, trust discounts,
   club-custom generated-name ontologies, claim rate limiting and bot protection, platform-wide
   reserved root-label enforcement
 - externally resolvable handles additionally depend on the verification and authoritative-DNS
@@ -73,7 +74,8 @@ Handles are:
 
 - scarce
 - transferable only if community policy allows it
-- leasable rather than perpetual in v0
+- perpetual in v0; a future namespace policy may offer leases only after the lifecycle is
+  implemented end to end
 - offchain by default in v0
 - governed by community policy and platform ToS
 
@@ -213,9 +215,9 @@ Suggested v0 fields:
 - `user_id`
 - `label`
 - `status`
-- `lease_started_at`
-- `lease_expires_at`
-- `grace_ends_at`
+- `lease_started_at` nullable, reserved for a future lease mode
+- `lease_expires_at` nullable, reserved for a future lease mode
+- `grace_ends_at` nullable, reserved for a future lease mode
 - `issuance_mode`
 - `issuance_chain` nullable
 - `issuance_contract` nullable
@@ -310,9 +312,8 @@ Suggested v0 policy fields:
 - `claim_gate_mode`
 - `claim_gate_expression_ref` nullable
 - `eligibility_timing`
-- `lease_duration_days`
-- `grace_duration_days`
-- `renewal_price_policy` nullable
+- future lease-mode fields (not accepted in v0): `lease_duration_days`,
+  `grace_duration_days`, and `renewal_price_policy`
 - `auction_policy` nullable
 - `reserved_labels`
 - `trust_discount_policy` nullable
@@ -524,34 +525,34 @@ Recommended rule:
 - one `user_id` may hold at most one active global `.pirate` handle in v0
 - later secondary ownership or inventory models may exist, but only one active namespace-local identity should render by default
 
-## Lease Semantics
+## Lifecycle Semantics
 
-V0 handles are leases, not perpetual grants.
+V0 handles are perpetual licensed rights. They do not expire automatically, and the nullable
+lease fields remain unset. "Perpetual" describes duration, not absolute ownership: policy-bound
+revocation and platform ToS still apply.
 
-Each handle has:
+This choice matches the commerce already shipped and prevents a future implementation from
+silently imposing an expiry on a claim purchased without lease terms. Existing perpetual claims
+must never be converted to leases without an explicit holder-facing migration and affirmative
+consent.
+
+A future lease mode may add:
 
 - a lease start time
 - an expiry time
 - a grace period end time
+- renewal pricing and payment semantics
+- a sweep that moves expired rows through grace and expiry states
+- holder notifications and renewal UI
 
-When a lease expires:
+Lease mode must ship as an explicit, versioned namespace policy. Until the complete lifecycle is
+implemented, policy writers and claim paths must not advertise or persist lease terms.
 
-- the handle enters grace period
-- the handle status becomes `grace_period`
-- the current holder retains renewal priority until grace ends
-- transfer is disabled during grace period
-- the handle is not usable as an active in-product handle during grace period
-
-After grace ends:
-
-- the handle status becomes `expired`
-- the handle may be reclaimed, reissued, or auctioned under community policy
-
-## Renewal Semantics
+## Future Renewal Semantics
 
 Renewal behavior is a product-level rule, not contract-specific.
 
-V0 recommendations:
+Future lease-mode requirements:
 
 - renewal price is set by community policy
 - community policy may be subject to platform minimums or fee rules
@@ -577,7 +578,7 @@ V0 assumptions:
 
 - only some handle lengths or reserved labels are auctionable
 - auction proceeds follow club treasury policy
-- auction does not change the fact that the resulting handle is still a licensed lease right, not absolute property
+- auction does not change the fact that the resulting handle is still a licensed right, not absolute property
 
 ## Transfer And Revocation
 
