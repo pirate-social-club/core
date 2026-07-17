@@ -2185,6 +2185,13 @@ GateTraceNode:
       type: string
       nullable: true
       pattern: ^[0-9]+$
+    evaluated_wallet_count:
+      type: integer
+      nullable: true
+      minimum: 0
+      description: >-
+        How many attached wallets were read for an asset_balance gate. Zero means none was observed,
+        which a zero current_amount_atomic alone cannot express.
     children:
       type: array
       items:
@@ -2303,6 +2310,15 @@ RequiredActionNode:
     shortfall_amount_atomic:
       type: string
       pattern: ^[1-9][0-9]*$
+    evaluated_wallet_count:
+      type: integer
+      minimum: 0
+      description: >-
+        How many attached wallets were actually read for an asset_balance action. Zero means no
+        wallet was observed, which is not the same as observing wallets that hold nothing: both
+        report current_amount_atomic "0" and a shortfall equal to the full requirement. Clients must
+        use this to tell "connect a wallet" from "top up", and must never infer it from a zero
+        current amount.
 RequiredAction:
   type: object
   required:
@@ -2383,3 +2399,10 @@ RequiredAction:
     shortfall_amount_atomic:
       type: string
       pattern: ^[1-9][0-9]*$
+    evaluated_wallet_count:
+      type: integer
+      minimum: 0
+      description: >-
+        How many attached wallets were actually read for an asset_balance action. Zero distinguishes
+        "no wallet observed" from "wallets observed holding nothing"; both otherwise report a zero
+        current amount and a full-requirement shortfall.
