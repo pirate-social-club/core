@@ -12,6 +12,7 @@ set -euo pipefail
 #   7. verify fails when the current symlink points at the wrong release
 #   8. verify passes for a running container whose image digest matches the pin
 #   9. alert delivery reads bearer auth from a token file and fails closed when unreadable
+#  10. successful verification sends an authenticated role heartbeat
 
 tooling_dir="$(cd "$(dirname "$0")" && pwd)"
 work="$(mktemp -d)"
@@ -160,5 +161,20 @@ if OPS_ALERT_WEBHOOK_URL=https://api.example/internal/hns-edge-alerts \
   fail "alert delivery accepted an unreadable bearer token file"
 fi
 pass "alert delivery reads scoped bearer token and fails closed"
+
+# 10. successful verification heartbeat
+export DOCKER_SHIM_DIGEST="1111111111111111111111111111111111111111111111111111111111111111"
+DEPLOY_ROOT="$deploy_root" \
+OPS_ALERT_WEBHOOK_URL=https://api.example/internal/hns-edge-alerts \
+OPS_ALERT_BEARER_TOKEN_FILE="$token_file" \
+  bash "$deploy_root/current/bin/verify-deployment.sh" >/dev/null \
+  || fail "successful verification did not deliver heartbeat"
+grep -Fxq 'authorization: Bearer test-only-bearer-token-at-least-32-characters' "$CURL_SHIM_ARGS" \
+  || fail "heartbeat request omitted bearer token"
+grep -q '"kind":"heartbeat"' "$CURL_SHIM_ARGS" \
+  || fail "heartbeat request omitted heartbeat payload"
+grep -q "\"role\":\"demo-role\"" "$CURL_SHIM_ARGS" \
+  || fail "heartbeat request omitted deployment role"
+pass "successful verification sends authenticated role heartbeat"
 
 echo "all deployment-tooling checks passed"
