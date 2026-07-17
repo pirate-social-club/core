@@ -7,7 +7,7 @@ and required action. Gate type and traversal order are not identities: a policy 
 types, and editing or reordering one branch must not silently attach another branch's status or guidance.
 
 Each persisted gate atom therefore has an opaque `gate_id`. Evaluators and summary builders copy that
-same value onto the corresponding `GateTraceNode` and `MembershipGateSummary`.
+same value onto the corresponding `GateTraceNode`, `MembershipGateSummary`, and leaf required action.
 
 ## Gate identity
 
