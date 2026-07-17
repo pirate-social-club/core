@@ -32,6 +32,14 @@ The first production renewal requires two operators:
 
 No approval material or private key may be pasted into an issue, chat, CI log, or shell history.
 
+Before importing or unlocking a production key, exercise the exact RPC/CLI path with a disposable
+regtest key and inspect every configured journal, file logger, process supervisor, and monitoring
+sink. The exercise fails if seed words, private keys, unlock passphrases, authorization headers, or
+complete signing request parameters appear anywhere. Treat any production signing material found
+in a log as compromised: stop using the wallet, preserve only the minimum incident evidence without
+the secret, rotate authority and remaining value to a freshly generated wallet, and securely retire
+the affected logs under the approved incident procedure.
+
 ## Runtime boundary
 
 The eventual deployment must:
@@ -44,6 +52,10 @@ The eventual deployment must:
 - place chain state and wallet state on distinct paths with distinct backup classifications
 - keep the wallet encrypted at rest and locked outside the short signing window
 - prohibit unrelated wallets, application services, DNS databases, and Spaces keys on the host
+- run at an explicitly reviewed non-debug log level; hsd debug RPC logging can record signing
+  material passed as request parameters
+- keep logs readable only by the dedicated service account and the audited operator group, with
+  bounded local retention and no generic log-shipping integration
 
 Unlike the pruned observer, this role must be recoverable from its wallet backup and able to rescan
 the chain after restore. Choose archival/pruning settings only after a restore-and-rescan test proves
