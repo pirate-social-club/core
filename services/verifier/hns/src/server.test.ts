@@ -14,8 +14,6 @@ const pdnsMock = Bun.serve({
 Bun.env.PDNS_API_URL = `http://127.0.0.1:${pdnsMock.port}`;
 Bun.env.PDNS_API_KEY = "test-key";
 Bun.env.HNS_OWNER_MANAGED_RESOLVER_TIMEOUT_MS = "25";
-Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "";
-Bun.env.HNS_ROOT_RESOURCE_TIMEOUT_MS = "25";
 Bun.env.HNS_CHAIN_RPC_URL = "";
 Bun.env.HNS_CHAIN_RPC_TIMEOUT_MS = "25";
 Bun.env.HNS_EXPIRY_HORIZON_BLOCKS = "";
@@ -25,7 +23,6 @@ const { handleRequest } = await import("./server");
 
 describe("hns verifier server", () => {
   const originalOwnerManagedResolvers = Bun.env.HNS_OWNER_MANAGED_RESOLVERS;
-  const originalRootResourceUrlTemplate = Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE;
   const originalChainRpcUrl = Bun.env.HNS_CHAIN_RPC_URL;
   const originalChainRpcApiKey = Bun.env.HNS_CHAIN_RPC_API_KEY;
   const originalExpiryHorizonBlocks = Bun.env.HNS_EXPIRY_HORIZON_BLOCKS;
@@ -39,11 +36,6 @@ describe("hns verifier server", () => {
       delete Bun.env.HNS_OWNER_MANAGED_RESOLVERS;
     } else {
       Bun.env.HNS_OWNER_MANAGED_RESOLVERS = originalOwnerManagedResolvers;
-    }
-    if (originalRootResourceUrlTemplate == null) {
-      delete Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE;
-    } else {
-      Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = originalRootResourceUrlTemplate;
     }
     if (originalChainRpcUrl == null) {
       delete Bun.env.HNS_CHAIN_RPC_URL;
@@ -71,18 +63,48 @@ describe("hns verifier server", () => {
   }
 
   function mockLiveResourceFetch({ rawHex }: { rawHex: string }) {
+    Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
+    Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
     const requested: string[] = [];
-    globalThis.fetch = (async (input: RequestInfo | URL) => {
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       requested.push(String(input));
-      return Response.json([
-        "test",
-        1,
-        {
-          html: `<div class="card-title"><strong class="highlight-green">Live</strong></div><div class="card decoded-raw"><div class="tab-raw">${rawHex}</div></div>`,
-        },
-      ]);
+      const method = init?.body ? (JSON.parse(String(init.body)) as { method?: string }).method : null;
+      return method === "getnameresource"
+        ? Response.json({ result: resourceRecordsFromHex(rawHex) })
+        : Response.json({ error: { message: "unexpected method" } });
     }) as typeof fetch;
     return requested;
+  }
+
+  function resourceRecordsFromHex(rawHex: string) {
+    const buffer = Buffer.from(rawHex, "hex");
+    const records: Array<Record<string, unknown>> = [];
+    let offset = buffer[0] === 0 ? 1 : 0;
+    const readName = () => {
+      const labels: string[] = [];
+      while (offset < buffer.length) {
+        const length = buffer[offset++] ?? 0;
+        if (length === 0) return `${labels.join(".")}.`;
+        labels.push(buffer.subarray(offset, offset + length).toString("ascii"));
+        offset += length;
+      }
+      throw new Error("invalid fixture name");
+    };
+    while (offset < buffer.length) {
+      const type = buffer[offset++];
+      if (type === 1) records.push({ type: "NS", ns: readName() });
+      else if (type === 6) {
+        const txt: string[] = [];
+        const count = buffer[offset++] ?? 0;
+        for (let index = 0; index < count; index += 1) {
+          const length = buffer[offset++] ?? 0;
+          txt.push(buffer.subarray(offset, offset + length).toString("utf8"));
+          offset += length;
+        }
+        records.push({ type: "TXT", txt });
+      } else throw new Error(`unsupported fixture record ${type}`);
+    }
+    return { records };
   }
 
   function mockRootAndChainFetch({
@@ -142,6 +164,11 @@ describe("hns verifier server", () => {
             },
           });
         }
+        if (method === "getnameresource") {
+          return rootResourceError
+            ? Response.json({ error: { message: "unavailable" } })
+            : Response.json({ result: resourceRecordsFromHex(rawHex) });
+        }
         if (method === "getblockchaininfo") {
           return Response.json({
             result: {
@@ -167,17 +194,7 @@ describe("hns verifier server", () => {
         }
       }
 
-      if (rootResourceError) {
-        return new Response("unavailable", { status: 503 });
-      }
-
-      return Response.json([
-        "test",
-        1,
-        {
-          html: `<div class="card-title"><strong class="highlight-green">Live</strong></div><div class="card decoded-raw"><div class="tab-raw">${rawHex}</div></div>`,
-        },
-      ]);
+      return Response.json({ error: { message: "unexpected URL" } });
     }) as typeof fetch;
     return requests;
   }
@@ -326,7 +343,6 @@ describe("hns verifier server", () => {
   });
 
   test("public inspect can read owner-managed HNS root resources", async () => {
-    Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "https://example.test/name/{root}/resources?fetch=main";
     const requested = mockLiveResourceFetch({
       rawHex: "0001036e7331067069726174650006011c7069726174652d766572696669636174696f6e3d6e76735f74657374",
     });
@@ -348,13 +364,12 @@ describe("hns verifier server", () => {
     expect(body.expiry_horizon_sufficient).toBe(null);
     expect(body.expiry_height).toBe(null);
     expect(body.expiry_observation_provider).toBe(null);
-    expect(requested).toEqual(["https://example.test/name/xn--pokmon-dva/resources?fetch=main"]);
+    expect(requested).toEqual(["https://chain.test"]);
 
     resetOwnerManagedProofs();
   });
 
   test("derives expiry horizon for a renewed CLOSED root from an anchored chain tip", async () => {
-    Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "https://example.test/name/{root}/resources?fetch=main";
     Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
     Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
     Bun.env.HNS_EXPIRY_HORIZON_BLOCKS = "1000";
@@ -381,15 +396,14 @@ describe("hns verifier server", () => {
     expect(body.expiry_horizon_blocks).toBe(1_000);
     expect(body.expiry_observation_provider).toBe("hsd_json_rpc");
     expect(requests.filter((request) => request.url === "https://chain.test").map((request) => request.method).sort())
-      .toEqual(["getblockchaininfo", "getblockheader", "getnameinfo"]);
+      .toEqual(["getblockchaininfo", "getblockheader", "getnameinfo", "getnameresource"]);
     expect(requests.find((request) => request.method === "getnameinfo")?.authorization)
       .toBe(`Basic ${Buffer.from("x:rpc-secret").toString("base64")}`);
 
     resetOwnerManagedProofs();
   });
 
-  test("uses the authenticated chain observer for root existence when the resource scraper is unavailable", async () => {
-    Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "https://example.test/name/{root}/resources?fetch=main";
+  test("uses anchored name state when the observer cannot return a root resource", async () => {
     Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
     Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
     Bun.env.HNS_EXPIRY_HORIZON_BLOCKS = "1000";
@@ -415,7 +429,6 @@ describe("hns verifier server", () => {
   });
 
   test("reports an absent chain root as definitively insufficient", async () => {
-    Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "https://example.test/name/{root}/resources?fetch=main";
     Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
     Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
     Bun.env.HNS_EXPIRY_HORIZON_BLOCKS = "1000";
@@ -443,7 +456,6 @@ describe("hns verifier server", () => {
   });
 
   test("reports a known insufficient horizon instead of equating root existence with safety", async () => {
-    Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "https://example.test/name/{root}/resources?fetch=main";
     Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
     Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
     Bun.env.HNS_EXPIRY_HORIZON_BLOCKS = "1000";
@@ -467,7 +479,6 @@ describe("hns verifier server", () => {
   });
 
   test("fails expiry closed when the configured chain observer cannot provide evidence", async () => {
-    Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "https://example.test/name/{root}/resources?fetch=main";
     Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
     Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
     Bun.env.HNS_EXPIRY_HORIZON_BLOCKS = "1000";
@@ -484,7 +495,7 @@ describe("hns verifier server", () => {
     ));
 
     const body = await response.json();
-    expect(body.root_exists).toBe(true);
+    expect(body.root_exists).toBe(null);
     expect(body.expiry_horizon_sufficient).toBe(null);
     expect(body.expiry_height).toBe(null);
     expect(body.expiry_horizon_blocks).toBe(1_000);
@@ -494,7 +505,6 @@ describe("hns verifier server", () => {
   });
 
   test("fails expiry closed when the chain observer tip is stale", async () => {
-    Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "https://example.test/name/{root}/resources?fetch=main";
     Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
     Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
     Bun.env.HNS_EXPIRY_HORIZON_BLOCKS = "1000";
@@ -519,7 +529,6 @@ describe("hns verifier server", () => {
   });
 
   test("uses best-block time instead of lagging median time for tip freshness", async () => {
-    Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "https://example.test/name/{root}/resources?fetch=main";
     Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
     Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
     Bun.env.HNS_EXPIRY_HORIZON_BLOCKS = "1000";
@@ -544,7 +553,6 @@ describe("hns verifier server", () => {
   });
 
   test("rejects an early-IBD chain even when hsd reports blocks equal to headers", async () => {
-    Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "https://example.test/name/{root}/resources?fetch=main";
     Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
     Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
     Bun.env.HNS_EXPIRY_HORIZON_BLOCKS = "1000";
@@ -568,7 +576,6 @@ describe("hns verifier server", () => {
   });
 
   test("distinguishes unsafe unregistered states from indeterminate non-CLOSED states", async () => {
-    Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "https://example.test/name/{root}/resources?fetch=main";
     Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
     Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
     Bun.env.HNS_EXPIRY_HORIZON_BLOCKS = "1000";
@@ -625,7 +632,6 @@ describe("hns verifier server", () => {
   });
 
   test("public TXT verification can verify owner-managed HNS root resource TXT", async () => {
-    Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "https://example.test/name/{root}/resources?fetch=main";
     Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
     Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
     Bun.env.HNS_EXPIRY_HORIZON_BLOCKS = "1000";
@@ -660,8 +666,11 @@ describe("hns verifier server", () => {
   });
 
   test("owner-managed root resource lookups time out inside the verifier budget", async () => {
-    Bun.env.HNS_ROOT_RESOURCE_URL_TEMPLATE = "https://example.test/name/{root}/resources?fetch=main";
-    globalThis.fetch = (() => new Promise<Response>(() => {})) as typeof fetch;
+    Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
+    Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
+    globalThis.fetch = ((_input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
+    })) as typeof fetch;
 
     const startedAt = Date.now();
     const response = await handleRequest(new Request(

@@ -14,15 +14,15 @@ This service is the application-facing control layer for HNS namespace verificat
 It should:
 
 - verify owner-managed HNS TXT challenges from the live Handshake root resource
-- read root existence and expiry from an authenticated, synced mainnet `hsd`
-  observer through `getnameinfo`, `getblockchaininfo`, and `getblockheader`
+- read the live parent resource, root existence, and expiry from an authenticated, synced mainnet
+  `hsd` observer through `getnameresource`, `getnameinfo`, `getblockchaininfo`, and `getblockheader`
 - talk to the loopback-only PowerDNS API
 - create zones after delegation is observed
 - publish `_pirate.<root>` TXT records for delegated Pirate-managed sessions
 - verify TXT challenges against the same authoritative backend
 
-Owner-managed root-resource queries must use a trusted Handshake chain/resource reader and set
-`HNS_ROOT_RESOURCE_TIMEOUT_MS` to keep verifier responses inside the API timeout budget.
+Owner-managed root-resource queries use that same authenticated observer; no public explorer is in
+the ownership path. Set `HNS_CHAIN_RPC_TIMEOUT_MS` to keep responses inside the API timeout budget.
 
 `HNS_CHAIN_RPC_URL`, `HNS_CHAIN_RPC_API_KEY`,
 `HNS_CHAIN_MAX_TIP_AGE_SECONDS`, and `HNS_EXPIRY_HORIZON_BLOCKS` are required
