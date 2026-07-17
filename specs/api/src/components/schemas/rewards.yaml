@@ -71,12 +71,16 @@ RewardsCashoutSummary:
 RewardsSummaryResponse:
   type: object
   required:
+    - chain_id
     - balance_cents
     - today_earned_cents
     - recent_events
     - cashout
     - latest_in_flight_cashout
   properties:
+    chain_id:
+      type: integer
+      minimum: 1
     balance_cents:
       type: integer
     today_earned_cents:
@@ -100,6 +104,7 @@ RewardPayoutSummary:
   type: object
   required:
     - id
+    - chain_id
     - amount_cents
     - recipient_address
     - status
@@ -108,6 +113,9 @@ RewardPayoutSummary:
   properties:
     id:
       type: string
+    chain_id:
+      type: integer
+      minimum: 1
     amount_cents:
       type: integer
     recipient_address:
@@ -152,10 +160,14 @@ RewardCashoutResponse:
   type: object
   required:
     - payout
+    - chain_id
     - balance_cents
   properties:
     payout:
       $ref: ./rewards.yaml#/RewardPayoutSummary
+    chain_id:
+      type: integer
+      minimum: 1
     balance_cents:
       type: integer
 RewardCampaignStatus:
@@ -254,7 +266,7 @@ RewardCampaignCapabilities:
         $ref: ./rewards.yaml#/RewardCampaignEligibleActivity
     chain_id:
       type: integer
-      minimum: 0
+      minimum: 1
     token_address:
       type: string
 PublicRewardOffer:
@@ -279,7 +291,7 @@ PublicRewardOffer:
       minimum: 1
     chain_id:
       type: integer
-      minimum: 0
+      minimum: 1
       description: EVM chain ID of the USDC reward settlement network.
     ends_at:
       type: integer
@@ -515,6 +527,7 @@ RewardCampaignFundingQuote:
       type: string
     chain_id:
       type: integer
+      minimum: 1
     token_address:
       type: string
     amount_cents:
