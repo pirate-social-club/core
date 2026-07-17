@@ -1500,6 +1500,21 @@ MembershipGateSummary:
       nullable: true
       pattern: ^[1-9][0-9]*$
       description: Required balance in the asset's smallest indivisible unit.
+    asset_symbol:
+      type: string
+      nullable: true
+      description: >-
+        Display symbol for an asset-balance gate, such as `ETH` or `USDC`. Recorded on the summary so
+        members can be shown a truthful label without calling the authenticated capability catalog, and
+        so a gate stays self-describing after its asset leaves the authoring catalog.
+    asset_decimals:
+      type: integer
+      nullable: true
+      minimum: 0
+      maximum: 36
+      description: >-
+        Number of decimal places used to render `min_amount_atomic` as a human-readable amount for an
+        asset-balance gate. Presentation metadata only; policy arithmetic always uses atomic units.
 MembershipGateExpressionSummary:
   oneOf:
     - $ref: ./communities-core.yaml#/MembershipGateExpressionGate
@@ -1850,6 +1865,7 @@ JoinEligibility:
         - erc721_inventory_match_required
         - token_inventory_unavailable
         - wallet_score_too_low
+        - asset_balance_too_low
         - unsupported
         - banned
       nullable: true
@@ -1980,6 +1996,7 @@ GateFailureDetails:
         - erc721_inventory_match_required
         - token_inventory_unavailable
         - wallet_score_too_low
+        - asset_balance_too_low
         - unsupported
         - banned
       nullable: true
