@@ -2254,6 +2254,13 @@ RequiredActionNode:
     - kind
   additionalProperties: true
   properties:
+    gate_id:
+      type: string
+      nullable: true
+      pattern: ^[A-Za-z0-9_-]{1,64}$
+      description: >-
+        Identity of the policy atom that produced this action. Present on action nodes and absent on
+        set nodes. Null only for legacy responses.
     kind:
       type: string
       enum:
