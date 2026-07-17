@@ -273,8 +273,10 @@ Do not use a static root-only value such as `pirate-verify=<root>` because it is
 
 Once the creator publishes the TXT record, Pirate verifies it.
 
-For public v0, Pirate may inspect Handshake parent-state such as expiry, `NS`, and glue through one
-trusted HNS-aware provider such as Fire HSD.
+For public v0, Pirate inspects Handshake parent-state such as expiry, `NS`, glue, and the parent
+root resource through its own authenticated hsd chain observer (`getnameinfo`,
+`getnameresource`). Third-party explorer scraping is not an acceptable ownership-evidence
+source and has been removed from this path.
 
 The v0 expiry path uses authenticated hsd JSON-RPC: `getnameinfo` supplies
 `stats.renewalPeriodEnd`, `getblockchaininfo` supplies chain height, network, verification progress,
@@ -303,8 +305,8 @@ Pirate should:
 - store the raw response snapshot or an equivalent evidence reference
 - fail closed if the provider is unavailable or returns inconsistent data for the requested root
 
-Multi-source cross-checking or self-hosted HNS infrastructure is a later hardening path, not a
-public-v0 requirement.
+Self-hosted chain observation is the v0 ownership-evidence requirement. Multi-source
+cross-checking remains a later hardening path, not a public-v0 requirement.
 
 Successful observation of the TXT challenge sets:
 
