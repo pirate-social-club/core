@@ -15939,12 +15939,16 @@ components:
     RewardsSummaryResponse:
       type: object
       required:
+        - chain_id
         - balance_cents
         - today_earned_cents
         - recent_events
         - cashout
         - latest_in_flight_cashout
       properties:
+        chain_id:
+          type: integer
+          minimum: 1
         balance_cents:
           type: integer
         today_earned_cents:
@@ -15968,6 +15972,7 @@ components:
       type: object
       required:
         - id
+        - chain_id
         - amount_cents
         - recipient_address
         - status
@@ -15976,6 +15981,9 @@ components:
       properties:
         id:
           type: string
+        chain_id:
+          type: integer
+          minimum: 1
         amount_cents:
           type: integer
         recipient_address:
@@ -16020,10 +16028,14 @@ components:
       type: object
       required:
         - payout
+        - chain_id
         - balance_cents
       properties:
         payout:
           $ref: "#/components/schemas/RewardPayoutSummary"
+        chain_id:
+          type: integer
+          minimum: 1
         balance_cents:
           type: integer
     RewardCampaignStatus:
@@ -16276,6 +16288,7 @@ components:
           type: string
         chain_id:
           type: integer
+          minimum: 1
         token_address:
           type: string
         amount_cents:
