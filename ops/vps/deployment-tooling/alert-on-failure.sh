@@ -19,8 +19,23 @@ host="$(hostname -s | tr -cd 'A-Za-z0-9._-')"
 timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 text="[hns-edge-deploy] ${failed_unit} FAILED on ${host:-unknown} at ${timestamp}. Check: journalctl -u ${failed_unit}"
 
+auth_args=()
+if [[ -n "${OPS_ALERT_BEARER_TOKEN_FILE:-}" ]]; then
+  if [[ ! -r "$OPS_ALERT_BEARER_TOKEN_FILE" ]]; then
+    echo "OPS_ALERT_BEARER_TOKEN_FILE is not readable" >&2
+    exit 1
+  fi
+  token="$(tr -d '\r\n' < "$OPS_ALERT_BEARER_TOKEN_FILE")"
+  if [[ ${#token} -lt 32 ]]; then
+    echo "ops alert bearer token must contain at least 32 characters" >&2
+    exit 1
+  fi
+  auth_args=(--header "authorization: Bearer $token")
+fi
+
 curl --fail --silent --show-error --max-time 10 \
   --header 'content-type: application/json' \
+  "${auth_args[@]}" \
   --data "{\"text\":\"${text}\"}" \
   "$OPS_ALERT_WEBHOOK_URL" >/dev/null
 

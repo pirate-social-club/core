@@ -96,6 +96,9 @@ after install; that must fail.
 
 Failed runs fire `pirate-hns-state-backup-alert@%n.service`, which posts to
 `OPS_ALERT_WEBHOOK_URL` (the same webhook the API's ops-alerts sink uses).
+For Pirate's authenticated edge-alert ingress, set
+`OPS_ALERT_BEARER_TOKEN_FILE` to a root-owned mode-`0600` token file rather
+than storing the bearer value directly in this env file.
 Note this only alerts on runs that *fail* — if the timer stops firing
 entirely, nothing alerts. Pair it with external dead-man monitoring on the
 newest object age in the backup bucket.
