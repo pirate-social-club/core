@@ -59,9 +59,15 @@ export PDNS_API_KEY=<random>                    # via Infisical, never in pdns.c
 ```
 
 One-time bootstrap (the container runs as uid 953, so the data dir must be
-writable by it, and the SQLite schema must exist before first start):
+writable by it, the SQLite schema must exist before first start, and the host
+must permit that unprivileged process to bind DNS port 53):
 
 ```bash
+printf '%s\n' 'net.ipv4.ip_unprivileged_port_start=53' \
+  | sudo tee /etc/sysctl.d/60-pirate-powerdns.conf >/dev/null
+sudo sysctl --system
+test "$(sysctl -n net.ipv4.ip_unprivileged_port_start)" -eq 53
+
 mkdir -p data && sudo chown -R 953:953 data
 docker run --rm --user 953:953 -v "$PWD/data:/var/lib/powerdns" \
   --entrypoint /bin/sh \
@@ -73,6 +79,13 @@ docker exec pirate-hns-authdns pdnsutil generate-tsig-key pirate-axfr hmac-sha25
 # put the key name in the verifier's PDNS_AXFR_TSIG_KEY_NAME, and the key
 # secret in the secondary's config
 ```
+
+The role uses host networking and the pinned image starts directly as uid 953.
+Docker does not place `NET_BIND_SERVICE` in that non-root process's effective
+capability set, so a compose `cap_add` does not solve the port-53 bind. Do not
+run the authority as root or make the container privileged. This dedicated-host
+sysctl keeps PowerDNS non-root and must be applied persistently before compose
+starts.
 
 ## Replication
 
