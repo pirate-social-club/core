@@ -11,6 +11,7 @@ set -euo pipefail
 #   6. verify fails when the container runs while EXPECT_RUNNING=false
 #   7. verify fails when the current symlink points at the wrong release
 #   8. verify passes for a running container whose image digest matches the pin
+#   9. alert delivery reads bearer auth from a token file and fails closed when unreadable
 
 tooling_dir="$(cd "$(dirname "$0")" && pwd)"
 work="$(mktemp -d)"
@@ -138,5 +139,26 @@ status --verify >/dev/null || fail "matching running deployment reported drift"
 export DOCKER_SHIM_DIGEST="2222222222222222222222222222222222222222222222222222222222222222"
 status --verify >/dev/null 2>&1 && fail "digest mismatch not detected"
 pass "verify checks running image digest against the pin"
+
+# 9. scoped alert bearer token
+cat > "$shim/curl" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$@" > "${CURL_SHIM_ARGS:?}"
+EOF
+chmod +x "$shim/curl"
+export CURL_SHIM_ARGS="$work/curl-args"
+token_file="$work/edge-alert-token"
+printf '%s\n' 'test-only-bearer-token-at-least-32-characters' > "$token_file"
+OPS_ALERT_WEBHOOK_URL=https://api.example/internal/hns-edge-alerts \
+OPS_ALERT_BEARER_TOKEN_FILE="$token_file" \
+  bash "$tooling_dir/alert-on-failure.sh" pirate-deployment-verify@observer.service >/dev/null
+grep -Fxq 'authorization: Bearer test-only-bearer-token-at-least-32-characters' "$CURL_SHIM_ARGS" \
+  || fail "alert request omitted bearer token from token file"
+if OPS_ALERT_WEBHOOK_URL=https://api.example/internal/hns-edge-alerts \
+  OPS_ALERT_BEARER_TOKEN_FILE="$work/missing-token" \
+  bash "$tooling_dir/alert-on-failure.sh" pirate-deployment-verify@observer.service >/dev/null 2>&1; then
+  fail "alert delivery accepted an unreadable bearer token file"
+fi
+pass "alert delivery reads scoped bearer token and fails closed"
 
 echo "all deployment-tooling checks passed"

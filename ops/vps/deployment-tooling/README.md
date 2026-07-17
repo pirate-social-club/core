@@ -99,6 +99,12 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now pirate-deployment-verify@observer.timer
 ```
 
+When the destination is Pirate's authenticated edge-alert ingress, also set
+`OPS_ALERT_BEARER_TOKEN_FILE=/etc/pirate-deployment-verify/edge-alert-token` in
+each role env file. Install the shared token file once with root ownership and
+mode `0600`; never place the token value directly in an env file or command
+argument. The alert helper reads it only when constructing the HTTPS request.
+
 Repeat only the env-file and enable steps for other roles, such as `authdns`
 or `secondary`. Role names are systemd instance identifiers, not deploy-root
 paths. Run each service once after installation and confirm success before
