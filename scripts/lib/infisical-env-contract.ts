@@ -447,6 +447,17 @@ export const ENV_CONTRACT: EnvContract = {
     },
     {
       path: "/services/api",
+      key: "STORY_COORDINATOR_SIGNER_PRIVATE_KEY",
+      requiredness: "deferred",
+    },
+    {
+      path: "/services/api",
+      key: "STORY_COORDINATOR_SIGNER_ADDRESS",
+      requiredness: "deferred",
+      validate: isEvmAddress,
+    },
+    {
+      path: "/services/api",
       key: "STORY_ROYALTY_SPG_NFT_CONTRACT",
       requiredness: "required_for_hosted",
       validate: isEvmAddress,
@@ -873,6 +884,8 @@ export const COMMERCE_SECRET_IDS = [
   "STORY_ACCESS_CONTROLLER_PKP_ADDRESS__/services/api",
   "MUSIC_PURCHASE_STORY_SETTLEMENT_PRIVATE_KEY__/services/api",
   "MUSIC_PURCHASE_STORY_SETTLEMENT_PKP_ADDRESS__/services/api",
+  "STORY_COORDINATOR_SIGNER_PRIVATE_KEY__/services/api",
+  "STORY_COORDINATOR_SIGNER_ADDRESS__/services/api",
   "PIRATE_CHECKOUT_OPERATOR_PRIVATE_KEY__/services/api",
   "PIRATE_CHECKOUT_RPC_URL__/services/api",
   "PIRATE_CHECKOUT_SOURCE_CHAIN_ID__/services/api",
