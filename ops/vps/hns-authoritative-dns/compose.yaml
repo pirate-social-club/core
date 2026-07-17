@@ -4,10 +4,6 @@ services:
     image: powerdns/pdns-auth-51@sha256:f976e753a1de8ec62636203ecb12ae5fa3d1055601be167de53f1f673e0abe59
     container_name: pirate-hns-authdns
     restart: unless-stopped
-    # The pinned image runs as its unprivileged PowerDNS user (uid 953).
-    # Grant only the capability required to bind authoritative DNS on port 53.
-    cap_add:
-      - NET_BIND_SERVICE
     # Host networking: the webserver/API must be reachable on the host's
     # loopback by the verifier (127.0.0.1:8081). Under bridge networking a
     # published port cannot reach a service bound to the CONTAINER's loopback,

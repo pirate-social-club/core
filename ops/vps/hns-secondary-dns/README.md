@@ -33,6 +33,18 @@ NOTIFY processing to fail with "no backend willing to host".
 Copy this directory to the secondary host and create a real environment file
 outside version control from `env/pdns-secondary.env.example`.
 
+The pinned image starts directly as uid 953 while this role uses host
+networking. Persist the same dedicated-host low-port prerequisite as the
+primary before starting compose; `cap_add: NET_BIND_SERVICE` is ineffective for
+this non-root image process and the authority must not run as root:
+
+```bash
+printf '%s\n' 'net.ipv4.ip_unprivileged_port_start=53' \
+  | sudo tee /etc/sysctl.d/60-pirate-powerdns.conf >/dev/null
+sudo sysctl --system
+test "$(sysctl -n net.ipv4.ip_unprivileged_port_start)" -eq 53
+```
+
 Initialize the SQLite schema with the same uid used by the image:
 
 ```bash
