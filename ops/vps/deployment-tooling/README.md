@@ -70,7 +70,8 @@ for timers and scripts.
 
 ## Daily drift timer
 
-Install on each host:
+For a host with exactly one Pirate role, the original single-role unit remains
+available:
 
 ```
 sudo install -m 0644 $DEPLOY_ROOT/current/systemd/pirate-deployment-verify.service /etc/systemd/system/
@@ -81,6 +82,31 @@ printf 'DEPLOY_ROOT=%s\nOPS_ALERT_WEBHOOK_URL=%s\n' "$DEPLOY_ROOT" "$WEBHOOK" \
 sudo chmod 0600 /etc/pirate-deployment-verify.env
 sudo systemctl daemon-reload
 sudo systemctl enable --now pirate-deployment-verify.timer
+```
+
+For a host with multiple roles, install the templated units once and create one
+root-owned env file per stable role name:
+
+```bash
+sudo install -m 0644 $DEPLOY_ROOT/current/systemd/pirate-deployment-verify@.service /etc/systemd/system/
+sudo install -m 0644 $DEPLOY_ROOT/current/systemd/pirate-deployment-verify@.timer /etc/systemd/system/
+sudo install -m 0644 $DEPLOY_ROOT/current/systemd/pirate-deployment-verify-role-alert@.service /etc/systemd/system/
+sudo install -d -m 0700 /etc/pirate-deployment-verify
+printf 'DEPLOY_ROOT=%s\nOPS_ALERT_WEBHOOK_URL=%s\n' "$DEPLOY_ROOT" "$WEBHOOK" \
+  | sudo tee /etc/pirate-deployment-verify/observer.env >/dev/null
+sudo chmod 0600 /etc/pirate-deployment-verify/observer.env
+sudo systemctl daemon-reload
+sudo systemctl enable --now pirate-deployment-verify@observer.timer
+```
+
+Repeat only the env-file and enable steps for other roles, such as `authdns`
+or `secondary`. Role names are systemd instance identifiers, not deploy-root
+paths. Run each service once after installation and confirm success before
+relying on its timer:
+
+```bash
+sudo systemctl start pirate-deployment-verify@observer.service
+sudo systemctl status --no-pager pirate-deployment-verify@observer.service
 ```
 
 Failures post to the ops-alerts webhook using the same payload shape as the
