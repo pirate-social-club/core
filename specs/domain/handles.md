@@ -16,9 +16,11 @@ Implementation status (2026-07-17):
   stack is unavailable; namespace bindings without a policy row fail closed
 - lifecycle decision: v0 claims are perpetual licensed rights; lease/grace/renewal is a
   deferred, explicitly versioned product mode and must not be retrofitted onto existing claims
+- implemented in API main, pending the next pinned production release: quote/claim rate limits,
+  one active paid label reservation per user and community, and normalized platform-reserved
+  root-label rejection for both HNS and Spaces verification
 - not yet implemented: optional lease/grace/renewal lifecycle, auctions, transfers, trust discounts,
-  club-custom generated-name ontologies, claim rate limiting and bot protection, platform-wide
-  reserved root-label enforcement
+  club-custom generated-name ontologies, and interactive bot protection
 - externally resolvable handles additionally depend on the verification and authoritative-DNS
   infrastructure, which is not yet deployed
 
