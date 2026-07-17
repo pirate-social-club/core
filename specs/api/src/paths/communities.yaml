@@ -1204,7 +1204,7 @@ communities_by_community_id_join:
 
       Public v0 baseline join eligibility requires at least one approved platform trust credential:
 
-      - `unique_human` verified through an accepted provider such as `self` or `very`
+      - `unique_human` verified through an accepted provider such as `self`, `zkpassport`, or `very`
       - `wallet_score` verified through `passport` with a passing score
       - a passing public-v0 token-holding membership gate from the supported ERC-721 lane
 

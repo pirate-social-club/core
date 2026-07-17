@@ -1940,7 +1940,7 @@ paths:
 
         Public v0 baseline join eligibility requires at least one approved platform trust credential:
 
-        - `unique_human` verified through an accepted provider such as `self` or `very`
+        - `unique_human` verified through an accepted provider such as `self`, `zkpassport`, or `very`
         - `wallet_score` verified through `passport` with a passing score
         - a passing public-v0 token-holding membership gate from the supported ERC-721 lane
 
@@ -6197,6 +6197,7 @@ components:
           type: string
           enum:
             - self
+            - zkpassport
             - very
           nullable: true
           description: |
@@ -6329,6 +6330,7 @@ components:
           type: string
           enum:
             - self
+            - zkpassport
             - very
           nullable: true
         proof_type:
@@ -9621,6 +9623,7 @@ components:
       x-valid-providers-by-proof-type:
         unique_human:
           - self
+          - zkpassport
           - very
         age_over_18:
           - self
@@ -9661,7 +9664,7 @@ components:
           description: |
             Optional provider allowlist for the selected `proof_type`.
             Valid public-v0 combinations are:
-            - `unique_human`: `self` or `very`
+            - `unique_human`: `self`, `zkpassport`, or `very`
             - `age_over_18`: `self`
             - `minimum_age`: `self` or `zkpassport`
             - `nationality`: `self` or `zkpassport`

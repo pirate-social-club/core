@@ -1,5 +1,5 @@
 export const PROVIDER_MATRIX = {
-  unique_human: ["self", "very"],
+  unique_human: ["self", "zkpassport", "very"],
   age_over_18: ["self"],
   minimum_age: ["self", "zkpassport"],
   nationality: ["self", "zkpassport"],

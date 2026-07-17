@@ -480,6 +480,7 @@ ProofRequirement:
   x-valid-providers-by-proof-type:
     unique_human:
       - self
+      - zkpassport
       - very
     age_over_18:
       - self
@@ -520,7 +521,7 @@ ProofRequirement:
       description: |
         Optional provider allowlist for the selected `proof_type`.
         Valid public-v0 combinations are:
-        - `unique_human`: `self` or `very`
+        - `unique_human`: `self`, `zkpassport`, or `very`
         - `age_over_18`: `self`
         - `minimum_age`: `self` or `zkpassport`
         - `nationality`: `self` or `zkpassport`
