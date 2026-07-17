@@ -6960,6 +6960,30 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /gate-capabilities/assets:
+    get:
+      x-implemented: true
+      tags:
+        - Gate Capabilities
+      summary: List supported asset-balance gate assets
+      description: |
+        Returns the canonical server-owned asset registry available to authenticated authoring
+        clients. Display metadata is advisory; the canonical CAIP-19 asset id and save-time server
+        validation remain authoritative. RPC endpoints and provider credentials are never exposed.
+      operationId: listAssetBalanceGateCapabilities
+      responses:
+        "200":
+          description: Supported asset-balance gate assets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssetBalanceCapabilityListResponse"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /gate-capabilities/nft/sources/{source_id}/facets/{facet_key}/values:
     get:
       x-implemented: true
@@ -7365,6 +7389,55 @@ components:
           $ref: "#/components/schemas/NftGateInventoryMatch"
         min_quantity_supported:
           type: boolean
+    AssetBalanceCapability:
+      type: object
+      additionalProperties: false
+      required:
+        - asset_id
+        - label
+        - chain_namespace
+        - standard
+        - symbol
+        - decimals
+      properties:
+        asset_id:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: Canonical CAIP-19 asset identifier accepted in an asset_balance atom.
+        label:
+          type: string
+          minLength: 1
+          maxLength: 160
+        chain_namespace:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: CAIP-2 chain id embedded in asset_id.
+        standard:
+          type: string
+          enum:
+            - native
+            - erc20
+        symbol:
+          type: string
+          minLength: 1
+          maxLength: 32
+        decimals:
+          type: integer
+          minimum: 0
+          maximum: 255
+    AssetBalanceCapabilityListResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - assets
+      properties:
+        assets:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/AssetBalanceCapability"
     NftGateInventoryMatch:
       type: object
       maxProperties: 32
@@ -7457,6 +7530,7 @@ components:
             - auth_error
             - payment_required
             - verification_required
+            - membership_required
             - eligibility_failed
             - gate_failed
             - posting_trust_tier_too_low
@@ -14779,6 +14853,10 @@ components:
         - policy_template
         - pricing_model
         - claims_enabled
+        - claim_gate_mode
+        - claim_gate_expression_ref
+        - claim_gate_expression
+        - eligibility_timing
         - settings
         - updated_at
       properties:
@@ -14811,6 +14889,24 @@ components:
           nullable: true
         claims_enabled:
           type: boolean
+        claim_gate_mode:
+          type: string
+          enum:
+            - none
+            - inherit_community
+            - explicit
+        claim_gate_expression_ref:
+          type: string
+          nullable: true
+          readOnly: true
+        claim_gate_expression:
+          $ref: "#/components/schemas/GatePolicy"
+          nullable: true
+        eligibility_timing:
+          type: string
+          enum:
+            - claim_time
+            - continuous
         settings:
           $ref: "#/components/schemas/CommunityHandlePolicySettings"
         updated_at:
@@ -14988,6 +15084,20 @@ components:
             - gated_then_flat
         claims_enabled:
           type: boolean
+        claim_gate_mode:
+          type: string
+          enum:
+            - none
+            - inherit_community
+            - explicit
+        claim_gate_expression:
+          $ref: "#/components/schemas/GatePolicy"
+          nullable: true
+        eligibility_timing:
+          type: string
+          enum:
+            - claim_time
+            - continuous
         settings:
           $ref: "#/components/schemas/CommunityHandlePolicySettings"
           nullable: true

@@ -565,6 +565,7 @@ Recommended categories:
 - `auth_error`
 - `payment_required`
 - `verification_required`
+- `membership_required`
 - `eligibility_failed`
 - `gate_failed`
 - `analysis_blocked`

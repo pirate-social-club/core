@@ -481,6 +481,8 @@ paths:
     $ref: ./paths/jobs.yaml#/jobs_by_job_id
   /gate-capabilities/nft/sources:
     $ref: ./paths/gate-capabilities.yaml#/gate_capabilities_nft_sources
+  /gate-capabilities/assets:
+    $ref: ./paths/gate-capabilities.yaml#/gate_capabilities_assets
   /gate-capabilities/nft/sources/{source_id}/facets/{facet_key}/values:
     $ref: ./paths/gate-capabilities.yaml#/gate_capabilities_nft_source_facet_values
 components:
@@ -579,6 +581,10 @@ components:
   schemas:
     NftGateCapabilitySource:
       $ref: ./components/schemas/gate-capabilities.yaml#/NftGateCapabilitySource
+    AssetBalanceCapability:
+      $ref: ./components/schemas/gate-capabilities.yaml#/AssetBalanceCapability
+    AssetBalanceCapabilityListResponse:
+      $ref: ./components/schemas/gate-capabilities.yaml#/AssetBalanceCapabilityListResponse
     NftGateInventoryMatch:
       $ref: ./components/schemas/gate-capabilities.yaml#/NftGateInventoryMatch
     NftGateCapabilitySourceListResponse:
