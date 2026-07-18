@@ -228,6 +228,78 @@ CommunityHandlePolicySettings:
       enum:
         - app_internal
         - spaces_subspace
+CommunityHandleLabelClaimSelector:
+  type: object
+  required:
+    - type
+  properties:
+    type:
+      type: string
+      enum:
+        - exact
+        - any
+    labels:
+      type: array
+      items:
+        type: string
+      nullable: true
+      description: Normalized labels this rule applies to. Required when `type = exact`; null for `type = any`. At most 100 entries.
+CommunityHandleLabelClaimRule:
+  type: object
+  required:
+    - id
+    - position
+    - selector
+    - claim_gate_expression
+  properties:
+    id:
+      type: string
+      readOnly: true
+    position:
+      type: integer
+      minimum: 0
+      readOnly: true
+    selector:
+      $ref: ./handles.yaml#/CommunityHandleLabelClaimSelector
+    claim_gate_expression:
+      $ref: ./communities-core.yaml#/GatePolicy
+      description: Gate expression evaluated for labels this rule selects. Inside `erc721_inventory_match` facet values the literal placeholder `{label}` is replaced with the normalized claim label at evaluation time.
+CommunityHandleLabelClaimRuleInput:
+  type: object
+  required:
+    - selector
+    - claim_gate_expression
+  properties:
+    selector:
+      $ref: ./handles.yaml#/CommunityHandleLabelClaimSelector
+    claim_gate_expression:
+      $ref: ./communities-core.yaml#/GatePolicy
+CommunityHandleQuoteClaimGate:
+  type: object
+  required:
+    - source
+    - satisfied
+  properties:
+    source:
+      type: string
+      enum:
+        - namespace
+        - label_rule
+    satisfied:
+      type: boolean
+    label_claim_rule:
+      type: string
+      nullable: true
+      description: Rule id when `source = label_rule`.
+    expression:
+      $ref: ./communities-core.yaml#/GatePolicy
+      nullable: true
+      description: Effective claim-gate expression for the quoted label, with `{label}` bindings resolved.
+    summaries:
+      type: array
+      items:
+        $ref: ./communities-core.yaml#/MembershipGateSummary
+      nullable: true
 CommunityHandlePolicy:
   type: object
   required:
@@ -292,6 +364,11 @@ CommunityHandlePolicy:
       enum:
         - claim_time
         - continuous
+    label_claim_rules:
+      type: array
+      items:
+        $ref: ./handles.yaml#/CommunityHandleLabelClaimRule
+      description: Ordered per-label claim rules. Optional for compatibility; absent means no rules.
     settings:
       $ref: ./handles.yaml#/CommunityHandlePolicySettings
     updated_at:
@@ -331,6 +408,11 @@ UpdateCommunityHandlePolicyRequest:
       enum:
         - claim_time
         - continuous
+    label_claim_rules:
+      type: array
+      items:
+        $ref: ./handles.yaml#/CommunityHandleLabelClaimRuleInput
+      description: Full replacement of the ordered rule list. Omit to leave rules unchanged. Position is derived from array order; at most 20 rules.
     settings:
       $ref: ./handles.yaml#/CommunityHandlePolicySettings
       nullable: true
@@ -432,6 +514,10 @@ CommunityHandleQuote:
     reason:
       type: string
       nullable: true
+    claim_gate:
+      $ref: ./handles.yaml#/CommunityHandleQuoteClaimGate
+      nullable: true
+      description: Present when a claim gate applies to the quoted label. Optional for compatibility.
     price_cents:
       type: integer
       minimum: 0

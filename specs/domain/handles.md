@@ -314,6 +314,7 @@ Suggested v0 policy fields:
 - `claim_gate_mode`
 - `claim_gate_expression_ref` nullable
 - `eligibility_timing`
+- `label_claim_rules` (see [Per-Label Claim Rules](#per-label-claim-rules))
 - future lease-mode fields (not accepted in v0): `lease_duration_days`,
   `grace_duration_days`, and `renewal_price_policy`
 - `auction_policy` nullable
@@ -399,6 +400,80 @@ and identify its versioned expression.
   Auctions are disabled by default in v0.
 - `trust_discount_policy = null`
   Native-karma or trust-based pricing discounts are disabled by default in v0 until community karma tiers are well-established. See [karma.md](./karma.md).
+
+## Per-Label Claim Rules
+
+The namespace-level claim gate (`claim_gate_mode`) applies one eligibility policy to every
+label in the namespace. Per-label claim rules extend that model so specific names can carry
+their own eligibility requirements, for example: the label `charizard` is claimable only by
+users who hold at least one Charizard card, while the rest of the namespace stays open.
+
+### Model
+
+A namespace handle policy may carry an ordered list of label claim rules:
+
+- `label_claim_rule_id`
+- `namespace_handle_policy_id`
+- `position`
+  Deterministic evaluation order; unique per policy.
+- `selector`
+  - `exact`: a bounded set of normalized labels this rule applies to
+  - `any`: the rule applies to every label in the namespace
+- `expression_json`
+  A versioned gate expression using the same gate primitives, validation, and budget as
+  community membership gates.
+
+### Evaluation semantics
+
+- rules are evaluated in `position` order against the normalized claim label; the first rule
+  whose selector matches supplies the claim gate for that attempt, and later rules plus the
+  namespace-level `claim_gate_mode` are not consulted for that label
+- when no rule matches, the namespace-level `claim_gate_mode` behavior applies unchanged
+- reserved labels, `claims_enabled`, `membership_required_for_claim`, pricing, and label
+  validity checks are unaffected and are applied before rule evaluation; a rule can never
+  make a reserved or invalid label claimable
+- rule evaluation is bound to the same claim attempt as quote and commit, exactly like the
+  namespace claim gate; the rule set consulted at commit is the persisted rule set at commit
+  time, and eligibility must be re-evaluated at commit
+- `eligibility_timing` applies to rule-derived gates the same way it applies to the
+  namespace claim gate; rules do not introduce new timing semantics
+- rules gate claims only; they do not gate renewal, transfer, or revocation in v0
+
+### Label binding
+
+A rule expression may reference the label being claimed:
+
+- inside an `erc721_inventory_match` atom, a facet value may be the literal placeholder
+  `{label}`; at evaluation time it is replaced by the normalized claim label before facet
+  matching, using the same text normalization as inventory facet matching
+- combined with an `any` selector, one rule expresses "a label is claimable only by holders
+  of an asset whose facet value equals that label" — e.g. `subject = {label}` on a Courtyard
+  graded-cards source makes `charizard` claimable only by Charizard-card holders, `gengar`
+  only by Gengar-card holders, and so on, without enumerating labels
+- the placeholder is valid only as a facet value of `erc721_inventory_match` atoms inside
+  label claim rules; any other occurrence (other atom types, other fields, namespace-level
+  claim gate expressions) must be rejected at save time
+- a bound label that matches no facet value in the holder's inventory simply fails the atom;
+  binding never widens a match
+
+### Bounds and failure posture
+
+- at most 20 rules per namespace policy
+- at most 100 labels per `exact` selector; each entry must satisfy the v0 label rules and be
+  stored normalized
+- rule expressions share the community gate budget (depth and atom caps) and are validated
+  with the same validator at write time and re-validated on read
+- fail closed: a malformed persisted rule, selector, or expression makes the labels it
+  selects unclaimable and surfaces an explicit evaluation error; it never falls through to
+  the namespace default or to open claims
+- provider outage during rule evaluation is reported as provider unavailability, distinct
+  from ineligibility, and denies the claim
+
+### Write model
+
+- the rule list is replaced atomically as part of the handle-policy write; `position` is
+  derived from array order and rule ids are server-assigned
+- writers must hold the same authority as for other handle-policy changes
 
 ## Claims-Disabled Launch Posture
 

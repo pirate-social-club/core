@@ -12889,6 +12889,11 @@ components:
           enum:
             - claim_time
             - continuous
+        label_claim_rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommunityHandleLabelClaimRule"
+          description: Ordered per-label claim rules. Optional for compatibility; absent means no rules.
         settings:
           $ref: "#/components/schemas/CommunityHandlePolicySettings"
         updated_at:
@@ -12987,6 +12992,10 @@ components:
         reason:
           type: string
           nullable: true
+        claim_gate:
+          $ref: "#/components/schemas/CommunityHandleQuoteClaimGate"
+          nullable: true
+          description: Present when a claim gate applies to the quoted label. Optional for compatibility.
         price_cents:
           type: integer
           minimum: 0
@@ -13080,6 +13089,11 @@ components:
           enum:
             - claim_time
             - continuous
+        label_claim_rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommunityHandleLabelClaimRuleInput"
+          description: Full replacement of the ordered rule list. Omit to leave rules unchanged. Position is derived from array order; at most 20 rules.
         settings:
           $ref: "#/components/schemas/CommunityHandlePolicySettings"
           nullable: true
