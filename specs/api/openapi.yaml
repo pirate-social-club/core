@@ -18283,6 +18283,7 @@ components:
         - confirming
         - confirmed
         - failed
+        - refund_pending
         - refunded
     RewardCampaignFundingQuote:
       type: object
