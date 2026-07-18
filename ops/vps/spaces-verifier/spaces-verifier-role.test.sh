@@ -39,6 +39,7 @@ fi
 
 bash -n "$role_dir/bin/build-spaced.sh"
 grep -Fq '9eb78628318ac1892a82c6275108e7de0cdc7403' "$role_dir/bin/build-spaced.sh"
+grep -Fq "grep -Fq 'spaces_client 0.0.9'" "$role_dir/bin/build-spaced.sh"
 grep -Fq 'User=pirate-spaces' "$role_dir/systemd/pirate-spaced.service"
 grep -Fq 'ReadWritePaths=/srv/pirate-spaces/data/spaced' "$role_dir/systemd/pirate-spaced.service"
 grep -Fq 'After=network-online.target pirate-spaced.service' "$role_dir/systemd/pirate-spaces-verifier.service"
