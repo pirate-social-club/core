@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { findAnonymousTableChecks } from "./lib/migration-constraint-lint.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(__filename), "..");
@@ -211,6 +212,43 @@ function changedMigrationFilesSince(baseRef) {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
+}
+
+function addedMigrationFiles(baseRef) {
+  const added = new Set();
+  for (const line of changedMigrationFilesSince(baseRef)) {
+    const [status, firstPath, secondPath] = line.split(/\s+/u);
+    if (status?.startsWith("A") && firstPath) added.add(firstPath);
+    if (status?.startsWith("R") && secondPath) added.add(secondPath);
+  }
+  const workingTree = gitMaybe([
+    "status",
+    "--porcelain=v1",
+    "--",
+    ...migrationRoots.map((root) => root.path),
+  ]);
+  for (const line of workingTree?.split("\n") ?? []) {
+    if (!line) continue;
+    const status = line.slice(0, 2);
+    const filePath = line[1] === " " && line[2] !== " " ? line.slice(2) : line.slice(3);
+    if ((status === "??" || status.includes("A")) && filePath.endsWith(".sql")) added.add(filePath);
+  }
+  return [...added].sort();
+}
+
+function checkNamedTableConstraints(baseRef) {
+  const failures = [];
+  for (const filePath of addedMigrationFiles(baseRef)) {
+    const absolutePath = path.join(repoRoot, filePath);
+    if (!fs.existsSync(absolutePath)) continue;
+    const sql = fs.readFileSync(absolutePath, "utf8");
+    for (const issue of findAnonymousTableChecks(sql)) {
+      failures.push(
+        `${filePath}:${issue.line}: table-level CHECK constraints must be named with CONSTRAINT <name> CHECK (...)`,
+      );
+    }
+  }
+  return failures;
 }
 
 function compatibleControlPlaneDrifts() {
@@ -481,6 +519,7 @@ for (const root of migrationRoots) {
 
 failures.push(...checkImmutableAppliedMigrations(baseRef));
 failures.push(...checkImmutableWorkingTreeMigrations());
+failures.push(...checkNamedTableConstraints(baseRef));
 failures.push(...await checkCommunityDriftPolicy());
 failures.push(...await checkLocalControlPlaneDriftPolicy());
 
