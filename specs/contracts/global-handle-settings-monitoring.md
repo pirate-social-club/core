@@ -46,30 +46,36 @@ References:
 Set the Query Builder timeframe to the exact half-open UTC window `[00:00:00Z, next 00:00:00Z)` and
 select the production API Worker service (`api-core`). Query invocation events, not only custom logs.
 
-Use the indexed invocation metadata fields `$metadata.url`, `$metadata.trigger`, and
-`$metadata.statusCode`. Discover/confirm them through the Query Builder autocomplete or telemetry keys
-endpoint before the first recorded run; do not guess a renamed field.
+The production telemetry-keys preflight on 2026-07-18 confirmed these indexed fields:
+
+- service: `$metadata.service`
+- trigger: `$metadata.trigger`
+- request URL: `$workers.event.request.url`
+- response status: `$workers.event.response.status`
+
+Reconfirm them through Query Builder autocomplete or the telemetry keys endpoint if the query stops
+matching; do not substitute similarly named fields without checking the production schema.
 
 Base route filter:
 
 ```text
 $metadata.service = "api-core" AND (
-  contains($metadata.url, "/profiles/me/quote-handle-upgrade") OR
-  contains($metadata.url, "/profiles/me/rename-global-handle") OR
-  contains($metadata.url, "/profiles/me/global-handle/claim")
+  contains($workers.event.request.url, "/profiles/me/quote-handle-upgrade") OR
+  contains($workers.event.request.url, "/profiles/me/rename-global-handle") OR
+  contains($workers.event.request.url, "/profiles/me/global-handle/claim")
 )
 ```
 
 Error-only refinement:
 
 ```text
-$metadata.statusCode >= 400
+$workers.event.response.status >= 400
 ```
 
-Calculate invocation count grouped by `$metadata.trigger` and `$metadata.statusCode`. Export or record
-the grouped result with the exact timeframe, query text, Worker revision, and sampling interval. If
-sampling is active, use Cloudflare's reported aggregate count/sample interval rather than treating the
-number of returned event rows as the request total.
+Calculate invocation count grouped by `$metadata.trigger` and `$workers.event.response.status`. Export
+or record the grouped result with the exact timeframe, query text, Worker revision, and sampling
+interval. If sampling is active, use Cloudflare's reported aggregate count/sample interval rather than
+treating the number of returned event rows as the request total.
 
 For each 5xx group, open representative invocation events and correlate their request or trace
 identifier with Sentry. For each quote-route `400`, inspect correlation metadata and reproduce with a
