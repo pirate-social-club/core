@@ -46,6 +46,12 @@ extracts the pinned image digest and container name from the role's
 `releases/<commit>` to the host, flip the `current` symlink, then record the
 configuration hash once:
 
+A role that needs a separately built runtime artifact may provide an
+executable, tracked `bin/stage-release-assets.sh`. `make-release.sh` runs it
+with the new release directory as its only argument before producing
+`SHA256SUMS`. The role stager must pin and verify the artifact provenance and
+must write only inside that release directory; any failure aborts staging.
+
 ```
 sudo $DEPLOY_ROOT/current/bin/deployment-status.sh --deploy-root $DEPLOY_ROOT --record-config
 ```

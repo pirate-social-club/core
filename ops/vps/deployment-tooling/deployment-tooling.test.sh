@@ -4,7 +4,7 @@ set -euo pipefail
 # Executable harness for the deployment tooling. No docker daemon required:
 # docker is shimmed on PATH with canned responses. Covers:
 #   1. make-release refuses a dirty tree
-#   2. make-release stages a checksummed release with DEPLOYMENT metadata
+#   2. make-release stages role-provided assets inside the checksummed release
 #   3. verify passes on a clean pre-launch deployment (EXPECT_RUNNING=false)
 #   4. verify fails when a tracked release file is modified
 #   5. verify fails when config changes after --record-config
@@ -34,6 +34,15 @@ services:
     container_name: pirate-demo-role
 EOF
 echo "setting=1" > "$repo/ops/vps/demo-role/config/demo.conf.example"
+mkdir -p "$repo/ops/vps/demo-role/bin"
+cat > "$repo/ops/vps/demo-role/bin/stage-release-assets.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+release_dir="${1:?release directory required}"
+printf '%s\n' 'fixture runtime asset' > "$release_dir/bin/demo-helper"
+chmod 0755 "$release_dir/bin/demo-helper"
+EOF
+chmod +x "$repo/ops/vps/demo-role/bin/stage-release-assets.sh"
 git -C "$repo" init -q
 git -C "$repo" -c user.email=t@t -c user.name=t add -A
 git -C "$repo" -c user.email=t@t -c user.name=t commit -qm "fixture"
@@ -56,10 +65,12 @@ make_release "$work/deploy" --expect-running false >/dev/null
 release="$work/deploy/releases/$commit"
 [[ -f "$release/DEPLOYMENT" && -f "$release/SHA256SUMS" && -x "$release/bin/deployment-status.sh" ]] \
   || fail "release layout incomplete"
+[[ -x "$release/bin/demo-helper" ]] || fail "role-provided runtime asset was not staged"
+grep -q 'bin/demo-helper$' "$release/SHA256SUMS" || fail "runtime asset omitted from SHA256SUMS"
 grep -q "^CORE_COMMIT=$commit$" "$release/DEPLOYMENT" || fail "DEPLOYMENT missing commit"
 grep -q "^IMAGE_DIGEST=example/demo@sha256:1111" "$release/DEPLOYMENT" || fail "DEPLOYMENT missing digest"
 grep -q "^CONTAINER_NAME=pirate-demo-role$" "$release/DEPLOYMENT" || fail "DEPLOYMENT missing container"
-pass "make-release stages checksummed release with metadata"
+pass "make-release stages role assets in checksummed release"
 
 # --- docker shim -------------------------------------------------------------
 

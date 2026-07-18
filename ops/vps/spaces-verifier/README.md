@@ -42,6 +42,15 @@ This VPS slice may share a machine with the HNS DNS stack, but it remains operat
   verifier dependencies and installs a commit-named binary.
 - `bin/start-spaced.sh`
   Fails closed on missing RPC/auth configuration and binds RPC to loopback.
+- `bin/stage-release-assets.sh`
+  Downloads the immutable Spaces publisher `v0.1.2` Linux archive, verifies
+  the pinned archive digest and the extracted binary digest independently,
+  and stages the read-only Fabric reader plus its AGPL notice into the role
+  release. `make-release.sh` covers the staged bytes in the role SHA256SUMS.
+- `bin/check-verifier-health.sh` and the verifier-health systemd timer
+  Check the specific `fabric_record_reader_ready` signal every five minutes.
+  A degraded or missing signal fails the oneshot and invokes the existing
+  authenticated ops-alert delivery path through `alert-on-failure.sh`.
 
 The systemd template intentionally runs `bun` directly, not `rtk`. `rtk` is a local CLI
 convenience, not a VPS runtime dependency.

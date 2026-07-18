@@ -1,0 +1,22 @@
+[Unit]
+Description=Alert on Pirate Spaces Fabric record reader failure
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+EnvironmentFile=/etc/pirate-deployment-verify/spaces.env
+ExecStart=/bin/bash -c 'exec "$DEPLOY_ROOT/current/bin/alert-on-failure.sh" "pirate-spaces-verifier-health.service"'
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectClock=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+RestrictRealtime=true
+LockPersonality=true
+UMask=0077
