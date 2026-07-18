@@ -80,6 +80,11 @@ export BACKUP_QUIESCE_UNITS="subsd.service verifier.service spaced.service"
 # (ops/vps/hns-local-test) covers BACKUP_RETENTION_VERIFY=true against MinIO.
 export BACKUP_RETENTION_VERIFY=false
 
+# Backblaze's SigV4 canonicalization requires the empty GetObjectRetention
+# parameter to be explicit. `?retention&...` signs differently and fails with
+# SignatureDoesNotMatch even when the uploader has readFileRetentions.
+grep -Fq '"$url?retention=&versionId=$version_id"' "$here/hns-state-backup.sh"
+
 if ! "$here/hns-state-backup.sh" 2> "$test_root/stderr"; then
   cat "$test_root/stderr" >&2
   exit 1
