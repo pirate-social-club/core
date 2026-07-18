@@ -43,7 +43,7 @@ This VPS slice may share a machine with the HNS DNS stack, but it remains operat
 - `bin/start-spaced.sh`
   Fails closed on missing RPC/auth configuration and binds RPC to loopback.
 - `bin/stage-release-assets.sh`
-  Downloads the immutable Spaces publisher `v0.1.2` Linux archive, verifies
+  Downloads the immutable Spaces publisher `v0.1.3` Linux archive, verifies
   the pinned archive digest and the extracted binary digest independently,
   and stages the read-only Fabric reader plus its AGPL notice into the role
   release. `make-release.sh` covers the staged bytes in the role SHA256SUMS.
