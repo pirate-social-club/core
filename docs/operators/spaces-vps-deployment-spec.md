@@ -117,10 +117,16 @@ must not be publicly reachable.
 
 `/srv/pirate-spaces/config/spaced.env`:
 
+- `SPACED_BIN=/srv/pirate-spaces/bin/spaced-9eb7862`
+- `SPACED_CHAIN=mainnet`
 - `BITCOIN_RPC_URL`
 - `BITCOIN_RPC_USER`
 - `BITCOIN_RPC_PASS`
 - `SPACED_DATA_DIR=/srv/pirate-spaces/data/spaced`
+- `SPACED_RPC_USER`
+- `SPACED_RPC_PASS`
+- `SPACED_RPC_PORT=7225`
+- `SPACED_JOBS=4`
 
 Future `/srv/pirate-spaces/config/protocol-spaced.env` contract; do not render or deploy yet:
 
@@ -188,11 +194,13 @@ Do not compile Rust on each service restart.
 1. SSH to the VPS.
 2. Update `/srv/pirate-spaces/app` to the desired `main` commit.
 3. Run `bun install` if dependencies changed.
-4. Build `spaces-verifier-native`.
-5. Restart `pirate-spaces-verifier.service`.
-6. Confirm `GET https://verifier.pirate.sc/spaces/health`.
-7. Confirm `GET https://verifier.pirate.sc/spaces/inspect?root_label=@pirate`.
-8. Confirm `POST https://verifier.pirate.sc/spaces/verify-publish` with a known session challenge when available.
+4. Build and install the pinned verification-only `spaced` binary with
+   `ops/vps/spaces-verifier/bin/build-spaced.sh`.
+5. Build `spaces-verifier-native`.
+6. Start `pirate-spaced.service`, then `pirate-spaces-verifier.service`.
+7. Confirm `GET https://verifier.pirate.sc/spaces/health`.
+8. Confirm `GET https://verifier.pirate.sc/spaces/inspect?root_label=@pirate`.
+9. Confirm `POST https://verifier.pirate.sc/spaces/verify-publish` with a known session challenge when available.
 
 This sequence brings up verification only. It does not enable community protocol issuance.
 

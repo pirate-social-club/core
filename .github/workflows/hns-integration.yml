@@ -25,6 +25,7 @@ jobs:
       dns: ${{ steps.detect.outputs.dns }}
       backup: ${{ steps.detect.outputs.backup }}
       tooling: ${{ steps.detect.outputs.tooling }}
+      spaces: ${{ steps.detect.outputs.spaces }}
     steps:
       - name: Check out repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -40,6 +41,7 @@ jobs:
             echo "dns=true" >> "$GITHUB_OUTPUT"
             echo "backup=true" >> "$GITHUB_OUTPUT"
             echo "tooling=true" >> "$GITHUB_OUTPUT"
+            echo "spaces=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -67,6 +69,11 @@ jobs:
             echo "tooling=true" >> "$GITHUB_OUTPUT"
           else
             echo "tooling=false" >> "$GITHUB_OUTPUT"
+          fi
+          if grep -Eq '^(.github/workflows/hns-integration.yml|ops/vps/spaces-verifier/|services/verifier/spaces/)' <<< "$changed"; then
+            echo "spaces=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "spaces=false" >> "$GITHUB_OUTPUT"
           fi
 
   dns:
@@ -105,9 +112,21 @@ jobs:
       - name: Run deployment release + drift-verification harness
         run: bash ops/vps/deployment-tooling/deployment-tooling.test.sh
 
+  spaces:
+    needs: changes
+    if: needs.changes.outputs.spaces == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Run Spaces verification role checks
+        run: bash ops/vps/spaces-verifier/spaces-verifier-role.test.sh
+
   gate:
     name: hns-integration-gate
-    needs: [changes, dns, backup, tooling]
+    needs: [changes, dns, backup, tooling, spaces]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -117,9 +136,11 @@ jobs:
           DNS_RESULT: ${{ needs.dns.result }}
           BACKUP_RESULT: ${{ needs.backup.result }}
           TOOLING_RESULT: ${{ needs.tooling.result }}
+          SPACES_RESULT: ${{ needs.spaces.result }}
         run: |
           set -euo pipefail
           [[ "$CHANGES_RESULT" == "success" ]]
           [[ "$DNS_RESULT" == "success" || "$DNS_RESULT" == "skipped" ]]
           [[ "$BACKUP_RESULT" == "success" || "$BACKUP_RESULT" == "skipped" ]]
           [[ "$TOOLING_RESULT" == "success" || "$TOOLING_RESULT" == "skipped" ]]
+          [[ "$SPACES_RESULT" == "success" || "$SPACES_RESULT" == "skipped" ]]
