@@ -13093,7 +13093,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CommunityHandleLabelClaimRuleInput"
-          description: Full replacement of the ordered rule list. Omit to leave rules unchanged. Position is derived from array order; at most 20 rules.
+          description: Full replacement of the ordered rule list. Omit to leave rules unchanged. Include an existing rule id to preserve its durable identity; omit id for a new rule. Position is derived from array order; at most 20 rules.
         settings:
           $ref: "#/components/schemas/CommunityHandlePolicySettings"
           nullable: true

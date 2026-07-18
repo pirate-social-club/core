@@ -472,7 +472,10 @@ A rule expression may reference the label being claimed:
 ### Write model
 
 - the rule list is replaced atomically as part of the handle-policy write; `position` is
-  derived from array order and rule ids are server-assigned
+  derived from array order; writers include existing rule ids to preserve durable identity,
+  while ids are server-assigned for entries that omit one
+- an existing rule id may only be reused within its owning namespace policy; unknown,
+  cross-policy, and duplicate ids are rejected rather than silently re-minted
 - writers must hold the same authority as for other handle-policy changes
 
 ## Claims-Disabled Launch Posture
