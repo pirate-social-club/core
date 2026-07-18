@@ -2,11 +2,11 @@
 set -euo pipefail
 
 readonly RELEASE_DIR="${1:?release directory required}"
-readonly PUBLISHER_VERSION="v0.1.2"
+readonly PUBLISHER_VERSION="v0.1.3"
 readonly PUBLISHER_REPO="pirate-social-club/pirate-spaces-publisher"
 readonly ARCHIVE_NAME="spaces-publisher-linux-x64.tar.gz"
-readonly ARCHIVE_SHA256="59f85de472a6aecbaae084b315fa7f5dcd90f45140575a3330397892c14a8020"
-readonly BINARY_SHA256="54f76f4b5b4b011d708716cdb2905e8599b43a46ddfda8e79f5d8c07f23aa48f"
+readonly ARCHIVE_SHA256="d424b43b84ad73dfa0197f67f897adc51cb1d2fba72eb771abc89946464a030a"
+readonly BINARY_SHA256="a469607640ce9501f679aeae66ab13d5228e69778049da983a28d6b3b2cde826"
 readonly DOWNLOAD_URL="https://github.com/${PUBLISHER_REPO}/releases/download/${PUBLISHER_VERSION}/${ARCHIVE_NAME}"
 
 work="$(mktemp -d)"
