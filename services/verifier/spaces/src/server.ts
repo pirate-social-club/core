@@ -9,6 +9,7 @@ import {
 import { normalizeRootLabel } from "./labels";
 import {
   FabricRecordReaderUnavailableError,
+  PublisherHealthMonitor,
   probePublisher,
   resolvePublisherExecutionConfig,
   runPublisher,
@@ -90,6 +91,7 @@ const spacesPublisherBin = Bun.env.SPACES_PUBLISHER_BIN?.trim() || null;
 const spacesPublisherTimeoutMs = Number(Bun.env.SPACES_PUBLISHER_TIMEOUT_MS || "10000");
 const spacesPublisherProbeHandle = Bun.env.SPACES_PUBLISHER_PROBE_HANDLE?.trim() || "@pirate";
 const spacesPublisherProbeTimeoutMs = Number(Bun.env.SPACES_PUBLISHER_PROBE_TIMEOUT_MS || "60000");
+const spacesPublisherKeepaliveIntervalMs = Number(Bun.env.SPACES_PUBLISHER_KEEPALIVE_INTERVAL_MS || "180000");
 const allowNativeBuildFallback = ["1", "true", "yes", "on"].includes(
   String(Bun.env.SPACES_NATIVE_ALLOW_BUILD_FALLBACK || "").trim().toLowerCase(),
 );
@@ -101,13 +103,20 @@ const nativeExecutionConfig: NativeExecutionConfig = resolveNativeExecutionConfi
 const publisherExecutionConfig = resolvePublisherExecutionConfig({
   publisherBin: spacesPublisherBin,
 });
-const publisherProbe = await probePublisher(publisherExecutionConfig, {
-  cwd: spacesPublisherDir,
-  timeoutMs: spacesPublisherProbeTimeoutMs,
-  args: ["resolve", spacesPublisherProbeHandle],
-});
-if (!publisherProbe.ready) {
-  console.error(`[spaces] Fabric record reader unavailable at startup: ${publisherProbe.error}`);
+const publisherHealth = new PublisherHealthMonitor();
+
+async function refreshPublisherHealth(): Promise<void> {
+  await publisherHealth.check(async () => {
+    const result = await probePublisher(publisherExecutionConfig, {
+      cwd: spacesPublisherDir,
+      timeoutMs: spacesPublisherProbeTimeoutMs,
+      args: ["resolve", spacesPublisherProbeHandle],
+    });
+    if (!result.ready) {
+      console.error(`[spaces] Fabric record reader keepalive failed: ${result.error}`);
+    }
+    return result;
+  });
 }
 
 function parsePublishedWebTargets(raw: string): Map<string, string> {
@@ -424,8 +433,9 @@ Bun.serve({
     }
 
     if (url.pathname === "/health") {
+      const fabricReaderHealth = publisherHealth.snapshot();
       return json({
-        ok: publisherProbe.ready,
+        ok: fabricReaderHealth.ready,
         bind_host: verifierHost,
         bind_port: verifierPort,
         spaced_rpc_url: spacedRpcUrl,
@@ -433,8 +443,11 @@ Bun.serve({
         requires_spaced_auth: spacedRpcAuthToken != null,
         native_execution_mode: nativeExecutionConfig.mode,
         fabric_record_reader_mode: publisherExecutionConfig.mode,
-        fabric_record_reader_ready: publisherProbe.ready,
+        fabric_record_reader_ready: fabricReaderHealth.ready,
+        fabric_record_reader_checking: fabricReaderHealth.checking,
         fabric_record_reader_probe_handle: spacesPublisherProbeHandle,
+        fabric_record_reader_last_checked_at: fabricReaderHealth.lastCheckedAt,
+        fabric_record_reader_last_success_at: fabricReaderHealth.lastSuccessAt,
       });
     }
 
@@ -512,3 +525,9 @@ Bun.serve({
 console.log(
   `Spaces verifier listening on http://${verifierHost}:${verifierPort} using ${nativeExecutionConfig.mode}`,
 );
+
+void refreshPublisherHealth();
+const publisherKeepalive = setInterval(() => {
+  void refreshPublisherHealth();
+}, spacesPublisherKeepaliveIntervalMs);
+publisherKeepalive.unref?.();

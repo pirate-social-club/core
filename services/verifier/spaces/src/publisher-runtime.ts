@@ -9,6 +9,70 @@ export class FabricRecordReaderUnavailableError extends Error {
   }
 }
 
+export type PublisherHealthSnapshot = {
+  ready: boolean;
+  checking: boolean;
+  lastCheckedAt: string | null;
+  lastSuccessAt: string | null;
+  lastError: string | null;
+};
+
+export class PublisherHealthMonitor {
+  private inFlight: Promise<void> | null = null;
+  private state: PublisherHealthSnapshot = {
+    ready: false,
+    checking: false,
+    lastCheckedAt: null,
+    lastSuccessAt: null,
+    lastError: null,
+  };
+
+  snapshot(): PublisherHealthSnapshot {
+    return { ...this.state };
+  }
+
+  markSuccess(now = new Date()): void {
+    const checkedAt = now.toISOString();
+    this.state = {
+      ready: true,
+      checking: this.state.checking,
+      lastCheckedAt: checkedAt,
+      lastSuccessAt: checkedAt,
+      lastError: null,
+    };
+  }
+
+  markFailure(error: unknown, now = new Date()): void {
+    this.state = {
+      ...this.state,
+      ready: false,
+      checking: this.state.checking,
+      lastCheckedAt: now.toISOString(),
+      lastError: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  check(probe: () => Promise<{ ready: boolean; error: string | null }>): Promise<void> {
+    if (this.inFlight) {
+      return this.inFlight;
+    }
+
+    this.state = { ...this.state, checking: true };
+    this.inFlight = (async () => {
+      const result = await probe();
+      if (result.ready) {
+        this.markSuccess();
+      } else {
+        this.markFailure(result.error ?? "Spaces Fabric record reader unavailable");
+      }
+    })().finally(() => {
+      this.state = { ...this.state, checking: false };
+      this.inFlight = null;
+    });
+    return this.inFlight;
+  }
+}
+
 export function resolvePublisherExecutionConfig(input: {
   publisherBin: string | null;
 }): PublisherExecutionConfig {

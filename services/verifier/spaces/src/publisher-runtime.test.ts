@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   FabricRecordReaderUnavailableError,
+  PublisherHealthMonitor,
   probePublisher,
   resolvePublisherExecutionConfig,
   runPublisher,
@@ -50,5 +51,46 @@ describe("Spaces publisher runtime", () => {
       { cwd: import.meta.dir, timeoutMs: 1_000, args: ["resolve", "@pirate"] },
     );
     expect(status.ready).toBe(true);
+  });
+
+  test("health recovers after a failed keepalive", async () => {
+    const monitor = new PublisherHealthMonitor();
+    await monitor.check(async () => ({ ready: false, error: "relay unavailable" }));
+    expect(monitor.snapshot()).toMatchObject({
+      ready: false,
+      checking: false,
+      lastError: "relay unavailable",
+      lastSuccessAt: null,
+    });
+
+    await monitor.check(async () => ({ ready: true, error: null }));
+    expect(monitor.snapshot()).toMatchObject({
+      ready: true,
+      checking: false,
+      lastError: null,
+    });
+    expect(monitor.snapshot().lastSuccessAt).not.toBeNull();
+  });
+
+  test("deduplicates overlapping keepalive checks", async () => {
+    const monitor = new PublisherHealthMonitor();
+    let calls = 0;
+    let releaseProbe = () => {};
+    const blockedProbe = async () => {
+      calls += 1;
+      await new Promise<void>((resolve) => {
+        releaseProbe = resolve;
+      });
+      return { ready: true, error: null };
+    };
+
+    const first = monitor.check(blockedProbe);
+    const second = monitor.check(blockedProbe);
+    expect(calls).toBe(1);
+    expect(monitor.snapshot().checking).toBe(true);
+    releaseProbe();
+    await Promise.all([first, second]);
+    expect(calls).toBe(1);
+    expect(monitor.snapshot().ready).toBe(true);
   });
 });
