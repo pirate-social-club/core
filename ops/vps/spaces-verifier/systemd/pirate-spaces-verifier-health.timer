@@ -1,0 +1,12 @@
+[Unit]
+Description=Monitor Pirate Spaces Fabric record reader health
+
+[Timer]
+OnBootSec=2m
+OnUnitActiveSec=5m
+RandomizedDelaySec=30s
+Persistent=true
+Unit=pirate-spaces-verifier-health.service
+
+[Install]
+WantedBy=timers.target
