@@ -8,5 +8,9 @@ if ! grep -Eq '"fabric_record_reader_ready"[[:space:]]*:[[:space:]]*true' <<< "$
   echo "Spaces verifier Fabric record reader is not ready" >&2
   exit 1
 fi
+if ! grep -Eq '"fallback_target_disagreements"[[:space:]]*:[[:space:]]*0([,}])' <<< "$body"; then
+  echo "Spaces verifier reports a native/fallback target disagreement" >&2
+  exit 1
+fi
 
 echo "Spaces verifier Fabric record reader is ready"
