@@ -362,6 +362,32 @@ Actor rule:
 
 The exact price table can evolve later, but these eligibility tiers should be fixed now.
 
+### Global Handle Settings Surface
+
+`/settings/domains` manages the signed-in user's single global `.pirate` identity. It is not a
+portfolio or resale-inventory surface.
+
+Required behavior:
+
+- show the current active `.pirate` handle separately from the replacement-name field
+- initialize the replacement-name field empty; do not prefill it with the active handle
+- if the user types their active handle, identify it as their current name, make the change action
+  unavailable, and do not send an availability or quote request
+- describe both free cleanup renames and paid upgrades as replacements of the current active name
+- show a server-returned unavailable or reserved result only for a different candidate label
+- treat an eligible zero-dollar standard quote as a free cleanup rename; it does not require a
+  persisted paid-quote id or payment instructions
+- treat both `base` and `discounted` standard pricing tiers as free-cleanup eligible when the API
+  returns `price_cents = 0` and `cleanup_rename_available = true`
+- require an unexpired paid quote, exact payment instructions, and confirmed funding proof before a
+  paid replacement is submitted
+- after a successful replacement, refresh the profile projection and present the returned handle as
+  the only active global name
+
+Community-local handles are out of scope for this surface. A user may choose a different handle in
+each community, but those claims follow the namespace-local lifecycle and must not be represented as
+additional global `.pirate` names.
+
 ## Relationship To Reddit Bootstrap
 
 Verified Reddit import may improve the user's initial global identity experience.
