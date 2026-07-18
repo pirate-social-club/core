@@ -1,6 +1,9 @@
 # Spaces Verifier VPS Assets
 
-Status: **NOT DEPLOYED**. These are tracked deployment assets, not evidence of a live verifier.
+Status: **PRIVATE STAGING DEPLOYED; PUBLIC CUTOVER PENDING**. The verification-only
+daemon and verifier run loopback-only on ns1. This is not evidence that
+`verifier.pirate.sc` is reachable. See the dated
+[HNS/Spaces handoff](../../../docs/operators/hns-spaces/README.md).
 
 This directory contains tracked deployment assets for the VPS-hosted Spaces verification slice.
 
