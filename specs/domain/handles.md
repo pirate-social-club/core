@@ -437,7 +437,8 @@ A namespace handle policy may carry an ordered list of label claim rules:
   time, and eligibility must be re-evaluated at commit
 - `eligibility_timing` applies to rule-derived gates the same way it applies to the
   namespace claim gate; rules do not introduce new timing semantics
-- rules gate claims only; they do not gate renewal, transfer, or revocation in v0
+- under `claim_time`, rules gate claims only; under `continuous`, the effective rule expression
+  is snapshotted at claim and revalidated through the lifecycle below
 
 ### Label binding
 
@@ -477,6 +478,77 @@ A rule expression may reference the label being claimed:
 - an existing rule id may only be reused within its owning namespace policy; unknown,
   cross-policy, and duplicate ids are rejected rather than silently re-minted
 - writers must hold the same authority as for other handle-policy changes
+
+## Continuous Eligibility Lifecycle
+
+`eligibility_timing = continuous` closes the flash-claim path without watching every asset
+transfer or silently revoking an identity mid-cycle. It is a platform revalidation lifecycle,
+not lease expiry: perpetual ownership and eligibility state remain separate.
+
+### Claim provenance
+
+Every continuously eligible claim records an immutable grant snapshot:
+
+- the effective, validated gate expression after any `{label}` substitution
+- source (`namespace` or `label_rule`) and durable source id/version
+- namespace policy id and policy version or content hash
+- evaluator/provider identities and evaluation timestamp
+- minimal qualifying evidence summary; custody inventory is represented by a provider proof id
+  or evidence hash, never a raw private inventory dump
+
+Revalidation asks whether the current owner satisfies that snapshotted expression, never whether
+they still hold the same token id. Selling one qualifying asset and obtaining another equivalent
+asset must not break the handle. Policy edits are prospective by default: changing or deleting a
+rule does not rewrite existing grant snapshots. A future explicit migration may offer new terms to
+existing holders, but must not do so implicitly during a policy save.
+
+### Epoch and states
+
+V1 uses platform constants rather than per-community knobs:
+
+- successful eligibility is current for 90 days
+- a definitive failed revalidation starts a 30-day grace window
+- provider unavailability, timeout, or an internal/malformed-policy error is indeterminate and
+  schedules a bounded retry; it does not start or advance holder grace
+
+Eligibility state is stored independently from handle ownership `status`:
+
+- `not_required`: claim-time-only or ungated handle
+- `current`: continuously gated and within its successful revalidation epoch
+- `grace`: definitive failure, but the handle remains publicly functional until `grace_ends_at`
+- `suspended`: grace elapsed without requalification; ownership and label reservation remain,
+  but the handle no longer renders as the owner's active community identity
+
+Suspension does not release the label, transfer ownership, expire a perpetual license, or make the
+label claimable by another user. Release and right-of-first-refusal semantics belong to a future
+explicit lease policy. Requalification from either `grace` or `suspended` restores `current`
+immediately and starts a new 90-day epoch.
+
+### Revalidation paths
+
+- a bounded, resumable scheduled sweep selects due handles by `eligibility_next_check_at`; work is
+  shard-local, idempotent, lease-protected, and capped per invocation
+- owners may call an authenticated `re-check now` action during `grace` or `suspended`; it uses the
+  same evaluator and transition function as the sweep and is rate-limited
+- evaluation uses the owner's currently active wallet attachments and current provider evidence
+- concurrent sweeps and owner checks use a compare-and-set revision so stale outcomes cannot
+  overwrite a newer success
+- a successful result clears failure/grace fields; a definitive ineligible result preserves the
+  original grace deadline rather than extending it on every retry
+
+The API exposes owner-visible eligibility status, last/next check times, grace deadline, and a
+coarse failure reason. It does not expose private qualifying evidence publicly.
+
+### Notices and operations
+
+Private owner notices are emitted idempotently when grace begins, seven days before its deadline,
+one day before its deadline, and when suspension or restoration occurs. Public state does not
+change during grace. Operator telemetry distinguishes definitive ineligibility, provider
+unavailability, malformed snapshots, stale compare-and-set outcomes, and exhausted retries.
+
+Policy writers must continue rejecting `continuous` until claim provenance persistence, the
+scheduled sweep, owner-triggered recheck, suspension-aware rendering, restoration, and notices are
+all deployed. Enabling the enum before the complete lifecycle exists is fail-open and forbidden.
 
 ## Claims-Disabled Launch Posture
 

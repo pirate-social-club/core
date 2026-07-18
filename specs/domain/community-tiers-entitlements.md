@@ -73,20 +73,20 @@ scarce, durable, visible entitlements (names):
   plus a revocation flow for an actively-used identity (mid-cycle identity
   rug). Operationally heavy, socially nasty.
 - **Revalidate-on-renewal: default.** Re-evaluate the tier expression at the
-  renewal epoch. Bounded staleness (one renewal period), no watchers, no
+  renewal epoch. V1 uses the platform's 90-day eligibility epoch. Bounded
+  staleness (one renewal period), no watchers, no
   mid-cycle revocation. Precedent already in the system: `unique_human`
   capabilities expire after 90 days into `reverification_required`.
 
 Grace period on failed revalidation: the name does not release instantly. V1
-uses a platform default grace window, not a per-community knob; start at ~30
-days unless implementation research finds a better operational default. The
+uses a 30-day platform grace window, not a per-community knob. The
 owner gets private notices at failed revalidation, T-7, and T-1. The name and
 badge stay publicly functional during grace; public state changes only at
-release, because grace exists to avoid a mid-cycle identity rug. Re-qualification
+eligibility suspension, because grace exists to avoid a mid-cycle identity rug. Re-qualification
 must be user-triggerable ("re-check now") so a member who regains eligibility
-does not wait for the next sweep. On release, the name enters a short cooldown
-with right of first refusal for the lapsed member before returning to the open
-pool; otherwise renewal epochs create lapse-sniping incentives. Courtyard
+does not wait for the next sweep. Perpetual handles remain owned and reserve
+their labels while suspended; release and right-of-first-refusal belong to a
+future explicit lease policy. Courtyard
 physical redemption (token burned/moved on withdrawal) needs no special case:
 it fails the next revalidation exactly like a sale.
 
@@ -117,6 +117,5 @@ blob — do NOT expose raw token IDs or full inventory in app payloads.
   reuse, integrate, or keep orthogonal?
 - Tiers-only communities vs tiers composing with a base gate policy.
 - Migration path for existing single-policy communities.
-- Renewal epoch source: Handshake-style name renewal cycle vs a
-  platform-defined revalidation interval for non-name entitlements (badges).
-- Exact duration for the post-release right-of-first-refusal cooldown.
+- How badge-only entitlements share or diverge from the platform's 90-day handle
+  eligibility epoch.
