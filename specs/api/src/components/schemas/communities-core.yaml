@@ -1509,6 +1509,7 @@ CommunityTextLocalizationItem:
       enum:
         - ready
         - pending
+        - failed
         - same_language
         - policy_blocked
     machine_translated:
