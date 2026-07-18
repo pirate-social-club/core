@@ -7,6 +7,12 @@ import {
   decodeNativeJson,
 } from "./native";
 import { normalizeRootLabel } from "./labels";
+import {
+  FabricRecordReaderUnavailableError,
+  probePublisher,
+  resolvePublisherExecutionConfig,
+  runPublisher,
+} from "./publisher-runtime";
 
 type RootAnchor = {
   root: string;
@@ -60,6 +66,7 @@ type ResolveResponse =
       operation_class: string | null;
       web_url: string | null;
       freedom_url: string | null;
+      fabric_records_available: boolean;
       observation_provider: string | null;
       records: Record<string, string[]>;
     }
@@ -81,6 +88,8 @@ const spacesPublisherDir = new URL("../../../../tools/spaces-publisher", import.
 const nativeBin = Bun.env.SPACES_VERIFIER_NATIVE_BIN?.trim() || null;
 const spacesPublisherBin = Bun.env.SPACES_PUBLISHER_BIN?.trim() || null;
 const spacesPublisherTimeoutMs = Number(Bun.env.SPACES_PUBLISHER_TIMEOUT_MS || "10000");
+const spacesPublisherProbeHandle = Bun.env.SPACES_PUBLISHER_PROBE_HANDLE?.trim() || "@pirate";
+const spacesPublisherProbeTimeoutMs = Number(Bun.env.SPACES_PUBLISHER_PROBE_TIMEOUT_MS || "60000");
 const allowNativeBuildFallback = ["1", "true", "yes", "on"].includes(
   String(Bun.env.SPACES_NATIVE_ALLOW_BUILD_FALLBACK || "").trim().toLowerCase(),
 );
@@ -89,7 +98,17 @@ const nativeExecutionConfig: NativeExecutionConfig = resolveNativeExecutionConfi
   allowNativeBuildFallback,
   nativeManifestPath,
 });
-const spacesPublisherCommand = spacesPublisherBin ? [spacesPublisherBin] : ["go", "run", "."];
+const publisherExecutionConfig = resolvePublisherExecutionConfig({
+  publisherBin: spacesPublisherBin,
+});
+const publisherProbe = await probePublisher(publisherExecutionConfig, {
+  cwd: spacesPublisherDir,
+  timeoutMs: spacesPublisherProbeTimeoutMs,
+  args: ["resolve", spacesPublisherProbeHandle],
+});
+if (!publisherProbe.ready) {
+  console.error(`[spaces] Fabric record reader unavailable at startup: ${publisherProbe.error}`);
+}
 
 function parsePublishedWebTargets(raw: string): Map<string, string> {
   if (!raw) {
@@ -237,38 +256,21 @@ async function inspectRoot(rootLabel: string) {
 }
 
 async function resolveFabricRecords(handle: string): Promise<ResolveFabricRecordsResult> {
-  const result = Bun.spawn([...spacesPublisherCommand, "resolve", handle], {
+  const result = await runPublisher(publisherExecutionConfig, ["resolve", handle], {
     cwd: spacesPublisherDir,
-    stdout: "pipe",
-    stderr: "pipe",
+    timeoutMs: spacesPublisherTimeoutMs,
   });
-
-  const timeoutId = setTimeout(() => {
-    try {
-      result.kill();
-    } catch {
-      // best effort timeout cleanup
-    }
-  }, spacesPublisherTimeoutMs);
-
-  const [exitCode, stdout, stderr] = await Promise.all([
-    result.exited,
-    new Response(result.stdout).text(),
-    new Response(result.stderr).text(),
-  ]);
-  clearTimeout(timeoutId);
-
-  const normalizedStdout = stdout.trim();
-  const normalizedStderr = stderr.trim();
-  if (exitCode !== 0) {
-    throw new Error(
-      normalizedStderr || normalizedStdout || `spaces publisher resolve failed after ${spacesPublisherTimeoutMs}ms`,
+  let parsed: ResolveFabricRecordsResult;
+  try {
+    parsed = JSON.parse(result.stdout) as ResolveFabricRecordsResult;
+  } catch (error) {
+    throw new FabricRecordReaderUnavailableError(
+      "Spaces Fabric record reader returned invalid JSON",
+      { cause: error },
     );
   }
-
-  const parsed = JSON.parse(normalizedStdout) as ResolveFabricRecordsResult;
   if (parsed.error) {
-    throw new Error(parsed.error);
+    throw new FabricRecordReaderUnavailableError(parsed.error);
   }
   return parsed;
 }
@@ -322,6 +324,7 @@ async function resolveHandle(handle: string): Promise<ResolveResponse> {
       typeof inspection.operation_class === "string" ? inspection.operation_class : null,
     web_url: nativeWebUrl ?? publishedWebTargets.get(`@${normalizedRootLabel}`) ?? null,
     freedom_url: nativeFreedomUrl,
+    fabric_records_available: fabricRecords != null,
     observation_provider: appendObservationProvider(
       typeof inspection.observation_provider === "string" ? inspection.observation_provider : null,
       fabricRecords != null ? "fabric_zone" : null,
@@ -422,13 +425,16 @@ Bun.serve({
 
     if (url.pathname === "/health") {
       return json({
-        ok: true,
+        ok: publisherProbe.ready,
         bind_host: verifierHost,
         bind_port: verifierPort,
         spaced_rpc_url: spacedRpcUrl,
         requires_bearer_auth: verifierAuthToken != null,
         requires_spaced_auth: spacedRpcAuthToken != null,
         native_execution_mode: nativeExecutionConfig.mode,
+        fabric_record_reader_mode: publisherExecutionConfig.mode,
+        fabric_record_reader_ready: publisherProbe.ready,
+        fabric_record_reader_probe_handle: spacesPublisherProbeHandle,
       });
     }
 
@@ -487,6 +493,12 @@ Bun.serve({
         };
         return await verifyFabricPublish(body);
       } catch (error) {
+        if (error instanceof FabricRecordReaderUnavailableError) {
+          return json({
+            error: "fabric_record_reader_unavailable",
+            failure_reason: error.message,
+          }, { status: 503 });
+        }
         return json({
           error: error instanceof Error ? error.message : "publish verification failed",
         }, { status: 500 });
