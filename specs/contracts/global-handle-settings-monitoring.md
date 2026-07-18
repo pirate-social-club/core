@@ -23,6 +23,59 @@ Routes:
 - Tinybird `handle_claim_started`, `handle_claim_failed`, and `handle_claim_succeeded` events are
   supporting product signals; they are not a complete HTTP status ledger
 
+## Access Preflight
+
+Before the first checkpoint, the operator must have one of:
+
+- an authenticated Cloudflare dashboard session with access to Workers Observability Query Builder
+- an API token accepted by
+  `POST /accounts/{account_id}/workers/observability/telemetry/query` with the Cloudflare-documented
+  `Workers Observability Write` permission
+
+`wrangler tail` and a token limited to `workers_tail` are not sufficient: they expose only live events,
+not a completed UTC window. The local Wrangler OAuth credential was verified on 2026-07-18 to lack
+historical telemetry-query access (`403`). Resolve dashboard/API access before counting a checkpoint.
+
+References:
+
+- [Workers Observability Query Builder](https://developers.cloudflare.com/workers/observability/query-builder/)
+- [Workers Observability telemetry query API](https://developers.cloudflare.com/api/resources/workers/subresources/observability/subresources/telemetry/methods/query/)
+
+## Historical Query Procedure
+
+Set the Query Builder timeframe to the exact half-open UTC window `[00:00:00Z, next 00:00:00Z)` and
+select the production API Worker service (`api-core`). Query invocation events, not only custom logs.
+
+Use the indexed invocation metadata fields `$metadata.url`, `$metadata.trigger`, and
+`$metadata.statusCode`. Discover/confirm them through the Query Builder autocomplete or telemetry keys
+endpoint before the first recorded run; do not guess a renamed field.
+
+Base route filter:
+
+```text
+$metadata.service = "api-core" AND (
+  contains($metadata.url, "/profiles/me/quote-handle-upgrade") OR
+  contains($metadata.url, "/profiles/me/rename-global-handle") OR
+  contains($metadata.url, "/profiles/me/global-handle/claim")
+)
+```
+
+Error-only refinement:
+
+```text
+$metadata.statusCode >= 400
+```
+
+Calculate invocation count grouped by `$metadata.trigger` and `$metadata.statusCode`. Export or record
+the grouped result with the exact timeframe, query text, Worker revision, and sampling interval. If
+sampling is active, use Cloudflare's reported aggregate count/sample interval rather than treating the
+number of returned event rows as the request total.
+
+For each 5xx group, open representative invocation events and correlate their request or trace
+identifier with Sentry. For each quote-route `400`, inspect correlation metadata and reproduce with a
+current production client; invocation logs intentionally do not require storing the desired label or
+other request-body data.
+
 ## Classification
 
 Report separately:
