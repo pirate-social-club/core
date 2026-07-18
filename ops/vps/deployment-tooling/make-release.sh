@@ -68,6 +68,19 @@ done
 mkdir -p "$release_dir/systemd"
 cp "$tooling_dir"/systemd/*.service "$tooling_dir"/systemd/*.timer "$release_dir/systemd/"
 
+# A role may stage digest-pinned, generated or downloaded runtime assets into
+# its immutable release. The stager is itself tracked at the exact core commit,
+# receives only the empty release destination, and must fail closed on any
+# provenance or checksum mismatch. Its output is covered by SHA256SUMS below.
+asset_stager="$role_dir/bin/stage-release-assets.sh"
+if [[ -f "$asset_stager" ]]; then
+  if [[ ! -x "$asset_stager" ]]; then
+    echo "release asset stager is not executable: $asset_stager" >&2
+    exit 1
+  fi
+  "$repo_root/$asset_stager" "$release_dir"
+fi
+
 # Pinned image digest and container name from the role's compose file, if any.
 image_digest=""
 container_name=""
