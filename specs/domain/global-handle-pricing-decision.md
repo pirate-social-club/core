@@ -10,8 +10,8 @@ Related docs:
 ## Decision Required
 
 Choose which global `.pirate` labels may be purchased through the ordinary self-service quote flow.
-This decision is time-boxed because the current production policy sells labels as short as three
-characters without review.
+This is a mainnet launch gate. Current payments use testnet value, so the July 24 time box is cheap
+insurance and a forcing function rather than an emergency response to real-money exposure.
 
 Current runtime behavior:
 
@@ -25,6 +25,25 @@ Current runtime behavior:
 
 This conflicts with the intended v0 posture in [profile.md](./profile.md): six-character labels require
 manual review and labels of one to five characters are reserved, auction-only, or admin-assigned.
+
+## Testnet State Continuity
+
+Staging and production use distinct control-plane database configurations. However, production
+testnet claims are written to the production control plane, and switching settlement from testnet to
+mainnet does not itself replace or clear that database.
+
+No approved wipe, reservation migration, or testnet-to-mainnet global-handle transition exists today.
+Therefore the launch-planning default is:
+
+- production global handles, paid-quote history, and rename redirects **carry into mainnet**
+- short labels claimed during testnet must be treated as occupied inventory at launch
+- a wipe or selective reservation migration requires an explicit, reviewed data-migration plan
+- a migration must define treatment of active labels, old redirect labels, paid history, affected users,
+  notice, rollback, and impersonation protection
+
+Do not describe production testnet names as disposable unless that migration has been approved and
+scheduled. The pricing decision must account for already-claimed short labels as well as future quote
+eligibility.
 
 ## Recommendation
 
