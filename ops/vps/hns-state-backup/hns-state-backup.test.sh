@@ -84,6 +84,8 @@ export BACKUP_RETENTION_VERIFY=false
 # parameter to be explicit. `?retention&...` signs differently and fails with
 # SignatureDoesNotMatch even when the uploader has readFileRetentions.
 grep -Fq '"$url?retention=&versionId=$version_id"' "$here/hns-state-backup.sh"
+grep -Fq 'ExecStartPost=/srv/pirate-hns/current/bin/heartbeat.sh' \
+  "$here/systemd/pirate-hns-state-backup.service"
 
 if ! "$here/hns-state-backup.sh" 2> "$test_root/stderr"; then
   cat "$test_root/stderr" >&2

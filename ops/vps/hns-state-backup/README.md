@@ -99,9 +99,11 @@ Failed runs fire `pirate-hns-state-backup-alert@%n.service`, which posts to
 For Pirate's authenticated edge-alert ingress, set
 `OPS_ALERT_BEARER_TOKEN_FILE` to a root-owned mode-`0600` token file rather
 than storing the bearer value directly in this env file.
-Note this only alerts on runs that *fail* — if the timer stops firing
-entirely, nothing alerts. Pair it with external dead-man monitoring on the
-newest object age in the backup bucket.
+Successful runs emit the `hns-state-backup` deployment heartbeat only after
+both objects upload and pass provider-retention verification. The API's
+36-hour heartbeat dead-man therefore detects a dead timer, a dead host, and
+repeated backup failures; explicit failures still alert immediately through
+the unit's `OnFailure` handler.
 
 ## Restore drill
 
