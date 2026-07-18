@@ -33,6 +33,12 @@
         "oldChecksum": "8f226033af799763258e759d7fee7501aef9e658c5c523887ea85e84439f144f",
         "newChecksum": "b1fe7ab9ba6f4820fa90f8c2efbf15c440d9944ee3da03633467499204a01a29",
         "reason": "pre-deployment repair follow-up: use portable CAST syntax for SQLite bootstrap compatibility"
+      },
+      {
+        "migrationName": "0148_control_plane_reward_funding_refund_pending.sql",
+        "oldChecksum": "d64af5aedb13e931f851f7919bf2e48ff7f5af3cb774ad9adf9398e5711b0906",
+        "newChecksum": "d8f9f2afce013fa298485ecc9d3f098cddb4c51f656898940cf40d6dc952d5a0",
+        "reason": "pre-deployment repair: drop the anonymous 0134 funding-effect checks by definition before adding named replacements"
       }
     ]
   }
