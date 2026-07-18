@@ -7,6 +7,7 @@ import {
   decodeNativeJson,
 } from "./native";
 import { normalizeRootLabel } from "./labels";
+import { parsePublishedFallbackTargets, PublishedFallbackRegistry } from "./fallback-targets";
 import {
   FabricRecordReaderUnavailableError,
   PublisherHealthMonitor,
@@ -83,7 +84,10 @@ const verifierHost = Bun.env.SPACES_VERIFIER_HOST?.trim() || "0.0.0.0";
 const verifierPort = Number(Bun.env.SPACES_VERIFIER_PORT || "4047");
 const maxAnchorAgeBlocks = Number(Bun.env.SPACES_VERIFIER_MAX_ANCHOR_AGE_BLOCKS || "144");
 const verifierAuthToken = Bun.env.SPACES_VERIFIER_AUTH_TOKEN?.trim() || null;
-const publishedWebTargetsJson = Bun.env.SPACES_PUBLISHED_WEB_TARGETS_JSON?.trim() || "";
+const publishedTargetsFile = Bun.env.SPACES_PUBLISHED_TARGETS_FILE?.trim() || null;
+const publishedTargetsJson = publishedTargetsFile
+  ? await Bun.file(publishedTargetsFile).text()
+  : Bun.env.SPACES_PUBLISHED_TARGETS_JSON?.trim() || "";
 const nativeManifestPath = new URL("../native/Cargo.toml", import.meta.url).pathname;
 const spacesPublisherDir = new URL("../../../../tools/spaces-publisher", import.meta.url).pathname;
 const nativeBin = Bun.env.SPACES_VERIFIER_NATIVE_BIN?.trim() || null;
@@ -119,27 +123,9 @@ async function refreshPublisherHealth(): Promise<void> {
   });
 }
 
-function parsePublishedWebTargets(raw: string): Map<string, string> {
-  if (!raw) {
-    return new Map();
-  }
-
-  const parsed = JSON.parse(raw) as Record<string, unknown>;
-  const entries = Object.entries(parsed)
-    .map(([handle, url]) => {
-      const normalized = normalizeRootLabel(handle);
-      const target = typeof url === "string" ? url.trim() : "";
-      if (!normalized || !target) {
-        return null;
-      }
-      return [`@${normalized}`, target] as const;
-    })
-    .filter((entry): entry is readonly [string, string] => entry != null);
-
-  return new Map(entries);
-}
-
-const publishedWebTargets = parsePublishedWebTargets(publishedWebTargetsJson);
+const publishedFallbacks = new PublishedFallbackRegistry(
+  parsePublishedFallbackTargets(publishedTargetsJson),
+);
 
 function trimOptionalString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -308,12 +294,21 @@ async function resolveHandle(handle: string): Promise<ResolveResponse> {
 
   const nativeWebUrl = trimOptionalString(fabricRecords?.web_url);
   const nativeFreedomUrl = trimOptionalString(fabricRecords?.freedom_url);
+  const handleKey = `@${normalizedRootLabel}`;
+  const liveRootPubkey = typeof inspection.root_pubkey === "string" ? inspection.root_pubkey : null;
+  const fallback = publishedFallbacks.targetFor(handleKey, liveRootPubkey);
+  if (fabricRecords != null) {
+    publishedFallbacks.observeNative(handleKey, {
+      webUrl: nativeWebUrl,
+      freedomUrl: nativeFreedomUrl,
+    });
+  }
 
   return {
     resolved: true,
     handle: `@${normalizedRootLabel}`,
     canonical_handle: trimOptionalString(fabricRecords?.canonical_handle) ?? `@${normalizedRootLabel}`,
-    root_pubkey: typeof inspection.root_pubkey === "string" ? inspection.root_pubkey : null,
+    root_pubkey: liveRootPubkey,
     outpoint:
       typeof inspection.proof_payload?.live_outpoint === "string"
         ? inspection.proof_payload.live_outpoint
@@ -331,8 +326,8 @@ async function resolveHandle(handle: string): Promise<ResolveResponse> {
       typeof inspection.control_class === "string" ? inspection.control_class : null,
     operation_class:
       typeof inspection.operation_class === "string" ? inspection.operation_class : null,
-    web_url: nativeWebUrl ?? publishedWebTargets.get(`@${normalizedRootLabel}`) ?? null,
-    freedom_url: nativeFreedomUrl,
+    web_url: nativeWebUrl ?? fallback?.webUrl ?? null,
+    freedom_url: nativeFreedomUrl ?? fallback?.freedomUrl ?? null,
     fabric_records_available: fabricRecords != null,
     observation_provider: appendObservationProvider(
       typeof inspection.observation_provider === "string" ? inspection.observation_provider : null,
@@ -434,6 +429,7 @@ Bun.serve({
 
     if (url.pathname === "/health") {
       const fabricReaderHealth = publisherHealth.snapshot();
+      const fallbackDisagreements = publishedFallbacks.disagreementSnapshot();
       return json({
         ok: fabricReaderHealth.ready,
         bind_host: verifierHost,
@@ -448,6 +444,8 @@ Bun.serve({
         fabric_record_reader_probe_handle: spacesPublisherProbeHandle,
         fabric_record_reader_last_checked_at: fabricReaderHealth.lastCheckedAt,
         fabric_record_reader_last_success_at: fabricReaderHealth.lastSuccessAt,
+        fallback_target_disagreements: fallbackDisagreements.count,
+        fallback_target_disagreement_handles: fallbackDisagreements.handles,
       });
     }
 
