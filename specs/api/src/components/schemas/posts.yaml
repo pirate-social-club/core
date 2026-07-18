@@ -1508,10 +1508,11 @@ LocalizedPostResponse:
       enum:
         - ready
         - pending
+        - failed
         - same_language
         - policy_blocked
       description: |
-        Translation resolution state for the resolved locale. `ready` means a machine translation exists. `pending` means the translation is being materialized lazily. `same_language` means no translation is needed. `policy_blocked` means `translation_policy` forbids machine translation.
+        Translation resolution state for the resolved locale. `ready` means a machine translation exists. `pending` means the translation is being materialized lazily. `failed` means materialization exhausted its retry budget for the current source hash. `same_language` means no translation is needed. `policy_blocked` means `translation_policy` forbids machine translation.
     machine_translated:
       type: boolean
       description: |
