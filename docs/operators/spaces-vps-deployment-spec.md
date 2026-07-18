@@ -1,7 +1,9 @@
 # Spaces VPS Deployment Spec
 
-Status: **NOT DEPLOYED**. This is the intended production shape; it is not evidence that
-`verifier.pirate.sc/spaces` is reachable or that Pirate can complete a Spaces verification.
+Status: **PRIVATE STAGING DEPLOYED; PUBLIC CUTOVER PENDING**. The intended
+verification-only shape is running loopback-only on ns1 while its index syncs.
+This is not evidence that `verifier.pirate.sc/spaces` is reachable or that
+Pirate can complete a public Spaces verification.
 
 The previously used public address points at retired infrastructure. Treat health checks, DNS,
 TLS, API configuration, and one real end-to-end verification as cutover requirements, not as
