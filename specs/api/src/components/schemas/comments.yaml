@@ -276,8 +276,11 @@ CommentListItem:
       enum:
         - ready
         - pending
+        - failed
         - same_language
         - policy_blocked
+      description: |
+        `failed` means translation materialization exhausted its retry budget for the current source hash; editing the comment produces a new source hash and permits a new attempt cycle.
     machine_translated:
       type: boolean
     translated_body:
