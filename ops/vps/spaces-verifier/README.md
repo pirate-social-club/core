@@ -31,6 +31,14 @@ This VPS slice may share a machine with the HNS DNS stack, but it remains operat
   Example `spaced` environment contract.
 - `systemd/pirate-spaces-verifier.service`
   Tracked verifier systemd unit template.
+- `systemd/pirate-spaced.service`
+  Verification-only, loopback-bound Spaces daemon. This is distinct from the
+  blocked issuance-side `protocol-spaced` role.
+- `bin/build-spaced.sh`
+  Builds `spaced` from the exact Spaces source commit used by the native
+  verifier dependencies and installs a commit-named binary.
+- `bin/start-spaced.sh`
+  Fails closed on missing RPC/auth configuration and binds RPC to loopback.
 
 The systemd template intentionally runs `bun` directly, not `rtk`. `rtk` is a local CLI
 convenience, not a VPS runtime dependency.

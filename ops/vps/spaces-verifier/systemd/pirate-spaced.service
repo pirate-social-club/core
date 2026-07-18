@@ -1,17 +1,16 @@
 [Unit]
-Description=Pirate Spaces verifier
-After=network-online.target pirate-spaced.service
-Wants=network-online.target pirate-spaced.service
+Description=Pirate verification-only Spaces daemon
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
 User=pirate-spaces
 Group=pirate-spaces
-WorkingDirectory=/srv/pirate-spaces/app
-EnvironmentFile=/srv/pirate-spaces/config/verifier.env
-ExecStart=/usr/bin/env bun services/verifier/spaces/src/server.ts
+EnvironmentFile=/srv/pirate-spaces/config/spaced.env
+ExecStart=/srv/pirate-spaces/current/bin/start-spaced.sh
 Restart=on-failure
-RestartSec=3
+RestartSec=5
 NoNewPrivileges=true
 PrivateTmp=true
 PrivateDevices=true
@@ -24,6 +23,8 @@ ProtectKernelModules=true
 ProtectKernelTunables=true
 RestrictRealtime=true
 LockPersonality=true
+MemoryDenyWriteExecute=true
+ReadWritePaths=/srv/pirate-spaces/data/spaced
 UMask=0077
 
 [Install]
