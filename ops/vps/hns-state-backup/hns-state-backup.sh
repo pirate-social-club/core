@@ -199,7 +199,7 @@ verify_object_retention() {
   local retention_xml mode retain_until retain_epoch minimum_epoch
   if ! retention_xml="$(curl --fail --silent --show-error --max-time 30 \
     --aws-sigv4 "$sigv4" --user "$BACKUP_S3_ACCESS_KEY_ID:$BACKUP_S3_SECRET_ACCESS_KEY" \
-    "$url?retention&versionId=$version_id")"; then
+    "$url?retention=&versionId=$version_id")"; then
     echo "retention verification: GetObjectRetention failed for $object_key" >&2
     return 1
   fi
