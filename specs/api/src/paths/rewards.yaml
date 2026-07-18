@@ -65,6 +65,14 @@ reward_campaign_capabilities:
       Clients validate proposed campaign terms against the running configuration
       rather than hardcoding it, and hide the boost entry point entirely when the
       surface is disabled.
+    parameters:
+      - in: query
+        name: post_id
+        required: true
+        schema:
+          type: string
+          minLength: 1
+        description: Song post whose campaign eligibility should be evaluated.
     responses:
       "200":
         description: Campaign creation capabilities
