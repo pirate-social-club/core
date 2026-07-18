@@ -204,6 +204,25 @@ Rules:
 - global `.pirate` handles do not use the club-handle lease model from [handles.md](./handles.md)
 - `issuance_source` values in this record are specific to global `.pirate` handles and do not reuse the club-handle `issuance_source` enum
 
+#### Resolution And Gateway Redirect Contract
+
+Global-handle resolution and HTTP routing have separate responsibilities:
+
+- the identity-resolution API follows `redirect_target_global_handle_id` internally and returns the
+  resolved profile together with the requested and canonical handle labels
+- the API does not emit an HTTP redirect merely because the requested handle is historical
+- the public `.pirate` gateway owns the HTTP redirect and returns `302` from a historical hostname to
+  the active canonical hostname when the API reports that the requested handle is not canonical
+- gateway caches **MUST** bound redirect, canonical-resolution, and negative-resolution decisions to
+  at most 60 seconds in v0; after that bound the gateway must revalidate with the resolution API
+- a successful rename **SHOULD** invalidate cached decisions for both the old and new hostnames
+- invalidation failure must not create unbounded staleness: the 60-second maximum remains the required
+  correctness backstop
+
+This contract applies equally to the Cloudflare gateway and the Fluence/VPS implementation. A gateway
+must not independently infer ownership, transferability, or redirect targets from payment or wallet
+state.
+
 ### Extended Profile
 
 Extended profile fields are optional and should not be required during onboarding.
