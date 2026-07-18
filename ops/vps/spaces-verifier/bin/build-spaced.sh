@@ -19,4 +19,9 @@ cargo build --locked --release \
   --bin spaced
 
 install -D -m 0755 "$work/spaces/target/release/spaced" "$DESTINATION"
-"$DESTINATION" --version
+# This pinned spaced revision routes clap's version output through its logger and
+# exits with status 1. Validate the installed binary by its expected output
+# instead of treating that upstream CLI quirk as a failed build.
+version_output="$("$DESTINATION" --version 2>&1 || true)"
+grep -Fq 'spaces_client 0.0.9' <<<"$version_output"
+printf '%s\n' "$version_output"
