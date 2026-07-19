@@ -64,6 +64,10 @@ release root and has an independent app pin and rollback lifecycle.
 - `caddy/Caddyfile.dane.example`
 - `caddy/Caddyfile.production.example` (preserves the live WebPKI verifier
   origin while adding the DANE catchall)
+- `caddy/build-production-config.sh` (adapts that combined Caddyfile to native
+  JSON with separate, ordered WebPKI and DANE TLS handshake policies)
+- `systemd/caddy-production-json.override.conf` (makes the native production
+  config path explicit; a file named `Caddyfile` is always adapted as text)
 - `nginx/hns-public-gateway.conf.example`
 
 The systemd template intentionally runs `bun` directly, not `rtk`.
@@ -83,6 +87,29 @@ per-host certificate/TLSA race.
 The existing `Caddyfile.example` remains useful only where clients already
 trust Caddy's private CA. Its on-demand certificates have distinct keys and
 must not be described as matching one wildcard DANE-EE association.
+
+The combined production Caddyfile must not be loaded directly. Caddy pools its
+managed and manually loaded certificates, and the Caddyfile adapter otherwise
+emits one unscoped policy that selects the static DANE certificate even for
+`verifier.pirate.sc`. Build and install the native JSON config instead:
+
+```bash
+CADDY_BIN=/usr/local/bin/pirate-caddy \
+  ops/vps/hns-public-gateway/caddy/build-production-config.sh \
+  ops/vps/hns-public-gateway/caddy/Caddyfile.production.example \
+  /etc/caddy/caddy.json
+caddy reload --config /etc/caddy/caddy.json
+```
+
+Install the tracked systemd override before the first reload, then run
+`systemctl daemon-reload`. The override deliberately retains the custom Caddy
+binary that supplies `rate_limit`; the distribution `/usr/bin/caddy` does not
+contain that module.
+
+The builder fails closed unless the adapted input contains exactly the expected
+tagged catchall policy. The resulting first policy matches
+`verifier.pirate.sc` and performs normal SNI certificate selection; the second
+policy selects the pinned DANE certificate for every other SNI.
 
 Generate the initial key and certificate in a root-owned, versioned directory.
 The Caddy config reads both through one `current` symlink so a rotation cannot
