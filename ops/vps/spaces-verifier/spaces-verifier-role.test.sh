@@ -43,6 +43,10 @@ grep -Fq "grep -Fq 'spaces_client 0.0.9'" "$role_dir/bin/build-spaced.sh"
 grep -Fq 'User=pirate-spaces' "$role_dir/systemd/pirate-spaced.service"
 grep -Fq 'ReadWritePaths=/srv/pirate-spaces/data/spaced' "$role_dir/systemd/pirate-spaced.service"
 grep -Fq 'After=network-online.target pirate-spaced.service' "$role_dir/systemd/pirate-spaces-verifier.service"
+grep -Fq 'cargo build --locked --release' "$role_dir/bin/stage-release-assets.sh"
+grep -Fq 'spaces-verifier-native' "$role_dir/bin/stage-release-assets.sh"
+grep -Fq 'SPACES_VERIFIER_NATIVE_BIN=/srv/pirate-spaces/current/bin/spaces-verifier-native' \
+  "$role_dir/env/verifier.env.example"
 
 cat > "$work/curl" <<'EOF'
 #!/usr/bin/env bash
