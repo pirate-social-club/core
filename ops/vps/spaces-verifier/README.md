@@ -53,6 +53,11 @@ This VPS slice may share a machine with the HNS DNS stack, but it remains operat
   native/fallback target disagreements every five minutes. A degraded,
   missing, or divergent signal fails the oneshot and invokes the existing
   authenticated ops-alert delivery path through `alert-on-failure.sh`.
+- Public resolution caches complete proof-gated responses for 30 seconds,
+  coalesces identical in-flight reads, and bounds the cache to 2,048 handles.
+  Publisher execution is capped at two active processes plus 32 queued reads;
+  excess work fails closed instead of creating unbounded processes. These
+  defaults are configurable through the role environment.
 - `config/published-targets.json`
   Availability backstop for 44 active Spaces communities whose live root key
   matched the key stored in their accepted `fabric_txt_publish` challenge on

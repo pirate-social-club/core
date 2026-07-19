@@ -15,6 +15,7 @@ import {
   resolvePublisherExecutionConfig,
   runPublisher,
 } from "./publisher-runtime";
+import { ResolveCache, WorkLimiter, WorkQueueFullError } from "./resolve-control";
 
 type RootAnchor = {
   root: string;
@@ -96,6 +97,10 @@ const spacesPublisherTimeoutMs = Number(Bun.env.SPACES_PUBLISHER_TIMEOUT_MS || "
 const spacesPublisherProbeHandle = Bun.env.SPACES_PUBLISHER_PROBE_HANDLE?.trim() || "@pirate";
 const spacesPublisherProbeTimeoutMs = Number(Bun.env.SPACES_PUBLISHER_PROBE_TIMEOUT_MS || "60000");
 const spacesPublisherKeepaliveIntervalMs = Number(Bun.env.SPACES_PUBLISHER_KEEPALIVE_INTERVAL_MS || "180000");
+const resolveCacheTtlMs = Number(Bun.env.SPACES_RESOLVE_CACHE_TTL_MS || "30000");
+const resolveCacheMaxEntries = Number(Bun.env.SPACES_RESOLVE_CACHE_MAX_ENTRIES || "2048");
+const publisherMaxConcurrency = Number(Bun.env.SPACES_PUBLISHER_MAX_CONCURRENCY || "2");
+const publisherMaxQueue = Number(Bun.env.SPACES_PUBLISHER_MAX_QUEUE || "32");
 const allowNativeBuildFallback = ["1", "true", "yes", "on"].includes(
   String(Bun.env.SPACES_NATIVE_ALLOW_BUILD_FALLBACK || "").trim().toLowerCase(),
 );
@@ -108,14 +113,27 @@ const publisherExecutionConfig = resolvePublisherExecutionConfig({
   publisherBin: spacesPublisherBin,
 });
 const publisherHealth = new PublisherHealthMonitor();
+const publisherLimiter = new WorkLimiter(publisherMaxConcurrency, publisherMaxQueue);
+const resolveCache = new ResolveCache<ResolveResponse>(resolveCacheTtlMs, resolveCacheMaxEntries);
+
+async function withPublisherPermit<T>(work: () => Promise<T>): Promise<T> {
+  try {
+    return await publisherLimiter.run(work);
+  } catch (error) {
+    if (error instanceof WorkQueueFullError) {
+      throw new FabricRecordReaderUnavailableError("Spaces Fabric record reader is at capacity");
+    }
+    throw error;
+  }
+}
 
 async function refreshPublisherHealth(): Promise<void> {
   await publisherHealth.check(async () => {
-    const result = await probePublisher(publisherExecutionConfig, {
+    const result = await withPublisherPermit(() => probePublisher(publisherExecutionConfig, {
       cwd: spacesPublisherDir,
       timeoutMs: spacesPublisherProbeTimeoutMs,
       args: ["resolve", spacesPublisherProbeHandle],
-    });
+    }));
     if (!result.ready) {
       console.error(`[spaces] Fabric record reader keepalive failed: ${result.error}`);
     }
@@ -251,10 +269,10 @@ async function inspectRoot(rootLabel: string) {
 }
 
 async function resolveFabricRecords(handle: string): Promise<ResolveFabricRecordsResult> {
-  const result = await runPublisher(publisherExecutionConfig, ["resolve", handle], {
+  const result = await withPublisherPermit(() => runPublisher(publisherExecutionConfig, ["resolve", handle], {
     cwd: spacesPublisherDir,
     timeoutMs: spacesPublisherTimeoutMs,
-  });
+  }));
   let parsed: ResolveFabricRecordsResult;
   try {
     parsed = JSON.parse(result.stdout) as ResolveFabricRecordsResult;
@@ -335,6 +353,11 @@ async function resolveHandle(handle: string): Promise<ResolveResponse> {
     ),
     records: fabricRecords?.records ?? {},
   };
+}
+
+function resolveHandleCached(handle: string): Promise<ResolveResponse> {
+  const normalizedRootLabel = normalizeRootLabel(handle);
+  return resolveCache.getOrCreate(`@${normalizedRootLabel}`, () => resolveHandle(normalizedRootLabel));
 }
 
 async function verifyFabricPublish(body: {
@@ -430,6 +453,8 @@ Bun.serve({
     if (url.pathname === "/health") {
       const fabricReaderHealth = publisherHealth.snapshot();
       const fallbackDisagreements = publishedFallbacks.disagreementSnapshot();
+      const cacheHealth = resolveCache.snapshot();
+      const publisherCapacity = publisherLimiter.snapshot();
       return json({
         ok: fabricReaderHealth.ready,
         bind_host: verifierHost,
@@ -446,6 +471,8 @@ Bun.serve({
         fabric_record_reader_last_success_at: fabricReaderHealth.lastSuccessAt,
         fallback_target_disagreements: fallbackDisagreements.count,
         fallback_target_disagreement_handles: fallbackDisagreements.handles,
+        resolve_cache: cacheHealth,
+        publisher_capacity: publisherCapacity,
       });
     }
 
@@ -460,7 +487,7 @@ Bun.serve({
       }
 
       try {
-        return json(await resolveHandle(handle));
+        return json(await resolveHandleCached(handle));
       } catch (error) {
         return json({
           resolved: false,
