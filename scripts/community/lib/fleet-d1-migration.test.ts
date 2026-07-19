@@ -312,6 +312,26 @@ describe("classifyRow — 1132 columns across tables", () => {
 })
 
 describe("classificationSql", () => {
+  test("can attest a required fragment in canonical table SQL", () => {
+    const spec: MigrationSpec = {
+      migration: "1037_rebuild_comments_guest_authorship.sql",
+      label: "community-template",
+      requiredTables: ["comments"],
+      creates: { kind: "table_sql_contains", table: "comments", fragments: ["'guest'"] },
+      replayableDdl: true,
+      description: "test",
+    }
+    const sql = classificationSql(spec)
+    expect(sql).toContain("name='comments'")
+    expect(sql).toContain("instr(lower(sql), lower('''guest''')) > 0")
+    expect(classifyRow(spec, {
+      has_ledger: 1,
+      ledger_checksum: CHECKSUM,
+      req_comments: 1,
+      obj_fragment__0: 1,
+    }, CHECKSUM)).toEqual({ status: "ok_recorded" })
+  })
+
   test("probes a CREATE TABLE migration via sqlite_master", () => {
     const sql = classificationSql(OUTBOX_SPEC)
     expect(sql).toContain("name='reward_qualification_outbox'") // object presence

@@ -39,6 +39,7 @@ import { partitionQuarantinedBindings } from "./community-shard-quarantine"
 export type ObjectSpec =
   | { kind: "columns"; table: string; columns: readonly string[] }
   | { kind: "columns_by_table"; columns: readonly { table: string; column: string }[] }
+  | { kind: "table_sql_contains"; table: string; fragments: readonly string[] }
   | {
       kind: "schema_objects"
       columns: readonly { table: string; column: string }[]
@@ -153,6 +154,10 @@ export function classificationSql(spec: MigrationSpec): string {
       ? spec.creates.columns
         .map(({ table, column }) => `(SELECT COUNT(*) FROM pragma_table_info('${table}') WHERE name='${column}') AS obj_${table}__${column}`)
         .join(",\n  ")
+      : spec.creates.kind === "table_sql_contains"
+        ? spec.creates.fragments
+          .map((fragment, index) => `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${spec.creates.table}' AND instr(lower(sql), lower('${fragment.replaceAll("'", "''")}')) > 0) AS obj_fragment__${index}`)
+          .join(",\n  ")
       : spec.creates.kind === "schema_objects"
         ? [
             ...spec.creates.columns.map(({ table, column }) =>
@@ -177,6 +182,9 @@ function objectNames(spec: MigrationSpec): readonly string[] {
   if (spec.creates.kind === "columns") return spec.creates.columns
   if (spec.creates.kind === "columns_by_table") {
     return spec.creates.columns.map(({ table, column }) => `${table}__${column}`)
+  }
+  if (spec.creates.kind === "table_sql_contains") {
+    return spec.creates.fragments.map((_, index) => `fragment__${index}`)
   }
   if (spec.creates.kind === "schema_objects") {
     return [
@@ -272,7 +280,10 @@ export function parseArgs(spec: MigrationSpec, scriptPath: string): Options {
   const prod = argv.includes("--prod")
   const wranglerConfig = get("--wrangler-config")
   if (!wranglerConfig) usage(spec, scriptPath)
-  const slug = spec.migration.split("_")[0]
+  // Use the complete migration name. Numeric prefixes are not globally unique in
+  // the historical ledger; prefix-only manifests let sibling audits overwrite
+  // one another and erase evidence.
+  const slug = spec.migration.replace(/\.sql$/u, "")
   const options: Options = {
     wranglerConfig: resolve(wranglerConfig),
     migrationsDir: resolve(get("--migrations-dir") ?? "db/community-template/migrations"),

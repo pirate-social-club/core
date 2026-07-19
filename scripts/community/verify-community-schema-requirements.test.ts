@@ -1,6 +1,17 @@
 import { describe, expect, test } from "bun:test"
 
-import { buildProbe, probeShard, validateRequirements, wranglerFailureDetail } from "./verify-community-schema-requirements"
+import { resolve } from "node:path"
+
+import {
+  buildCanonicalSchemaArtifacts,
+  buildProbe,
+  CANONICAL_SCHEMA_INVENTORY_SQL,
+  probeShard,
+  schemaArtifactsFromRows,
+  validateCompatibleMissingSchemaArtifacts,
+  validateRequirements,
+  wranglerFailureDetail,
+} from "./verify-community-schema-requirements"
 
 const base = {
   version: 1,
@@ -11,7 +22,12 @@ const base = {
 
 describe("schema requirements policy validation", () => {
   test("accepts known, disjoint policy classes", () => {
-    expect(validateRequirements(base).unconditional).toEqual(base.unconditional)
+    expect(validateRequirements({ ...base, canonical_schema: true }).unconditional).toEqual(base.unconditional)
+  })
+
+  test("rejects a non-boolean canonical schema switch", () => {
+    expect(() => validateRequirements({ ...base, canonical_schema: "true" }))
+      .toThrow("canonical_schema must be a boolean")
   })
 
   test("fails closed on unknown top-level policy fields", () => {
@@ -88,6 +104,41 @@ describe("schema requirements probe", () => {
       throw new Error("authentication failed")
     })).rejects.toThrow("authentication failed")
     expect(calls).toBe(1)
+  })
+})
+
+describe("canonical final-schema attestation", () => {
+  test("derives the complete final table/index/column set while excluding deferred migrations", async () => {
+    const artifacts = await buildCanonicalSchemaArtifacts({
+      migrationsDir: resolve(import.meta.dir, "../../db/community-template/migrations"),
+      excludedMigrations: new Set(["1139_story_registration_durable_request.sql"]),
+    })
+    expect(artifacts.has("table:karaoke_attempt")).toBe(true)
+    expect(artifacts.has("index:idx_karaoke_attempt_rank")).toBe(true)
+    expect(artifacts.has("column:song_engagement_days.activity_timezone")).toBe(true)
+    expect(artifacts.has("column:story_registration_effects.durable_request_json")).toBe(false)
+  })
+
+  test("uses one complete inventory query and rejects stale drift exceptions", () => {
+    expect(CANONICAL_SCHEMA_INVENTORY_SQL).not.toContain("pragma_table_info")
+    expect(schemaArtifactsFromRows([
+      {
+        type: "table",
+        name: "posts",
+        sql: `CREATE TABLE posts (post_id TEXT PRIMARY KEY, payload TEXT CHECK (payload IN ('a,b')), CONSTRAINT posts_unique UNIQUE (post_id))`,
+      },
+      { type: "index", name: "idx_posts_payload", sql: "CREATE INDEX idx_posts_payload ON posts(payload)" },
+    ])).toEqual(new Set([
+      "table:posts",
+      "column:posts.post_id",
+      "column:posts.payload",
+      "index:idx_posts_payload",
+    ]))
+    const expected = new Set(["table:posts"])
+    expect(validateCompatibleMissingSchemaArtifacts([], expected, "policy")).toEqual(new Set())
+    expect(() => validateCompatibleMissingSchemaArtifacts([
+      { artifact: "table:unknown", reason: "legacy" },
+    ], expected, "policy")).toThrow("stale or unknown")
   })
 })
 
