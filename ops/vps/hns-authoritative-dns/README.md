@@ -221,6 +221,20 @@ The tool proves the PowerDNS control-plane state and the served certificate. A
 production cutover must additionally query the primary, TSIG secondary, and an
 independent validating HNS resolver to prove DNSSEC and TLSA serving end to end.
 
+## RRSIG expiry monitoring
+
+Before publishing a parent DS, install and enable the tracked
+`pirate-hns-rrsig-health.timer`. It queries every configured name/type directly
+through both public authoritative addresses and fails if a matching RRSIG is
+missing or has less than seven days remaining. This detects serving failures
+and a stalled PowerDNS resigner that container and deployment checks cannot.
+
+Copy `env/rrsig-health.env.example` to the role's root-only config directory,
+install the three `pirate-hns-rrsig-health` systemd units, and prove both the
+success and `OnFailure` alert paths before parent delegation. Keep the wildcard
+probe name: it verifies synthesized wildcard answers rather than only explicit
+owners.
+
 ## Canonical Source of Truth
 
 The PowerDNS backend is the authoritative child-zone source of truth for Pirate-managed HNS roots.
