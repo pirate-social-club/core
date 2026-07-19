@@ -10,8 +10,9 @@ Use it together with the runtime code in
 This service is the HTTP origin that receives wildcard `*.pirate` and `*.clawitzer` traffic after PowerDNS
 routes those hosts to Pirate's VPS.
 
-`app.pirate` is not part of this public-profile gateway. It is the main Pirate web app host and
-should route to the app origin before wildcard profile routing is evaluated.
+`app.pirate` routes to the main Pirate web app before wildcard profile routing
+is evaluated. The bare `pirate.` apex permanently redirects to the same path
+and query on `app.pirate`; sessions must not use the single-label apex.
 `api.pirate` is also reserved for API traffic and should route before wildcard profile routing.
 When these hosts proxy to the Cloudflare `.sc` runtime, forward `X-Pirate-HNS-Host` so SSR can
 derive app/API/canonical metadata from the HNS entrypoint after validating the forwarder IP.
@@ -47,10 +48,13 @@ the new owner receives a fresh quota, while inactive prior-epoch grants remain
 recorded but cannot authorize issuance because the API no longer returns their
 verification id.
 
-Recommended deploy root:
+Dedicated deploy root:
 
-- `/srv/pirate-hns/app`
-- `/srv/pirate-hns/config`
+- `/srv/pirate-hns-gateway/app`
+- `/srv/pirate-hns-gateway/config`
+
+Do not reuse `/srv/pirate-hns`: the state-backup role owns that immutable
+release root and has an independent app pin and rollback lifecycle.
 
 ## Files
 
@@ -58,6 +62,8 @@ Recommended deploy root:
 - `systemd/pirate-hns-public-gateway.service`
 - `caddy/Caddyfile.example`
 - `caddy/Caddyfile.dane.example`
+- `caddy/Caddyfile.production.example` (preserves the live WebPKI verifier
+  origin while adding the DANE catchall)
 - `nginx/hns-public-gateway.conf.example`
 
 The systemd template intentionally runs `bun` directly, not `rtk`.

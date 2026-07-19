@@ -651,19 +651,15 @@ describe("handleRequest", () => {
     expect(calls[0].headers.get("x-pirate-hns-forwarder-token")).toBe("shared-secret");
   });
 
-  test("proxies the bare root apex to the app origin", async () => {
-    const calls: string[] = [];
+  test("redirects the bare root apex to the app origin", async () => {
     const response = await handleRequest(
-      new Request("http://pirate/"),
+      new Request("http://pirate/c/crew?sort=top"),
       env,
-      async (url) => {
-        calls.push(String(url));
-        return new Response("app page");
-      },
+      async () => { throw new Error("apex redirect must not proxy"); },
     );
 
-    expect(response.status).toBe(200);
-    expect(calls).toEqual(["https://pirate.sc/"]);
+    expect(response.status).toBe(301);
+    expect(response.headers.get("location")).toBe("https://app.pirate/c/crew?sort=top");
   });
 
   test("returns 404 for reserved hosts that have no explicit route", async () => {

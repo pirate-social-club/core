@@ -470,10 +470,17 @@ export async function handleRequest(
   const appOrigin = env.HNS_PUBLIC_APP_ORIGIN?.trim() || "https://pirate.sc";
 
   const hostname = url.hostname.trim().toLowerCase().replace(/\.+$/u, "");
+  if (hostname === rootSuffix) {
+    const appUrl = new URL(request.url);
+    appUrl.protocol = `${externalScheme}:`;
+    appUrl.hostname = `app.${rootSuffix}`;
+    appUrl.port = "";
+    return Response.redirect(appUrl.toString(), 301);
+  }
   if (hostname === `api.${rootSuffix}`) {
     return proxyReservedHostRequest({ request, url, targetOrigin: apiOrigin, env, fetchImpl });
   }
-  if (hostname === `app.${rootSuffix}` || hostname === rootSuffix) {
+  if (hostname === `app.${rootSuffix}`) {
     return proxyReservedHostRequest({ request, url, targetOrigin: appOrigin, env, fetchImpl });
   }
 
