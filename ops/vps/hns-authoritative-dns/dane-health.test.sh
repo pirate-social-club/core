@@ -17,6 +17,8 @@ if [[ "\${DIG_MODE:-healthy}" == mismatch ]]; then
   printf '%s\n' '_443._tcp.app.pirate. 300 IN TLSA 3 1 1 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 elif [[ "\${DIG_MODE:-healthy}" == missing ]]; then
   exit 0
+elif [[ "\${DIG_MODE:-healthy}" == wrapped ]]; then
+  printf '%s\n' '_443._tcp.app.pirate. 300 IN TLSA 3 1 1 5c8ddd3dbf63dbab698c72670 8b06177adda4a21416c675197f97e3b 27ab20d8'
 else
   printf '%s\n' '_443._tcp.app.pirate. 300 IN TLSA 3 1 1 $digest'
 fi
@@ -34,6 +36,8 @@ common=(
 
 env "${common[@]}" bash "$role_dir/bin/check-dane-spki.sh" >/dev/null \
   || fail "matching SPKI failed"
+env "${common[@]}" DIG_MODE=wrapped bash "$role_dir/bin/check-dane-spki.sh" >/dev/null \
+  || fail "wrapped TLSA digest failed"
 if env "${common[@]}" DIG_MODE=mismatch bash "$role_dir/bin/check-dane-spki.sh" >/dev/null 2>&1; then
   fail "mismatched SPKI passed"
 fi
@@ -47,5 +51,8 @@ grep -Fq 'OnUnitActiveSec=1h' "$role_dir/systemd/pirate-hns-dane-health.timer" \
   || fail "health timer is not hourly"
 grep -Fq 'alert-on-failure.sh' "$role_dir/systemd/pirate-hns-dane-health-alert.service" \
   || fail "alert unit does not use authenticated alert path"
+grep -Fq 'EnvironmentFile=/etc/pirate-deployment-verify/authdns.env' \
+  "$role_dir/systemd/pirate-hns-dane-health-alert.service" \
+  || fail "alert unit lacks authenticated alert environment"
 
 echo "DANE SPKI health checks passed"

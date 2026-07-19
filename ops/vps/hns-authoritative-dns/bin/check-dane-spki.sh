@@ -47,7 +47,14 @@ for raw_server in "${servers[@]}"; do
       failures+=("$server $owner TLSA query failed")
       continue
     fi
-    associations="$(awk '$4 == "TLSA" && $5 == 3 && $6 == 1 && $7 == 1 {print tolower($8)}' <<< "$answer")"
+    associations="$(awk '
+      $4 == "TLSA" && $5 == 3 && $6 == 1 && $7 == 1 {
+        digest = ""
+        for (field = 8; field <= NF; field++)
+          digest = digest $field
+        print tolower(digest)
+      }
+    ' <<< "$answer")"
     if [[ -z "$associations" ]]; then
       failures+=("$server $owner has no TLSA 3 1 1 association")
     elif ! grep -Fxq "$live_spki" <<< "$associations"; then
