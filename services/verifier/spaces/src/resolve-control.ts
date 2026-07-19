@@ -135,6 +135,41 @@ export class ResolveCache<T> {
     return value;
   }
 
+  async observeIfNewer(
+    key: string,
+    value: T,
+    versionOf: (candidate: T) => number | null,
+  ): Promise<boolean> {
+    const now = this.now();
+    const observedVersion = versionOf(value);
+    if (observedVersion == null || !Number.isFinite(observedVersion)) {
+      return false;
+    }
+
+    const existing = this.entries.get(key);
+    if (!existing || existing.expiresAt <= now) {
+      this.makeRoom();
+      this.entries.set(key, { expiresAt: now + this.ttlMs, value: Promise.resolve(value) });
+      return true;
+    }
+
+    let current: T;
+    try {
+      current = await existing.value;
+    } catch {
+      if (this.entries.get(key) !== existing) return false;
+      this.entries.set(key, { expiresAt: now + this.ttlMs, value: Promise.resolve(value) });
+      return true;
+    }
+    if (this.entries.get(key) !== existing) return false;
+    const currentVersion = versionOf(current);
+    if (currentVersion != null && currentVersion >= observedVersion) {
+      return false;
+    }
+    this.entries.set(key, { expiresAt: now + this.ttlMs, value: Promise.resolve(value) });
+    return true;
+  }
+
   private pruneExpired(): void {
     const now = this.now();
     for (const [key, entry] of this.entries) {

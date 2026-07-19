@@ -42,6 +42,26 @@ describe("ResolveCache", () => {
     expect(cache.snapshot().entries).toBe(2);
     expect(await cache.getOrCreate("@one", async () => "one-again")).toBe("one-again");
   });
+
+  test("lets a higher-sequence observation supersede a cached stale result", async () => {
+    type Versioned = { sequence: number; value: string };
+    const cache = new ResolveCache<Versioned>(30_000, 10);
+    await cache.getOrCreate("@pirate", async () => ({ sequence: 4, value: "stale" }));
+
+    expect(await cache.observeIfNewer(
+      "@pirate",
+      { sequence: 9, value: "fresh" },
+      (candidate) => candidate.sequence,
+    )).toBe(true);
+    expect(await cache.getOrCreate("@pirate", async () => ({ sequence: 1, value: "unused" })))
+      .toEqual({ sequence: 9, value: "fresh" });
+
+    expect(await cache.observeIfNewer(
+      "@pirate",
+      { sequence: 3, value: "older" },
+      (candidate) => candidate.sequence,
+    )).toBe(false);
+  });
 });
 
 describe("WorkLimiter", () => {

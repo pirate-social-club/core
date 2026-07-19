@@ -151,6 +151,12 @@ Future `/srv/pirate-spaces/config/protocol-spaced.env` contract; do not render o
 - `SPACES_VERIFIER_AUTH_TOKEN=<random-bearer-token>`
 - `SPACES_VERIFIER_NATIVE_BIN=/srv/pirate-spaces/current/bin/spaces-verifier-native`
 - `SPACES_PUBLISHER_BIN=/srv/pirate-spaces/current/bin/spaces-publisher`
+- `SPACES_FABRIC_SEEDS=https://relay-cosmos.spacesprotocol.org,https://relay-atlas.spacesprotocol.org`
+
+The seed list must be explicit in production even when it matches library defaults. Record the
+operator and network location for every seed during review. Relay count without operator and
+network diversity is not independent redundancy; the two initial upstream seeds are an auditable
+starting set, not evidence that the diversity requirement is satisfied.
 
 Pirate API:
 
