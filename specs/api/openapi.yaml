@@ -2021,6 +2021,39 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /communities/{community_id}/namespace:
+    post:
+      tags:
+        - Communities
+      x-implemented: true
+      summary: Attach a verified namespace to a community
+      description: |
+        Attaches a verified namespace as the primary route namespace or as an additional mirror claim namespace. Mirror attachments never replace the community route.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommunityNamespaceAttachRequest"
+      responses:
+        "200":
+          description: Namespace attached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Community"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /communities/{community_id}/attach-governance:
     post:
       tags:
