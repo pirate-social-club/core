@@ -1,8 +1,9 @@
 # Spaces Verifier VPS Assets
 
-Status: **PRIVATE STAGING DEPLOYED; PUBLIC CUTOVER PENDING**. The verification-only
-daemon and verifier run loopback-only on ns1. This is not evidence that
-`verifier.pirate.sc` is reachable. See the dated
+Status: **PUBLIC CUTOVER COMPLETE (2026-07-18)**. The verification-only daemon
+and verifier remain loopback-only on ns1 behind Caddy. Public WebPKI health,
+proof-verified `@pirate` resolution, and authenticated inspection were proven
+through `https://verifier.pirate.sc/spaces`. See the dated
 [HNS/Spaces handoff](../../../docs/operators/hns-spaces/README.md).
 
 This directory contains tracked deployment assets for the VPS-hosted Spaces verification slice.
