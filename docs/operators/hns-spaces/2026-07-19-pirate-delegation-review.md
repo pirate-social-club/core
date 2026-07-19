@@ -50,11 +50,17 @@ would reduce reliability rather than add resilience.
 
 ## Parent covenant preflight
 
-Shakeshift is the canonical explorer for this ceremony. Its live `.pirate`
-history shows that the transfer opened at block `338007` was finalized at block
-`338296` on 2026-07-15. The current name state is **Registered**, not pending
-transfer, so the covenant path remains one UPDATE rather than
-FINALIZE/CANCEL followed by UPDATE.
+Shakeshift is the canonical **human preflight explorer** for this ceremony. It
+is informational and supplies an independent comparison only. Explorer HTML
+must never be consumed as ownership evidence, continuity evidence, a
+provisioning input, or a TLS-issuance authorization input. Once the observer is
+at tip, authenticated `getnameresource` from that observer is the machine
+authority for parent state and must reproduce this preflight before signing.
+
+Shakeshift's live `.pirate` history shows that the transfer opened at block
+`338007` was finalized at block `338296` on 2026-07-15. The current name state
+is **Registered**, not pending transfer, so the provisional covenant path
+remains one UPDATE rather than FINALIZE/CANCEL followed by UPDATE.
 
 - current owner address:
   `hs1q8ewlwa07hlfkjgvrpzjlsve8vend5fnh8g66rv`
