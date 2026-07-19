@@ -4,16 +4,18 @@ set -euo pipefail
 # Executable harness for the deployment tooling. No docker daemon required:
 # docker is shimmed on PATH with canned responses. Covers:
 #   1. make-release refuses a dirty tree
-#   2. make-release stages role-provided assets inside the checksummed release
-#   3. make-release succeeds for roles without a container image
-#   4. verify passes on a clean pre-launch deployment (EXPECT_RUNNING=false)
-#   5. verify fails when a tracked release file is modified
-#   6. verify fails when config changes after --record-config
-#   7. verify fails when the container runs while EXPECT_RUNNING=false
-#   8. verify fails when the current symlink points at the wrong release
-#   9. verify passes for a running container whose image digest matches the pin
-#  10. alert delivery reads bearer auth from a token file and fails closed when unreadable
-#  11. successful verification sends an authenticated role heartbeat
+#   2. make-release stages role assets and records a separately versioned app
+#   3. make-app-release archives and checksums the exact app commit
+#   4. make-release succeeds for roles without a container image
+#   5. verify passes on a clean role + app deployment
+#   6. verify fails on role tamper
+#   7. verify fails on app tamper, added files, missing manifest, or repoint
+#   8. verify fails when config changes after --record-config
+#   9. verify fails when the container runs while EXPECT_RUNNING=false
+#  10. verify fails when the current symlink points at the wrong release
+#  11. verify passes for a running container whose image digest matches the pin
+#  12. alert delivery reads bearer auth from a token file and fails closed when unreadable
+#  13. successful verification sends an authenticated role heartbeat
 
 tooling_dir="$(cd "$(dirname "$0")" && pwd)"
 work="$(mktemp -d)"
@@ -51,7 +53,8 @@ git -C "$repo" -c user.email=t@t -c user.name=t commit -qm "fixture"
 commit="$(git -C "$repo" rev-parse HEAD)"
 
 make_release() {
-  (cd "$repo" && bash ops/vps/deployment-tooling/make-release.sh ops/vps/demo-role "$@")
+  (cd "$repo" && bash ops/vps/deployment-tooling/make-release.sh \
+    ops/vps/demo-role "$@" --app-commit "$commit")
 }
 
 # 1. dirty-tree refusal
@@ -70,11 +73,25 @@ release="$work/deploy/releases/$commit"
 [[ -x "$release/bin/demo-helper" ]] || fail "role-provided runtime asset was not staged"
 grep -q 'bin/demo-helper$' "$release/SHA256SUMS" || fail "runtime asset omitted from SHA256SUMS"
 grep -q "^CORE_COMMIT=$commit$" "$release/DEPLOYMENT" || fail "DEPLOYMENT missing commit"
+grep -q "^APP_COMMIT=$commit$" "$release/DEPLOYMENT" || fail "DEPLOYMENT missing app commit"
 grep -q "^IMAGE_DIGEST=example/demo@sha256:1111" "$release/DEPLOYMENT" || fail "DEPLOYMENT missing digest"
 grep -q "^CONTAINER_NAME=pirate-demo-role$" "$release/DEPLOYMENT" || fail "DEPLOYMENT missing container"
-pass "make-release stages role assets in checksummed release"
+pass "make-release stages role assets and records app commit"
 
-# 3. roles without a compose image still complete successfully
+# 3. separately versioned app release
+(cd "$repo" && bash ops/vps/deployment-tooling/make-app-release.sh "$work/deploy" \
+  --commit "$commit") >/dev/null
+app_release="$work/deploy/app-releases/$commit"
+[[ -f "$app_release/.pirate-deployment/DEPLOYMENT" \
+  && -f "$app_release/.pirate-deployment/SHA256SUMS" ]] \
+  || fail "app release metadata incomplete"
+grep -q "^APP_COMMIT=$commit$" "$app_release/.pirate-deployment/DEPLOYMENT" \
+  || fail "app release metadata missing commit"
+(cd "$app_release" && sha256sum --check --quiet .pirate-deployment/SHA256SUMS) \
+  || fail "staged app release checksums do not verify"
+pass "make-app-release archives and checksums exact commit"
+
+# 4. roles without a compose image still complete successfully
 (cd "$repo" && bash ops/vps/deployment-tooling/make-release.sh \
   ops/vps/no-image-role "$work/no-image-deploy" --expect-running true) >/dev/null \
   || fail "make-release returned failure after staging a no-image role"
@@ -112,37 +129,66 @@ echo absent > "$DOCKER_SHIM_STATE"
 
 deploy_root="$work/deploy"
 ln -s "releases/$commit" "$deploy_root/current"
+ln -s "app-releases/$commit" "$deploy_root/app"
 mkdir -p "$deploy_root/config"
 echo "PRIMARY_DNS_IP=203.0.113.7" > "$deploy_root/config/demo.env"
 
 status() { bash "$deploy_root/current/bin/deployment-status.sh" --deploy-root "$deploy_root" "$@"; }
 
-# 4. clean pre-launch verify (container absent, EXPECT_RUNNING=false)
+# 5. clean pre-launch verify (container absent, EXPECT_RUNNING=false)
 status --record-config >/dev/null
 status --verify >/dev/null || fail "clean pre-launch deployment reported drift"
-status | grep -q "drift:   none" || fail "status did not report drift: none"
-pass "verify passes on clean pre-launch deployment"
+clean_status="$(status)"
+grep -q "drift:   none" <<< "$clean_status" || fail "status did not report drift: none"
+grep -q "desired: app  $commit" <<< "$clean_status" \
+  || fail "status omitted desired app commit: $clean_status"
+grep -q "app:     $commit checksums OK" <<< "$clean_status" \
+  || fail "status omitted app integrity: $clean_status"
+pass "verify reports and passes clean role + app deployment"
 
-# 5. tracked-file tamper
+# 6. tracked role-file tamper
 echo tampered >> "$release/compose.yaml"
 status --verify >/dev/null 2>&1 && fail "checksum tamper not detected"
 git -C "$repo" show "HEAD:ops/vps/demo-role/compose.yaml" > "$release/compose.yaml"
 status --verify >/dev/null || fail "restore after tamper still drifting"
-pass "verify fails on tracked-file modification"
+pass "verify fails on tracked role-file modification"
 
-# 6. config drift
+# 7. app integrity and symlink checks
+app_test_file="$app_release/ops/vps/no-image-role/README.md"
+echo tampered >> "$app_test_file"
+status --verify >/dev/null 2>&1 && fail "app checksum tamper not detected"
+git -C "$repo" show "HEAD:ops/vps/no-image-role/README.md" > "$app_test_file"
+status --verify >/dev/null || fail "app restore after tamper still drifting"
+
+echo injected > "$app_release/untracked-runtime-file"
+status --verify >/dev/null 2>&1 && fail "added app file not detected"
+rm "$app_release/untracked-runtime-file"
+
+mv "$app_release/.pirate-deployment/SHA256SUMS" "$work/app-SHA256SUMS"
+status --verify >/dev/null 2>&1 && fail "missing app manifest not detected"
+mv "$work/app-SHA256SUMS" "$app_release/.pirate-deployment/SHA256SUMS"
+
+old_app="$deploy_root/app-releases/0000000000000000000000000000000000000000"
+cp -r "$app_release" "$old_app"
+ln -sfn "app-releases/0000000000000000000000000000000000000000" "$deploy_root/app"
+status --verify >/dev/null 2>&1 && fail "app symlink repoint not detected"
+ln -sfn "app-releases/$commit" "$deploy_root/app"
+status --verify >/dev/null || fail "restored app symlink still drifting"
+pass "verify detects app tamper, added files, missing manifest, and repoint"
+
+# 8. config drift
 echo "PRIMARY_DNS_IP=198.51.100.9" > "$deploy_root/config/demo.env"
 status --verify >/dev/null 2>&1 && fail "config drift not detected"
 status --record-config >/dev/null
 status --verify >/dev/null || fail "re-recorded config still drifting"
 pass "verify fails on unrecorded config change"
 
-# 7. unexpected running container
+# 9. unexpected running container
 echo running > "$DOCKER_SHIM_STATE"
 status --verify >/dev/null 2>&1 && fail "unexpected running container not detected"
 pass "verify fails when container runs while EXPECT_RUNNING=false"
 
-# 8. symlink mismatch
+# 10. role symlink mismatch
 echo absent > "$DOCKER_SHIM_STATE"
 mkdir -p "$deploy_root/releases/deadbeef"
 cp -r "$release/." "$deploy_root/releases/deadbeef/"
@@ -151,7 +197,7 @@ status --verify >/dev/null 2>&1 && fail "symlink/commit mismatch not detected"
 ln -sfn "releases/$commit" "$deploy_root/current"
 pass "verify fails on current-symlink mismatch"
 
-# 9. expected running container with matching digest
+# 11. expected running container with matching digest
 sed -i 's/^EXPECT_RUNNING=false$/EXPECT_RUNNING=true/' "$release/DEPLOYMENT"
 (cd "$release" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
 echo running > "$DOCKER_SHIM_STATE"
@@ -160,7 +206,7 @@ export DOCKER_SHIM_DIGEST="22222222222222222222222222222222222222222222222222222
 status --verify >/dev/null 2>&1 && fail "digest mismatch not detected"
 pass "verify checks running image digest against the pin"
 
-# 10. scoped alert bearer token
+# 12. scoped alert bearer token
 cat > "$shim/curl" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$@" > "${CURL_SHIM_ARGS:?}"
@@ -181,7 +227,7 @@ if OPS_ALERT_WEBHOOK_URL=https://api.example/internal/hns-edge-alerts \
 fi
 pass "alert delivery reads scoped bearer token and fails closed"
 
-# 11. successful verification heartbeat
+# 13. successful verification heartbeat
 export DOCKER_SHIM_DIGEST="1111111111111111111111111111111111111111111111111111111111111111"
 DEPLOY_ROOT="$deploy_root" \
 OPS_ALERT_WEBHOOK_URL=https://api.example/internal/hns-edge-alerts \

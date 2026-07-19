@@ -7,6 +7,7 @@ set -euo pipefail
 #   $DEPLOY_ROOT/
 #     current -> releases/<core-commit>
 #     releases/<core-commit>/{DEPLOYMENT,SHA256SUMS,bin/,...}
+#     app -> app-releases/<app-commit>    optional, declared by DEPLOYMENT
 #     config/            host-local configuration (never inside a release)
 #     shared/            persistent state (never inside a release)
 #
@@ -87,9 +88,14 @@ core_commit="${dep[CORE_COMMIT]:-}"
 image_digest="${dep[IMAGE_DIGEST]:-}"
 container_name="${dep[CONTAINER_NAME]:-}"
 expect_running="${dep[EXPECT_RUNNING]:-true}"
+app_commit="${dep[APP_COMMIT]:-}"
+app_link="${dep[APP_LINK]:-app}"
 
 note "host:    $(hostname -s)  role: $role"
 note "desired: core ${core_commit:-unknown}  image ${image_digest:-unpinned}"
+if [[ -n "$app_commit" ]]; then
+  note "desired: app  $app_commit"
+fi
 
 if [[ -n "$release_dir" && -n "$core_commit" ]]; then
   if [[ "$(basename "$release_dir")" != "$core_commit" ]]; then
@@ -107,6 +113,49 @@ if [[ -n "$release_dir" && -f "$release_dir/SHA256SUMS" ]]; then
   fi
 elif [[ -n "$release_dir" ]]; then
   mark_drift "SHA256SUMS missing in $release_dir"
+fi
+
+# --- separately versioned app integrity ------------------------------------
+
+if [[ -n "$app_commit" ]]; then
+  app_link_path="$deploy_root/$app_link"
+  app_release_dir=""
+  if [[ ! -L "$app_link_path" ]]; then
+    mark_drift "app symlink missing at $app_link_path"
+  else
+    app_release_dir="$(readlink -f "$app_link_path")"
+  fi
+
+  if [[ -n "$app_release_dir" ]]; then
+    expected_app_release_dir="$(readlink -m "$deploy_root/app-releases/$app_commit")"
+    app_metadata="$app_release_dir/.pirate-deployment/DEPLOYMENT"
+    app_sums="$app_release_dir/.pirate-deployment/SHA256SUMS"
+    if [[ "$app_release_dir" != "$expected_app_release_dir" ]]; then
+      mark_drift "$app_link -> $app_release_dir but expected $expected_app_release_dir"
+    fi
+    if [[ ! -f "$app_metadata" ]]; then
+      mark_drift "app DEPLOYMENT missing in $app_release_dir/.pirate-deployment"
+    else
+      recorded_app_commit="$(sed -n 's/^APP_COMMIT=//p' "$app_metadata" | head -1)"
+      if [[ "$recorded_app_commit" != "$app_commit" ]]; then
+        mark_drift "app DEPLOYMENT says ${recorded_app_commit:-unknown} but role DEPLOYMENT says $app_commit"
+      fi
+    fi
+
+    if [[ ! -f "$app_sums" ]]; then
+      mark_drift "app SHA256SUMS missing in $app_release_dir/.pirate-deployment"
+    elif (cd "$app_release_dir" && sha256sum --check --quiet .pirate-deployment/SHA256SUMS >/dev/null 2>&1); then
+      expected_app_files="$(sed 's/^[a-f0-9]\{64\}  //' "$app_sums" | sort)"
+      actual_app_files="$(cd "$app_release_dir" && find . -type f ! -path './.pirate-deployment/SHA256SUMS' -print | sort)"
+      if [[ "$actual_app_files" == "$expected_app_files" ]]; then
+        note "app:     $app_commit checksums OK ($(wc -l < "$app_sums") files)"
+      else
+        mark_drift "app file set differs from .pirate-deployment/SHA256SUMS"
+      fi
+    else
+      mark_drift "app checksum mismatch (sha256sum --check .pirate-deployment/SHA256SUMS failed)"
+    fi
+  fi
 fi
 
 # --- running container -------------------------------------------------------

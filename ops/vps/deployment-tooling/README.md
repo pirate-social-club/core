@@ -26,6 +26,9 @@ $DEPLOY_ROOT/
 │   ├── SHA256SUMS                        covers every file in the release
 │   ├── bin/                              this tooling, copied per release
 │   └── <tracked role files>
+├── app -> app-releases/<app-commit>       optional independently pinned app
+├── app-releases/<app-commit>/
+│   └── .pirate-deployment/{DEPLOYMENT,SHA256SUMS}
 ├── config/                               host-local config; only its HASH is recorded
 └── shared/                               persistent state (databases, keys)
 ```
@@ -52,6 +55,22 @@ with the new release directory as its only argument before producing
 `SHA256SUMS`. The role stager must pin and verify the artifact provenance and
 must write only inside that release directory; any failure aborts staging.
 
+Roles that execute source from a separate full-repository app tree must stage
+that tree and pin it explicitly:
+
+```bash
+bash ops/vps/deployment-tooling/make-app-release.sh /tmp/spaces-out \
+  --commit <full-app-commit>
+bash ops/vps/deployment-tooling/make-release.sh ops/vps/spaces-verifier \
+  /tmp/spaces-out --app-commit <full-app-commit>
+```
+
+Copy both immutable release directories to the host, then atomically point
+`current` and `app` at the declared releases. App releases contain a manifest
+covering the complete archived source tree. Verification fails if the app
+symlink is missing or repointed, the app metadata disagrees, any covered file
+changes or disappears, a file is added, or the manifest is missing.
+
 ```
 sudo $DEPLOY_ROOT/current/bin/deployment-status.sh --deploy-root $DEPLOY_ROOT --record-config
 ```
@@ -66,10 +85,10 @@ service goes live.
 sudo $DEPLOY_ROOT/current/bin/deployment-status.sh --deploy-root $DEPLOY_ROOT
 ```
 
-Reports host/role, desired commit + image digest, running container state and
-start time, whether the running image matches the pinned digest, release
-checksum integrity, config-hash status, and (when `DB_PATH` is declared) the
-database mtime and zone count. Ends with `drift: none` or one line per finding.
+Reports host/role, desired role and optional app commits, image digest, running
+container state and start time, release and app checksum integrity,
+config-hash status, and (when `DB_PATH` is declared) the database mtime and
+zone count. Ends with `drift: none` or one line per finding.
 
 `verify-deployment.sh` runs the same checks and exits nonzero on any drift —
 for timers and scripts.
@@ -139,4 +158,5 @@ timers that cannot trigger `OnFailure` locally.
 
 `deployment-tooling.test.sh` is an executable harness (docker shimmed, no
 daemon needed) covering release staging, dirty-tree refusal, checksum/config/
-symlink/digest/expectation drift. It runs in the `hns-integration` workflow.
+role/app symlink, app file-set, digest, and expectation drift. It runs in the
+`hns-integration` workflow.
