@@ -11,10 +11,16 @@ This directory contains tracked deployment assets for the VPS-hosted Spaces veri
 Use it together with the runtime code in
 [services/verifier/spaces](../../../services/verifier/spaces/README.md).
 
-Deployment assumption:
+Deployment boundary:
 
-- the VPS keeps a full `core` checkout at `/srv/pirate-spaces/app`
-- deployment must preserve the repo tree under `services/` and `ops/`
+- `/srv/pirate-spaces/current` points at the checksummed role release
+- `/srv/pirate-spaces/app` points at a separately checksummed full-repository
+  app release whose commit is pinned by the role's `DEPLOYMENT`
+- stage the app with `deployment-tooling/make-app-release.sh` and the role with
+  `make-release.sh --app-commit <full-commit>`
+- the daily deployment verifier checks both symlinks, both declared commits,
+  and both file manifests
+- the app release must preserve the repo tree under `services/` and `ops/`
 - do not flatten the verifier files into ad hoc top-level paths such as `scripts/spaces-verifier.ts`
 
 ## Scope

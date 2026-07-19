@@ -60,7 +60,10 @@ Use the dedicated Unix user:
 
 - `pirate-spaces`
 
-The VPS checkout must preserve the repo tree. Do not flatten verifier files into ad hoc paths.
+The immutable app release must preserve the repo tree. Do not flatten verifier files into ad hoc paths.
+`/srv/pirate-spaces/app` is a symlink to `app-releases/<app-commit>`; the role
+release records that commit and the deployment verifier checks the complete
+app manifest as well as the role manifest.
 
 ## Runtime Topology
 
@@ -146,7 +149,8 @@ Future `/srv/pirate-spaces/config/protocol-spaced.env` contract; do not render o
 - `SPACES_VERIFIER_HOST=127.0.0.1`
 - `SPACES_VERIFIER_PORT=4047`
 - `SPACES_VERIFIER_AUTH_TOKEN=<random-bearer-token>`
-- `SPACES_VERIFIER_NATIVE_BIN=/srv/pirate-spaces/app/services/verifier/spaces/native/target/release/spaces-verifier-native`
+- `SPACES_VERIFIER_NATIVE_BIN=/srv/pirate-spaces/current/bin/spaces-verifier-native`
+- `SPACES_PUBLISHER_BIN=/srv/pirate-spaces/current/bin/spaces-publisher`
 
 Pirate API:
 
@@ -177,28 +181,25 @@ protocol-compatible `spaced` binary and its own data directory. Do not upgrade t
 
 ## Build Strategy
 
-Build the native verifier once during deploy:
+The role release stages the locked native verifier and publisher binaries from
+their pinned sources. Both are covered by the role `SHA256SUMS`; do not build
+or download runtime binaries in the app tree after staging.
 
 ```bash
-cargo build --release --manifest-path /srv/pirate-spaces/app/services/verifier/spaces/native/Cargo.toml
+bash ops/vps/deployment-tooling/make-app-release.sh /tmp/spaces-out --commit <app-commit>
+bash ops/vps/deployment-tooling/make-release.sh ops/vps/spaces-verifier \
+  /tmp/spaces-out --app-commit <app-commit>
 ```
-
-The service reuses:
-
-```text
-/srv/pirate-spaces/app/services/verifier/spaces/native/target/release/spaces-verifier-native
-```
-
-Do not compile Rust on each service restart.
 
 ## Deploy Sequence
 
 1. SSH to the VPS.
-2. Update `/srv/pirate-spaces/app` to the desired `main` commit.
-3. Run `bun install` if dependencies changed.
-4. Build and install the pinned verification-only `spaced` binary with
-   `ops/vps/spaces-verifier/bin/build-spaced.sh`.
-5. Build `spaces-verifier-native`.
+2. Stage and copy the exact app release and checksummed role release.
+3. Point `/srv/pirate-spaces/app` and `/srv/pirate-spaces/current` at the
+   commits declared by the role `DEPLOYMENT`.
+4. Run deployment verification and require both role and app integrity to pass.
+5. Install dependencies only as a separately pinned release asset if runtime
+   dependencies change; never mutate the app release in place.
 6. Start `pirate-spaced.service`, then `pirate-spaces-verifier.service`.
 7. Confirm `GET https://verifier.pirate.sc/spaces/health`.
 8. Confirm `GET https://verifier.pirate.sc/spaces/inspect?root_label=@pirate`.

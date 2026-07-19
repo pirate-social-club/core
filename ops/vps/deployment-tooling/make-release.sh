@@ -3,7 +3,8 @@ set -euo pipefail
 
 # Stages an immutable release for a VPS role from a CLEAN, exact git commit.
 #
-#   make-release.sh <role-dir> <output-root> [--expect-running true|false] [--db-path REL]
+#   make-release.sh <role-dir> <output-root> [--expect-running true|false]
+#     [--db-path REL] [--app-commit COMMIT] [--app-link REL]
 #
 # Example:
 #   make-release.sh ops/vps/hns-secondary-dns /tmp/ns2-out --expect-running false \
@@ -23,14 +24,27 @@ shift 2
 
 expect_running="true"
 db_path=""
+app_commit=""
+app_link="app"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --expect-running) shift; expect_running="${1:?}" ;;
     --db-path) shift; db_path="${1:?}" ;;
+    --app-commit) shift; app_commit="${1:?}" ;;
+    --app-link) shift; app_link="${1:?}" ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
   shift
 done
+
+if [[ -n "$app_commit" && ! "$app_commit" =~ ^[a-f0-9]{40}$ ]]; then
+  echo "--app-commit must be a full lowercase 40-character git commit" >&2
+  exit 2
+fi
+if [[ -n "$app_commit" && ( "$app_link" = /* || "$app_link" == *..* ) ]]; then
+  echo "--app-link must stay beneath the deployment root" >&2
+  exit 2
+fi
 
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
@@ -93,6 +107,10 @@ fi
 {
   echo "ROLE=$(basename "$role_dir")"
   echo "CORE_COMMIT=$core_commit"
+  if [[ -n "$app_commit" ]]; then
+    echo "APP_COMMIT=$app_commit"
+    echo "APP_LINK=$app_link"
+  fi
   [[ -n "$image_digest" ]] && echo "IMAGE_DIGEST=$image_digest"
   [[ -n "$container_name" ]] && echo "CONTAINER_NAME=$container_name"
   echo "EXPECT_RUNNING=$expect_running"
