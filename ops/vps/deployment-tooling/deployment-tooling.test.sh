@@ -5,14 +5,15 @@ set -euo pipefail
 # docker is shimmed on PATH with canned responses. Covers:
 #   1. make-release refuses a dirty tree
 #   2. make-release stages role-provided assets inside the checksummed release
-#   3. verify passes on a clean pre-launch deployment (EXPECT_RUNNING=false)
-#   4. verify fails when a tracked release file is modified
-#   5. verify fails when config changes after --record-config
-#   6. verify fails when the container runs while EXPECT_RUNNING=false
-#   7. verify fails when the current symlink points at the wrong release
-#   8. verify passes for a running container whose image digest matches the pin
-#   9. alert delivery reads bearer auth from a token file and fails closed when unreadable
-#  10. successful verification sends an authenticated role heartbeat
+#   3. make-release succeeds for roles without a container image
+#   4. verify passes on a clean pre-launch deployment (EXPECT_RUNNING=false)
+#   5. verify fails when a tracked release file is modified
+#   6. verify fails when config changes after --record-config
+#   7. verify fails when the container runs while EXPECT_RUNNING=false
+#   8. verify fails when the current symlink points at the wrong release
+#   9. verify passes for a running container whose image digest matches the pin
+#  10. alert delivery reads bearer auth from a token file and fails closed when unreadable
+#  11. successful verification sends an authenticated role heartbeat
 
 tooling_dir="$(cd "$(dirname "$0")" && pwd)"
 work="$(mktemp -d)"
@@ -24,7 +25,7 @@ pass() { echo "ok: $1"; }
 # --- fixture repo with a minimal role ---------------------------------------
 
 repo="$work/repo"
-mkdir -p "$repo/ops/vps/demo-role/config" "$repo/ops/vps/deployment-tooling"
+mkdir -p "$repo/ops/vps/demo-role/config" "$repo/ops/vps/no-image-role" "$repo/ops/vps/deployment-tooling"
 cp "$tooling_dir"/*.sh "$repo/ops/vps/deployment-tooling/"
 cp -r "$tooling_dir/systemd" "$repo/ops/vps/deployment-tooling/systemd"
 cat > "$repo/ops/vps/demo-role/compose.yaml" <<'EOF'
@@ -34,6 +35,7 @@ services:
     container_name: pirate-demo-role
 EOF
 echo "setting=1" > "$repo/ops/vps/demo-role/config/demo.conf.example"
+echo "no container image" > "$repo/ops/vps/no-image-role/README.md"
 mkdir -p "$repo/ops/vps/demo-role/bin"
 cat > "$repo/ops/vps/demo-role/bin/stage-release-assets.sh" <<'EOF'
 #!/usr/bin/env bash
@@ -72,6 +74,12 @@ grep -q "^IMAGE_DIGEST=example/demo@sha256:1111" "$release/DEPLOYMENT" || fail "
 grep -q "^CONTAINER_NAME=pirate-demo-role$" "$release/DEPLOYMENT" || fail "DEPLOYMENT missing container"
 pass "make-release stages role assets in checksummed release"
 
+# 3. roles without a compose image still complete successfully
+(cd "$repo" && bash ops/vps/deployment-tooling/make-release.sh \
+  ops/vps/no-image-role "$work/no-image-deploy" --expect-running true) >/dev/null \
+  || fail "make-release returned failure after staging a no-image role"
+pass "make-release succeeds for roles without a container image"
+
 # --- docker shim -------------------------------------------------------------
 
 shim="$work/shim"
@@ -109,32 +117,32 @@ echo "PRIMARY_DNS_IP=203.0.113.7" > "$deploy_root/config/demo.env"
 
 status() { bash "$deploy_root/current/bin/deployment-status.sh" --deploy-root "$deploy_root" "$@"; }
 
-# 3. clean pre-launch verify (container absent, EXPECT_RUNNING=false)
+# 4. clean pre-launch verify (container absent, EXPECT_RUNNING=false)
 status --record-config >/dev/null
 status --verify >/dev/null || fail "clean pre-launch deployment reported drift"
 status | grep -q "drift:   none" || fail "status did not report drift: none"
 pass "verify passes on clean pre-launch deployment"
 
-# 4. tracked-file tamper
+# 5. tracked-file tamper
 echo tampered >> "$release/compose.yaml"
 status --verify >/dev/null 2>&1 && fail "checksum tamper not detected"
 git -C "$repo" show "HEAD:ops/vps/demo-role/compose.yaml" > "$release/compose.yaml"
 status --verify >/dev/null || fail "restore after tamper still drifting"
 pass "verify fails on tracked-file modification"
 
-# 5. config drift
+# 6. config drift
 echo "PRIMARY_DNS_IP=198.51.100.9" > "$deploy_root/config/demo.env"
 status --verify >/dev/null 2>&1 && fail "config drift not detected"
 status --record-config >/dev/null
 status --verify >/dev/null || fail "re-recorded config still drifting"
 pass "verify fails on unrecorded config change"
 
-# 6. unexpected running container
+# 7. unexpected running container
 echo running > "$DOCKER_SHIM_STATE"
 status --verify >/dev/null 2>&1 && fail "unexpected running container not detected"
 pass "verify fails when container runs while EXPECT_RUNNING=false"
 
-# 7. symlink mismatch
+# 8. symlink mismatch
 echo absent > "$DOCKER_SHIM_STATE"
 mkdir -p "$deploy_root/releases/deadbeef"
 cp -r "$release/." "$deploy_root/releases/deadbeef/"
@@ -143,7 +151,7 @@ status --verify >/dev/null 2>&1 && fail "symlink/commit mismatch not detected"
 ln -sfn "releases/$commit" "$deploy_root/current"
 pass "verify fails on current-symlink mismatch"
 
-# 8. expected running container with matching digest
+# 9. expected running container with matching digest
 sed -i 's/^EXPECT_RUNNING=false$/EXPECT_RUNNING=true/' "$release/DEPLOYMENT"
 (cd "$release" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
 echo running > "$DOCKER_SHIM_STATE"
@@ -152,7 +160,7 @@ export DOCKER_SHIM_DIGEST="22222222222222222222222222222222222222222222222222222
 status --verify >/dev/null 2>&1 && fail "digest mismatch not detected"
 pass "verify checks running image digest against the pin"
 
-# 9. scoped alert bearer token
+# 10. scoped alert bearer token
 cat > "$shim/curl" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$@" > "${CURL_SHIM_ARGS:?}"
@@ -173,7 +181,7 @@ if OPS_ALERT_WEBHOOK_URL=https://api.example/internal/hns-edge-alerts \
 fi
 pass "alert delivery reads scoped bearer token and fails closed"
 
-# 10. successful verification heartbeat
+# 11. successful verification heartbeat
 export DOCKER_SHIM_DIGEST="1111111111111111111111111111111111111111111111111111111111111111"
 DEPLOY_ROOT="$deploy_root" \
 OPS_ALERT_WEBHOOK_URL=https://api.example/internal/hns-edge-alerts \

@@ -107,4 +107,6 @@ fi
 
 echo "release staged: $release_dir"
 echo "core commit:    $core_commit"
-[[ -n "$image_digest" ]] && echo "image digest:   $image_digest"
+if [[ -n "$image_digest" ]]; then
+  echo "image digest:   $image_digest"
+fi
