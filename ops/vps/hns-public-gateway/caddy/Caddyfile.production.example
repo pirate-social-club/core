@@ -1,0 +1,40 @@
+# Preserve the existing WebPKI verifier origin while adding the static-key
+# DNSSEC+DANE HNS catchall. Exact-host routing wins over the catchall.
+verifier.pirate.sc {
+	handle_path /hns/* {
+		reverse_proxy 127.0.0.1:4048
+	}
+	handle_path /spaces/* {
+		route {
+			rate_limit {
+				zone spaces_resolve_per_ip {
+					match {
+						method GET
+						path /resolve
+					}
+					key {remote_host}
+					events 30
+					window 1m
+					ipv6_prefix 64
+				}
+			}
+			reverse_proxy 127.0.0.1:4047
+		}
+	}
+	handle_path /prod/* {
+		reverse_proxy 127.0.0.1:8789
+	}
+}
+
+{
+	auto_https disable_redirects
+}
+
+https:// {
+	tls /etc/caddy/hns-dane/current/cert.pem /etc/caddy/hns-dane/current/key.pem
+	reverse_proxy 127.0.0.1:4049
+}
+
+http:// {
+	reverse_proxy 127.0.0.1:4049
+}
