@@ -490,6 +490,18 @@ Recommended v0 rendering rules:
 - mixed global feeds such as `Home` and `Your Communities` should show the active global `.pirate` handle as the primary identity label
 - mixed global feeds may show the post's community-local handle as a secondary badge or metadata line
 
+For human-authored public posts and comments, v0 resolves these labels from current identity state at
+read time. Renaming, revoking, or replacing a handle may therefore change the label rendered on older
+content, but it never changes the content's canonical `author_user_id`. Historical human-handle
+snapshots are not part of v0; adding them requires an explicit product decision and a structured
+snapshot contract rather than silently changing this behavior.
+
+When a community has multiple attached namespaces, the active handle in the primary namespace is the
+default community-local identity. A mirror-namespace handle must not silently replace that default.
+Selecting a mirror handle for community identity requires a future explicit user preference or
+publish-time identity selection; until that exists, a user with only mirror handles falls back to the
+active global `.pirate` handle.
+
 ## On-chain vs Off-chain
 
 Recommended v0 split:
