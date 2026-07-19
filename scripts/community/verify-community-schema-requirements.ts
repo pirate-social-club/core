@@ -124,6 +124,7 @@ type ShardStatus =
   | "partial_artifacts" // half-applied
   | "checksum_mismatch" // a DIFFERENT migration of that name was applied
   | "canonical_schema_missing" // final pinned tables/indexes/columns are absent
+  | "canonical_schema_regression" // missing canonical artifacts exceed the ratchet baseline
   | "schema_not_ready"
   | "missing_from_config"
   | "error"
@@ -136,7 +137,58 @@ type ShardReport = {
   database_name: string
   status: ShardStatus
   missing: string[]
+  canonical_missing?: string[]
+  canonical_regressions?: string[]
   detail?: string
+}
+
+type CanonicalSchemaBaseline = {
+  version: 1
+  fleet: "production" | "staging"
+  profiles: Record<string, string[]>
+  shards: Record<string, string>
+}
+
+export function validateCanonicalSchemaBaseline(
+  value: unknown,
+  expectedFleet: CanonicalSchemaBaseline["fleet"],
+  source = "canonical schema baseline",
+): CanonicalSchemaBaseline {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${source}: must be an object`)
+  const raw = value as Record<string, unknown>
+  const unknown = Object.keys(raw).filter((key) => !["version", "fleet", "profiles", "shards"].includes(key))
+  if (unknown.length) throw new Error(`${source}: unknown top-level key(s): ${unknown.join(", ")}`)
+  if (raw.version !== 1) throw new Error(`${source}: version must be 1`)
+  if (raw.fleet !== expectedFleet) throw new Error(`${source}: fleet must be ${expectedFleet}`)
+  if (!raw.profiles || typeof raw.profiles !== "object" || Array.isArray(raw.profiles)) {
+    throw new Error(`${source}: profiles must be an object`)
+  }
+  for (const [profile, artifacts] of Object.entries(raw.profiles as Record<string, unknown>)) {
+    if (!Array.isArray(artifacts) || artifacts.some((artifact) => typeof artifact !== "string" || !artifact)) {
+      throw new Error(`${source}: profiles.${profile} must be an array of non-empty strings`)
+    }
+    if (new Set(artifacts).size !== artifacts.length) throw new Error(`${source}: profiles.${profile} contains duplicates`)
+  }
+  if (!raw.shards || typeof raw.shards !== "object" || Array.isArray(raw.shards)) {
+    throw new Error(`${source}: shards must be an object`)
+  }
+  const profiles = raw.profiles as Record<string, unknown>
+  for (const [binding, profile] of Object.entries(raw.shards as Record<string, unknown>)) {
+    if (typeof profile !== "string" || !(profile in profiles)) {
+      throw new Error(`${source}: shards.${binding} must name a declared profile`)
+    }
+  }
+  return raw as CanonicalSchemaBaseline
+}
+
+export function canonicalSchemaRegressions(
+  currentMissing: string[],
+  binding: string,
+  baseline?: CanonicalSchemaBaseline,
+): string[] {
+  const profile = baseline?.shards[binding]
+  const allowed = new Set(profile ? baseline?.profiles[profile] : [])
+  return currentMissing.filter((artifact) => !allowed.has(artifact)).sort()
 }
 
 type SchemaArtifactKind = "column" | "index" | "table"
@@ -339,6 +391,7 @@ type Options = {
   concurrency: number
   cwd: string
   driftPolicy: string
+  canonicalBaseline?: string
 }
 
 function parseArgs(): Options {
@@ -357,7 +410,7 @@ Verify that every LIVE community shard satisfies the pinned API's schema require
     --requirements <api>/services/api/community-schema-requirements.json \\
     --wrangler-config <api>/services/community-d1-shard/wrangler.jsonc \\
     [--prod] [--features rewards] [--manifest PATH] [--quarantines PATH]
-    [--drift-policy PATH] [--concurrency N]
+    [--drift-policy PATH] [--canonical-baseline PATH] [--concurrency N]
 
 READ-ONLY. Exits non-zero unless every allocated+loaded shard is satisfied.
 --features adds that feature's migrations to the required set; omit it and those
@@ -381,6 +434,7 @@ migrations are NOT required (that is how 1126 stays feature-conditional).
     concurrency,
     cwd: dirname(resolve(wranglerConfig)),
     driftPolicy: resolve(get("--drift-policy") ?? "db/known-community-migration-drifts.json"),
+    canonicalBaseline: get("--canonical-baseline") ? resolve(get("--canonical-baseline")!) : undefined,
   }
 }
 
@@ -494,6 +548,13 @@ async function liveBindings(o: Options): Promise<string[]> {
 async function main() {
   const o = parseArgs()
   const req = validateRequirements(JSON.parse(await readFile(o.requirements, "utf8")), o.requirements)
+  const fleet = o.prod ? "production" : "staging"
+  const canonicalBaseline = o.canonicalBaseline
+    ? validateCanonicalSchemaBaseline(JSON.parse(await readFile(o.canonicalBaseline, "utf8")), fleet, o.canonicalBaseline)
+    : undefined
+  if (canonicalBaseline && !req.canonical_schema) {
+    throw new Error("--canonical-baseline requires canonical_schema: true in the requirements manifest")
+  }
 
   const required = [...req.unconditional]
   const featureRequired: Record<string, string[]> = {}
@@ -527,6 +588,14 @@ async function main() {
       canonicalExpected,
       o.driftPolicy,
     )
+    if (canonicalBaseline) {
+      const unknownArtifacts = [...new Set(Object.values(canonicalBaseline.profiles).flat())]
+        .filter((artifact) => !canonicalExpected.has(artifact))
+        .sort()
+      if (unknownArtifacts.length) {
+        throw new Error(`${o.canonicalBaseline}: baseline contains non-canonical artifact(s): ${unknownArtifacts.join(", ")}`)
+      }
+    }
   }
 
   // Filenames + checksums come from the PINNED Core commit — the same source the
@@ -581,6 +650,13 @@ async function main() {
     new Set(map.keys()),
   )
   const bindings = partition.live
+  if (canonicalBaseline) {
+    const classified = new Set([...bindings, ...partition.quarantined.map((entry) => entry.binding)])
+    const staleBindings = Object.keys(canonicalBaseline.shards).filter((binding) => !classified.has(binding)).sort()
+    if (staleBindings.length) {
+      throw new Error(`${o.canonicalBaseline}: baseline contains non-live, non-quarantined shard(s): ${staleBindings.join(", ")}`)
+    }
+  }
   if (bindings.length === 0) throw new Error("quarantine policy leaves ZERO live shards; refusing to pass the release gate")
   const reports: ShardReport[] = []
   const targets: Array<{ binding: string; db: string }> = []
@@ -668,15 +744,30 @@ async function main() {
           const canonicalMissing = [...canonicalExpected]
             .filter((artifact) => !actual.has(artifact) && !compatibleMissingSchemaArtifacts.has(artifact))
             .sort()
-          if (canonicalMissing.length > 0) {
-            status = "canonical_schema_missing"
-            missing.push(...canonicalMissing)
+          const canonicalRegressions = canonicalBaseline
+            ? canonicalSchemaRegressions(canonicalMissing, binding, canonicalBaseline)
+            : canonicalMissing
+          if (canonicalRegressions.length > 0) {
+            status = canonicalBaseline ? "canonical_schema_regression" : "canonical_schema_missing"
+            missing.push(...canonicalRegressions)
             const shown = canonicalMissing.slice(0, 12)
             details.push(
-              `canonical schema missing ${canonicalMissing.length} artifact(s): ${shown.join(", ")}` +
+              `canonical schema missing ${canonicalMissing.length} artifact(s)` +
+                (canonicalBaseline ? `, ${canonicalRegressions.length} beyond ratchet baseline` : "") +
+                `: ${shown.join(", ")}` +
                 (canonicalMissing.length > shown.length ? `, ... and ${canonicalMissing.length - shown.length} more` : ""),
             )
           }
+          reports.push({
+            binding,
+            database_name: db,
+            status,
+            missing,
+            canonical_missing: canonicalMissing,
+            canonical_regressions: canonicalRegressions,
+            ...(details.length ? { detail: details.join("; ") } : {}),
+          })
+          continue
         }
         reports.push({
           binding,
@@ -707,7 +798,7 @@ async function main() {
     o.manifest,
     `${JSON.stringify(
       {
-        fleet: o.prod ? "production" : "staging",
+        fleet,
         requirements_version: req.version,
         requirements_file: o.requirements,
         shard_config: o.wranglerConfig,
@@ -715,6 +806,8 @@ async function main() {
         required_migrations: requiredSet,
         feature_migrations: featureRequired,
         canonical_schema_checked: Boolean(req.canonical_schema),
+        canonical_schema_mode: canonicalBaseline ? "ratchet" : req.canonical_schema ? "strict" : "disabled",
+        canonical_schema_baseline: o.canonicalBaseline ?? null,
         canonical_schema_expected_artifacts: canonicalExpected.size,
         canonical_schema_excluded_migrations: [...canonicalExcludedMigrations].sort(),
         compatible_missing_schema_artifacts: [...compatibleMissingSchemaArtifacts].sort(),
