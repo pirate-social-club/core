@@ -41,10 +41,12 @@ live campaign and everyone can see approximately how much remains.
 Implement and release in this order:
 
 1. Prove the production earn -> credit -> cashout loop on the restricted pilot.
-2. Add a community-scoped public discovery payload.
-3. Make community feed, home feed, and permalink presentation consistent.
-4. Expose approximate remaining budget through the same payload.
-5. Add multi-funder top-ups.
+2. Ship the pending-verification wallet flow specified in
+   `reward-pending-verification.md`.
+3. Add a community-scoped public discovery payload.
+4. Make community feed, home feed, and permalink presentation consistent.
+5. Expose approximate remaining budget through the same payload.
+6. Add multi-funder top-ups.
 
 Each milestone is independently releasable and observable. Top-ups must not be
 used to justify coupling all five milestones into one deployment.
@@ -318,4 +320,3 @@ is needed.
 - Refunding confirmed contributions.
 - Per-viewport post-ID batch cache keys.
 - Attributing `paid_cents`; payout effects currently have no campaign link.
-
