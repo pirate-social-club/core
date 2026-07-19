@@ -11,10 +11,38 @@ const communityDriftPolicyPath = "db/known-community-migration-drifts.json";
 const localControlPlaneDriftPolicyPath = "db/local-control-plane-migration-drifts.json";
 const allowedDuplicateMigrationPrefixes = new Map([
   [
+    "community-template:1037",
+    new Set([
+      "db/community-template/migrations/1037_community_text_localization.sql",
+      "db/community-template/migrations/1037_rebuild_comments_guest_authorship.sql",
+    ]),
+  ],
+  [
+    "community-template:1089",
+    new Set([
+      "db/community-template/migrations/1089_community_assistant_text_and_voice_mode.sql",
+      "db/community-template/migrations/1089_post_events.sql",
+    ]),
+  ],
+  [
+    "community-template:1123",
+    new Set([
+      "db/community-template/migrations/1123_karaoke_attempts.sql",
+      "db/community-template/migrations/1123_song_engagement_activity_timezone.sql",
+    ]),
+  ],
+  [
     "control-plane:0080",
     new Set([
       "db/control-plane/migrations/0080_control_plane_link_enrichment_source_language.sql",
       "db/control-plane/migrations/0080_control_plane_song_artifact_bundle_title.sql",
+    ]),
+  ],
+  [
+    "control-plane:0104",
+    new Set([
+      "db/control-plane/migrations/0104_control_plane_community_seo_projection.sql",
+      "db/control-plane/migrations/0104_control_plane_telegram_thread_bridge.sql",
     ]),
   ],
 ]);
@@ -106,18 +134,6 @@ function listMigrationFilesAtHead(root) {
     .sort();
 }
 
-function listMigrationFilesAtRef(ref, root) {
-  if (!ref) return [];
-  const output = gitMaybe(["ls-tree", "-r", "--name-only", ref, root.path]);
-  if (!output) return [];
-
-  return output
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.endsWith(".sql"))
-    .sort();
-}
-
 function filenamePrefix(root, filePath) {
   const name = path.basename(filePath);
   const match = name.match(root.prefixPattern);
@@ -168,24 +184,17 @@ function checkFilenamePrefixes(root, files) {
   return failures;
 }
 
-function checkDuplicatePrefixes(root, headFiles, baseFiles) {
+export function checkDuplicatePrefixes(root, headFiles) {
   const failures = [];
   const warnings = [];
   const headGroups = collectPrefixGroups(root, headFiles);
-  const baseGroups = collectPrefixGroups(root, baseFiles);
 
   for (const [prefix, headGroup] of headGroups) {
     if (headGroup.length <= 1) continue;
 
-    const baseGroup = baseGroups.get(prefix) ?? [];
-    if (baseGroup.length > 1 && sameSet(headGroup, baseGroup)) {
-      warnings.push(`${root.label}: existing duplicate prefix ${prefix} is grandfathered: ${headGroup.join(", ")}`);
-      continue;
-    }
-
     const allowedGroup = allowedDuplicateMigrationPrefixes.get(`${root.label}:${prefix}`);
     if (allowedGroup && sameSet(headGroup, Array.from(allowedGroup))) {
-      warnings.push(`${root.label}: known duplicate prefix ${prefix} is grandfathered: ${headGroup.join(", ")}`);
+      warnings.push(`${root.label}: explicitly allowed historical duplicate prefix ${prefix}: ${headGroup.join(", ")}`);
       continue;
     }
 
@@ -498,44 +507,49 @@ async function checkLocalControlPlaneDriftPolicy() {
   return failures;
 }
 
-const baseRef = resolveBaseRef();
-const failures = [];
-const warnings = [];
+async function main() {
+  const baseRef = resolveBaseRef();
+  const failures = [];
+  const warnings = [];
 
-if (!baseRef) {
-  warnings.push("could not resolve a base ref; skipped immutability and grandfathered-duplicate comparisons");
-}
-
-for (const root of migrationRoots) {
-  const headFiles = listMigrationFilesAtHead(root);
-  const baseFiles = listMigrationFilesAtRef(baseRef, root);
-
-  failures.push(...checkFilenamePrefixes(root, headFiles));
-
-  const duplicateCheck = checkDuplicatePrefixes(root, headFiles, baseFiles);
-  failures.push(...duplicateCheck.failures);
-  warnings.push(...duplicateCheck.warnings);
-}
-
-failures.push(...checkImmutableAppliedMigrations(baseRef));
-failures.push(...checkImmutableWorkingTreeMigrations());
-failures.push(...checkNamedTableConstraints(baseRef));
-failures.push(...await checkCommunityDriftPolicy());
-failures.push(...await checkLocalControlPlaneDriftPolicy());
-
-for (const warning of warnings) {
-  console.warn(`warning: ${warning}`);
-}
-
-if (failures.length > 0) {
-  console.error("migration integrity check failed");
-  for (const failure of failures) {
-    console.error(`- ${failure}`);
+  if (!baseRef) {
+    warnings.push("could not resolve a base ref; skipped migration immutability comparisons");
   }
-  process.exit(1);
+
+  for (const root of migrationRoots) {
+    const headFiles = listMigrationFilesAtHead(root);
+    failures.push(...checkFilenamePrefixes(root, headFiles));
+
+    const duplicateCheck = checkDuplicatePrefixes(root, headFiles);
+    failures.push(...duplicateCheck.failures);
+    warnings.push(...duplicateCheck.warnings);
+  }
+
+  failures.push(...checkImmutableAppliedMigrations(baseRef));
+  failures.push(...checkImmutableWorkingTreeMigrations());
+  failures.push(...checkNamedTableConstraints(baseRef));
+  failures.push(...await checkCommunityDriftPolicy());
+  failures.push(...await checkLocalControlPlaneDriftPolicy());
+
+  for (const warning of warnings) {
+    console.warn(`warning: ${warning}`);
+  }
+
+  if (failures.length > 0) {
+    console.error("migration integrity check failed");
+    for (const failure of failures) {
+      console.error(`- ${failure}`);
+    }
+    process.exitCode = 1;
+    return;
+  }
+
+  console.log("migration integrity check passed");
+  for (const root of migrationRoots) {
+    console.log(`- ${root.label}`);
+  }
 }
 
-console.log("migration integrity check passed");
-for (const root of migrationRoots) {
-  console.log(`- ${root.label}`);
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  await main();
 }
