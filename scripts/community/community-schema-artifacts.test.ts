@@ -53,6 +53,35 @@ describe("expectedArtifacts — synthetic", () => {
 // The load-bearing tests: assert the EXACT artifacts derived from the real files
 // the gate ships against. A silent parser regression here is a silent gate hole.
 describe("expectedArtifacts — real migration files", () => {
+  test("1140 repairs missing karaoke attempts and is replay-safe", () => {
+    const migration = readMigration("1140_karaoke_attempts_schema_repair.sql")
+    const a = expectedArtifacts(migration)
+    expect(a.tables).toEqual(["karaoke_attempt"])
+    expect(a.indexes).toEqual([
+      "idx_karaoke_attempt_rank",
+      "idx_karaoke_attempt_user_post",
+    ])
+    expect(a.unrecognized).toEqual([])
+
+    const empty = new Database(":memory:")
+    const existing = new Database(":memory:")
+    try {
+      empty.exec("CREATE TABLE communities (community_id TEXT PRIMARY KEY)")
+      empty.exec("CREATE TABLE posts (post_id TEXT PRIMARY KEY)")
+      empty.exec(migration)
+      expect(empty.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'karaoke_attempt'").get()).toEqual({ name: "karaoke_attempt" })
+
+      existing.exec("CREATE TABLE communities (community_id TEXT PRIMARY KEY)")
+      existing.exec("CREATE TABLE posts (post_id TEXT PRIMARY KEY)")
+      existing.exec(migration)
+      existing.exec(migration)
+      expect(existing.query("SELECT COUNT(*) AS count FROM pragma_index_list('karaoke_attempt') WHERE name IN ('idx_karaoke_attempt_rank', 'idx_karaoke_attempt_user_post')").get()).toEqual({ count: 2 })
+    } finally {
+      empty.close()
+      existing.close()
+    }
+  })
+
   test("1124_community_job_checkpoints: 4 columns + 1 table + 4 indexes, nothing unrecognized", () => {
     const a = expectedArtifacts(readMigration("1124_community_job_checkpoints.sql"))
     expect(a.columns).toEqual([
