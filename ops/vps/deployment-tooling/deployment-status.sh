@@ -195,6 +195,26 @@ else
   note "running: no CONTAINER_NAME declared; container checks skipped"
 fi
 
+# --- host runtime executable integrity --------------------------------------
+
+# Some semantically load-bearing executables are intentionally host-managed
+# rather than copied into a role release (for example bun and the custom Caddy
+# build). A root-owned sha256sum manifest makes that boundary explicit and
+# detects replacement without pretending the whole base OS is immutable.
+runtime_sums="$deploy_root/config/RUNTIME_SHA256SUMS"
+if [[ -f "$runtime_sums" ]]; then
+  runtime_count="$(grep -Ec '^[a-f0-9]{64}  /' "$runtime_sums" || true)"
+  if [[ "$runtime_count" -eq 0 ]]; then
+    mark_drift "runtime executable manifest is empty or malformed"
+  elif sha256sum --check --quiet "$runtime_sums" >/dev/null 2>&1; then
+    note "runtime: $runtime_count host executables checksums OK"
+  else
+    mark_drift "host runtime executable checksum mismatch"
+  fi
+else
+  note "runtime: no host executable manifest declared"
+fi
+
 # --- configuration hash ------------------------------------------------------
 
 actual_config_hash="$(config_hash)"

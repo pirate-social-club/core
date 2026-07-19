@@ -132,6 +132,9 @@ ln -s "releases/$commit" "$deploy_root/current"
 ln -s "app-releases/$commit" "$deploy_root/app"
 mkdir -p "$deploy_root/config"
 echo "PRIMARY_DNS_IP=203.0.113.7" > "$deploy_root/config/demo.env"
+runtime_tool="$work/runtime-tool"
+echo "trusted runtime" > "$runtime_tool"
+sha256sum "$runtime_tool" > "$deploy_root/config/RUNTIME_SHA256SUMS"
 
 status() { bash "$deploy_root/current/bin/deployment-status.sh" --deploy-root "$deploy_root" "$@"; }
 
@@ -144,7 +147,15 @@ grep -q "desired: app  $commit" <<< "$clean_status" \
   || fail "status omitted desired app commit: $clean_status"
 grep -q "app:     $commit checksums OK" <<< "$clean_status" \
   || fail "status omitted app integrity: $clean_status"
+grep -q "runtime: 1 host executables checksums OK" <<< "$clean_status" \
+  || fail "status omitted host runtime integrity: $clean_status"
 pass "verify reports and passes clean role + app deployment"
+
+echo tampered >> "$runtime_tool"
+status --verify >/dev/null 2>&1 && fail "host runtime executable tamper not detected"
+echo "trusted runtime" > "$runtime_tool"
+status --verify >/dev/null || fail "restored host runtime executable still drifting"
+pass "verify detects host runtime executable tamper"
 
 # 6. tracked role-file tamper
 echo tampered >> "$release/compose.yaml"

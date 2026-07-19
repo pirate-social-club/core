@@ -87,8 +87,17 @@ sudo $DEPLOY_ROOT/current/bin/deployment-status.sh --deploy-root $DEPLOY_ROOT
 
 Reports host/role, desired role and optional app commits, image digest, running
 container state and start time, release and app checksum integrity,
-config-hash status, and (when `DB_PATH` is declared) the database mtime and
-zone count. Ends with `drift: none` or one line per finding.
+host-runtime executable integrity, config-hash status, and (when `DB_PATH` is
+declared) the database mtime and zone count. Ends with `drift: none` or one
+line per finding.
+
+For a role that deliberately executes a host-managed binary, create the
+root-owned `$DEPLOY_ROOT/config/RUNTIME_SHA256SUMS` using standard `sha256sum`
+format and absolute, resolved executable paths. The daily verifier checks every
+entry. Because the manifest is inside `config/`, its own contents are also
+covered by `CONFIG_SHA256`; adding or changing a pin requires an explicit
+`--record-config`. Do not use this manifest for release-contained artifacts or
+digest-pinned containers, which already have stronger native checks.
 
 `verify-deployment.sh` runs the same checks and exits nonzero on any drift —
 for timers and scripts.

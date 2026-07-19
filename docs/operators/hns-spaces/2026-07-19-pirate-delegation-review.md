@@ -3,8 +3,8 @@
 Status: **STAGED ONLY — DO NOT SIGN OR BROADCAST**
 
 Prepared 2026-07-19. The observer was at height 171,862 (50.59%) when this
-packet was assembled, so observer-backed HNS assertions and the 24-hour soak
-have not started.
+packet was assembled, so observer-backed HNS assertions cannot be activated
+until it reaches tip.
 
 ## Owner decision
 
@@ -12,7 +12,8 @@ This ceremony atomically replaces the complete Handshake resource for
 `.pirate`. It is not an additive NS edit. The current AWS glue is intentionally
 removed, and no prior DS is retained.
 
-Current committed resource, read from the observer:
+Resource visible to the partially synced observer (historical until it reaches
+tip; do not use this observation for current covenant or custody decisions):
 
 ```json
 {
@@ -46,6 +47,47 @@ Proposed complete replacement:
 There is no GLUE6. Neither authority has a globally routed IPv6 address and
 PowerDNS is currently served over IPv4 only. Publishing unreachable GLUE6
 would reduce reliability rather than add resilience.
+
+## Parent covenant preflight
+
+Shakeshift is the canonical **human preflight explorer** for this ceremony. It
+is informational and supplies an independent comparison only. Explorer HTML
+must never be consumed as ownership evidence, continuity evidence, a
+provisioning input, or a TLS-issuance authorization input. Once the observer is
+at tip, authenticated `getnameresource` from that observer is the machine
+authority for parent state and must reproduce this preflight before signing.
+
+Shakeshift's live `.pirate` history shows that the transfer opened at block
+`338007` was finalized at block `338296` on 2026-07-15. The current name state
+is **Registered**, not pending transfer, so the provisional covenant path
+remains one UPDATE rather than FINALIZE/CANCEL followed by UPDATE.
+
+- current owner address:
+  `hs1q8ewlwa07hlfkjgvrpzjlsve8vend5fnh8g66rv`
+- current owner coin: transaction
+  `5af15c0199494edb0c3333d6b054c3ef6246bfabc02d05992cb25b3ea6afb73b`,
+  output `0` (`FINALIZE`)
+- renewal window ends at block `443415`
+- expiration: block `443416` (Shakeshift estimate 2028-07-14)
+
+An UPDATE is not a renewal. The `.pirate` TLD therefore has roughly 24 months
+of runway at this preflight; this is separate from the shorter `@pirate` Spaces
+handle lease.
+
+Before creating the unsigned transaction, the owner must prove—without
+unlocking the wallet—that the intended local wallet tracks both the current
+coin and its address. Against the local wallet HTTP service, require non-null
+success from:
+
+```text
+GET /wallet/<wallet-id>/coin/5af15c0199494edb0c3333d6b054c3ef6246bfabc02d05992cb25b3ea6afb73b/0
+GET /wallet/<wallet-id>/key/hs1q8ewlwa07hlfkjgvrpzjlsve8vend5fnh8g66rv
+```
+
+These are read-only calls and require no wallet passphrase. Keep the API key
+and wallet token local; record only the returned public outpoint, address, and
+derivation metadata in the final appendix. A null response or a different
+owner stops the ceremony.
 
 ## Child-zone evidence
 
@@ -103,23 +145,34 @@ IPv4 addresses are confirmed persistent.
 ## Remaining gates before the owner signs
 
 1. Observer reaches chain tip and verifier assertions are activated.
-2. The signed zone, AXFR, backup, RRSIG monitor, gateway, and verifier remain
-   continuously healthy for at least 24 hours after that activation.
+2. Run the event-based pre-sign health checklist below; no elapsed soak period
+   is required.
 3. Validate UDP and TCP 53 and the DNSSEC answers from an additional external
    vantage, not the operator workstation.
 4. Re-read the current parent resource, served DNSKEY/DS, authority IPs, zone
    serial, and DANE SPKI immediately before transaction creation. Any mismatch
    invalidates this packet.
-5. Create the UPDATE locally with `sign: false` and `broadcast: false`; record
+5. Prove the intended wallet tracks the finalized owner coin and address from
+   the covenant preflight above.
+6. Create the UPDATE locally with `sign: false` and `broadcast: false`; record
    its inputs, outputs, fee, covenant resource, and raw hex in an appendix for
    owner review. Never copy a seed, private key, wallet token, or passphrase
-   into this repository or onto ns1/ns2.
+  into this repository or onto ns1/ns2.
 
-The 24-hour soak passes only if RRSIG and DANE SPKI/TLSA monitors remain green,
-all deployment roles report no drift, a full backup/restore cycle covers the
-real DNSSEC zone, a deliberate serial change converges through AXFR, the served
-SPKI still matches every TLSA owner, and gateway/redirect samples remain healthy
-throughout the window.
+The event-based pre-sign health checklist requires fresh evidence that:
+
+- RRSIG and DANE SPKI/TLSA monitors pass through both authorities;
+- all deployment roles report no drift;
+- the latest scheduled backup completed and a restore of real DNSSEC material
+  has already been proven;
+- primary and secondary SOA serials match, with UDP/TCP serving parity;
+- the served SPKI matches every TLSA owner;
+- gateway, API route, and apex redirect checks pass; and
+- the authenticated tip-synced observer reproduces the parent covenant,
+  resource, and owner preflight.
+
+Any failed check stops signing. Passing checks permit immediate unsigned
+transaction creation and review; there is no time-based soak gate.
 
 The unsigned wallet API request body is:
 
