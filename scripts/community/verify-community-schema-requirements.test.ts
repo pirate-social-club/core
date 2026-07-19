@@ -8,6 +8,8 @@ import {
   CANONICAL_SCHEMA_INVENTORY_SQL,
   probeShard,
   schemaArtifactsFromRows,
+  canonicalSchemaRegressions,
+  validateCanonicalSchemaBaseline,
   validateCompatibleMissingSchemaArtifacts,
   validateRequirements,
   wranglerFailureDetail,
@@ -50,6 +52,35 @@ describe("schema requirements policy validation", () => {
         two: { flags: ["TWO"], migrations: ["1133_multi_namespace_bindings.sql"] },
       },
     })).toThrow("overlaps policy classes features.one and features.two")
+  })
+})
+
+describe("canonical schema ratchet", () => {
+  test("accepts shrinkage but reports new missing artifacts", () => {
+    const baseline = {
+      version: 1 as const, fleet: "production" as const,
+      profiles: { legacy: ["column:a.x"] }, shards: { DB_CMTY_1: "legacy" },
+    }
+    expect(canonicalSchemaRegressions(["column:a.x"], "DB_CMTY_1", baseline)).toEqual([])
+    expect(canonicalSchemaRegressions(["column:a.x", "table:new_gap"], "DB_CMTY_1", baseline))
+      .toEqual(["table:new_gap"])
+  })
+
+  test("requires a new shard absent from the baseline to be canonical", () => {
+    expect(canonicalSchemaRegressions(["column:a.x"], "DB_CMTY_NEW", {
+      version: 1, fleet: "production", profiles: { legacy: ["column:a.x"] }, shards: { DB_CMTY_1: "legacy" },
+    })).toEqual(["column:a.x"])
+  })
+
+  test("validates fleet identity and unique artifact lists", () => {
+    const valid = { version: 1, fleet: "production", profiles: { legacy: ["table:a"] }, shards: { DB_CMTY_1: "legacy" } }
+    expect(validateCanonicalSchemaBaseline(valid, "production")).toEqual(valid)
+    expect(() => validateCanonicalSchemaBaseline({ ...valid, fleet: "staging" }, "production"))
+      .toThrow("fleet must be production")
+    expect(() => validateCanonicalSchemaBaseline({ ...valid, profiles: { legacy: ["table:a", "table:a"] } }, "production"))
+      .toThrow("contains duplicates")
+    expect(() => validateCanonicalSchemaBaseline({ ...valid, shards: { DB_CMTY_1: "missing" } }, "production"))
+      .toThrow("must name a declared profile")
   })
 })
 
