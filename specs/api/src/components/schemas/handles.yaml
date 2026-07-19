@@ -25,6 +25,22 @@ NamespaceAttachmentInput:
       nullable: true
       description: |
         Optional derived route family such as bare-label or `@`-style routing. Clients may omit this on create and let the server derive it from `namespace_verification_id`. If submitted, it must match the verified namespace session.
+CommunityNamespaceAttachRequest:
+  type: object
+  required:
+    - namespace_verification
+  properties:
+    namespace_verification:
+      type: string
+      description: Opaque server-issued identifier for a currently attachable namespace verification owned by the community moderator.
+    namespace_role:
+      type: string
+      enum:
+        - primary
+        - mirror
+      default: primary
+      description: |
+        Optional attachment role. Omission preserves the primary-attachment compatibility behavior. A mirror requires an existing primary and adds a claim namespace without changing the community route.
 HandlePolicyInput:
   type: object
   required:

@@ -175,6 +175,8 @@ paths:
     $ref: ./paths/communities.yaml#/communities_admin_health
   /communities/{community_id}:
     $ref: ./paths/communities.yaml#/communities_by_community_id
+  /communities/{community_id}/namespace:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_namespace
   /communities/{community_id}/attach-governance:
     $ref: ./paths/communities.yaml#/communities_by_community_id_attach_governance
   /communities/{community_id}/labels:
