@@ -46,8 +46,9 @@ This VPS slice may share a machine with the HNS DNS stack, but it remains operat
 - `bin/stage-release-assets.sh`
   Downloads the immutable Spaces publisher `v0.1.3` Linux archive, verifies
   the pinned archive digest and the extracted binary digest independently,
-  and stages the read-only Fabric reader plus its AGPL notice into the role
-  release. `make-release.sh` covers the staged bytes in the role SHA256SUMS.
+  builds the locked native proof verifier from the exact Core commit, and
+  stages both binaries plus the publisher AGPL notice into the role release.
+  `make-release.sh` covers the staged bytes in the role SHA256SUMS.
 - `bin/check-verifier-health.sh` and the verifier-health systemd timer
   Check the specific `fabric_record_reader_ready` signal and the absence of
   native/fallback target disagreements every five minutes. A degraded,
