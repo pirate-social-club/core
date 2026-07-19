@@ -12,7 +12,8 @@ This ceremony atomically replaces the complete Handshake resource for
 `.pirate`. It is not an additive NS edit. The current AWS glue is intentionally
 removed, and no prior DS is retained.
 
-Current committed resource, read from the observer:
+Resource visible to the partially synced observer (historical until it reaches
+tip; do not use this observation for current covenant or custody decisions):
 
 ```json
 {
@@ -46,6 +47,41 @@ Proposed complete replacement:
 There is no GLUE6. Neither authority has a globally routed IPv6 address and
 PowerDNS is currently served over IPv4 only. Publishing unreachable GLUE6
 would reduce reliability rather than add resilience.
+
+## Parent covenant preflight
+
+Shakeshift is the canonical explorer for this ceremony. Its live `.pirate`
+history shows that the transfer opened at block `338007` was finalized at block
+`338296` on 2026-07-15. The current name state is **Registered**, not pending
+transfer, so the covenant path remains one UPDATE rather than
+FINALIZE/CANCEL followed by UPDATE.
+
+- current owner address:
+  `hs1q8ewlwa07hlfkjgvrpzjlsve8vend5fnh8g66rv`
+- current owner coin: transaction
+  `5af15c0199494edb0c3333d6b054c3ef6246bfabc02d05992cb25b3ea6afb73b`,
+  output `0` (`FINALIZE`)
+- renewal window ends at block `443415`
+- expiration: block `443416` (Shakeshift estimate 2028-07-14)
+
+An UPDATE is not a renewal. The `.pirate` TLD therefore has roughly 24 months
+of runway at this preflight; this is separate from the shorter `@pirate` Spaces
+handle lease.
+
+Before creating the unsigned transaction, the owner must prove—without
+unlocking the wallet—that the intended local wallet tracks both the current
+coin and its address. Against the local wallet HTTP service, require non-null
+success from:
+
+```text
+GET /wallet/<wallet-id>/coin/5af15c0199494edb0c3333d6b054c3ef6246bfabc02d05992cb25b3ea6afb73b/0
+GET /wallet/<wallet-id>/key/hs1q8ewlwa07hlfkjgvrpzjlsve8vend5fnh8g66rv
+```
+
+These are read-only calls and require no wallet passphrase. Keep the API key
+and wallet token local; record only the returned public outpoint, address, and
+derivation metadata in the final appendix. A null response or a different
+owner stops the ceremony.
 
 ## Child-zone evidence
 
@@ -110,7 +146,9 @@ IPv4 addresses are confirmed persistent.
 4. Re-read the current parent resource, served DNSKEY/DS, authority IPs, zone
    serial, and DANE SPKI immediately before transaction creation. Any mismatch
    invalidates this packet.
-5. Create the UPDATE locally with `sign: false` and `broadcast: false`; record
+5. Prove the intended wallet tracks the finalized owner coin and address from
+   the covenant preflight above.
+6. Create the UPDATE locally with `sign: false` and `broadcast: false`; record
    its inputs, outputs, fee, covenant resource, and raw hex in an appendix for
    owner review. Never copy a seed, private key, wallet token, or passphrase
    into this repository or onto ns1/ns2.
