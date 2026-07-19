@@ -49,7 +49,7 @@ would reduce reliability rather than add resilience.
 
 ## Child-zone evidence
 
-PowerDNS serves signed zone serial `2026071902` from both authorities:
+PowerDNS serves signed zone serial `2026071906` from both authorities:
 
 - `ns1.pirate.` — `94.103.168.161`
 - `ns2.pirate.` — `81.15.150.159`
@@ -64,6 +64,11 @@ and RRSIG answers over UDP and TCP. Signed NSEC denial for a nonexistent name
 validated from both. A fresh backup containing the real DNSSEC zone completed;
 its SQLite database and retained DNSSEC key/metadata were restored and checked
 in the pinned PowerDNS image.
+
+The online signing and replication path was exercised with a temporary TXT
+RRset. Both authorities served its algorithm-13 RRSIG at serial `2026071905`.
+The RRset was then removed, caches purged, the zone rectified and notified, and
+both authorities converged at cleanup serial `2026071906` with the probe absent.
 
 The SHA-256 DS was computed independently from the served DNSKEY and exactly
 matches PowerDNS output:
@@ -109,6 +114,12 @@ IPv4 addresses are confirmed persistent.
    its inputs, outputs, fee, covenant resource, and raw hex in an appendix for
    owner review. Never copy a seed, private key, wallet token, or passphrase
    into this repository or onto ns1/ns2.
+
+The 24-hour soak passes only if RRSIG and DANE SPKI/TLSA monitors remain green,
+all deployment roles report no drift, a full backup/restore cycle covers the
+real DNSSEC zone, a deliberate serial change converges through AXFR, the served
+SPKI still matches every TLSA owner, and gateway/redirect samples remain healthy
+throughout the window.
 
 The unsigned wallet API request body is:
 
