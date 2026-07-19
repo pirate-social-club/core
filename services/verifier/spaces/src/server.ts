@@ -114,7 +114,10 @@ const publisherExecutionConfig = resolvePublisherExecutionConfig({
 });
 const publisherHealth = new PublisherHealthMonitor();
 const publisherLimiter = new WorkLimiter(publisherMaxConcurrency, publisherMaxQueue);
-const resolveCache = new ResolveCache<ResolveResponse>(resolveCacheTtlMs, resolveCacheMaxEntries);
+const resolveCache = new ResolveCache<ResolveFabricRecordsResult | null>(
+  resolveCacheTtlMs,
+  resolveCacheMaxEntries,
+);
 
 async function withPublisherPermit<T>(work: () => Promise<T>): Promise<T> {
   try {
@@ -288,18 +291,23 @@ async function resolveFabricRecords(handle: string): Promise<ResolveFabricRecord
   return parsed;
 }
 
+function resolveFabricRecordsCached(normalizedRootLabel: string): Promise<ResolveFabricRecordsResult | null> {
+  const handle = `@${normalizedRootLabel}`;
+  return resolveCache.getOrCreate(handle, () => resolveFabricRecords(handle).catch((error) => {
+    console.warn(
+      `[spaces] native fabric record lookup failed for ${handle}: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return null;
+  }));
+}
+
 async function resolveHandle(handle: string): Promise<ResolveResponse> {
   const normalizedRootLabel = normalizeRootLabel(handle);
   const [inspection, fabricRecords] = await Promise.all([
     inspectRoot(normalizedRootLabel),
-    resolveFabricRecords(`@${normalizedRootLabel}`).catch((error) => {
-      console.warn(
-        `[spaces] native fabric record lookup failed for @${normalizedRootLabel}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-      return null;
-    }),
+    resolveFabricRecordsCached(normalizedRootLabel),
   ]);
 
   if (inspection.root_exists !== true) {
@@ -353,11 +361,6 @@ async function resolveHandle(handle: string): Promise<ResolveResponse> {
     ),
     records: fabricRecords?.records ?? {},
   };
-}
-
-function resolveHandleCached(handle: string): Promise<ResolveResponse> {
-  const normalizedRootLabel = normalizeRootLabel(handle);
-  return resolveCache.getOrCreate(`@${normalizedRootLabel}`, () => resolveHandle(normalizedRootLabel));
 }
 
 async function verifyFabricPublish(body: {
@@ -487,7 +490,7 @@ Bun.serve({
       }
 
       try {
-        return json(await resolveHandleCached(handle));
+        return json(await resolveHandle(handle));
       } catch (error) {
         return json({
           resolved: false,
