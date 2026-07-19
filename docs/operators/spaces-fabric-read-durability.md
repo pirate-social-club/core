@@ -68,5 +68,19 @@ needed to restore current records, prove it can be rebroadcast without exporting
 to a server, and measure whether periodic rebroadcast provides sufficient availability. Only then
 decide whether an operated relay and its encrypted backup/restore lifecycle are warranted.
 
+Publisher `v0.1.5` implements this boundary. `publish` and `clear` accept
+`--signed-message-out`, create the exact signed envelope exclusively with mode `0600` before
+broadcast, and report its SHA-256. `rebroadcast --message-file` sends that public signed envelope
+without a wallet export or secret key. The production batch workflow requires a signed-message
+archive directory; if a session archive already exists after an interrupted run, it rebroadcasts
+the retained envelope rather than signing a new sequence.
+
+Historical publications made before this archive existed are not reconstructible from the control
+plane alone: it retains record intent and verification challenges, not the exact signature. The
+next fresh-wallet publish E2E must retain its envelope, copy only that envelope to the rebroadcast
+host, prove wallet-free rebroadcast, and confirm the same selected sequence and targets afterward.
+Only publications created with this retention path can support scheduled rebroadcast without
+returning to the signing wallet.
+
 Reconciliation cannot recover a publication that every relay has lost. Monitoring must therefore
 cover selected sequence and expected record availability, not merely process health.

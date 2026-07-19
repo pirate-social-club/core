@@ -7,6 +7,7 @@
   "defaults": {
     "database_region": "aws-us-east-1",
     "publisher_bin": "./tools/spaces-publisher/spaces-publisher",
+    "signed_message_dir": "/local/secure/path/signed-fabric-publications",
     "max_index": 10000
   },
   "communities": [

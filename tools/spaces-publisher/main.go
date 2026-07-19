@@ -23,6 +23,8 @@ func main() {
 		err = runPublish(os.Args[2:])
 	case "clear":
 		err = runClear(os.Args[2:])
+	case "rebroadcast":
+		err = runRebroadcast(os.Args[2:])
 	case "-h", "--help", "help":
 		printUsage()
 		return
@@ -40,8 +42,9 @@ func printUsage() {
 	fmt.Print(`Usage:
   spaces-publisher resolve @handle [--seeds url,url] [--trust-id hex] [--dev-mode]
   spaces-publisher inspect-wallet @handle --wallet-export ~/safe/wallet.json [--max-index 10000]
-  spaces-publisher publish @handle --web https://example.com [--freedom https://example/] [--txt key=value] [--wallet-export ~/safe/wallet.json | --secret-key hex] [--dry-run]
-  spaces-publisher clear @handle --key web [--key freedom] [--wallet-export ~/safe/wallet.json | --secret-key hex] [--dry-run]
+  spaces-publisher publish @handle --web https://example.com [--freedom https://example/] [--txt key=value] [--wallet-export ~/safe/wallet.json | --secret-key hex] [--signed-message-out file] [--dry-run]
+  spaces-publisher clear @handle --key web [--key freedom] [--wallet-export ~/safe/wallet.json | --secret-key hex] [--signed-message-out file] [--dry-run]
+  spaces-publisher rebroadcast --message-file file [--seeds url,url] [--trust-id hex] [--dev-mode]
 
 Conventions:
   - Txt("web", ...) is the canonical website target

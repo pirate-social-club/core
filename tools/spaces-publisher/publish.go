@@ -23,6 +23,8 @@ type publishOutput struct {
 	DescriptorPath string  `json:"descriptor_path,omitempty"`
 	WalletLabel    string  `json:"wallet_label,omitempty"`
 	Blockheight    *uint32 `json:"wallet_blockheight,omitempty"`
+	MessageSHA256  string  `json:"message_sha256,omitempty"`
+	MessageSaved   bool    `json:"signed_message_saved,omitempty"`
 }
 
 func runPublish(args []string) error {
@@ -46,6 +48,7 @@ func runPublish(args []string) error {
 	maxIndex := fs.Uint("max-index", defaultMaxDerivationIndex, "Maximum external derivation index to scan when using --wallet-export")
 	primary := fs.Bool("primary", true, "Set the published recordset as primary")
 	dryRun := fs.Bool("dry-run", false, "Validate signer and record updates without publishing")
+	signedMessageOut := fs.String("signed-message-out", "", "Create an exclusive mode-0600 archive of the exact signed message before broadcast")
 	if err := fs.Parse(filteredArgs); err != nil {
 		return err
 	}
@@ -55,6 +58,9 @@ func runPublish(args []string) error {
 	}
 	if strings.TrimSpace(*webURL) == "" && strings.TrimSpace(*freedomURL) == "" && len(txtRecords) == 0 {
 		return fmt.Errorf("publish requires at least one of --web, --freedom, or --txt")
+	}
+	if *dryRun && strings.TrimSpace(*signedMessageOut) != "" {
+		return fmt.Errorf("--signed-message-out cannot be used with --dry-run")
 	}
 
 	client := newFabricClient(cliConfig{
@@ -125,9 +131,12 @@ func runPublish(args []string) error {
 	if err != nil {
 		return fmt.Errorf("export certificate chain: %w", err)
 	}
-	if err := client.Publish(cert, recordBytes, secretKey, *primary); err != nil {
+	messageDigest, messageSaved, err := signRetainAndBroadcast(client, cert, recordBytes, secretKey, *primary, *signedMessageOut)
+	if err != nil {
 		return fmt.Errorf("publish records: %w", err)
 	}
+	output.MessageSHA256 = messageDigest
+	output.MessageSaved = messageSaved
 
 	return json.NewEncoder(os.Stdout).Encode(output)
 }
@@ -149,6 +158,7 @@ func runClear(args []string) error {
 	maxIndex := fs.Uint("max-index", defaultMaxDerivationIndex, "Maximum external derivation index to scan when using --wallet-export")
 	primary := fs.Bool("primary", true, "Set the published recordset as primary")
 	dryRun := fs.Bool("dry-run", false, "Validate signer and record updates without publishing")
+	signedMessageOut := fs.String("signed-message-out", "", "Create an exclusive mode-0600 archive of the exact signed message before broadcast")
 	var clearKeys stringListFlag
 	fs.Var(&clearKeys, "key", "Record key to clear (repeatable)")
 	if err := fs.Parse(filteredArgs); err != nil {
@@ -156,6 +166,9 @@ func runClear(args []string) error {
 	}
 	if len(clearKeys) == 0 {
 		return fmt.Errorf("clear requires at least one --key")
+	}
+	if *dryRun && strings.TrimSpace(*signedMessageOut) != "" {
+		return fmt.Errorf("--signed-message-out cannot be used with --dry-run")
 	}
 
 	handle, err := normalizeHandle(handleArg)
@@ -219,9 +232,12 @@ func runClear(args []string) error {
 	if err != nil {
 		return fmt.Errorf("export certificate chain: %w", err)
 	}
-	if err := client.Publish(cert, recordBytes, secretKey, *primary); err != nil {
+	messageDigest, messageSaved, err := signRetainAndBroadcast(client, cert, recordBytes, secretKey, *primary, *signedMessageOut)
+	if err != nil {
 		return fmt.Errorf("publish records: %w", err)
 	}
+	output.MessageSHA256 = messageDigest
+	output.MessageSaved = messageSaved
 
 	return json.NewEncoder(os.Stdout).Encode(output)
 }
