@@ -82,5 +82,8 @@ host, prove wallet-free rebroadcast, and confirm the same selected sequence and 
 Only publications created with this retention path can support scheduled rebroadcast without
 returning to the signing wallet.
 
+Run that owner ceremony only from the reviewed
+[fresh-wallet publish and rebroadcast E2E](./spaces-fresh-wallet-publish-e2e.md).
+
 Reconciliation cannot recover a publication that every relay has lost. Monitoring must therefore
 cover selected sequence and expected record availability, not merely process health.
