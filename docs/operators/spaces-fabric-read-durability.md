@@ -39,6 +39,20 @@ Production must set `SPACES_FABRIC_SEEDS` explicitly. Each seed review records o
 and network location. Multiple endpoints controlled by one operator or failure domain do not meet
 the diversity objective.
 
+### Production seed audit (2026-07-19)
+
+| Seed | Administrative evidence | Network evidence | Current rationale |
+| --- | --- | --- | --- |
+| `relay-cosmos.spacesprotocol.org` | Same `spacesprotocol.org` administrative domain as Atlas; independent operator control is not attested | Cloudflare anycast A records `188.114.96.3`, `188.114.97.3` | Repeatedly served the complete sequence-1 production fixture |
+| `relay-atlas.spacesprotocol.org` | Same `spacesprotocol.org` administrative domain as Cosmos; independent operator control is not attested | Same Cloudflare anycast A records `188.114.96.3`, `188.114.97.3` | Repeatedly served the complete sequence-1 production fixture |
+
+Treat these as one administrative and network failure domain until independently demonstrated
+otherwise. The explicit pair makes bootstrap auditable and ensured that current sequence-1 copies
+were queried during the initial production reconciliation, but it does **not** satisfy the operator
+or network diversity objective. Discovered peers add opportunistic reachability, not a reviewed
+diversity guarantee. Do not add a seed merely to increase the count: first prove its operator,
+network/ASN, stable HTTPS identity, protocol compatibility, and ability to retain current records.
+
 ## Measurement
 
 After deployment, run at least twenty consecutive passes and require stable selected sequence and
