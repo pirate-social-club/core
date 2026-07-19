@@ -7,16 +7,20 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	fabric "github.com/spacesprotocol/fabric-go"
 )
 
 type resolveOutput struct {
-	Handle          string              `json:"handle"`
-	CanonicalHandle string              `json:"canonical_handle"`
-	RootPubKey      string              `json:"root_pubkey,omitempty"`
-	Roots           []string            `json:"roots,omitempty"`
-	WebURL          string              `json:"web_url,omitempty"`
-	FreedomURL      string              `json:"freedom_url,omitempty"`
-	Records         map[string][]string `json:"records,omitempty"`
+	Handle          string                    `json:"handle"`
+	CanonicalHandle string                    `json:"canonical_handle"`
+	RootPubKey      string                    `json:"root_pubkey,omitempty"`
+	Roots           []string                  `json:"roots,omitempty"`
+	WebURL          string                    `json:"web_url,omitempty"`
+	FreedomURL      string                    `json:"freedom_url,omitempty"`
+	Records         map[string][]string       `json:"records,omitempty"`
+	Sequence        uint64                    `json:"sequence"`
+	RelayResults    []fabric.RelayQueryResult `json:"relay_results,omitempty"`
 }
 
 func runResolve(args []string) error {
@@ -68,6 +72,8 @@ func runResolve(args []string) error {
 		Records:         parsed.txt,
 		WebURL:          firstValue(parsed.txt["web"]),
 		FreedomURL:      firstValue(parsed.txt["freedom"]),
+		Sequence:        parsed.sequence,
+		RelayResults:    client.LastQueryDiagnostics(),
 	}
 
 	return json.NewEncoder(os.Stdout).Encode(output)

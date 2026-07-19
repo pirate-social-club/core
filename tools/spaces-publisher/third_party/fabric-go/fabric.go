@@ -2,6 +2,8 @@ package fabric
 
 import (
 	"bytes"
+	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -11,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	libveritas "github.com/spacesprotocol/libveritas-go"
 )
@@ -21,13 +24,22 @@ type EpochHint struct {
 }
 
 type Query struct {
-	Space    string     `json:"space"`
-	Handles  []string   `json:"handles"`
+	Space     string     `json:"space"`
+	Handles   []string   `json:"handles"`
 	EpochHint *EpochHint `json:"epoch_hint,omitempty"`
 }
 
 type QueryRequest struct {
 	Queries []Query `json:"queries"`
+}
+
+type RelayQueryResult struct {
+	Relay      string   `json:"relay"`
+	Handles    []string `json:"handles"`
+	Status     string   `json:"status"`
+	Sequence   *uint64  `json:"sequence,omitempty"`
+	LatencyMS  int64    `json:"latency_ms"`
+	ErrorClass string   `json:"error_class,omitempty"`
 }
 
 type PeerInfo struct {
@@ -87,7 +99,7 @@ const (
 type trustKind int
 
 const (
-	trustKindObserved    trustKind = iota
+	trustKindObserved trustKind = iota
 	trustKindTrusted
 	trustKindSemiTrusted
 )
@@ -97,7 +109,6 @@ type ReverseRecord struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
-
 
 type anchorPool struct {
 	trusted     string // raw entries JSON
@@ -122,18 +133,19 @@ func (p *anchorPool) merged() (string, error) {
 }
 
 type Fabric struct {
-	client       *http.Client
-	pool         RelayPool
-	veritas      *libveritas.Veritas
-	anchors      anchorPool
-	zoneCache    map[string]libveritas.Zone
-	seeds        []string
-	trusted      *libveritas.TrustSet
-	semiTrusted  *libveritas.TrustSet
-	observed     *libveritas.TrustSet
-	preferLatest bool
-	devMode      bool
-	mu           sync.Mutex
+	client               *http.Client
+	pool                 RelayPool
+	veritas              *libveritas.Veritas
+	anchors              anchorPool
+	zoneCache            map[string]libveritas.Zone
+	seeds                []string
+	trusted              *libveritas.TrustSet
+	semiTrusted          *libveritas.TrustSet
+	observed             *libveritas.TrustSet
+	preferLatest         bool
+	devMode              bool
+	lastQueryDiagnostics []RelayQueryResult
+	mu                   sync.Mutex
 }
 
 func New() *Fabric {
@@ -146,11 +158,19 @@ func New() *Fabric {
 	}
 }
 
-func (f *Fabric) SetDevMode(v bool)     { f.devMode = v }
-func (f *Fabric) SetPreferLatest(v bool) { f.preferLatest = v }
-func (f *Fabric) SetSeeds(seeds []string)  { f.seeds = seeds }
+func (f *Fabric) SetDevMode(v bool)       { f.devMode = v }
+func (f *Fabric) SetPreferLatest(v bool)  { f.preferLatest = v }
+func (f *Fabric) SetSeeds(seeds []string) { f.seeds = seeds }
 
 func (f *Fabric) Relays() []string { return f.pool.URLs() }
+
+func (f *Fabric) LastQueryDiagnostics() []RelayQueryResult {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	result := make([]RelayQueryResult, len(f.lastQueryDiagnostics))
+	copy(result, f.lastQueryDiagnostics)
+	return result
+}
 
 // Veritas returns the internal Veritas instance for offline verification.
 // Returns nil if Bootstrap has not been called yet.
@@ -556,6 +576,9 @@ func (f *Fabric) SearchAddr(name, addr string) ([]libveritas.Zone, error) {
 
 // ResolveAll resolves multiple handles including dotted names.
 func (f *Fabric) ResolveAll(handles []string) ([]libveritas.Zone, error) {
+	f.mu.Lock()
+	f.lastQueryDiagnostics = nil
+	f.mu.Unlock()
 	lookup, err := libveritas.NewLookup(handles)
 	if err != nil {
 		return nil, fmt.Errorf("creating lookup: %w", err)
@@ -569,11 +592,10 @@ func (f *Fabric) ResolveAll(handles []string) ([]libveritas.Zone, error) {
 		if slicesEqual(batch, prevBatch) {
 			break
 		}
-		verified, err := f.resolveFlat(batch, true)
+		zones, err := f.resolveFlatReconciled(batch, true)
 		if err != nil {
 			return nil, err
 		}
-		zones := verified.Zones()
 		prevBatch = batch
 		var next []string
 		next, err = lookup.Advance(zones)
@@ -590,6 +612,354 @@ func (f *Fabric) ResolveAll(handles []string) ([]libveritas.Zone, error) {
 	}
 
 	return expanded, nil
+}
+
+const reconciledQueryDeadline = 6 * time.Second
+
+type relayResponse struct {
+	relay     string
+	body      []byte
+	status    int
+	err       error
+	latencyMS int64
+}
+
+type zoneCandidate struct {
+	relay    string
+	zone     libveritas.Zone
+	sequence uint64
+	digest   [32]byte
+	verified bool
+}
+
+func recordSequence(zone libveritas.Zone) (uint64, error) {
+	if len(zone.Records) == 0 {
+		return 0, nil
+	}
+	recordSet := libveritas.NewRecordSet(zone.Records)
+	defer recordSet.Destroy()
+	records, err := recordSet.Unpack()
+	if err != nil {
+		return 0, err
+	}
+	var sequence uint64
+	for _, record := range records {
+		if parsed, ok := record.(libveritas.ParsedRecordSeq); ok && parsed.Version > sequence {
+			sequence = parsed.Version
+		}
+	}
+	return sequence, nil
+}
+
+func zoneDigest(zone libveritas.Zone) ([32]byte, error) {
+	packed, err := libveritas.ZoneToBytes(zone)
+	if err != nil {
+		return [32]byte{}, err
+	}
+	return sha256.Sum256(packed), nil
+}
+
+func reconcileZoneCandidates(candidates []zoneCandidate) ([]libveritas.Zone, error) {
+	selected := make(map[string]zoneCandidate)
+	for _, candidate := range candidates {
+		if !candidate.verified {
+			continue
+		}
+		current, exists := selected[candidate.zone.Handle]
+		if !exists || candidate.sequence > current.sequence {
+			selected[candidate.zone.Handle] = candidate
+			continue
+		}
+		if candidate.sequence == current.sequence && candidate.digest != current.digest {
+			return nil, &FabricError{
+				Code:    "relay_disagreement",
+				Message: fmt.Sprintf("verified relays disagree for %s at sequence %d", candidate.zone.Handle, candidate.sequence),
+			}
+		}
+	}
+	handles := make([]string, 0, len(selected))
+	for handle := range selected {
+		handles = append(handles, handle)
+	}
+	sort.Strings(handles)
+	zones := make([]libveritas.Zone, 0, len(handles))
+	for _, handle := range handles {
+		zones = append(zones, selected[handle].zone)
+	}
+	return zones, nil
+}
+
+func requestedHandles(request QueryRequest) map[string]struct{} {
+	result := make(map[string]struct{})
+	for _, query := range request.Queries {
+		result[query.Space] = struct{}{}
+		for _, handle := range query.Handles {
+			if handle != "" {
+				result[handle+query.Space] = struct{}{}
+			}
+		}
+	}
+	return result
+}
+
+func selectQueryRelays(seeds []string, preferred []string, count int) []string {
+	if count < 1 {
+		return nil
+	}
+	selected := make([]string, 0, count)
+	seen := make(map[string]struct{})
+	appendUnique := func(relay string) {
+		relay = strings.TrimRight(strings.TrimSpace(relay), "/")
+		if relay == "" || len(selected) >= count {
+			return
+		}
+		if _, exists := seen[relay]; exists {
+			return
+		}
+		seen[relay] = struct{}{}
+		selected = append(selected, relay)
+	}
+	for _, relay := range seeds {
+		appendUnique(relay)
+	}
+	for _, relay := range preferred {
+		appendUnique(relay)
+	}
+	return selected
+}
+
+func fetchRelayResponses(
+	ctx context.Context,
+	client *http.Client,
+	relays []string,
+	queryParts []string,
+	hintParts []string,
+) <-chan relayResponse {
+	responses := make(chan relayResponse, len(relays))
+	for _, relay := range relays {
+		go func(relay string) {
+			started := time.Now()
+			queryURL, _ := url.Parse(relay + "/query")
+			params := url.Values{}
+			params.Set("q", strings.Join(queryParts, ","))
+			if len(hintParts) > 0 {
+				params.Set("hints", strings.Join(hintParts, ","))
+			}
+			queryURL.RawQuery = params.Encode()
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, queryURL.String(), nil)
+			if err != nil {
+				responses <- relayResponse{relay: relay, err: err, latencyMS: time.Since(started).Milliseconds()}
+				return
+			}
+			resp, err := client.Do(req)
+			if err != nil {
+				responses <- relayResponse{relay: relay, err: err, latencyMS: time.Since(started).Milliseconds()}
+				return
+			}
+			body, readErr := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			responses <- relayResponse{relay: relay, body: body, status: resp.StatusCode, err: readErr, latencyMS: time.Since(started).Milliseconds()}
+		}(relay)
+	}
+	return responses
+}
+
+func (f *Fabric) resolveFlatReconciled(handles []string, hints bool) ([]libveritas.Zone, error) {
+	bySpace := make(map[string][]string)
+	for _, handle := range handles {
+		space, label := parseHandle(handle)
+		bySpace[space] = append(bySpace[space], label)
+	}
+	queries := make([]Query, 0, len(bySpace))
+	for space, labels := range bySpace {
+		query := Query{Space: space, Handles: labels}
+		if hints {
+			f.mu.Lock()
+			if cached, ok := f.zoneCache[space]; ok {
+				query.EpochHint = epochHintFromZone(cached)
+			}
+			f.mu.Unlock()
+		}
+		queries = append(queries, query)
+	}
+	return f.queryReconciledZones(QueryRequest{Queries: queries})
+}
+
+func (f *Fabric) queryReconciledZones(request QueryRequest) ([]libveritas.Zone, error) {
+	if err := f.Bootstrap(); err != nil {
+		return nil, err
+	}
+
+	queryContext := libveritas.NewQueryContext()
+	f.mu.Lock()
+	for _, query := range request.Queries {
+		if cached, ok := f.zoneCache[query.Space]; ok {
+			if packed, err := libveritas.ZoneToBytes(cached); err == nil {
+				queryContext.AddZone(packed)
+			}
+		}
+	}
+	f.mu.Unlock()
+
+	var relays []string
+	if f.preferLatest {
+		relays = selectQueryRelays(f.seeds, f.pickRelays(request, 4), 4)
+	} else {
+		relays = selectQueryRelays(f.seeds, f.pool.ShuffledURLs(4), 4)
+	}
+	if len(relays) == 0 {
+		return nil, &FabricError{Code: "no_peers", Message: "no peers available"}
+	}
+
+	var queryParts []string
+	var hintParts []string
+	for _, query := range request.Queries {
+		queryContext.AddRequest(query.Space)
+		queryParts = append(queryParts, query.Space)
+		for _, handle := range query.Handles {
+			if handle != "" {
+				queryContext.AddRequest(handle + query.Space)
+				queryParts = append(queryParts, handle+query.Space)
+			}
+		}
+		if query.EpochHint != nil {
+			hintParts = append(hintParts, fmt.Sprintf("%s:%s:%d", query.Space, query.EpochHint.Root, query.EpochHint.Height))
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), reconciledQueryDeadline)
+	defer cancel()
+	responses := fetchRelayResponses(ctx, f.client, relays, queryParts, hintParts)
+
+	f.mu.Lock()
+	verifier := f.veritas
+	devMode := f.devMode
+	f.mu.Unlock()
+	if verifier == nil {
+		return nil, &FabricError{Code: "no_peers", Message: "no veritas instance"}
+	}
+	expected := requestedHandles(request)
+	expectedList := make([]string, 0, len(expected))
+	for handle := range expected {
+		expectedList = append(expectedList, handle)
+	}
+	sort.Strings(expectedList)
+	candidates := make([]zoneCandidate, 0)
+	diagnostics := make([]RelayQueryResult, 0, len(relays))
+	verifiedResponses := 0
+	for range relays {
+		response := <-responses
+		diagnostic := RelayQueryResult{
+			Relay:     response.relay,
+			Handles:   append([]string(nil), expectedList...),
+			LatencyMS: response.latencyMS,
+		}
+		if response.err != nil {
+			diagnostic.Status = "transport_error"
+			diagnostic.ErrorClass = "http"
+			f.pool.MarkFailed(response.relay)
+			diagnostics = append(diagnostics, diagnostic)
+			continue
+		}
+		if response.status >= 300 {
+			diagnostic.Status = "transport_error"
+			diagnostic.ErrorClass = "relay"
+			f.pool.MarkFailed(response.relay)
+			diagnostics = append(diagnostics, diagnostic)
+			continue
+		}
+		message, err := libveritas.NewMessage(response.body)
+		if err != nil {
+			diagnostic.Status = "invalid"
+			diagnostic.ErrorClass = "decode"
+			f.pool.MarkFailed(response.relay)
+			diagnostics = append(diagnostics, diagnostic)
+			continue
+		}
+		var options uint32
+		if devMode {
+			options = libveritas.VerifyDevMode()
+		}
+		verified, err := verifier.VerifyWithOptions(queryContext, message, options)
+		if err != nil {
+			diagnostic.Status = "invalid"
+			diagnostic.ErrorClass = "verify"
+			f.pool.MarkFailed(response.relay)
+			diagnostics = append(diagnostics, diagnostic)
+			continue
+		}
+
+		diagnostic.Status = "verified_empty"
+		var relayMaxSequence uint64
+		verifiedZones := verified.Zones()
+		matchedRequestedZone := false
+		invalidZone := false
+		relayCandidates := make([]zoneCandidate, 0, len(verifiedZones))
+		for _, zone := range verifiedZones {
+			if _, requested := expected[zone.Handle]; !requested {
+				continue
+			}
+			matchedRequestedZone = true
+			sequence, err := recordSequence(zone)
+			if err != nil {
+				diagnostic.Status = "invalid"
+				diagnostic.ErrorClass = "records"
+				invalidZone = true
+				continue
+			}
+			digest, err := zoneDigest(zone)
+			if err != nil {
+				diagnostic.Status = "invalid"
+				diagnostic.ErrorClass = "records"
+				invalidZone = true
+				continue
+			}
+			if sequence > relayMaxSequence {
+				relayMaxSequence = sequence
+			}
+			relayCandidates = append(relayCandidates, zoneCandidate{relay: response.relay, zone: zone, sequence: sequence, digest: digest, verified: true})
+			diagnostic.Status = "verified"
+		}
+		if invalidZone {
+			f.pool.MarkFailed(response.relay)
+			diagnostics = append(diagnostics, diagnostic)
+			continue
+		}
+		if len(verifiedZones) > 0 && !matchedRequestedZone {
+			diagnostic.Status = "invalid"
+			diagnostic.ErrorClass = "handle_substitution"
+			f.pool.MarkFailed(response.relay)
+			diagnostics = append(diagnostics, diagnostic)
+			continue
+		}
+		verifiedResponses++
+		candidates = append(candidates, relayCandidates...)
+		if diagnostic.Status == "verified" {
+			sequence := relayMaxSequence
+			diagnostic.Sequence = &sequence
+		}
+		f.pool.MarkAlive(response.relay)
+		diagnostics = append(diagnostics, diagnostic)
+	}
+	f.mu.Lock()
+	f.lastQueryDiagnostics = append(f.lastQueryDiagnostics, diagnostics...)
+	f.mu.Unlock()
+	if verifiedResponses == 0 {
+		return nil, &FabricError{Code: "relay", Message: "no relay returned a verified response"}
+	}
+
+	zones, err := reconcileZoneCandidates(candidates)
+	if err != nil {
+		return nil, err
+	}
+	f.mu.Lock()
+	for _, zone := range zones {
+		if strings.HasPrefix(zone.Handle, "@") || strings.HasPrefix(zone.Handle, "#") {
+			f.zoneCache[zone.Handle] = zone
+		}
+	}
+	f.mu.Unlock()
+	return zones, nil
 }
 
 // Export resolves a handle and returns the raw certificate chain bytes.

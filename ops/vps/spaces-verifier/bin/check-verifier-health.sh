@@ -12,5 +12,9 @@ if ! grep -Eq '"fallback_target_disagreements"[[:space:]]*:[[:space:]]*0([,}])' 
   echo "Spaces verifier reports a native/fallback target disagreement" >&2
   exit 1
 fi
+if ! grep -Eq '"fabric_relay_disagreements"[[:space:]]*:[[:space:]]*0([,}])' <<< "$body"; then
+  echo "Spaces verifier reports a verified Fabric relay disagreement" >&2
+  exit 1
+fi
 
 echo "Spaces verifier Fabric record reader is ready"

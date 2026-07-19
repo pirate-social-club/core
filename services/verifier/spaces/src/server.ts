@@ -16,6 +16,7 @@ import {
   runPublisher,
 } from "./publisher-runtime";
 import { ResolveCache, WorkLimiter, WorkQueueFullError } from "./resolve-control";
+import { selectNavigationTargets } from "./resolved-targets";
 
 type RootAnchor = {
   root: string;
@@ -50,6 +51,7 @@ type ResolveFabricRecordsResult = {
   web_url?: string | null;
   freedom_url?: string | null;
   records?: Record<string, string[]>;
+  sequence?: number;
   error?: string;
 };
 
@@ -70,6 +72,7 @@ type ResolveResponse =
       web_url: string | null;
       freedom_url: string | null;
       fabric_records_available: boolean;
+      fabric_sequence: number | null;
       observation_provider: string | null;
       records: Record<string, string[]>;
     }
@@ -118,6 +121,14 @@ const resolveCache = new ResolveCache<ResolveFabricRecordsResult | null>(
   resolveCacheTtlMs,
   resolveCacheMaxEntries,
 );
+const fabricRelayDisagreementHandles = new Set<string>();
+
+function recordFabricRelayDisagreement(handle: string, error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes("relay_disagreement")) {
+    fabricRelayDisagreementHandles.add(handle);
+  }
+}
 
 async function withPublisherPermit<T>(work: () => Promise<T>): Promise<T> {
   try {
@@ -272,10 +283,16 @@ async function inspectRoot(rootLabel: string) {
 }
 
 async function resolveFabricRecords(handle: string): Promise<ResolveFabricRecordsResult> {
-  const result = await withPublisherPermit(() => runPublisher(publisherExecutionConfig, ["resolve", handle], {
-    cwd: spacesPublisherDir,
-    timeoutMs: spacesPublisherTimeoutMs,
-  }));
+  let result: Awaited<ReturnType<typeof runPublisher>>;
+  try {
+    result = await withPublisherPermit(() => runPublisher(publisherExecutionConfig, ["resolve", handle], {
+      cwd: spacesPublisherDir,
+      timeoutMs: spacesPublisherTimeoutMs,
+    }));
+  } catch (error) {
+    recordFabricRelayDisagreement(handle, error);
+    throw error;
+  }
   let parsed: ResolveFabricRecordsResult;
   try {
     parsed = JSON.parse(result.stdout) as ResolveFabricRecordsResult;
@@ -323,6 +340,11 @@ async function resolveHandle(handle: string): Promise<ResolveResponse> {
   const handleKey = `@${normalizedRootLabel}`;
   const liveRootPubkey = typeof inspection.root_pubkey === "string" ? inspection.root_pubkey : null;
   const fallback = publishedFallbacks.targetFor(handleKey, liveRootPubkey);
+  const selectedTargets = selectNavigationTargets({
+    fabricAvailable: fabricRecords != null,
+    native: { webUrl: nativeWebUrl, freedomUrl: nativeFreedomUrl },
+    fallback: fallback ?? null,
+  });
   if (fabricRecords != null) {
     publishedFallbacks.observeNative(handleKey, {
       webUrl: nativeWebUrl,
@@ -352,9 +374,10 @@ async function resolveHandle(handle: string): Promise<ResolveResponse> {
       typeof inspection.control_class === "string" ? inspection.control_class : null,
     operation_class:
       typeof inspection.operation_class === "string" ? inspection.operation_class : null,
-    web_url: nativeWebUrl ?? fallback?.webUrl ?? null,
-    freedom_url: nativeFreedomUrl ?? fallback?.freedomUrl ?? null,
+    web_url: selectedTargets.webUrl,
+    freedom_url: selectedTargets.freedomUrl,
     fabric_records_available: fabricRecords != null,
+    fabric_sequence: typeof fabricRecords?.sequence === "number" ? fabricRecords.sequence : null,
     observation_provider: appendObservationProvider(
       typeof inspection.observation_provider === "string" ? inspection.observation_provider : null,
       fabricRecords != null ? "fabric_zone" : null,
@@ -389,6 +412,11 @@ async function verifyFabricPublish(body: {
     inspectRoot(rootLabel),
     resolveFabricRecords(`@${rootLabel}`),
   ]);
+  await resolveCache.observeIfNewer(
+    `@${rootLabel}`,
+    fabricRecords,
+    (candidate) => typeof candidate?.sequence === "number" ? candidate.sequence : null,
+  );
   const records = fabricRecords.records ?? {};
   const observedTxtValues = readStringArrayRecord(records, txtKey);
   const observedWebUrl = trimOptionalString(fabricRecords.web_url);
@@ -459,7 +487,7 @@ Bun.serve({
       const cacheHealth = resolveCache.snapshot();
       const publisherCapacity = publisherLimiter.snapshot();
       return json({
-        ok: fabricReaderHealth.ready,
+        ok: fabricReaderHealth.ready && fabricRelayDisagreementHandles.size === 0,
         bind_host: verifierHost,
         bind_port: verifierPort,
         spaced_rpc_url: spacedRpcUrl,
@@ -474,6 +502,8 @@ Bun.serve({
         fabric_record_reader_last_success_at: fabricReaderHealth.lastSuccessAt,
         fallback_target_disagreements: fallbackDisagreements.count,
         fallback_target_disagreement_handles: fallbackDisagreements.handles,
+        fabric_relay_disagreements: fabricRelayDisagreementHandles.size,
+        fabric_relay_disagreement_handles: Array.from(fabricRelayDisagreementHandles).sort(),
         resolve_cache: cacheHealth,
         publisher_capacity: publisherCapacity,
       });
