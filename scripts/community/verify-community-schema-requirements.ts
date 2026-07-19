@@ -38,7 +38,8 @@
  * Requirements are declared, versioned, and travel with the API commit.
  */
 import { createHash } from "node:crypto"
-import { mkdir, readFile } from "node:fs/promises"
+import { Database } from "bun:sqlite"
+import { mkdir, readFile, readdir } from "node:fs/promises"
 import { writeFile } from "node:fs/promises"
 import { dirname, resolve } from "node:path"
 
@@ -59,9 +60,12 @@ type Requirements = {
    * gap. Keying by migration filename.
    */
   ledger_only?: Record<string, string>
+  /** Compare every final table/index/column from the pinned Core migration set,
+   * excluding migrations explicitly deferred or owned by inactive features. */
+  canonical_schema?: boolean
 }
 
-const REQUIREMENT_KEYS = new Set(["$comment", "version", "unconditional", "features", "deferred", "ledger_only"])
+const REQUIREMENT_KEYS = new Set(["$comment", "version", "unconditional", "features", "deferred", "ledger_only", "canonical_schema"])
 
 /** Parse policy as data, not TypeScript wishful thinking. Unknown or overlapping
  * classes are blocking so a plausible-looking manifest field can never be inert. */
@@ -83,6 +87,9 @@ export function validateRequirements(value: unknown, source = "requirements mani
   }
   if (!deferred || typeof deferred !== "object" || Array.isArray(deferred)) {
     throw new Error(`${source}: deferred must be an object`)
+  }
+  if (raw.canonical_schema !== undefined && typeof raw.canonical_schema !== "boolean") {
+    throw new Error(`${source}: canonical_schema must be a boolean`)
   }
   const classes = new Map<string, string>()
   const claim = (migration: string, policyClass: string) => {
@@ -116,6 +123,7 @@ type ShardStatus =
   | "ledger_present_artifacts_missing" // drift: ledger lies
   | "partial_artifacts" // half-applied
   | "checksum_mismatch" // a DIFFERENT migration of that name was applied
+  | "canonical_schema_missing" // final pinned tables/indexes/columns are absent
   | "schema_not_ready"
   | "missing_from_config"
   | "error"
@@ -129,6 +137,154 @@ type ShardReport = {
   status: ShardStatus
   missing: string[]
   detail?: string
+}
+
+type SchemaArtifactKind = "column" | "index" | "table"
+type SchemaObjectRow = { type: "index" | "table"; name: string; sql: string | null }
+
+export const CANONICAL_SCHEMA_INVENTORY_SQL = `
+  SELECT type, name, sql
+  FROM sqlite_master
+  WHERE type IN ('table', 'index') AND name NOT LIKE 'sqlite_%'
+  ORDER BY type, name
+`
+
+function unquoteSqlIdentifier(value: string): string {
+  const trimmed = value.trim()
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("`") && trimmed.endsWith("`"))) {
+    return trimmed.slice(1, -1)
+  }
+  if (trimmed.startsWith("[") && trimmed.endsWith("]")) return trimmed.slice(1, -1)
+  return trimmed
+}
+
+function splitCreateTableColumns(sql: string): string[] {
+  // sqlite_master preserves comments embedded in CREATE TABLE statements. Strip
+  // line comments before splitting, otherwise comment words become fake columns.
+  const normalized = sql.replace(/--[^\n]*/gu, "")
+  const open = normalized.indexOf("(")
+  const close = normalized.lastIndexOf(")")
+  if (open < 0 || close <= open) return []
+  const body = normalized.slice(open + 1, close)
+  const parts: string[] = []
+  let current = ""
+  let depth = 0
+  let quote: string | null = null
+  for (let index = 0; index < body.length; index += 1) {
+    const char = body[index]
+    const next = body[index + 1]
+    current += char
+    if (quote) {
+      if (char === quote) {
+        if (next === quote) {
+          current += next
+          index += 1
+        } else {
+          quote = null
+        }
+      }
+      continue
+    }
+    if (char === "'" || char === '"' || char === "`") {
+      quote = char
+      continue
+    }
+    if (char === "[") {
+      quote = "]"
+      continue
+    }
+    if (char === "(") depth += 1
+    else if (char === ")") depth = Math.max(0, depth - 1)
+    else if (char === "," && depth === 0) {
+      parts.push(current.slice(0, -1).trim())
+      current = ""
+    }
+  }
+  if (current.trim()) parts.push(current.trim())
+  const constraint = /^(?:CONSTRAINT\b|PRIMARY\s+KEY\b|FOREIGN\s+KEY\b|UNIQUE\b|CHECK\b)/iu
+  return parts
+    .filter((part) => !constraint.test(part))
+    .map((part) => {
+      const match = part.match(/^(?:"(?:""|[^"])+"|`(?:``|[^`])+`|\[[^\]]+\]|[^\s]+)/u)
+      return match ? unquoteSqlIdentifier(match[0]) : ""
+    })
+    .filter(Boolean)
+}
+
+export function schemaArtifactsFromRows(rows: SchemaObjectRow[]): Set<string> {
+  const artifacts = new Set<string>()
+  for (const row of rows) {
+    if (row.type === "index") {
+      artifacts.add(`index:${row.name}`)
+      continue
+    }
+    artifacts.add(`table:${row.name}`)
+    for (const column of splitCreateTableColumns(row.sql ?? "")) {
+      artifacts.add(`column:${row.name}.${column}`)
+    }
+  }
+  return artifacts
+}
+
+export async function buildCanonicalSchemaArtifacts(input: {
+  migrationsDir: string
+  excludedMigrations: ReadonlySet<string>
+}): Promise<Set<string>> {
+  const db = new Database(":memory:")
+  try {
+    db.exec("PRAGMA foreign_keys = ON")
+    db.exec(`CREATE TABLE schema_migrations (
+      migration_name TEXT PRIMARY KEY,
+      migration_label TEXT NOT NULL,
+      checksum TEXT NOT NULL,
+      applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`)
+    const files = (await readdir(input.migrationsDir))
+      .filter((name) => name.endsWith(".sql") && !input.excludedMigrations.has(name))
+      .sort()
+    for (const name of files) {
+      db.exec(await readFile(resolve(input.migrationsDir, name), "utf8"))
+    }
+    return schemaArtifactsFromRows(
+      db.query<SchemaObjectRow, []>(CANONICAL_SCHEMA_INVENTORY_SQL).all(),
+    )
+  } finally {
+    db.close()
+  }
+}
+
+type CompatibleMissingSchemaArtifact = {
+  artifact: string
+  reason: string
+}
+
+export function validateCompatibleMissingSchemaArtifacts(
+  value: unknown,
+  expected: ReadonlySet<string>,
+  source: string,
+): Set<string> {
+  if (!Array.isArray(value)) {
+    throw new Error(`${source}: communityTemplate.compatibleMissingSchemaArtifacts must be an array`)
+  }
+  const allowed = new Set<string>()
+  for (const raw of value as CompatibleMissingSchemaArtifact[]) {
+    const artifact = typeof raw?.artifact === "string" ? raw.artifact.trim() : ""
+    const reason = typeof raw?.reason === "string" ? raw.reason.trim() : ""
+    if (!artifact || !reason) {
+      throw new Error(`${source}: compatible missing schema artifacts require artifact and reason`)
+    }
+    if (!/^(?:table|index|column):/u.test(artifact)) {
+      throw new Error(`${source}: invalid schema artifact key ${artifact}`)
+    }
+    if (!expected.has(artifact)) {
+      throw new Error(`${source}: compatible missing artifact is stale or unknown: ${artifact}`)
+    }
+    if (allowed.has(artifact)) {
+      throw new Error(`${source}: duplicate compatible missing artifact: ${artifact}`)
+    }
+    allowed.add(artifact)
+  }
+  return allowed
 }
 
 
@@ -182,6 +338,7 @@ type Options = {
   quarantineRegistry: string
   concurrency: number
   cwd: string
+  driftPolicy: string
 }
 
 function parseArgs(): Options {
@@ -199,7 +356,8 @@ Verify that every LIVE community shard satisfies the pinned API's schema require
   bun scripts/community/verify-community-schema-requirements.ts \\
     --requirements <api>/services/api/community-schema-requirements.json \\
     --wrangler-config <api>/services/community-d1-shard/wrangler.jsonc \\
-    [--prod] [--features rewards] [--manifest PATH] [--quarantines PATH] [--concurrency N]
+    [--prod] [--features rewards] [--manifest PATH] [--quarantines PATH]
+    [--drift-policy PATH] [--concurrency N]
 
 READ-ONLY. Exits non-zero unless every allocated+loaded shard is satisfied.
 --features adds that feature's migrations to the required set; omit it and those
@@ -222,6 +380,7 @@ migrations are NOT required (that is how 1126 stays feature-conditional).
     quarantineRegistry: resolve(get("--quarantines") ?? resolve(import.meta.dir, "community-shard-quarantines.json")),
     concurrency,
     cwd: dirname(resolve(wranglerConfig)),
+    driftPolicy: resolve(get("--drift-policy") ?? "db/known-community-migration-drifts.json"),
   }
 }
 
@@ -345,6 +504,30 @@ async function main() {
     required.push(...spec.migrations)
   }
   const requiredSet = [...new Set(required)]
+  const inactiveFeatureMigrations = Object.entries(req.features ?? {})
+    .filter(([feature]) => !o.features.includes(feature))
+    .flatMap(([, spec]) => spec.migrations)
+  const canonicalExcludedMigrations = new Set([
+    ...Object.keys(req.deferred ?? {}),
+    ...inactiveFeatureMigrations,
+  ])
+  const canonicalExpected = req.canonical_schema
+    ? await buildCanonicalSchemaArtifacts({
+        migrationsDir: o.migrationsDir,
+        excludedMigrations: canonicalExcludedMigrations,
+      })
+    : new Set<string>()
+  let compatibleMissingSchemaArtifacts = new Set<string>()
+  if (req.canonical_schema) {
+    const driftPolicy = JSON.parse(await readFile(o.driftPolicy, "utf8")) as {
+      communityTemplate?: { compatibleMissingSchemaArtifacts?: unknown }
+    }
+    compatibleMissingSchemaArtifacts = validateCompatibleMissingSchemaArtifacts(
+      driftPolicy.communityTemplate?.compatibleMissingSchemaArtifacts ?? [],
+      canonicalExpected,
+      o.driftPolicy,
+    )
+  }
 
   // Filenames + checksums come from the PINNED Core commit — the same source the
   // deployed code was built against.
@@ -478,6 +661,23 @@ async function main() {
             details.push(`${name}: NOT APPLIED`)
           }
         })
+        if (req.canonical_schema) {
+          const inventoryPayload = await wranglerJson(o, db, CANONICAL_SCHEMA_INVENTORY_SQL)
+          const inventoryRows = inventoryPayload[0].results as SchemaObjectRow[]
+          const actual = schemaArtifactsFromRows(inventoryRows)
+          const canonicalMissing = [...canonicalExpected]
+            .filter((artifact) => !actual.has(artifact) && !compatibleMissingSchemaArtifacts.has(artifact))
+            .sort()
+          if (canonicalMissing.length > 0) {
+            status = "canonical_schema_missing"
+            missing.push(...canonicalMissing)
+            const shown = canonicalMissing.slice(0, 12)
+            details.push(
+              `canonical schema missing ${canonicalMissing.length} artifact(s): ${shown.join(", ")}` +
+                (canonicalMissing.length > shown.length ? `, ... and ${canonicalMissing.length - shown.length} more` : ""),
+            )
+          }
+        }
         reports.push({
           binding,
           database_name: db,
@@ -514,6 +714,10 @@ async function main() {
         features_checked: o.features,
         required_migrations: requiredSet,
         feature_migrations: featureRequired,
+        canonical_schema_checked: Boolean(req.canonical_schema),
+        canonical_schema_expected_artifacts: canonicalExpected.size,
+        canonical_schema_excluded_migrations: [...canonicalExcludedMigrations].sort(),
+        compatible_missing_schema_artifacts: [...compatibleMissingSchemaArtifacts].sort(),
         allocated_loaded_shards: allocatedBindings.length,
         live_shards: bindings.length,
         quarantined_shards: partition.quarantined.length,
@@ -535,6 +739,9 @@ async function main() {
     `required (features ${o.features.join(",") || "none"}): ${Object.values(featureRequired).flat().join(", ") || "none"}`,
   )
   console.log(`summary: ${JSON.stringify(summary)}`)
+  console.log(
+    `canonical schema: ${req.canonical_schema ? `${canonicalExpected.size} expected artifact(s)` : "disabled"}`,
+  )
   console.log(`manifest: ${o.manifest}`)
 
   // Every live shard must be classified. An unclassified shard is not a pass.

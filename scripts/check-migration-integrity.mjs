@@ -405,12 +405,17 @@ async function checkCommunityDriftPolicy() {
 
   const checksumRepairs = policy?.communityTemplate?.checksumRepairs;
   const unexpectedMigrationsToRemove = policy?.communityTemplate?.unexpectedMigrationsToRemove;
+  const compatibleMissingSchemaArtifacts = policy?.communityTemplate?.compatibleMissingSchemaArtifacts;
   if (!Array.isArray(checksumRepairs)) {
     failures.push(`${communityDriftPolicyPath}: communityTemplate.checksumRepairs must be an array`);
     return failures;
   }
   if (!Array.isArray(unexpectedMigrationsToRemove)) {
     failures.push(`${communityDriftPolicyPath}: communityTemplate.unexpectedMigrationsToRemove must be an array`);
+    return failures;
+  }
+  if (!Array.isArray(compatibleMissingSchemaArtifacts)) {
+    failures.push(`${communityDriftPolicyPath}: communityTemplate.compatibleMissingSchemaArtifacts must be an array`);
     return failures;
   }
 
@@ -450,6 +455,21 @@ async function checkCommunityDriftPolicy() {
     if (communityFiles.has(migrationName)) {
       failures.push(`${communityDriftPolicyPath}: cannot allow removal of expected migration ${migrationName}`);
     }
+  }
+
+  const seenArtifacts = new Set();
+  for (const entry of compatibleMissingSchemaArtifacts) {
+    const artifact = typeof entry?.artifact === "string" ? entry.artifact.trim() : "";
+    const reason = typeof entry?.reason === "string" ? entry.reason.trim() : "";
+    if (!artifact || !reason || !/^(?:table|index|column):/u.test(artifact)) {
+      failures.push(`${communityDriftPolicyPath}: compatible missing schema artifacts require a typed artifact and reason`);
+      continue;
+    }
+    if (seenArtifacts.has(artifact)) {
+      failures.push(`${communityDriftPolicyPath}: duplicate compatible missing schema artifact ${artifact}`);
+      continue;
+    }
+    seenArtifacts.add(artifact);
   }
 
   return failures;

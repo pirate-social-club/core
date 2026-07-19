@@ -50,6 +50,7 @@
         "reason": "restore repository bytes to the checksum applied and attested across the production fleet; request identity moved to 1130"
       }
     ],
-    "unexpectedMigrationsToRemove": []
+    "unexpectedMigrationsToRemove": [],
+    "compatibleMissingSchemaArtifacts": []
   }
 }
