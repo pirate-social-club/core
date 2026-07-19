@@ -107,13 +107,16 @@ func TestReconcileZoneCandidatesLetsHigherVerifiedEmptyStateWin(t *testing.T) {
 	}
 }
 
-func TestRequestedHandlesRejectsCrossHandleSubstitution(t *testing.T) {
+func TestPartitionRequestedZonesRejectsCrossHandleSubstitution(t *testing.T) {
 	expected := requestedHandles(QueryRequest{Queries: []Query{{Space: "@alice"}}})
-	if _, ok := expected["@alice"]; !ok {
-		t.Fatal("requested handle missing")
+	matched, substitution := partitionRequestedZones([]libveritas.Zone{{Handle: "@bob"}}, expected)
+	if !substitution || len(matched) != 0 {
+		t.Fatalf("cross-handle response was not rejected: matched=%#v substitution=%v", matched, substitution)
 	}
-	if _, ok := expected["@bob"]; ok {
-		t.Fatal("unrequested handle was admitted")
+
+	matched, substitution = partitionRequestedZones([]libveritas.Zone{{Handle: "@alice"}}, expected)
+	if substitution || len(matched) != 1 || matched[0].Handle != "@alice" {
+		t.Fatalf("requested handle was not admitted: matched=%#v substitution=%v", matched, substitution)
 	}
 }
 
