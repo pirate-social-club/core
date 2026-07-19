@@ -4,4 +4,5 @@ Description=Alert on Pirate HNS DANE continuity failure
 [Service]
 Type=oneshot
 Environment=DEPLOY_ROOT=/srv/pirate-hns-authdns
+EnvironmentFile=/etc/pirate-deployment-verify/authdns.env
 ExecStart=/bin/bash -c 'exec "$DEPLOY_ROOT/current/bin/alert-on-failure.sh" "pirate-hns-dane-health.service"'
