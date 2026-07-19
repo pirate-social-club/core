@@ -235,6 +235,23 @@ success and `OnFailure` alert paths before parent delegation. Keep the wildcard
 probe name: it verifies synthesized wildcard answers rather than only explicit
 owners.
 
+## DANE certificate continuity monitoring
+
+Before publishing a parent DS, also install and enable the tracked
+`pirate-hns-dane-health.timer`. It connects to the live gateway with explicit
+SNI, computes the served leaf certificate's SPKI SHA-256 digest, and requires
+every managed TLSA owner through both authorities to contain a matching
+`3 1 1` association. Multiple associations are allowed during the documented
+rollover overlap, but the live key must always be one of them.
+
+Copy `env/dane-health.env.example` to the role's root-only config directory and
+prove both success and `OnFailure` alert paths. Caddy does not renew this DANE
+certificate: it is loaded from explicit certificate and key paths, while the
+separate `verifier.pirate.sc` certificate is the only automated WebPKI subject.
+Never replace the DANE files in place. Use the `manage-tlsa.ts` sequence above:
+publish old+new, wait two TLSA TTLs, atomically switch the versioned `current`
+symlink, prove the served new SPKI, then retire the old association.
+
 ## Canonical Source of Truth
 
 The PowerDNS backend is the authoritative child-zone source of truth for Pirate-managed HNS roots.
