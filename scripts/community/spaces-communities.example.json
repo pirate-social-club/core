@@ -7,7 +7,8 @@
   "defaults": {
     "database_region": "aws-us-east-1",
     "publisher_bin": "./tools/spaces-publisher/spaces-publisher",
-    "wallet_export": "/srv/pirate-spaces/data/spaced/mainnet/wallets/default/wallet.json",
+    "wallet_export": "/local/secure/path/spaces-wallet.json",
+    "signed_message_dir": "/local/secure/path/signed-fabric-publications",
     "max_index": 10000
   },
   "communities": [

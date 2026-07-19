@@ -23,6 +23,13 @@ type EpochHint struct {
 	Height uint32 `json:"height"`
 }
 
+// ValidateMessage confirms that bytes contain a structurally valid Fabric message.
+// Signature and chain validation remain the receiving relay's responsibility.
+func ValidateMessage(message []byte) error {
+	_, err := libveritas.NewMessage(message)
+	return err
+}
+
 type Query struct {
 	Space     string     `json:"space"`
 	Handles   []string   `json:"handles"`

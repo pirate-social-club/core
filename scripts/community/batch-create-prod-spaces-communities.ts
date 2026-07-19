@@ -2,7 +2,7 @@
 
 import { $ } from "bun";
 import { createHmac, randomUUID } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import {
@@ -21,6 +21,7 @@ type DefaultsConfig = {
   publisher_ssh?: string;
   publisher_bin?: string;
   wallet_export?: string;
+  signed_message_dir?: string;
   max_index?: number;
 };
 
@@ -140,6 +141,10 @@ Flags:
                      Local Spaces wallet export path. The wallet export stays
                      on this machine and is not copied to the verifier VPS.
                      Can also be set with PIRATE_SPACES_WALLET_EXPORT.
+  --signed-message-dir PATH
+                     Required durable archive directory for exact signed Fabric
+                     publications. Can also be set with
+                     PIRATE_SPACES_SIGNED_MESSAGE_DIR.
   --owner-wallet-address ADDRESS
                      Optional EVM wallet address to attach to the launch owner.
                      Can also be set with PIRATE_LAUNCH_OWNER_WALLET_ADDRESS.
@@ -155,6 +160,7 @@ type Options = {
   limit: number | null;
   onlyRoot: string | null;
   walletExport: string | null;
+  signedMessageDir: string | null;
   ownerWalletAddress: string | null;
 };
 
@@ -167,6 +173,7 @@ function parseArgs(argv: string[]): Options {
     limit: null,
     onlyRoot: null,
     walletExport: null,
+    signedMessageDir: null,
     ownerWalletAddress: null,
   };
 
@@ -203,6 +210,10 @@ function parseArgs(argv: string[]): Options {
         break;
       case "--wallet-export":
         options.walletExport = value.trim() || null;
+        index += 2;
+        break;
+      case "--signed-message-dir":
+        options.signedMessageDir = value.trim() ? resolve(value) : null;
         index += 2;
         break;
       case "--owner-wallet-address":
@@ -612,6 +623,7 @@ async function publishSpacesChallenge(
   rootLabel: string,
   session: NamespaceSession,
   maxIndex: number,
+  signedMessageDir: string,
 ): Promise<void> {
   const payload = session.challenge_payload;
   const txtKey = payload?.txt_key?.trim();
@@ -626,7 +638,23 @@ async function publishSpacesChallenge(
     throw new Error("Refusing to use --publisher-ssh with a wallet export. Keep wallet exports local and run the local spaces-publisher.");
   }
 
-  await $`${publisherBin} publish ${`@${rootLabel}`} --wallet-export ${walletExport} --web ${webUrl} --freedom ${freedomUrl} --txt ${`${txtKey}=${txtValue}`} --max-index ${String(maxIndex)}`;
+  const sessionId = namespaceSessionId(session);
+  if (!sessionId) {
+    throw new Error("namespace session has no stable id for the signed publication archive");
+  }
+  if (!/^[A-Za-z0-9_-]+$/u.test(sessionId)) {
+    throw new Error("namespace session id is unsafe for a signed publication archive filename");
+  }
+  const archivePath = resolve(signedMessageDir, `${rootLabel}-${sessionId}.fabric-message`);
+  if (existsSync(archivePath)) {
+    await $`${publisherBin} rebroadcast --message-file ${archivePath}`;
+    return;
+  }
+
+  await $`${publisherBin} publish ${`@${rootLabel}`} --wallet-export ${walletExport} --web ${webUrl} --freedom ${freedomUrl} --txt ${`${txtKey}=${txtValue}`} --max-index ${String(maxIndex)} --signed-message-out ${archivePath}`;
+  if (!existsSync(archivePath)) {
+    throw new Error(`publisher did not retain the signed Fabric message: ${archivePath}`);
+  }
 }
 
 async function completeNamespaceWithRetry(options: {
@@ -707,6 +735,10 @@ async function main() {
     ?? process.env.PIRATE_SPACES_WALLET_EXPORT?.trim()
     ?? input.defaults?.wallet_export?.trim()
     ?? "";
+  const signedMessageDir = options.signedMessageDir
+    ?? process.env.PIRATE_SPACES_SIGNED_MESSAGE_DIR?.trim()
+    ?? input.defaults?.signed_message_dir?.trim()
+    ?? "";
   const maxIndex = input.defaults?.max_index ?? 10000;
   const ownerWalletAddress = normalizeEvmAddress(
     options.ownerWalletAddress ?? process.env.PIRATE_LAUNCH_OWNER_WALLET_ADDRESS,
@@ -715,6 +747,12 @@ async function main() {
   const adminToken = process.env.PIRATE_ADMIN_TOKEN?.trim() || null;
   if (!options.dryRun && !walletExport) {
     throw new Error("--wallet-export or PIRATE_SPACES_WALLET_EXPORT is required for non-dry-run execution");
+  }
+  if (!options.dryRun && !signedMessageDir) {
+    throw new Error("--signed-message-dir or PIRATE_SPACES_SIGNED_MESSAGE_DIR is required for non-dry-run execution");
+  }
+  if (!options.dryRun && (!existsSync(signedMessageDir) || !statSync(signedMessageDir).isDirectory())) {
+    throw new Error(`signed message archive directory does not exist or is not a directory: ${signedMessageDir}`);
   }
   if (!options.dryRun && ownerWalletAddress && !adminToken) {
     throw new Error("PIRATE_ADMIN_TOKEN is required when --owner-wallet-address/PIRATE_LAUNCH_OWNER_WALLET_ADDRESS is set");
@@ -911,7 +949,15 @@ async function main() {
 
           if (session && !namespaceVerificationId && existing?.status !== "namespace_published") {
             process.stdout.write("  [namespace] publishing Fabric records...\n");
-            await publishSpacesChallenge(publisherSsh, publisherBin, walletExport, c.root_label, session, maxIndex);
+            await publishSpacesChallenge(
+              publisherSsh,
+              publisherBin,
+              walletExport,
+              c.root_label,
+              session,
+              maxIndex,
+              signedMessageDir,
+            );
             process.stdout.write("  [namespace] published.\n");
 
             state[c.root_label] = {
