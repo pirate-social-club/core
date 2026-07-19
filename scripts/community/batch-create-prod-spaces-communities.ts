@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { $ } from "bun";
-import { createHmac, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -48,6 +48,9 @@ type CommunityState = {
   namespace_verification_id: string | null;
   community_id: string | null;
   route_slug: string | null;
+  signed_message_path?: string | null;
+  signed_message_sha256?: string | null;
+  published_sequence?: number | null;
   status: "pending" | "namespace_started" | "namespace_published" | "namespace_verified" | "community_created" | "failed";
   error: string | null;
 };
@@ -79,6 +82,38 @@ type NamespaceSession = {
   } | null;
   failure_reason?: string | null;
 };
+
+type PublicationReceipt = {
+  archivePath: string;
+  messageSha256: string;
+  sequence: number | null;
+};
+
+type PublisherResult = {
+  published?: boolean;
+  rebroadcasted?: boolean;
+  sequence?: number;
+  message_sha256?: string;
+  signed_message_saved?: boolean;
+};
+
+export function validatePublishReceipt(result: PublisherResult, messageSha256: string): number {
+  if (
+    !result.published
+    || !result.signed_message_saved
+    || result.message_sha256 !== messageSha256
+    || !Number.isSafeInteger(result.sequence)
+  ) {
+    throw new Error("publisher receipt did not match the retained signed message");
+  }
+  return result.sequence as number;
+}
+
+export function validateRebroadcastReceipt(result: PublisherResult, messageSha256: string): void {
+  if (!result.rebroadcasted || result.message_sha256 !== messageSha256) {
+    throw new Error("publisher rebroadcast receipt did not match the retained signed message");
+  }
+}
 
 type CommunityCreateResponse = {
   community?: {
@@ -624,7 +659,7 @@ async function publishSpacesChallenge(
   session: NamespaceSession,
   maxIndex: number,
   signedMessageDir: string,
-): Promise<void> {
+): Promise<PublicationReceipt> {
   const payload = session.challenge_payload;
   const txtKey = payload?.txt_key?.trim();
   const txtValue = payload?.txt_value?.trim();
@@ -647,14 +682,23 @@ async function publishSpacesChallenge(
   }
   const archivePath = resolve(signedMessageDir, `${rootLabel}-${sessionId}.fabric-message`);
   if (existsSync(archivePath)) {
-    await $`${publisherBin} rebroadcast --message-file ${archivePath}`;
-    return;
+    const result = await $`${publisherBin} rebroadcast --message-file ${archivePath}`.quiet().json() as PublisherResult;
+    const messageSha256 = createHash("sha256")
+      .update(new Uint8Array(await Bun.file(archivePath).arrayBuffer()))
+      .digest("hex");
+    validateRebroadcastReceipt(result, messageSha256);
+    return { archivePath, messageSha256, sequence: null };
   }
 
-  await $`${publisherBin} publish ${`@${rootLabel}`} --wallet-export ${walletExport} --web ${webUrl} --freedom ${freedomUrl} --txt ${`${txtKey}=${txtValue}`} --max-index ${String(maxIndex)} --signed-message-out ${archivePath}`;
+  const result = await $`${publisherBin} publish ${`@${rootLabel}`} --wallet-export ${walletExport} --web ${webUrl} --freedom ${freedomUrl} --txt ${`${txtKey}=${txtValue}`} --max-index ${String(maxIndex)} --signed-message-out ${archivePath}`.quiet().json() as PublisherResult;
   if (!existsSync(archivePath)) {
     throw new Error(`publisher did not retain the signed Fabric message: ${archivePath}`);
   }
+  const messageSha256 = createHash("sha256")
+    .update(new Uint8Array(await Bun.file(archivePath).arrayBuffer()))
+    .digest("hex");
+  const sequence = validatePublishReceipt(result, messageSha256);
+  return { archivePath, messageSha256, sequence };
 }
 
 async function completeNamespaceWithRetry(options: {
@@ -949,7 +993,7 @@ async function main() {
 
           if (session && !namespaceVerificationId && existing?.status !== "namespace_published") {
             process.stdout.write("  [namespace] publishing Fabric records...\n");
-            await publishSpacesChallenge(
+            const publicationReceipt = await publishSpacesChallenge(
               publisherSsh,
               publisherBin,
               walletExport,
@@ -962,6 +1006,11 @@ async function main() {
 
             state[c.root_label] = {
               ...state[c.root_label],
+              signed_message_path: publicationReceipt.archivePath,
+              signed_message_sha256: publicationReceipt.messageSha256,
+              published_sequence: publicationReceipt.sequence
+                ?? state[c.root_label]?.published_sequence
+                ?? null,
               status: "namespace_published",
               error: null,
             };
@@ -1074,7 +1123,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
+if (import.meta.main) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });
+}
