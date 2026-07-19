@@ -98,6 +98,12 @@ SongArtifactUploadRef:
   properties:
     song_artifact_upload:
       type: string
+    duration_ms:
+      type: integer
+      format: int64
+      minimum: 1
+      nullable: true
+      description: Client-read media duration, persisted with audio artifacts for immediate display.
 SongPreviewWindow:
   type: object
   additionalProperties: false
