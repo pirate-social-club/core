@@ -702,6 +702,16 @@ func requestedHandles(request QueryRequest) map[string]struct{} {
 	return result
 }
 
+func partitionRequestedZones(zones []libveritas.Zone, expected map[string]struct{}) ([]libveritas.Zone, bool) {
+	matched := make([]libveritas.Zone, 0, len(zones))
+	for _, zone := range zones {
+		if _, requested := expected[zone.Handle]; requested {
+			matched = append(matched, zone)
+		}
+	}
+	return matched, len(zones) > 0 && len(matched) == 0
+}
+
 func selectQueryRelays(seeds []string, preferred []string, count int) []string {
 	if count < 1 {
 		return nil
@@ -892,14 +902,10 @@ func (f *Fabric) queryReconciledZones(request QueryRequest) ([]libveritas.Zone, 
 		diagnostic.Status = "verified_empty"
 		var relayMaxSequence uint64
 		verifiedZones := verified.Zones()
-		matchedRequestedZone := false
+		requestedZones, handleSubstitution := partitionRequestedZones(verifiedZones, expected)
 		invalidZone := false
 		relayCandidates := make([]zoneCandidate, 0, len(verifiedZones))
-		for _, zone := range verifiedZones {
-			if _, requested := expected[zone.Handle]; !requested {
-				continue
-			}
-			matchedRequestedZone = true
+		for _, zone := range requestedZones {
 			sequence, err := recordSequence(zone)
 			if err != nil {
 				diagnostic.Status = "invalid"
@@ -925,7 +931,7 @@ func (f *Fabric) queryReconciledZones(request QueryRequest) ([]libveritas.Zone, 
 			diagnostics = append(diagnostics, diagnostic)
 			continue
 		}
-		if len(verifiedZones) > 0 && !matchedRequestedZone {
+		if handleSubstitution {
 			diagnostic.Status = "invalid"
 			diagnostic.ErrorClass = "handle_substitution"
 			f.pool.MarkFailed(response.relay)
