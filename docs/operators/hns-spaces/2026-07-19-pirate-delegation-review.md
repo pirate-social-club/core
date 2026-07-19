@@ -3,8 +3,8 @@
 Status: **STAGED ONLY — DO NOT SIGN OR BROADCAST**
 
 Prepared 2026-07-19. The observer was at height 171,862 (50.59%) when this
-packet was assembled, so observer-backed HNS assertions and the 24-hour soak
-have not started.
+packet was assembled, so observer-backed HNS assertions cannot be activated
+until it reaches tip.
 
 ## Owner decision
 
@@ -145,8 +145,8 @@ IPv4 addresses are confirmed persistent.
 ## Remaining gates before the owner signs
 
 1. Observer reaches chain tip and verifier assertions are activated.
-2. The signed zone, AXFR, backup, RRSIG monitor, gateway, and verifier remain
-   continuously healthy for at least 24 hours after that activation.
+2. Run the event-based pre-sign health checklist below; no elapsed soak period
+   is required.
 3. Validate UDP and TCP 53 and the DNSSEC answers from an additional external
    vantage, not the operator workstation.
 4. Re-read the current parent resource, served DNSKEY/DS, authority IPs, zone
@@ -157,13 +157,22 @@ IPv4 addresses are confirmed persistent.
 6. Create the UPDATE locally with `sign: false` and `broadcast: false`; record
    its inputs, outputs, fee, covenant resource, and raw hex in an appendix for
    owner review. Never copy a seed, private key, wallet token, or passphrase
-   into this repository or onto ns1/ns2.
+  into this repository or onto ns1/ns2.
 
-The 24-hour soak passes only if RRSIG and DANE SPKI/TLSA monitors remain green,
-all deployment roles report no drift, a full backup/restore cycle covers the
-real DNSSEC zone, a deliberate serial change converges through AXFR, the served
-SPKI still matches every TLSA owner, and gateway/redirect samples remain healthy
-throughout the window.
+The event-based pre-sign health checklist requires fresh evidence that:
+
+- RRSIG and DANE SPKI/TLSA monitors pass through both authorities;
+- all deployment roles report no drift;
+- the latest scheduled backup completed and a restore of real DNSSEC material
+  has already been proven;
+- primary and secondary SOA serials match, with UDP/TCP serving parity;
+- the served SPKI matches every TLSA owner;
+- gateway, API route, and apex redirect checks pass; and
+- the authenticated tip-synced observer reproduces the parent covenant,
+  resource, and owner preflight.
+
+Any failed check stops signing. Passing checks permit immediate unsigned
+transaction creation and review; there is no time-based soak gate.
 
 The unsigned wallet API request body is:
 
