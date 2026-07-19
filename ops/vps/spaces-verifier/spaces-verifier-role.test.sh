@@ -44,4 +44,33 @@ grep -Fq 'User=pirate-spaces' "$role_dir/systemd/pirate-spaced.service"
 grep -Fq 'ReadWritePaths=/srv/pirate-spaces/data/spaced' "$role_dir/systemd/pirate-spaced.service"
 grep -Fq 'After=network-online.target pirate-spaced.service' "$role_dir/systemd/pirate-spaces-verifier.service"
 
+cat > "$work/curl" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "${SPACES_HEALTH_TEST_JSON:?}"
+EOF
+chmod +x "$work/curl"
+
+PATH="$work:$PATH" SPACES_HEALTH_TEST_JSON='{"ok":true,"fabric_record_reader_ready":true,"fallback_target_disagreements":0}' \
+  bash "$role_dir/bin/check-verifier-health.sh" >/dev/null
+if PATH="$work:$PATH" SPACES_HEALTH_TEST_JSON='{"ok":false,"fabric_record_reader_ready":false}' \
+  bash "$role_dir/bin/check-verifier-health.sh" >/dev/null 2>&1; then
+  echo "health check accepted a degraded Fabric record reader" >&2
+  exit 1
+fi
+if PATH="$work:$PATH" SPACES_HEALTH_TEST_JSON='{"ok":true}' \
+  bash "$role_dir/bin/check-verifier-health.sh" >/dev/null 2>&1; then
+  echo "health check accepted a missing Fabric reader signal" >&2
+  exit 1
+fi
+if PATH="$work:$PATH" SPACES_HEALTH_TEST_JSON='{"ok":true,"fabric_record_reader_ready":true,"fallback_target_disagreements":1}' \
+  bash "$role_dir/bin/check-verifier-health.sh" >/dev/null 2>&1; then
+  echo "health check accepted a native/fallback target disagreement" >&2
+  exit 1
+fi
+
+grep -Fq 'OnFailure=pirate-spaces-verifier-health-alert.service' \
+  "$role_dir/systemd/pirate-spaces-verifier-health.service"
+grep -Fq 'OnUnitActiveSec=5m' "$role_dir/systemd/pirate-spaces-verifier-health.timer"
+grep -Fq 'alert-on-failure.sh' "$role_dir/systemd/pirate-spaces-verifier-health-alert.service"
+
 echo "spaces verification role checks passed"

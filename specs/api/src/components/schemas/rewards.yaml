@@ -227,6 +227,7 @@ RewardCampaignCapabilities:
     credential, and the treasury address, which the scoped funding quote supplies.
   required:
     - enabled
+    - post_eligible
     - min_budget_cents
     - max_budget_cents
     - max_reward_cents
@@ -239,6 +240,12 @@ RewardCampaignCapabilities:
   properties:
     enabled:
       type: boolean
+    post_eligible:
+      type: boolean
+      description: >-
+        Whether the requested post is eligible for a new campaign under the
+        running post allowlist. Clients must require both enabled and
+        post_eligible before showing the Boost entry point.
     min_budget_cents:
       type: integer
       minimum: 0
