@@ -38,6 +38,8 @@ fi
 
 grep -Fq 'OnFailure=pirate-hns-rrsig-health-alert.service' \
   "$role_dir/systemd/pirate-hns-rrsig-health.service" || fail "health unit lacks alert hook"
+grep -Fq 'Environment=DEPLOY_ROOT=/srv/pirate-hns-authdns' \
+  "$role_dir/systemd/pirate-hns-rrsig-health.service" || fail "health unit lacks deploy root"
 grep -Fq 'OnUnitActiveSec=1h' "$role_dir/systemd/pirate-hns-rrsig-health.timer" \
   || fail "health timer is not hourly"
 grep -Fq 'alert-on-failure.sh' "$role_dir/systemd/pirate-hns-rrsig-health-alert.service" \
