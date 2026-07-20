@@ -5,7 +5,13 @@ import { runFleetMigration, type MigrationSpec } from "./lib/fleet-d1-migration"
 export const SPEC: MigrationSpec = {
   migration: "1142_song_study_sessions.sql",
   label: "community-template",
-  requiredTables: ["song_study_attempt", "song_study_exercise", "posts", "communities"],
+  requiredTables: [
+    "song_study_unit",
+    "song_study_unit_localization",
+    "song_study_attempt",
+    "posts",
+    "communities",
+  ],
   creates: {
     kind: "schema_objects",
     columns: [
