@@ -26,6 +26,7 @@ It does **not** assert current employment (point-in-time only; mitigated by capa
 
 1. **Session start.** API issues an opaque random nonce (≥128 bit) + server-side session record `{user_id, session_id, audience/env, purpose, expires_at}`. All transcript binding is via this server-side mapping — **no user/account-linkable data is ever embedded in the email** (subjects transit and are archived by employer mail infrastructure).
 2. **Ceremony: self-send.** User sends an email from their work mailbox **to themselves** with subject `pirate-verify:<nonce>`, then exports the raw `.eml`. Self-send is deliberate: a Pirate-controlled recipient would announce the verification to employer outbound-mail logs. The circuit binds parsed `To == From`.
+   **Known risk — internal-delivery DKIM gap:** DKIM signing happens at the outbound gateway; a self-send delivered *internally* within the same tenant/provider (M365 intra-tenant especially; Proton internal delivery) may carry **no** `DKIM-Signature` at all, even with DKIM correctly configured for external mail. Phase A must measure this per provider (go/no-go Q1). Fallback ceremony if it bites: send corp → a personal mailbox the user controls (e.g. Gmail) and export there — this preserves the nonce and DKIM but breaks `To == From`; the replacement binding would be committing to (not disclosing) the signed To in-circuit. Decide only with Phase A data.
 3. **Local parse.** Browser parses candidate `DKIM-Signature` headers, extracts `{d=, s=}` pairs. Deterministic selection policy required when multiple signatures exist (spike must define it — e.g. first signature satisfying strict alignment whose `h=` covers all required headers).
 4. **Post-email key pinning.** Browser calls a session-scoped resolution endpoint with `{d, s}` **only** (never the address or raw headers). API resolves the DKIM key from DNS and pins `{d, s, key_hash, resolution_evidence, resolved_at}` into the session. Note keys cannot be pinned at session start — the selector isn't known until the email exists.
 5. **Local proving.** Browser generates the proof against the pinned key via `@zk-email/sdk` against a pinned blueprint version. **Raw email never leaves the device.** Remote proving, if ever offered, is a separately consented labeled fallback (it ships the `.eml` to zk.email infra).
@@ -83,6 +84,7 @@ Isolation rule: everything lives in a scratch repo / `spike/` directory — **ze
 
 ### Phase A — corpus + ground truth
 - [ ] A1. Collect real `.eml` corpus: Google Workspace (custom domain), Microsoft 365 (custom domain), consumer Gmail/Outlook (should FAIL domain gates — `d=gmail.com` control case), forwarded mail (should FAIL nonce/To binding), mailing-list mail (should FAIL), plus-addressed self-send, multi-`DKIM-Signature` messages, delegated-subdomain senders (`d=mail.acme.com` vs `From @acme.com` — expect FAIL under strict alignment; measure prevalence).
+- [ ] A1b. **Internal-delivery check (per provider):** does a same-mailbox self-send's exported copy contain a valid `DKIM-Signature` at all? Test Workspace, M365 (intra-tenant is the prime suspect), and Proton custom-domain. Also export the same message from an external mailbox (corp → Gmail) as the control — establishes whether outbound signing works even when internal delivery skips it. Optional starter lane while Workspace/M365 mailboxes are unavailable: Proton custom-domain (note zk.email docs warn Proton exports may not preserve DKIM material on received mail; a `@proton.me` address only proves `proton.me`).
 - [ ] A2. For each: record `d=`, `s=`, `h=` list, canonicalization (`c=`), key alg/size, whether From/To/Subject are signed. Produce the alignment-pass-rate table → feeds go/no-go Q1/Q2.
 - [ ] A3. Corpus handling: raw `.eml` files stay in a gitignored, access-restricted local directory; are never committed, uploaded, logged, or attached to issues; use dedicated test mailboxes where possible; publish only manually reviewed/redacted metadata and synthetic fixtures; document retention and securely delete raw samples when the spike ends.
 
@@ -127,6 +129,7 @@ Isolation rule: everything lives in a scratch repo / `spike/` directory — **ze
 | T13 | Subject/From/To not in `h=` | FAIL |
 | T14 | Unicode domain (IDN) | Normalized UTS-46 canonical compare |
 | T15 | ed25519-signed DKIM (if found) | Documented behavior (likely unsupported → FAIL cleanly) |
+| T16 | Self-send exported from same tenant (per provider) | Exported copy contains valid, verifiable `DKIM-Signature`; if absent (internal-delivery gap), record per-provider and evaluate the corp→personal fallback ceremony |
 
 ## 8. Out of scope (post-spike implementation checklist, for reference only)
 
