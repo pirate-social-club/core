@@ -18,6 +18,7 @@ SongKaraokeLine:
       enum:
         - lyric
         - section
+        - adlib
     text:
       type: string
     start_ms:
