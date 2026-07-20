@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-import { readFile, writeFile } from "node:fs/promises"
+import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { dirname } from "node:path"
 import { pathToFileURL } from "node:url"
 
 const REQUIRED_SIGNED_HEADERS = ["from", "to", "subject"]
@@ -133,6 +134,7 @@ async function main() {
   const rawEmail = await readFile(args.get("file"), "utf8")
   const output = `${JSON.stringify(inspectEmail(rawEmail, args.get("label")), null, 2)}\n`
   if (args.get("out")) {
+    await mkdir(dirname(args.get("out")), { recursive: true })
     await writeFile(args.get("out"), output, { encoding: "utf8", mode: 0o600 })
   } else {
     process.stdout.write(output)
@@ -145,4 +147,3 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     process.exitCode = 1
   })
 }
-
