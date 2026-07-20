@@ -334,6 +334,7 @@ CommunityHandlePolicy:
     - claim_gate_expression
     - eligibility_timing
     - settings
+    - revision
     - updated_at
   properties:
     id:
@@ -390,6 +391,12 @@ CommunityHandlePolicy:
       description: Ordered per-label claim rules. Optional for compatibility; absent means no rules.
     settings:
       $ref: ./handles.yaml#/CommunityHandlePolicySettings
+    revision:
+      type: integer
+      format: int64
+      minimum: 1
+      readOnly: true
+      description: Monotonic namespace-policy revision used for optimistic concurrency.
     updated_at:
       type: integer
       format: int64
@@ -397,6 +404,11 @@ CommunityHandlePolicy:
 UpdateCommunityHandlePolicyRequest:
   type: object
   properties:
+    expected_revision:
+      type: integer
+      format: int64
+      minimum: 1
+      description: Optional compare-and-swap precondition. A stale revision returns 409 with the current policy; omission preserves legacy last-write-wins behavior.
     policy_template:
       type: string
       enum:

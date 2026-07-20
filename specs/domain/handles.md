@@ -227,6 +227,7 @@ Suggested v0 fields:
 - `issuance_source`
 - `transferability`
 - `created_at`
+- `revision`
 - `updated_at`
 
 Suggested meanings:
@@ -477,6 +478,12 @@ A rule expression may reference the label being claimed:
   while ids are server-assigned for entries that omit one
 - an existing rule id may only be reused within its owning namespace policy; unknown,
   cross-policy, and duplicate ids are rejected rather than silently re-minted
+- each namespace policy has an independent, monotonically increasing integer `revision`; every
+  successful policy write increments it in the same transaction as the rule replacement
+- clients may send `expected_revision` as a compare-and-swap precondition; a stale value rejects
+  the entire write with `409 Conflict` and returns the current policy so an editor can preserve
+  its local draft while offering reload or explicit overwrite
+- omitting `expected_revision` preserves legacy last-write-wins behavior
 - writers must hold the same authority as for other handle-policy changes
 
 ## Continuous Eligibility Lifecycle
