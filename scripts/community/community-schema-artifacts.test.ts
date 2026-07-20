@@ -250,4 +250,25 @@ describe("expectedArtifacts — real migration files", () => {
     expect(a.unrecognized).toEqual([])
     expect(artifactCount(a)).toBe(1)
   })
+
+  test("1141_namespace_handle_policy_revision: one revision column", () => {
+    const a = expectedArtifacts(readMigration("1141_namespace_handle_policy_revision.sql"))
+    expect(a.columns).toEqual([["namespace_handle_policies", "revision"]])
+    expect(a.altered).toEqual(["namespace_handle_policies"])
+    expect(a.unrecognized).toEqual([])
+    expect(artifactCount(a)).toBe(1)
+  })
+
+  test("1141 backfills existing namespace policies at revision one", () => {
+    const db = new Database(":memory:")
+    try {
+      db.exec("CREATE TABLE namespace_handle_policies (namespace_handle_policy_id TEXT PRIMARY KEY)")
+      db.exec("INSERT INTO namespace_handle_policies VALUES ('policy-1')")
+      db.exec(readMigration("1141_namespace_handle_policy_revision.sql"))
+
+      expect(db.query("SELECT revision FROM namespace_handle_policies").get()).toEqual({ revision: 1 })
+    } finally {
+      db.close()
+    }
+  })
 })
