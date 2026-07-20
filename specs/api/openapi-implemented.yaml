@@ -5749,6 +5749,9 @@ components:
             - prompt_text
             - reference_text
             - max_attempts
+            - presentation_count
+            - mastered
+            - first_outcome
           properties:
             id:
               type: string
@@ -5785,8 +5788,20 @@ components:
             max_attempts:
               type: integer
               description: |
-                Maximum attempts before the line is revealed. Server-tunable per
-                exercise/config.
+                Maximum presentations of this card within the server-issued session.
+            presentation_count:
+              type: integer
+              description: Number of accepted presentations already recorded in this session.
+            mastered:
+              type: boolean
+              description: Whether the learner has answered this card correctly in this session.
+            first_outcome:
+              type: string
+              nullable: true
+              enum:
+                - correct
+                - incorrect
+                - revealed
           additionalProperties: false
         - type: object
           title: SongStudyTranslationChoiceExercise
@@ -5799,6 +5814,9 @@ components:
             - question
             - options
             - max_attempts
+            - presentation_count
+            - mastered
+            - first_outcome
           properties:
             id:
               type: string
@@ -5840,7 +5858,20 @@ components:
                 additionalProperties: false
             max_attempts:
               type: integer
-              description: Maximum attempts before the answer is revealed. Server-tunable.
+              description: Maximum presentations of this card within the server-issued session.
+            presentation_count:
+              type: integer
+              description: Number of accepted presentations already recorded in this session.
+            mastered:
+              type: boolean
+              description: Whether the learner has answered this card correctly in this session.
+            first_outcome:
+              type: string
+              nullable: true
+              enum:
+                - correct
+                - incorrect
+                - revealed
           additionalProperties: false
     SongStudyAttemptRequest:
       type: object
@@ -5855,6 +5886,7 @@ components:
         rejected. Retries must not double-record an event or double-advance FSRS.
       required:
         - idempotency_key
+        - session_id
         - exercise_id
         - type
         - attempt_number
@@ -5865,6 +5897,9 @@ components:
             Client-generated idempotency key for this attempt write. Scoped to the
             authenticated user; equivalent retries return the original result and
             conflicting reuse is rejected.
+        session_id:
+          type: string
+          description: Server-issued session containing this exercise and its fixed language/targets.
         exercise_id:
           type: string
         type:
@@ -5881,13 +5916,6 @@ components:
         selected_option_id:
           type: string
           description: Required for `translation_choice`; omitted otherwise.
-        target_language:
-          type: string
-          description: |
-            Optional learner target language for the served Study pack. The server
-            still grades against `exercise_id`; this field lets mixed packs that
-            include source-language say-it-back exercises freeze the day's streak
-            target against the learner's target-language pack.
         transcript:
           type: string
           description: |
@@ -5926,8 +5954,9 @@ components:
         correct_option_id:
           type: string
           description: |
-            For `translation_choice`, the correct option. Returned ONLY when the
-            attempt is spent (`outcome` is `correct` or `revealed`).
+            For `translation_choice`, the correct option. Returned after every
+            accepted presentation so an incorrect answer can show its correction
+            before the card is requeued.
         feedback:
           type: object
           description: |
@@ -5957,6 +5986,8 @@ components:
           description: |
             Optional human-facing hint derived from the server FSRS update. FSRS
             scheduling itself is server-internal; the client does not compute it.
+        session:
+          $ref: "#/components/schemas/SongStudySessionSummary"
         study_progress:
           type: object
           description: |

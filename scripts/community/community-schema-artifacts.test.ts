@@ -271,4 +271,22 @@ describe("expectedArtifacts — real migration files", () => {
       db.close()
     }
   })
+
+  test("1142_song_study_sessions: session tables and logical attempt identity", () => {
+    const a = expectedArtifacts(readMigration("1142_song_study_sessions.sql"))
+    expect(a.columns).toEqual([
+      ["song_study_attempt", "study_session_id"],
+      ["song_study_attempt", "presentation_number"],
+    ])
+    expect(a.tables).toEqual(["song_study_session", "song_study_session_exercise"])
+    expect(a.indexes).toEqual([
+      "idx_song_study_session_active",
+      "idx_song_study_session_expiry",
+      "idx_song_study_session_exercise_queue",
+      "idx_song_study_attempt_session_presentation",
+    ])
+    expect(a.altered).toEqual(["song_study_attempt"])
+    expect(a.unrecognized).toEqual([])
+    expect(artifactCount(a)).toBe(8)
+  })
 })
