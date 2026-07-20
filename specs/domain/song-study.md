@@ -125,21 +125,25 @@ NOT reshuffle locally. No client-facing seed is exposed.
 
 ## Attempts and scheduling
 
+`GET .../study` creates or resumes a server-issued session containing at most
+ten distinct exercises. The session freezes the learner, song, target language,
+exercise set, qualification target, and presentation limits. Clients MUST submit
+the returned session id and cannot choose or alter those values on an attempt.
+
 `POST .../study/attempts` validates one attempt **server-side**, records the
 attempt as an **event** (not merely the final state, so the schedule can be
 recomputed if the algorithm or parameters change), advances the FSRS schedule
 for the review unit, and returns the verdict.
 
 - Attempt writes MUST be idempotent. The client supplies an `idempotency_key`;
-  the durable deduplication guarantee rests on `(user_id, idempotency_key)`.
+  the durable deduplication guarantees rest on `(user_id, idempotency_key)` and
+  `(user_id, study_session_id, exercise_id, presentation_number)`.
   The server returns the original result for an equivalent retry and rejects
   conflicting payload reuse. A retry MUST NOT double-record an event or
   double-advance FSRS.
-- `attempt_number` is a presentation attempt within the currently served
-  exercise instance. It drives grading (`first try`, `second try`, `revealed`)
-  and the `max_attempts` guard, but it MUST NOT be used as durable event
-  identity. In particular, a future due review of the same review unit may
-  validly submit `attempt_number = 1` again with a new `idempotency_key`.
+- `attempt_number` is the 1-based presentation number for that exercise in this
+  server session. A future due review uses a different session id and may validly
+  submit `attempt_number = 1` again.
 - The correct answer is disclosed only once the attempt is spent — a correct
   answer, or an incorrect final attempt (`outcome: revealed`).
 - `say_it_back` grading normalizes the transcript under the **source lyric
@@ -160,6 +164,29 @@ The server writes a due interval to `song_study_review_state.due_at` on each
 accepted attempt. FSRS answers "when should this review unit reappear?". A
 separate session/high score concept answers "how did this session go?" — the two
 MUST NOT be conflated.
+
+### Session completion and qualification
+
+- A normal session contains `N = min(10, eligible exercise count)` distinct cards.
+- The first-pass correctness target is `ceil(0.70 * N)`.
+- A wrong card is eligible to reappear after other cards, at most three
+  presentations per card.
+- Total presentations are capped at `min(20, 3 * N)`.
+- A session completes when all cards are mastered, every unresolved card has
+  reached three presentations, or the global presentation cap is reached.
+- Qualification requires all `N` distinct cards to have been presented and at
+  least the first-pass correctness target to have been met. Repetitions teach
+  mistakes but never inflate the first-pass score.
+- Streak and reward qualification MUST consume this same completed-session
+  decision. Neither path may independently infer completion from arbitrary
+  attempts or trust a client-provided target language.
+
+The attempt event, FSRS update, and session progress commit atomically. Derived
+engagement-day, reward-outbox, and streak materialization writes intentionally
+run afterward in an idempotent transaction. This creates a small
+completed-session-before-derived-state consistency window if that second write
+fails; an equivalent attempt retry re-drives the derived writes. There is no
+background reconciliation sweep in the initial rollout.
 
 ### Due-review serving rollout
 
@@ -184,10 +211,9 @@ The target read path is:
   `next_due_at` when every candidate has review state and the next serveable
   review is in the future.
 
-`GET .../study` remains idempotent and side-effect-free. It reads what is due;
-it does not mint a server-side study session. A client MAY include an opaque
-client-minted `session_id` on attempt writes for grouping/telemetry, but the
-attempt event remains the source of truth.
+`GET .../study` resumes the caller's unexpired active session for this song and
+target language, or mints one from the currently due set. Re-fetching MUST NOT
+reset first-pass results or presentation limits.
 
 Rollout requirements:
 
@@ -199,9 +225,11 @@ Rollout requirements:
 3. Only after step 2 is complete on all shards, enable due-review re-serving.
    Offering a due review before the old uniqueness constraint is gone can
    recreate the `attempt_number has already been recorded` failure.
-4. Keep `attempt_number` scoped to presentation/reveal behavior. Do not add a
-   new durable attempt identity dimension unless a separate analytics/session
-   requirement needs it; it is not required for correctness.
+4. Bind every accepted attempt to the server-issued session and enforce logical
+   presentation uniqueness in storage.
+5. Deploy the session-aware web client and API as one coordinated release.
+   `session_id` is mandatory once the API change is live; older clients cannot
+   submit attempts to the new endpoint contract.
 
 ## Scope
 
@@ -247,6 +275,8 @@ Shared content tables:
 
 Per-user tables:
 
+- `song_study_session`
+- `song_study_session_exercise`
 - `song_study_attempt`
 - `song_study_review_state`
 
