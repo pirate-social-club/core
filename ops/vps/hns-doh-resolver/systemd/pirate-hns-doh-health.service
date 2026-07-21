@@ -1,0 +1,20 @@
+[Unit]
+Description=Verify the public Pirate HNS DoH resolver answers real queries
+After=network-online.target pirate-hns-doh-resolver.service
+Wants=network-online.target
+# Requires, not Wants: if the resolver unit is not up there is nothing to probe,
+# and an alert would report "the endpoint is down" when the real state is "the
+# endpoint was never started". systemd fails this unit without running it, and
+# the OnFailure alert names the resolver as the cause.
+Requires=pirate-hns-doh-resolver.service
+OnFailure=pirate-hns-doh-health-alert.service
+
+[Service]
+Type=oneshot
+Environment=DEPLOY_ROOT=/srv/pirate-hns-doh
+EnvironmentFile=/srv/pirate-hns-doh/config/doh-health.env
+# Skip (exit 0) rather than alert while the resolver is still activating -- a
+# first boot syncs hnsd from genesis for ~40 minutes, and the timer would
+# otherwise page every 15 minutes throughout. A resolver that is active but
+# not answering still fails, which is the case worth paging on.
+ExecStart=/bin/bash -c 'if ! systemctl is-active --quiet pirate-hns-doh-resolver.service; then echo "resolver not active yet; skipping public health probe"; exit 0; fi; exec "$DEPLOY_ROOT/current/bin/check-doh-health.sh"'

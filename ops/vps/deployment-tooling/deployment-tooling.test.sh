@@ -253,4 +253,62 @@ grep -q "\"role\":\"demo-role\"" "$CURL_SHIM_ARGS" \
   || fail "heartbeat request omitted deployment role"
 pass "successful verification sends authenticated role heartbeat"
 
+# N. metadata parsing must fail closed for multi-service and comment-shadowed
+# compose files. Both of these silently produced wrong or empty DEPLOYMENT
+# metadata before, which made the drift verifier skip container checks entirely.
+multi_role="$repo/ops/vps/multi-role"
+mkdir -p "$multi_role"
+cat > "$multi_role/compose.yaml" <<'EOF'
+services:
+  local:
+    image: locally-built:1
+    container_name: pirate-local
+  pinned:
+    image: foo/bar:1@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    container_name: pirate-pinned
+EOF
+commented_role="$repo/ops/vps/commented-role"
+mkdir -p "$commented_role"
+cat > "$commented_role/compose.yaml" <<'EOF'
+services:
+  # tooling derives container_name: and image: from this file
+  only:
+    image: foo/bar:1@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    container_name: pirate-only
+EOF
+git -C "$repo" -c user.email=t@t -c user.name=t add -A
+git -C "$repo" -c user.email=t@t -c user.name=t commit -qm "multi-service fixtures"
+multi_commit="$(git -C "$repo" rev-parse HEAD)"
+
+if (cd "$repo" && bash ops/vps/deployment-tooling/make-release.sh \
+    ops/vps/multi-role "$work/multi-out" --expect-running false >/dev/null 2>&1); then
+  fail "make-release guessed a container for a multi-service compose file"
+fi
+pass "make-release refuses to guess the monitored container"
+
+(cd "$repo" && bash ops/vps/deployment-tooling/make-release.sh \
+  ops/vps/multi-role "$work/multi-ok" --expect-running false \
+  --monitored-container pirate-pinned >/dev/null) \
+  || fail "make-release rejected an explicit monitored container"
+multi_meta="$work/multi-ok/releases/$multi_commit/DEPLOYMENT"
+grep -Fxq "CONTAINER_NAME=pirate-pinned" "$multi_meta" \
+  || fail "monitored container was not recorded"
+grep -q "IMAGE_DIGEST=foo/bar:1@sha256:bbbb" "$multi_meta" \
+  || fail "digest was not taken from the monitored container's own service"
+pass "make-release pairs the digest with the monitored container's service"
+
+if (cd "$repo" && bash ops/vps/deployment-tooling/make-release.sh \
+    ops/vps/multi-role "$work/multi-bad" --expect-running false \
+    --monitored-container not-declared >/dev/null 2>&1); then
+  fail "make-release accepted an undeclared monitored container"
+fi
+pass "make-release rejects an undeclared monitored container"
+
+(cd "$repo" && bash ops/vps/deployment-tooling/make-release.sh \
+  ops/vps/commented-role "$work/commented-out" --expect-running false >/dev/null) \
+  || fail "make-release failed on a compose file whose comments mention the keys"
+grep -Fxq "CONTAINER_NAME=pirate-only" "$work/commented-out/releases/$multi_commit/DEPLOYMENT" \
+  || fail "a comment mentioning the key shadowed the real container_name"
+pass "make-release ignores key names appearing in comments"
+
 echo "all deployment-tooling checks passed"

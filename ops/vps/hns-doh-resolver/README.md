@@ -61,12 +61,59 @@ Design constraints, all load-bearing:
 
 ## Deploy
 
+Deploy as an immutable release, the same way the other VPS roles do. **Never edit
+files under `/srv/pirate-hns-doh/current/`** -- it is a release directory covered
+by a `SHA256SUMS` manifest, and hand-editing it makes
+`pirate-deployment-verify@doh` fail permanently with `release checksum mismatch`.
+
+Order matters: the public health timer must not be enabled until the endpoint it
+probes actually exists, or it pages continuously through first sync and through
+ACME issuance.
+
 ```sh
-cd ops/vps/hns-doh-resolver
-# The container runs as uid 1000 and cannot write a root-owned bind mount.
-sudo mkdir -p /srv/pirate-hns-doh/data && sudo chown 1000:1000 /srv/pirate-hns-doh/data
-docker compose build
-docker compose up -d
+# --- on your workstation, from the repo root, on a CLEAN checkout ---
+# make-release.sh refuses a dirty tree; deployments must map to exact commits.
+bash ops/vps/deployment-tooling/make-release.sh ops/vps/hns-doh-resolver /tmp/doh-out \
+  --expect-running true --monitored-container pirate-dnsdist-doh
+# prints: release staged: /tmp/doh-out/releases/<core-sha>
+CORE_SHA="$(basename /tmp/doh-out/releases/*)"
+
+tar -czf /tmp/doh-release.tgz -C /tmp/doh-out/releases "$CORE_SHA"
+scp /tmp/doh-release.tgz ubuntu@94.103.168.161:/tmp/
+scp ops/vps/hns-doh-resolver/env/*.example ubuntu@94.103.168.161:/tmp/
+scp ops/vps/hns-doh-resolver/systemd/* ubuntu@94.103.168.161:/tmp/
+
+# --- on the host ---
+CORE_SHA=<paste from above>
+
+# Config and persistent state live OUTSIDE releases, so a release swap or a
+# rollback cannot destroy them. The container runs as uid 1000.
+sudo mkdir -p /srv/pirate-hns-doh/{releases,shared/data,config}
+sudo chown 1000:1000 /srv/pirate-hns-doh/shared/data
+sudo cp /tmp/doh-health.env.example /srv/pirate-hns-doh/config/doh-health.env
+sudo cp /tmp/resolver.env.example   /srv/pirate-hns-doh/config/resolver.env
+
+# Unpack, verify the manifest BEFORE flipping, then flip.
+sudo tar -xzf /tmp/doh-release.tgz -C /srv/pirate-hns-doh/releases/
+(cd "/srv/pirate-hns-doh/releases/$CORE_SHA" && sudo sha256sum --check SHA256SUMS)
+sudo ln -sfn "releases/$CORE_SHA" /srv/pirate-hns-doh/current
+# rollback at any point = sudo ln -sfn releases/<previous-sha> /srv/pirate-hns-doh/current
+
+sudo cp /tmp/pirate-hns-doh-*.service /tmp/pirate-hns-doh-*.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+
+# Start the resolver and WAIT. First boot from empty state syncs hnsd from
+# genesis (~40 min); the unit stays "activating" until the Hesiod sync gate
+# passes rather than reporting active while the resolver returns nothing.
+sudo systemctl enable --now pirate-hns-doh-resolver.service
+sudo systemctl enable --now pirate-deployment-verify@doh.timer
+```
+
+Now install the Caddy route (below), run the acceptance suite, and only then
+enable the public health timer:
+
+```sh
+sudo systemctl enable --now pirate-hns-doh-health.timer
 ```
 
 Then install the Caddy route:
@@ -135,6 +182,38 @@ dig @127.0.0.1 -p 5350 app.pirate A
 dig @127.0.0.1 -p 5351 -c HS -t TXT synced.chain.hnsd +short   # "true" when synced
 ```
 
+## Lifecycle and monitoring
+
+| unit | purpose |
+|---|---|
+| `pirate-hns-doh-resolver.service` | brings the compose stack up from `current/`, waits for the hnsd sync gate |
+| `pirate-hns-doh-health.{service,timer}` | probes the **public** endpoint every 15m via `bin/check-doh-health.sh`; `Requires=`/`After=` the resolver, and skips while it is still activating |
+| `pirate-hns-doh-health-alert.service` | `OnFailure=` webhook for the above |
+| `pirate-deployment-verify@doh.{service,timer}` | release/manifest/image-digest drift + heartbeat |
+
+The health check deliberately probes `https://dns.pirate.sc/dns-query` rather than
+a loopback backend: a container-level check stays green while the published
+service is unreachable. It requires `rcode=0` **and** `ancount > 0`, so a resolver
+answering NOERROR-with-no-data fails. It retries 3x with backoff, matching the
+authoritative monitors, so one dropped packet does not page anyone.
+
+The health unit `Requires=` and is ordered `After=` the resolver unit, and its
+`ExecStart` exits 0 while the resolver is still `activating`. Without that, a
+first boot would page every 15 minutes for the ~40 minutes hnsd spends syncing
+from genesis, and again for as long as ACME had not yet issued for
+`dns.pirate.sc`. A resolver that is *active but not answering* still fails --
+that is the state worth paging on. The timer's `OnBootSec` is 45m for the same
+reason.
+
+Drift verification needs `/etc/pirate-deployment-verify/doh.env` with
+`DEPLOY_ROOT=/srv/pirate-hns-doh` plus the shared alert webhook settings.
+
+Note: `DEPLOYMENT` metadata tracks a single container, named explicitly via
+`--monitored-container pirate-dnsdist-doh` (digest-pinned and public-facing).
+`make-release.sh` refuses to guess for a multi-service role. hnsd is built locally
+and has no digest to verify; it is covered by its own container healthcheck and by
+the end-to-end probe.
+
 ## Operational notes
 
 - The resolver sees which HNS names users visit. `dnsdist.conf` deliberately
@@ -144,7 +223,7 @@ dig @127.0.0.1 -p 5351 -c HS -t TXT synced.chain.hnsd +short   # "true" when syn
   proxy *error* log that includes the request URI — reconstructs user browsing
   even though dnsdist logs nothing. If logging is ever enabled, redact the `dns`
   query parameter. Prefer POST in clients we control.
-- State lives at `/srv/pirate-hns-doh/data` (override with `HNSD_DATA_DIR`),
+- State lives at `/srv/pirate-hns-doh/shared/data` (override with `HNSD_DATA_DIR`),
   deliberately outside the checkout so a release swap or worktree cleanup cannot
   destroy it. Losing it is a ~40 minute resync outage, not a scratch directory.
 - hnsd is SPV, so the data dir stays small — this matters on a host at ~74% disk.
