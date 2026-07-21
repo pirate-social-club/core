@@ -39,10 +39,40 @@ def build_query(name, qtype, msgid=0x2A2A, want_dnssec=False):
     return header + q + struct.pack(">HH", TYPES[qtype], 1) + extra
 
 
+def _skip_name(buf, off):
+    while True:
+        length = buf[off]
+        if length == 0:
+            return off + 1
+        if length & 0xC0 == 0xC0:
+            return off + 2
+        off += 1 + length
+
+
 def parse(buf):
     msgid, flags = struct.unpack(">HH", buf[0:4])
     qd, an, ns, ar = struct.unpack(">HHHH", buf[4:12])
-    return {"id": msgid, "rcode": flags & 0xF, "ancount": an, "nscount": ns}
+    off = 12
+    answer_types = []
+    try:
+        for _ in range(qd):
+            off = _skip_name(buf, off) + 4
+        for _ in range(an):
+            off = _skip_name(buf, off)
+            rrtype, _rrclass, _ttl, rdlength = struct.unpack(">HHIH", buf[off:off + 10])
+            off += 10 + rdlength
+            answer_types.append(rrtype)
+    except (IndexError, struct.error):
+        # Truncated or unparseable answer section; report what we managed to read
+        # rather than crashing the suite.
+        pass
+    return {
+        "id": msgid,
+        "rcode": flags & 0xF,
+        "ancount": an,
+        "nscount": ns,
+        "answer_types": answer_types,
+    }
 
 
 def doh(endpoint, wire, method="GET", timeout=20, headers=None):
@@ -77,6 +107,12 @@ def main():
     print(f"endpoint: {ep}\n")
 
     def resolves(name, qtype, method="GET", want_dnssec=False, expect_rcode=0, msgid=0x2A2A):
+        """Positive checks must return real data, not merely NOERROR.
+
+        A NOERROR/ancount=0 response is a valid DNS answer meaning "the name
+        exists but has no record of this type" -- accepting it would let every
+        positive check below pass while the resolver returns nothing useful.
+        """
         def run():
             status, ctype, body = doh(ep, build_query(name, qtype, msgid, want_dnssec), method)
             if status != 200:
@@ -88,7 +124,16 @@ def main():
                 return False, f"request id not preserved: sent {msgid:#x} got {r['id']:#x}"
             if r["rcode"] != expect_rcode:
                 return False, f"rcode {RCODES.get(r['rcode'], r['rcode'])}, expected {RCODES.get(expect_rcode)}"
-            return True, f"{RCODES.get(r['rcode'])} answers={r['ancount']} ({method})"
+            if expect_rcode != 0:
+                return True, f"{RCODES.get(r['rcode'])} ({method})"
+            if r["ancount"] < 1:
+                return False, f"NOERROR but ancount=0 -- no {qtype} record returned ({method})"
+            want = TYPES[qtype]
+            # A CNAME chain terminating in the requested type is legitimate.
+            if want not in r["answer_types"] and TYPES["CNAME"] not in r["answer_types"]:
+                got = ", ".join(str(t) for t in r["answer_types"]) or "none"
+                return False, f"no {qtype} (or CNAME) in answer; types present: {got} ({method})"
+            return True, f"{RCODES.get(r['rcode'])} answers={r['ancount']} type={qtype} ({method})"
         return run
 
     # Our own names must resolve. These are REQUIRED: they prove the whole path.
@@ -137,14 +182,17 @@ def main():
             return exc.code >= 400, f"HTTP {exc.code}"
     check("POST malformed payload rejected", True, malformed)
 
-    # A spoofed XFF must not let a client escape the per-IP rate limit bucket.
-    # Requires the record to be DNS-only; behind another proxy the right-most
-    # address is attacker-influenced.
-    def spoofed_xff():
-        status, _, body = doh(ep, build_query("app.pirate", "A"), "GET",
-                              headers={"X-Forwarded-For": "203.0.113.99"})
-        return status == 200, f"accepted, HTTP {status} (verify limits bucket on real peer)"
-    check("GET  spoofed X-Forwarded-For handled", False, spoofed_xff)
+    # NOTE: rate-limit identity under a spoofed X-Forwarded-For is deliberately
+    # NOT tested here. A single request that returns 200 proves nothing about
+    # which address dnsdist attributed it to, and proving it properly means
+    # either reading dnsdist metrics or driving the limit past its threshold --
+    # neither of which belongs in a suite that runs against production.
+    #
+    # Verify it instead as a controlled deployment observation: stand up dnsdist
+    # with a temporary low-QPS test policy, then confirm that rotating
+    # attacker-supplied left-side XFF values cannot evade a limit attached to the
+    # real right-most peer address. Do not fire 25+ production queries to
+    # approximate this. See the XFF/grey-cloud section of README.md.
 
     print()
     if failures:

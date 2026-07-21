@@ -81,6 +81,12 @@ that is actually loaded, using `caddy-route.json` as the fragment: it backs up t
 current config, validates with the same custom binary, reloads, smoke-tests, and
 restores the backup if the reload fails. It is idempotent.
 
+If the reload succeeds but the HTTPS smoke test does not, the installer **leaves
+the new config installed** and exits non-zero. That is deliberate: the usual
+cause is ACME still issuing for a brand-new hostname, and the change is scoped to
+`dns.pirate.sc`, so rolling back would only delay issuance. The backup path is
+printed either way.
+
 ### Prerequisite: the DNS record must be DNS-only
 
 ```
@@ -111,8 +117,16 @@ Exercises the real path (DoH client → Caddy → dnsdist → hnsd) in both GET 
 POST form and checks: content-type, request-id preservation, A/TLSA/DNSKEY with
 the DO bit, the `*.pirate` wildcard, an external HNS TLD (real recursion, not
 just our own zone), a delegated-but-unserved name, NXDOMAIN, AXFR/IXFR/ANY
-refusal, malformed-payload rejection, and spoofed `X-Forwarded-For`. Non-zero
+refusal, and malformed-payload rejection. Positive checks require real answer
+records (NOERROR with `ancount=0` fails), not merely a NOERROR rcode. Non-zero
 exit on any required failure; third-party-dependent checks are advisory.
+
+Rate-limit identity under a spoofed `X-Forwarded-For` is **not** covered by the
+suite — one request returning 200 proves nothing about which address dnsdist
+attributed it to, and proving it properly means driving the limit past its
+threshold. Verify it as a controlled observation instead: run dnsdist with a
+temporary low-QPS test policy and confirm that rotating attacker-supplied
+left-side XFF values cannot evade a limit bound to the real right-most peer.
 
 Resolver-local spot check:
 
@@ -133,8 +147,9 @@ dig @127.0.0.1 -p 5351 -c HS -t TXT synced.chain.hnsd +short   # "true" when syn
 - State lives at `/srv/pirate-hns-doh/data` (override with `HNSD_DATA_DIR`),
   deliberately outside the checkout so a release swap or worktree cleanup cannot
   destroy it. Losing it is a ~40 minute resync outage, not a scratch directory.
-- hnsd is SPV, so the data dir stays small and is disposable — this matters on a host
-  at ~74% disk. But a **first** boot from empty state syncs from genesis and
+- hnsd is SPV, so the data dir stays small — this matters on a host at ~74% disk.
+  It is **reconstructible availability state**, not scratch: it can be rebuilt from
+  the network, but losing it costs a ~40 minute outage. But a **first** boot from empty state syncs from genesis and
   takes roughly 40 minutes (measured ~4k blocks/30s) before the resolver answers
   anything. Restarts resume from `data/` and are fast. Do not interpret an
   unhealthy container during initial sync as a failure. Note that an unhealthy

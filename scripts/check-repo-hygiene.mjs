@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -83,7 +84,38 @@ function checkStaleMarkers() {
   return { label: "stale-markers", failures };
 }
 
-const checks = [checkJsonFiles(), checkStaleMarkers()];
+// Compiled/build artifacts must never be tracked. This checks the git index
+// rather than walking the working tree, so a contributor's local scratch output
+// does not fail the build -- only committing it does.
+const trackedArtifactPatterns = [
+  { label: "python bytecode", pattern: /(^|\/)__pycache__(\/|$)|\.py[co]$/u },
+  { label: "macOS metadata", pattern: /(^|\/)\.DS_Store$/u },
+];
+
+function checkTrackedArtifacts() {
+  const failures = [];
+  let tracked;
+  try {
+    tracked = execFileSync("git", ["ls-files", "-z"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+    })
+      .split("\0")
+      .filter(Boolean);
+  } catch (error) {
+    // Not a git checkout (e.g. a source tarball): skip rather than hard-fail.
+    return { label: "tracked-artifacts", failures: [] , skipped: error.message };
+  }
+  for (const file of tracked) {
+    for (const artifact of trackedArtifactPatterns) {
+      if (artifact.pattern.test(file)) failures.push(`${file}: ${artifact.label} must not be tracked`);
+    }
+  }
+  return { label: "tracked-artifacts", failures };
+}
+
+const checks = [checkJsonFiles(), checkStaleMarkers(), checkTrackedArtifacts()];
 const failures = checks.filter((check) => check.failures.length > 0);
 
 if (failures.length === 0) {
