@@ -11,6 +11,9 @@ probe_host="${HNS_DANE_PROBE_HOST:-}"
 servers_csv="${HNS_DANE_SERVERS:-}"
 owners_csv="${HNS_DANE_TLSA_OWNERS:-}"
 dig_bin="${HNS_DANE_DIG_BIN:-dig}"
+
+# shellcheck source=lib/dig-retry.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/dig-retry.sh"
 openssl_bin="${HNS_DANE_OPENSSL_BIN:-openssl}"
 probe_bin="${HNS_DANE_SPKI_PROBE_BIN:-}"
 
@@ -43,8 +46,8 @@ for raw_server in "${servers[@]}"; do
   for raw_owner in "${owners[@]}"; do
     owner="${raw_owner//[[:space:]]/}"
     [[ -n "$owner" ]] || continue
-    if ! answer="$($dig_bin +time=5 +tries=1 +noall +answer "@$server" "$owner" TLSA 2>&1)"; then
-      failures+=("$server $owner TLSA query failed")
+    if ! dig_with_retry answer "$dig_bin" +time=5 +tries=1 +noall +answer "@$server" "$owner" TLSA; then
+      failures+=("$server $owner TLSA query $answer")
       continue
     fi
     associations="$(awk '

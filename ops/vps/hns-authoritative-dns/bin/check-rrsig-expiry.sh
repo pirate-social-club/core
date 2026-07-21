@@ -10,6 +10,9 @@ servers_csv="${HNS_RRSIG_SERVERS:-}"
 checks_csv="${HNS_RRSIG_CHECKS:-}"
 minimum_seconds="${HNS_RRSIG_MIN_REMAINING_SECONDS:-604800}"
 dig_bin="${HNS_RRSIG_DIG_BIN:-dig}"
+
+# shellcheck source=lib/dig-retry.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/dig-retry.sh"
 now_epoch="${HNS_RRSIG_NOW_EPOCH:-$(date -u +%s)}"
 
 [[ -n "$servers_csv" ]] || { echo "HNS_RRSIG_SERVERS is required" >&2; exit 2; }
@@ -31,8 +34,8 @@ for raw_server in "${servers[@]}"; do
     type="${check##*:}"
     [[ -n "$name" && -n "$type" ]] || { failures+=("invalid check '$check'"); continue; }
 
-    if ! answer="$($dig_bin +time=5 +tries=1 +dnssec +noall +answer "@$server" "$name" "$type" 2>&1)"; then
-      failures+=("$server $name $type query failed")
+    if ! dig_with_retry answer "$dig_bin" +time=5 +tries=1 +dnssec +noall +answer "@$server" "$name" "$type"; then
+      failures+=("$server $name $type query $answer")
       continue
     fi
     expirations="$(awk -v covered="$type" '$4 == "RRSIG" && toupper($5) == toupper(covered) { print $9 }' <<< "$answer")"
