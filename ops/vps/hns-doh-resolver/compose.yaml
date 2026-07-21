@@ -1,0 +1,67 @@
+services:
+  hnsd-resolver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pirate-hnsd-resolver:2.0.0
+    container_name: pirate-hnsd-resolver
+    restart: unless-stopped
+    init: true
+    # host networking so both listeners land on this host's loopback, where
+    # dnsdist reaches them. The entrypoint refuses any non-loopback bind.
+    network_mode: host
+    read_only: true
+    user: "${HNSD_UID:-1000}:${HNSD_GID:-1000}"
+    environment:
+      HNSD_POOL_SIZE: "4"
+      HNSD_RS_HOST: 127.0.0.1:5350
+      HNSD_NS_HOST: 127.0.0.1:5351
+    volumes:
+      - ./data:/var/lib/hnsd
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    stop_grace_period: 15s
+    healthcheck:
+      # An actual answer proves the SPV chain is synced and the resolver is
+      # serving, which a bare port check does not. Root NS comes from chain data,
+      # so this stays green without depending on any external authoritative
+      # server being reachable.
+      test:
+        - CMD-SHELL
+        - "test -n \"$$(dig +short +time=3 +tries=1 @127.0.0.1 -p 5350 -t NS . 2>/dev/null)\""
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # Measured: SPV sync from genesis runs ~4k blocks/30s, so a first boot with
+      # an empty ./data reaches a ~339k tip in roughly 40 minutes. Anything
+      # shorter here restart-loops the container before it can ever go healthy.
+      # Subsequent restarts resume from ./data and are fast.
+      start_period: 3600s
+
+  dnsdist:
+    # Pinned by digest. 1.9.0-1.9.3 carry a remotely triggerable DoH DoS
+    # (PowerDNS Security Advisory 2024-03); 1.9.4 fixed it. Do not downgrade.
+    image: powerdns/dnsdist-19:1.9.15@sha256:af0a812fedd2d24cb54c7058cc7b07ca643b44bbf543fe9ae826fc5c663b0801
+    container_name: pirate-dnsdist-doh
+    restart: unless-stopped
+    init: true
+    network_mode: host
+    read_only: true
+    depends_on:
+      hnsd-resolver:
+        condition: service_healthy
+    volumes:
+      - ./dnsdist.conf:/etc/dnsdist/dnsdist.conf:ro
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    stop_grace_period: 15s

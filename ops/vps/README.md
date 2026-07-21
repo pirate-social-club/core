@@ -21,6 +21,9 @@ Current slices:
   Consistent, client-side-encrypted backups of the non-reconstructible HNS/Spaces edge state.
 - `hns-local-test/`
   Local primary/secondary DNSSEC, signed-NOTIFY, and TSIG/AXFR integration harness.
+- `hns-doh-resolver/`
+  Pirate-operated recursive HNS resolver (hnsd + dnsdist) exposed as DNS-over-HTTPS.
+  Availability service only — see its README before surfacing it to clients.
 - `hns-verifier/`
   Deployment assets and env templates for the PowerDNS-backed HNS verifier/provisioner.
 - `hns-chain-observer/`
