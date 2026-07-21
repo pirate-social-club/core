@@ -46,6 +46,12 @@ client ──HTTPS──► Caddy :443 (dns.pirate.sc, Let's Encrypt / WebPKI)
 
 Design constraints, all load-bearing:
 
+- **dnsdist's ACL must be opened explicitly.** Its default is loopback plus
+  RFC1918, and because `trustForwardedForHeader` is set the ACL is evaluated
+  against the *forwarded client* address rather than Caddy's loopback address.
+  The loopback path therefore works while every real client gets
+  `DoH query not allowed because of ACL`. Rate limits and refused query types are
+  what keep this service safe, not the ACL.
 - **Caddy must reach dnsdist over h2c.** dnsdist's cleartext DoH listener speaks
   HTTP/2 only; an HTTP/1.1 request to it gets no usable response at all. The
   route therefore sets `transport.versions` to `["h2c", "2"]`. Verified on the
