@@ -123,6 +123,12 @@ sudo systemctl enable --now pirate-hns-doh-resolver.service
 sudo systemctl enable --now pirate-deployment-verify@doh.timer
 ```
 
+The resolver unit pins the Compose project name to `pirate-hns-doh`. This is
+required because `current` resolves to a commit-named release directory;
+allowing Compose to derive its project name from that directory would make
+every release a new project, prevent `down` from finding the old containers,
+and make `up` collide with their explicit container names.
+
 Now install the Caddy route (below), run the acceptance suite, and only then
 enable the public health timer:
 
