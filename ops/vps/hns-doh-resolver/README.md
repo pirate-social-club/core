@@ -46,6 +46,14 @@ client ──HTTPS──► Caddy :443 (dns.pirate.sc, Let's Encrypt / WebPKI)
 
 Design constraints, all load-bearing:
 
+- **Caddy must reach dnsdist over h2c.** dnsdist's cleartext DoH listener speaks
+  HTTP/2 only; an HTTP/1.1 request to it gets no usable response at all. The
+  route therefore sets `transport.versions` to `["h2c", "2"]`. Verified on the
+  box: HTTP/1.1 returns nothing, h2c returns a valid DNS answer.
+- **A new hostname needs its own TLS connection policy.** This host ends its
+  `tls_connection_policies` with a catch-all selecting the self-signed DANE
+  gateway certificate, so a hostname without an SNI-matched policy inherits that
+  instead of an ACME certificate. `install-caddy-route.sh` adds one.
 - **The endpoint hostname must be ICANN-resolvable and use a WebPKI cert.** A
   client cannot reach a `.pirate` name or validate a DANE-only cert *before* it
   has a working HNS resolver. Hence `dns.pirate.sc`, not `dns.pirate`.
