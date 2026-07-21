@@ -128,11 +128,23 @@ query_sorted() {
   dig_in_tools "@$server" crew. "$type" +short +tries=1 +time=2 | sort
 }
 
+
+# Wait for the secondary's initial AXFR to land before comparing. Without this
+# the comparison is an unconditional race against NOTIFY/AXFR: observed in CI
+# failing three times in a row with the secondary exactly one serial behind
+# (2026072101 vs 2026072102) while passing locally and on workflow_dispatch.
+# The later serial-propagation assertion already waits this way.
 for type in SOA DNSKEY; do
-  primary_answer="$(query_sorted primary "$type")"
-  secondary_answer="$(query_sorted secondary "$type")"
+  for _ in $(seq 1 30); do
+    primary_answer="$(query_sorted primary "$type")"
+    secondary_answer="$(query_sorted secondary "$type")"
+    if [[ -n "$primary_answer" && "$primary_answer" == "$secondary_answer" ]]; then
+      break
+    fi
+    sleep 1
+  done
   if [[ -z "$primary_answer" || "$primary_answer" != "$secondary_answer" ]]; then
-    echo "$type differs between primary and secondary" >&2
+    echo "$type differs between primary and secondary after waiting for AXFR" >&2
     diff -u <(printf '%s\n' "$primary_answer") <(printf '%s\n' "$secondary_answer") || true
     exit 1
   fi
