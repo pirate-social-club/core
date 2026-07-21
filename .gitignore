@@ -71,3 +71,7 @@ cache/
 .scratch-api-ci-head/
 debug-storybook.log
 json.env
+
+# Python build artifacts (never commit; enforced by scripts/check-repo-hygiene.mjs)
+__pycache__/
+*.py[cod]
