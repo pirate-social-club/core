@@ -50,7 +50,7 @@ Design constraints, all load-bearing:
   RFC1918, and because `trustForwardedForHeader` is set the ACL is evaluated
   against the *forwarded client* address rather than Caddy's loopback address.
   The loopback path therefore works while every real client gets
-  `DoH query not allowed because of ACL`. Rate limits and refused query types are
+  `DoH query not allowed because of ACL`. Rate limits and rejected query types are
   what keep this service safe, not the ACL.
 - **Caddy must reach dnsdist over h2c.** dnsdist's cleartext DoH listener speaks
   HTTP/2 only; an HTTP/1.1 request to it gets no usable response at all. The
@@ -183,8 +183,9 @@ be revisited and an explicit trusted-proxy chain configured and tested.
 Exercises the real path (DoH client → Caddy → dnsdist → hnsd) in both GET and
 POST form and checks: content-type, request-id preservation, A/TLSA/DNSKEY with
 the DO bit, the `*.pirate` wildcard, an external HNS TLD (real recursion, not
-just our own zone), a delegated-but-unserved name, NXDOMAIN, AXFR/IXFR/ANY
-refusal, and malformed-payload rejection. Positive checks require real answer
+just our own zone), a delegated-but-unserved name, NXDOMAIN in an external zone
+without the `*.pirate` wildcard, AXFR/IXFR/ANY rejection, and malformed-payload
+rejection. Positive checks require real answer
 records (NOERROR with `ancount=0` fails), not merely a NOERROR rcode. Non-zero
 exit on any required failure; third-party-dependent checks are advisory.
 

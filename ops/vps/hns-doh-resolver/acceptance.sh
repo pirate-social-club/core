@@ -156,13 +156,16 @@ def main():
         return True, f"handled cleanly: {RCODES.get(r['rcode'], r['rcode'])}"
     check("GET  dankmeme NS (delegated, no zone)", True, unsigned_delegation)
 
-    # NXDOMAIN under a live zone.
-    check("GET  NXDOMAIN under .pirate", False,
+    # NXDOMAIN against an external zone without our *.pirate wildcard. A name
+    # below .pirate is expected to match the wildcard and cannot test NXDOMAIN.
+    check("GET  NXDOMAIN outside wildcard zone", False,
           resolves("no-such-name.g", "A", expect_rcode=3))
 
-    # AXFR/IXFR/ANY must be rejected by dnsdist before reaching the backend.
-    # dnsdist returns NOTIMP for transfer types and REFUSED for ANY; both are
-    # fail-closed DNS responses and neither permits a transfer or recursion.
+    # AXFR/IXFR/ANY must produce a fail-closed response with no usable answer.
+    # The DoH frontend currently returns NOTIMP for transfer types, while the
+    # dnsdist rule returns REFUSED for ANY. Do not claim which layer rejected a
+    # request solely from its rcode; this check proves the externally visible
+    # rejection property, not internal rule execution.
     def rejected(qtype_num):
         def run():
             wire = build_query("pirate", "A")
