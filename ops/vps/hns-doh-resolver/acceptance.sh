@@ -160,18 +160,20 @@ def main():
     check("GET  NXDOMAIN under .pirate", False,
           resolves("no-such-name.g", "A", expect_rcode=3))
 
-    # AXFR/IXFR/ANY must be refused by dnsdist before reaching the backend.
-    def refused(qtype_num):
+    # AXFR/IXFR/ANY must be rejected by dnsdist before reaching the backend.
+    # dnsdist returns NOTIMP for transfer types and REFUSED for ANY; both are
+    # fail-closed DNS responses and neither permits a transfer or recursion.
+    def rejected(qtype_num):
         def run():
             wire = build_query("pirate", "A")
             wire = wire[:-4] + struct.pack(">HH", qtype_num, 1)
             _, _, body = doh(ep, wire, "GET")
             r = parse(body)
-            return r["rcode"] == 5, RCODES.get(r["rcode"], r["rcode"])
+            return r["rcode"] in (4, 5), RCODES.get(r["rcode"], r["rcode"])
         return run
-    check("GET  AXFR refused", True, refused(252))
-    check("GET  IXFR refused", True, refused(251))
-    check("GET  ANY refused", True, refused(255))
+    check("GET  AXFR rejected", True, rejected(252))
+    check("GET  IXFR rejected", True, rejected(251))
+    check("GET  ANY rejected", True, rejected(255))
 
     # Malformed payloads must be rejected, not proxied blindly.
     def malformed():
