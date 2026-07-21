@@ -5,6 +5,7 @@ set -euo pipefail
 #
 #   make-release.sh <role-dir> <output-root> [--expect-running true|false]
 #     [--db-path REL] [--app-commit COMMIT] [--app-link REL]
+#     [--monitored-container NAME]
 #
 # Example:
 #   make-release.sh ops/vps/hns-secondary-dns /tmp/ns2-out --expect-running false \
@@ -26,12 +27,14 @@ expect_running="true"
 db_path=""
 app_commit=""
 app_link="app"
+monitored_container=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --expect-running) shift; expect_running="${1:?}" ;;
     --db-path) shift; db_path="${1:?}" ;;
     --app-commit) shift; app_commit="${1:?}" ;;
     --app-link) shift; app_link="${1:?}" ;;
+    --monitored-container) shift; monitored_container="${1:?}" ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
   shift
@@ -96,12 +99,52 @@ if [[ -f "$asset_stager" ]]; then
 fi
 
 # Pinned image digest and container name from the role's compose file, if any.
+#
+# This metadata is what the drift verifier checks at runtime, so parsing it must
+# fail CLOSED. Taking the first grep match over the whole file went wrong in two
+# real ways: a comment mentioning a key name was matched ahead of the real key,
+# leaving CONTAINER_NAME empty so drift checks silently skipped the container
+# entirely; and in a multi-service file whose first service is built locally
+# (no digest), the first container name was paired with a later service's digest.
+# Empty metadata is indistinguishable from "this role has no container", so an
+# ambiguous or failed parse aborts instead of staging a release that verifies
+# less than the operator thinks.
 image_digest=""
 container_name=""
 compose_file="$role_dir/compose.yaml"
 if [[ -f "$compose_file" ]]; then
-  image_digest="$(grep -Eo 'image:\s*\S+@sha256:[a-f0-9]{64}' "$compose_file" | head -1 | awk '{print $2}' || true)"
-  container_name="$(grep -Eo 'container_name:\s*\S+' "$compose_file" | head -1 | awk '{print $2}' || true)"
+  # Strip comments, then read per service block so a name is only ever paired
+  # with the digest from its own service.
+  compose_body="$(sed 's/#.*$//' "$compose_file")"
+  service_pairs="$(awk '
+    /^  [a-zA-Z0-9_.-]+:[[:space:]]*$/ { svc=$1; sub(/:$/, "", svc); next }
+    svc == "" { next }
+    $1 == "image:" && $2 ~ /@sha256:[a-f0-9]{40,}/ { digest[svc]=$2 }
+    $1 == "container_name:" { cname[svc]=$2; order[++n]=svc }
+    END { for (i=1; i<=n; i++) { s=order[i]; printf "%s\t%s\n", cname[s], digest[s] } }
+  ' <<< "$compose_body")"
+
+  declared_names="$(grep -cE '^[[:space:]]+container_name:' <<< "$compose_body" || true)"
+  parsed_names="$(grep -c . <<< "${service_pairs:-}" || true)"
+
+  if (( declared_names > 0 && parsed_names == 0 )); then
+    echo "compose declares container_name but none could be parsed; refusing to stage metadata that verifies nothing" >&2
+    exit 2
+  fi
+  if (( parsed_names > 1 )) && [[ -z "$monitored_container" ]]; then
+    echo "compose declares $parsed_names containers; pass --monitored-container to say which one DEPLOYMENT describes" >&2
+    cut -f1 <<< "$service_pairs" | sed 's/^/  /' >&2
+    exit 2
+  fi
+
+  if [[ -n "$monitored_container" ]]; then
+    match="$(awk -F'\t' -v want="$monitored_container" '$1 == want { print; found=1 } END { exit !found }' <<< "$service_pairs")" \
+      || { echo "--monitored-container '$monitored_container' is not declared in $compose_file" >&2; exit 2; }
+  else
+    match="$service_pairs"
+  fi
+  container_name="$(cut -f1 <<< "$match")"
+  image_digest="$(cut -f2 <<< "$match")"
 fi
 
 {
