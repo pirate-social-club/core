@@ -57,6 +57,25 @@ for i, r in enumerate(routes):
         break
 routes.insert(insert_at, route)
 
+# A route alone is not enough. This host's TLS config ends with a catch-all
+# connection policy that selects the self-signed DANE gateway certificate, so a
+# new hostname inherits that instead of getting an ACME-issued one, and clients
+# see a self-signed cert for dns.pirate.sc. Insert an SNI-matched policy with no
+# certificate_selection -- which is how verifier.pirate.sc already works -- ahead
+# of any policy that has no matcher.
+policies = server.setdefault("tls_connection_policies", [])
+
+def matches_sni(p):
+    return host in (p.get("match", {}) or {}).get("sni", [])
+
+policies[:] = [p for p in policies if not matches_sni(p)]
+policy_at = len(policies)
+for i, p in enumerate(policies):
+    if not (p.get("match", {}) or {}).get("sni"):
+        policy_at = i
+        break
+policies.insert(policy_at, {"match": {"sni": [host]}})
+
 json.dump(cfg, sys.stdout, indent=2)
 PY
 
