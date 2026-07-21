@@ -64,51 +64,82 @@ Design constraints, all load-bearing:
 ```sh
 cd ops/vps/hns-doh-resolver
 # The container runs as uid 1000 and cannot write a root-owned bind mount.
-mkdir -p data && sudo chown 1000:1000 data
+sudo mkdir -p /srv/pirate-hns-doh/data && sudo chown 1000:1000 /srv/pirate-hns-doh/data
 docker compose build
 docker compose up -d
 ```
 
-Then add the Caddy site (Caddy already manages certs on this host):
+Then install the Caddy route:
 
-```
-dns.pirate.sc {
-	handle /dns-query* {
-		reverse_proxy 127.0.0.1:8053
-	}
-	handle {
-		respond "Pirate HNS DoH resolver" 200
-	}
-}
+```sh
+./install-caddy-route.sh
 ```
 
-Prerequisite: `dns.pirate.sc` A → `94.103.168.161` in ICANN DNS, before Caddy can
-complete the ACME challenge.
+**The live unit runs `pirate-caddy run --config /etc/caddy/caddy.json`, so editing
+`/etc/caddy/Caddyfile` deploys nothing.** `install-caddy-route.sh` patches the JSON
+that is actually loaded, using `caddy-route.json` as the fragment: it backs up the
+current config, validates with the same custom binary, reloads, smoke-tests, and
+restores the backup if the reload fails. It is idempotent.
+
+### Prerequisite: the DNS record must be DNS-only
+
+```
+dns.pirate.sc  A  94.103.168.161     Cloudflare proxy: DNS only (grey cloud)
+```
+
+Required before Caddy can complete the ACME challenge — and the **grey cloud is
+load-bearing**, not a preference. Proxied (orange cloud) would:
+
+- put Cloudflare in a position to observe every resolver query, which is exactly
+  the exposure this service exists to reduce;
+- make Caddy's network peer Cloudflare rather than the client. dnsdist takes the
+  **right-most** `X-Forwarded-For` address for rules and logging, so the per-IP
+  QPS limit would bucket many unrelated users under one Cloudflare edge address
+  and throttle them collectively.
+
+The direct topology is safe because Caddy appends the real peer address. If this
+ever moves behind another proxy, `trustForwardedForHeader` in `dnsdist.conf` must
+be revisited and an explicit trusted-proxy chain configured and tested.
 
 ## Verify
 
 ```sh
-# a non-Pirate HNS TLD proves real recursion, not just our own zone
-curl -H 'accept: application/dns-message' \
-  'https://dns.pirate.sc/dns-query?dns=<base64url wire query for g>' | xxd | head
-
-# our own name
-dig @127.0.0.1 -p 5350 app.pirate A
+./acceptance.sh --endpoint https://dns.pirate.sc/dns-query
 ```
 
-Acceptance: `g`, `app.pirate`, a signed delegation, an unsigned delegation,
-NXDOMAIN, and DNSSEC record types all resolve; oversized/truncated responses fall
-back to TCP correctly; the per-IP rate limit actually refuses.
+Exercises the real path (DoH client → Caddy → dnsdist → hnsd) in both GET and
+POST form and checks: content-type, request-id preservation, A/TLSA/DNSKEY with
+the DO bit, the `*.pirate` wildcard, an external HNS TLD (real recursion, not
+just our own zone), a delegated-but-unserved name, NXDOMAIN, AXFR/IXFR/ANY
+refusal, malformed-payload rejection, and spoofed `X-Forwarded-For`. Non-zero
+exit on any required failure; third-party-dependent checks are advisory.
+
+Resolver-local spot check:
+
+```sh
+dig @127.0.0.1 -p 5350 app.pirate A
+dig @127.0.0.1 -p 5351 -c HS -t TXT synced.chain.hnsd +short   # "true" when synced
+```
 
 ## Operational notes
 
 - The resolver sees which HNS names users visit. `dnsdist.conf` deliberately
   enables no query log and no API/console. Keep it that way.
-- hnsd is SPV, so `data/` stays small and is disposable — this matters on a host
-  at ~74% disk. But a **first** boot from an empty `data/` syncs from genesis and
+- **Caddy access logging must stay disabled on this host** (it currently is).
+  GET-form DoH carries the whole query in `?dns=...`, so an access log — or a
+  proxy *error* log that includes the request URI — reconstructs user browsing
+  even though dnsdist logs nothing. If logging is ever enabled, redact the `dns`
+  query parameter. Prefer POST in clients we control.
+- State lives at `/srv/pirate-hns-doh/data` (override with `HNSD_DATA_DIR`),
+  deliberately outside the checkout so a release swap or worktree cleanup cannot
+  destroy it. Losing it is a ~40 minute resync outage, not a scratch directory.
+- hnsd is SPV, so the data dir stays small and is disposable — this matters on a host
+  at ~74% disk. But a **first** boot from empty state syncs from genesis and
   takes roughly 40 minutes (measured ~4k blocks/30s) before the resolver answers
   anything. Restarts resume from `data/` and are fast. Do not interpret an
-  unhealthy container during initial sync as a failure.
+  unhealthy container during initial sync as a failure. Note that an unhealthy
+  container is *not* restarted by `restart: unless-stopped`; `start_period` is
+  startup tolerance, and the Hesiod `synced` + tip-age probe is the actual gate.
 - DoT on `:853` is intentionally **not** in v1. It would require distributing and
   renewing a cert into dnsdist alongside Caddy's; 443 already covers the
   port-53-blocked case that motivated this work.

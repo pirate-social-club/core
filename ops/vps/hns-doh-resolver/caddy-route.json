@@ -1,0 +1,41 @@
+{
+  "match": [
+    {
+      "host": ["dns.pirate.sc"]
+    }
+  ],
+  "handle": [
+    {
+      "handler": "subroute",
+      "routes": [
+        {
+          "match": [
+            {
+              "path": ["/dns-query", "/dns-query/*"]
+            }
+          ],
+          "handle": [
+            {
+              "handler": "reverse_proxy",
+              "upstreams": [
+                {
+                  "dial": "127.0.0.1:8053"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "handle": [
+            {
+              "handler": "static_response",
+              "status_code": 200,
+              "body": "Pirate HNS DoH resolver\n"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "terminal": true
+}

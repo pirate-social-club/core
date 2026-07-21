@@ -17,7 +17,10 @@ services:
       HNSD_RS_HOST: 127.0.0.1:5350
       HNSD_NS_HOST: 127.0.0.1:5351
     volumes:
-      - ./data:/var/lib/hnsd
+      # Stable host path, deliberately NOT ./data: state must survive checkout
+      # replacement and release cleanup. Losing it costs a ~40 minute resync
+      # outage, which makes it availability state rather than scratch.
+      - ${HNSD_DATA_DIR:-/srv/pirate-hns-doh/data}:/var/lib/hnsd
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
     cap_drop:
@@ -27,20 +30,19 @@ services:
     pids_limit: 128
     stop_grace_period: 15s
     healthcheck:
-      # An actual answer proves the SPV chain is synced and the resolver is
-      # serving, which a bare port check does not. Root NS comes from chain data,
-      # so this stays green without depending on any external authoritative
-      # server being reachable.
-      test:
-        - CMD-SHELL
-        - "test -n \"$$(dig +short +time=3 +tries=1 @127.0.0.1 -p 5350 -t NS . 2>/dev/null)\""
+      # Gates on hnsd's own Hesiod status API: chain.synced must be true AND the
+      # tip must be recent. A bare "answers root NS" probe is not a sync gate --
+      # hnsd answers from partial chain state while catching up, which would
+      # serve stale HNS ownership data.
+      test: ["CMD", "/usr/local/bin/hnsd-resolver-healthcheck"]
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 3
-      # Measured: SPV sync from genesis runs ~4k blocks/30s, so a first boot with
-      # an empty ./data reaches a ~339k tip in roughly 40 minutes. Anything
-      # shorter here restart-loops the container before it can ever go healthy.
-      # Subsequent restarts resume from ./data and are fast.
+      # Startup tolerance only, NOT a sync gate (the test above is the gate).
+      # Measured ~4k blocks/30s, so a first boot from empty state reaches a ~339k
+      # tip in roughly 40 minutes. An unhealthy container is not restarted by
+      # restart: unless-stopped, but dnsdist's depends_on waits on it, so this
+      # only needs to be generous enough to cover a cold sync.
       start_period: 3600s
 
   dnsdist:

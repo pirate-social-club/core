@@ -37,6 +37,7 @@ RUN apk add --no-cache bind-tools unbound-libs \
 
 COPY --from=build /opt/hnsd/hnsd /usr/local/bin/hnsd
 COPY --chmod=0555 docker-entrypoint.sh /usr/local/bin/hnsd-resolver-entrypoint
+COPY --chmod=0555 healthcheck.sh /usr/local/bin/hnsd-resolver-healthcheck
 
 USER hnsd
 VOLUME ["/var/lib/hnsd"]
