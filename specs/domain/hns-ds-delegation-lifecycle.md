@@ -1,6 +1,6 @@
 # HNS DS Delegation Lifecycle
 
-Status: draft for review
+Status: proposed working spec
 
 Related docs:
 
@@ -15,8 +15,8 @@ This doc defines the lifecycle that takes an HNS root from *proven ownership* to
 *authenticated resolution*, and the invariants that keep it authenticated over
 time.
 
-It exists because the product currently stops one step short. A creator can
-verify a root, have Pirate provision a signed child zone with DANE TLSA
+It exists because the managed onboarding path stops one step short. A creator
+can verify a root, have Pirate provision a signed child zone with DANE TLSA
 records, attach it to a community, and see a working public route — while the
 Handshake parent still carries no DS. The delegation is therefore insecure, the
 TLSA association is unauthenticated, and a correctly fail-closed DANE client
@@ -29,27 +29,28 @@ one. The verifier returns `ds_records` on every `/publish-txt` and
 cannot reach it. The values survive only as opaque JSON inside
 `namespace_verification_evidence_bundles.raw_response_json`.
 
-The result is a happy path that silently produces a half-secure namespace.
+Manually configured roots such as `.pirate` may already carry a valid DS. What
+the product cannot currently do is *establish* that state through onboarding,
+*represent* it, or *notice* when it stops being true.
 
 ## Scope
 
 This doc covers:
 
-- the states a root moves through from ownership proof to secure delegation
-- what "DS readiness" means cryptographically
-- the structured state the system must persist
+- the two orthogonal state dimensions a root carries: present delegation
+  security, and rollover progress
+- what authenticated resolution requires, beyond anchoring a key
+- the structured state the system must persist, and at what scope
 - how the parent DS is observed, and how often
-- key rollover, including the overlap discipline required when the parent is
-  on-chain and owner-gated
-- what attachment and routing are allowed to do at each state
+- key rollover ordering and timing when the parent is on-chain and owner-gated
+- what attachment and routing are allowed to do in each state
 
 This doc does not cover:
 
 - the quarantined pre-provisioning design intended to collapse the owner's two
-  Handshake writes into one. That design is deliberately specified *against*
-  the invariants established here rather than alongside them. See
-  [Quarantine Invariants](#quarantine-invariants) for the constraints it must
-  satisfy.
+  Handshake writes into one. That design is specified *against* the invariants
+  established here rather than alongside them. See
+  [Quarantine Invariants](#quarantine-invariants).
 - Spaces-family verification. The assertions named here are HNS-only.
 
 ## Core Distinction
@@ -60,113 +61,155 @@ Three separate claims are currently collapsed into one "verified" state:
 |---|---|
 | ownership proven | the owner controls the Handshake root and published the session TXT |
 | zone provisioned | Pirate serves a signed child zone for the root |
-| secure delegation | the Handshake parent carries a DS that authenticates that zone's live key |
-
-The first two are true for every root that completes verification today. The
-third is true for none of them, because nothing asks for it.
+| secure delegation | the Handshake parent anchors that zone's live key, and the zone validates |
 
 Only the third makes the chain of trust complete. Without it, DNSSEC validation
 terminates at the parent with an insecure delegation, and every downstream
 guarantee — signed answers, DANE TLSA, certificate binding — is unauthenticated.
 
-## States
+## State Model
 
-```
-ownership_pending
-  → ownership_verified
-    → ds_publication_required
-      → ds_confirmation_pending
-        → secure_delegation_ready
-            ↘ ds_drifted
-            ↘ key_rollover_required
-```
+Delegation security and rollover progress are **orthogonal**. A single enum
+cannot represent them: a planned rollover is a root that is *currently secure*
+while *a key change is in flight*, and collapsing those into one value forces
+the system to choose between reporting it as secure (losing the rollover) or as
+requiring action (falsely withdrawing authenticated routing from a root whose
+old key still validates).
 
-**`ownership_pending`** — a session exists with a TXT challenge. The parent has
-not yet been observed carrying the expected NS and TXT.
+### `delegation_security`
 
-**`ownership_verified`** — the parent carries the expected delegation and the
-session TXT. Ownership is proven. The zone may now be provisioned. Community
-attachment is permitted from this state (see
-[Attachment vs Routing](#attachment-vs-routing)).
+The present, observed authentication status of the root.
 
-**`ds_publication_required`** — the child zone is provisioned and signed, and
-its DNSKEY set is published. The DS records derived from the live KSK are
-available and the owner has been asked to publish them. This is a first-class
-state, not an implicit gap: it is the state most roots will sit in longest,
-because leaving it requires an on-chain wallet action by a human.
+| Value | Means |
+|---|---|
+| `unsecured` | no matching parent DS. Includes the pre-publication case. |
+| `pending` | a DS is believed submitted but not yet confirmed in the parent. |
+| `secure` | the parent anchors a live key **and** the zone validates. See [Authenticated Resolution](#authenticated-resolution). |
+| `drifted` | previously `secure`; the parent no longer anchors any live key. |
 
-**`ds_confirmation_pending`** — a DS matching the live key has been submitted or
-observed as pending in the parent, but has not yet been confirmed and settled.
-Distinguishing this from `ds_publication_required` prevents the UI from
-repeatedly asking for an action the owner has already taken.
+### `rollover_state`
 
-**`secure_delegation_ready`** — the observed parent DS set cryptographically
-matches a currently published zone DNSKEY. This is the only state in which HNS
-routing may be advertised as authenticated.
+Progress of a key change, independent of present security.
 
-**`ds_drifted`** — the parent DS no longer matches any currently published
-DNSKEY. Reached by a parent-side edit, a zone rebuild, or a key change that
-bypassed rollover. This is a fail-closed state: routing must be marked
-unauthenticated and the owner told what to republish.
+| Value | Means |
+|---|---|
+| `none` | no rollover in flight |
+| `required` | the key must change; nothing published yet |
+| `new_key_prepublished` | new DNSKEY published alongside the old |
+| `new_ds_pending` | owner asked to add the new DS; not yet observed |
+| `overlap` | both DS anchored; both keys live; waiting out caches |
+| `old_ds_removal_pending` | owner asked to remove the old DS; not yet observed |
 
-**`key_rollover_required`** — the zone's key must change (age, algorithm
-migration, compromise), and the parent DS must be updated before the old key can
-be retired. Distinct from `ds_drifted` because it is *planned*: the old key is
-still valid and still matches the parent, so resolution is still secure while
-the rollover runs.
+### Interaction rule
 
-## DS Readiness
+**Authenticated routing is permitted whenever `delegation_security = secure`,
+including throughout a rollover.** A rollover that is proceeding correctly never
+reduces present security; that is the entire point of the overlap discipline. A
+rollover that *fails* shows up as `delegation_security` moving to `drifted`,
+which is handled on its own terms.
 
-`secure_delegation_ready` requires a cryptographic match, not the presence of a
-record.
+`rollover_state` drives what the product *asks the owner to do*.
+`delegation_security` drives what the product *claims about the name*. They must
+never be read from the same field.
 
-A parent DS matches when **all** of the following hold against a DNSKEY
-currently published in the zone's DNSKEY RRset:
+## Authenticated Resolution
 
-- the DNSKEY has the SEP bit set (a KSK; flags `257`)
-- `key_tag` agrees
-- `algorithm` agrees
-- the DS digest equals the digest recomputed over the canonical owner name plus
-  the DNSKEY RDATA, using the DS record's own `digest_type`
+`delegation_security = secure` requires more than a DS that matches a DNSKEY.
+Matching anchors a key; it does not establish that the zone is operationally
+valid. A zone can present a perfectly matching DS while serving expired
+signatures, an unsigned RRset, or a key that signs nothing.
 
-Rules:
+Slice 1 must establish **all** of:
 
-- a root is ready if **at least one** published DS matches. Multiple DS records
-  are expected — the current deployment emits digest types `2` (SHA-256) and `4`
-  (SHA-384) for the same key — and a resolver needs only one it supports.
-- a DS whose digest type the system cannot compute is recorded as
-  `unverifiable`, never as matching. It neither satisfies nor blocks readiness
-  on its own.
-- a DS referencing an unknown key tag is `orphaned`. Orphaned DS records are
-  the signal for `ds_drifted` **only** when no DS matches; during rollover an
-  orphaned-looking old DS is expected and benign.
-- readiness is a property of the *observed parent*, never of what Pirate
-  intended to publish. The system must not infer readiness from having shown the
+1. **Anchor** — at least one parent DS matches a currently published DNSKEY by
+   key tag, algorithm, and digest recomputed over the canonical owner name plus
+   the DNSKEY RDATA, using that DS record's own `digest_type`.
+2. **Self-signature** — the DNSKEY RRset carries a valid RRSIG produced by a key
+   in that RRset.
+3. **Chain participation** — the DS-matched key actually participates in that
+   chain, rather than merely being present in the RRset.
+4. **Payload validation** — the RRsets the product depends on validate: SOA, the
+   apex and wildcard A records, and the TLSA associations backing DANE.
+5. **Temporal validity** — every relevant RRSIG is currently within its
+   inception and expiration window, and not within an unsafe margin of expiry.
+
+A root failing any of 2–5 is not `secure`, regardless of the anchor. Reporting
+it as secure would claim authenticated resolution for a zone that a validating
+resolver will reject.
+
+Matching rules:
+
+- a root is anchored if **at least one** published DS matches. A resolver needs
+  only one digest type it supports.
+- a DS whose digest type the system cannot compute is `unverifiable` — never
+  matching, and not on its own a reason to withhold security.
+- a DS referencing an unknown key tag is `orphaned`. Orphaned records indicate
+  drift **only** when no DS matches; during `overlap` and
+  `old_ds_removal_pending` an orphaned-looking old DS is expected and benign.
+- security is a property of the *observed parent and served zone*, never of what
+  Pirate intended to publish. It must not be inferred from having shown the
   owner the records.
+
+Pirate's managed zones use a KSK with flags `257`. That is **Pirate's managed-key
+policy**, not a universal DNSSEC requirement — DNSSEC permits other valid
+configurations, and this spec constrains only roots Pirate provisions.
+
+### Digest policy
+
+- **SHA-256 (`digest_type` 2) is required** for managed onboarding. Support is
+  universal; a root anchored only by a type the resolver cannot compute is
+  effectively unanchored.
+- **SHA-384 (`digest_type` 4) is additionally recommended** and published
+  alongside, while resolver compatibility remains uneven.
 
 ## Persisted State
 
 DS state must be structured and queryable. The current situation — values
 reachable only by parsing an audit blob — is what made this defect invisible.
 
-Per root, persist:
+### Scope: root-scoped
+
+**The DS lifecycle belongs to the canonical root record.** A root has one
+authoritative zone and one keyset; PowerDNS serves one DNSKEY set per zone.
+Verifications and community bindings *reference* that root record — they do not
+own its keyset, and a root attached as a mirror to a second community does not
+acquire a second lifecycle.
+
+This resolves the multi-community question directly: there is nothing to
+arbitrate, because per-community DS state never exists.
+
+### Fields
+
+Per root:
 
 - `zone_dnskeys` — key tag, algorithm, flags, and public key for each published
   DNSKEY, with the active KSK marked
-- `expected_ds` — the DS set derived from the current KSK, the values the owner
-  is asked to publish
+- `expected_ds` — a **versioned materialized snapshot** of the DS set derived
+  from a specific live DNSKEY set, carrying the key tag and derivation timestamp
+  it was computed from. It is valid only while that keyset is live. It is not an
+  indefinitely reusable cache, and a snapshot whose keyset is no longer published
+  is stale by definition and must be re-derived, never served to a user.
 - `observed_ds` — the DS set most recently read from the Handshake parent, each
   annotated `matching` / `orphaned` / `unverifiable`
-- `pending_ds` — DS for a key that is being rolled to but is not yet expected to
-  be authoritative
-- `delegation_state` — one of the states above
-- `last_parent_observation_at` and the observation provider
+- `pending_ds` — DS for a key being rolled to, not yet expected to be
+  authoritative
+- `delegation_security` and `rollover_state`
+- `last_parent_observation_at`, plus the observation provider
 - `state_changed_at`, so drift duration is measurable
 
-`expected_ds` must be derived from the live zone, never cached from an earlier
-provisioning response. The values in this incident's evidence bundle are already
-one zone rebuild away from being wrong; anything that reuses them without
-re-deriving is a latent bug.
+### Evidence for `pending`
+
+`delegation_security = pending` is a claim that an owner action is in flight, and
+it must be backed by evidence rather than optimism. Accepted evidence:
+
+- a wallet-submitted Handshake transaction id
+- a mempool observation of that update
+- an explicit user acknowledgement that they have submitted it
+
+A **confirmed parent observation transitions directly to `secure`** (subject to
+[Authenticated Resolution](#authenticated-resolution)) without passing through
+`pending`. `pending` exists to stop the UI re-asking for an action already taken,
+not as a mandatory waypoint.
 
 ## Observation
 
@@ -178,10 +221,8 @@ posture, not what the chain says.
 Cadence:
 
 - on demand, when the owner asks the UI to check
-- on a schedule for every root in `ds_confirmation_pending`, until confirmed or
-  expired
-- on a slower schedule for every root in `secure_delegation_ready`, to detect
-  drift
+- on a schedule while `delegation_security = pending` or a rollover is in flight
+- on a slower schedule while `secure`, to detect drift
 
 Drift detection is the part most easily skipped and most valuable. A root that
 was secure yesterday and is insecure today produces no error, no failed request,
@@ -193,59 +234,96 @@ validating clients the owner probably is not running.
 The parent is on-chain and the update is a wallet action. Pirate cannot roll a
 key on its own schedule, and must never try.
 
-Invariants:
+### Ordering
+
+1. Publish the new DNSKEY alongside the old. → `new_key_prepublished`
+2. Wait at least the DNSKEY RRset TTL, so resolvers holding the old RRset expire
+   it.
+3. Ask the owner to add the new DS **while retaining the old DS**. →
+   `new_ds_pending`
+4. Observe the new DS in the parent, then wait the parent DS cache window plus
+   safety margin. → `overlap`
+5. Switch signing as required, with both keys still published.
+6. Ask the owner to remove the old DS. → `old_ds_removal_pending`
+7. Observe removal, then wait out the old DS cache window.
+8. **Only then** retire the old DNSKEY. → `rollover_state = none`
+
+The old key is retired **last**, after the old DS is gone from the parent and
+its caches have expired. Retiring it earlier strands resolvers that still hold
+the old DS and now cannot find the key it anchors — a self-inflicted validation
+failure.
+
+### Timing
+
+The waits at steps 2, 4 and 7 are computed from **positive RRset TTLs and
+signature lifetimes**, specifically:
+
+- the DNSKEY RRset TTL
+- the effective parent DS cache lifetime
+- remaining RRSIG validity for the affected RRsets, since a resolver may hold a
+  cached signature until its expiration regardless of TTL
+- a safety margin
+
+Negative-cache TTL is **not** a substitute for these. It governs how long a
+resolver remembers an absence, not how long it retains a positive RRset or a
+signature it already holds.
+
+On Handshake the parent DS lives in the on-chain root resource, and its
+effective cache lifetime is determined by the resolver stack rather than a TTL
+Pirate controls. The safety margin must be conservative accordingly.
+
+### Invariants
 
 1. **Never rotate a key underneath a published DS.** Any operation that would
-   change the zone's KSK for a root whose DS is published must refuse and raise
-   `key_rollover_required` instead. This explicitly includes zone rebuild and
-   re-provisioning: `/ensure-zone` must be idempotent with respect to keys and
-   must not silently mint a new keyset for a root in
-   `secure_delegation_ready`.
-2. **Publish before retiring.** The new DS must be observed in the parent while
-   the old key is still published and still matching.
-3. **Overlap through the caching window.** After the parent carries the new DS,
-   both keys stay published for longer than the longest relevant cache lifetime
-   — parent DS TTL, zone DNSKEY TTL, and the zone's negative-caching TTL — plus
-   a safety margin. Only then may the old key be retired and the old DS asked to
-   be removed.
-4. **The owner controls the pace.** Because step 2 requires a human wallet
-   action, rollover may sit incomplete indefinitely. The system must remain
-   secure and correct in that state rather than timing out into drift.
+   change the KSK for a root whose DS is published must refuse and raise
+   `rollover_state = required` instead. This explicitly includes zone rebuild
+   and re-provisioning: `/ensure-zone` must be idempotent with respect to keys
+   and must not silently mint a new keyset for a root that is `secure`.
+2. **Publish before retiring**, per the ordering above.
+3. **The owner controls the pace.** Steps 3 and 6 require human wallet actions,
+   so a rollover may sit incomplete indefinitely. The system must remain secure
+   and correct in that state rather than timing out into drift.
 
-Invariant 1 is not hypothetical. The zone in the incident that motivated this
-spec was created by a manual `/ensure-zone` call; had a DS already been
-published for an earlier keyset, that call would have silently broken every
-validating client with no error surfaced anywhere.
+Invariant 1 is not hypothetical. The zone that motivated this spec was created
+by a manual `/ensure-zone` call; had a DS already been published for an earlier
+keyset, that call would have silently broken every validating client with no
+error surfaced anywhere.
 
 ## Attachment vs Routing
 
-Settled: **attachment is allowed at `ownership_verified`; authenticated HNS
-routing is not advertised until `secure_delegation_ready`.**
+**Attachment is allowed at ownership proof; authenticated HNS routing requires
+`delegation_security = secure`.**
 
 Rationale: ownership is genuinely proven at that point, and the community
-association is the thing the creator came for. Withholding it until an on-chain
-DS lands would strand every import behind a second wallet action before the
-product does anything useful.
+association is what the creator came for. Withholding it until an on-chain DS
+lands would strand every import behind a second wallet action before the product
+does anything useful.
 
-What must be true while attached but not secure:
+While attached but not `secure`:
 
 - the community association, `route_slug`, and namespace bindings are live
 - the namespace surface states plainly that authenticated HNS resolution is
   incomplete, and which action completes it
-- nothing in the product claims the name is verified *for secure resolution*
-- the distinction is legible in API responses, not only in UI copy, so other
+- nothing claims the name is verified *for secure resolution*
+- the distinction is legible in API responses, not only UI copy, so other
   surfaces cannot accidentally imply the stronger claim
 
-The existing assertion vocabulary is not sufficient to express this.
+**Drift is treated identically.** If authenticated routing is withheld before a
+DS is published, it must also be withheld once a DS has drifted. The security
+posture is the same in both cases — the chain does not validate — and treating
+them differently would mean the product is more permissive about a delegation
+that *broke* than one that was never completed.
+
+The existing assertion vocabulary cannot express this.
 `root_control_verified`, `routing_enabled`, and `pirate_dns_authority_verified`
 all describe ownership and routing posture; none describes parent DS. Slice 1
-adds `parent_ds_published`, defined as the cryptographic match above.
+adds `parent_ds_published`, defined by
+[Authenticated Resolution](#authenticated-resolution).
 
 ## Quarantine Invariants
 
 The one-write onboarding design provisions a zone before ownership is proven, so
-that NS, TXT, and DS can be published in a single Handshake update. Constraints
-it must satisfy:
+NS, TXT, and DS can be published in a single Handshake update. Constraints:
 
 - **one idempotent quarantined zone and keyset per root.** PowerDNS serves one
   authoritative zone and one DNSKEY set per root; per-attempt keys would require
@@ -259,39 +337,44 @@ it must satisfy:
 - **provisioning is bound to an authenticated account and rate-limited.**
   Minting keys for a root the requester has not proven they own is a resource
   and staging surface; it must not be anonymous or unbounded.
-- **abandoned sessions expire on a short clock; zone deletion follows a longer
-  retention policy**, because a deleted zone whose DS is already published in
-  the parent is worse than an idle one.
+- **abandoned sessions expire on a short clock; zone deletion follows the
+  retention rule below.**
+
+## Retention
+
+A zone is retained until **both** are true:
+
+- the Handshake parent no longer delegates to Pirate nameservers, and
+- no Pirate-anchored DS remains in the parent
+
+This applies to detachment as much as abandonment. If a community detaches a
+namespace whose DS is still published, deleting the zone would break resolution
+for a name the owner still controls, and would do so with no error path back to
+them. An idle zone is cheap; a broken delegation is not.
 
 ## Failure Semantics
 
-Every state transition that can fail must record *which stage* failed, as
-queryable state rather than a log line:
+Every transition that can fail must record *which stage* failed, as queryable
+state rather than a log line:
 
 ```
 verify_ownership | provision_zone | check_authority_health | observe_parent_ds
 ```
 
-A provider outage must be reported as a provider outage. The current behaviour
-— every pending state rendering as "Records not found." regardless of cause —
-made a one-line ordering bug cost several days of diagnosis, because the failure
-that actually occurred was discarded at the API boundary and the UI substituted
-a plausible, wrong explanation.
+A provider outage must be reported as a provider outage. The current behaviour —
+every pending state rendering as "Records not found." regardless of cause — made
+a one-line ordering bug cost days of diagnosis, because the failure that actually
+occurred was discarded at the API boundary and the UI substituted a plausible,
+wrong explanation.
 
 The same rule applies to DS observation. "We could not read the parent" and "the
 parent carries no matching DS" are different facts and must not share a state.
+The first is an outage; the second is `unsecured` or `drifted`.
 
 ## Open Questions
 
-- **Digest type policy.** The deployment currently emits types `2` and `4`. Is
-  publishing both required, recommended, or owner's choice? Resolver support for
-  `4` is not universal; publishing only `4` could strand validators.
-- **Drift response.** On detecting `ds_drifted`, does the product disable the
-  public HNS route, or serve it while clearly marked unauthenticated? Disabling
-  is safer and more surprising.
-- **Retention on detach.** If a community detaches a namespace whose DS is
-  published, the parent still points at a Pirate zone. Deleting it breaks
-  resolution for a name the owner still controls. Retention policy needs to be
-  stated.
-- **Multi-community roots.** A root attached as a mirror to a second community
-  shares one zone and one keyset. Which community's lifecycle owns the DS state?
+- **Safety margin values.** The ordering above is specified in terms of TTLs and
+  signature lifetimes; the concrete margins, and the observation cadences during
+  rollover, need operator input against the deployed TTLs.
+- **Expiry-proximity threshold.** How close to RRSIG expiration a zone may be
+  before `secure` is withdrawn rather than merely warned about.
