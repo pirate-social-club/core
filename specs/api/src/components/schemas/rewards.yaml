@@ -61,6 +61,7 @@ RewardsCashoutSummary:
     - eligible
     - min_cents
     - verification_state
+    - verification_provider
   properties:
     eligible:
       type: boolean
@@ -68,6 +69,29 @@ RewardsCashoutSummary:
       type: integer
     verification_state:
       $ref: ./rewards.yaml#/RewardVerificationState
+    verification_provider:
+      type: string
+      enum:
+        - self
+        - very
+      nullable: true
+RewardPendingVerificationSummary:
+  type: object
+  required:
+    - count
+    - conditional_cents
+    - earliest_expires_at
+  properties:
+    count:
+      type: integer
+      minimum: 0
+    conditional_cents:
+      type: integer
+      minimum: 0
+    earliest_expires_at:
+      type: integer
+      format: int64
+      nullable: true
 RewardsSummaryResponse:
   type: object
   required:
@@ -75,6 +99,7 @@ RewardsSummaryResponse:
     - balance_cents
     - today_earned_cents
     - recent_events
+    - pending_verification
     - cashout
     - latest_in_flight_cashout
   properties:
@@ -89,6 +114,8 @@ RewardsSummaryResponse:
       type: array
       items:
         $ref: ./rewards.yaml#/RewardEventSummary
+    pending_verification:
+      $ref: ./rewards.yaml#/RewardPendingVerificationSummary
     cashout:
       $ref: ./rewards.yaml#/RewardsCashoutSummary
     latest_in_flight_cashout:
