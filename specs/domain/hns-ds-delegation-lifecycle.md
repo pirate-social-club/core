@@ -114,10 +114,39 @@ value:
 observation_fresh := now - last_parent_observation_at <= max_observation_age
 ```
 
-Authenticated routing requires `delegation_security = secure` **and**
-`observation_fresh`. A root that is `secure` but not fresh is not downgraded to
-another security value — the last finding stands as a finding — but it must not
-be advertised as authenticated until re-observed.
+This yields the single predicate that **every** routing decision in this spec
+refers to:
+
+```
+authenticated_routing_allowed :=
+  delegation_security = secure
+  AND observation_fresh
+```
+
+There is no other routing rule. Any statement elsewhere in this doc about
+routing being permitted means exactly this predicate — a rule stated as
+`delegation_security = secure` alone is a defect, because it would advertise a
+root on the strength of an observation that may be arbitrarily old.
+
+A root that is `secure` but not fresh is not downgraded to another security
+value — the last finding stands as a finding — but it must not be advertised as
+authenticated until re-observed.
+
+### Failed observation vs `unknown`
+
+These are different and must not be conflated:
+
+- **`unknown`** means no successful security evaluation has *ever* been made for
+  the root.
+- **A failed observation after a previous evaluation** retains the last
+  `delegation_security` value, records an `observe_parent_ds` failure, and lets
+  `observation_fresh` lapse on its own.
+- **A successful observation** replaces the security value outright.
+
+A transient provider outage must therefore never erase a useful last-known
+`secure` finding. It stops the root being advertised — via `observation_fresh` —
+without destroying what we knew, and it is recorded as an outage rather than
+silently reinterpreted as a security result.
 
 This is deliberately a predicate rather than a `stale` enum value: staleness is
 a property of our *knowledge*, not of the *root*, and the two must not share a
@@ -139,11 +168,16 @@ Progress of a key change, independent of present security.
 
 ### Interaction rule
 
-**Authenticated routing is permitted whenever `delegation_security = secure`,
-including throughout a rollover.** A rollover that is proceeding correctly never
-reduces present security; that is the entire point of the overlap discipline. A
-rollover that *fails* shows up as `delegation_security` moving to `drifted`,
-which is handled on its own terms.
+**`rollover_state` is not an input to
+[`authenticated_routing_allowed`](#observation-freshness).** Routing is
+permitted throughout a rollover on exactly the same terms as at any other time —
+`delegation_security = secure AND observation_fresh` — and a rollover in flight
+neither grants nor withdraws it.
+
+A rollover that is proceeding correctly never reduces present security; that is
+the entire point of the overlap discipline. A rollover that *fails* shows up as
+`delegation_security` moving to `drifted` or `bogus`, which is handled on its own
+terms.
 
 `rollover_state` drives what the product *asks the owner to do*.
 `delegation_security` drives what the product *claims about the name*. They must
@@ -364,7 +398,7 @@ error surfaced anywhere.
 ## Attachment vs Routing
 
 **Attachment is allowed at ownership proof; authenticated HNS routing requires
-`delegation_security = secure`.**
+[`authenticated_routing_allowed`](#observation-freshness).**
 
 Rationale: ownership is genuinely proven at that point, and the community
 association is what the creator came for. Withholding it until an on-chain DS
@@ -394,11 +428,28 @@ and routing posture; none describes parent DS.
 
 Slice 1 adds **three** assertions, not one:
 
-| Assertion | Means | Remedy when false |
-|---|---|---|
-| `parent_ds_matches_live_dnskey` | condition 1 — the parent anchors a live key | owner publishes or fixes the DS |
-| `authoritative_dnssec_valid` | conditions 2–5 — the served zone validates | Pirate fixes the zone |
-| `secure_delegation_verified` | both of the above, plus `observation_fresh` | depends which input is false |
+| Assertion | Means | Kind | Remedy when false |
+|---|---|---|---|
+| `parent_ds_matches_live_dnskey` | condition 1 — the parent anchors a live key | persisted observation | owner publishes or fixes the DS |
+| `authoritative_dnssec_valid` | conditions 2–5 — the served zone validates | persisted observation | Pirate fixes the zone |
+| `secure_delegation_verified` | all of the above, currently | **derived** | depends which input is false |
+
+The first two are observations, persisted with the timestamp at which they were
+established. The third is **derived and time-varying**:
+
+```
+secure_delegation_verified :=
+  parent_ds_matches_live_dnskey
+  AND authoritative_dnssec_valid
+  AND observation_fresh
+```
+
+Because `observation_fresh` depends on the current time, this value changes
+without any database write. It must therefore be **evaluated dynamically at read
+time**, or actively materialized with an expiry mechanism that retires it. A
+`secure_delegation_verified = true` stored durably and left alone would recreate
+precisely the stale-security problem the freshness predicate exists to prevent —
+a root that stopped being observed but keeps reporting itself verified.
 
 A single combined assertion would destroy the diagnostic difference between
 "publish your DS" and "our signed zone is broken" — two failures with different
@@ -406,7 +457,15 @@ owners, different fixes, and different urgency. Collapsing them would recreate
 exactly the misleading-state problem this spec exists to solve: one flag that is
 false for several unrelated reasons, leaving the reader to guess which.
 
-`secure_delegation_verified` is the only one routing may key off.
+`secure_delegation_verified` is the only one routing may key off — and it is the
+**same predicate** as
+[`authenticated_routing_allowed`](#observation-freshness), since
+`delegation_security = secure` holds exactly when
+`parent_ds_matches_live_dnskey AND authoritative_dnssec_valid` does. The two
+names describe one condition from two surfaces: `secure_delegation_verified` is
+what the assertion vocabulary exposes, `authenticated_routing_allowed` is what
+the routing gate consults. Slice 1 must implement them as a single evaluation
+with two names, never as two independent checks that can drift apart.
 
 ## Quarantine Invariants
 
