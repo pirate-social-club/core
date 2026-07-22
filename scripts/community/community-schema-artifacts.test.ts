@@ -289,4 +289,45 @@ describe("expectedArtifacts — real migration files", () => {
     expect(a.unrecognized).toEqual([])
     expect(artifactCount(a)).toBe(8)
   })
+
+  test("1143_lyrics_language: 6 columns on posts, nothing else", () => {
+    const a = expectedArtifacts(readMigration("1143_lyrics_language.sql"))
+    expect(a.columns).toEqual([
+      ["posts", "lyrics_language"],
+      ["posts", "lyrics_language_confidence"],
+      ["posts", "lyrics_language_reliable"],
+      ["posts", "lyrics_language_detector"],
+      ["posts", "lyrics_language_detected_at"],
+      ["posts", "lyrics_language_source_hash"],
+    ])
+    expect(a.tables).toEqual([])
+    expect(a.indexes).toEqual([])
+    expect(a.altered).toEqual(["posts"])
+    expect(a.unrecognized).toEqual([])
+    expect(artifactCount(a)).toBe(6)
+  })
+
+  test("1143_lyrics_language: applies cleanly and defaults are inert", () => {
+    const db = new Database(":memory:")
+    try {
+      db.exec("CREATE TABLE posts (post_id TEXT PRIMARY KEY)")
+      db.exec(readMigration("1143_lyrics_language.sql"))
+      db.exec("INSERT INTO posts (post_id) VALUES ('pst_1')")
+      expect(
+        db.query(`SELECT lyrics_language, lyrics_language_confidence, lyrics_language_reliable,
+                         lyrics_language_detector, lyrics_language_detected_at, lyrics_language_source_hash
+                  FROM posts WHERE post_id = 'pst_1'`).get(),
+      ).toEqual({
+        lyrics_language: null,
+        lyrics_language_confidence: null,
+        // Never default-reliable: a row with no detection evidence must read as unverified.
+        lyrics_language_reliable: 0,
+        lyrics_language_detector: null,
+        lyrics_language_detected_at: null,
+        lyrics_language_source_hash: null,
+      })
+    } finally {
+      db.close()
+    }
+  })
 })
