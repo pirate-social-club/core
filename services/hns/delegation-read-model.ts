@@ -1,0 +1,207 @@
+/**
+ * Read-time adapter over the state-to-observation join.
+ *
+ * Slice 1 step 3. This module owns the *only* supported way to read root
+ * delegation state: one query joining `hns_root_delegation_state` to its
+ * referenced `hns_root_parent_observations` row, fed through
+ * `resolveRootDelegationState` and then `evaluateDelegation`.
+ *
+ * It lives in core rather than in a consumer because the readers span repos.
+ * Two independent implementations of this join would be two places for the
+ * freshness rule to drift, which is the failure mode the whole slice exists to
+ * prevent.
+ *
+ * The adapter is read-only by construction: it exposes no writer, and it never
+ * projects into `namespace_verification_assertions`. DNSSEC delegation state
+ * has exactly one authority, and it is these tables.
+ */
+
+import {
+  DEFAULT_DELEGATION_THRESHOLDS,
+  evaluateDelegation,
+  resolveRootDelegationState,
+  type DelegationEvaluation,
+  type DelegationThresholdsInput,
+  type ParentObservationRow,
+  type RootDelegationRow,
+} from "./delegation-state";
+
+/**
+ * The canonical join. LEFT JOIN, not INNER: a root with no successful
+ * observation yet must still return its row, so the reader can distinguish
+ * "never observed" from "no such root". An INNER JOIN would silently turn the
+ * former into the latter and lose the rollover and pending state with it.
+ *
+ * The join predicate carries `normalized_root_label` as well as the id so a
+ * malformed query cannot pair a row with another root's observation -- the same
+ * pairing the composite FK forbids at write time.
+ */
+export const ROOT_DELEGATION_READ_SQL = `
+SELECT
+    state.normalized_root_label,
+    state.rollover_state,
+    state.pending_evidence_kind,
+    state.last_parent_observation_id,
+    observation.parent_observation_id,
+    observation.observed_delegation_security,
+    observation.parent_ds_matches_live_dnskey,
+    observation.authoritative_dnssec_valid,
+    observation.observed_at,
+    observation.earliest_rrsig_expires_at
+FROM hns_root_delegation_state AS state
+LEFT JOIN hns_root_parent_observations AS observation
+    ON observation.parent_observation_id = state.last_parent_observation_id
+    AND observation.normalized_root_label = state.normalized_root_label
+WHERE state.normalized_root_label = $1
+`.trim();
+
+/** One joined row, with the observation columns null when there is none. */
+export interface RootDelegationJoinRow {
+  readonly normalized_root_label: string;
+  readonly rollover_state: RootDelegationRow["rolloverState"];
+  readonly pending_evidence_kind: RootDelegationRow["pendingEvidenceKind"];
+  readonly last_parent_observation_id: string | null;
+  readonly parent_observation_id: string | null;
+  readonly observed_delegation_security:
+    | ParentObservationRow["observedDelegationSecurity"]
+    | null;
+  readonly parent_ds_matches_live_dnskey: number | boolean | null;
+  readonly authoritative_dnssec_valid: number | boolean | null;
+  readonly observed_at: string | Date | null;
+  readonly earliest_rrsig_expires_at: string | Date | null;
+}
+
+function toMs(value: string | Date | null): number | null {
+  if (value === null) {
+    return null;
+  }
+  const ms = value instanceof Date ? value.getTime() : Date.parse(value);
+  if (Number.isNaN(ms)) {
+    throw new TypeError(`unparseable timestamp in root delegation row: ${String(value)}`);
+  }
+  return ms;
+}
+
+function toBool(value: number | boolean | null): boolean {
+  // Column is INTEGER CHECK (…IN (0,1)) and NOT NULL whenever the observation
+  // succeeded, which is the only kind of observation this join can reach.
+  if (value === null) {
+    throw new TypeError("successful observation is missing a component finding");
+  }
+  return typeof value === "boolean" ? value : value === 1;
+}
+
+/**
+ * Evaluate a root from its joined row.
+ *
+ * Pass `null` when the query returned no row at all. Every inconsistent shape
+ * throws by way of `resolveRootDelegationState`; nothing degrades quietly.
+ */
+export function evaluateJoinedRoot(
+  row: RootDelegationJoinRow | null,
+  nowMs: number,
+  thresholds: DelegationThresholdsInput = DEFAULT_DELEGATION_THRESHOLDS,
+): DelegationEvaluation {
+  if (row === null) {
+    return evaluateDelegation(null, nowMs, thresholds);
+  }
+
+  const stateRow: RootDelegationRow = {
+    rolloverState: row.rollover_state,
+    lastParentObservationId: row.last_parent_observation_id,
+    pendingEvidenceKind: row.pending_evidence_kind,
+  };
+
+  const observation: ParentObservationRow | null =
+    row.parent_observation_id === null
+      ? null
+      : {
+          parentObservationId: row.parent_observation_id,
+          observedDelegationSecurity: requireObservedSecurity(row),
+          parentDsMatchesLiveDnskey: toBool(row.parent_ds_matches_live_dnskey),
+          authoritativeDnssecValid: toBool(row.authoritative_dnssec_valid),
+          observedAtMs: requireObservedAt(row),
+          earliestRrsigExpiresAtMs: toMs(row.earliest_rrsig_expires_at),
+        };
+
+  return evaluateDelegation(
+    resolveRootDelegationState(stateRow, observation),
+    nowMs,
+    thresholds,
+  );
+}
+
+function requireObservedSecurity(
+  row: RootDelegationJoinRow,
+): ParentObservationRow["observedDelegationSecurity"] {
+  if (row.observed_delegation_security === null) {
+    throw new TypeError(
+      `observation ${String(row.parent_observation_id)} has no security finding; ` +
+        "the outcome CHECK guarantees a successful observation carries one",
+    );
+  }
+  return row.observed_delegation_security;
+}
+
+function requireObservedAt(row: RootDelegationJoinRow): number {
+  const ms = toMs(row.observed_at);
+  if (ms === null) {
+    throw new TypeError(
+      `observation ${String(row.parent_observation_id)} has no observed_at`,
+    );
+  }
+  return ms;
+}
+
+/**
+ * The existing API response shape, as far as DNSSEC delegation affects it.
+ *
+ * This is a *projection*, computed per request. It is never written back to
+ * `namespace_verification_assertions`: those rows carry ownership and
+ * attachment facts, and a security value stored there would become a second
+ * authority no matter how it were labelled.
+ *
+ * `club_attach_allowed` is deliberately absent. Attachment is granted at
+ * ownership proof and is not a function of delegation state -- withholding it
+ * until an on-chain DS lands would strand every import behind a second wallet
+ * action. Callers keep reading that field from the verification record.
+ */
+export interface DelegationResponseProjection {
+  readonly pirate_web_routing_allowed: boolean;
+  readonly pirate_subdomain_issuance_allowed: boolean;
+  readonly delegation_security: DelegationEvaluation["delegationSecurity"];
+  readonly rollover_state: DelegationEvaluation["rolloverState"];
+  readonly observation_fresh: boolean;
+  readonly observation_age_seconds: number | null;
+  readonly routing_withheld_reason: DelegationEvaluation["routingWithheldReason"];
+  readonly signature_expiry_warning: boolean;
+}
+
+/**
+ * Project an evaluation into the response shape.
+ *
+ * Both allow-flags are the same predicate, because both are authenticated
+ * resolution: issuing a subdomain certificate for a root whose delegation does
+ * not validate advertises exactly the claim the gate exists to withhold.
+ *
+ * The reason is included in the response, not only the UI, so other surfaces
+ * cannot accidentally imply the stronger claim -- a bare `false` reads as "not
+ * verified", which is wrong when the truth is "we have not observed it lately".
+ */
+export function projectDelegationResponse(
+  evaluation: DelegationEvaluation,
+): DelegationResponseProjection {
+  return {
+    pirate_web_routing_allowed: evaluation.authenticatedRoutingAllowed,
+    pirate_subdomain_issuance_allowed: evaluation.authenticatedRoutingAllowed,
+    delegation_security: evaluation.delegationSecurity,
+    rollover_state: evaluation.rolloverState,
+    observation_fresh: evaluation.observationFresh,
+    observation_age_seconds:
+      evaluation.observationAgeMs === null
+        ? null
+        : Math.floor(evaluation.observationAgeMs / 1000),
+    routing_withheld_reason: evaluation.routingWithheldReason,
+    signature_expiry_warning: evaluation.signatureExpiryWarning,
+  };
+}
