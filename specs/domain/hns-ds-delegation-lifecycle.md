@@ -82,10 +82,47 @@ The present, observed authentication status of the root.
 
 | Value | Means |
 |---|---|
-| `unsecured` | no matching parent DS. Includes the pre-publication case. |
+| `unknown` | never observed, or the parent could not be read. Not a claim about the root. |
+| `unsecured` | observed; no matching parent DS. Includes the pre-publication case. |
 | `pending` | a DS is believed submitted but not yet confirmed in the parent. |
 | `secure` | the parent anchors a live key **and** the zone validates. See [Authenticated Resolution](#authenticated-resolution). |
+| `bogus` | a trust anchor exists and matches, but authoritative zone validation fails. |
 | `drifted` | previously `secure`; the parent no longer anchors any live key. |
+
+`bogus` is distinct from both neighbours and cannot be folded into either.
+`unsecured` and `drifted` describe the *anchor* — no DS, or a DS that no longer
+matches. `bogus` describes a root whose DS still matches perfectly while the
+zone itself fails to validate: expired RRSIGs, an unsigned TLSA RRset, a key
+that signs nothing. The owner-facing remedy is entirely different, and so is the
+responsible party — `bogus` is almost always Pirate's fault, not the owner's.
+
+`unknown` is not a synonym for `unsecured`. Asserting `unsecured` claims we
+looked and found no anchor; `unknown` admits we have not established anything.
+Collapsing them would let an observer outage read as a security finding.
+
+### Observation freshness
+
+`delegation_security` records the *last evaluated* status. It says nothing about
+how old that evaluation is, and a stale `secure` is not evidence of present
+security — an observer that stopped updating would otherwise let a root remain
+authoritatively "secure" indefinitely.
+
+Freshness is therefore a **separate mandatory predicate**, not another enum
+value:
+
+```
+observation_fresh := now - last_parent_observation_at <= max_observation_age
+```
+
+Authenticated routing requires `delegation_security = secure` **and**
+`observation_fresh`. A root that is `secure` but not fresh is not downgraded to
+another security value — the last finding stands as a finding — but it must not
+be advertised as authenticated until re-observed.
+
+This is deliberately a predicate rather than a `stale` enum value: staleness is
+a property of our *knowledge*, not of the *root*, and the two must not share a
+field for exactly the reason `delegation_security` and `rollover_state` must
+not.
 
 ### `rollover_state`
 
@@ -133,9 +170,11 @@ Slice 1 must establish **all** of:
 5. **Temporal validity** — every relevant RRSIG is currently within its
    inception and expiration window, and not within an unsafe margin of expiry.
 
-A root failing any of 2–5 is not `secure`, regardless of the anchor. Reporting
-it as secure would claim authenticated resolution for a zone that a validating
-resolver will reject.
+A root satisfying 1 but failing any of 2–5 is `bogus`, not `unsecured` and not
+`drifted`: the anchor is intact and the zone is broken. Reporting it as `secure`
+would claim authenticated resolution for a zone a validating resolver will
+reject; reporting it as `unsecured` would send the owner to fix a DS that is
+already correct.
 
 Matching rules:
 
@@ -144,8 +183,13 @@ Matching rules:
 - a DS whose digest type the system cannot compute is `unverifiable` — never
   matching, and not on its own a reason to withhold security.
 - a DS referencing an unknown key tag is `orphaned`. Orphaned records indicate
-  drift **only** when no DS matches; during `overlap` and
-  `old_ds_removal_pending` an orphaned-looking old DS is expected and benign.
+  drift **only** when no DS matches.
+- **an orphaned DS during `overlap` or `old_ds_removal_pending` is an invariant
+  violation, not an expected condition.** Both keys are published until step 8,
+  so both DS records must still match. An orphaned old DS during those stages
+  means the old DNSKEY was retired early, which is precisely the failure the
+  ordering exists to prevent. It must raise an alarm rather than being tolerated
+  as rollover noise.
 - security is a property of the *observed parent and served zone*, never of what
   Pirate intended to publish. It must not be inferred from having shown the
   owner the records.
@@ -156,8 +200,9 @@ configurations, and this spec constrains only roots Pirate provisions.
 
 ### Digest policy
 
-- **SHA-256 (`digest_type` 2) is required** for managed onboarding. Support is
-  universal; a root anchored only by a type the resolver cannot compute is
+- **SHA-256 (`digest_type` 2) is required** for managed onboarding. It is the
+  modern mandatory-to-implement digest and Pirate's managed baseline; a root
+  anchored only by a type a given resolver cannot compute is, to that resolver,
   effectively unanchored.
 - **SHA-384 (`digest_type` 4) is additionally recommended** and published
   alongside, while resolver compatibility remains uneven.
@@ -196,6 +241,27 @@ Per root:
 - `delegation_security` and `rollover_state`
 - `last_parent_observation_at`, plus the observation provider
 - `state_changed_at`, so drift duration is measurable
+
+### Issuance history
+
+Current and pending keys are not sufficient. Persist a retained, append-only
+provenance record:
+
+- `issued_keysets` — every keyset Pirate has ever provisioned for the root, with
+  key tags, algorithms and public keys
+- `issued_ds` — every DS value Pirate has ever derived and asked an owner to
+  publish, linked to the keyset it came from
+- `activated_at` and `retired_at` per keyset
+
+Retain this history until **no parent DS corresponds to any entry in it**.
+
+Without it, the retention rule is unevaluable in exactly the scenario this spec
+exists to handle. If a zone is rebuilt, the old parent DS becomes orphaned
+against the new keyset — and with only current and pending keys on record, the
+system can no longer tell whether that orphaned DS is a Pirate-issued anchor
+that must be retained and cleaned up, or an unrelated record it should ignore.
+The question "does a Pirate-anchored DS remain?" can only be answered against
+what Pirate has issued, not against what it currently serves.
 
 ### Evidence for `pending`
 
@@ -243,7 +309,13 @@ key on its own schedule, and must never try.
    `new_ds_pending`
 4. Observe the new DS in the parent, then wait the parent DS cache window plus
    safety margin. → `overlap`
-5. Switch signing as required, with both keys still published.
+5. Switch signing to the new key, with both keys still published. This step is
+   an **implementation gate**, not a nudge: before proceeding, the system must
+   confirm that the new key actively signs every RRset the product depends on
+   (SOA, apex and wildcard A, TLSA), and that the trust path anchored by the
+   **new DS alone** validates independently of the old one. Requesting removal
+   of the old DS before that holds would ask the owner to delete the only
+   working anchor.
 6. Ask the owner to remove the old DS. → `old_ds_removal_pending`
 7. Observe removal, then wait out the old DS cache window.
 8. **Only then** retire the old DNSKEY. → `rollover_state = none`
@@ -314,11 +386,27 @@ posture is the same in both cases — the chain does not validate — and treati
 them differently would mean the product is more permissive about a delegation
 that *broke* than one that was never completed.
 
-The existing assertion vocabulary cannot express this.
-`root_control_verified`, `routing_enabled`, and `pirate_dns_authority_verified`
-all describe ownership and routing posture; none describes parent DS. Slice 1
-adds `parent_ds_published`, defined by
-[Authenticated Resolution](#authenticated-resolution).
+### Assertions
+
+The existing vocabulary cannot express this. `root_control_verified`,
+`routing_enabled`, and `pirate_dns_authority_verified` all describe ownership
+and routing posture; none describes parent DS.
+
+Slice 1 adds **three** assertions, not one:
+
+| Assertion | Means | Remedy when false |
+|---|---|---|
+| `parent_ds_matches_live_dnskey` | condition 1 — the parent anchors a live key | owner publishes or fixes the DS |
+| `authoritative_dnssec_valid` | conditions 2–5 — the served zone validates | Pirate fixes the zone |
+| `secure_delegation_verified` | both of the above, plus `observation_fresh` | depends which input is false |
+
+A single combined assertion would destroy the diagnostic difference between
+"publish your DS" and "our signed zone is broken" — two failures with different
+owners, different fixes, and different urgency. Collapsing them would recreate
+exactly the misleading-state problem this spec exists to solve: one flag that is
+false for several unrelated reasons, leaving the reader to guess which.
+
+`secure_delegation_verified` is the only one routing may key off.
 
 ## Quarantine Invariants
 
@@ -331,6 +419,15 @@ NS, TXT, and DS can be published in a single Handshake update. Constraints:
   rollover semantics that do not resolve cleanly.
 - **multiple authenticated sessions may reference the same quarantined zone**,
   each retaining its own TXT challenge. The zone is shared; the proof is not.
+- **per-session authority-health nonce isolation is required.** Today
+  `/publish-txt` writes the session nonce to a single `_pirate.<root>` owner
+  name, replacing whatever was there. With a shared zone, two concurrent
+  sessions silently overwrite each other's nonce, and whichever session reads
+  back second sees the other's value — an authority-health check that passes or
+  fails for the wrong reason. Either give each session its own owner name, or
+  retain multiple session values at `_pirate.<root>` and match on value rather
+  than presence. This is a change to the verifier contract, not only to
+  Pirate-side bookkeeping.
 - **a root-scoped provisioning lock** prevents concurrent zone or key creation.
 - **only proven ownership activates attachment or routing.** A quarantined zone
   is inert: it exists, it is signed, and nothing points at it.
@@ -345,7 +442,10 @@ NS, TXT, and DS can be published in a single Handshake update. Constraints:
 A zone is retained until **both** are true:
 
 - the Handshake parent no longer delegates to Pirate nameservers, and
-- no Pirate-anchored DS remains in the parent
+- no parent DS corresponds to any entry in [`issued_ds`](#issuance-history)
+
+The second condition is evaluated against issuance history rather than the
+currently served keyset, so it survives a zone rebuild.
 
 This applies to detachment as much as abandonment. If a community detaches a
 namespace whose DS is still published, deleting the zone would break resolution
