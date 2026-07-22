@@ -1126,6 +1126,46 @@ Post:
     source_language_source_hash:
       type: string
       nullable: true
+    lyrics_language:
+      type: string
+      nullable: true
+      readOnly: true
+      description: |
+        Server-authored dominant language associated with `lyrics`. Reliably detected values are
+        derived from lyrics alone. During the staged migration this field may instead contain a
+        legacy compatibility copy of `source_language`, which was derived from
+        title/body/caption/lyrics together; such copied values carry
+        `lyrics_language_reliable = false`. Null when the post has no lyrics, when detection
+        abstained, or when the community shard has not yet received migration 1143
+        (transitional). Must not be used for translation provenance.
+        Consumed by learning features (Study).
+    lyrics_language_confidence:
+      type: number
+      format: double
+      nullable: true
+      readOnly: true
+      minimum: 0
+      maximum: 1
+    lyrics_language_reliable:
+      type: boolean
+      readOnly: true
+      description: |
+        True only when `lyrics_language` was detected from lyrics alone with sufficient
+        confidence. False for missing detection evidence, for shards missing migration 1143,
+        and for legacy compatibility copies.
+    lyrics_language_detector:
+      type: string
+      nullable: true
+      readOnly: true
+    lyrics_language_detected_at:
+      type: string
+      format: date-time
+      nullable: true
+      readOnly: true
+    lyrics_language_source_hash:
+      type: string
+      nullable: true
+      readOnly: true
     translation_policy:
       type: string
       enum:

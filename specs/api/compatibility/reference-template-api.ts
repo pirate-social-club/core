@@ -1306,6 +1306,12 @@ type Post = {
   source_language_detector?: string | null;
   source_language_detected_at?: string | null;
   source_language_source_hash?: string | null;
+  lyrics_language?: string | null;
+  lyrics_language_confidence?: number | null;
+  lyrics_language_reliable?: boolean;
+  lyrics_language_detector?: string | null;
+  lyrics_language_detected_at?: string | null;
+  lyrics_language_source_hash?: string | null;
   translation_policy?: "none" | "machine_allowed" | "human_only" | "hybrid" | null;
   access_mode?: "public" | "locked" | null;
   asset?: string | null;
