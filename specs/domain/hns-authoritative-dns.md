@@ -7,6 +7,7 @@ Related docs:
 - [namespace.md](./namespace.md)
 - [namespace-root-control.md](./namespace-root-control.md)
 - [hns-verification-flow.md](./hns-verification-flow.md)
+- [hns-ds-delegation-lifecycle.md](./hns-ds-delegation-lifecycle.md)
 - [handles.md](./handles.md)
 
 ## Purpose
