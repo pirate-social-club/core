@@ -147,14 +147,25 @@ def main():
     # Real recursion beyond our own zone. Advisory: depends on a third party.
     check("GET  g A (external HNS TLD)", False, resolves("g", "A"))
 
-    # Unsigned / refusing delegation must not hang or 5xx the frontend.
-    def unsigned_delegation():
+    # dankmeme is no longer zoneless: it serves a signed zone anchored by a
+    # parent DS. The label "delegated, no zone" described the state at the time
+    # this check was written and is now false -- and because the check only
+    # asserted "did not hang", it kept passing while silently testing something
+    # else. Assert the property that actually holds now.
+    #
+    # This means the original fail-closed case (a delegation with no zone behind
+    # it) is no longer covered here and wants a genuinely zoneless name.
+    def signed_external_delegation():
         status, _, body = doh(ep, build_query("dankmeme", "NS"), "GET")
         if status != 200:
             return False, f"HTTP {status}"
         r = parse(body)
-        return True, f"handled cleanly: {RCODES.get(r['rcode'], r['rcode'])}"
-    check("GET  dankmeme NS (delegated, no zone)", True, unsigned_delegation)
+        if r["rcode"] != 0:
+            return False, f"expected NOERROR, got {RCODES.get(r['rcode'], r['rcode'])}"
+        if r["ancount"] < 1:
+            return False, "NOERROR but no NS answers"
+        return True, f"NOERROR answers={r['ancount']}"
+    check("GET  dankmeme NS (delegated, signed zone)", True, signed_external_delegation)
 
     # NXDOMAIN against an external zone without our *.pirate wildcard. A name
     # below .pirate is expected to match the wildcard and cannot test NXDOMAIN.

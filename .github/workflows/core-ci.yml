@@ -16,6 +16,7 @@ on:
       - "scripts/control-plane/apply-postgres-migrations.ts"
       - "scripts/lib/postgres-migrations.ts"
       - "scripts/bookings/**"
+      - "services/hns/**"
       - "specs/api/**"
   push:
     branches: [main]
@@ -33,6 +34,7 @@ on:
       - "scripts/control-plane/apply-postgres-migrations.ts"
       - "scripts/lib/postgres-migrations.ts"
       - "scripts/bookings/**"
+      - "services/hns/**"
       - "specs/api/**"
   workflow_dispatch:
 
@@ -109,6 +111,16 @@ jobs:
 
       - name: Audit core dependencies
         run: npm audit --audit-level=high
+
+      # services/hns gates authenticated HNS routing. `bun test` transpiles past
+      # type errors, so tests alone let a broken return contract ship green.
+      - name: Typecheck services/hns
+        run: |
+          bun install --cwd services/hns --frozen-lockfile
+          bun run --cwd services/hns typecheck
+
+      - name: Test services/hns
+        run: bun test services/hns
 
       - name: Validate community-template migrations against fresh SQLite
         run: |
