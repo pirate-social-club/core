@@ -1,0 +1,21 @@
+{
+  "name": "@pirate/hns-delegation",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "bun test tests/"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.2"
+  }
+}

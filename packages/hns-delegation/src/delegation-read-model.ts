@@ -88,7 +88,16 @@ function toBool(value: number | boolean | null): boolean {
   if (value === null) {
     throw new TypeError("successful observation is missing a component finding");
   }
-  return typeof value === "boolean" ? value : value === 1;
+  if (typeof value === "boolean") {
+    return value;
+  }
+  // Anything other than exactly 0 or 1 means a malformed driver result or a
+  // query returning the wrong column. Coercing it -- 2 quietly becoming false --
+  // would turn that into a silent security downgrade.
+  if (value !== 0 && value !== 1) {
+    throw new TypeError(`expected a 0/1 component finding, got ${String(value)}`);
+  }
+  return value === 1;
 }
 
 /**

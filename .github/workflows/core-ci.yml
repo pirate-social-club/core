@@ -16,7 +16,7 @@ on:
       - "scripts/control-plane/apply-postgres-migrations.ts"
       - "scripts/lib/postgres-migrations.ts"
       - "scripts/bookings/**"
-      - "services/hns/**"
+      - "packages/hns-delegation/**"
       - "specs/api/**"
   push:
     branches: [main]
@@ -34,7 +34,7 @@ on:
       - "scripts/control-plane/apply-postgres-migrations.ts"
       - "scripts/lib/postgres-migrations.ts"
       - "scripts/bookings/**"
-      - "services/hns/**"
+      - "packages/hns-delegation/**"
       - "specs/api/**"
   workflow_dispatch:
 
@@ -112,15 +112,16 @@ jobs:
       - name: Audit core dependencies
         run: npm audit --audit-level=high
 
-      # services/hns gates authenticated HNS routing. `bun test` transpiles past
-      # type errors, so tests alone let a broken return contract ship green.
-      - name: Typecheck services/hns
+      # @pirate/hns-delegation gates authenticated HNS routing and is consumed by
+      # the API repo. `bun test` transpiles past type errors, so tests alone let
+      # a broken return contract ship green.
+      - name: Typecheck @pirate/hns-delegation
         run: |
-          bun install --cwd services/hns --frozen-lockfile
-          bun run --cwd services/hns typecheck
+          bun install --cwd packages/hns-delegation --frozen-lockfile
+          bun run --cwd packages/hns-delegation typecheck
 
-      - name: Test services/hns
-        run: bun test services/hns
+      - name: Test @pirate/hns-delegation
+        run: bun test packages/hns-delegation/tests
 
       - name: Validate community-template migrations against fresh SQLite
         run: |
@@ -185,6 +186,13 @@ jobs:
           # Owner/superuser URL to the service; the test creates its own isolated db + roles + extension.
           BOOKINGS_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
         run: bun test scripts/bookings/migration-integration.test.ts
+
+      - name: Run HNS root delegation migration integration test
+        env:
+          # Proves PostgreSQL accepts the canonical read query and enforces the
+          # delegation invariants, which string assertions cannot.
+          CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
+        run: bun test scripts/control-plane/hns-root-delegation-migration.test.ts
 
       - name: Run operator credentials migration integration test
         env:

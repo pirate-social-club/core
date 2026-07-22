@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { DEFAULT_DELEGATION_THRESHOLDS } from "./delegation-state";
+import { DEFAULT_DELEGATION_THRESHOLDS } from "../src/delegation-state";
 import {
   evaluateJoinedRoot,
   projectDelegationResponse,
   ROOT_DELEGATION_READ_SQL,
   type RootDelegationJoinRow,
-} from "./delegation-read-model";
+} from "../src/delegation-read-model";
 
 const NOW = 1_800_000_000_000;
 const { maxObservationAgeMs, expiryProximityThresholdMs } = DEFAULT_DELEGATION_THRESHOLDS;

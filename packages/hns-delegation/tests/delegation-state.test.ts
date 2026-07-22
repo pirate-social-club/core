@@ -11,7 +11,7 @@ import {
   type DelegationSecurity,
   type RolloverState,
   type RootDelegationState,
-} from "./delegation-state";
+} from "../src/delegation-state";
 
 const NOW = 1_800_000_000_000;
 const { maxObservationAgeMs, expiryProximityThresholdMs } = DEFAULT_DELEGATION_THRESHOLDS;
