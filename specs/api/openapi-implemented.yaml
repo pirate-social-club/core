@@ -16030,6 +16030,7 @@ components:
         - eligible
         - min_cents
         - verification_state
+        - verification_provider
       properties:
         eligible:
           type: boolean
@@ -16037,6 +16038,12 @@ components:
           type: integer
         verification_state:
           $ref: "#/components/schemas/RewardVerificationState"
+        verification_provider:
+          type: string
+          enum:
+            - self
+            - very
+          nullable: true
     RewardsSummaryResponse:
       type: object
       required:
@@ -16044,6 +16051,7 @@ components:
         - balance_cents
         - today_earned_cents
         - recent_events
+        - pending_verification
         - cashout
         - latest_in_flight_cashout
       properties:
@@ -16058,6 +16066,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RewardEventSummary"
+        pending_verification:
+          $ref: "#/components/schemas/RewardPendingVerificationSummary"
         cashout:
           $ref: "#/components/schemas/RewardsCashoutSummary"
         latest_in_flight_cashout:

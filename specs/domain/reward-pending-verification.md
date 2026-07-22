@@ -32,8 +32,10 @@ The product change is visibility and recovery, not credit-before-proof.
 
 1. Anyone may see a public reward offer.
 2. A signed-in user may complete the activity without prior human verification.
-3. A qualifying result becomes **pending verification**, not credited money.
-4. The rewards wallet shows the conditional amount and its deadline.
+3. A qualifying result becomes **pending verification**, not withdrawable money.
+4. The rewards wallet amount includes the conditional amount so the value of a
+   completed activity is visible immediately. The API continues to expose
+   credited and conditional cents separately.
 5. The wallet offers the one configured rewards verification provider even
    when credited balance is zero.
 6. Successful verification kicks reconciliation.
@@ -42,9 +44,14 @@ The product change is visibility and recovery, not credit-before-proof.
 8. When the cashout minimum is met, the user proceeds to the existing cashout
    flow.
 
-Pending copy must not say money is earned, guaranteed, reserved, or owned. Use
-copy such as `About $1 pending verification` and explain that availability is
-checked after verification.
+The primary action remains `Claim`. When conditional value is present and the
+configured proof is missing, Claim opens verification before reconciliation and
+cashout. Do not replace the amount with `$0.00`, or replace Claim with a separate
+Verify action.
+
+Pending value remains conditional: it consumes no campaign budget and final
+availability is checked after verification. Surfaces that explain the state in
+detail must not call it withdrawable, reserved, or guaranteed.
 
 ## 3. Control-plane projection
 
@@ -158,10 +165,13 @@ Extend the authenticated reward summary with a strict pending section:
 ```
 
 Pending cents are never included in `balance_cents`, `today_earned_cents`, or
-cashout eligibility.
+cashout eligibility. The wallet's displayed Rewards amount is
+`balance_cents + pending_verification.conditional_cents`; this is presentation,
+not a mutation of the credited ledger balance.
 
-Show `Verify to claim` when active pending state exists and verification is
-missing, regardless of credited balance. After provider completion, show
+Keep the action labeled `Claim` when active pending state exists and verification
+is missing, regardless of credited balance. Claim opens the configured
+verification provider. After provider completion, show
 `Checking pending rewards` and poll the summary until the projections become
 credited or terminal. The verification callback should enqueue or kick the
 bounded reconciler; correctness must not depend on the kick, because scheduled
@@ -243,4 +253,3 @@ provider with zero active identities while campaigns are live.
 Rollback may stop creating new projections while preserving existing rows for
 later reconciliation. Never delete pending evidence or reinterpret it as
 credited balance during rollback.
-
