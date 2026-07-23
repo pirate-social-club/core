@@ -5,6 +5,7 @@ import {
   DEFAULT_DELEGATION_THRESHOLDS,
   evaluateDelegation,
   isOrphanedDsInvariantViolation,
+  resolveRootRoutingMode,
   resolveRootDelegationState,
   type ParentObservationRow,
   type RootDelegationRow,
@@ -24,6 +25,10 @@ function state(overrides: Partial<RootDelegationState> = {}): RootDelegationStat
     authoritativeDnssecValid: true,
     lastParentObservationAt: NOW,
     earliestRrsigExpiresAt: NOW + expiryProximityThresholdMs * 4,
+    authorityRedundancyOk: true,
+    lastRedundancyObservationAt: NOW,
+    canonicalRoutingEligible: false,
+    routingHardDenied: false,
     ...overrides,
   };
 }
@@ -197,7 +202,7 @@ describe("threshold configuration is validated", () => {
   });
 });
 
-describe("secure_delegation_verified is one evaluation with two names", () => {
+describe("redundancy policy does not rewrite security", () => {
   const cases: Array<Partial<RootDelegationState> | null> = [
     null,
     {},
@@ -212,11 +217,78 @@ describe("secure_delegation_verified is one evaluation with two names", () => {
     { lastParentObservationAt: NOW + 60_000 },
   ];
 
-  test("the two names never disagree", () => {
-    for (const override of cases) {
-      const result = evaluateDelegation(override === null ? null : state(override), NOW);
-      expect(result.secureDelegationVerified).toBe(result.authenticatedRoutingAllowed);
-    }
+  test("report-only preserves routing while reporting unhealthy", () => {
+    const result = evaluateDelegation(
+      state({ authorityRedundancyOk: false }),
+      NOW,
+    );
+    expect(result.authorityRedundancyHealthy).toBe(false);
+    expect(result.secureDelegationVerified).toBe(true);
+    expect(result.authenticatedRoutingAllowed).toBe(true);
+  });
+
+  test("enforcing withdraws routing without changing delegation security", () => {
+    const result = evaluateDelegation(
+      state({ authorityRedundancyOk: false }),
+      NOW,
+      DEFAULT_DELEGATION_THRESHOLDS,
+      { redundancyMode: "enforcing" },
+    );
+    expect(result.delegationSecurity).toBe("secure");
+    expect(result.secureDelegationVerified).toBe(true);
+    expect(result.authenticatedRoutingAllowed).toBe(false);
+    expect(result.routingWithheldReason).toBe("authority_redundancy_unhealthy");
+  });
+
+  test("null is never-observed and distinct from observed-unhealthy", () => {
+    const never = evaluateDelegation(state({
+      authorityRedundancyOk: null,
+      lastRedundancyObservationAt: null,
+    }), NOW);
+    const unhealthy = evaluateDelegation(state({ authorityRedundancyOk: false }), NOW);
+    expect(never.authorityRedundancyHealthy).toBe(false);
+    expect(never.redundancyObservationFresh).toBe(false);
+    expect(unhealthy.authorityRedundancyHealthy).toBe(false);
+    expect(unhealthy.redundancyObservationFresh).toBe(true);
+  });
+
+  test("future-dated redundancy evidence is rejected", () => {
+    const result = evaluateDelegation(
+      state({ lastRedundancyObservationAt: NOW + 1 }),
+      NOW,
+      DEFAULT_DELEGATION_THRESHOLDS,
+      { redundancyMode: "enforcing" },
+    );
+    expect(result.redundancyObservationFresh).toBe(false);
+    expect(result.authenticatedRoutingAllowed).toBe(false);
+  });
+});
+
+describe("per-root rollout precedence", () => {
+  test("deny wins over global flag and eligibility", () => {
+    expect(resolveRootRoutingMode({
+      globalCanonicalRoutingEnabled: true,
+      canonicalRoutingEligible: true,
+      routingHardDenied: true,
+    })).toBe("denied");
+  });
+
+  test("canonical requires global flag and root eligibility", () => {
+    expect(resolveRootRoutingMode({
+      globalCanonicalRoutingEnabled: true,
+      canonicalRoutingEligible: true,
+      routingHardDenied: false,
+    })).toBe("canonical");
+    expect(resolveRootRoutingMode({
+      globalCanonicalRoutingEnabled: false,
+      canonicalRoutingEligible: true,
+      routingHardDenied: false,
+    })).toBe("legacy");
+    expect(resolveRootRoutingMode({
+      globalCanonicalRoutingEnabled: true,
+      canonicalRoutingEligible: false,
+      routingHardDenied: false,
+    })).toBe("legacy");
   });
 });
 
@@ -300,6 +372,10 @@ describe("null root state satisfies the full evaluation contract", () => {
       "routingWithheldReason",
       "signatureExpiryWarning",
       "componentsSecure",
+      "authorityRedundancyHealthy",
+      "redundancyObservationFresh",
+      "canonicalRoutingEligible",
+      "routingHardDenied",
     ]) {
       expect(Object.hasOwn(result, key)).toBe(true);
     }
@@ -311,6 +387,10 @@ describe("resolveRootDelegationState is the only way to build evaluator input", 
     rolloverState: "none",
     lastParentObservationId: "obs_1",
     pendingEvidenceKind: null,
+    authorityRedundancyOk: null,
+    lastRedundancyObservationAtMs: null,
+    canonicalRoutingEligible: false,
+    routingHardDenied: false,
   };
   const observation: ParentObservationRow = {
     parentObservationId: "obs_1",
@@ -370,6 +450,10 @@ describe("impossible pairings throw rather than degrade", () => {
     rolloverState: "none",
     lastParentObservationId: "obs_1",
     pendingEvidenceKind: null,
+    authorityRedundancyOk: null,
+    lastRedundancyObservationAtMs: null,
+    canonicalRoutingEligible: false,
+    routingHardDenied: false,
   };
   const observation: ParentObservationRow = {
     parentObservationId: "obs_1",
@@ -406,6 +490,10 @@ describe("pending evidence overlays unsecured only", () => {
     rolloverState: "none",
     lastParentObservationId: "obs_1",
     pendingEvidenceKind: "wallet_transaction_id",
+    authorityRedundancyOk: null,
+    lastRedundancyObservationAtMs: null,
+    canonicalRoutingEligible: false,
+    routingHardDenied: false,
   };
   const base: ParentObservationRow = {
     parentObservationId: "obs_1",
