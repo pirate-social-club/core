@@ -26,6 +26,9 @@ It should:
   `hsd` observer through `getnameresource`, `getnameinfo`, `getblockchaininfo`, and `getblockheader`
 - expose authenticated parent NS, glue, and DS observations with their chain
   anchor through `/observe-root-parent`
+- validate the managed serving path through `/observe-root-authority`, using
+  BIND `delv` with the HSD-derived root DS as its trust anchor plus direct
+  per-authority SOA queries for reachability and serial parity
 - talk to the loopback-only PowerDNS API
 - create zones after delegation is observed
 - publish `_pirate.<root>` TXT records for delegated Pirate-managed sessions
@@ -53,6 +56,10 @@ Recommended deploy root:
 
 - `/srv/pirate-hns/app`
 - `/srv/pirate-hns/config`
+
+Install the BIND client tools providing `/usr/bin/delv` and `/usr/bin/dig`
+before starting the unit. The tracked systemd service refuses to start without
+both binaries; resolver success alone is not DNSSEC validation.
 
 ## Files
 

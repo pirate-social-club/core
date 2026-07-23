@@ -29,6 +29,7 @@ Current platform-managed roots:
 - `GET /health`
 - `GET /inspect?root_label=<root>`
 - `GET /observe-root-parent?root_label=<root>`
+- `GET /observe-root-authority?root_label=<root>`
 - `POST /ensure-zone`
 - `POST /publish-txt`
 - `POST /verify-txt`
@@ -44,6 +45,9 @@ Current platform-managed roots:
 - `HNS_CHAIN_NETWORK`
 - `HNS_CHAIN_MAX_TIP_AGE_SECONDS`
 - `HNS_EXPIRY_HORIZON_BLOCKS`
+- `HNS_VALIDATING_RESOLVER_ADDRESS`
+- `HNS_VALIDATING_RESOLVER_PORT`
+- `HNS_AUTHORITY_OBSERVATION_TIMEOUT_MS`
 - `PDNS_API_URL`
 - `PDNS_API_KEY`
 - `PDNS_DEFAULT_SOA_CONTENT`
@@ -105,6 +109,21 @@ only when the same request establishes a fresh, synchronized mainnet chain
 anchor. It never falls back to an explorer or recursive resolver.
 Authoritative DNSKEY, RRSIG, and per-authority SOA evidence is collected
 separately and must not be inferred from this response.
+
+`/observe-root-authority` supplies that independent serving-path evidence. It
+uses the parent DS returned by local `hsd` as a per-root static trust anchor for
+BIND `delv`, pointed at the local HNS recursive resolver. `delv` performs
+validation itself; a successful response from the DoH/HNS resolver is not
+treated as proof because that service intentionally leaves validation to its
+clients. The endpoint validates DNSKEY, SOA, and every managed A/TLSA RRset,
+records each relevant RRSIG expiry, and queries every parent-advertised
+authority address directly with `dig` for SOA reachability and serial parity.
+The PowerDNS API is used only to enumerate the product's required RRsets, never
+as security evidence.
+
+The production host must provide BIND `delv` and `dig` at `/usr/bin/delv` and
+`/usr/bin/dig`. The default resolver target is the loopback hnsd listener at
+`127.0.0.1:5350`.
 
 For the platform-owned `pirate.` root, prefer an HNS-native nameserver:
 
