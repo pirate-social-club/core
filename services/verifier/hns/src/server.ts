@@ -31,6 +31,26 @@ type InspectResult = {
   }[];
 };
 
+type ParentDsRecord = {
+  key_tag: number;
+  algorithm: number;
+  digest_type: number;
+  digest: string;
+};
+
+type ParentGlueRecord = {
+  nameserver: string;
+  address: string;
+};
+
+type HnsRootResourceObservation = {
+  nameservers: string[];
+  txtValues: string[];
+  dsRecords: ParentDsRecord[];
+  glue4: ParentGlueRecord[];
+  glue6: ParentGlueRecord[];
+};
+
 type ExpiryEvidence = Pick<
   InspectResult,
   | "expiry_root_exists"
@@ -524,7 +544,7 @@ async function inspectExpiryHorizon(rootLabel: string): Promise<ExpiryEvidence> 
   }
 }
 
-function parseHnsRootResource(payload: unknown): { nameservers: string[]; txtValues: string[] } | null {
+function parseHnsRootResource(payload: unknown): HnsRootResourceObservation | null {
   if (typeof payload !== "object" || payload == null || !("records" in payload)
     || !Array.isArray(payload.records)) {
     return null;
@@ -532,6 +552,9 @@ function parseHnsRootResource(payload: unknown): { nameservers: string[]; txtVal
 
   const nameservers: string[] = [];
   const txtValues: string[] = [];
+  const dsRecords: ParentDsRecord[] = [];
+  const glue4: ParentGlueRecord[] = [];
+  const glue6: ParentGlueRecord[] = [];
   for (const record of payload.records) {
     if (typeof record !== "object" || record == null || !("type" in record)) continue;
     const typedRecord = record as Record<string, unknown>;
@@ -540,19 +563,55 @@ function parseHnsRootResource(payload: unknown): { nameservers: string[]; txtVal
     } else if (typedRecord.type === "TXT" && Array.isArray(typedRecord.txt)
       && typedRecord.txt.every((chunk) => typeof chunk === "string")) {
       txtValues.push(normalizeTxtRecordContent(typedRecord.txt.join("")));
+    } else if (typedRecord.type === "DS") {
+      const keyTag = readSafeInteger(typedRecord.keyTag);
+      const algorithm = readSafeInteger(typedRecord.algorithm);
+      const digestType = readSafeInteger(typedRecord.digestType);
+      const digest = typeof typedRecord.digest === "string"
+        ? typedRecord.digest.trim().toLowerCase()
+        : null;
+      if (keyTag != null && algorithm != null && digestType != null
+        && digest != null && /^[0-9a-f]+$/u.test(digest)) {
+        dsRecords.push({
+          key_tag: keyTag,
+          algorithm,
+          digest_type: digestType,
+          digest,
+        });
+      } else {
+        return null;
+      }
+    } else if (typedRecord.type === "GLUE4" || typedRecord.type === "GLUE6") {
+      const nameserver = typeof typedRecord.ns === "string"
+        ? normalizeNsRecord(typedRecord.ns)
+        : null;
+      const address = typeof typedRecord.address === "string"
+        ? typedRecord.address.trim().toLowerCase()
+        : null;
+      if (nameserver && address) {
+        (typedRecord.type === "GLUE4" ? glue4 : glue6).push({ nameserver, address });
+      } else {
+        return null;
+      }
     }
   }
 
   return {
-    nameservers: nameservers.filter(Boolean),
+    nameservers: nameservers.filter(Boolean).sort(),
     txtValues: txtValues.filter(Boolean),
+    dsRecords: dsRecords.sort((left, right) =>
+      left.key_tag - right.key_tag
+      || left.algorithm - right.algorithm
+      || left.digest_type - right.digest_type
+      || left.digest.localeCompare(right.digest)),
+    glue4: glue4.sort((left, right) =>
+      left.nameserver.localeCompare(right.nameserver) || left.address.localeCompare(right.address)),
+    glue6: glue6.sort((left, right) =>
+      left.nameserver.localeCompare(right.nameserver) || left.address.localeCompare(right.address)),
   };
 }
 
-async function fetchOwnerManagedRootResource(rootLabel: string): Promise<{
-  nameservers: string[];
-  txtValues: string[];
-} | null> {
+async function fetchOwnerManagedRootResource(rootLabel: string): Promise<HnsRootResourceObservation | null> {
   const normalizedRoot = normalizeRootLabel(rootLabel);
   if (!isOwnerManagedRootResourceConfigured()) {
     return null;
@@ -563,6 +622,50 @@ async function fetchOwnerManagedRootResource(rootLabel: string): Promise<{
   } catch {
     return null;
   }
+}
+
+async function observeRootParent(rootLabel: string) {
+  const normalizedRoot = normalizeRootLabel(rootLabel);
+  if (!isOwnerManagedRootResourceConfigured()) {
+    throw new Error("HNS chain RPC is not configured");
+  }
+
+  const [resourcePayload, expiryEvidence] = await Promise.all([
+    callHnsChainRpc("getnameresource", [normalizedRoot]),
+    inspectExpiryHorizon(normalizedRoot),
+  ]);
+  const resource = parseHnsRootResource(resourcePayload);
+  if (!resource) {
+    throw new Error("HNS chain RPC returned an invalid root resource");
+  }
+  if (
+    expiryEvidence.expiry_root_exists !== true
+    || expiryEvidence.expiry_anchor_height == null
+    || expiryEvidence.expiry_anchor_block_hash == null
+    || expiryEvidence.expiry_anchor_median_time == null
+    || expiryEvidence.expiry_chain_network == null
+  ) {
+    throw new Error("HNS chain RPC did not establish a fresh mainnet anchor");
+  }
+
+  return {
+    root_label: normalizedRoot,
+    zone_name: normalizeZoneName(normalizedRoot),
+    provider: HNS_CHAIN_OBSERVATION_PROVIDER,
+    observed_at: new Date().toISOString(),
+    chain_anchor: {
+      network: expiryEvidence.expiry_chain_network,
+      height: expiryEvidence.expiry_anchor_height,
+      block_hash: expiryEvidence.expiry_anchor_block_hash,
+      median_time: expiryEvidence.expiry_anchor_median_time,
+    },
+    parent: {
+      nameservers: resource.nameservers,
+      ds_records: resource.dsRecords,
+      glue4: resource.glue4,
+      glue6: resource.glue6,
+    },
+  };
 }
 
 function summarizeZone(zone: PowerDnsZoneSnapshot): InspectResult["rrsets"] {
@@ -1032,6 +1135,24 @@ export async function handleRequest(request: Request) {
         return json(
           { error: error instanceof Error ? error.message : "authority health check failed" },
           { status: verifierErrorStatus(error, 502) },
+        );
+      }
+    }
+
+    if (url.pathname === "/observe-root-parent") {
+      if (request.method !== "GET") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
+      const rootLabel = url.searchParams.get("root_label");
+      if (!rootLabel?.trim()) {
+        return json({ error: "root_label is required" }, { status: 400 });
+      }
+      try {
+        return json(await observeRootParent(rootLabel));
+      } catch (error) {
+        return json(
+          { error: error instanceof Error ? error.message : "root parent observation failed" },
+          { status: verifierErrorStatus(error, 503) },
         );
       }
     }

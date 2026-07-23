@@ -241,6 +241,144 @@ describe("hns verifier server", () => {
     expect(body.failure_reason).toBe("zone_not_provisioned");
   });
 
+  test("returns parent NS, glue, and DS from a fresh local HSD anchor", async () => {
+    resetOwnerManagedProofs();
+    Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
+    Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
+    Bun.env.HNS_CHAIN_NETWORK = "main";
+    Bun.env.HNS_CHAIN_MAX_TIP_AGE_SECONDS = "3600";
+    Bun.env.HNS_EXPIRY_HORIZON_BLOCKS = "100";
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const anchorHash = "ab".repeat(32);
+
+    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const method = init?.body
+        ? (JSON.parse(String(init.body)) as { method?: string }).method
+        : null;
+      if (method === "getnameresource") {
+        return Response.json({
+          result: {
+            records: [
+              { type: "NS", ns: "ns1.pirate." },
+              { type: "NS", ns: "ns2.pirate." },
+              { type: "GLUE4", ns: "ns1.pirate.", address: "192.0.2.10" },
+              { type: "GLUE6", ns: "ns2.pirate.", address: "2001:db8::20" },
+              {
+                type: "DS",
+                keyTag: 12345,
+                algorithm: 13,
+                digestType: 2,
+                digest: "AABBCCDD",
+              },
+            ],
+          },
+        });
+      }
+      if (method === "getnameinfo") {
+        return Response.json({
+          result: {
+            info: {
+              state: "CLOSED",
+              registered: true,
+              expired: false,
+              stats: { renewalPeriodEnd: 1_500, blocksUntilExpire: 500 },
+            },
+          },
+        });
+      }
+      if (method === "getblockchaininfo") {
+        return Response.json({
+          result: {
+            chain: "main",
+            blocks: 1_000,
+            headers: 1_000,
+            bestblockhash: anchorHash,
+            mediantime: nowSeconds - 60,
+            verificationprogress: 1,
+          },
+        });
+      }
+      if (method === "getblockheader") {
+        return Response.json({
+          result: {
+            hash: anchorHash,
+            height: 1_000,
+            time: nowSeconds - 30,
+            mediantime: nowSeconds - 60,
+            confirmations: 1,
+          },
+        });
+      }
+      return Response.json({ error: { message: "unexpected method" } });
+    }) as typeof fetch;
+
+    const response = await handleRequest(new Request(
+      "http://127.0.0.1:4048/observe-root-parent?root_label=pirate",
+    ));
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      root_label: "pirate",
+      zone_name: "pirate.",
+      provider: "hsd_json_rpc",
+      chain_anchor: {
+        network: "main",
+        height: 1_000,
+        block_hash: anchorHash,
+        median_time: nowSeconds - 60,
+      },
+      parent: {
+        nameservers: ["ns1.pirate.", "ns2.pirate."],
+        ds_records: [{
+          key_tag: 12345,
+          algorithm: 13,
+          digest_type: 2,
+          digest: "aabbccdd",
+        }],
+        glue4: [{ nameserver: "ns1.pirate.", address: "192.0.2.10" }],
+        glue6: [{ nameserver: "ns2.pirate.", address: "2001:db8::20" }],
+      },
+    });
+    expect(Number.isNaN(Date.parse(body.observed_at))).toBe(false);
+  });
+
+  test("fails parent observation closed on malformed DS evidence", async () => {
+    resetOwnerManagedProofs();
+    Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
+    Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
+    Bun.env.HNS_CHAIN_MAX_TIP_AGE_SECONDS = "3600";
+    Bun.env.HNS_EXPIRY_HORIZON_BLOCKS = "100";
+    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const method = init?.body
+        ? (JSON.parse(String(init.body)) as { method?: string }).method
+        : null;
+      if (method === "getnameresource") {
+        return Response.json({
+          result: {
+            records: [{
+              type: "DS",
+              keyTag: 12345,
+              algorithm: 13,
+              digestType: 2,
+              digest: "not-hex",
+            }],
+          },
+        });
+      }
+      return Response.json({ error: { message: "unavailable" } });
+    }) as typeof fetch;
+
+    const response = await handleRequest(new Request(
+      "http://127.0.0.1:4048/observe-root-parent?root_label=pirate",
+    ));
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: "HNS chain RPC returned an invalid root resource",
+    });
+  });
+
   test("rejects root labels outside the hsd covenant grammar", async () => {
     for (const rootLabel of ["_leading", "trailing_", "-leading", "trailing-", "a".repeat(64), "localhost"]) {
       const response = await handleRequest(new Request(

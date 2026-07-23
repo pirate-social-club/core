@@ -28,6 +28,7 @@ Current platform-managed roots:
 
 - `GET /health`
 - `GET /inspect?root_label=<root>`
+- `GET /observe-root-parent?root_label=<root>`
 - `POST /ensure-zone`
 - `POST /publish-txt`
 - `POST /verify-txt`
@@ -97,6 +98,13 @@ plus an empty, expired, revoked, or unregistered auction/closed `getnameinfo` re
 yields `null` rather than being misreported as deletion. Revalidation can
 therefore distinguish a missing root from unavailable observer evidence
 without promoting either condition to positive evidence.
+
+`/observe-root-parent` is the fail-closed parent-evidence endpoint for the root
+delegation observer. It returns NS, glue, and DS from authenticated local `hsd`
+only when the same request establishes a fresh, synchronized mainnet chain
+anchor. It never falls back to an explorer or recursive resolver.
+Authoritative DNSKEY, RRSIG, and per-authority SOA evidence is collected
+separately and must not be inferred from this response.
 
 For the platform-owned `pirate.` root, prefer an HNS-native nameserver:
 
