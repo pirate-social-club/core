@@ -136,7 +136,7 @@ describe.skipIf(!RUN)("hns root delegation migration 0152 (real Postgres)", () =
     const rows = (await sql.unsafe(ROOT_DELEGATION_READ_SQL, ["neverseen"])) as RootDelegationJoinRow[];
     // The LEFT JOIN is what makes this a row rather than nothing.
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.parent_observation_id).toBeNull();
+    expect(rows[0]?.delegation_parent_observation_id).toBeNull();
     const result = evaluateJoinedRoot(rows[0] ?? null, NOW.getTime());
     expect(result.delegationSecurity).toBe("unknown");
     expect(result.authenticatedRoutingAllowed).toBe(false);

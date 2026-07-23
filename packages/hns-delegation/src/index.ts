@@ -31,7 +31,9 @@ export {
 export {
   evaluateJoinedRoot,
   projectDelegationResponse,
+  ROOT_DELEGATION_JOIN_SQL,
   ROOT_DELEGATION_READ_SQL,
+  ROOT_DELEGATION_SELECT_SQL,
   type DelegationResponseProjection,
   type RootDelegationJoinRow,
 } from "./delegation-read-model";
