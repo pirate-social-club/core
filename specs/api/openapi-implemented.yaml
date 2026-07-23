@@ -16102,6 +16102,7 @@ components:
         - balance_cents
         - today_earned_cents
         - recent_events
+        - recent_qualifications
         - pending_verification
         - cashout
         - latest_in_flight_cashout
@@ -16117,6 +16118,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RewardEventSummary"
+        recent_qualifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/RewardQualificationSummary"
         pending_verification:
           $ref: "#/components/schemas/RewardPendingVerificationSummary"
         cashout:
