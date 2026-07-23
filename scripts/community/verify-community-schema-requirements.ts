@@ -54,6 +54,21 @@ type Requirements = {
   features?: Record<string, { flags: string[]; migrations: string[]; note?: string }>
   deferred?: Record<string, { rationale: string }>
   /**
+   * Time-bounded compatibility migrations whose API access is schema-tolerant.
+   * They are intentionally neither required nor part of the canonical-schema
+   * comparison until their declared promotion condition is satisfied.
+   */
+  transitional?: Record<string, {
+    rationale: string
+    promotion_condition: string
+    expires_after: string
+    owner: string
+    tracking_issue: string
+    capability_guard: string
+    runtime_reference_counts: Record<string, Record<string, number>>
+    compatibility_tests: Array<{ path: string; sha256: string }>
+  }>
+  /**
    * Migrations the gate cannot attest by schema (triggers, views, drops, data
    * migrations) — checked by ledger checksum ONLY. Each MUST carry a rationale,
    * so "we can't verify this" is a deliberate, reviewed decision, never a silent
@@ -65,7 +80,16 @@ type Requirements = {
   canonical_schema?: boolean
 }
 
-const REQUIREMENT_KEYS = new Set(["$comment", "version", "unconditional", "features", "deferred", "ledger_only", "canonical_schema"])
+const REQUIREMENT_KEYS = new Set([
+  "$comment",
+  "version",
+  "unconditional",
+  "features",
+  "transitional",
+  "deferred",
+  "ledger_only",
+  "canonical_schema",
+])
 
 /** Parse policy as data, not TypeScript wishful thinking. Unknown or overlapping
  * classes are blocking so a plausible-looking manifest field can never be inert. */
@@ -81,12 +105,16 @@ export function validateRequirements(value: unknown, source = "requirements mani
     throw new Error(`${source}: unconditional must be an array of migration filenames`)
   }
   const features = raw.features ?? {}
+  const transitional = raw.transitional ?? {}
   const deferred = raw.deferred ?? {}
   if (!features || typeof features !== "object" || Array.isArray(features)) {
     throw new Error(`${source}: features must be an object`)
   }
   if (!deferred || typeof deferred !== "object" || Array.isArray(deferred)) {
     throw new Error(`${source}: deferred must be an object`)
+  }
+  if (!transitional || typeof transitional !== "object" || Array.isArray(transitional)) {
+    throw new Error(`${source}: transitional must be an object`)
   }
   if (raw.canonical_schema !== undefined && typeof raw.canonical_schema !== "boolean") {
     throw new Error(`${source}: canonical_schema must be a boolean`)
@@ -106,6 +134,55 @@ export function validateRequirements(value: unknown, source = "requirements mani
       if (typeof migration !== "string" || !migration) throw new Error(`${source}: feature ${feature} has an invalid migration`)
       claim(migration, `features.${feature}`)
     }
+  }
+  for (const [migration, spec] of Object.entries(transitional as Record<string, any>)) {
+    const requiredText = [
+      "rationale",
+      "promotion_condition",
+      "owner",
+      "tracking_issue",
+      "capability_guard",
+    ] as const
+    if (!spec || requiredText.some((key) => typeof spec[key] !== "string" || !spec[key].trim())) {
+      throw new Error(`${source}: transitional ${migration} requires complete ownership and promotion metadata`)
+    }
+    const expiresAt = Date.parse(spec.expires_after)
+    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+      throw new Error(`${source}: transitional ${migration} expires_after must be a future timestamp`)
+    }
+    if (
+      !spec.runtime_reference_counts
+      || typeof spec.runtime_reference_counts !== "object"
+      || Array.isArray(spec.runtime_reference_counts)
+      || Object.keys(spec.runtime_reference_counts).length === 0
+    ) {
+      throw new Error(`${source}: transitional ${migration} requires runtime_reference_counts`)
+    }
+    for (const [path, counts] of Object.entries(spec.runtime_reference_counts as Record<string, unknown>)) {
+      if (
+        !path
+        || !counts
+        || typeof counts !== "object"
+        || Array.isArray(counts)
+        || Object.keys(counts).length === 0
+        || Object.values(counts).some((count) => !Number.isSafeInteger(count) || Number(count) <= 0)
+      ) {
+        throw new Error(`${source}: transitional ${migration} has invalid runtime references for ${path || "(empty path)"}`)
+      }
+    }
+    if (
+      !Array.isArray(spec.compatibility_tests)
+      || spec.compatibility_tests.length === 0
+      || spec.compatibility_tests.some((test: any) =>
+        !test
+        || typeof test.path !== "string"
+        || !test.path
+        || typeof test.sha256 !== "string"
+        || !/^[0-9a-f]{64}$/u.test(test.sha256))
+    ) {
+      throw new Error(`${source}: transitional ${migration} requires hashed compatibility tests`)
+    }
+    claim(migration, "transitional")
   }
   for (const [migration, spec] of Object.entries(deferred as Record<string, any>)) {
     if (!spec || typeof spec.rationale !== "string" || !spec.rationale.trim()) {
@@ -570,6 +647,7 @@ async function main() {
     .flatMap(([, spec]) => spec.migrations)
   const canonicalExcludedMigrations = new Set([
     ...Object.keys(req.deferred ?? {}),
+    ...Object.keys(req.transitional ?? {}),
     ...inactiveFeatureMigrations,
   ])
   const canonicalExpected = req.canonical_schema

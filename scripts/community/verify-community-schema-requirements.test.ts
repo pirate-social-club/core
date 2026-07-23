@@ -53,6 +53,69 @@ describe("schema requirements policy validation", () => {
       },
     })).toThrow("overlaps policy classes features.one and features.two")
   })
+
+  test("accepts a complete time-bounded transitional policy", () => {
+    const migration = "1143_lyrics_language.sql"
+    expect(validateRequirements({
+      ...base,
+      transitional: {
+        [migration]: {
+          rationale: "Schema-tolerant runtime projection",
+          promotion_condition: "Fleet migration and quarantine closure",
+          expires_after: "2099-08-15T13:44:00Z",
+          owner: "release-owner",
+          tracking_issue: "https://github.com/example/repo/issues/1",
+          capability_guard: "hasLyricsLanguageColumns",
+          runtime_reference_counts: {
+            "src/projection.ts": { lyrics_language: 1 },
+          },
+          compatibility_tests: [{
+            path: "src/projection.test.ts",
+            sha256: "a".repeat(64),
+          }],
+        },
+      },
+    }).transitional?.[migration]).toBeDefined()
+  })
+
+  test("rejects expired or semantically empty transitional policy", () => {
+    expect(() => validateRequirements({
+      ...base,
+      transitional: {
+        "1143_lyrics_language.sql": {
+          rationale: "temporary",
+          promotion_condition: "migrate fleet",
+          expires_after: "2000-01-01T00:00:00Z",
+          owner: "release-owner",
+          tracking_issue: "https://github.com/example/repo/issues/1",
+          capability_guard: "hasLyricsLanguageColumns",
+          runtime_reference_counts: {},
+          compatibility_tests: [],
+        },
+      },
+    })).toThrow("expires_after must be a future timestamp")
+  })
+
+  test("rejects transitional overlap with an enforcing class", () => {
+    expect(() => validateRequirements({
+      ...base,
+      transitional: {
+        "1133_multi_namespace_bindings.sql": {
+          rationale: "temporary",
+          promotion_condition: "migrate fleet",
+          expires_after: "2099-01-01T00:00:00Z",
+          owner: "release-owner",
+          tracking_issue: "https://github.com/example/repo/issues/1",
+          capability_guard: "hasColumns",
+          runtime_reference_counts: { "src/projection.ts": { column: 1 } },
+          compatibility_tests: [{
+            path: "src/projection.test.ts",
+            sha256: "a".repeat(64),
+          }],
+        },
+      },
+    })).toThrow("overlaps policy classes unconditional and transitional")
+  })
 })
 
 describe("canonical schema ratchet", () => {
