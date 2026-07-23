@@ -1,5 +1,5 @@
 /**
- * Real-Postgres integration test for the HNS root delegation migrations (0152-0153) and the
+ * Real-Postgres integration test for the HNS root delegation migrations (0152-0154) and the
  * canonical read query shipped in @pirate/hns-delegation.
  *
  * Runs ONLY when CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL (or the shared bookings admin URL) is set;
@@ -29,6 +29,7 @@ const TEST_DB = "hns_root_delegation_migration_test";
 const MIGRATION_FILES = [
   "db/control-plane/migrations/0152_control_plane_hns_root_delegation_state.sql",
   "db/control-plane/migrations/0153_control_plane_hns_root_authority_redundancy.sql",
+  "db/control-plane/migrations/0154_control_plane_hns_root_redundancy_evidence_provenance.sql",
 ];
 
 const SQLSTATE = { check: "23514", foreignKey: "23503" } as const;
@@ -60,7 +61,7 @@ async function expectRejected(sql: SQL, statement: string, sqlstate: string): Pr
 
 let sql: SQL;
 
-describe.skipIf(!RUN)("hns root delegation migrations 0152-0153 (real Postgres)", () => {
+describe.skipIf(!RUN)("hns root delegation migrations 0152-0154 (real Postgres)", () => {
   beforeAll(async () => {
     const root = connect();
     await root.unsafe(`DROP DATABASE IF EXISTS ${TEST_DB} WITH (FORCE)`);
@@ -290,13 +291,16 @@ describe.skipIf(!RUN)("hns root delegation migrations 0152-0153 (real Postgres)"
     await sql.unsafe(`
       INSERT INTO hns_root_redundancy_observations
         (redundancy_observation_id, normalized_root_label, outcome, provider,
-         observed_parent_ns_json, authority_redundancy_ok, observed_at, created_at)
+         observed_parent_ns_json, authority_redundancy_ok, evidence_class,
+         independent_vantage_count, independent_asn_count, observed_at, created_at)
       VALUES ('red_1', 'dankmeme', 'succeeded', 'hns_verifier',
-              '["ns1.example","ns2.example"]', 0, '${NOW.toISOString()}', '${NOW.toISOString()}')
+              '["ns1.example","ns2.example"]', 0, 'local_single_vantage', 1, 1,
+              '${NOW.toISOString()}', '${NOW.toISOString()}')
     `);
     await sql.unsafe(`
       UPDATE hns_root_delegation_state
       SET authority_redundancy_ok = 0,
+          authority_redundancy_evidence_class = 'local_single_vantage',
           last_redundancy_observation_id = 'red_1',
           last_redundancy_observation_outcome = 'succeeded',
           last_redundancy_observation_at = '${NOW.toISOString()}'
@@ -314,6 +318,45 @@ describe.skipIf(!RUN)("hns root delegation migrations 0152-0153 (real Postgres)"
        SET last_redundancy_observation_id = NULL
        WHERE normalized_root_label = 'dankmeme'`,
       SQLSTATE.check,
+    );
+  });
+
+  test("multi-vantage evidence requires independent vantages and ASNs", async () => {
+    await expectRejected(
+      sql,
+      `INSERT INTO hns_root_redundancy_observations
+         (redundancy_observation_id, normalized_root_label, outcome, provider,
+          observed_parent_ns_json, authority_redundancy_ok, evidence_class,
+          quorum_policy_version, independent_vantage_count, independent_asn_count,
+          observed_at, created_at)
+       VALUES ('red_bad_quorum', 'dankmeme', 'succeeded', 'external_probe',
+               '["ns1.example","ns2.example"]', 1, 'external_multi_vantage',
+               'v1', 2, 1, '${NOW.toISOString()}', '${NOW.toISOString()}')`,
+      SQLSTATE.check,
+    );
+  });
+
+  test("vantage evidence cannot attach across root observations", async () => {
+    await sql.unsafe(`
+      INSERT INTO hns_root_redundancy_observations
+        (redundancy_observation_id, normalized_root_label, outcome, provider,
+         observed_parent_ns_json, authority_redundancy_ok, evidence_class,
+         quorum_policy_version, independent_vantage_count, independent_asn_count,
+         observed_at, created_at)
+      VALUES ('red_multi', 'dankmeme', 'succeeded', 'external_probe',
+              '["ns1.example","ns2.example"]', 1, 'external_multi_vantage',
+              'v1', 2, 2, '${NOW.toISOString()}', '${NOW.toISOString()}')
+    `);
+    await expectRejected(
+      sql,
+      `INSERT INTO hns_root_redundancy_vantage_observations
+         (redundancy_vantage_observation_id, redundancy_observation_id,
+          normalized_root_label, provider, measurement_ref, vantage_id,
+          vantage_asn, observed_at, created_at)
+       VALUES ('vantage_bad', 'red_multi', 'otherroot', 'external_probe',
+               'measurement-1', 'probe-1', 64500,
+               '${NOW.toISOString()}', '${NOW.toISOString()}')`,
+      SQLSTATE.foreignKey,
     );
   });
 });

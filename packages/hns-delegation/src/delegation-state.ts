@@ -49,6 +49,11 @@ export interface RootDelegationState {
   readonly earliestRrsigExpiresAt: number | null;
   /** NULL means redundancy has never been established. */
   readonly authorityRedundancyOk: boolean | null;
+  /**
+   * Provenance strength of the last successful redundancy finding. NULL means
+   * legacy/local evidence whose independence was not established.
+   */
+  readonly authorityRedundancyEvidenceClass: RedundancyEvidenceClass | null;
   /** Timestamp of the last successful redundancy observation, ms since epoch. */
   readonly lastRedundancyObservationAt: number | null;
   readonly canonicalRoutingEligible: boolean;
@@ -56,13 +61,23 @@ export interface RootDelegationState {
 }
 
 export type RedundancyEnforcementMode = "report_only" | "enforcing";
+export type RedundancyEvidenceClass =
+  | "local_single_vantage"
+  | "external_multi_vantage";
 
 export interface DelegationPolicy {
   readonly redundancyMode: RedundancyEnforcementMode;
+  /**
+   * Minimum provenance required before redundancy may affect routing. Keeping
+   * this in policy makes promotion reviewable and prevents a local probe from
+   * silently becoming enforcement evidence.
+   */
+  readonly requiredRedundancyEvidenceClass?: RedundancyEvidenceClass;
 }
 
 export const DEFAULT_DELEGATION_POLICY: DelegationPolicy = {
   redundancyMode: "report_only",
+  requiredRedundancyEvidenceClass: "external_multi_vantage",
 };
 
 export interface DelegationThresholds {
@@ -136,6 +151,7 @@ export type RoutingWithheldReason =
   | "incoherent_state"
   | "signature_expiry_unknown"
   | "signature_expiry_imminent"
+  | "authority_redundancy_evidence_insufficient"
   | "authority_redundancy_unhealthy"
   | "routing_hard_denied";
 
@@ -158,6 +174,8 @@ export interface DelegationEvaluation {
   /** Both persisted observations are established-true. */
   readonly componentsSecure: boolean;
   readonly authorityRedundancyHealthy: boolean;
+  readonly redundancyEvidenceSufficient: boolean;
+  readonly redundancyEvidenceClass: RedundancyEvidenceClass | null;
   readonly redundancyObservationFresh: boolean;
   readonly canonicalRoutingEligible: boolean;
   readonly routingHardDenied: boolean;
@@ -192,6 +210,8 @@ export function evaluateDelegation(
       signatureExpiryWarning: false,
       componentsSecure: false,
       authorityRedundancyHealthy: false,
+      redundancyEvidenceSufficient: false,
+      redundancyEvidenceClass: null,
       redundancyObservationFresh: false,
       canonicalRoutingEligible: false,
       routingHardDenied: false,
@@ -265,11 +285,21 @@ export function evaluateDelegation(
     redundancyAgeMs <= maxObservationAgeMs;
   const authorityRedundancyHealthy =
     state.authorityRedundancyOk === true && redundancyObservationFresh;
+  const redundancyEvidenceSufficient =
+    state.authorityRedundancyEvidenceClass ===
+    (policy.requiredRedundancyEvidenceClass ??
+      DEFAULT_DELEGATION_POLICY.requiredRedundancyEvidenceClass);
   const secureDelegationVerified = securityWithheldReason === null;
 
   let routingWithheldReason: RoutingWithheldReason | null = securityWithheldReason;
   if (routingWithheldReason === null && state.routingHardDenied) {
     routingWithheldReason = "routing_hard_denied";
+  } else if (
+    routingWithheldReason === null &&
+    policy.redundancyMode === "enforcing" &&
+    !redundancyEvidenceSufficient
+  ) {
+    routingWithheldReason = "authority_redundancy_evidence_insufficient";
   } else if (
     routingWithheldReason === null &&
     policy.redundancyMode === "enforcing" &&
@@ -292,6 +322,8 @@ export function evaluateDelegation(
       msUntilExpiry < expiryProximityThresholdMs * 2,
     componentsSecure,
     authorityRedundancyHealthy,
+    redundancyEvidenceSufficient,
+    redundancyEvidenceClass: state.authorityRedundancyEvidenceClass,
     redundancyObservationFresh,
     canonicalRoutingEligible: state.canonicalRoutingEligible,
     routingHardDenied: state.routingHardDenied,
@@ -394,6 +426,7 @@ export interface RootDelegationRow {
     | "user_acknowledgement"
     | null;
   readonly authorityRedundancyOk: boolean | null;
+  readonly authorityRedundancyEvidenceClass: RedundancyEvidenceClass | null;
   readonly lastRedundancyObservationAtMs: number | null;
   readonly canonicalRoutingEligible: boolean;
   readonly routingHardDenied: boolean;
@@ -457,6 +490,7 @@ export function resolveRootDelegationState(
       lastParentObservationAt: null,
       earliestRrsigExpiresAt: null,
       authorityRedundancyOk: row.authorityRedundancyOk,
+      authorityRedundancyEvidenceClass: row.authorityRedundancyEvidenceClass,
       lastRedundancyObservationAt: row.lastRedundancyObservationAtMs,
       canonicalRoutingEligible: row.canonicalRoutingEligible,
       routingHardDenied: row.routingHardDenied,
@@ -496,6 +530,7 @@ export function resolveRootDelegationState(
     lastParentObservationAt: observation.observedAtMs,
     earliestRrsigExpiresAt: observation.earliestRrsigExpiresAtMs,
     authorityRedundancyOk: row.authorityRedundancyOk,
+    authorityRedundancyEvidenceClass: row.authorityRedundancyEvidenceClass,
     lastRedundancyObservationAt: row.lastRedundancyObservationAtMs,
     canonicalRoutingEligible: row.canonicalRoutingEligible,
     routingHardDenied: row.routingHardDenied,

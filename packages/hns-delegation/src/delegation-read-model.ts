@@ -18,9 +18,11 @@
 
 import {
   DEFAULT_DELEGATION_THRESHOLDS,
+  DEFAULT_DELEGATION_POLICY,
   evaluateDelegation,
   resolveRootDelegationState,
   type DelegationEvaluation,
+  type DelegationPolicy,
   type DelegationThresholdsInput,
   type ParentObservationRow,
   type RootDelegationRow,
@@ -41,6 +43,7 @@ export const ROOT_DELEGATION_SELECT_SQL = `
     state.rollover_state AS delegation_rollover_state,
     state.pending_evidence_kind AS delegation_pending_evidence_kind,
     state.authority_redundancy_ok AS delegation_authority_redundancy_ok,
+    state.authority_redundancy_evidence_class AS delegation_authority_redundancy_evidence_class,
     state.last_redundancy_observation_at AS delegation_redundancy_observed_at,
     state.canonical_routing_eligible AS delegation_canonical_routing_eligible,
     state.routing_hard_denied AS delegation_routing_hard_denied,
@@ -77,6 +80,8 @@ export interface RootDelegationJoinRow {
   readonly delegation_rollover_state: RootDelegationRow["rolloverState"];
   readonly delegation_pending_evidence_kind: RootDelegationRow["pendingEvidenceKind"];
   readonly delegation_authority_redundancy_ok: number | boolean | null;
+  readonly delegation_authority_redundancy_evidence_class:
+    | RootDelegationRow["authorityRedundancyEvidenceClass"];
   readonly delegation_redundancy_observed_at: string | Date | null;
   readonly delegation_canonical_routing_eligible: number | boolean;
   readonly delegation_routing_hard_denied: number | boolean;
@@ -134,9 +139,15 @@ export function evaluateJoinedRoot(
   row: RootDelegationJoinRow | null,
   nowMs: number,
   thresholds: DelegationThresholdsInput = DEFAULT_DELEGATION_THRESHOLDS,
+  policy?: DelegationPolicy,
 ): DelegationEvaluation {
   if (row === null) {
-    return evaluateDelegation(null, nowMs, thresholds);
+    return evaluateDelegation(
+      null,
+      nowMs,
+      thresholds,
+      policy ?? DEFAULT_DELEGATION_POLICY,
+    );
   }
 
   const stateRow: RootDelegationRow = {
@@ -144,6 +155,8 @@ export function evaluateJoinedRoot(
     lastParentObservationId: row.delegation_last_parent_observation_id,
     pendingEvidenceKind: row.delegation_pending_evidence_kind,
     authorityRedundancyOk: toNullableBool(row.delegation_authority_redundancy_ok),
+    authorityRedundancyEvidenceClass:
+      row.delegation_authority_redundancy_evidence_class,
     lastRedundancyObservationAtMs: toMs(row.delegation_redundancy_observed_at),
     canonicalRoutingEligible: toBool(row.delegation_canonical_routing_eligible),
     routingHardDenied: toBool(row.delegation_routing_hard_denied),
@@ -165,6 +178,7 @@ export function evaluateJoinedRoot(
     resolveRootDelegationState(stateRow, observation),
     nowMs,
     thresholds,
+    policy ?? DEFAULT_DELEGATION_POLICY,
   );
 }
 
@@ -213,6 +227,8 @@ export interface DelegationResponseProjection {
   readonly routing_withheld_reason: DelegationEvaluation["routingWithheldReason"];
   readonly signature_expiry_warning: boolean;
   readonly authority_redundancy_healthy: boolean;
+  readonly redundancy_evidence_sufficient: boolean;
+  readonly redundancy_evidence_class: DelegationEvaluation["redundancyEvidenceClass"];
   readonly redundancy_observation_fresh: boolean;
   readonly canonical_routing_eligible: boolean;
   readonly routing_hard_denied: boolean;
@@ -245,6 +261,8 @@ export function projectDelegationResponse(
     routing_withheld_reason: evaluation.routingWithheldReason,
     signature_expiry_warning: evaluation.signatureExpiryWarning,
     authority_redundancy_healthy: evaluation.authorityRedundancyHealthy,
+    redundancy_evidence_sufficient: evaluation.redundancyEvidenceSufficient,
+    redundancy_evidence_class: evaluation.redundancyEvidenceClass,
     redundancy_observation_fresh: evaluation.redundancyObservationFresh,
     canonical_routing_eligible: evaluation.canonicalRoutingEligible,
     routing_hard_denied: evaluation.routingHardDenied,
