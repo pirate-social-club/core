@@ -33,6 +33,7 @@ FeedBooking:
   required:
     - host_user_id
     - base_price_cents
+    - has_available_slot
     - starting_price_cents
     - currency
   properties:
@@ -41,10 +42,14 @@ FeedBooking:
     base_price_cents:
       type: integer
       minimum: 0
+    has_available_slot:
+      type: boolean
+      description: Whether the canonical discovery window contains at least one currently available slot.
     starting_price_cents:
       type: integer
       minimum: 0
-      description: Lowest configured session price across the host base price and price rules.
+      nullable: true
+      description: Lowest canonical slot price in the discovery window; null when no slot is available.
     currency:
       type: string
       enum:
