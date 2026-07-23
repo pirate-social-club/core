@@ -36,18 +36,30 @@ import {
  * malformed query cannot pair a row with another root's observation -- the same
  * pairing the composite FK forbids at write time.
  */
+export const ROOT_DELEGATION_SELECT_SQL = `
+    state.normalized_root_label AS delegation_root_label,
+    state.rollover_state AS delegation_rollover_state,
+    state.pending_evidence_kind AS delegation_pending_evidence_kind,
+    state.last_parent_observation_id AS delegation_last_parent_observation_id,
+    observation.parent_observation_id AS delegation_parent_observation_id,
+    observation.observed_delegation_security AS delegation_security,
+    observation.parent_ds_matches_live_dnskey AS delegation_parent_ds_matches_live_dnskey,
+    observation.authoritative_dnssec_valid AS delegation_authoritative_dnssec_valid,
+    observation.observed_at AS delegation_observed_at,
+    observation.earliest_rrsig_expires_at AS delegation_earliest_rrsig_expires_at
+`.trim();
+
+export const ROOT_DELEGATION_JOIN_SQL = `
+LEFT JOIN hns_root_delegation_state AS state
+    ON state.normalized_root_label = nv.normalized_root_label
+LEFT JOIN hns_root_parent_observations AS observation
+    ON observation.parent_observation_id = state.last_parent_observation_id
+    AND observation.normalized_root_label = state.normalized_root_label
+`.trim();
+
 export const ROOT_DELEGATION_READ_SQL = `
 SELECT
-    state.normalized_root_label,
-    state.rollover_state,
-    state.pending_evidence_kind,
-    state.last_parent_observation_id,
-    observation.parent_observation_id,
-    observation.observed_delegation_security,
-    observation.parent_ds_matches_live_dnskey,
-    observation.authoritative_dnssec_valid,
-    observation.observed_at,
-    observation.earliest_rrsig_expires_at
+    ${ROOT_DELEGATION_SELECT_SQL}
 FROM hns_root_delegation_state AS state
 LEFT JOIN hns_root_parent_observations AS observation
     ON observation.parent_observation_id = state.last_parent_observation_id
@@ -57,18 +69,18 @@ WHERE state.normalized_root_label = $1
 
 /** One joined row, with the observation columns null when there is none. */
 export interface RootDelegationJoinRow {
-  readonly normalized_root_label: string;
-  readonly rollover_state: RootDelegationRow["rolloverState"];
-  readonly pending_evidence_kind: RootDelegationRow["pendingEvidenceKind"];
-  readonly last_parent_observation_id: string | null;
-  readonly parent_observation_id: string | null;
-  readonly observed_delegation_security:
+  readonly delegation_root_label: string;
+  readonly delegation_rollover_state: RootDelegationRow["rolloverState"];
+  readonly delegation_pending_evidence_kind: RootDelegationRow["pendingEvidenceKind"];
+  readonly delegation_last_parent_observation_id: string | null;
+  readonly delegation_parent_observation_id: string | null;
+  readonly delegation_security:
     | ParentObservationRow["observedDelegationSecurity"]
     | null;
-  readonly parent_ds_matches_live_dnskey: number | boolean | null;
-  readonly authoritative_dnssec_valid: number | boolean | null;
-  readonly observed_at: string | Date | null;
-  readonly earliest_rrsig_expires_at: string | Date | null;
+  readonly delegation_parent_ds_matches_live_dnskey: number | boolean | null;
+  readonly delegation_authoritative_dnssec_valid: number | boolean | null;
+  readonly delegation_observed_at: string | Date | null;
+  readonly delegation_earliest_rrsig_expires_at: string | Date | null;
 }
 
 function toMs(value: string | Date | null): number | null {
@@ -116,21 +128,21 @@ export function evaluateJoinedRoot(
   }
 
   const stateRow: RootDelegationRow = {
-    rolloverState: row.rollover_state,
-    lastParentObservationId: row.last_parent_observation_id,
-    pendingEvidenceKind: row.pending_evidence_kind,
+    rolloverState: row.delegation_rollover_state,
+    lastParentObservationId: row.delegation_last_parent_observation_id,
+    pendingEvidenceKind: row.delegation_pending_evidence_kind,
   };
 
   const observation: ParentObservationRow | null =
-    row.parent_observation_id === null
+    row.delegation_parent_observation_id === null
       ? null
       : {
-          parentObservationId: row.parent_observation_id,
+          parentObservationId: row.delegation_parent_observation_id,
           observedDelegationSecurity: requireObservedSecurity(row),
-          parentDsMatchesLiveDnskey: toBool(row.parent_ds_matches_live_dnskey),
-          authoritativeDnssecValid: toBool(row.authoritative_dnssec_valid),
+          parentDsMatchesLiveDnskey: toBool(row.delegation_parent_ds_matches_live_dnskey),
+          authoritativeDnssecValid: toBool(row.delegation_authoritative_dnssec_valid),
           observedAtMs: requireObservedAt(row),
-          earliestRrsigExpiresAtMs: toMs(row.earliest_rrsig_expires_at),
+          earliestRrsigExpiresAtMs: toMs(row.delegation_earliest_rrsig_expires_at),
         };
 
   return evaluateDelegation(
@@ -143,20 +155,20 @@ export function evaluateJoinedRoot(
 function requireObservedSecurity(
   row: RootDelegationJoinRow,
 ): ParentObservationRow["observedDelegationSecurity"] {
-  if (row.observed_delegation_security === null) {
+  if (row.delegation_security === null) {
     throw new TypeError(
-      `observation ${String(row.parent_observation_id)} has no security finding; ` +
+      `observation ${String(row.delegation_parent_observation_id)} has no security finding; ` +
         "the outcome CHECK guarantees a successful observation carries one",
     );
   }
-  return row.observed_delegation_security;
+  return row.delegation_security;
 }
 
 function requireObservedAt(row: RootDelegationJoinRow): number {
-  const ms = toMs(row.observed_at);
+  const ms = toMs(row.delegation_observed_at);
   if (ms === null) {
     throw new TypeError(
-      `observation ${String(row.parent_observation_id)} has no observed_at`,
+      `observation ${String(row.delegation_parent_observation_id)} has no observed_at`,
     );
   }
   return ms;
