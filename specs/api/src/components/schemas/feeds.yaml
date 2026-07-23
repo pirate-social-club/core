@@ -25,6 +25,25 @@ FeedItem:
       $ref: ./feeds.yaml#/HomeFeedCommunitySummary
     post:
       $ref: ./posts.yaml#/LocalizedPostResponse
+    booking:
+      $ref: ./feeds.yaml#/FeedBooking
+FeedBooking:
+  type: object
+  additionalProperties: false
+  required:
+    - host_user_id
+    - base_price_cents
+    - currency
+  properties:
+    host_user_id:
+      type: string
+    base_price_cents:
+      type: integer
+      minimum: 0
+    currency:
+      type: string
+      enum:
+        - USDC
 HomeFeedCommunitySummary:
   type: object
   additionalProperties: false

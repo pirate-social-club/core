@@ -15117,6 +15117,8 @@ components:
           $ref: "#/components/schemas/HomeFeedCommunitySummary"
         post:
           $ref: "#/components/schemas/LocalizedPostResponse"
+        booking:
+          $ref: "#/components/schemas/FeedBooking"
     CreateCommunityBootstrapInput:
       type: object
       properties:
