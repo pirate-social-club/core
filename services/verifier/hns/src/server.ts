@@ -70,9 +70,11 @@ import { PowerDnsApiClient, type PowerDnsZoneSnapshot } from "./pdns-store";
 import { parseDaneEeAssociations } from "./tlsa";
 import {
   observeRootAuthority,
+  resolveValidatedAuthorityAddresses,
   type AuthorityTarget,
   type RequiredRrset,
 } from "./root-authority-observation";
+import { parentAuthorityTargets } from "./authority-targets";
 import { json, requireBearerAuth } from "../../shared/http";
 import { isCanonicalPirateHnsRootLabel } from "../../../hns/root-label";
 
@@ -711,14 +713,33 @@ function requiredAuthorityRrsets(
     left.name.localeCompare(right.name) || left.type.localeCompare(right.type));
 }
 
-function parentAuthorityTargets(parent: Awaited<ReturnType<typeof observeRootParent>>["parent"]): AuthorityTarget[] {
-  const addresses = [...parent.glue4, ...parent.glue6];
-  return [...new Set(parent.nameservers)].map((nameserver) => ({
-    nameserver,
-    addresses: addresses
-      .filter((glue) => glue.nameserver === nameserver)
-      .map((glue) => glue.address)
-      .sort(),
+async function resolveParentAuthorityTargets(
+  rootLabel: string,
+  parent: Awaited<ReturnType<typeof observeRootParent>>["parent"],
+): Promise<AuthorityTarget[]> {
+  const config = getAuthorityObservationConfig();
+  const addressRootParents = new Map<
+    string,
+    Promise<Awaited<ReturnType<typeof observeRootParent>>>
+  >();
+  return Promise.all(parentAuthorityTargets(rootLabel, parent).map(async (target) => {
+    if (target.addresses.length > 0 || target.address_resolution_root == null) return target;
+    let addressRootParentPromise = addressRootParents.get(target.address_resolution_root);
+    if (!addressRootParentPromise) {
+      addressRootParentPromise = observeRootParent(target.address_resolution_root);
+      addressRootParents.set(target.address_resolution_root, addressRootParentPromise);
+    }
+    const addressRootParent = await addressRootParentPromise;
+    return {
+      nameserver: target.nameserver,
+      addresses: await resolveValidatedAuthorityAddresses({
+        nameserver: target.nameserver,
+        anchorRoot: target.address_resolution_root,
+        anchors: addressRootParent.parent.ds_records,
+        config,
+      }),
+      missing_address_failure_code: target.missing_address_failure_code,
+    };
   }));
 }
 
@@ -732,7 +753,10 @@ async function observeRootServingAuthority(rootLabel: string) {
     rootLabel: parentObservation.root_label,
     anchors: parentObservation.parent.ds_records,
     requiredRrsets: requiredAuthorityRrsets(parentObservation.zone_name, zone),
-    authorities: parentAuthorityTargets(parentObservation.parent),
+    authorities: await resolveParentAuthorityTargets(
+      parentObservation.root_label,
+      parentObservation.parent,
+    ),
     config: getAuthorityObservationConfig(),
   });
   return {
