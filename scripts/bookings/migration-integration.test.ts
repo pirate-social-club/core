@@ -47,12 +47,14 @@ const EXPECTED_MIGRATIONS = [
   "b0001_bookings_global_schema.sql",
   "b0002_booking_settlement_review.sql",
   "b0003_booking_outcome.sql",
+  "b0004_booking_feed_discovery_snapshots.sql",
 ];
 
 // The exact table set the bookings migrations must create in the bookings schema.
 const EXPECTED_TABLES = [
   "attendance_heartbeats", "attendance_sessions", "availability_exceptions", "availability_rules",
-  "bookings", "holds", "host_slot_locks", "payment_intents", "price_rules", "profiles", "settlement_effects",
+  "bookings", "feed_discovery_snapshots", "holds", "host_slot_locks", "payment_intents", "price_rules",
+  "profiles", "settlement_effects",
 ];
 
 // Run the actual migration runner as the non-superuser migrator; returns {applied, skipped}.
@@ -200,6 +202,10 @@ describe.skipIf(!RUN)("bookings global migration (real Postgres)", () => {
     await expectRejected(rw, `INSERT INTO bookings.price_rules(price_rule_id,host_user_id,match_local_start,price_cents) VALUES('p1','h','18:00',6000)`, SQLSTATE.check);
     await expectRejected(rw, `INSERT INTO bookings.price_rules(price_rule_id,host_user_id,match_local_start,match_local_end,price_cents) VALUES('prev','h','20:00','18:00',6000)`, SQLSTATE.check);
     await rw.unsafe(`INSERT INTO bookings.price_rules(price_rule_id,host_user_id,match_weekday,match_local_start,match_local_end,price_cents) VALUES('pok','h','{1,5}','18:00','20:00',6000)`);
+    // discovery snapshots must pair availability with a positive price, use a forward window, and expire after computation
+    await expectRejected(rw, `INSERT INTO bookings.feed_discovery_snapshots(host_user_id,has_available_slot,starting_price_cents,window_start_utc,window_end_utc,valid_until,computed_at) VALUES('h',true,NULL,'2026-07-01 00:00:00+00','2026-07-15 00:00:00+00','2026-07-01 00:10:00+00','2026-07-01 00:00:00+00')`, SQLSTATE.check);
+    await expectRejected(rw, `INSERT INTO bookings.feed_discovery_snapshots(host_user_id,has_available_slot,starting_price_cents,window_start_utc,window_end_utc,valid_until,computed_at) VALUES('h',false,1000,'2026-07-01 00:00:00+00','2026-07-15 00:00:00+00','2026-07-01 00:10:00+00','2026-07-01 00:00:00+00')`, SQLSTATE.check);
+    await rw.unsafe(`INSERT INTO bookings.feed_discovery_snapshots(host_user_id,has_available_slot,starting_price_cents,window_start_utc,window_end_utc,valid_until,computed_at) VALUES('h',true,5000,'2026-07-01 00:00:00+00','2026-07-15 00:00:00+00','2026-07-01 00:10:00+00','2026-07-01 00:00:00+00')`);
     // fee snapshot mandatory (omitting the fee columns violates NOT NULL)
     await expectRejected(rw, `INSERT INTO bookings.payment_intents(payment_intent_id,hold_id,chain_id,token_address,token_decimals,token_symbol,recipient_address,amount_atomic,gross_cents,quote_expires_at,hold_expires_at,status,created_at,updated_at) VALUES('pi1','hld',84532,'0xt',6,'USDC','0xr',1000000,5000,now(),now(),'active',now(),now())`, SQLSTATE.notNull);
     // fee snapshot must balance to gross_cents
