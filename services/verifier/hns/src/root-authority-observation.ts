@@ -104,10 +104,7 @@ export function parseDigSoaSerial(output: string): string | null {
 
 export function buildTrustAnchorFile(rootLabel: string, anchors: DsTrustAnchor[]): string {
   const root = canonicalName(rootLabel);
-  const usableAnchors = anchors.filter((anchor) =>
-    (anchor.digest_type === 2 && /^[0-9a-f]{64}$/iu.test(anchor.digest))
-    || (anchor.digest_type === 4 && /^[0-9a-f]{96}$/iu.test(anchor.digest))
-  );
+  const usableAnchors = anchors.filter(isUsableTrustAnchor);
   if (usableAnchors.length === 0) {
     throw new Error("parent DS has no supported SHA-256 or SHA-384 trust anchor");
   }
@@ -115,6 +112,11 @@ export function buildTrustAnchorFile(rootLabel: string, anchors: DsTrustAnchor[]
     `  "${root}" static-ds ${anchor.key_tag} ${anchor.algorithm} ${anchor.digest_type} "${anchor.digest.toUpperCase()}";`
   );
   return `trust-anchors {\n${records.join("\n")}\n};\n`;
+}
+
+function isUsableTrustAnchor(anchor: DsTrustAnchor): boolean {
+  return (anchor.digest_type === 2 && /^[0-9a-f]{64}$/iu.test(anchor.digest))
+    || (anchor.digest_type === 4 && /^[0-9a-f]{96}$/iu.test(anchor.digest));
 }
 
 export async function runCommand(
@@ -196,9 +198,6 @@ export async function observeRootAuthority(
   },
   runner: CommandRunner = runCommand,
 ) {
-  if (input.anchors.length === 0) {
-    throw new Error("parent DS trust anchor is absent");
-  }
   if (input.requiredRrsets.length === 0) {
     throw new Error("required authoritative RRset inventory is empty");
   }
@@ -206,13 +205,62 @@ export async function observeRootAuthority(
   const anchorDirectory = await mkdtemp(join(tmpdir(), "pirate-hns-anchor-"));
   const anchorPath = join(anchorDirectory, "trust-anchors.conf");
   try {
-    await writeFile(anchorPath, buildTrustAnchorFile(input.rootLabel, input.anchors), {
-      encoding: "utf8",
-      mode: 0o600,
-    });
-    await chmod(anchorPath, 0o600);
+    const usableAnchors = input.anchors.filter(isUsableTrustAnchor);
+    if (usableAnchors.length > 0) {
+      await writeFile(anchorPath, buildTrustAnchorFile(input.rootLabel, usableAnchors), {
+        encoding: "utf8",
+        mode: 0o600,
+      });
+      await chmod(anchorPath, 0o600);
+    }
 
-    const rrsets = await Promise.all(input.requiredRrsets.map(async (rrset) => {
+    const anchorResults = await Promise.all(input.anchors.map(async (anchor, index) => {
+      if (!isUsableTrustAnchor(anchor)) {
+        return {
+          ...anchor,
+          supported: false,
+          matches_live_dnskey: null,
+          failure_code: "unsupported_ds_digest",
+        };
+      }
+      const singleAnchorPath = join(anchorDirectory, `trust-anchor-${index}.conf`);
+      await writeFile(singleAnchorPath, buildTrustAnchorFile(input.rootLabel, [anchor]), {
+        encoding: "utf8",
+        mode: 0o600,
+      });
+      await chmod(singleAnchorPath, 0o600);
+      const result = await runner(input.config.delvBin, [
+        `@${input.config.resolverAddress}`,
+        "-p",
+        String(input.config.resolverPort),
+        "-a",
+        singleAnchorPath,
+        `+root=${canonicalName(input.rootLabel)}`,
+        canonicalName(input.rootLabel),
+        "DNSKEY",
+        "+rtrace",
+      ], input.config.timeoutMs);
+      const parsed = parseValidatedDelvOutput(result.stdout);
+      const matchesLiveDnskey = result.exitCode === 0
+        && parsed.fullyValidated
+        && parsed.rrsigExpirations.length > 0;
+      return {
+        ...anchor,
+        supported: true,
+        matches_live_dnskey: matchesLiveDnskey,
+        failure_code: matchesLiveDnskey ? null : "ds_does_not_anchor_live_dnskey",
+      };
+    }));
+
+    const rrsets = usableAnchors.length === 0
+      ? input.requiredRrsets.map((rrset) => ({
+          name: canonicalName(rrset.name),
+          type: rrset.type,
+          validated: false,
+          rrsig_expirations: [] as string[],
+          failure_code: "parent_ds_trust_anchor_unavailable",
+        }))
+      : await Promise.all(input.requiredRrsets.map(async (rrset) => {
       const result = await runner(input.config.delvBin, [
         `@${input.config.resolverAddress}`,
         "-p",
@@ -239,7 +287,7 @@ export async function observeRootAuthority(
             ? "dnssec_not_fully_validated"
             : "dnssec_validation_failed",
       };
-    }));
+        }));
 
     const authorities = await Promise.all(input.authorities.map(
       (authority) => observeAuthority({
@@ -263,6 +311,10 @@ export async function observeRootAuthority(
       provider: "bind_delv_with_hsd_ds_anchor",
       observed_at: new Date().toISOString(),
       authoritative_dnssec_valid: rrsets.every((rrset) => rrset.validated),
+      parent_ds_matches_live_dnskey: anchorResults.some(
+        (anchor) => anchor.matches_live_dnskey === true,
+      ),
+      parent_ds_results: anchorResults,
       earliest_rrsig_expires_at: expirations[0] ?? null,
       required_rrsets: rrsets,
       authority_redundancy_ok: authorityRedundancyOk,
