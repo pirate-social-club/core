@@ -92,6 +92,79 @@ RewardPendingVerificationSummary:
       type: integer
       format: int64
       nullable: true
+RewardQualificationStatus:
+  type: string
+  enum:
+    - checking
+    - pending_verification
+    - credited
+    - expired
+    - unavailable
+RewardQualificationOutcomeReason:
+  type: string
+  enum:
+    - campaign_ended
+    - budget_unavailable
+    - identity_duplicate
+    - owner_blocked
+    - score
+    - verification_window_expired
+RewardQualificationSummary:
+  type: object
+  required:
+    - id
+    - reward_qualification_event_id
+    - reward_campaign_id
+    - community_id
+    - post_id
+    - reward_period_key
+    - qualification_basis
+    - amount_cents
+    - status
+    - outcome_reason
+    - expires_at
+    - credited_reward_event_id
+    - created_at
+    - updated_at
+  properties:
+    id:
+      type: string
+    reward_qualification_event_id:
+      type: string
+    reward_campaign_id:
+      type: string
+    community_id:
+      type: string
+    post_id:
+      type: string
+    reward_period_key:
+      type: string
+    qualification_basis:
+      type: string
+      enum:
+        - study
+        - karaoke
+        - both
+    amount_cents:
+      type: integer
+      minimum: 1
+    status:
+      $ref: ./rewards.yaml#/RewardQualificationStatus
+    outcome_reason:
+      nullable: true
+      $ref: ./rewards.yaml#/RewardQualificationOutcomeReason
+    expires_at:
+      type: integer
+      format: int64
+    credited_reward_event_id:
+      type: string
+      nullable: true
+    created_at:
+      type: integer
+      format: int64
+    updated_at:
+      type: integer
+      format: int64
 RewardsSummaryResponse:
   type: object
   required:
@@ -99,6 +172,7 @@ RewardsSummaryResponse:
     - balance_cents
     - today_earned_cents
     - recent_events
+    - recent_qualifications
     - pending_verification
     - cashout
     - latest_in_flight_cashout
@@ -114,6 +188,10 @@ RewardsSummaryResponse:
       type: array
       items:
         $ref: ./rewards.yaml#/RewardEventSummary
+    recent_qualifications:
+      type: array
+      items:
+        $ref: ./rewards.yaml#/RewardQualificationSummary
     pending_verification:
       $ref: ./rewards.yaml#/RewardPendingVerificationSummary
     cashout:
