@@ -33,6 +33,7 @@ FeedBooking:
   required:
     - host_user_id
     - base_price_cents
+    - starting_price_cents
     - currency
   properties:
     host_user_id:
@@ -40,6 +41,10 @@ FeedBooking:
     base_price_cents:
       type: integer
       minimum: 0
+    starting_price_cents:
+      type: integer
+      minimum: 0
+      description: Lowest configured session price across the host base price and price rules.
     currency:
       type: string
       enum:
