@@ -45,6 +45,12 @@
         "oldChecksum": "451b6e15812a507e53f0eed4397abed260ce5aca18171ba4c4be0f28a7e2d230",
         "newChecksum": "54caa07dbc6b937e2475937a5c4b5d2e07b0c69649809bcfb48e0062649e6dc2",
         "reason": "pre-deployment repair: replace Postgres-only data-changing CTE backfill with SQLite-compatible statements used by local control-plane bootstrap"
+      },
+      {
+        "migrationName": "0152_control_plane_hns_root_delegation_state.sql",
+        "oldChecksum": "850cc894baff6a955eb5f03fc4a55defabe9420fb4a8d395c7c02e9d24d58755",
+        "newChecksum": "5380adc9932f26734c9a273b66cc2ee10ad6db130080a5efe62dcf281540e86c",
+        "reason": "pre-deployment repair: replace PostgreSQL-only NULLS FIRST index syntax with an equivalent PostgreSQL/SQLite expression index"
       }
     ]
   }
