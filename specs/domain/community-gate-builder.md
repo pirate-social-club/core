@@ -49,7 +49,7 @@ entitlements (tiers, name claims, badges) is
   `{op: gate, gate: atom}`. Version 1.
 - Limits: depth ≤ 4, ≤ 20 atoms total, ≤ 20 children per node.
 - Exactly one predicate per atom type. No NOT, no ranges.
-- Atom types: `unique_human` (single provider `self|very`), `minimum_age` /
+- Atom types: `unique_human` (single provider `self|very|zkpassport`), `minimum_age` /
   `nationality` / `gender` (document atoms, `accepted_providers ⊆
   {self, zkpassport}`), `wallet_score`, `erc721_holding` (mainnet balanceOf),
   `erc721_inventory_match` (Courtyard trait match), `altcha_pow`.
@@ -100,7 +100,7 @@ its advanced-policy preserve banner remain the production path.
 
 | Field (admin-facing)  | Check            | Serializes to |
 | --------------------- | ---------------- | ------------- |
-| Human verification    | proven via any of | `unique_human` per selected provider; >1 providers → `or(...)`. Provider set is `self|very` today; ZKPassport joins ONLY if promoted backend-side (open decision, see below) |
+| Human verification    | proven via any of | `unique_human` per selected provider; >1 providers → `or(...)`. Provider set is `self|very|zkpassport` |
 | Nationality           | is one of        | `nationality` with `allowed[]` + explicit `accepted_providers` |
 | Minimum age           | ≥                | `minimum_age` (18–125) + explicit `accepted_providers` |
 | Sex marker            | is               | `gender` with `allowed: [F|M]` + explicit `accepted_providers` |
@@ -109,15 +109,15 @@ its advanced-policy preserve banner remain the production path.
 | Browser anti-bot      | solved at join   | `altcha_pow` |
 
 Document rows carry their provider set (`self` / `zkpassport` chips) inline;
-personhood rows carry `self` / `very` chips. The two vocabularies are
-distinct and must never share state.
+personhood rows carry `self` / `very` / `zkpassport` chips. Provider
+selection remains capability-specific even when one provider supports both
+personhood and document capabilities.
 
 ### Identity provider extensibility
 
 Personhood and document providers will keep arriving (World ID is
-anticipated; ZKPassport personhood promotion is deferred until it can be
-exercised with real documents). Design constraint: adding a provider must
-not reshape atoms or the editor.
+anticipated). Design constraint: adding a provider must not reshape atoms or
+the editor.
 
 - **Provider registry (data, not code):** per-provider record — id, kind
   (personhood | document | reputation), capabilities minted, nullifier scope
@@ -336,16 +336,11 @@ GET /gate-capabilities/nft?chain=eip155:1&contract=0x...
   inside the atom. Gates evaluate against the CURRENT trait snapshot; version
   pinning lives in tier provenance (evidence), never in policy.
 - ERC-1155 and additional chains as new evaluation modes.
-- ZKPassport → `unique_human` promotion. Today the API stores ZKPassport
-  completions as document capabilities only; it records the
-  `zkpassport-unique-identifier` nullifier but does not mint `unique_human` or
-  set the user's global `verification_state`. Production aggregate read on
-  2026-07-09 found 0 ZKPassport sessions, attestations, or active
-  nullifiers, so there is no current backfill population. Promotion is still
-  gated on: (a) final nullifier semantics check (per-document, app-scoped),
-  (b) staging e2e with `ZKPASSPORT_DEV_MODE`, and (c) the product decision
-  that passport-NFC uniqueness should count as personhood. This decides the
-  Personhood chip set here and the verified-badge population.
+- ZKPassport personhood is live. A completed ZKPassport document verification
+  records the `zkpassport-unique-identifier` nullifier and mints both the
+  requested document capabilities and a provider-scoped `unique_human`
+  attestation. The user capability snapshot and global verification state are
+  updated accordingly.
 - Fungible/native balance gates: the provider-neutral `asset_balance` family is defined in
   `community-asset-balance-gates.md`; implementation remains out of scope for this builder spec
   (ETH/ERC-20 first; Bitcoin has an attachment rail but still needs a UTXO evaluator; Solana still
