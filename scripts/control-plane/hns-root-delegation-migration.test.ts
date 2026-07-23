@@ -1,5 +1,5 @@
 /**
- * Real-Postgres integration test for the HNS root delegation migration (0152) and the
+ * Real-Postgres integration test for the HNS root delegation migrations (0152-0153) and the
  * canonical read query shipped in @pirate/hns-delegation.
  *
  * Runs ONLY when CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL (or the shared bookings admin URL) is set;
@@ -26,7 +26,10 @@ const ADMIN_URL =
   process.env.CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL ?? process.env.BOOKINGS_MIGRATION_TEST_ADMIN_URL;
 const RUN = Boolean(ADMIN_URL);
 const TEST_DB = "hns_root_delegation_migration_test";
-const MIGRATION_FILE = "db/control-plane/migrations/0152_control_plane_hns_root_delegation_state.sql";
+const MIGRATION_FILES = [
+  "db/control-plane/migrations/0152_control_plane_hns_root_delegation_state.sql",
+  "db/control-plane/migrations/0153_control_plane_hns_root_authority_redundancy.sql",
+];
 
 const SQLSTATE = { check: "23514", foreignKey: "23503" } as const;
 const NOW = new Date("2026-07-22T12:00:00Z");
@@ -57,7 +60,7 @@ async function expectRejected(sql: SQL, statement: string, sqlstate: string): Pr
 
 let sql: SQL;
 
-describe.skipIf(!RUN)("hns root delegation migration 0152 (real Postgres)", () => {
+describe.skipIf(!RUN)("hns root delegation migrations 0152-0153 (real Postgres)", () => {
   beforeAll(async () => {
     const root = connect();
     await root.unsafe(`DROP DATABASE IF EXISTS ${TEST_DB} WITH (FORCE)`);
@@ -65,16 +68,18 @@ describe.skipIf(!RUN)("hns root delegation migration 0152 (real Postgres)", () =
     await root.end();
 
     sql = connect(TEST_DB);
-    const text = await Bun.file(MIGRATION_FILE).text();
-    const statements = text
-      .split("\n")
-      .filter((l) => !l.trimStart().startsWith("--"))
-      .join("\n")
-      .split(";")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    for (const statement of statements) {
-      await sql.unsafe(statement);
+    for (const migrationFile of MIGRATION_FILES) {
+      const text = await Bun.file(migrationFile).text();
+      const statements = text
+        .split("\n")
+        .filter((l) => !l.trimStart().startsWith("--"))
+        .join("\n")
+        .split(";")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      for (const statement of statements) {
+        await sql.unsafe(statement);
+      }
     }
 
     // A root with a live keyset, its issued DS, and one successful secure observation.
@@ -265,6 +270,49 @@ describe.skipIf(!RUN)("hns root delegation migration 0152 (real Postgres)", () =
           digest_type, digest, classification, created_at)
        VALUES ('ods_bad2', 'obs_1', 'dankmeme', 39280, 13, 2, 'aabb', 'matching',
                '${NOW.toISOString()}')`,
+      SQLSTATE.check,
+    );
+  });
+
+  test("failed redundancy attempts cannot establish a health finding", async () => {
+    await expectRejected(
+      sql,
+      `INSERT INTO hns_root_redundancy_observations
+         (redundancy_observation_id, normalized_root_label, outcome, provider, failure_code,
+          authority_redundancy_ok, observed_at, created_at)
+       VALUES ('red_bad', 'dankmeme', 'failed', 'hns_verifier', 'timeout', 0,
+               '${NOW.toISOString()}', '${NOW.toISOString()}')`,
+      SQLSTATE.check,
+    );
+  });
+
+  test("state redundancy facts are tri-state and complete", async () => {
+    await sql.unsafe(`
+      INSERT INTO hns_root_redundancy_observations
+        (redundancy_observation_id, normalized_root_label, outcome, provider,
+         observed_parent_ns_json, authority_redundancy_ok, observed_at, created_at)
+      VALUES ('red_1', 'dankmeme', 'succeeded', 'hns_verifier',
+              '["ns1.example","ns2.example"]', 0, '${NOW.toISOString()}', '${NOW.toISOString()}')
+    `);
+    await sql.unsafe(`
+      UPDATE hns_root_delegation_state
+      SET authority_redundancy_ok = 0,
+          last_redundancy_observation_id = 'red_1',
+          last_redundancy_observation_outcome = 'succeeded',
+          last_redundancy_observation_at = '${NOW.toISOString()}'
+      WHERE normalized_root_label = 'dankmeme'
+    `);
+    const rows = (await sql.unsafe(
+      `SELECT authority_redundancy_ok FROM hns_root_delegation_state
+       WHERE normalized_root_label = 'dankmeme'`,
+    )) as Array<{ authority_redundancy_ok: number }>;
+    expect(Number(rows[0]?.authority_redundancy_ok)).toBe(0);
+
+    await expectRejected(
+      sql,
+      `UPDATE hns_root_delegation_state
+       SET last_redundancy_observation_id = NULL
+       WHERE normalized_root_label = 'dankmeme'`,
       SQLSTATE.check,
     );
   });

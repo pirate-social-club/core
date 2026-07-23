@@ -40,6 +40,10 @@ export const ROOT_DELEGATION_SELECT_SQL = `
     state.normalized_root_label AS delegation_root_label,
     state.rollover_state AS delegation_rollover_state,
     state.pending_evidence_kind AS delegation_pending_evidence_kind,
+    state.authority_redundancy_ok AS delegation_authority_redundancy_ok,
+    state.last_redundancy_observation_at AS delegation_redundancy_observed_at,
+    state.canonical_routing_eligible AS delegation_canonical_routing_eligible,
+    state.routing_hard_denied AS delegation_routing_hard_denied,
     state.last_parent_observation_id AS delegation_last_parent_observation_id,
     observation.parent_observation_id AS delegation_parent_observation_id,
     observation.observed_delegation_security AS delegation_security,
@@ -72,6 +76,10 @@ export interface RootDelegationJoinRow {
   readonly delegation_root_label: string;
   readonly delegation_rollover_state: RootDelegationRow["rolloverState"];
   readonly delegation_pending_evidence_kind: RootDelegationRow["pendingEvidenceKind"];
+  readonly delegation_authority_redundancy_ok: number | boolean | null;
+  readonly delegation_redundancy_observed_at: string | Date | null;
+  readonly delegation_canonical_routing_eligible: number | boolean;
+  readonly delegation_routing_hard_denied: number | boolean;
   readonly delegation_last_parent_observation_id: string | null;
   readonly delegation_parent_observation_id: string | null;
   readonly delegation_security:
@@ -112,6 +120,10 @@ function toBool(value: number | boolean | null): boolean {
   return value === 1;
 }
 
+function toNullableBool(value: number | boolean | null): boolean | null {
+  return value === null ? null : toBool(value);
+}
+
 /**
  * Evaluate a root from its joined row.
  *
@@ -131,6 +143,10 @@ export function evaluateJoinedRoot(
     rolloverState: row.delegation_rollover_state,
     lastParentObservationId: row.delegation_last_parent_observation_id,
     pendingEvidenceKind: row.delegation_pending_evidence_kind,
+    authorityRedundancyOk: toNullableBool(row.delegation_authority_redundancy_ok),
+    lastRedundancyObservationAtMs: toMs(row.delegation_redundancy_observed_at),
+    canonicalRoutingEligible: toBool(row.delegation_canonical_routing_eligible),
+    routingHardDenied: toBool(row.delegation_routing_hard_denied),
   };
 
   const observation: ParentObservationRow | null =
@@ -196,6 +212,10 @@ export interface DelegationResponseProjection {
   readonly observation_age_seconds: number | null;
   readonly routing_withheld_reason: DelegationEvaluation["routingWithheldReason"];
   readonly signature_expiry_warning: boolean;
+  readonly authority_redundancy_healthy: boolean;
+  readonly redundancy_observation_fresh: boolean;
+  readonly canonical_routing_eligible: boolean;
+  readonly routing_hard_denied: boolean;
 }
 
 /**
@@ -224,5 +244,9 @@ export function projectDelegationResponse(
         : Math.floor(evaluation.observationAgeMs / 1000),
     routing_withheld_reason: evaluation.routingWithheldReason,
     signature_expiry_warning: evaluation.signatureExpiryWarning,
+    authority_redundancy_healthy: evaluation.authorityRedundancyHealthy,
+    redundancy_observation_fresh: evaluation.redundancyObservationFresh,
+    canonical_routing_eligible: evaluation.canonicalRoutingEligible,
+    routing_hard_denied: evaluation.routingHardDenied,
   };
 }

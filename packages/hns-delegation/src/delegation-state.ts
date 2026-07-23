@@ -6,9 +6,10 @@
  * security posture. Nothing here reads or writes storage, so the routing gate
  * and every read-time adapter share one implementation.
  *
- * The central rule is that `secureDelegationVerified` and
- * `authenticatedRoutingAllowed` are one evaluation with two names, never two
- * checks. They are returned from a single function for that reason.
+ * `secureDelegationVerified` describes DNSSEC security only.
+ * `authenticatedRoutingAllowed` additionally applies availability policy and
+ * the per-root hard deny. Keeping those claims distinct prevents an unhealthy
+ * second authority from being misreported as bogus DNSSEC.
  */
 
 /** The present, observed authentication status of a root. */
@@ -46,7 +47,23 @@ export interface RootDelegationState {
   readonly lastParentObservationAt: number | null;
   /** Earliest RRSIG expiry across the zone's required RRsets, ms since epoch. */
   readonly earliestRrsigExpiresAt: number | null;
+  /** NULL means redundancy has never been established. */
+  readonly authorityRedundancyOk: boolean | null;
+  /** Timestamp of the last successful redundancy observation, ms since epoch. */
+  readonly lastRedundancyObservationAt: number | null;
+  readonly canonicalRoutingEligible: boolean;
+  readonly routingHardDenied: boolean;
 }
+
+export type RedundancyEnforcementMode = "report_only" | "enforcing";
+
+export interface DelegationPolicy {
+  readonly redundancyMode: RedundancyEnforcementMode;
+}
+
+export const DEFAULT_DELEGATION_POLICY: DelegationPolicy = {
+  redundancyMode: "report_only",
+};
 
 export interface DelegationThresholds {
   /**
@@ -118,7 +135,9 @@ export type RoutingWithheldReason =
   /** `delegation_security = secure` contradicted by its own component observations. */
   | "incoherent_state"
   | "signature_expiry_unknown"
-  | "signature_expiry_imminent";
+  | "signature_expiry_imminent"
+  | "authority_redundancy_unhealthy"
+  | "routing_hard_denied";
 
 export interface DelegationEvaluation {
   readonly delegationSecurity: DelegationSecurity;
@@ -131,13 +150,17 @@ export interface DelegationEvaluation {
    * `authenticatedRoutingAllowed` by construction -- see the module header.
    */
   readonly secureDelegationVerified: boolean;
-  /** The routing gate's name for the same condition. */
+  /** DNSSEC security plus routing policy. */
   readonly authenticatedRoutingAllowed: boolean;
   readonly routingWithheldReason: RoutingWithheldReason | null;
   /** Expiry is close enough to warn about, but not yet close enough to withhold. */
   readonly signatureExpiryWarning: boolean;
   /** Both persisted observations are established-true. */
   readonly componentsSecure: boolean;
+  readonly authorityRedundancyHealthy: boolean;
+  readonly redundancyObservationFresh: boolean;
+  readonly canonicalRoutingEligible: boolean;
+  readonly routingHardDenied: boolean;
 }
 
 /**
@@ -152,6 +175,7 @@ export function evaluateDelegation(
   state: RootDelegationState | null,
   nowMs: number,
   thresholds: DelegationThresholdsInput = DEFAULT_DELEGATION_THRESHOLDS,
+  policy: DelegationPolicy = DEFAULT_DELEGATION_POLICY,
 ): DelegationEvaluation {
   const { maxObservationAgeMs, expiryProximityThresholdMs, clockSkewToleranceMs } =
     normalizeThresholds(thresholds);
@@ -167,6 +191,10 @@ export function evaluateDelegation(
       routingWithheldReason: "no_root_state",
       signatureExpiryWarning: false,
       componentsSecure: false,
+      authorityRedundancyHealthy: false,
+      redundancyObservationFresh: false,
+      canonicalRoutingEligible: false,
+      routingHardDenied: false,
     };
   }
 
@@ -210,40 +238,78 @@ export function evaluateDelegation(
     state.parentDsMatchesLiveDnskey === true && state.authoritativeDnssecValid === true;
   const summarySecure = state.delegationSecurity === "secure";
 
-  let routingWithheldReason: RoutingWithheldReason | null = null;
+  let securityWithheldReason: RoutingWithheldReason | null = null;
   if (!summarySecure) {
-    routingWithheldReason = "not_secure";
+    securityWithheldReason = "not_secure";
   } else if (!componentsSecure) {
-    routingWithheldReason = "incoherent_state";
+    securityWithheldReason = "incoherent_state";
   } else if (observationAgeMs === null) {
-    routingWithheldReason = "never_observed";
+    securityWithheldReason = "never_observed";
   } else if (observationInFuture) {
-    routingWithheldReason = "observation_in_future";
+    securityWithheldReason = "observation_in_future";
   } else if (!observationFresh) {
-    routingWithheldReason = "observation_stale";
+    securityWithheldReason = "observation_stale";
   } else if (expiryUnknown) {
-    routingWithheldReason = "signature_expiry_unknown";
+    securityWithheldReason = "signature_expiry_unknown";
   } else if (expiryImminent) {
-    routingWithheldReason = "signature_expiry_imminent";
+    securityWithheldReason = "signature_expiry_imminent";
   }
 
-  const allowed = routingWithheldReason === null;
+  const redundancyAgeMs =
+    state.lastRedundancyObservationAt === null
+      ? null
+      : nowMs - state.lastRedundancyObservationAt;
+  const redundancyObservationFresh =
+    redundancyAgeMs !== null &&
+    redundancyAgeMs >= -clockSkewToleranceMs &&
+    redundancyAgeMs <= maxObservationAgeMs;
+  const authorityRedundancyHealthy =
+    state.authorityRedundancyOk === true && redundancyObservationFresh;
+  const secureDelegationVerified = securityWithheldReason === null;
+
+  let routingWithheldReason: RoutingWithheldReason | null = securityWithheldReason;
+  if (routingWithheldReason === null && state.routingHardDenied) {
+    routingWithheldReason = "routing_hard_denied";
+  } else if (
+    routingWithheldReason === null &&
+    policy.redundancyMode === "enforcing" &&
+    !authorityRedundancyHealthy
+  ) {
+    routingWithheldReason = "authority_redundancy_unhealthy";
+  }
 
   return {
     delegationSecurity: state.delegationSecurity,
     rolloverState: state.rolloverState,
     observationFresh,
     observationAgeMs,
-    // One evaluation, two names.
-    secureDelegationVerified: allowed,
-    authenticatedRoutingAllowed: allowed,
+    secureDelegationVerified,
+    authenticatedRoutingAllowed: routingWithheldReason === null,
     routingWithheldReason,
     signatureExpiryWarning:
       msUntilExpiry !== null &&
       !expiryImminent &&
       msUntilExpiry < expiryProximityThresholdMs * 2,
     componentsSecure,
+    authorityRedundancyHealthy,
+    redundancyObservationFresh,
+    canonicalRoutingEligible: state.canonicalRoutingEligible,
+    routingHardDenied: state.routingHardDenied,
   };
+}
+
+export type RootRoutingMode = "denied" | "canonical" | "legacy";
+
+/** Deny wins; otherwise canonical routing requires both global enablement and eligibility. */
+export function resolveRootRoutingMode(input: {
+  readonly globalCanonicalRoutingEnabled: boolean;
+  readonly canonicalRoutingEligible: boolean;
+  readonly routingHardDenied: boolean;
+}): RootRoutingMode {
+  if (input.routingHardDenied) return "denied";
+  return input.globalCanonicalRoutingEnabled && input.canonicalRoutingEligible
+    ? "canonical"
+    : "legacy";
 }
 
 /**
@@ -327,6 +393,10 @@ export interface RootDelegationRow {
     | "mempool_observation"
     | "user_acknowledgement"
     | null;
+  readonly authorityRedundancyOk: boolean | null;
+  readonly lastRedundancyObservationAtMs: number | null;
+  readonly canonicalRoutingEligible: boolean;
+  readonly routingHardDenied: boolean;
 }
 
 /** A successful parent observation, as stored. */
@@ -386,6 +456,10 @@ export function resolveRootDelegationState(
       authoritativeDnssecValid: null,
       lastParentObservationAt: null,
       earliestRrsigExpiresAt: null,
+      authorityRedundancyOk: row.authorityRedundancyOk,
+      lastRedundancyObservationAt: row.lastRedundancyObservationAtMs,
+      canonicalRoutingEligible: row.canonicalRoutingEligible,
+      routingHardDenied: row.routingHardDenied,
     };
   }
 
@@ -421,5 +495,9 @@ export function resolveRootDelegationState(
     authoritativeDnssecValid: observation.authoritativeDnssecValid,
     lastParentObservationAt: observation.observedAtMs,
     earliestRrsigExpiresAt: observation.earliestRrsigExpiresAtMs,
+    authorityRedundancyOk: row.authorityRedundancyOk,
+    lastRedundancyObservationAt: row.lastRedundancyObservationAtMs,
+    canonicalRoutingEligible: row.canonicalRoutingEligible,
+    routingHardDenied: row.routingHardDenied,
   };
 }
