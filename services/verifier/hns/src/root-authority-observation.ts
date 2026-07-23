@@ -17,6 +17,7 @@ export type RequiredRrset = {
 export type AuthorityTarget = {
   nameserver: string;
   addresses: string[];
+  missing_address_failure_code?: "missing_parent_glue" | "nameserver_address_resolution_failed";
 };
 
 export type AuthorityResult = {
@@ -102,6 +103,65 @@ export function parseDigSoaSerial(output: string): string | null {
   return null;
 }
 
+export function parseValidatedAddressOutput(
+  output: string,
+  recordType: "A" | "AAAA",
+): string[] {
+  const validation = parseValidatedDelvOutput(output);
+  if (!validation.fullyValidated || validation.rrsigExpirations.length === 0) return [];
+  const addresses: string[] = [];
+  for (const rawLine of output.split("\n")) {
+    const fields = rawLine.trim().split(/\s+/u);
+    const typeIndex = fields.findIndex((field) => field.toUpperCase() === recordType);
+    const address = fields[typeIndex + 1];
+    if (typeIndex > 0 && fields[typeIndex - 1]?.toUpperCase() === "IN" && address) {
+      addresses.push(address);
+    }
+  }
+  return [...new Set(addresses)].sort();
+}
+
+export async function resolveValidatedAuthorityAddresses(
+  input: {
+    nameserver: string;
+    anchorRoot: string;
+    anchors: DsTrustAnchor[];
+    config: RootAuthorityObservationConfig;
+  },
+  runner: CommandRunner = runCommand,
+): Promise<string[]> {
+  const usableAnchors = input.anchors.filter(isUsableTrustAnchor);
+  if (usableAnchors.length === 0) return [];
+  const anchorDirectory = await mkdtemp(join(tmpdir(), "pirate-hns-ns-anchor-"));
+  const anchorPath = join(anchorDirectory, "trust-anchors.conf");
+  try {
+    await writeFile(anchorPath, buildTrustAnchorFile(input.anchorRoot, usableAnchors), {
+      encoding: "utf8",
+      mode: 0o600,
+    });
+    await chmod(anchorPath, 0o600);
+    const results = await Promise.all((["A", "AAAA"] as const).map(async (recordType) => {
+      const result = await runner(input.config.delvBin, [
+        `@${input.config.resolverAddress}`,
+        "-p",
+        String(input.config.resolverPort),
+        "-a",
+        anchorPath,
+        `+root=${canonicalName(input.anchorRoot)}`,
+        canonicalName(input.nameserver),
+        recordType,
+        "+rtrace",
+      ], input.config.timeoutMs);
+      return result.exitCode === 0
+        ? parseValidatedAddressOutput(result.stdout, recordType)
+        : [];
+    }));
+    return [...new Set(results.flat())].sort();
+  } finally {
+    await rm(anchorDirectory, { recursive: true, force: true });
+  }
+}
+
 export function buildTrustAnchorFile(rootLabel: string, anchors: DsTrustAnchor[]): string {
   const root = canonicalName(rootLabel);
   const usableAnchors = anchors.filter(isUsableTrustAnchor);
@@ -154,7 +214,7 @@ async function observeAuthority(
       nameserver: canonicalName(input.authority.nameserver),
       reachable: false,
       soa_serial: null,
-      failure_code: "missing_parent_glue",
+      failure_code: input.authority.missing_address_failure_code ?? "missing_parent_glue",
     };
   }
 

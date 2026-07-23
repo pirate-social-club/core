@@ -3,7 +3,9 @@ import {
   buildTrustAnchorFile,
   observeRootAuthority,
   parseDigSoaSerial,
+  parseValidatedAddressOutput,
   parseValidatedDelvOutput,
+  resolveValidatedAuthorityAddresses,
   type CommandRunner,
 } from "./root-authority-observation";
 
@@ -47,6 +49,57 @@ pirate. 300 IN RRSIG SOA 13 1 300 20260823010000 20260723010000 12345 pirate. si
       "pirate. 300 IN SOA ns1.pirate. dns.pirate. 2026072301 3600 900 1209600 300\n",
     )).toBe("2026072301");
     expect(parseDigSoaSerial("; no answer\n")).toBeNull();
+  });
+
+  test("accepts nameserver addresses only from fully validated answers", () => {
+    const signed = `
+; fully validated
+ns1.pirate. 300 IN A 192.0.2.10
+ns1.pirate. 300 IN RRSIG A 13 2 300 20260823010000 20260723010000 12345 pirate. signature
+`;
+    expect(parseValidatedAddressOutput(signed, "A")).toEqual(["192.0.2.10"]);
+    expect(parseValidatedAddressOutput(signed.replace("; fully validated", "; unsigned answer"), "A"))
+      .toEqual([]);
+  });
+
+  test("resolves out-of-bailiwick A and AAAA through a root-scoped DS anchor", async () => {
+    const calls: string[][] = [];
+    const runner: CommandRunner = async (command, args) => {
+      calls.push([command, ...args]);
+      const type = args.at(-2);
+      const address = type === "AAAA" ? "2001:db8::10" : "192.0.2.10";
+      return {
+        exitCode: 0,
+        stderr: "",
+        stdout: `; fully validated
+ns1.pirate. 300 IN ${type} ${address}
+ns1.pirate. 300 IN RRSIG ${type} 13 2 300 20260823010000 20260723010000 12345 pirate. signature
+`,
+      };
+    };
+    await expect(resolveValidatedAuthorityAddresses({
+      nameserver: "ns1.pirate.",
+      anchorRoot: "pirate",
+      anchors: [{
+        key_tag: 12345,
+        algorithm: 13,
+        digest_type: 2,
+        digest: "aa".repeat(32),
+      }],
+      config: {
+        delvBin: "/usr/bin/delv",
+        digBin: "/usr/bin/dig",
+        resolverAddress: "127.0.0.1",
+        resolverPort: 5350,
+        timeoutMs: 10_000,
+      },
+    }, runner)).resolves.toEqual(["192.0.2.10", "2001:db8::10"]);
+    expect(calls).toHaveLength(2);
+    expect(calls.every((call) =>
+      call.includes("+root=pirate.")
+      && call.includes("ns1.pirate.")
+      && call.includes("-a")
+    )).toBe(true);
   });
 
   test("requires validated RRsets and two reachable serial-matched authorities", async () => {
