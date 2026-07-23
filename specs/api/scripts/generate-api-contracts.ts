@@ -267,6 +267,7 @@ const TYPE_EXPORTS = [
   { name: "MembershipRequestListResponse", ref: "#/components/schemas/MembershipRequestListResponse" },
   { name: "GateFailureDetails", ref: "#/components/schemas/GateFailureDetails" },
   { name: "HomeFeedCommunitySummary", ref: "#/components/schemas/HomeFeedCommunitySummary" },
+  { name: "FeedBooking", ref: "#/components/schemas/FeedBooking" },
   { name: "HomeFeedItem", ref: "#/components/schemas/FeedItem" },
   { name: "HomeFeedResponse", ref: "#/components/schemas/FeedResponse" },
   { name: "HomeFeedSort", ref: "#/components/parameters/FeedSort/schema" },
