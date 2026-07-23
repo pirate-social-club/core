@@ -295,8 +295,13 @@ CREATE TABLE hns_root_delegation_state (
 );
 
 -- The scheduled observer's work queue: roots never observed sort first.
+-- The boolean expression sorts false (NULL timestamps) before true without
+-- PostgreSQL's non-portable NULLS FIRST index syntax.
 CREATE INDEX idx_hns_root_delegation_state_observation_due
-    ON hns_root_delegation_state(last_parent_observation_attempt_at NULLS FIRST);
+    ON hns_root_delegation_state(
+        (last_parent_observation_attempt_at IS NOT NULL),
+        last_parent_observation_attempt_at
+    );
 
 CREATE INDEX idx_hns_root_delegation_state_last_observation
     ON hns_root_delegation_state(last_parent_observation_id);
