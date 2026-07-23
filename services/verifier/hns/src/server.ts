@@ -68,6 +68,11 @@ type ExpiryEvidence = Pick<
 import { Resolver } from "node:dns/promises";
 import { PowerDnsApiClient, type PowerDnsZoneSnapshot } from "./pdns-store";
 import { parseDaneEeAssociations } from "./tlsa";
+import {
+  observeRootAuthority,
+  type AuthorityTarget,
+  type RequiredRrset,
+} from "./root-authority-observation";
 import { json, requireBearerAuth } from "../../shared/http";
 import { isCanonicalPirateHnsRootLabel } from "../../../hns/root-label";
 
@@ -94,6 +99,24 @@ const ownerManagedResolverTimeoutMs = Number(Bun.env.HNS_OWNER_MANAGED_RESOLVER_
 const HNS_CHAIN_OBSERVATION_PROVIDER = "hsd_json_rpc";
 const HNS_CHAIN_MIN_VERIFICATION_PROGRESS = 0.999;
 const HNS_CHAIN_MAX_FUTURE_BLOCK_SECONDS = 2 * 60 * 60;
+
+function getAuthorityObservationConfig() {
+  const resolverPort = Number(Bun.env.HNS_VALIDATING_RESOLVER_PORT || "5350");
+  const timeoutMs = Number(Bun.env.HNS_AUTHORITY_OBSERVATION_TIMEOUT_MS || "10000");
+  if (!Number.isSafeInteger(resolverPort) || resolverPort < 1 || resolverPort > 65_535) {
+    throw new Error("HNS_VALIDATING_RESOLVER_PORT must be a valid port");
+  }
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1_000 || timeoutMs > 60_000) {
+    throw new Error("HNS_AUTHORITY_OBSERVATION_TIMEOUT_MS must be between 1000 and 60000");
+  }
+  return {
+    delvBin: "/usr/bin/delv",
+    digBin: "/usr/bin/dig",
+    resolverAddress: Bun.env.HNS_VALIDATING_RESOLVER_ADDRESS?.trim() || "127.0.0.1",
+    resolverPort,
+    timeoutMs,
+  };
+}
 
 function parseCsv(value: string | undefined): string[] | null {
   const entries = value?.split(",").map((entry) => entry.trim()).filter(Boolean) ?? [];
@@ -668,6 +691,59 @@ async function observeRootParent(rootLabel: string) {
   };
 }
 
+function requiredAuthorityRrsets(
+  zoneName: string,
+  zone: PowerDnsZoneSnapshot,
+): RequiredRrset[] {
+  const required = new Map<string, RequiredRrset>();
+  const add = (name: string, type: RequiredRrset["type"]) => {
+    const rrset = { name: withTrailingDot(name), type };
+    required.set(`${rrset.name}:${rrset.type}`, rrset);
+  };
+  add(zoneName, "DNSKEY");
+  add(zoneName, "SOA");
+  for (const rrset of zone.rrsets) {
+    if ((rrset.type === "A" || rrset.type === "TLSA") && rrset.records.length > 0) {
+      add(rrset.name, rrset.type);
+    }
+  }
+  return [...required.values()].sort((left, right) =>
+    left.name.localeCompare(right.name) || left.type.localeCompare(right.type));
+}
+
+function parentAuthorityTargets(parent: Awaited<ReturnType<typeof observeRootParent>>["parent"]): AuthorityTarget[] {
+  const addresses = [...parent.glue4, ...parent.glue6];
+  return [...new Set(parent.nameservers)].map((nameserver) => ({
+    nameserver,
+    addresses: addresses
+      .filter((glue) => glue.nameserver === nameserver)
+      .map((glue) => glue.address)
+      .sort(),
+  }));
+}
+
+async function observeRootServingAuthority(rootLabel: string) {
+  const parentObservation = await observeRootParent(rootLabel);
+  const zone = await requirePowerDnsStore().getZoneByName(parentObservation.zone_name);
+  if (!zone) {
+    throw new Error("managed authoritative zone is not provisioned");
+  }
+  const authorityObservation = await observeRootAuthority({
+    rootLabel: parentObservation.root_label,
+    anchors: parentObservation.parent.ds_records,
+    requiredRrsets: requiredAuthorityRrsets(parentObservation.zone_name, zone),
+    authorities: parentAuthorityTargets(parentObservation.parent),
+    config: getAuthorityObservationConfig(),
+  });
+  return {
+    root_label: parentObservation.root_label,
+    zone_name: parentObservation.zone_name,
+    chain_anchor: parentObservation.chain_anchor,
+    parent: parentObservation.parent,
+    ...authorityObservation,
+  };
+}
+
 function summarizeZone(zone: PowerDnsZoneSnapshot): InspectResult["rrsets"] {
   return zone.rrsets.map((rrset) => ({
     name: withTrailingDot(rrset.name),
@@ -1152,6 +1228,24 @@ export async function handleRequest(request: Request) {
       } catch (error) {
         return json(
           { error: error instanceof Error ? error.message : "root parent observation failed" },
+          { status: verifierErrorStatus(error, 503) },
+        );
+      }
+    }
+
+    if (url.pathname === "/observe-root-authority") {
+      if (request.method !== "GET") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
+      const rootLabel = url.searchParams.get("root_label");
+      if (!rootLabel?.trim()) {
+        return json({ error: "root_label is required" }, { status: 400 });
+      }
+      try {
+        return json(await observeRootServingAuthority(rootLabel));
+      } catch (error) {
+        return json(
+          { error: error instanceof Error ? error.message : "root authority observation failed" },
           { status: verifierErrorStatus(error, 503) },
         );
       }
