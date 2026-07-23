@@ -17,6 +17,7 @@ on:
       - "scripts/lib/postgres-migrations.ts"
       - "scripts/bookings/**"
       - "packages/hns-delegation/**"
+      - "services/verifier/hns/**"
       - "specs/api/**"
   push:
     branches: [main]
@@ -35,6 +36,7 @@ on:
       - "scripts/lib/postgres-migrations.ts"
       - "scripts/bookings/**"
       - "packages/hns-delegation/**"
+      - "services/verifier/hns/**"
       - "specs/api/**"
   workflow_dispatch:
 
