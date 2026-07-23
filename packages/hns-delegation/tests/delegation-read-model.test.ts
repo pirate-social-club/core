@@ -18,6 +18,7 @@ function joined(overrides: Partial<RootDelegationJoinRow> = {}): RootDelegationJ
     delegation_rollover_state: "none",
     delegation_pending_evidence_kind: null,
     delegation_authority_redundancy_ok: 1,
+    delegation_authority_redundancy_evidence_class: "external_multi_vantage",
     delegation_redundancy_observed_at: new Date(NOW).toISOString(),
     delegation_canonical_routing_eligible: 0,
     delegation_routing_hard_denied: 0,

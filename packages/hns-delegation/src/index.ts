@@ -30,6 +30,7 @@ export {
   type RootSecurityHistory,
   type RootRoutingMode,
   type RedundancyEnforcementMode,
+  type RedundancyEvidenceClass,
   type RoutingWithheldReason,
 } from "./delegation-state";
 

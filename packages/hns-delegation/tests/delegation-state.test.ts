@@ -26,6 +26,7 @@ function state(overrides: Partial<RootDelegationState> = {}): RootDelegationStat
     lastParentObservationAt: NOW,
     earliestRrsigExpiresAt: NOW + expiryProximityThresholdMs * 4,
     authorityRedundancyOk: true,
+    authorityRedundancyEvidenceClass: "external_multi_vantage",
     lastRedundancyObservationAt: NOW,
     canonicalRoutingEligible: false,
     routingHardDenied: false,
@@ -232,12 +233,44 @@ describe("redundancy policy does not rewrite security", () => {
       state({ authorityRedundancyOk: false }),
       NOW,
       DEFAULT_DELEGATION_THRESHOLDS,
-      { redundancyMode: "enforcing" },
+      { redundancyMode: "enforcing", requiredRedundancyEvidenceClass: "external_multi_vantage" },
     );
     expect(result.delegationSecurity).toBe("secure");
     expect(result.secureDelegationVerified).toBe(true);
     expect(result.authenticatedRoutingAllowed).toBe(false);
     expect(result.routingWithheldReason).toBe("authority_redundancy_unhealthy");
+  });
+
+  test("enforcing rejects healthy evidence from only the verifier host", () => {
+    const result = evaluateDelegation(
+      state({
+        authorityRedundancyOk: true,
+        authorityRedundancyEvidenceClass: "local_single_vantage",
+      }),
+      NOW,
+      DEFAULT_DELEGATION_THRESHOLDS,
+      { redundancyMode: "enforcing" },
+    );
+    expect(result.authorityRedundancyHealthy).toBe(true);
+    expect(result.redundancyEvidenceSufficient).toBe(false);
+    expect(result.secureDelegationVerified).toBe(true);
+    expect(result.authenticatedRoutingAllowed).toBe(false);
+    expect(result.routingWithheldReason).toBe(
+      "authority_redundancy_evidence_insufficient",
+    );
+  });
+
+  test("report-only exposes provenance without withdrawing routing", () => {
+    const result = evaluateDelegation(
+      state({
+        authorityRedundancyOk: true,
+        authorityRedundancyEvidenceClass: "local_single_vantage",
+      }),
+      NOW,
+    );
+    expect(result.redundancyEvidenceClass).toBe("local_single_vantage");
+    expect(result.redundancyEvidenceSufficient).toBe(false);
+    expect(result.authenticatedRoutingAllowed).toBe(true);
   });
 
   test("null is never-observed and distinct from observed-unhealthy", () => {
@@ -388,6 +421,7 @@ describe("resolveRootDelegationState is the only way to build evaluator input", 
     lastParentObservationId: "obs_1",
     pendingEvidenceKind: null,
     authorityRedundancyOk: null,
+    authorityRedundancyEvidenceClass: null,
     lastRedundancyObservationAtMs: null,
     canonicalRoutingEligible: false,
     routingHardDenied: false,
@@ -451,6 +485,7 @@ describe("impossible pairings throw rather than degrade", () => {
     lastParentObservationId: "obs_1",
     pendingEvidenceKind: null,
     authorityRedundancyOk: null,
+    authorityRedundancyEvidenceClass: null,
     lastRedundancyObservationAtMs: null,
     canonicalRoutingEligible: false,
     routingHardDenied: false,
@@ -491,6 +526,7 @@ describe("pending evidence overlays unsecured only", () => {
     lastParentObservationId: "obs_1",
     pendingEvidenceKind: "wallet_transaction_id",
     authorityRedundancyOk: null,
+    authorityRedundancyEvidenceClass: null,
     lastRedundancyObservationAtMs: null,
     canonicalRoutingEligible: false,
     routingHardDenied: false,
