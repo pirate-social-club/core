@@ -1,12 +1,15 @@
 {
   "version": 1,
-  "production": [
+  "production": [],
+  "resolved": [
     {
       "binding": "DB_CMTY_0092",
+      "fleet": "production",
       "reason_code": "provider_storage_incident",
       "approved_at": "2026-07-16T13:44:00Z",
-      "review_after": "2026-07-23T13:44:00Z",
-      "expires_at": "2026-08-15T13:44:00Z"
+      "resolved_at": "2026-07-23T11:00:00Z",
+      "disposition": "recovered_in_place",
+      "disposition_note": "Reviewed on its review_after date. The provider incident was over: the database answered sub-millisecond queries served by primary and had taken 635 reads in the preceding 24h. Its ledger had stalled at 1133 (applied 2026-07-16 14:09:48) mid-fleet-run, leaving it 9 migrations behind - 1134-1138 and 1140-1142 are all unconditional, so its single community was serving a 1133-era schema against a 1143-era API. Recovered in place: exported a pre-recovery backup, then applied 1134, 1135, 1136, 1137, 1138, 1140, 1141, 1142 and 1143 in order via their per-migration operator scripts, each classified needs_migration beforehand. Post-state: 142 ledger rows, last 1143_lyrics_language.sql, all six lyrics_language columns physically present, all 7 posts intact. Full-fleet read-only verification then reported 101/101 ok_recorded with zero quarantined shards."
     }
   ],
   "staging": [
