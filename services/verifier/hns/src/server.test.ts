@@ -541,6 +541,35 @@ describe("hns verifier server", () => {
     resetOwnerManagedProofs();
   });
 
+  test("does not treat HSD's historical expired bit as current lease expiry", async () => {
+    Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
+    Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";
+    Bun.env.HNS_EXPIRY_HORIZON_BLOCKS = "1000";
+    Bun.env.HNS_CHAIN_MAX_TIP_AGE_SECONDS = "3600";
+    mockRootAndChainFetch({
+      rawHex: "0001036e73310670697261746500",
+      anchorHeight: 10_000,
+      expiryHeight: 12_500,
+      nameState: "CLOSED",
+      registered: true,
+      expired: true,
+    });
+
+    const response = await handleRequest(new Request(
+      "http://127.0.0.1:4048/observe-root-parent?root_label=pirate",
+    ));
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.expiry_root_exists).toBeUndefined();
+    expect(body.chain_anchor).toMatchObject({
+      network: "main",
+      height: 10_000,
+    });
+
+    resetOwnerManagedProofs();
+  });
+
   test("uses anchored name state when the observer cannot return a root resource", async () => {
     Bun.env.HNS_CHAIN_RPC_URL = "https://chain.test";
     Bun.env.HNS_CHAIN_RPC_API_KEY = "rpc-secret";

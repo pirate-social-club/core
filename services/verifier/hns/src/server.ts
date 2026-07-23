@@ -408,9 +408,9 @@ function classifyHnsRootLease(nameEnvelope: Record<string, unknown>): HnsRootLea
   const nameInfo = nameEnvelope.info as Record<string, unknown>;
   const state = typeof nameInfo.state === "string" ? nameInfo.state.toUpperCase() : null;
   const registered = typeof nameInfo.registered === "boolean" ? nameInfo.registered : null;
-  if (nameInfo.expired === true) {
-    return "unsafe";
-  }
+  // NameState.expired records that the name expired before a later auction; it
+  // is not the current-height expiry predicate. Native getnameinfo omits info
+  // entirely when NameState.isExpired(height, network) is currently true.
 
   switch (state) {
     case "CLOSED":
