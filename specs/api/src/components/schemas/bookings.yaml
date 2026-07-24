@@ -488,6 +488,46 @@ PendingBookingPaymentIntent:
     booking_id:
       type: string
       nullable: true
+UnresolvedBookingPaymentIntent:
+  type: object
+  additionalProperties: false
+  required:
+    - payment_intent_id
+    - hold_id
+    - host_user_id
+    - booker_user_id
+    - intent_status
+    - hold_status
+    - claimed_tx_ref
+    - hold_expires_at
+    - updated_at
+    - unresolved_age_seconds
+  properties:
+    payment_intent_id:
+      type: string
+    hold_id:
+      type: string
+    host_user_id:
+      type: string
+    booker_user_id:
+      type: string
+    intent_status:
+      type: string
+      enum: [verification_failed]
+    hold_status:
+      type: string
+      enum: [active, consumed, expired]
+    claimed_tx_ref:
+      type: string
+    hold_expires_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+    unresolved_age_seconds:
+      type: integer
+      minimum: 0
 BookingStatus:
   type: string
   enum: [hold, quoted, pending_payment, confirmed, live, completed, settled, expired_hold, cancelled_before_payment, cancelled_by_host, cancelled_by_booker, no_show_host, no_show_booker, refunded, disputed]
