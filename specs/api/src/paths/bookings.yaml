@@ -411,6 +411,60 @@ booking_hold_confirm:
                   $ref: ../components/schemas/bookings.yaml#/Booking
                 already_confirmed:
                   type: boolean
+booking_hold_payment_submitted:
+  post:
+    tags: [Bookings]
+    x-implemented: true
+    summary: Durably record a submitted booking payment for later confirmation
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/bookings.yaml#/SubmitBookingPaymentRequest
+    responses:
+      "200":
+        description: Payment submission recorded or idempotently replayed
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [payment_intent_id, status, claimed_tx_ref]
+              properties:
+                payment_intent_id:
+                  type: string
+                status:
+                  type: string
+                  enum: [recorded]
+                claimed_tx_ref:
+                  type: string
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+booking_payment_intents_pending:
+  get:
+    tags: [Bookings]
+    x-implemented: true
+    summary: List the authenticated booker's recent resumable booking payments
+    responses:
+      "200":
+        description: Recent resumable payment intents owned by the authenticated booker
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [object, data, has_more]
+              properties:
+                object:
+                  type: string
+                  enum: [list]
+                data:
+                  type: array
+                  items:
+                    $ref: ../components/schemas/bookings.yaml#/PendingBookingPaymentIntent
+                has_more:
+                  type: boolean
 booking_by_booking_id:
   get:
     tags: [Bookings]
