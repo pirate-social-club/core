@@ -4954,6 +4954,106 @@ paths:
                     $ref: "#/components/schemas/Booking"
                   already_confirmed:
                     type: boolean
+  /bookings/holds/{hold_id}/payment-submitted:
+    post:
+      tags:
+        - Bookings
+      x-implemented: true
+      summary: Durably record a submitted booking payment for later confirmation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitBookingPaymentRequest"
+      responses:
+        "200":
+          description: Payment submission recorded or idempotently replayed
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - payment_intent_id
+                  - status
+                  - claimed_tx_ref
+                properties:
+                  payment_intent_id:
+                    type: string
+                  status:
+                    type: string
+                    enum:
+                      - recorded
+                  claimed_tx_ref:
+                    type: string
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /bookings/booking-holds/{hold_id}/payment-submitted:
+    post:
+      tags:
+        - Bookings
+      x-implemented: true
+      summary: Durably record a submitted booking payment for later confirmation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitBookingPaymentRequest"
+      responses:
+        "200":
+          description: Payment submission recorded or idempotently replayed
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - payment_intent_id
+                  - status
+                  - claimed_tx_ref
+                properties:
+                  payment_intent_id:
+                    type: string
+                  status:
+                    type: string
+                    enum:
+                      - recorded
+                  claimed_tx_ref:
+                    type: string
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /bookings/payment-intents/pending:
+    get:
+      tags:
+        - Bookings
+      x-implemented: true
+      summary: List the authenticated booker's recent resumable booking payments
+      responses:
+        "200":
+          description: Recent resumable payment intents owned by the authenticated booker
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - object
+                  - data
+                  - has_more
+                properties:
+                  object:
+                    type: string
+                    enum:
+                      - list
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PendingBookingPaymentIntent"
+                  has_more:
+                    type: boolean
   /bookings/settlement-review/pending:
     get:
       tags:
@@ -14274,6 +14374,82 @@ components:
           type: string
         wallet_attachment_id:
           type: string
+    SubmitBookingPaymentRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - tx_ref
+        - wallet_attachment_id
+      properties:
+        tx_ref:
+          type: string
+        wallet_attachment_id:
+          type: string
+    BookingPaymentResumeState:
+      type: string
+      enum:
+        - payable
+        - confirmable
+        - finalizable
+        - booked
+        - refund_pending
+    PendingBookingPaymentIntent:
+      type: object
+      additionalProperties: false
+      required:
+        - hold_id
+        - payment_intent_id
+        - intent_status
+        - resume_state
+        - claimed_tx_ref
+        - wallet_attachment_id
+        - payment
+        - quote_expires_at
+        - hold_expires_at
+        - host_user_id
+        - slot_start_utc
+        - slot_end_utc
+        - booking_id
+      properties:
+        hold_id:
+          type: string
+        payment_intent_id:
+          type: string
+        intent_status:
+          type: string
+          enum:
+            - active
+            - verifying
+            - verified
+            - verification_failed
+            - consumed
+        resume_state:
+          $ref: "#/BookingPaymentResumeState"
+        claimed_tx_ref:
+          type: string
+          nullable: true
+        wallet_attachment_id:
+          type: string
+          nullable: true
+        payment:
+          $ref: "#/BookingPaymentInstructions"
+        quote_expires_at:
+          type: string
+          format: date-time
+        hold_expires_at:
+          type: string
+          format: date-time
+        host_user_id:
+          type: string
+        slot_start_utc:
+          type: string
+          format: date-time
+        slot_end_utc:
+          type: string
+          format: date-time
+        booking_id:
+          type: string
+          nullable: true
     Booking:
       type: object
       additionalProperties: true

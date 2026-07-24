@@ -424,6 +424,70 @@ ConfirmBookingHoldRequest:
       type: string
     wallet_attachment_id:
       type: string
+SubmitBookingPaymentRequest:
+  type: object
+  additionalProperties: false
+  required: [tx_ref, wallet_attachment_id]
+  properties:
+    tx_ref:
+      type: string
+    wallet_attachment_id:
+      type: string
+BookingPaymentResumeState:
+  type: string
+  enum: [payable, confirmable, finalizable, booked, refund_pending]
+PendingBookingPaymentIntent:
+  type: object
+  additionalProperties: false
+  required:
+    - hold_id
+    - payment_intent_id
+    - intent_status
+    - resume_state
+    - claimed_tx_ref
+    - wallet_attachment_id
+    - payment
+    - quote_expires_at
+    - hold_expires_at
+    - host_user_id
+    - slot_start_utc
+    - slot_end_utc
+    - booking_id
+  properties:
+    hold_id:
+      type: string
+    payment_intent_id:
+      type: string
+    intent_status:
+      type: string
+      enum: [active, verifying, verified, verification_failed, consumed]
+    resume_state:
+      $ref: "#/BookingPaymentResumeState"
+    claimed_tx_ref:
+      type: string
+      nullable: true
+    wallet_attachment_id:
+      type: string
+      nullable: true
+    payment:
+      $ref: "#/BookingPaymentInstructions"
+    quote_expires_at:
+      type: string
+      format: date-time
+    hold_expires_at:
+      type: string
+      format: date-time
+    host_user_id:
+      type: string
+    slot_start_utc:
+      type: string
+      format: date-time
+    slot_end_utc:
+      type: string
+      format: date-time
+    booking_id:
+      type: string
+      nullable: true
 BookingStatus:
   type: string
   enum: [hold, quoted, pending_payment, confirmed, live, completed, settled, expired_hold, cancelled_before_payment, cancelled_by_host, cancelled_by_booker, no_show_host, no_show_booker, refunded, disputed]
