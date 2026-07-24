@@ -337,6 +337,8 @@ paths:
     $ref: ./paths/bookings.yaml#/booking_hold_payment_submitted
   /bookings/payment-intents/pending:
     $ref: ./paths/bookings.yaml#/booking_payment_intents_pending
+  /bookings/payment-intents/unresolved:
+    $ref: ./paths/bookings.yaml#/booking_payment_intents_unresolved
   /bookings/settlement-review/pending:
     $ref: ./paths/bookings.yaml#/bookings_settlement_review_pending
   /bookings/{booking_id}:
@@ -963,6 +965,8 @@ components:
       $ref: ./components/schemas/bookings.yaml#/BookingPaymentResumeState
     PendingBookingPaymentIntent:
       $ref: ./components/schemas/bookings.yaml#/PendingBookingPaymentIntent
+    UnresolvedBookingPaymentIntent:
+      $ref: ./components/schemas/bookings.yaml#/UnresolvedBookingPaymentIntent
     Booking:
       $ref: ./components/schemas/bookings.yaml#/Booking
     BookingCancellationPreview:

@@ -465,6 +465,45 @@ booking_payment_intents_pending:
                     $ref: ../components/schemas/bookings.yaml#/PendingBookingPaymentIntent
                 has_more:
                   type: boolean
+booking_payment_intents_unresolved:
+  get:
+    tags: [Bookings]
+    x-implemented: true
+    summary: List claimed booking payments awaiting chain resolution
+    description: Operator-only queue for durable claimed payment intents that remain unresolved.
+    security:
+      - operatorCredentialAuth: []
+    parameters:
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+    responses:
+      "200":
+        description: Claimed payment intents awaiting server re-verification
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [object, data, has_more]
+              properties:
+                object:
+                  type: string
+                  enum: [list]
+                data:
+                  type: array
+                  items:
+                    $ref: ../components/schemas/bookings.yaml#/UnresolvedBookingPaymentIntent
+                has_more:
+                  type: boolean
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/Unauthorized
+      "403":
+        $ref: ../components/responses.yaml#/Forbidden
 booking_by_booking_id:
   get:
     tags: [Bookings]

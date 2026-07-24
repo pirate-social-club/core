@@ -5054,6 +5054,50 @@ paths:
                       $ref: "#/components/schemas/PendingBookingPaymentIntent"
                   has_more:
                     type: boolean
+  /bookings/payment-intents/unresolved:
+    get:
+      tags:
+        - Bookings
+      x-implemented: true
+      summary: List claimed booking payments awaiting chain resolution
+      description: Operator-only queue for durable claimed payment intents that remain unresolved.
+      security:
+        - operatorCredentialAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Claimed payment intents awaiting server re-verification
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - object
+                  - data
+                  - has_more
+                properties:
+                  object:
+                    type: string
+                    enum:
+                      - list
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UnresolvedBookingPaymentIntent"
+                  has_more:
+                    type: boolean
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /bookings/settlement-review/pending:
     get:
       tags:
@@ -14450,6 +14494,50 @@ components:
         booking_id:
           type: string
           nullable: true
+    UnresolvedBookingPaymentIntent:
+      type: object
+      additionalProperties: false
+      required:
+        - payment_intent_id
+        - hold_id
+        - host_user_id
+        - booker_user_id
+        - intent_status
+        - hold_status
+        - claimed_tx_ref
+        - hold_expires_at
+        - updated_at
+        - unresolved_age_seconds
+      properties:
+        payment_intent_id:
+          type: string
+        hold_id:
+          type: string
+        host_user_id:
+          type: string
+        booker_user_id:
+          type: string
+        intent_status:
+          type: string
+          enum:
+            - verification_failed
+        hold_status:
+          type: string
+          enum:
+            - active
+            - consumed
+            - expired
+        claimed_tx_ref:
+          type: string
+        hold_expires_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        unresolved_age_seconds:
+          type: integer
+          minimum: 0
     Booking:
       type: object
       additionalProperties: true
