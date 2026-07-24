@@ -75,12 +75,16 @@ import {
   type RequiredRrset,
 } from "./root-authority-observation";
 import { parentAuthorityTargets } from "./authority-targets";
-import { json, requireBearerAuth } from "../../shared/http";
+import { json } from "../../shared/http";
 import { isCanonicalPirateHnsRootLabel } from "../../../hns/root-label";
+import { requireHnsVerifierAuth, resolveHnsVerifierAuth } from "./auth";
 
 const verifierHost = Bun.env.HNS_VERIFIER_HOST?.trim() || "127.0.0.1";
 const verifierPort = Number(Bun.env.HNS_VERIFIER_PORT || "4048");
-const verifierAuthToken = Bun.env.HNS_VERIFIER_AUTH_TOKEN?.trim() || null;
+const verifierAuth = resolveHnsVerifierAuth(
+  Bun.env.HNS_VERIFIER_AUTH_TOKEN,
+  Bun.env.HNS_VERIFIER_OBSERVER_AUTH_TOKEN,
+);
 
 const pdnsApiUrl = Bun.env.PDNS_API_URL?.trim() || "http://127.0.0.1:8081";
 const pdnsApiKey = Bun.env.PDNS_API_KEY?.trim() || null;
@@ -1184,7 +1188,7 @@ async function verifyOwnerDnsTxt(body: {
 
 export async function handleRequest(request: Request) {
     const url = new URL(request.url);
-    const authResponse = requireBearerAuth(request, verifierAuthToken);
+    const authResponse = requireHnsVerifierAuth(request, verifierAuth);
     if (authResponse) {
       return authResponse;
     }
@@ -1202,7 +1206,7 @@ export async function handleRequest(request: Request) {
         authoritative_secure_new_zones: defaultSecureNewZones,
         authoritative_tlsa_associations: defaultTlsaAssociations,
         authoritative_tlsa_ttl: defaultTlsaTtl,
-        requires_bearer_auth: verifierAuthToken != null,
+        requires_bearer_auth: verifierAuth.primaryToken != null,
       });
     }
 
