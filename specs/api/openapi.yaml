@@ -14520,6 +14520,8 @@ components:
         intent_status:
           type: string
           enum:
+            - verifying
+            - verified
             - verification_failed
         hold_status:
           type: string

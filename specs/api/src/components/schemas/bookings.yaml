@@ -513,7 +513,7 @@ UnresolvedBookingPaymentIntent:
       type: string
     intent_status:
       type: string
-      enum: [verification_failed]
+      enum: [verifying, verified, verification_failed]
     hold_status:
       type: string
       enum: [active, consumed, expired]
