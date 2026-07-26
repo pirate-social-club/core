@@ -51,6 +51,12 @@
         "oldChecksum": "850cc894baff6a955eb5f03fc4a55defabe9420fb4a8d395c7c02e9d24d58755",
         "newChecksum": "5380adc9932f26734c9a273b66cc2ee10ad6db130080a5efe62dcf281540e86c",
         "reason": "pre-deployment repair: replace PostgreSQL-only NULLS FIRST index syntax with an equivalent PostgreSQL/SQLite expression index"
+      },
+      {
+        "migrationName": "0159_control_plane_reward_concurrent_pools.sql",
+        "oldChecksum": "50160d9c51dc7ee489ef70425612be10e2c1cf73b0395efb2896606310ccd60f",
+        "newChecksum": "ea927fa6cd304cff65191e8b0ba1aeaca8964a886d952a14eb5826f1f4f62551",
+        "reason": "pre-deployment repair: qualify backfill source columns so PostgreSQL does not resolve created_at against the INSERT target"
       }
     ]
   }
