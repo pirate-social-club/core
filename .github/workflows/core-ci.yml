@@ -68,13 +68,6 @@ jobs:
         with:
           bun-version: 1.2.21
 
-      - name: Check out shared dependency audit
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          repository: pirate-social-club/web
-          ref: 84b20c9a90dd7f32f1141684795b2c08c3dcfea3
-          path: .dependency-audit
-
       - name: Detect spec artifact inputs
         id: changed
         run: |
@@ -106,14 +99,6 @@ jobs:
         if: steps.changed.outputs.spec_artifacts == 'true'
         working-directory: specs/api
         run: bun install --frozen-lockfile
-
-      - name: Audit spec dependencies
-        if: steps.changed.outputs.spec_artifacts == 'true'
-        run: |
-          node .dependency-audit/scripts/ci/dependency-audit.mjs \
-            --mode scheduled \
-            --baseline .dependency-audit/.github/dependency-audit-baseline.json \
-            --target specs/api:bun
 
       - name: Run repo hygiene checks
         run: npm run check
@@ -161,6 +146,24 @@ jobs:
             specs/api/openapi.yaml \
             specs/api/openapi-implemented.yaml \
             references/templates/api-worker-auth-first-slice/src/types/api.ts
+
+      # Keep the foreign checkout after every repository-wide scanner and
+      # generated-diff check so Web files cannot contaminate Core hygiene.
+      - name: Check out shared dependency audit
+        if: steps.changed.outputs.spec_artifacts == 'true'
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          repository: pirate-social-club/web
+          ref: 84b20c9a90dd7f32f1141684795b2c08c3dcfea3
+          path: .dependency-audit
+
+      - name: Audit spec dependencies
+        if: steps.changed.outputs.spec_artifacts == 'true'
+        run: |
+          node .dependency-audit/scripts/ci/dependency-audit.mjs \
+            --mode scheduled \
+            --baseline .dependency-audit/.github/dependency-audit-baseline.json \
+            --target specs/api:bun
 
       - name: Show iron-proxy egress summary
         uses: ironsh/iron-proxy-action/summary@fa1fd82ec32396d044deba7040a6db576bec927a
