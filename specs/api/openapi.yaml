@@ -7002,6 +7002,79 @@ paths:
           description: Operator credential lacks the recovery scope
         "409":
           description: Incident changed, campaign is unhealthy, or another holding incident remains
+  /operator/reward_pools/refund_policy_readiness:
+    get:
+      x-implemented: true
+      operationId: operator_reward_pool_refund_policy_readiness
+      tags:
+        - Rewards
+      summary: Check whether a proposed vault refund limit preserves outstanding contribution lots
+      description: Operator-only governance preflight. Requires an operator credential with the rewards:settlement:read scope. The response contains sensitive live liability information and must not be exposed through a public or user-authenticated surface.
+      security:
+        - operatorCredentialAuth: []
+      parameters:
+        - name: proposed_max_refund_atomic
+          in: query
+          required: false
+          description: Proposed canonical USDC refund limit in atomic six-decimal units.
+          schema:
+            type: string
+            pattern: ^(0|[1-9][0-9]*)$
+      responses:
+        "200":
+          description: Largest outstanding contribution lot and proposal safety result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RewardPoolRefundPolicyReadiness"
+        "400":
+          description: Proposed refund limit is not a canonical non-negative integer
+        "401":
+          description: Missing or invalid operator credential
+        "403":
+          description: Operator credential lacks the rewards settlement read scope
+  /operator/reward_settlements/backend_flip_readiness:
+    get:
+      x-implemented: true
+      operationId: operator_reward_settlement_backend_flip_readiness
+      tags:
+        - Rewards
+      summary: Check whether rewards custody can switch without stranding in-flight effects
+      description: Operator-only backend-flip drain preflight. Requires an operator credential with the rewards:settlement:read scope.
+      security:
+        - operatorCredentialAuth: []
+      responses:
+        "200":
+          description: Current non-terminal reward effect counts and readiness decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RewardBackendFlipReadiness"
+        "401":
+          description: Missing or invalid operator credential
+        "403":
+          description: Operator credential lacks the rewards settlement read scope
+  /operator/reward_settlements/solvency_readiness:
+    get:
+      x-implemented: true
+      operationId: operator_reward_settlement_solvency_readiness
+      tags:
+        - Rewards
+      summary: Read the freshness-gated rewards solvency admission decision
+      description: Operator-only readiness surface exposing current float, liability, and observation freshness. Requires an operator credential with the rewards:settlement:read scope. These values reveal the vault's current loss capacity and must remain operator-confidential.
+      security:
+        - operatorCredentialAuth: []
+      responses:
+        "200":
+          description: Current rewards solvency gate state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RewardSolvencyReadiness"
+        "401":
+          description: Missing or invalid operator credential
+        "403":
+          description: Operator credential lacks the rewards settlement read scope
   /reward_campaigns/{campaign_id}/funding_quotes:
     parameters:
       - name: campaign_id
