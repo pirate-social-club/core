@@ -52,6 +52,7 @@ const EXPECTED_MIGRATIONS = [
   "b0006_booking_refund_proof_columns.sql",
   "b0007_booking_custody_operator_incidents.sql",
   "b0008_booking_remove_dead_superseded_status.sql",
+  "b0009_booking_feed_discovery_revision.sql",
 ];
 
 // The exact table set the bookings migrations must create in the bookings schema.
@@ -210,6 +211,12 @@ describe.skipIf(!RUN)("bookings global migration (real Postgres)", () => {
     await expectRejected(rw, `INSERT INTO bookings.feed_discovery_snapshots(host_user_id,has_available_slot,starting_price_cents,window_start_utc,window_end_utc,valid_until,computed_at) VALUES('h',true,NULL,'2026-07-01 00:00:00+00','2026-07-15 00:00:00+00','2026-07-01 00:10:00+00','2026-07-01 00:00:00+00')`, SQLSTATE.check);
     await expectRejected(rw, `INSERT INTO bookings.feed_discovery_snapshots(host_user_id,has_available_slot,starting_price_cents,window_start_utc,window_end_utc,valid_until,computed_at) VALUES('h',false,1000,'2026-07-01 00:00:00+00','2026-07-15 00:00:00+00','2026-07-01 00:10:00+00','2026-07-01 00:00:00+00')`, SQLSTATE.check);
     await rw.unsafe(`INSERT INTO bookings.feed_discovery_snapshots(host_user_id,has_available_slot,starting_price_cents,window_start_utc,window_end_utc,valid_until,computed_at) VALUES('h',true,5000,'2026-07-01 00:00:00+00','2026-07-15 00:00:00+00','2026-07-01 00:10:00+00','2026-07-01 00:00:00+00')`);
+    const revisionBefore = await rw.unsafe(`SELECT feed_discovery_revision FROM bookings.profiles WHERE host_user_id='h'`);
+    await rw.unsafe(`UPDATE bookings.price_rules SET price_cents=6500 WHERE price_rule_id='pok'`);
+    const revisionAfter = await rw.unsafe(`SELECT feed_discovery_revision FROM bookings.profiles WHERE host_user_id='h'`);
+    const invalidated = await rw.unsafe(`SELECT 1 FROM bookings.feed_discovery_snapshots WHERE host_user_id='h'`);
+    expect(BigInt(revisionAfter[0].feed_discovery_revision)).toBeGreaterThan(BigInt(revisionBefore[0].feed_discovery_revision));
+    expect(invalidated.length).toBe(0);
     // fee snapshot mandatory (omitting the fee columns violates NOT NULL)
     await expectRejected(rw, `INSERT INTO bookings.payment_intents(payment_intent_id,hold_id,chain_id,token_address,token_decimals,token_symbol,recipient_address,amount_atomic,gross_cents,quote_expires_at,hold_expires_at,status,created_at,updated_at) VALUES('pi1','hld',84532,'0xt',6,'USDC','0xr',1000000,5000,now(),now(),'active',now(),now())`, SQLSTATE.notNull);
     // fee snapshot must balance to gross_cents
