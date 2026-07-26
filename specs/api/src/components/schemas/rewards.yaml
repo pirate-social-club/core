@@ -610,6 +610,7 @@ RewardCampaignFundingStatus:
     - confirmed
     - failed
     - refund_pending
+    - operator_incident
     - refunded
 RewardCampaignFundingQuote:
   type: object

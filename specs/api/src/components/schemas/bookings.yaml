@@ -454,7 +454,7 @@ BookingCustodyRefund:
       type: string
     reason:
       type: string
-      enum: [wrong_transfer_amount]
+      enum: [wrong_transfer_amount, unexpected_sender]
     detected_at:
       type: string
       format: date-time
@@ -465,6 +465,35 @@ BookingCustodyRefund:
       type: string
       format: date-time
       nullable: true
+BookingCustodyIncidentTransfer:
+  type: object
+  additionalProperties: false
+  required: [sender_address, observed_amount_atomic, transfer_count]
+  properties:
+    sender_address:
+      type: string
+    observed_amount_atomic:
+      type: string
+      pattern: "^[1-9][0-9]*$"
+    transfer_count:
+      type: integer
+      minimum: 1
+BookingCustodyIncident:
+  type: object
+  additionalProperties: false
+  required: [reason, transfers, detected_at]
+  properties:
+    reason:
+      type: string
+      enum: [multiple_senders]
+    transfers:
+      type: array
+      minItems: 2
+      items:
+        $ref: "#/BookingCustodyIncidentTransfer"
+    detected_at:
+      type: string
+      format: date-time
 PendingBookingPaymentIntent:
   type: object
   additionalProperties: false
@@ -546,7 +575,7 @@ UnresolvedBookingPaymentIntent:
       type: string
     intent_status:
       type: string
-      enum: [verifying, verified, verification_failed, custody_refund_pending]
+      enum: [verifying, verified, verification_failed, custody_refund_pending, custody_operator_incident]
     hold_status:
       type: string
       enum: [active, consumed, expired]
@@ -564,6 +593,10 @@ UnresolvedBookingPaymentIntent:
     custody_refund:
       allOf:
         - $ref: "#/BookingCustodyRefund"
+      nullable: true
+    custody_incident:
+      allOf:
+        - $ref: "#/BookingCustodyIncident"
       nullable: true
 BookingStatus:
   type: string

@@ -14530,6 +14530,7 @@ components:
           type: string
           enum:
             - wrong_transfer_amount
+            - unexpected_sender
         detected_at:
           type: string
           format: date-time
@@ -14632,6 +14633,7 @@ components:
             - verified
             - verification_failed
             - custody_refund_pending
+            - custody_operator_incident
         hold_status:
           type: string
           enum:
@@ -14652,6 +14654,10 @@ components:
         custody_refund:
           allOf:
             - $ref: "#/BookingCustodyRefund"
+          nullable: true
+        custody_incident:
+          allOf:
+            - $ref: "#/BookingCustodyIncident"
           nullable: true
     Booking:
       type: object
@@ -18828,6 +18834,7 @@ components:
         - confirmed
         - failed
         - refund_pending
+        - operator_incident
         - refunded
     RewardCampaignFundingQuote:
       type: object
