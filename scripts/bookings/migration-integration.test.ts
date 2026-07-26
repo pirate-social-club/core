@@ -49,6 +49,7 @@ const EXPECTED_MIGRATIONS = [
   "b0003_booking_outcome.sql",
   "b0004_booking_feed_discovery_snapshots.sql",
   "b0005_booking_custody_refunds.sql",
+  "b0006_booking_refund_proof_columns.sql",
 ];
 
 // The exact table set the bookings migrations must create in the bookings schema.
@@ -217,7 +218,7 @@ describe.skipIf(!RUN)("bookings global migration (real Postgres)", () => {
     await rw.unsafe(`UPDATE bookings.payment_intents SET status='custody_refund_pending', claimed_tx_ref='0xclaim', consumed_wallet_attachment_id='wa1', custody_observed_amount_atomic=1100000, custody_sender_address='0xsender', custody_reason='wrong_transfer_amount', custody_detected_at=now() WHERE payment_intent_id='pi3'`);
     // every paid-and-refunded lane terminates as refunded and requires outbound proof
     await expectRejected(rw, `UPDATE bookings.payment_intents SET status='refunded' WHERE payment_intent_id='pi3'`, SQLSTATE.check);
-    await rw.unsafe(`UPDATE bookings.payment_intents SET status='refunded', custody_refund_tx_ref='0xrefund', custody_refunded_at=now() WHERE payment_intent_id='pi3'`);
+    await rw.unsafe(`UPDATE bookings.payment_intents SET status='refunded', refund_tx_ref='0xrefund', refunded_at=now() WHERE payment_intent_id='pi3'`);
     // custody refunds are atomic payment-intent effects; ordinary booking settlement remains cents-denominated
     await rw.unsafe(`INSERT INTO bookings.settlement_effects(booking_settlement_effect_id,payment_intent_id,effect_kind,idempotency_key,status,amount_atomic,recipient_address,created_at,updated_at) VALUES('se-custody','pi3','booking_refund','custody:pi3','submitted',1100000,'0xsender',now(),now())`);
     await expectRejected(rw, `INSERT INTO bookings.settlement_effects(booking_settlement_effect_id,payment_intent_id,effect_kind,idempotency_key,status,amount_cents,amount_atomic,recipient_address,created_at,updated_at) VALUES('se-bad','pi3','booking_refund','custody:bad','submitted',100,1100000,'0xsender',now(),now())`, SQLSTATE.check);
