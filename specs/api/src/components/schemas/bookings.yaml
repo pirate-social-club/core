@@ -436,6 +436,35 @@ SubmitBookingPaymentRequest:
 BookingPaymentResumeState:
   type: string
   enum: [payable, confirmable, finalizable, booked, refund_pending]
+BookingCustodyRefund:
+  type: object
+  additionalProperties: false
+  required:
+    - observed_amount_atomic
+    - sender_address
+    - reason
+    - detected_at
+    - refund_tx_ref
+    - refunded_at
+  properties:
+    observed_amount_atomic:
+      type: string
+      pattern: "^[1-9][0-9]*$"
+    sender_address:
+      type: string
+    reason:
+      type: string
+      enum: [wrong_transfer_amount]
+    detected_at:
+      type: string
+      format: date-time
+    refund_tx_ref:
+      type: string
+      nullable: true
+    refunded_at:
+      type: string
+      format: date-time
+      nullable: true
 PendingBookingPaymentIntent:
   type: object
   additionalProperties: false
@@ -460,7 +489,7 @@ PendingBookingPaymentIntent:
       type: string
     intent_status:
       type: string
-      enum: [active, verifying, verified, verification_failed, consumed]
+      enum: [active, verifying, verified, verification_failed, custody_refund_pending, consumed]
     resume_state:
       $ref: "#/BookingPaymentResumeState"
     claimed_tx_ref:
@@ -488,6 +517,10 @@ PendingBookingPaymentIntent:
     booking_id:
       type: string
       nullable: true
+    custody_refund:
+      allOf:
+        - $ref: "#/BookingCustodyRefund"
+      nullable: true
 UnresolvedBookingPaymentIntent:
   type: object
   additionalProperties: false
@@ -513,7 +546,7 @@ UnresolvedBookingPaymentIntent:
       type: string
     intent_status:
       type: string
-      enum: [verifying, verified, verification_failed]
+      enum: [verifying, verified, verification_failed, custody_refund_pending]
     hold_status:
       type: string
       enum: [active, consumed, expired]
@@ -528,6 +561,10 @@ UnresolvedBookingPaymentIntent:
     unresolved_age_seconds:
       type: integer
       minimum: 0
+    custody_refund:
+      allOf:
+        - $ref: "#/BookingCustodyRefund"
+      nullable: true
 BookingStatus:
   type: string
   enum: [hold, quoted, pending_payment, confirmed, live, completed, settled, expired_hold, cancelled_before_payment, cancelled_by_host, cancelled_by_booker, no_show_host, no_show_booker, refunded, disputed]

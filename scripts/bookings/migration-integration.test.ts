@@ -48,6 +48,7 @@ const EXPECTED_MIGRATIONS = [
   "b0002_booking_settlement_review.sql",
   "b0003_booking_outcome.sql",
   "b0004_booking_feed_discovery_snapshots.sql",
+  "b0005_booking_custody_refunds.sql",
 ];
 
 // The exact table set the bookings migrations must create in the bookings schema.
@@ -211,6 +212,15 @@ describe.skipIf(!RUN)("bookings global migration (real Postgres)", () => {
     // fee snapshot must balance to gross_cents
     await expectRejected(rw, `INSERT INTO bookings.payment_intents(payment_intent_id,hold_id,chain_id,token_address,token_decimals,token_symbol,recipient_address,amount_atomic,gross_cents,platform_fee_bps,platform_fee_cents,host_payout_cents,quote_expires_at,hold_expires_at,status,created_at,updated_at) VALUES('pi2','hld',84532,'0xt',6,'USDC','0xr',1000000,5000,1000,10,90,now(),now(),'active',now(),now())`, SQLSTATE.check);
     await rw.unsafe(`INSERT INTO bookings.payment_intents(payment_intent_id,hold_id,chain_id,token_address,token_decimals,token_symbol,recipient_address,amount_atomic,gross_cents,platform_fee_bps,platform_fee_cents,host_payout_cents,quote_expires_at,hold_expires_at,status,created_at,updated_at) VALUES('pi3','hld',84532,'0xt',6,'USDC','0xr',1000000,5000,1000,500,4500,now(),now(),'active',now(),now())`);
+    // custody-refund pending requires the claimed hash, wallet attachment, and complete observed evidence
+    await expectRejected(rw, `UPDATE bookings.payment_intents SET status='custody_refund_pending' WHERE payment_intent_id='pi3'`, SQLSTATE.check);
+    await rw.unsafe(`UPDATE bookings.payment_intents SET status='custody_refund_pending', claimed_tx_ref='0xclaim', consumed_wallet_attachment_id='wa1', custody_observed_amount_atomic=1100000, custody_sender_address='0xsender', custody_reason='wrong_transfer_amount', custody_detected_at=now() WHERE payment_intent_id='pi3'`);
+    // every paid-and-refunded lane terminates as refunded and requires outbound proof
+    await expectRejected(rw, `UPDATE bookings.payment_intents SET status='refunded' WHERE payment_intent_id='pi3'`, SQLSTATE.check);
+    await rw.unsafe(`UPDATE bookings.payment_intents SET status='refunded', custody_refund_tx_ref='0xrefund', custody_refunded_at=now() WHERE payment_intent_id='pi3'`);
+    // custody refunds are atomic payment-intent effects; ordinary booking settlement remains cents-denominated
+    await rw.unsafe(`INSERT INTO bookings.settlement_effects(booking_settlement_effect_id,payment_intent_id,effect_kind,idempotency_key,status,amount_atomic,recipient_address,created_at,updated_at) VALUES('se-custody','pi3','booking_refund','custody:pi3','submitted',1100000,'0xsender',now(),now())`);
+    await expectRejected(rw, `INSERT INTO bookings.settlement_effects(booking_settlement_effect_id,payment_intent_id,effect_kind,idempotency_key,status,amount_cents,amount_atomic,recipient_address,created_at,updated_at) VALUES('se-bad','pi3','booking_refund','custody:bad','submitted',100,1100000,'0xsender',now(),now())`, SQLSTATE.check);
     // settlement-review shape: pending reviews require disputed state, reason, opened_at, and no resolution
     await rw.unsafe(`INSERT INTO bookings.bookings(booking_id,host_user_id,booker_user_id,slot_start_utc,slot_end_utc,gross_cents,platform_fee_bps,platform_fee_cents,host_payout_cents,status,created_at,updated_at) VALUES('b1','h','b','2026-07-02 09:00:00+00','2026-07-02 10:00:00+00',5000,1000,500,4500,'confirmed',now(),now())`);
     await expectRejected(rw, `UPDATE bookings.bookings SET status='disputed', settlement_review_status='pending', settlement_review_reason='attendance_ambiguous' WHERE booking_id='b1'`, SQLSTATE.check);
