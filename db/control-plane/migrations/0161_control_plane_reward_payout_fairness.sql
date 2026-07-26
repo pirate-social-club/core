@@ -18,8 +18,10 @@ CREATE TABLE reward_vault_capacity_observations (
     observed_block_hash TEXT NOT NULL,
     observed_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CHECK (payout_spent_atomic <= payout_epoch_cap_atomic),
-    CHECK (refund_spent_atomic <= refund_epoch_cap_atomic)
+    CONSTRAINT reward_vault_capacity_payout_spent_check
+        CHECK (payout_spent_atomic <= payout_epoch_cap_atomic),
+    CONSTRAINT reward_vault_capacity_refund_spent_check
+        CHECK (refund_spent_atomic <= refund_epoch_cap_atomic)
 );
 
 CREATE INDEX reward_vault_capacity_observations_freshness_idx
