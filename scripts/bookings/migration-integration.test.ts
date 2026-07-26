@@ -51,6 +51,7 @@ const EXPECTED_MIGRATIONS = [
   "b0005_booking_custody_refunds.sql",
   "b0006_booking_refund_proof_columns.sql",
   "b0007_booking_custody_operator_incidents.sql",
+  "b0008_booking_remove_dead_superseded_status.sql",
 ];
 
 // The exact table set the bookings migrations must create in the bookings schema.
@@ -214,6 +215,11 @@ describe.skipIf(!RUN)("bookings global migration (real Postgres)", () => {
     // fee snapshot must balance to gross_cents
     await expectRejected(rw, `INSERT INTO bookings.payment_intents(payment_intent_id,hold_id,chain_id,token_address,token_decimals,token_symbol,recipient_address,amount_atomic,gross_cents,platform_fee_bps,platform_fee_cents,host_payout_cents,quote_expires_at,hold_expires_at,status,created_at,updated_at) VALUES('pi2','hld',84532,'0xt',6,'USDC','0xr',1000000,5000,1000,10,90,now(),now(),'active',now(),now())`, SQLSTATE.check);
     await rw.unsafe(`INSERT INTO bookings.payment_intents(payment_intent_id,hold_id,chain_id,token_address,token_decimals,token_symbol,recipient_address,amount_atomic,gross_cents,platform_fee_bps,platform_fee_cents,host_payout_cents,quote_expires_at,hold_expires_at,status,created_at,updated_at) VALUES('pi3','hld',84532,'0xt',6,'USDC','0xr',1000000,5000,1000,500,4500,now(),now(),'active',now(),now())`);
+    await expectRejected(
+      rw,
+      `UPDATE bookings.payment_intents SET status='superseded' WHERE payment_intent_id='pi3'`,
+      SQLSTATE.check,
+    );
     await rw.unsafe(`INSERT INTO bookings.holds(hold_id,host_user_id,booker_user_id,slot_start_utc,slot_end_utc,price_cents,status,expires_at_utc) VALUES('hld-incident','h','b','2026-07-03 09:00:00+00','2026-07-03 10:00:00+00',5000,'active',now() + interval '10 minutes')`);
     await rw.unsafe(`INSERT INTO bookings.payment_intents(payment_intent_id,hold_id,chain_id,token_address,token_decimals,token_symbol,recipient_address,amount_atomic,gross_cents,platform_fee_bps,platform_fee_cents,host_payout_cents,quote_expires_at,hold_expires_at,status,created_at,updated_at) VALUES('pi-incident','hld-incident',84532,'0xt',6,'USDC','0xr',1000000,5000,1000,500,4500,now(),now(),'active',now(),now())`);
     // multi-sender custody requires the claimed payment plus a complete, multi-entry diagnostic inventory
