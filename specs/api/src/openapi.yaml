@@ -963,6 +963,8 @@ components:
       $ref: ./components/schemas/bookings.yaml#/SubmitBookingPaymentRequest
     BookingPaymentResumeState:
       $ref: ./components/schemas/bookings.yaml#/BookingPaymentResumeState
+    BookingCustodyRefund:
+      $ref: ./components/schemas/bookings.yaml#/BookingCustodyRefund
     PendingBookingPaymentIntent:
       $ref: ./components/schemas/bookings.yaml#/PendingBookingPaymentIntent
     UnresolvedBookingPaymentIntent:

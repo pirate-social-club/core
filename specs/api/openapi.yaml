@@ -14437,6 +14437,36 @@ components:
         - finalizable
         - booked
         - refund_pending
+    BookingCustodyRefund:
+      type: object
+      additionalProperties: false
+      required:
+        - observed_amount_atomic
+        - sender_address
+        - reason
+        - detected_at
+        - refund_tx_ref
+        - refunded_at
+      properties:
+        observed_amount_atomic:
+          type: string
+          pattern: ^[1-9][0-9]*$
+        sender_address:
+          type: string
+        reason:
+          type: string
+          enum:
+            - wrong_transfer_amount
+        detected_at:
+          type: string
+          format: date-time
+        refund_tx_ref:
+          type: string
+          nullable: true
+        refunded_at:
+          type: string
+          format: date-time
+          nullable: true
     PendingBookingPaymentIntent:
       type: object
       additionalProperties: false
@@ -14466,6 +14496,7 @@ components:
             - verifying
             - verified
             - verification_failed
+            - custody_refund_pending
             - consumed
         resume_state:
           $ref: "#/BookingPaymentResumeState"
@@ -14493,6 +14524,10 @@ components:
           format: date-time
         booking_id:
           type: string
+          nullable: true
+        custody_refund:
+          allOf:
+            - $ref: "#/BookingCustodyRefund"
           nullable: true
     UnresolvedBookingPaymentIntent:
       type: object
@@ -14523,6 +14558,7 @@ components:
             - verifying
             - verified
             - verification_failed
+            - custody_refund_pending
         hold_status:
           type: string
           enum:
@@ -14540,6 +14576,10 @@ components:
         unresolved_age_seconds:
           type: integer
           minimum: 0
+        custody_refund:
+          allOf:
+            - $ref: "#/BookingCustodyRefund"
+          nullable: true
     Booking:
       type: object
       additionalProperties: true
