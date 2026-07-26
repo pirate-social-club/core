@@ -688,3 +688,85 @@ RewardCampaignFundingConfirmRequest:
   properties:
     tx_hash:
       type: string
+RewardPoolRefundPolicyReadiness:
+  type: object
+  additionalProperties: false
+  required:
+    - largest_outstanding_lot_remainder_cents
+    - largest_outstanding_lot_remainder_atomic
+    - proposed_max_refund_atomic
+    - proposal_safe
+  properties:
+    largest_outstanding_lot_remainder_cents:
+      type: integer
+      minimum: 0
+    largest_outstanding_lot_remainder_atomic:
+      type: string
+      pattern: "^(0|[1-9][0-9]*)$"
+    proposed_max_refund_atomic:
+      type: string
+      pattern: "^(0|[1-9][0-9]*)$"
+      nullable: true
+    proposal_safe:
+      type: boolean
+      nullable: true
+RewardBackendFlipReadiness:
+  type: object
+  additionalProperties: false
+  required:
+    - ready
+    - non_terminal_cashouts
+    - non_terminal_refunds
+    - reconciliation_required
+  properties:
+    ready:
+      type: boolean
+    non_terminal_cashouts:
+      type: integer
+      minimum: 0
+    non_terminal_refunds:
+      type: integer
+      minimum: 0
+    reconciliation_required:
+      type: integer
+      minimum: 0
+RewardSolvencyReadiness:
+  type: object
+  additionalProperties: false
+  required:
+    - enabled
+    - admitting
+    - reason
+    - observedAt
+    - ageSeconds
+    - balanceAtomic
+    - liabilityAtomic
+  properties:
+    enabled:
+      type: boolean
+    admitting:
+      type: boolean
+    reason:
+      type: string
+      enum:
+        - disabled
+        - healthy
+        - unknown_observation
+        - stale_observation
+        - insufficient_float
+    observedAt:
+      type: string
+      format: date-time
+      nullable: true
+    ageSeconds:
+      type: integer
+      minimum: 0
+      nullable: true
+    balanceAtomic:
+      type: string
+      pattern: "^(0|[1-9][0-9]*)$"
+      nullable: true
+    liabilityAtomic:
+      type: string
+      pattern: "^(0|[1-9][0-9]*)$"
+      nullable: true
