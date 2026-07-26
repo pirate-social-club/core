@@ -21,7 +21,12 @@ CREATE TABLE reward_song_pools (
 INSERT INTO reward_song_pools (
     community_id, post_id, reward_campaign_id, created_at, updated_at
 )
-SELECT community_id, post_id, reward_campaign_id, created_at, updated_at
+SELECT
+    ranked.community_id,
+    ranked.post_id,
+    ranked.reward_campaign_id,
+    ranked.created_at,
+    ranked.updated_at
 FROM (
     SELECT
         community_id,
