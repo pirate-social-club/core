@@ -77,6 +77,10 @@ SongKaraokePayload:
     instrumental_audio_url:
       type: string
       nullable: true
+    duration_ms:
+      type: integer
+      nullable: true
+      minimum: 1
     karaoke_lines:
       type: array
       nullable: true
