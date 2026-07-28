@@ -152,6 +152,19 @@ Rules:
 - duplicate unfollow requests should be idempotent success that leave the effective follow state as not-followed
 - `POST` is acceptable here because these endpoints trigger mediated side effects against an external onchain source of truth rather than CRUD over a Pirate-owned follow row
 - if EFP or the write path is unavailable, Pirate should fail the write clearly rather than silently queueing it unless a durable retry system is explicitly introduced
+- a prepared write is a short-lived resource and reports whether the desired
+  relationship is already reflected or accepted but not yet reflected
+- primary-list resolution has exactly three outcomes: `none`, `found`, and
+  `unresolved`; only `none` may mint and `unresolved` must fail closed
+- the server is the only implementation of primary-list resolution
+- mainnet sponsorship is limited to active embedded-wallet accounts in good
+  standing and is admitted by per-account limits plus a global UTC-day ceiling
+- the sponsorship relay accepts only exact, unexpired server-prepared
+  transactions; a new-list bootstrap reserves and charges two transactions
+- confirmed writes enqueue reconciliation for both viewer and target wallets
+
+Follower counts MUST NOT influence ranking, feed placement, reward eligibility,
+or reward amounts until an anti-sybil design is explicitly approved.
 
 ## Read API Surface
 
