@@ -6,13 +6,14 @@ import {
   buildCanonicalSchemaArtifacts,
   buildProbe,
   CANONICAL_SCHEMA_INVENTORY_SQL,
+  databaseTargetsFromWranglerConfig,
+  d1QueryBatch,
   probeShard,
   schemaArtifactsFromRows,
   canonicalSchemaRegressions,
   validateCanonicalSchemaBaseline,
   validateCompatibleMissingSchemaArtifacts,
   validateRequirements,
-  wranglerFailureDetail,
 } from "./verify-community-schema-requirements"
 
 const base = {
@@ -174,15 +175,23 @@ describe("schema requirements probe", () => {
         tables: [], columns: [], indexes: [], absentIndexes: [], altered: [], unrecognized: [],
       },
     }]))
-    const calls: string[] = []
-    const row = await probeShard(required, expected, async (sql) => {
-      calls.push(sql)
+    const calls: string[][] = []
+    const result = await probeShard(required, expected, false, async (statements) => {
+      calls.push(statements)
       if (calls.length === 1) throw new Error("APIError code=7500: internal error")
-      return calls.length === 2 ? { l0: 1, k0: 1, a0: 2 } : { l0: 1, k0: 0, a0: 3 }
+      return [
+        { success: true, results: [{ l0: 1, k0: 1, a0: 2 }] },
+        { success: true, results: [{ l0: 1, k0: 0, a0: 3 }] },
+      ]
     })
 
-    expect(calls).toHaveLength(3)
-    expect(row).toEqual({ l0: 1, k0: 1, a0: 2, l1: 1, k1: 0, a1: 3 })
+    expect(calls).toHaveLength(2)
+    expect(calls[0]).toHaveLength(1)
+    expect(calls[1]).toHaveLength(2)
+    expect(result).toEqual({
+      row: { l0: 1, k0: 1, a0: 2, l1: 1, k1: 0, a1: 3 },
+      inventoryRows: [],
+    })
   })
 
   test("does not mask non-7500 combined probe failures", async () => {
@@ -193,11 +202,36 @@ describe("schema requirements probe", () => {
       },
     }]])
     let calls = 0
-    await expect(probeShard(["one.sql"], expected, async () => {
+    await expect(probeShard(["one.sql"], expected, false, async () => {
       calls += 1
       throw new Error("authentication failed")
     })).rejects.toThrow("authentication failed")
     expect(calls).toBe(1)
+  })
+
+  test("carries the canonical inventory in the same healthy request", async () => {
+    const expected = new Map([["one.sql", {
+      checksum: "one",
+      artifacts: {
+        tables: [], columns: [], indexes: [], absentIndexes: [], altered: [], unrecognized: [],
+      },
+    }]])
+    const calls: string[][] = []
+    const result = await probeShard(["one.sql"], expected, true, async (statements) => {
+      calls.push(statements)
+      return [
+        { success: true, results: [{ l0: 1, k0: 1, a0: 0 }] },
+        {
+          success: true,
+          results: [{ type: "table", name: "posts", sql: "CREATE TABLE posts (post_id TEXT)" }],
+        },
+      ]
+    })
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0]).toHaveLength(2)
+    expect(calls[0][1]).toBe(CANONICAL_SCHEMA_INVENTORY_SQL)
+    expect(result.inventoryRows).toHaveLength(1)
   })
 })
 
@@ -236,23 +270,122 @@ describe("canonical final-schema attestation", () => {
   })
 })
 
-describe("wrangler failure diagnostics", () => {
-  test("surfaces the stdout JSON error instead of stderr configuration warnings", () => {
-    const stdout = JSON.stringify({
-      error: {
-        text: "request path containing a database id failed",
-        notes: [{ text: "internal error; reference = ref_123 [code: 7500]" }],
-        name: "APIError",
-        code: 7500,
-        accountTag: "secret-account-id",
+describe("D1 REST query batching", () => {
+  test("selects database ids from the requested Wrangler environment", () => {
+    const config = {
+      d1_databases: [
+        { binding: "D1_POOL", database_name: "pool-staging", database_id: "pool-staging-id" },
+        { binding: "DB_CMTY_0001", database_name: "shard-staging", database_id: "shard-staging-id" },
+      ],
+      env: {
+        production: {
+          d1_databases: [
+            { binding: "D1_POOL", database_name: "pool-prod", database_id: "pool-prod-id" },
+            { binding: "DB_CMTY_0001", database_name: "shard-prod", database_id: "shard-prod-id" },
+          ],
+        },
       },
+    }
+
+    expect(databaseTargetsFromWranglerConfig(config, false).get("DB_CMTY_0001")).toEqual({
+      name: "shard-staging",
+      id: "shard-staging-id",
     })
-    expect(wranglerFailureDetail(stdout, "very long configuration warning")).toBe(
-      "APIError code=7500: internal error; reference = ref_123 [code: 7500]",
-    )
+    expect(databaseTargetsFromWranglerConfig(config, true).get("D1_POOL")).toEqual({
+      name: "pool-prod",
+      id: "pool-prod-id",
+    })
   })
 
-  test("bounds an unstructured fallback", () => {
-    expect(wranglerFailureDetail("", "x".repeat(3_000))).toBe(`${"x".repeat(2_000)}…`)
+  test("fails closed when a selected D1 binding has no database id", () => {
+    expect(() => databaseTargetsFromWranglerConfig({
+      d1_databases: [
+        { binding: "D1_POOL", database_name: "pool-staging" },
+      ],
+    }, false)).toThrow("D1_POOL requires database_name and database_id")
+  })
+
+  test("sends multiple read statements in one API request", async () => {
+    let requestUrl = ""
+    let requestInit: RequestInit | undefined
+    const results = await d1QueryBatch({
+      accountId: "account-id",
+      apiToken: "token",
+      fetch: (async (input, init) => {
+        requestUrl = String(input)
+        requestInit = init
+        return Response.json({
+          success: true,
+          errors: [],
+          result: [
+            { success: true, results: [{ l0: 1 }] },
+            { success: true, results: [{ type: "table", name: "posts", sql: "CREATE TABLE posts (id TEXT)" }] },
+          ],
+        })
+      }) as typeof fetch,
+      sleep: async () => {},
+    }, {
+      name: "community-d1-pool-0001-staging",
+      id: "database-id",
+    }, ["SELECT 1 AS l0", CANONICAL_SCHEMA_INVENTORY_SQL])
+
+    expect(results).toHaveLength(2)
+    expect(requestUrl).toEndWith("/accounts/account-id/d1/database/database-id/query")
+    expect(requestInit?.method).toBe("POST")
+    expect(JSON.parse(String(requestInit?.body))).toEqual({
+      batch: [
+        { sql: "SELECT 1 AS l0" },
+        { sql: CANONICAL_SCHEMA_INVENTORY_SQL },
+      ],
+    })
+  })
+
+  test("retries API failures with backoff and redacts identifiers", async () => {
+    const delays: number[] = []
+    let attempts = 0
+    const metrics = {
+      logical_batches: 0,
+      statements_submitted: 0,
+      http_attempts: 0,
+      retries: 0,
+      errors_by_code: {},
+      cumulative_http_attempt_duration_ms: 0,
+    }
+    const promise = d1QueryBatch({
+      accountId: "secret-account-id",
+      apiToken: "secret-token",
+      fetch: (async () => {
+        attempts += 1
+        return Response.json({
+          success: false,
+          errors: [{
+            code: 7429,
+            message: "database secret-database-id in secret-account-id overloaded for secret-token",
+          }],
+          result: [],
+        })
+      }) as typeof fetch,
+      sleep: async (milliseconds) => {
+        delays.push(milliseconds)
+      },
+      metrics,
+    }, {
+      name: "community-d1-pool-0562-staging",
+      id: "secret-database-id",
+    }, ["SELECT 1"])
+
+    await expect(promise).rejects.toThrow(
+      "D1 query community-d1-pool-0562-staging failed after 4 attempts: " +
+        "APIError code=7429: database (database id redacted) in (account id redacted) overloaded for (token redacted)",
+    )
+    expect(attempts).toBe(4)
+    expect(delays).toEqual([500, 1_000, 2_000])
+    expect(metrics).toMatchObject({
+      logical_batches: 1,
+      statements_submitted: 1,
+      http_attempts: 4,
+      retries: 3,
+      errors_by_code: { 7429: 4 },
+    })
   })
 })
