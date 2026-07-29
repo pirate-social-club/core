@@ -12,6 +12,9 @@ const MIGRATION_FILES = [
   "db/control-plane/migrations/0170_control_plane_dance_attempt_sessions.sql",
   "db/control-plane/migrations/0171_control_plane_dance_attempt_reason_contract.sql",
 ]
+const OVERLONG_SEGMENT_FINGERPRINT_JSON = JSON.stringify(
+  Array.from({ length: 33 }, () => "8".repeat(64)),
+)
 
 function connect(db = "postgres"): SQL {
   const url = new URL(ADMIN_URL as string)
@@ -344,7 +347,7 @@ describe.skipIf(!RUN)("dance migrations 0168-0171 (real Postgres)", () => {
         terminal_integrity_outcome, expires_at
       ) VALUES (
         'dat_attempt', 'dse_attempt', 'usr_creator', 'dcr_attempt',
-        'fingerprint_v1', '${"7".repeat(64)}', '["not-a-hash"]',
+        'fingerprint_v1', '${"7".repeat(64)}', '${OVERLONG_SEGMENT_FINGERPRINT_JSON}',
         'passed', NOW() + INTERVAL '90 days'
       )
     `, "23514")
