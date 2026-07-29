@@ -233,3 +233,8 @@ jobs:
         env:
           CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
         run: bun test scripts/control-plane/promotion-shadow-migration.test.ts
+
+      - name: Run promotion shadow role integration test
+        env:
+          CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
+        run: bun test scripts/control-plane/promotion-shadow-role.test.ts
