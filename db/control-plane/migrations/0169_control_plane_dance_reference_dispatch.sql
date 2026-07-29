@@ -2,12 +2,18 @@
 -- Modal owns compute only; the control plane remains the source of retry state.
 
 ALTER TABLE dance_choreography_revisions
-    ADD COLUMN reference_dispatch_attempt_count INTEGER NOT NULL DEFAULT 0,
-    ADD COLUMN reference_dispatch_claim_token TEXT,
-    ADD COLUMN reference_dispatch_claim_expires_at TIMESTAMPTZ,
-    ADD COLUMN reference_dispatch_id TEXT,
-    ADD COLUMN reference_dispatched_at TIMESTAMPTZ,
-    ADD COLUMN reference_next_dispatch_at TIMESTAMPTZ,
+    ADD COLUMN reference_dispatch_attempt_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE dance_choreography_revisions
+    ADD COLUMN reference_dispatch_claim_token TEXT;
+ALTER TABLE dance_choreography_revisions
+    ADD COLUMN reference_dispatch_claim_expires_at TIMESTAMPTZ;
+ALTER TABLE dance_choreography_revisions
+    ADD COLUMN reference_dispatch_id TEXT;
+ALTER TABLE dance_choreography_revisions
+    ADD COLUMN reference_dispatched_at TIMESTAMPTZ;
+ALTER TABLE dance_choreography_revisions
+    ADD COLUMN reference_next_dispatch_at TIMESTAMPTZ;
+ALTER TABLE dance_choreography_revisions
     ADD COLUMN reference_dispatch_last_error TEXT;
 
 UPDATE dance_choreography_revisions
