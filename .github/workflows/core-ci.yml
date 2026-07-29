@@ -214,3 +214,9 @@ jobs:
           # Owner/superuser URL to the service; the test creates its own isolated db + roles.
           CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
         run: bun test scripts/control-plane/operator-credentials-migration.test.ts
+
+      - name: Run PostgreSQL migration-lock integration test
+        env:
+          # Proves the runner pins one backend and serializes complete invocations.
+          CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
+        run: bun test scripts/control-plane/postgres-migration-lock.test.ts
