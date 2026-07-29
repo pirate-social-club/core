@@ -43,7 +43,6 @@ import { mkdir, readFile, readdir } from "node:fs/promises"
 import { writeFile } from "node:fs/promises"
 import { dirname, resolve } from "node:path"
 
-import { extractWranglerJson } from "./lib/fleet-d1-migration"
 import { partitionQuarantinedBindings } from "./lib/community-shard-quarantine"
 import { type Artifacts, artifactCount, expectedArtifacts } from "./community-schema-artifacts"
 
@@ -466,7 +465,6 @@ type Options = {
   manifest: string
   quarantineRegistry: string
   concurrency: number
-  cwd: string
   driftPolicy: string
   canonicalBaseline?: string
 }
@@ -509,115 +507,255 @@ migrations are NOT required (that is how 1126 stays feature-conditional).
     manifest: resolve(get("--manifest") ?? `tmp/community-schema-${prod ? "prod" : "staging"}.json`),
     quarantineRegistry: resolve(get("--quarantines") ?? resolve(import.meta.dir, "community-shard-quarantines.json")),
     concurrency,
-    cwd: dirname(resolve(wranglerConfig)),
     driftPolicy: resolve(get("--drift-policy") ?? "db/known-community-migration-drifts.json"),
     canonicalBaseline: get("--canonical-baseline") ? resolve(get("--canonical-baseline")!) : undefined,
   }
 }
 
-async function wranglerJson(o: Options, db: string, sql: string): Promise<any[]> {
-  const cmd = [
-    "bunx",
-    "wrangler@4.100.0",
-    "d1",
-    "execute",
-    db,
-    ...(o.prod ? ["--env", "production"] : []),
-    "--remote",
-    "--json",
-    "--command",
-    sql,
-  ]
+type D1DatabaseTarget = {
+  name: string
+  id: string
+}
+
+type D1QueryResult = {
+  results?: unknown[]
+  success?: boolean
+  meta?: Record<string, unknown>
+}
+
+type D1ApiError = {
+  code?: number | string
+  message?: string
+}
+
+type D1ApiEnvelope = {
+  success?: boolean
+  errors?: D1ApiError[]
+  result?: D1QueryResult[]
+}
+
+type D1QueryMetrics = {
+  logical_batches: number
+  statements_submitted: number
+  http_attempts: number
+  retries: number
+  errors_by_code: Record<string, number>
+  cumulative_http_attempt_duration_ms: number
+}
+
+type D1RestClient = {
+  accountId: string
+  apiToken: string
+  fetch: typeof fetch
+  sleep: (milliseconds: number) => Promise<void>
+  metrics?: D1QueryMetrics
+}
+
+export function databaseTargetsFromWranglerConfig(
+  value: unknown,
+  production: boolean,
+  source = "wrangler config",
+): Map<string, D1DatabaseTarget> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${source}: expected a configuration object`)
+  }
+  const config = value as {
+    d1_databases?: unknown
+    env?: { production?: { d1_databases?: unknown } }
+  }
+  const entries = production ? config.env?.production?.d1_databases : config.d1_databases
+  if (!Array.isArray(entries)) {
+    throw new Error(`${source}: selected environment has no d1_databases array`)
+  }
+  const targets = new Map<string, D1DatabaseTarget>()
+  for (const entry of entries as Array<Record<string, unknown>>) {
+    const binding = typeof entry.binding === "string" ? entry.binding : ""
+    if (binding !== "D1_POOL" && !binding.startsWith("DB_CMTY")) continue
+    const name = typeof entry.database_name === "string" ? entry.database_name : ""
+    const id = typeof entry.database_id === "string" ? entry.database_id : ""
+    if (!name || !id) {
+      throw new Error(`${source}: ${binding || "(missing binding)"} requires database_name and database_id`)
+    }
+    if (targets.has(binding)) throw new Error(`${source}: duplicate D1 binding ${binding}`)
+    targets.set(binding, { name, id })
+  }
+  if (!targets.has("D1_POOL")) throw new Error(`${source}: selected environment is missing D1_POOL`)
+  return targets
+}
+
+function boundedDetail(value: string): string {
+  return value.length > 2_000 ? `${value.slice(0, 2_000)}…` : value
+}
+
+function d1ApiFailureDetail(
+  response: Response,
+  payload: unknown,
+  rawBody: string,
+): string | null {
+  const envelope = payload && typeof payload === "object" && !Array.isArray(payload)
+    ? payload as D1ApiEnvelope
+    : undefined
+  const errors = envelope?.errors?.filter((error) => error && typeof error === "object") ?? []
+  if (errors.length > 0) {
+    return errors.map((error) => {
+      const code = typeof error.code === "number" || typeof error.code === "string"
+        ? ` code=${String(error.code)}`
+        : ""
+      const message = typeof error.message === "string" && error.message.trim()
+        ? error.message.trim()
+        : "request failed"
+      return `APIError${code}: ${message}`
+    }).join("; ")
+  }
+  if (!response.ok) {
+    const body = rawBody.trim()
+    return `HTTP ${response.status}${body ? `: ${boundedDetail(body)}` : ""}`
+  }
+  if (envelope?.success !== true) return "APIError: response did not report success"
+  return null
+}
+
+function redactD1Identifiers(detail: string, client: D1RestClient, target: D1DatabaseTarget): string {
+  let redacted = detail
+  for (const [secret, replacement] of [
+    [client.accountId, "(account id redacted)"],
+    [target.id, "(database id redacted)"],
+    [client.apiToken, "(token redacted)"],
+  ] as const) {
+    if (secret) redacted = redacted.replaceAll(secret, replacement)
+  }
+  return redacted
+}
+
+function recordD1Error(metrics: D1QueryMetrics | undefined, detail: string): void {
+  if (!metrics) return
+  const code = detail.match(/\bcode(?:=|:\s*)(\d+)\b/i)?.[1] ?? "unknown"
+  metrics.errors_by_code[code] = (metrics.errors_by_code[code] ?? 0) + 1
+}
+
+export async function d1QueryBatch(
+  client: D1RestClient,
+  target: D1DatabaseTarget,
+  statements: string[],
+): Promise<D1QueryResult[]> {
+  if (statements.length === 0) throw new Error("D1 query batch must contain at least one statement")
+  if (client.metrics) {
+    client.metrics.logical_batches += 1
+    client.metrics.statements_submitted += statements.length
+  }
   const maxAttempts = 4
-  let lastError = "unknown Wrangler failure"
+  let lastError = "unknown D1 API failure"
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const proc = Bun.spawn(cmd, { cwd: o.cwd, stdout: "pipe", stderr: "pipe" })
-    const [out, err] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()])
-    await proc.exited
+    const startedAt = performance.now()
+    if (client.metrics) client.metrics.http_attempts += 1
     try {
-      if (proc.exitCode !== 0) throw new Error(wranglerFailureDetail(out, err))
-      return extractWranglerJson(out) as any[]
+      const response = await client.fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(client.accountId)}` +
+          `/d1/database/${encodeURIComponent(target.id)}/query`,
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${client.apiToken}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            batch: statements.map((sql) => ({ sql })),
+          }),
+        },
+      )
+      const rawBody = await response.text()
+      let payload: unknown
+      try {
+        payload = JSON.parse(rawBody)
+      } catch {
+        throw new Error(`HTTP ${response.status}: non-JSON response ${boundedDetail(rawBody.trim() || "(empty body)")}`)
+      }
+      const failure = d1ApiFailureDetail(response, payload, rawBody)
+      if (failure) throw new Error(failure)
+      const results = (payload as D1ApiEnvelope).result
+      if (!Array.isArray(results) || results.length !== statements.length) {
+        throw new Error(`APIError: expected ${statements.length} query result(s), received ${results?.length ?? 0}`)
+      }
+      const failedResult = results.find((result) => result?.success !== true)
+      if (failedResult) throw new Error("APIError: one or more D1 query results did not report success")
+      return results
     } catch (error) {
-      lastError = error instanceof Error ? error.message : String(error)
+      const detail = error instanceof Error ? error.message : String(error)
+      lastError = redactD1Identifiers(detail, client, target)
+      recordD1Error(client.metrics, lastError)
       if (attempt < maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, 500 * (2 ** (attempt - 1))))
+        if (client.metrics) client.metrics.retries += 1
+        await client.sleep(500 * (2 ** (attempt - 1)))
+      }
+    } finally {
+      if (client.metrics) {
+        client.metrics.cumulative_http_attempt_duration_ms += Math.round(performance.now() - startedAt)
       }
     }
   }
-  throw new Error(`wrangler d1 execute ${db} failed after ${maxAttempts} attempts: ${lastError}`)
+  throw new Error(`D1 query ${target.name} failed after ${maxAttempts} attempts: ${lastError}`)
 }
 
-type ProbeRunner = (sql: string) => Promise<Record<string, number>>
+type ProbeRunner = (statements: string[]) => Promise<D1QueryResult[]>
+
+function queryResultRows<T>(result: D1QueryResult | undefined, label: string): T[] {
+  if (!result || !Array.isArray(result.results)) {
+    throw new Error(`${label} returned no rows`)
+  }
+  return result.results as T[]
+}
 
 /** D1 occasionally rejects a large, otherwise valid multi-migration SELECT with
- * API error 7500 on a specific database. Preserve the one-query fleet fast path,
- * but attest that shard migration-by-migration after the combined probe has
- * exhausted its own retries. Every required result is still read and remapped;
- * any failed single probe remains a blocking shard error. */
+ * API error 7500 on a specific database. Preserve the one-request fleet path,
+ * but batch migration-by-migration probes in one fallback request after the
+ * combined SELECT has exhausted its retries. */
 export async function probeShard(
   required: string[],
   expected: ReadonlyMap<string, { checksum: string; artifacts: Artifacts }>,
+  includeCanonicalInventory: boolean,
   run: ProbeRunner,
-): Promise<Record<string, number>> {
+): Promise<{ row: Record<string, number>; inventoryRows: SchemaObjectRow[] }> {
+  const canonicalStatements = includeCanonicalInventory ? [CANONICAL_SCHEMA_INVENTORY_SQL] : []
   try {
-    return await run(buildProbe(required, expected))
+    const results = await run([buildProbe(required, expected), ...canonicalStatements])
+    const row = queryResultRows<Record<string, number>>(results[0], "combined migration probe")[0]
+    if (!row) throw new Error("combined migration probe returned no rows")
+    const inventoryRows = includeCanonicalInventory
+      ? queryResultRows<SchemaObjectRow>(results[1], "canonical schema inventory")
+      : []
+    return { row, inventoryRows }
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error)
-    if (!/\bcode=7500\b/.test(detail)) throw error
+    if (!/\bcode(?:=|:\s*)7500\b/i.test(detail)) throw error
 
+    const statements = [
+      ...required.map((name) => buildProbe([name], expected)),
+      ...canonicalStatements,
+    ]
+    const results = await run(statements)
     const merged: Record<string, number> = {}
     for (const [i, name] of required.entries()) {
-      const row = await run(buildProbe([name], expected))
+      const row = queryResultRows<Record<string, number>>(results[i], `fallback migration probe ${name}`)[0]
+      if (!row) throw new Error(`fallback migration probe ${name} returned no rows`)
       merged[`l${i}`] = Number(row.l0 ?? 0)
       merged[`k${i}`] = Number(row.k0 ?? 0)
       merged[`a${i}`] = Number(row.a0 ?? 0)
     }
-    return merged
+    const inventoryRows = includeCanonicalInventory
+      ? queryResultRows<SchemaObjectRow>(results[required.length], "canonical schema inventory")
+      : []
+    return { row: merged, inventoryRows }
   }
-}
-
-/** Wrangler --json writes structured API failures to stdout while configuration
- * warnings go to stderr. Prefer the structured body and omit account/database
- * identifiers from manifests and CI logs. */
-export function wranglerFailureDetail(stdout: string, stderr: string): string {
-  const out = stdout.trim()
-  if (out) {
-    try {
-      const parsed = JSON.parse(out) as {
-        error?: { name?: unknown; code?: unknown; text?: unknown; notes?: Array<{ text?: unknown }> }
-      }
-      if (parsed.error) {
-        const name = typeof parsed.error.name === "string" ? parsed.error.name : "APIError"
-        const code = typeof parsed.error.code === "number" || typeof parsed.error.code === "string"
-          ? ` code=${String(parsed.error.code)}`
-          : ""
-        const notes = parsed.error.notes
-          ?.map((note) => typeof note.text === "string" ? note.text.trim() : "")
-          .filter(Boolean)
-          .join("; ")
-        const message = notes || (typeof parsed.error.text === "string" ? parsed.error.text.trim() : "request failed")
-        return `${name}${code}: ${message}`
-      }
-    } catch {
-      // Fall through to bounded raw output for non-JSON CLI failures.
-    }
-  }
-  const raw = out || stderr.trim() || "(no stdout or stderr)"
-  return raw.length > 2_000 ? `${raw.slice(0, 2_000)}…` : raw
 }
 
 /** The pool is authoritative for which shards are LIVE — not a prior artifact. */
-async function liveBindings(o: Options): Promise<string[]> {
-  const pool = o.prod ? "community-d1-shard-pool-prod" : "community-d1-shard-pool-staging"
-  const rows = (
-    await wranglerJson(
-      o,
-      pool,
-      "SELECT binding_name FROM d1_pool WHERE community_id IS NOT NULL AND last_loaded_at IS NOT NULL ORDER BY binding_name",
-    )
-  )[0].results as Array<{ binding_name: string }>
+async function liveBindings(client: D1RestClient, pool: D1DatabaseTarget): Promise<string[]> {
+  const results = await d1QueryBatch(client, pool, [
+    "SELECT binding_name FROM d1_pool WHERE community_id IS NOT NULL AND last_loaded_at IS NOT NULL ORDER BY binding_name",
+  ])
+  const rows = queryResultRows<{ binding_name: string }>(results[0], "live shard pool query")
   if (rows.length === 0) {
-    throw new Error(`${pool} reported ZERO live shards. That is a broken view of the fleet, not a pass.`)
+    throw new Error(`${pool.name} reported ZERO live shards. That is a broken view of the fleet, not a pass.`)
   }
   return rows.map((r) => r.binding_name)
 }
@@ -714,18 +852,37 @@ async function main() {
     process.exit(2)
   }
 
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim()
+  const apiToken = process.env.CLOUDFLARE_API_TOKEN?.trim()
+  if (!accountId || !apiToken) {
+    throw new Error("CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN are required for read-only D1 attestation")
+  }
+  const d1QueryMetrics: D1QueryMetrics = {
+    logical_batches: 0,
+    statements_submitted: 0,
+    http_attempts: 0,
+    retries: 0,
+    errors_by_code: {},
+    cumulative_http_attempt_duration_ms: 0,
+  }
+  const client: D1RestClient = {
+    accountId,
+    apiToken,
+    fetch,
+    sleep: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
+    metrics: d1QueryMetrics,
+  }
   const raw = (await readFile(o.wranglerConfig, "utf8")).replace(/^\s*\/\/.*$/gm, "")
-  const cfg = JSON.parse(raw)
-  const entries = o.prod ? cfg.env.production.d1_databases : cfg.d1_databases
-  const map = new Map<string, string>()
-  for (const e of entries) if (e.binding.startsWith("DB_CMTY")) map.set(e.binding, e.database_name)
+  const targets = databaseTargetsFromWranglerConfig(JSON.parse(raw), o.prod, o.wranglerConfig)
+  const pool = targets.get("D1_POOL")
+  if (!pool) throw new Error(`${o.wranglerConfig}: selected environment is missing D1_POOL`)
 
-  const allocatedBindings = await liveBindings(o)
+  const allocatedBindings = await liveBindings(client, pool)
   const partition = await partitionQuarantinedBindings(
     o.quarantineRegistry,
     o.prod ? "production" : "staging",
     allocatedBindings,
-    new Set(map.keys()),
+    new Set(targets.keys()),
   )
   const bindings = partition.live
   if (canonicalBaseline) {
@@ -737,10 +894,10 @@ async function main() {
   }
   if (bindings.length === 0) throw new Error("quarantine policy leaves ZERO live shards; refusing to pass the release gate")
   const reports: ShardReport[] = []
-  const targets: Array<{ binding: string; db: string }> = []
+  const shardTargets: Array<{ binding: string; database: D1DatabaseTarget }> = []
   for (const b of bindings) {
-    const db = map.get(b)
-    if (!db) {
+    const database = targets.get(b)
+    if (!database) {
       // A live shard the config does not know about means our config is stale.
       // Skipping it is how 178 shards once went un-migrated. Fail.
       reports.push({
@@ -752,19 +909,24 @@ async function main() {
       })
       continue
     }
-    targets.push({ binding: b, db })
+    shardTargets.push({ binding: b, database })
   }
 
-  // ONE query per shard. A release gate that costs 3 round-trips per shard takes
-  // 10+ minutes over 200 shards and will not survive contact with a pipeline.
+  // ONE HTTP request per shard in the healthy path. The migration probe and
+  // canonical inventory remain logically independent query results, but D1's
+  // REST batch endpoint carries both in one authenticated round trip.
   let idx = 0
   async function worker() {
-    while (idx < targets.length) {
-      const { binding, db } = targets[idx++]
+    while (idx < shardTargets.length) {
+      const { binding, database } = shardTargets[idx++]
       try {
-        const row = await probeShard(requiredSet, expected, async (sql) =>
-          (await wranglerJson(o, db, sql))[0].results[0] as Record<string, number>,
+        const probe = await probeShard(
+          requiredSet,
+          expected,
+          Boolean(req.canonical_schema),
+          (statements) => d1QueryBatch(client, database, statements),
         )
+        const row = probe.row
         const missing: string[] = []
         let status: ShardStatus = SATISFIED
         const details: string[] = []
@@ -816,9 +978,7 @@ async function main() {
           }
         })
         if (req.canonical_schema) {
-          const inventoryPayload = await wranglerJson(o, db, CANONICAL_SCHEMA_INVENTORY_SQL)
-          const inventoryRows = inventoryPayload[0].results as SchemaObjectRow[]
-          const actual = schemaArtifactsFromRows(inventoryRows)
+          const actual = schemaArtifactsFromRows(probe.inventoryRows)
           const canonicalMissing = [...canonicalExpected]
             .filter((artifact) => !actual.has(artifact) && !compatibleMissingSchemaArtifacts.has(artifact))
             .sort()
@@ -838,7 +998,7 @@ async function main() {
           }
           reports.push({
             binding,
-            database_name: db,
+            database_name: database.name,
             status,
             missing,
             canonical_missing: canonicalMissing,
@@ -849,7 +1009,7 @@ async function main() {
         }
         reports.push({
           binding,
-          database_name: db,
+          database_name: database.name,
           status,
           missing,
           ...(details.length ? { detail: details.join("; ") } : {}),
@@ -857,7 +1017,7 @@ async function main() {
       } catch (error) {
         reports.push({
           binding,
-          database_name: db,
+          database_name: database.name,
           status: "error",
           missing: requiredSet,
           detail: error instanceof Error ? error.message : String(error),
@@ -865,7 +1025,7 @@ async function main() {
       }
     }
   }
-  await Promise.all(Array.from({ length: Math.min(o.concurrency, Math.max(targets.length, 1)) }, worker))
+  await Promise.all(Array.from({ length: Math.min(o.concurrency, Math.max(shardTargets.length, 1)) }, worker))
 
   const summary: Record<string, number> = {}
   for (const r of reports) summary[r.status] = (summary[r.status] ?? 0) + 1
@@ -889,6 +1049,8 @@ async function main() {
         canonical_schema_expected_artifacts: canonicalExpected.size,
         canonical_schema_excluded_migrations: [...canonicalExcludedMigrations].sort(),
         compatible_missing_schema_artifacts: [...compatibleMissingSchemaArtifacts].sort(),
+        d1_query_transport: "rest_batch",
+        d1_query_metrics: d1QueryMetrics,
         allocated_loaded_shards: allocatedBindings.length,
         live_shards: bindings.length,
         quarantined_shards: partition.quarantined.length,
@@ -913,6 +1075,7 @@ async function main() {
   console.log(
     `canonical schema: ${req.canonical_schema ? `${canonicalExpected.size} expected artifact(s)` : "disabled"}`,
   )
+  console.log(`D1 REST query metrics: ${JSON.stringify(d1QueryMetrics)}`)
   console.log(`manifest: ${o.manifest}`)
 
   // Every live shard must be classified. An unclassified shard is not a pass.
