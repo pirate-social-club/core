@@ -6,8 +6,10 @@ const ADMIN_URL =
   ?? process.env.BOOKINGS_MIGRATION_TEST_ADMIN_URL
 const RUN = Boolean(ADMIN_URL)
 const TEST_DB = "dance_choreography_migration_test"
-const MIGRATION_FILE =
-  "db/control-plane/migrations/0168_control_plane_dance_choreographies.sql"
+const MIGRATION_FILES = [
+  "db/control-plane/migrations/0168_control_plane_dance_choreographies.sql",
+  "db/control-plane/migrations/0169_control_plane_dance_reference_dispatch.sql",
+]
 
 function connect(db = "postgres"): SQL {
   const url = new URL(ADMIN_URL as string)
@@ -31,7 +33,7 @@ async function expectSqlState(
   expect(caught?.errno).toBe(expected)
 }
 
-describe.skipIf(!RUN)("dance choreography migration 0168 (real Postgres)", () => {
+describe.skipIf(!RUN)("dance choreography migrations 0168-0169 (real Postgres)", () => {
   beforeAll(async () => {
     const root = connect()
     await root.unsafe(`DROP DATABASE IF EXISTS ${TEST_DB} WITH (FORCE)`)
@@ -49,7 +51,9 @@ describe.skipIf(!RUN)("dance choreography migration 0168 (real Postgres)", () =>
       INSERT INTO communities VALUES ('cmty_test');
       INSERT INTO song_artifact_bundles VALUES ('sab_song');
     `)
-    await db.unsafe(await Bun.file(MIGRATION_FILE).text())
+    for (const migrationFile of MIGRATION_FILES) {
+      await db.unsafe(await Bun.file(migrationFile).text())
+    }
     await db.end()
   })
 
@@ -91,11 +95,11 @@ describe.skipIf(!RUN)("dance choreography migration 0168 (real Postgres)", () =>
       INSERT INTO dance_choreography_revisions (
         dance_choreography_revision_id, dance_choreography_id, revision_number,
         reference_storage_ref, reference_content_sha256, reference_mime_type,
-        reference_size_bytes, status
+        reference_size_bytes, status, reference_next_dispatch_at
       ) VALUES (
         'dcr_ready', 'dch_primary', 1,
         'r2://references/ref.mp4', '${"b".repeat(64)}',
-        'video/mp4', 1024, 'processing'
+        'video/mp4', 1024, 'processing', NOW()
       );
       UPDATE dance_choreography_revisions SET
         reference_duration_ms = 10000,
@@ -111,6 +115,7 @@ describe.skipIf(!RUN)("dance choreography migration 0168 (real Postgres)", () =>
         feature_schema_version = 'features_v1',
         scorer_version = 'scorer_v1',
         artifact_version = 'artifact_v1',
+        reference_next_dispatch_at = NULL,
         status = 'ready',
         ready_at = NOW()
       WHERE dance_choreography_revision_id = 'dcr_ready';
@@ -151,6 +156,53 @@ describe.skipIf(!RUN)("dance choreography migration 0168 (real Postgres)", () =>
       SET active_revision_id = 'dcr_ready'
       WHERE dance_choreography_id = 'dch_other'
     `, "23503")
+    await db.end()
+  })
+
+  test("dispatch claims are paired, bounded, and cleared before terminal state", async () => {
+    const db = connect(TEST_DB)
+    await db.unsafe(`
+      INSERT INTO dance_choreographies (
+        dance_choreography_id, community_id, host_post_id, referenced_song_post_id,
+        song_artifact_bundle_id, creator_user_id, status
+      ) VALUES (
+        'dch_dispatch', 'cmty_test', 'post_dispatch', 'post_song',
+        'sab_song', 'usr_creator', 'processing'
+      );
+      INSERT INTO dance_choreography_revisions (
+        dance_choreography_revision_id, dance_choreography_id, revision_number,
+        reference_storage_ref, reference_content_sha256, reference_mime_type,
+        reference_size_bytes, status, reference_next_dispatch_at
+      ) VALUES (
+        'dcr_dispatch', 'dch_dispatch', 1,
+        'r2://references/dispatch.mp4', '${"e".repeat(64)}',
+        'video/mp4', 1024, 'processing', NOW()
+      );
+    `)
+
+    await expectSqlState(db, `
+      UPDATE dance_choreography_revisions
+      SET reference_dispatch_claim_token = 'claim_unpaired'
+      WHERE dance_choreography_revision_id = 'dcr_dispatch'
+    `, "23514")
+    await expectSqlState(db, `
+      UPDATE dance_choreography_revisions
+      SET reference_dispatch_attempt_count = 6
+      WHERE dance_choreography_revision_id = 'dcr_dispatch'
+    `, "23514")
+    await expectSqlState(db, `
+      UPDATE dance_choreography_revisions
+      SET status = 'failed', failure_code = 'video_invalid'
+      WHERE dance_choreography_revision_id = 'dcr_dispatch'
+    `, "23514")
+
+    await db.unsafe(`
+      UPDATE dance_choreography_revisions
+      SET status = 'failed',
+          failure_code = 'video_invalid',
+          reference_next_dispatch_at = NULL
+      WHERE dance_choreography_revision_id = 'dcr_dispatch'
+    `)
     await db.end()
   })
 })
