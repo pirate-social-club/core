@@ -9,6 +9,7 @@ const TEST_DB = "dance_choreography_migration_test"
 const MIGRATION_FILES = [
   "db/control-plane/migrations/0168_control_plane_dance_choreographies.sql",
   "db/control-plane/migrations/0169_control_plane_dance_reference_dispatch.sql",
+  "db/control-plane/migrations/0170_control_plane_dance_attempt_sessions.sql",
 ]
 
 function connect(db = "postgres"): SQL {
@@ -33,7 +34,7 @@ async function expectSqlState(
   expect(caught?.errno).toBe(expected)
 }
 
-describe.skipIf(!RUN)("dance choreography migrations 0168-0169 (real Postgres)", () => {
+describe.skipIf(!RUN)("dance migrations 0168-0170 (real Postgres)", () => {
   beforeAll(async () => {
     const root = connect()
     await root.unsafe(`DROP DATABASE IF EXISTS ${TEST_DB} WITH (FORCE)`)
@@ -202,6 +203,162 @@ describe.skipIf(!RUN)("dance choreography migrations 0168-0169 (real Postgres)",
           failure_code = 'video_invalid',
           reference_next_dispatch_at = NULL
       WHERE dance_choreography_revision_id = 'dcr_dispatch'
+    `)
+    await db.end()
+  })
+
+  test("attempt sessions bind uploads, dispatch state, terminal facts, and cleanup", async () => {
+    const db = connect(TEST_DB)
+    await db.unsafe(`
+      INSERT INTO dance_choreographies (
+        dance_choreography_id, community_id, host_post_id, referenced_song_post_id,
+        song_artifact_bundle_id, creator_user_id, status
+      ) VALUES (
+        'dch_attempt', 'cmty_test', 'post_attempt_dance', 'post_song',
+        'sab_song', 'usr_creator', 'processing'
+      );
+      INSERT INTO dance_choreography_revisions (
+        dance_choreography_revision_id, dance_choreography_id, revision_number,
+        reference_storage_ref, reference_content_sha256, reference_mime_type,
+        reference_size_bytes, status, reference_next_dispatch_at
+      ) VALUES (
+        'dcr_attempt', 'dch_attempt', 1,
+        'r2://references/attempt.mp4', '${"1".repeat(64)}',
+        'video/mp4', 1024, 'processing', NOW()
+      );
+      UPDATE dance_choreography_revisions SET
+        reference_duration_ms = 10000,
+        reference_width = 576,
+        reference_height = 1024,
+        reference_fps_millihertz = 30000,
+        reference_feature_ref = 'r2://features/attempt.json',
+        reference_feature_sha256 = '${"2".repeat(64)}',
+        reference_feature_size_bytes = 2048,
+        pose_model_version = 'pose_v1',
+        pose_model_sha256 = '${"3".repeat(64)}',
+        pose_runtime_version = '0.10.35',
+        feature_schema_version = 'features_v1',
+        scorer_version = 'scorer_v1',
+        artifact_version = 'artifact_v1',
+        reference_next_dispatch_at = NULL,
+        status = 'ready',
+        ready_at = NOW()
+      WHERE dance_choreography_revision_id = 'dcr_attempt';
+      UPDATE dance_choreographies SET
+        status = 'ready',
+        active_revision_id = 'dcr_attempt'
+      WHERE dance_choreography_id = 'dch_attempt';
+
+      INSERT INTO dance_attempt_sessions (
+        dance_attempt_session_id, dance_attempt_id, subject_user_id, community_id,
+        host_post_id, referenced_song_post_id, song_artifact_bundle_id,
+        dance_choreography_id, dance_choreography_revision_id,
+        reference_content_sha256, reference_feature_ref, reference_feature_sha256,
+        reference_feature_size_bytes, pose_model_version, pose_model_sha256,
+        feature_schema_version, scorer_version, artifact_version,
+        required_calibration_version, required_calibration_checksum,
+        required_fingerprint_policy_version, required_integrity_policy_version,
+        mirror_policy,
+        status, activity_date, activity_timezone, creation_idempotency_key,
+        upload_object_key, expected_mime_type, maximum_bytes, expires_at
+      ) VALUES (
+        'dse_attempt', 'dat_attempt', 'usr_creator', 'cmty_test',
+        'post_attempt_dance', 'post_song', 'sab_song',
+        'dch_attempt', 'dcr_attempt',
+        '${"1".repeat(64)}', 'r2://features/attempt.json', '${"2".repeat(64)}',
+        2048, 'pose_v1', '${"3".repeat(64)}',
+        'features_v1', 'scorer_v1', 'artifact_v1',
+        'provisional_v1', '${"5".repeat(64)}', 'fingerprint_v1', 'integrity_v1',
+        'allowed',
+        'initialized', CURRENT_DATE, 'UTC', 'idem_attempt',
+        'dance-attempts/random/attempt.mp4', 'video/mp4', 67108864,
+        NOW() + INTERVAL '15 minutes'
+      );
+    `)
+
+    await expectSqlState(db, `
+      UPDATE dance_attempt_sessions
+      SET grading_dispatch_claim_token = 'unpaired'
+      WHERE dance_attempt_session_id = 'dse_attempt'
+    `, "23514")
+
+    await db.unsafe(`
+      UPDATE dance_attempt_sessions SET
+        status = 'submitted',
+        observed_size_bytes = 4096,
+        observed_etag = 'etag',
+        observed_content_sha256 = '${"4".repeat(64)}',
+        capture_mode = 'in_app_camera',
+        submitted_at = NOW(),
+        grading_next_dispatch_at = NOW(),
+        cleanup_status = 'pending',
+        cleanup_next_attempt_at = NOW() + INTERVAL '15 minutes'
+      WHERE dance_attempt_session_id = 'dse_attempt'
+    `)
+
+    await expectSqlState(db, `
+      UPDATE dance_attempt_sessions SET
+        status = 'finalized',
+        terminal_outcome = 'scored',
+        score_bps = 5112,
+        calibration_version = 'provisional_v1',
+        calibration_checksum = '${"5".repeat(64)}',
+        calibration_admitted = 0,
+        grader_result_digest = '${"6".repeat(64)}',
+        finalized_at = NOW()
+      WHERE dance_attempt_session_id = 'dse_attempt'
+    `, "23514")
+
+    await db.unsafe(`
+      UPDATE dance_attempt_sessions SET
+        status = 'finalized',
+        terminal_outcome = 'scored',
+        score_bps = 5112,
+        calibration_version = 'provisional_v1',
+        calibration_checksum = '${"5".repeat(64)}',
+        calibration_admitted = 0,
+        grader_result_digest = '${"6".repeat(64)}',
+        finalized_at = NOW(),
+        grading_next_dispatch_at = NULL
+      WHERE dance_attempt_session_id = 'dse_attempt'
+    `)
+
+    const [row] = await db`
+      SELECT status, score_bps, calibration_admitted, cleanup_status
+      FROM dance_attempt_sessions
+      WHERE dance_attempt_session_id = 'dse_attempt'
+    `
+    expect(row).toMatchObject({
+      status: "finalized",
+      score_bps: 5112,
+      calibration_admitted: 0,
+      cleanup_status: "pending",
+    })
+
+    await expectSqlState(db, `
+      INSERT INTO dance_attempt_fingerprints (
+        dance_attempt_id, dance_attempt_session_id, subject_user_id,
+        dance_choreography_revision_id, fingerprint_policy_version,
+        whole_attempt_hmac_sha256, segment_hmac_sha256_json,
+        terminal_integrity_outcome, expires_at
+      ) VALUES (
+        'dat_attempt', 'dse_attempt', 'usr_creator', 'dcr_attempt',
+        'fingerprint_v1', '${"7".repeat(64)}', '["not-a-hash"]',
+        'passed', NOW() + INTERVAL '90 days'
+      )
+    `, "23514")
+
+    await db.unsafe(`
+      INSERT INTO dance_attempt_fingerprints (
+        dance_attempt_id, dance_attempt_session_id, subject_user_id,
+        dance_choreography_revision_id, fingerprint_policy_version,
+        whole_attempt_hmac_sha256, segment_hmac_sha256_json,
+        terminal_integrity_outcome, expires_at
+      ) VALUES (
+        'dat_attempt', 'dse_attempt', 'usr_creator', 'dcr_attempt',
+        'fingerprint_v1', '${"7".repeat(64)}', '["${"8".repeat(64)}"]',
+        'passed', NOW() + INTERVAL '90 days'
+      )
     `)
     await db.end()
   })
