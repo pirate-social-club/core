@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import { Database } from "bun:sqlite"
 
-const migrationPath = new URL(
+const migrationPaths = [
   "../../db/community-template/migrations/1145_dance_attempts.sql",
-  import.meta.url,
-)
+  "../../db/community-template/migrations/1146_dance_attempt_reason_contract.sql",
+].map((path) => new URL(path, import.meta.url))
 const hex = (character: string) => character.repeat(64)
 
 describe("1145 dance attempts migration", () => {
@@ -17,7 +17,9 @@ describe("1145 dance attempts migration", () => {
         INSERT INTO posts VALUES ('post_song');
         INSERT INTO communities VALUES ('cmty_test');
       `)
-      db.exec(await Bun.file(migrationPath).text())
+      for (const migrationPath of migrationPaths) {
+        db.exec(await Bun.file(migrationPath).text())
+      }
 
       const insert = db.prepare(`
         INSERT INTO dance_attempt (
@@ -80,6 +82,14 @@ describe("1145 dance attempts migration", () => {
         SET segment_fingerprint_hmac_json = '["not-a-hash"]'
         WHERE dance_attempt_id = 'dat_coaching'
       `)).toThrow()
+
+      expect(() => db.exec(`
+        UPDATE dance_attempt
+        SET status = 'rejected',
+            rank_eligible = 0,
+            reason_code = 'insufficient_alignment'
+        WHERE dance_attempt_id = 'dat_coaching'
+      `)).not.toThrow()
     } finally {
       db.close()
     }

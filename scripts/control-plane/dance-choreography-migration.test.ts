@@ -10,6 +10,7 @@ const MIGRATION_FILES = [
   "db/control-plane/migrations/0168_control_plane_dance_choreographies.sql",
   "db/control-plane/migrations/0169_control_plane_dance_reference_dispatch.sql",
   "db/control-plane/migrations/0170_control_plane_dance_attempt_sessions.sql",
+  "db/control-plane/migrations/0171_control_plane_dance_attempt_reason_contract.sql",
 ]
 
 function connect(db = "postgres"): SQL {
@@ -34,7 +35,7 @@ async function expectSqlState(
   expect(caught?.errno).toBe(expected)
 }
 
-describe.skipIf(!RUN)("dance migrations 0168-0170 (real Postgres)", () => {
+describe.skipIf(!RUN)("dance migrations 0168-0171 (real Postgres)", () => {
   beforeAll(async () => {
     const root = connect()
     await root.unsafe(`DROP DATABASE IF EXISTS ${TEST_DB} WITH (FORCE)`)
@@ -360,6 +361,16 @@ describe.skipIf(!RUN)("dance migrations 0168-0170 (real Postgres)", () => {
         'passed', NOW() + INTERVAL '90 days'
       )
     `)
+
+    await expectSqlState(db, `
+      UPDATE dance_attempt_sessions SET
+        status = 'rejected',
+        terminal_outcome = 'rejected',
+        terminal_reason = 'insufficient_motion',
+        score_bps = NULL,
+        grader_result_digest = '${"9".repeat(64)}'
+      WHERE dance_attempt_session_id = 'dse_attempt'
+    `, "P0001")
     await db.end()
   })
 })
