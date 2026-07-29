@@ -71,6 +71,14 @@ const migrationRoots = [
     prefixPattern: /^(b\d{4})_/u,
     prefixFormat: 'a "b####" prefix (e.g. b0001_)',
   },
+  {
+    // Promotion state has an independent root while sharing the global ledger
+    // and database-wide migration lock with the other PostgreSQL roots.
+    path: "db/promotion/migrations",
+    label: "promotion-shadow",
+    prefixPattern: /^(p\d{4})_/u,
+    prefixFormat: 'a "p####" prefix (e.g. p0001_)',
+  },
 ];
 
 function git(args, options = {}) {

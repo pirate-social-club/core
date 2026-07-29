@@ -1,11 +1,15 @@
 # Database Migrations
 
-Pirate has two relational migration roots:
+Pirate has four relational migration roots:
 
 - `db/control-plane/migrations/`
   Central Pirate-owned control-plane schema for identity, auth links, verification, community routing, encrypted community credentials, projections, jobs, and audit.
 - `db/community-template/migrations/`
   Baseline per-community schema applied to each new community `main` database at provisioning time.
+- `db/bookings/migrations/`
+  Global bookings schema hosted in the control-plane PostgreSQL cluster.
+- `db/promotion/migrations/`
+  Independently versioned release-promotion state. The initial root is shadow-only.
 
 Runtime note:
 
