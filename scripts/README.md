@@ -32,6 +32,10 @@ It is intentionally narrow:
   Seed deterministic fixture users and namespace state.
 - `scripts/control-plane/split-control-plane-roles.ts`
   Split runtime and migrator roles and optionally write the resulting URLs to Infisical.
+- `scripts/control-plane/provision-promotion-shadow-role.ts`
+  Provision the least-privilege S0 promotion role after the promotion migration,
+  failing closed on unsafe `PUBLIC TEMP`, cross-database `CONNECT`, or routine
+  execution baselines.
 - `scripts/control-plane/harden-control-plane-postgres.ts`
   Apply control-plane hardening such as `schema_migrations` grants and FORCE RLS. It can attempt
   pgAudit when the Neon plan supports it, but pgAudit is not part of the current launch baseline.
