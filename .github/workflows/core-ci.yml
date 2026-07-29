@@ -9,6 +9,7 @@ on:
       - "db/local-control-plane-migration-drifts.json"
       - "db/community-template/migrations/**"
       - "db/bookings/migrations/**"
+      - "db/promotion/migrations/**"
       - "references/templates/api-worker-auth-first-slice/**"
       - "scripts/community/**"
       - "scripts/check-migration-integrity.mjs"
@@ -28,6 +29,7 @@ on:
       - "db/local-control-plane-migration-drifts.json"
       - "db/community-template/migrations/**"
       - "db/bookings/migrations/**"
+      - "db/promotion/migrations/**"
       - "references/templates/api-worker-auth-first-slice/**"
       - "scripts/community/**"
       - "scripts/check-migration-integrity.mjs"
@@ -220,3 +222,8 @@ jobs:
           # Proves the runner pins one backend and serializes complete invocations.
           CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
         run: bun test scripts/control-plane/postgres-migration-lock.test.ts
+
+      - name: Run promotion shadow migration integration test
+        env:
+          CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
+        run: bun test scripts/control-plane/promotion-shadow-migration.test.ts

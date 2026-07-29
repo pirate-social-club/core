@@ -192,6 +192,10 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
     };
   } finally {
     if (advisoryLockHeld) {
+      // A failed explicit unlock is safe only because sql.end() below closes
+      // the reserved session, which releases all session advisory locks. Do
+      // not detach this runner from connection teardown without making unlock
+      // failure fatal.
       await connection`
         SELECT pg_advisory_unlock(
           ${MIGRATION_ADVISORY_LOCK_KEYS[0]},

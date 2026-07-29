@@ -14,6 +14,7 @@ const TEST_DB = "postgres_migration_lock_test";
 let testRoot = "";
 let rootA = "";
 let rootB = "";
+let partialRoot = "";
 
 function urlFor(db: string): string {
   const url = new URL(ADMIN_URL as string);
@@ -85,13 +86,22 @@ async function expectProcessSuccess(proc: ReturnType<typeof Bun.spawn>): Promise
   expect(proc.exitCode, `runner exited non-zero:\n${stderr}\n${stdout}`).toBe(0);
 }
 
+async function expectProcessFailure(proc: ReturnType<typeof Bun.spawn>): Promise<void> {
+  await new Response(proc.stdout).text();
+  await new Response(proc.stderr).text();
+  await proc.exited;
+  expect(proc.exitCode).not.toBe(0);
+}
+
 describe.skipIf(!RUN)("Postgres migration invocation lock", () => {
   beforeAll(async () => {
     testRoot = mkdtempSync(join(tmpdir(), "pirate-postgres-migration-lock-"));
     rootA = join(testRoot, "root-a");
     rootB = join(testRoot, "root-b");
+    partialRoot = join(testRoot, "partial-root");
     mkdirSync(rootA);
     mkdirSync(rootB);
+    mkdirSync(partialRoot);
 
     writeFileSync(join(rootA, "lock_a001.sql"), `
       CREATE TABLE migration_lock_probe (
@@ -125,7 +135,7 @@ describe.skipIf(!RUN)("Postgres migration invocation lock", () => {
     if (testRoot) rmSync(testRoot, { recursive: true, force: true });
   });
 
-  test("pins one backend and serializes independent migration roots", async () => {
+  test("pins one backend, serializes roots, and preserves per-file partial progress", async () => {
     const inspection = connect(TEST_DB);
     const runnerA = spawnMigrator(rootA, "lock-root-a");
     await waitForAdvisoryLock(inspection);
@@ -144,5 +154,41 @@ describe.skipIf(!RUN)("Postgres migration invocation lock", () => {
     expect(events.map((row) => row.event)).toEqual(["a-first", "a-second", "b-first"]);
     expect(events[0]?.backend_pid).toBe(events[1]?.backend_pid);
     expect(events[2]?.backend_pid).not.toBe(events[0]?.backend_pid);
+
+    writeFileSync(join(partialRoot, "lock_p001.sql"), `
+      CREATE TABLE migration_partial_progress_probe (value text PRIMARY KEY);
+      INSERT INTO migration_partial_progress_probe(value) VALUES ('committed');
+    `);
+    writeFileSync(join(partialRoot, "lock_p002.sql"), `
+      INSERT INTO table_that_does_not_exist(value) VALUES ('fails');
+    `);
+
+    await expectProcessFailure(spawnMigrator(partialRoot, "partial-progress"));
+
+    const afterFailure = connect(TEST_DB);
+    const committedRows = await afterFailure.unsafe(`
+      SELECT value FROM migration_partial_progress_probe
+    `);
+    const ledgerAfterFailure = await afterFailure.unsafe(`
+      SELECT migration_name
+      FROM schema_migrations
+      WHERE migration_name LIKE 'lock_p%'
+      ORDER BY migration_name
+    `);
+    await afterFailure.end();
+    expect(committedRows).toHaveLength(1);
+    expect(ledgerAfterFailure.map((row: { migration_name: string }) => row.migration_name))
+      .toEqual(["lock_p001.sql"]);
+
+    writeFileSync(join(partialRoot, "lock_p002.sql"), `
+      INSERT INTO migration_partial_progress_probe(value) VALUES ('recovered');
+    `);
+    const replay = spawnMigrator(partialRoot, "partial-progress");
+    const replayStdout = await new Response(replay.stdout).text();
+    const replayStderr = await new Response(replay.stderr).text();
+    await replay.exited;
+    expect(replay.exitCode, replayStderr).toBe(0);
+    expect(replayStdout).toContain("applied: 1");
+    expect(replayStdout).toContain("skipped: 1");
   });
 });
