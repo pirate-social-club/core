@@ -18,6 +18,11 @@ export type ApplyPostgresMigrationsResult = {
   skipped: number;
 };
 
+// One database-wide namespace for every migration root using the shared
+// public.schema_migrations ledger. These two int32 keys are intentionally fixed:
+// every caller, repository, and migration root must contend on the same lock.
+const MIGRATION_ADVISORY_LOCK_KEYS = [1_347_697_864, 1] as const;
+
 function checksum(contents: string): string {
   return createHash("sha256").update(contents).digest("hex");
 }
@@ -93,8 +98,19 @@ export async function applyPostgresMigrations(
   const log = input.logger ?? (() => {});
 
   const sql = new Bun.SQL(sanitizePostgresUrlForBunSql(input.databaseUrl));
+  const connection = await sql.reserve();
+  let advisoryLockHeld = false;
 
-  await sql.unsafe(`
+  try {
+    await connection`
+      SELECT pg_advisory_lock(
+        ${MIGRATION_ADVISORY_LOCK_KEYS[0]},
+        ${MIGRATION_ADVISORY_LOCK_KEYS[1]}
+      )
+    `;
+    advisoryLockHeld = true;
+
+    await connection.unsafe(`
 CREATE TABLE IF NOT EXISTS schema_migrations (
   migration_name TEXT PRIMARY KEY,
   migration_label TEXT NOT NULL,
@@ -103,27 +119,26 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 )
 `);
 
-  const migrationFiles = readdirSync(migrationsDir)
-    .filter((entry) => entry.endsWith(".sql"))
-    .sort();
+    const migrationFiles = readdirSync(migrationsDir)
+      .filter((entry) => entry.endsWith(".sql"))
+      .sort();
 
-  const existingMigrationRows = await sql<{ migration_name: string; checksum: string }[]>`
-    SELECT migration_name, checksum
-    FROM schema_migrations
-  `;
-  const existingMigrations = new Map(
-    existingMigrationRows.map((row) => [row.migration_name, row.checksum] as const),
-  );
+    const existingMigrationRows = await connection<{ migration_name: string; checksum: string }[]>`
+      SELECT migration_name, checksum
+      FROM schema_migrations
+    `;
+    const existingMigrations = new Map(
+      existingMigrationRows.map((row) => [row.migration_name, row.checksum] as const),
+    );
 
-  logDuplicateMigrationPrefixes({
-    migrationFiles,
-    logger: log,
-  });
+    logDuplicateMigrationPrefixes({
+      migrationFiles,
+      logger: log,
+    });
 
-  let appliedCount = 0;
-  let skippedCount = 0;
+    let appliedCount = 0;
+    let skippedCount = 0;
 
-  try {
     for (const migrationName of migrationFiles) {
       const migrationPath = join(migrationsDir, migrationName);
       const rawSql = readFileSync(migrationPath, "utf8");
@@ -150,27 +165,41 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 
       log(`apply ${migrationName}`);
 
-      await sql.begin(async (tx) => {
+      await connection.unsafe("BEGIN");
+      try {
         for (const statement of postgresMigrationStatements(migrationSql)) {
-          await tx.unsafe(statement);
+          await connection.unsafe(statement);
         }
 
-        await tx`
+        await connection`
           INSERT INTO schema_migrations (migration_name, migration_label, checksum)
           VALUES (${migrationName}, ${label}, ${migrationChecksum})
         `;
-      });
+        await connection.unsafe("COMMIT");
+      } catch (error) {
+        await connection.unsafe("ROLLBACK").catch(() => {});
+        throw error;
+      }
 
       existingMigrations.set(migrationName, migrationChecksum);
       appliedCount += 1;
     }
+
+    return {
+      label,
+      applied: appliedCount,
+      skipped: skippedCount,
+    };
   } finally {
+    if (advisoryLockHeld) {
+      await connection`
+        SELECT pg_advisory_unlock(
+          ${MIGRATION_ADVISORY_LOCK_KEYS[0]},
+          ${MIGRATION_ADVISORY_LOCK_KEYS[1]}
+        )
+      `.catch(() => {});
+    }
+    connection.release();
     await sql.end();
   }
-
-  return {
-    label,
-    applied: appliedCount,
-    skipped: skippedCount,
-  };
 }
