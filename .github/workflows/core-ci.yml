@@ -217,6 +217,12 @@ jobs:
           CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
         run: bun test scripts/control-plane/operator-credentials-migration.test.ts
 
+      - name: Run dance choreography migration integration test
+        env:
+          # Proves ready completeness, revision immutability, and scoped activation in PostgreSQL.
+          CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
+        run: bun test scripts/control-plane/dance-choreography-migration.test.ts
+
       - name: Run PostgreSQL migration-lock integration test
         env:
           # Proves the runner pins one backend and serializes complete invocations.
