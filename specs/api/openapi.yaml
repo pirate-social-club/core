@@ -18632,6 +18632,37 @@ components:
         - study
         - karaoke
         - either
+    PublicRewardOffer:
+      type: object
+      additionalProperties: false
+      required:
+        - campaign
+        - eligible_activity
+        - min_score_bps
+        - daily_reward_cents
+        - chain_id
+        - ends_at
+      properties:
+        campaign:
+          type: string
+          description: Active reward campaign that owns this public offer.
+        eligible_activity:
+          $ref: "#/components/schemas/RewardCampaignEligibleActivity"
+        min_score_bps:
+          type: integer
+          minimum: 7000
+          maximum: 10000
+          description: Minimum final Karaoke score in basis points. Ignored for Study qualifications.
+        daily_reward_cents:
+          type: integer
+          minimum: 1
+        chain_id:
+          type: integer
+          minimum: 1
+          description: EVM chain ID of the USDC reward settlement network.
+        ends_at:
+          type: integer
+          format: int64
     RewardSongOwnerPolicy:
       type: object
       required:
@@ -18672,6 +18703,7 @@ components:
         - song_artifact_bundle
         - song_owner
         - status
+        - funding_tx_hash
         - eligible_activity
         - min_score_bps
         - daily_reward_cents
@@ -18769,6 +18801,10 @@ components:
           type: integer
           format: int64
           nullable: true
+        funding_tx_hash:
+          type: string
+          nullable: true
+          description: First confirmed funding transaction for durable explorer recovery.
         created:
           type: integer
           format: int64

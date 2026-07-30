@@ -385,12 +385,16 @@ PublicRewardOffer:
   type: object
   additionalProperties: false
   required:
+    - campaign
     - eligible_activity
     - min_score_bps
     - daily_reward_cents
     - chain_id
     - ends_at
   properties:
+    campaign:
+      type: string
+      description: Active reward campaign that owns this public offer.
     eligible_activity:
       $ref: ./rewards.yaml#/RewardCampaignEligibleActivity
     min_score_bps:
@@ -448,6 +452,7 @@ RewardCampaign:
     - song_artifact_bundle
     - song_owner
     - status
+    - funding_tx_hash
     - eligible_activity
     - min_score_bps
     - daily_reward_cents
@@ -545,6 +550,10 @@ RewardCampaign:
       type: integer
       format: int64
       nullable: true
+    funding_tx_hash:
+      type: string
+      nullable: true
+      description: First confirmed funding transaction for durable explorer recovery.
     created:
       type: integer
       format: int64
