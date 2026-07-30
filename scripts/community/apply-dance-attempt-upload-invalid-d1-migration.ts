@@ -9,7 +9,10 @@ export const SPEC: MigrationSpec = {
   creates: {
     kind: "table_sql_contains",
     table: "dance_attempt",
-    fragments: ["upload_invalid", "insufficient_alignment"],
+    // `insufficient_alignment` is established by 1146. Including it here makes
+    // every correctly-upgraded shard look like a partial 1147 application.
+    // This operator must attest only the contract extension introduced by 1147.
+    fragments: ["upload_invalid"],
   },
   replayableDdl: false,
   description: "Permanent hash-bound dance upload rejection evidence.",
