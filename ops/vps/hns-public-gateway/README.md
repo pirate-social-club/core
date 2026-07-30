@@ -62,7 +62,7 @@ Static routes are exact-host, read-only mappings. Separate multiple mappings
 with commas:
 
 ```text
-HNS_PUBLIC_STATIC_SITE_ROUTES=bitcoin.king=https://pirate-crown-placeholder.example.workers.dev
+HNS_PUBLIC_STATIC_SITE_ROUTES=king.bitcoin=https://pirate-crown-placeholder.example.workers.dev
 ```
 
 The gateway strips credentials and all `x-pirate-hns-*` headers before the

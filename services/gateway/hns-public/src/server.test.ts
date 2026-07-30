@@ -13,19 +13,19 @@ import {
 describe("parseStaticSiteRoutes", () => {
   test("accepts exact HNS hosts backed by Cloudflare static origins", () => {
     expect([...parseStaticSiteRoutes(JSON.stringify({
-      "bitcoin.king": "https://pirate-crown-placeholder.hippiehecton.workers.dev",
+      "king.bitcoin": "https://pirate-crown-placeholder.hippiehecton.workers.dev",
       "notes.king.": "https://notes.pages.dev/",
     }))]).toEqual([
-      ["bitcoin.king", "https://pirate-crown-placeholder.hippiehecton.workers.dev"],
+      ["king.bitcoin", "https://pirate-crown-placeholder.hippiehecton.workers.dev"],
       ["notes.king", "https://notes.pages.dev"],
     ]);
   });
 
   test("accepts systemd-friendly comma-separated routes", () => {
     expect([...parseStaticSiteRoutes(
-      "bitcoin.king=https://pirate-crown-placeholder.hippiehecton.workers.dev,notes.king=https://notes.pages.dev",
+      "king.bitcoin=https://pirate-crown-placeholder.hippiehecton.workers.dev,notes.king=https://notes.pages.dev",
     )]).toEqual([
-      ["bitcoin.king", "https://pirate-crown-placeholder.hippiehecton.workers.dev"],
+      ["king.bitcoin", "https://pirate-crown-placeholder.hippiehecton.workers.dev"],
       ["notes.king", "https://notes.pages.dev"],
     ]);
   });
@@ -38,7 +38,7 @@ describe("parseStaticSiteRoutes", () => {
       "https://site.workers.dev:8443",
       "https://example.com",
     ]) {
-      expect(() => parseStaticSiteRoutes(JSON.stringify({ "bitcoin.king": origin }))).toThrow();
+      expect(() => parseStaticSiteRoutes(JSON.stringify({ "king.bitcoin": origin }))).toThrow();
     }
   });
 });
@@ -356,7 +356,7 @@ describe("handleRequest", () => {
   test("proxies an allowlisted static HNS hostname to its Cloudflare origin", async () => {
     const calls: { url: string; init?: RequestInit }[] = [];
     const response = await handleRequest(
-      new Request("http://bitcoin.king/archive?signal=1", {
+      new Request("http://king.bitcoin/archive?signal=1", {
         headers: {
           authorization: "Bearer private",
           cookie: "session=private",
@@ -366,7 +366,7 @@ describe("handleRequest", () => {
       }),
       {
         HNS_PUBLIC_STATIC_SITE_ROUTES: JSON.stringify({
-          "bitcoin.king": "https://pirate-crown-placeholder.hippiehecton.workers.dev",
+          "king.bitcoin": "https://pirate-crown-placeholder.hippiehecton.workers.dev",
         }),
       },
       async (url, init) => {
@@ -398,13 +398,13 @@ describe("handleRequest", () => {
 
   test("rejects writes to a configured static HNS hostname", async () => {
     const response = await handleRequest(
-      new Request("http://bitcoin.king/", {
+      new Request("http://king.bitcoin/", {
         method: "POST",
         headers: { "x-forwarded-proto": "https" },
       }),
       {
         HNS_PUBLIC_STATIC_SITE_ROUTES: JSON.stringify({
-          "bitcoin.king": "https://pirate-crown-placeholder.hippiehecton.workers.dev",
+          "king.bitcoin": "https://pirate-crown-placeholder.hippiehecton.workers.dev",
         }),
       },
       async () => {
