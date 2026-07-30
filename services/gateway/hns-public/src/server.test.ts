@@ -21,6 +21,15 @@ describe("parseStaticSiteRoutes", () => {
     ]);
   });
 
+  test("accepts systemd-friendly comma-separated routes", () => {
+    expect([...parseStaticSiteRoutes(
+      "bitcoin.king=https://pirate-crown-placeholder.hippiehecton.workers.dev,notes.king=https://notes.pages.dev",
+    )]).toEqual([
+      ["bitcoin.king", "https://pirate-crown-placeholder.hippiehecton.workers.dev"],
+      ["notes.king", "https://notes.pages.dev"],
+    ]);
+  });
+
   test("rejects credentials, paths, ports, and non-Cloudflare origins", () => {
     for (const origin of [
       "http://site.workers.dev",

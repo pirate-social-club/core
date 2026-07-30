@@ -316,11 +316,20 @@ export function parseStaticSiteRoutes(value: string | undefined): ReadonlyMap<st
     return new Map();
   }
 
-  const input = JSON.parse(value) as unknown;
-  if (!input || Array.isArray(input) || typeof input !== "object") {
-    throw new Error("HNS_PUBLIC_STATIC_SITE_ROUTES must be a JSON object");
-  }
+  const trimmed = value.trim();
+  const input = trimmed.startsWith("{")
+    ? JSON.parse(trimmed) as unknown
+    : Object.fromEntries(trimmed.split(",").map((entry) => {
+      const separator = entry.indexOf("=");
+      if (separator <= 0) {
+        throw new Error("HNS_PUBLIC_STATIC_SITE_ROUTES entries must use host=https://origin");
+      }
+      return [entry.slice(0, separator), entry.slice(separator + 1)];
+    }));
 
+  if (!input || Array.isArray(input) || typeof input !== "object") {
+    throw new Error("HNS_PUBLIC_STATIC_SITE_ROUTES must be a route map");
+  }
   const routes = new Map<string, string>();
   for (const [rawHost, rawOrigin] of Object.entries(input)) {
     const host = rawHost.trim().toLowerCase().replace(/\.+$/u, "");
