@@ -7,7 +7,32 @@ import {
   extractImportedNamespaceHost,
   extractPublicProfileHost,
   handleRequest,
+  parseStaticSiteRoutes,
 } from "./server";
+
+describe("parseStaticSiteRoutes", () => {
+  test("accepts exact HNS hosts backed by Cloudflare static origins", () => {
+    expect([...parseStaticSiteRoutes(JSON.stringify({
+      "bitcoin.king": "https://pirate-crown-placeholder.hippiehecton.workers.dev",
+      "notes.king.": "https://notes.pages.dev/",
+    }))]).toEqual([
+      ["bitcoin.king", "https://pirate-crown-placeholder.hippiehecton.workers.dev"],
+      ["notes.king", "https://notes.pages.dev"],
+    ]);
+  });
+
+  test("rejects credentials, paths, ports, and non-Cloudflare origins", () => {
+    for (const origin of [
+      "http://site.workers.dev",
+      "https://user:secret@site.workers.dev",
+      "https://site.workers.dev/path",
+      "https://site.workers.dev:8443",
+      "https://example.com",
+    ]) {
+      expect(() => parseStaticSiteRoutes(JSON.stringify({ "bitcoin.king": origin }))).toThrow();
+    }
+  });
+});
 
 describe("extractPublicProfileHost", () => {
   test("extracts a simple pirate hostname", () => {
@@ -319,6 +344,59 @@ describe("handleCaddyAskRequest", () => {
 });
 
 describe("handleRequest", () => {
+  test("proxies an allowlisted static HNS hostname to its Cloudflare origin", async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const response = await handleRequest(
+      new Request("http://bitcoin.king/archive?signal=1", {
+        headers: {
+          authorization: "Bearer private",
+          cookie: "session=private",
+          "x-pirate-hns-root": "attacker",
+          "x-forwarded-proto": "https",
+        },
+      }),
+      {
+        HNS_PUBLIC_STATIC_SITE_ROUTES: JSON.stringify({
+          "bitcoin.king": "https://pirate-crown-placeholder.hippiehecton.workers.dev",
+        }),
+      },
+      async (url, init) => {
+        calls.push({ url: String(url), init });
+        return new Response("crown", { status: 200 });
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("crown");
+    expect(calls[0]?.url).toBe(
+      "https://pirate-crown-placeholder.hippiehecton.workers.dev/archive?signal=1",
+    );
+    const headers = new Headers(calls[0]?.init?.headers);
+    expect(headers.has("authorization")).toBe(false);
+    expect(headers.has("cookie")).toBe(false);
+    expect(headers.has("x-pirate-hns-root")).toBe(false);
+  });
+
+  test("rejects writes to a configured static HNS hostname", async () => {
+    const response = await handleRequest(
+      new Request("http://bitcoin.king/", {
+        method: "POST",
+        headers: { "x-forwarded-proto": "https" },
+      }),
+      {
+        HNS_PUBLIC_STATIC_SITE_ROUTES: JSON.stringify({
+          "bitcoin.king": "https://pirate-crown-placeholder.hippiehecton.workers.dev",
+        }),
+      },
+      async () => {
+        throw new Error("static writes must not reach Cloudflare");
+      },
+    );
+
+    expect(response.status).toBe(405);
+    expect(await response.text()).toContain("Read-only site");
+  });
+
   const env = {
     HNS_PUBLIC_GATEWAY_ROOT_SUFFIX: "pirate",
     HNS_PUBLIC_GATEWAY_EXTERNAL_SCHEME: "https",

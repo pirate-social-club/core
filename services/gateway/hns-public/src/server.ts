@@ -23,6 +23,7 @@ export type HnsPublicGatewayEnv = CaddyAskEnv & {
   HNS_PUBLIC_GATEWAY_EXTERNAL_SCHEME?: string;
   HNS_PUBLIC_APP_ORIGIN?: string;
   HNS_PUBLIC_FORWARDER_AUTH_TOKEN?: string;
+  HNS_PUBLIC_STATIC_SITE_ROUTES?: string;
 };
 
 export function buildCommunityPath(communityId: string, routeSlug: string | null): string {
@@ -308,6 +309,45 @@ function createCanonicalUrl(requestUrl: URL, scheme: string): string {
 const INTERNAL_HEADER_PREFIX = "x-pirate-hns-";
 const CREDENTIAL_HEADERS = ["authorization", "cookie", "proxy-authorization"];
 const READ_ONLY_METHODS = new Set(["GET", "HEAD"]);
+const CLOUDFLARE_STATIC_ORIGIN_SUFFIXES = [".workers.dev", ".pages.dev"];
+
+export function parseStaticSiteRoutes(value: string | undefined): ReadonlyMap<string, string> {
+  if (!value?.trim()) {
+    return new Map();
+  }
+
+  const input = JSON.parse(value) as unknown;
+  if (!input || Array.isArray(input) || typeof input !== "object") {
+    throw new Error("HNS_PUBLIC_STATIC_SITE_ROUTES must be a JSON object");
+  }
+
+  const routes = new Map<string, string>();
+  for (const [rawHost, rawOrigin] of Object.entries(input)) {
+    const host = rawHost.trim().toLowerCase().replace(/\.+$/u, "");
+    if (!host || host.includes("/") || host.includes(":") || host === "localhost") {
+      throw new Error(`invalid static-site hostname: ${rawHost}`);
+    }
+    if (typeof rawOrigin !== "string") {
+      throw new Error(`static-site origin for ${host} must be a string`);
+    }
+
+    const origin = new URL(rawOrigin);
+    if (
+      origin.protocol !== "https:"
+      || origin.username
+      || origin.password
+      || origin.port
+      || origin.pathname !== "/"
+      || origin.search
+      || origin.hash
+      || !CLOUDFLARE_STATIC_ORIGIN_SUFFIXES.some((suffix) => origin.hostname.endsWith(suffix))
+    ) {
+      throw new Error(`static-site origin for ${host} must be an HTTPS workers.dev or pages.dev origin`);
+    }
+    routes.set(host, origin.origin);
+  }
+  return routes;
+}
 
 /**
  * The gateway is the trust boundary: downstream (the app Worker) accepts
@@ -358,6 +398,37 @@ function buildProxyBodyInit(request: Request): RequestInit & { duplex?: "half" }
     return {};
   }
   return { body: request.body, duplex: "half" };
+}
+
+async function proxyStaticSiteRequest(input: {
+  request: Request;
+  targetOrigin: string;
+  fetchImpl: typeof fetch;
+}): Promise<Response> {
+  if (!READ_ONLY_METHODS.has(input.request.method)) {
+    return renderErrorPage(
+      "Read-only site",
+      "This static Handshake site accepts only GET and HEAD requests.",
+      405,
+    );
+  }
+
+  const headers = new Headers(input.request.headers);
+  headers.delete("host");
+  for (const name of [...headers.keys()]) {
+    if (
+      CREDENTIAL_HEADERS.includes(name.toLowerCase())
+      || name.toLowerCase().startsWith(INTERNAL_HEADER_PREFIX)
+    ) {
+      headers.delete(name);
+    }
+  }
+
+  return input.fetchImpl(rebaseUrlToOrigin(input.request.url, input.targetOrigin), {
+    headers,
+    method: input.request.method,
+    redirect: "manual",
+  });
 }
 
 // HNS clients without DANE validation browse over plain HTTP, so HTTP stays
@@ -470,6 +541,11 @@ export async function handleRequest(
   const appOrigin = env.HNS_PUBLIC_APP_ORIGIN?.trim() || "https://pirate.sc";
 
   const hostname = url.hostname.trim().toLowerCase().replace(/\.+$/u, "");
+  const staticSiteOrigin = parseStaticSiteRoutes(env.HNS_PUBLIC_STATIC_SITE_ROUTES).get(hostname);
+  if (staticSiteOrigin) {
+    return proxyStaticSiteRequest({ request, targetOrigin: staticSiteOrigin, fetchImpl });
+  }
+
   if (hostname === rootSuffix) {
     const appUrl = new URL(request.url);
     appUrl.protocol = `${externalScheme}:`;

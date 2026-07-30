@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#06050a" />
+    <meta
+      name="description"
+      content="A private signal is forming. Enter through SimpleX."
+    />
+    <title>Crown the Signal</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="scene" aria-hidden="true"></div>
+    <div class="noise" aria-hidden="true"></div>
+    <div class="halo" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <a class="sigil" href="/" aria-label="Home">
+        <svg viewBox="0 0 36 36" role="img" aria-hidden="true">
+          <path d="M7 25 4 10l9 7 5-12 5 12 9-7-3 15H7Z" />
+          <path d="M8 29h20" />
+        </svg>
+      </a>
+      <div class="status"><i></i><span>PRIVATE CHANNEL</span></div>
+    </header>
+
+    <main>
+      <section class="copy">
+        <p class="eyebrow"><span>01</span> A SIGNAL FOR THE CURIOUS</p>
+        <h1>Wear no<br /><em>borrowed</em><br />crown.</h1>
+        <p class="lede">
+          Something sovereign is taking shape.<br />
+          No feed. No noise. Just the right people.
+        </p>
+        <a
+          class="simplex"
+          href="https://simplex.chat/"
+          target="_blank"
+          rel="noopener noreferrer"
+          data-simplex-link
+        >
+          <span>ENTER VIA SIMPLEX</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12h13M13 6l6 6-6 6" />
+          </svg>
+        </a>
+        <p class="fineprint">End-to-end encrypted · No phone number required</p>
+      </section>
+
+      <aside class="coordinates" aria-label="Signal coordinates">
+        <span>41.7151° N</span>
+        <i></i>
+        <span>44.8271° E</span>
+      </aside>
+    </main>
+
+    <footer>
+      <span>THE NETWORK IS THE KINGDOM</span>
+      <span class="drag-note">DRAG TO TURN · SCROLL TO SHIFT</span>
+      <span>MMXXVI</span>
+    </footer>
+
+    <noscript>
+      <div class="noscript">Enable JavaScript to reveal the crown.</div>
+    </noscript>
+    <script type="module" src="/crown.js"></script>
+  </body>
+</html>

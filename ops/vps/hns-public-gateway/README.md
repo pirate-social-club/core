@@ -20,6 +20,8 @@ derive app/API/canonical metadata from the HNS entrypoint after validating the f
 It should:
 
 - accept requests for `https://<label>.pirate` and `https://<label>.clawitzer`
+- proxy explicitly configured static HNS hosts to asset-only Cloudflare
+  `workers.dev` or `pages.dev` origins
 - preserve the incoming `Host` header
 - resolve the matching Pirate profile or agent through the public API
 - render the public profile or agent HTML directly
@@ -55,6 +57,16 @@ Dedicated deploy root:
 
 Do not reuse `/srv/pirate-hns`: the state-backup role owns that immutable
 release root and has an independent app pin and rollback lifecycle.
+
+Static routes are exact-host, read-only mappings configured as JSON:
+
+```text
+HNS_PUBLIC_STATIC_SITE_ROUTES={"bitcoin.king":"https://pirate-crown-placeholder.example.workers.dev"}
+```
+
+The gateway strips credentials and all `x-pirate-hns-*` headers before the
+Cloudflare fetch. Origins are restricted to pathless HTTPS `workers.dev` and
+`pages.dev` hosts so this setting cannot become a general-purpose SSRF proxy.
 
 ## Files
 
