@@ -371,7 +371,13 @@ describe("handleRequest", () => {
       },
       async (url, init) => {
         calls.push({ url: String(url), init });
-        return new Response("crown", { status: 200 });
+        return new Response("crown", {
+          headers: {
+            "content-type": "text/html",
+            "transfer-encoding": "chunked",
+          },
+          status: 200,
+        });
       },
     );
 
@@ -384,6 +390,8 @@ describe("handleRequest", () => {
     expect(headers.has("authorization")).toBe(false);
     expect(headers.has("cookie")).toBe(false);
     expect(headers.has("x-pirate-hns-root")).toBe(false);
+    expect(response.headers.get("content-type")).toBe("text/html");
+    expect(response.headers.has("transfer-encoding")).toBe(false);
   });
 
   test("rejects writes to a configured static HNS hostname", async () => {

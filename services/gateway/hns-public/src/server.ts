@@ -310,6 +310,16 @@ const INTERNAL_HEADER_PREFIX = "x-pirate-hns-";
 const CREDENTIAL_HEADERS = ["authorization", "cookie", "proxy-authorization"];
 const READ_ONLY_METHODS = new Set(["GET", "HEAD"]);
 const CLOUDFLARE_STATIC_ORIGIN_SUFFIXES = [".workers.dev", ".pages.dev"];
+const HOP_BY_HOP_RESPONSE_HEADERS = [
+  "connection",
+  "keep-alive",
+  "proxy-authenticate",
+  "proxy-authorization",
+  "te",
+  "trailer",
+  "transfer-encoding",
+  "upgrade",
+];
 
 export function parseStaticSiteRoutes(value: string | undefined): ReadonlyMap<string, string> {
   if (!value?.trim()) {
@@ -433,10 +443,19 @@ async function proxyStaticSiteRequest(input: {
     }
   }
 
-  return input.fetchImpl(rebaseUrlToOrigin(input.request.url, input.targetOrigin), {
+  const upstream = await input.fetchImpl(rebaseUrlToOrigin(input.request.url, input.targetOrigin), {
     headers,
     method: input.request.method,
     redirect: "manual",
+  });
+  const responseHeaders = new Headers(upstream.headers);
+  for (const name of HOP_BY_HOP_RESPONSE_HEADERS) {
+    responseHeaders.delete(name);
+  }
+  return new Response(upstream.body, {
+    headers: responseHeaders,
+    status: upstream.status,
+    statusText: upstream.statusText,
   });
 }
 
