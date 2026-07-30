@@ -63,6 +63,12 @@
         "oldChecksum": "ea927fa6cd304cff65191e8b0ba1aeaca8964a886d952a14eb5826f1f4f62551",
         "newChecksum": "2aea08da2d7b70e7b2954a27a3b9c8ffd27ca0e17f328c4b1c48ad83a1b4b865",
         "reason": "pre-deployment repair follow-up: qualify every source-column reference inside the ranked backfill for PostgreSQL INSERT SELECT name resolution"
+      },
+      {
+        "migrationName": "0170_control_plane_dance_attempt_sessions.sql",
+        "oldChecksum": "77485251bb954535ea87679198f37f5210450e533e7751e138270f271e84994e",
+        "newChecksum": "cfccaa8e9e05a26430926e8d78a0647db5633b9c203294c3dae1a583398d4ba6",
+        "reason": "pre-deployment repair: replace the PostgreSQL-only segment-fingerprint validation function with a portable bounded JSON-text constraint; API and shard validation still enforce each keyed hash"
       }
     ]
   }
