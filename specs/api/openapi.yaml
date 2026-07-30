@@ -1401,6 +1401,64 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
+  /users/me/telegram-account-link-intents:
+    post:
+      tags:
+        - Users
+      x-implemented: true
+      summary: Start linking a Telegram Mini App identity to an existing Pirate account
+      description: |
+        Called from a Telegram-authenticated Mini App session. The server derives
+        the Telegram subject and active sovereign community bot from authenticated
+        state, then returns a short-lived URL for an external Pirate browser.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTelegramAccountLinkIntentRequest"
+      responses:
+        "201":
+          description: Short-lived external-browser link.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramAccountLinkIntentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /users/me/telegram-account-link-intents/consume:
+    post:
+      tags:
+        - Users
+      x-implemented: true
+      summary: Consume a Telegram account link from an authenticated Pirate browser
+      description: |
+        Proves the target Pirate account with the current bearer session and the
+        source Telegram identity with a one-time hashed link token. Automatic
+        reassignment is refused when either identity has established activity.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsumeTelegramAccountLinkIntentRequest"
+      responses:
+        "200":
+          description: Telegram identity linked to this Pirate user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramAccountLinkResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /wallets/sentinel/ensure:
     post:
       tags:
@@ -4135,6 +4193,47 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/posts/{post_id}/study/telegram_voice_intents:
+    post:
+      x-implemented: true
+      tags:
+        - Song Study
+      summary: Continue a say-it-back exercise as a native Telegram voice message
+      description: |
+        Creates a short-lived intent bound to the authenticated Telegram learner,
+        the community's active sovereign bot, and server-derived study session
+        coordinates. The client nominates only an eligible say-it-back exercise;
+        it cannot supply attempt or session coordinates.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/PostId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramStudyVoiceIntentRequest"
+      responses:
+        "201":
+          description: Voice intent created and the exercise prompt sent by the community bot.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramStudyVoiceIntent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "502":
+          description: Telegram prompt delivery is uncertain.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /communities/{community_id}/posts/{post_id}/study/transcriptions:
     post:
       x-implemented: true

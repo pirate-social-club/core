@@ -133,6 +133,10 @@ paths:
     $ref: ./paths/users.yaml#/users_me
   /users/me/identity-wallet:
     $ref: ./paths/users.yaml#/users_me_identity_wallet
+  /users/me/telegram-account-link-intents:
+    $ref: ./paths/users.yaml#/users_me_telegram_account_link_intents
+  /users/me/telegram-account-link-intents/consume:
+    $ref: ./paths/users.yaml#/users_me_telegram_account_link_intents_consume
   /wallets/sentinel/ensure:
     $ref: ./paths/wallets.yaml#/wallets_sentinel_ensure
   /sentinel/subscribe:
@@ -283,6 +287,8 @@ paths:
     $ref: ./paths/song-study.yaml#/communities_by_community_id_posts_by_post_id_study
   /communities/{community_id}/posts/{post_id}/study/attempts:
     $ref: ./paths/song-study.yaml#/communities_by_community_id_posts_by_post_id_study_attempts
+  /communities/{community_id}/posts/{post_id}/study/telegram_voice_intents:
+    $ref: ./paths/song-study.yaml#/communities_by_community_id_posts_by_post_id_study_telegram_voice_intents
   /communities/{community_id}/posts/{post_id}/study/transcriptions:
     $ref: ./paths/song-study.yaml#/communities_by_community_id_posts_by_post_id_study_transcriptions
   /communities/{community_id}/posts/{post_id}/streaks/leaderboard:

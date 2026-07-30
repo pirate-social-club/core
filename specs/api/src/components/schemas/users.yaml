@@ -11,6 +11,52 @@ SetIdentityWalletRequest:
       description: |
         ID of the verified, active wallet attachment to make the identity wallet. Must belong to
         the caller; a foreign or unknown attachment is rejected with 404.
+
+CreateTelegramAccountLinkIntentRequest:
+  type: object
+  required:
+    - community_id
+  properties:
+    community_id:
+      type: string
+      description: Community whose active bot launched the authenticated Mini App.
+  additionalProperties: false
+
+TelegramAccountLinkIntentResponse:
+  type: object
+  required:
+    - expires_at
+    - link_url
+  properties:
+    expires_at:
+      type: string
+      format: date-time
+    link_url:
+      type: string
+      format: uri
+      description: HTTPS URL to open outside Telegram and authenticate the target Pirate account.
+  additionalProperties: false
+
+ConsumeTelegramAccountLinkIntentRequest:
+  type: object
+  required:
+    - token
+  properties:
+    token:
+      type: string
+      minLength: 1
+  additionalProperties: false
+
+TelegramAccountLinkResult:
+  type: object
+  required:
+    - linked
+  properties:
+    linked:
+      type: boolean
+      enum:
+        - true
+  additionalProperties: false
 User:
   type: object
   description: |

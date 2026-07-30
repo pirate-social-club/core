@@ -521,3 +521,43 @@ SongStudyTranscriptionResponse:
       type: number
       nullable: true
   additionalProperties: false
+
+TelegramStudyVoiceIntentRequest:
+  type: object
+  required:
+    - exercise_id
+  properties:
+    exercise_id:
+      type: string
+      minLength: 1
+    target_language:
+      type: string
+      nullable: true
+  additionalProperties: false
+
+TelegramStudyVoiceIntent:
+  type: object
+  required:
+    - created
+    - expires_at
+    - id
+    - object
+    - status
+  properties:
+    created:
+      type: integer
+      format: int64
+    expires_at:
+      type: integer
+      format: int64
+    id:
+      type: string
+    object:
+      type: string
+      enum:
+        - telegram_study_voice_intent
+    status:
+      type: string
+      enum:
+        - pending
+  additionalProperties: false

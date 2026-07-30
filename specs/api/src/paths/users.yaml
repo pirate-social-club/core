@@ -51,3 +51,63 @@ users_me_identity_wallet:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
+
+users_me_telegram_account_link_intents:
+  post:
+    tags:
+      - Users
+    x-implemented: true
+    summary: Start linking a Telegram Mini App identity to an existing Pirate account
+    description: |
+      Called from a Telegram-authenticated Mini App session. The server derives
+      the Telegram subject and active sovereign community bot from authenticated
+      state, then returns a short-lived URL for an external Pirate browser.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/users.yaml#/CreateTelegramAccountLinkIntentRequest
+    responses:
+      "201":
+        description: Short-lived external-browser link.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/users.yaml#/TelegramAccountLinkIntentResponse
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+
+users_me_telegram_account_link_intents_consume:
+  post:
+    tags:
+      - Users
+    x-implemented: true
+    summary: Consume a Telegram account link from an authenticated Pirate browser
+    description: |
+      Proves the target Pirate account with the current bearer session and the
+      source Telegram identity with a one-time hashed link token. Automatic
+      reassignment is refused when either identity has established activity.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/users.yaml#/ConsumeTelegramAccountLinkIntentRequest
+    responses:
+      "200":
+        description: Telegram identity linked to this Pirate user.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/users.yaml#/TelegramAccountLinkResult
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
