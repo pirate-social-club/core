@@ -1199,6 +1199,8 @@ components:
       $ref: ./components/schemas/rewards.yaml#/RewardCampaignStatus
     RewardCampaignEligibleActivity:
       $ref: ./components/schemas/rewards.yaml#/RewardCampaignEligibleActivity
+    PublicRewardOffer:
+      $ref: ./components/schemas/rewards.yaml#/PublicRewardOffer
     RewardSongOwnerPolicy:
       $ref: ./components/schemas/rewards.yaml#/RewardSongOwnerPolicy
     RewardSongOwnerPolicyUpdateRequest:
