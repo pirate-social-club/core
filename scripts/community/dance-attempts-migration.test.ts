@@ -4,6 +4,7 @@ import { Database } from "bun:sqlite"
 const migrationPaths = [
   "../../db/community-template/migrations/1145_dance_attempts.sql",
   "../../db/community-template/migrations/1146_dance_attempt_reason_contract.sql",
+  "../../db/community-template/migrations/1147_dance_attempt_upload_invalid_reason.sql",
 ].map((path) => new URL(path, import.meta.url))
 const hex = (character: string) => character.repeat(64)
 
@@ -17,7 +18,7 @@ describe("1145 dance attempts migration", () => {
         INSERT INTO posts VALUES ('post_song');
         INSERT INTO communities VALUES ('cmty_test');
       `)
-      for (const migrationPath of migrationPaths) {
+      for (const migrationPath of migrationPaths.slice(0, 2)) {
         db.exec(await Bun.file(migrationPath).text())
       }
 
@@ -68,6 +69,8 @@ describe("1145 dance attempts migration", () => {
         hex("6"),
       )
 
+      db.exec(await Bun.file(migrationPaths[2]!).text())
+
       expect(db.query(`
         SELECT score_bps, rank_eligible, calibration_admitted
         FROM dance_attempt WHERE dance_attempt_id = 'dat_coaching'
@@ -88,6 +91,12 @@ describe("1145 dance attempts migration", () => {
         SET status = 'rejected',
             rank_eligible = 0,
             reason_code = 'insufficient_alignment'
+        WHERE dance_attempt_id = 'dat_coaching'
+      `)).not.toThrow()
+
+      expect(() => db.exec(`
+        UPDATE dance_attempt
+        SET reason_code = 'upload_invalid'
         WHERE dance_attempt_id = 'dat_coaching'
       `)).not.toThrow()
     } finally {
