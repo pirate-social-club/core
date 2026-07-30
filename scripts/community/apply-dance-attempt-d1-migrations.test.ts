@@ -29,6 +29,6 @@ describe("dance attempt fleet migrations", () => {
     expect(classificationSql(REASONS)).toContain("insufficient_motion")
     expect(classificationSql(REASONS)).toContain("insufficient_alignment")
     expect(classificationSql(UPLOAD_INVALID)).toContain("upload_invalid")
-    expect(classificationSql(UPLOAD_INVALID)).toContain("insufficient_alignment")
+    expect(classificationSql(UPLOAD_INVALID)).not.toContain("insufficient_alignment")
   })
 })
