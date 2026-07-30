@@ -390,6 +390,7 @@ describe("handleRequest", () => {
     expect(headers.has("authorization")).toBe(false);
     expect(headers.has("cookie")).toBe(false);
     expect(headers.has("x-pirate-hns-root")).toBe(false);
+    expect(headers.get("accept-encoding")).toBe("identity");
     expect(response.headers.get("content-type")).toBe("text/html");
     expect(response.headers.has("transfer-encoding")).toBe(false);
     expect(response.headers.get("content-length")).toBe("5");

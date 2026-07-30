@@ -442,6 +442,7 @@ async function proxyStaticSiteRequest(input: {
       headers.delete(name);
     }
   }
+  headers.set("accept-encoding", "identity");
 
   const upstream = await input.fetchImpl(rebaseUrlToOrigin(input.request.url, input.targetOrigin), {
     headers,
