@@ -452,7 +452,14 @@ async function proxyStaticSiteRequest(input: {
   for (const name of HOP_BY_HOP_RESPONSE_HEADERS) {
     responseHeaders.delete(name);
   }
-  return new Response(upstream.body, {
+  responseHeaders.delete("content-length");
+  const bodyForbidden = input.request.method === "HEAD"
+    || [101, 204, 205, 304].includes(upstream.status);
+  const body = bodyForbidden ? null : await upstream.arrayBuffer();
+  if (body) {
+    responseHeaders.set("content-length", String(body.byteLength));
+  }
+  return new Response(body, {
     headers: responseHeaders,
     status: upstream.status,
     statusText: upstream.statusText,

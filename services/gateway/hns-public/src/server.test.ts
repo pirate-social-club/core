@@ -392,6 +392,7 @@ describe("handleRequest", () => {
     expect(headers.has("x-pirate-hns-root")).toBe(false);
     expect(response.headers.get("content-type")).toBe("text/html");
     expect(response.headers.has("transfer-encoding")).toBe(false);
+    expect(response.headers.get("content-length")).toBe("5");
   });
 
   test("rejects writes to a configured static HNS hostname", async () => {
