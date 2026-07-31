@@ -340,6 +340,7 @@ RewardCampaignCapabilities:
     - max_duration_seconds
     - default_duration_seconds
     - eligible_activities
+    - nationality_payout_tiers
     - chain_id
     - token_address
   properties:
@@ -376,6 +377,13 @@ RewardCampaignCapabilities:
       type: array
       items:
         $ref: ./rewards.yaml#/RewardCampaignEligibleActivity
+    nationality_payout_tiers:
+      type: string
+      enum: [unavailable, draft_only]
+      description: >-
+        Current server support for nationality-conditioned payout terms.
+        draft_only permits creating and inspecting immutable draft terms, but
+        clients must not offer funding or imply that claims resolve tiers.
     chain_id:
       type: integer
       minimum: 1
