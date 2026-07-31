@@ -16773,6 +16773,9 @@ components:
         - eligible_activity
         - min_score_bps
         - daily_reward_cents
+        - default_amount_cents
+        - max_claim_cents
+        - payout_tiers
         - milestone_7_cents
         - milestone_30_cents
         - reward_period_cap_cents
@@ -16815,6 +16818,20 @@ components:
         daily_reward_cents:
           type: integer
           minimum: 1
+          description: Legacy uniform daily amount. Equals default_amount_cents for all newly-created campaigns.
+        default_amount_cents:
+          type: integer
+          minimum: 1
+          description: Amount used when no nationality tier matches.
+        max_claim_cents:
+          type: integer
+          minimum: 1
+          description: Immutable maximum exposure for one claim across the default and configured tiers.
+        payout_tiers:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/RewardCampaignPayoutTier"
         milestone_7_cents:
           type: integer
           minimum: 0
@@ -16904,6 +16921,16 @@ components:
         daily_reward_cents:
           type: integer
           minimum: 1
+          description: Legacy uniform amount. When default_amount_cents is supplied, the two values must match.
+        default_amount_cents:
+          type: integer
+          minimum: 1
+          description: Default amount for a claim whose nationality does not match a configured tier. Defaults to daily_reward_cents.
+        payout_tiers:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/RewardCampaignPayoutTier"
         milestone_7_cents:
           type: integer
           minimum: 0
