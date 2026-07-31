@@ -314,6 +314,7 @@ const TYPE_EXPORTS = [
   { name: "RewardCampaignIncidentRecoveryResponse", ref: "#/components/schemas/RewardCampaignIncidentRecoveryResponse" },
   { name: "RewardCampaignEligibleActivity", ref: "#/components/schemas/RewardCampaignEligibleActivity" },
   { name: "RewardCampaignCapabilities", ref: "#/components/schemas/RewardCampaignCapabilities" },
+  { name: "RewardCampaignPayoutTier", ref: "#/components/schemas/RewardCampaignPayoutTier" },
   { name: "PublicRewardOffer", ref: "#/components/schemas/PublicRewardOffer" },
   { name: "RewardSongOwnerPolicy", ref: "#/components/schemas/RewardSongOwnerPolicy" },
   { name: "RewardSongOwnerPolicyUpdateRequest", ref: "#/components/schemas/RewardSongOwnerPolicyUpdateRequest" },
