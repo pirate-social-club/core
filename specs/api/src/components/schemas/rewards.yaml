@@ -319,6 +319,93 @@ RewardCampaignEligibleActivity:
     - study
     - karaoke
     - either
+RewardIdentityBindingCapability:
+  type: string
+  enum:
+    - unavailable
+    - selection_required
+    - selected
+RewardIdentityBindingDocument:
+  type: object
+  additionalProperties: false
+  required:
+    - identity_nullifier_id
+    - provider
+    - nationality
+    - verified_at
+  properties:
+    identity_nullifier_id:
+      type: string
+    provider:
+      type: string
+      enum: [self]
+    nationality:
+      type: string
+      minLength: 3
+      maxLength: 3
+    verified_at:
+      type: integer
+      format: int64
+RewardIdentityBinding:
+  type: object
+  additionalProperties: false
+  required:
+    - id
+    - identity_nullifier_id
+    - provider
+    - nationality
+    - status
+    - selected_at
+  properties:
+    id:
+      type: string
+    identity_nullifier_id:
+      type: string
+    provider:
+      type: string
+      enum: [self]
+    nationality:
+      type: string
+      minLength: 3
+      maxLength: 3
+    status:
+      type: string
+      enum: [active]
+    selected_at:
+      type: integer
+      format: int64
+RewardIdentityBindingResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - capability
+    - provider
+    - active_binding
+    - selectable_documents
+  properties:
+    capability:
+      $ref: ./rewards.yaml#/RewardIdentityBindingCapability
+    provider:
+      type: string
+      enum: [self, very]
+      nullable: true
+    active_binding:
+      allOf:
+        - $ref: ./rewards.yaml#/RewardIdentityBinding
+      nullable: true
+    selectable_documents:
+      type: array
+      items:
+        $ref: ./rewards.yaml#/RewardIdentityBindingDocument
+RewardIdentityBindingSelectRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - identity_nullifier_id
+  properties:
+    identity_nullifier_id:
+      type: string
+      minLength: 1
 RewardCampaignCapabilities:
   type: object
   additionalProperties: false
@@ -379,11 +466,13 @@ RewardCampaignCapabilities:
         $ref: ./rewards.yaml#/RewardCampaignEligibleActivity
     nationality_payout_tiers:
       type: string
-      enum: [unavailable, draft_only]
+      enum: [unavailable, draft_only, binding_preview]
       description: >-
         Current server support for nationality-conditioned payout terms.
         draft_only permits creating and inspecting immutable draft terms, but
         clients must not offer funding or imply that claims resolve tiers.
+        binding_preview additionally permits explicit reward-document selection,
+        while tiered funding and claim-time payout differences remain blocked.
     chain_id:
       type: integer
       minimum: 1
