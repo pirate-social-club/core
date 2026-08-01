@@ -26,6 +26,7 @@ SongStreakLeaderboardEntry:
     - total_qualified_days
     - streak_started_date
     - last_qualified_date
+    - active_until_at
     - is_viewer
   properties:
     rank:
@@ -40,10 +41,16 @@ SongStreakLeaderboardEntry:
       type: integer
     streak_started_date:
       type: string
-      description: UTC date (`YYYY-MM-DD`) that started the current run.
+      description: Date (`YYYY-MM-DD`) that started the current run, in the owner's pinned timezone.
     last_qualified_date:
       type: string
-      description: Last UTC date (`YYYY-MM-DD`) that qualified this streak.
+      description: Last date (`YYYY-MM-DD`) that qualified this streak, in the owner's pinned timezone.
+    active_until_at:
+      type: string
+      description: |
+        UTC instant (ISO-8601) when this streak stops being active without a
+        new qualification — the end of the grace day in the owner's pinned
+        timezone. Entries are only returned while active.
     is_viewer:
       type: boolean
   additionalProperties: false
@@ -62,10 +69,14 @@ SongStreakViewerStanding:
   properties:
     alive:
       type: boolean
+      description: Whether the streak is still active (qualified today or yesterday in the viewer's pinned timezone).
     current_streak:
       type: integer
+      description: >
+        Current run length; 0 when the streak has lapsed (`alive: false`).
     best_streak:
       type: integer
+      description: Historical maximum run length.
     total_qualified_days:
       type: integer
     qualified_today:
@@ -76,6 +87,14 @@ SongStreakViewerStanding:
       type: integer
     karaoke_passed_today:
       type: boolean
+    rank:
+      type: integer
+      nullable: true
+      description: Competition rank among active streaks; null when lapsed or unranked.
+    active_until_at:
+      type: string
+      nullable: true
+      description: UTC instant (ISO-8601) when the viewer's streak stops being active without a new qualification.
   additionalProperties: false
 
 SongStreakLeaderboard:
@@ -99,7 +118,7 @@ SongStreakLeaderboard:
       type: string
     date:
       type: string
-      description: UTC date (`YYYY-MM-DD`) used for liveness and today progress.
+      description: UTC date (`YYYY-MM-DD`) of this read.
     entries:
       type: array
       items:

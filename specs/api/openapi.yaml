@@ -3858,6 +3858,20 @@ paths:
           required: false
           schema:
             type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                timezone:
+                  type: string
+                  description: |
+                    Learner's device IANA timezone (e.g. `America/New_York`).
+                    Used for streak day boundaries on qualifying takes: pinned on
+                    first qualification and changeable at most once per 7 days.
       responses:
         "201":
           description: Karaoke session created or replayed
@@ -8274,6 +8288,13 @@ components:
           description: |
             Final STT transcript for `say_it_back`; omitted otherwise. The server
             owns normalization and the accepted-variant policy.
+        timezone:
+          type: string
+          description: |
+            Learner's device IANA timezone (e.g. `America/New_York`). Used for
+            streak day boundaries: pinned on the learner's first qualification and
+            changeable at most once per 7 days. Optional; falls back to the
+            edge-derived timezone, then UTC.
       additionalProperties: false
     SongStudyAttemptResult:
       type: object

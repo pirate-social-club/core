@@ -2011,6 +2011,20 @@ communities_by_community_id_posts_by_post_id_karaoke_sessions:
         required: false
         schema:
           type: string
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            properties:
+              timezone:
+                type: string
+                description: |
+                  Learner's device IANA timezone (e.g. `America/New_York`).
+                  Used for streak day boundaries on qualifying takes: pinned on
+                  first qualification and changeable at most once per 7 days.
     responses:
       "201":
         description: Karaoke session created or replayed
