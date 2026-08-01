@@ -469,6 +469,8 @@ paths:
     $ref: ./paths/notifications.yaml#/notifications_dismiss_task
   /me/rewards:
     $ref: ./paths/rewards.yaml#/me_rewards
+  /me/rewards/identity-binding:
+    $ref: ./paths/rewards.yaml#/me_rewards_identity_binding
   /me/rewards/cashouts:
     $ref: ./paths/rewards.yaml#/me_rewards_cashouts
   /me/rewards/cashouts/{cashout_id}:
@@ -1205,6 +1207,16 @@ components:
       $ref: ./components/schemas/rewards.yaml#/RewardCampaignStatus
     RewardCampaignEligibleActivity:
       $ref: ./components/schemas/rewards.yaml#/RewardCampaignEligibleActivity
+    RewardIdentityBindingCapability:
+      $ref: ./components/schemas/rewards.yaml#/RewardIdentityBindingCapability
+    RewardIdentityBindingDocument:
+      $ref: ./components/schemas/rewards.yaml#/RewardIdentityBindingDocument
+    RewardIdentityBinding:
+      $ref: ./components/schemas/rewards.yaml#/RewardIdentityBinding
+    RewardIdentityBindingResponse:
+      $ref: ./components/schemas/rewards.yaml#/RewardIdentityBindingResponse
+    RewardIdentityBindingSelectRequest:
+      $ref: ./components/schemas/rewards.yaml#/RewardIdentityBindingSelectRequest
     PublicRewardOffer:
       $ref: ./components/schemas/rewards.yaml#/PublicRewardOffer
     RewardSongOwnerPolicy:

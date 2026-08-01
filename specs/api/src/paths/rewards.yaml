@@ -12,6 +12,41 @@ me_rewards:
           application/json:
             schema:
               $ref: ../components/schemas/rewards.yaml#/RewardsSummaryResponse
+me_rewards_identity_binding:
+  get:
+    x-implemented: true
+    operationId: me_rewards_identity_binding_retrieve
+    tags:
+      - Rewards
+    summary: Get explicit reward-document selection state
+    responses:
+      "200":
+        description: Current binding and eligible Self documents
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/rewards.yaml#/RewardIdentityBindingResponse
+  post:
+    x-implemented: true
+    operationId: me_rewards_identity_binding_create
+    tags:
+      - Rewards
+    summary: Select an eligible Self document for future reward evaluation
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/rewards.yaml#/RewardIdentityBindingSelectRequest
+    responses:
+      "201":
+        description: Active reward identity binding
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/rewards.yaml#/RewardIdentityBindingResponse
+      "409":
+        description: An active binding already exists or the document is not selectable
 me_rewards_cashouts:
   post:
     x-implemented: true
