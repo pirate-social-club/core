@@ -63,6 +63,12 @@ export type MigrationSpec = {
    * LEDGER ONLY and never re-run the DDL.
    */
   replayableDdl: boolean
+  /**
+   * Optional data repair to run before backfilling a missing ledger row when
+   * every schema object already exists. It must be safe to repeat and must not
+   * overwrite non-null application data.
+   */
+  ledgerBackfillSql?: string
   /** Short human description used in --help. */
   description: string
 }
@@ -379,6 +385,11 @@ export function ledgerStatement(spec: MigrationSpec, checksum: string): string {
   return `INSERT INTO schema_migrations (migration_name, migration_label, checksum) VALUES ('${spec.migration}', '${spec.label}', '${checksum}');`
 }
 
+export function ledgerBackfillBody(spec: MigrationSpec, checksum: string): string {
+  const repair = spec.ledgerBackfillSql?.trim()
+  return `${repair ? `${repair}\n` : ""}${ledgerStatement(spec, checksum)}\n`
+}
+
 /**
  * The exact bytes sent to `wrangler d1 execute --file`.
  *
@@ -408,8 +419,12 @@ async function applyToShard(
   checksum: string,
 ): Promise<"applied_migration" | "backfilled_ledger"> {
   if (status === "needs_ledger_backfill") {
-    // Objects already exist. DO NOT replay the DDL — it would fail. Ledger only.
-    await wranglerJson(options, db, ["--command", ledgerStatement(spec, checksum)])
+    // Objects already exist. DO NOT replay the DDL — it would fail. A spec may
+    // include a repeat-safe data repair before the ledger is recorded; keep the
+    // repair and ledger write in the same uploaded file.
+    const file = `/tmp/${spec.migration.split("_")[0]}-${db}-ledger-backfill.sql`
+    await writeFile(file, ledgerBackfillBody(spec, checksum))
+    await wranglerJson(options, db, ["--file", file])
     return "backfilled_ledger"
   }
 

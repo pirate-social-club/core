@@ -13,6 +13,7 @@ import {
   classificationSql,
   classifyRow,
   executionBody,
+  ledgerBackfillBody,
   type MigrationSpec,
 } from "./fleet-d1-migration"
 
@@ -102,6 +103,25 @@ describe("executionBody — the exact bytes sent to D1", () => {
     const body = executionBody(realMigration(OUTBOX_SPEC), OUTBOX_SPEC, CHECKSUM)
     expect(body.indexOf("CREATE TABLE")).toBeLessThan(body.indexOf("INSERT INTO schema_migrations"))
     expect(body).toContain(CHECKSUM)
+  })
+})
+
+describe("ledgerBackfillBody", () => {
+  test("keeps an optional data repair and ledger write together", () => {
+    const spec: MigrationSpec = {
+      ...OUTBOX_SPEC,
+      ledgerBackfillSql: "UPDATE posts SET updated_at = updated_at WHERE post_id = 'repair';",
+    }
+    const body = ledgerBackfillBody(spec, CHECKSUM)
+
+    expect(body.indexOf("UPDATE posts")).toBeLessThan(body.indexOf("INSERT INTO schema_migrations"))
+    expect(body).toContain(CHECKSUM)
+  })
+
+  test("uses only the ledger write when no repair is configured", () => {
+    expect(ledgerBackfillBody(OUTBOX_SPEC, CHECKSUM)).toBe(
+      `INSERT INTO schema_migrations (migration_name, migration_label, checksum) VALUES ('${OUTBOX_SPEC.migration}', '${OUTBOX_SPEC.label}', '${CHECKSUM}');\n`,
+    )
   })
 })
 
