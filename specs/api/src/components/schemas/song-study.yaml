@@ -384,6 +384,13 @@ SongStudyAttemptRequest:
       description: |
         Final STT transcript for `say_it_back`; omitted otherwise. The server
         owns normalization and the accepted-variant policy.
+    timezone:
+      type: string
+      description: |
+        Learner's device IANA timezone (e.g. `America/New_York`). Used for
+        streak day boundaries: pinned on the learner's first qualification and
+        changeable at most once per 7 days. Optional; falls back to the
+        edge-derived timezone, then UTC.
   additionalProperties: false
 
 SongStudyAttemptResult:
