@@ -8,7 +8,7 @@ CREATE TABLE telegram_study_tts_daily_usage (
   CONSTRAINT chk_telegram_study_tts_daily_usage_day
     CHECK (
       length(usage_day) = 10
-      AND usage_day = to_char(usage_day::date, 'YYYY-MM-DD')
+      AND usage_day = CAST(date(usage_day) AS TEXT)
     ),
   CONSTRAINT chk_telegram_study_tts_daily_usage_character_count
     CHECK (character_count >= 0),

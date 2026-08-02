@@ -73,8 +73,14 @@
       {
         "migrationName": "0185_control_plane_telegram_study_tts_daily_usage.sql",
         "oldChecksum": "a9f1260b0032b0decf1aa2d6db936a5a0eb42d7bf1952169bcdc7944d8606427",
-        "newChecksum": "050981eeaf24c29cdc8d7542302dd5b0a8b9ca91adcdd9de150568a8027164d9",
-        "reason": "pre-deployment repair: compare the text usage day against a PostgreSQL-formatted date instead of the incompatible SQLite date() result"
+        "newChecksum": "6b200cd1545eae0a58fad2c16dece7fd6cd17552315e4c0ab174d718f234a3e4",
+        "reason": "pre-deployment repair: cast the validated date back to text with syntax portable across PostgreSQL and SQLite"
+      },
+      {
+        "migrationName": "0185_control_plane_telegram_study_tts_daily_usage.sql",
+        "oldChecksum": "050981eeaf24c29cdc8d7542302dd5b0a8b9ca91adcdd9de150568a8027164d9",
+        "newChecksum": "6b200cd1545eae0a58fad2c16dece7fd6cd17552315e4c0ab174d718f234a3e4",
+        "reason": "pre-deployment repair follow-up: cast the validated date back to text with syntax portable across PostgreSQL and SQLite"
       }
     ]
   }
