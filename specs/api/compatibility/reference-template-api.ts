@@ -627,6 +627,11 @@ export type ModerationAction = {
   actor_user: string;
   action_type: ModerationActionType;
   note?: string | null;
+  previous_content_safety_state?: "pending" | "safe" | "sensitive" | "adult" | null;
+  next_content_safety_state?: "safe" | "sensitive" | "adult" | null;
+  previous_age_gate_policy?: "none" | "18_plus" | null;
+  next_age_gate_policy?: "none" | "18_plus" | null;
+  evidence_ref?: string | null;
   created: number;
 };
 
@@ -638,6 +643,8 @@ export type CreateUserReportRequest = {
 export type CreateModerationActionRequest = {
   action_type: ModerationActionType;
   note?: string | null;
+  content_safety_state?: "safe" | "sensitive" | "adult";
+  evidence_ref?: string | null;
 };
 
 type AgentOwnershipProvider = "self_agent_id" | "clawkey";
@@ -1200,7 +1207,7 @@ type MediaDescriptor = {
   preview_video?: SongVideoArtifactDescriptor | null;
 };
 
-type ModerationActionType = "dismiss" | "hide" | "remove" | "restore" | "age_gate";
+type ModerationActionType = "dismiss" | "hide" | "remove" | "restore" | "age_gate" | "set_content_rating";
 
 type ModerationCaseListItem = (ModerationCase & {
   post: ModerationCasePostPreview | null;
