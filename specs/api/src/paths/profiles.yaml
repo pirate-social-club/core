@@ -39,6 +39,11 @@ profiles_me:
               preferred_locale:
                 type: string
                 nullable: true
+              explicit_content_preference:
+                type: string
+                enum:
+                  - show
+                  - hide
     responses:
       "200":
         description: Updated profile

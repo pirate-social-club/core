@@ -1597,6 +1597,11 @@ paths:
                 preferred_locale:
                   type: string
                   nullable: true
+                explicit_content_preference:
+                  type: string
+                  enum:
+                    - show
+                    - hide
       responses:
         "200":
           description: Updated profile
@@ -10458,6 +10463,12 @@ components:
         preferred_locale:
           type: string
           nullable: true
+        explicit_content_preference:
+          type: string
+          enum:
+            - show
+            - hide
+          description: Whether content rated sensitive is included in this user's personalized content surfaces. Adult content remains governed by age verification.
         display_verified_nationality_badge:
           type: boolean
           nullable: true
