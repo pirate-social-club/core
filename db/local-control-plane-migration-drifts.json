@@ -69,6 +69,12 @@
         "oldChecksum": "77485251bb954535ea87679198f37f5210450e533e7751e138270f271e84994e",
         "newChecksum": "cfccaa8e9e05a26430926e8d78a0647db5633b9c203294c3dae1a583398d4ba6",
         "reason": "pre-deployment repair: replace the PostgreSQL-only segment-fingerprint validation function with a portable bounded JSON-text constraint; API and shard validation still enforce each keyed hash"
+      },
+      {
+        "migrationName": "0185_control_plane_telegram_study_tts_daily_usage.sql",
+        "oldChecksum": "a9f1260b0032b0decf1aa2d6db936a5a0eb42d7bf1952169bcdc7944d8606427",
+        "newChecksum": "050981eeaf24c29cdc8d7542302dd5b0a8b9ca91adcdd9de150568a8027164d9",
+        "reason": "pre-deployment repair: compare the text usage day against a PostgreSQL-formatted date instead of the incompatible SQLite date() result"
       }
     ]
   }
