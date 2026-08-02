@@ -1,0 +1,156 @@
+import { describe, expect, test } from "bun:test"
+import {
+  SHARD_STATUSES,
+  candidateARow,
+  candidateBProof,
+  effectivePolicyDigest,
+  evaluatePoolVerdicts,
+  digest,
+  statusFromCandidateA,
+  validateManifest,
+  type SchemaManifest,
+} from "./lib/schema-attestation-proof"
+
+function manifest(status: SchemaManifest["shards"][number]["status"] = "satisfied"): SchemaManifest {
+  return {
+    fleet: "staging",
+    requirements_version: 1,
+    features_checked: [],
+    required_migrations: ["one.sql"],
+    feature_migrations: {},
+    canonical_schema_checked: true,
+    canonical_schema_mode: "ratchet",
+    canonical_schema_expected_artifacts: 10,
+    canonical_schema_excluded_migrations: [],
+    compatible_missing_schema_artifacts: [],
+    allocated_loaded_shards: 1,
+    live_shards: 1,
+    quarantined_shards: 0,
+    quarantine_registry_checksum: "a".repeat(64),
+    quarantines: [],
+    classified: 1,
+    summary: { [status]: 1 },
+    shards: [{ binding: "DB_CMTY_0001", database_name: "fixture", status, missing: [] }],
+  }
+}
+
+describe("schema attestation proof", () => {
+  test("Candidate A round-trips every current ShardStatus", () => {
+    for (const status of SHARD_STATUSES) {
+      const fixture = manifest(status)
+      const row = candidateARow(fixture.shards[0], fixture, {
+        shardWorkerId: "community-d1-shard-staging-a",
+        runId: "run-1",
+        verifiedAt: "2026-08-03T00:00:00.000Z",
+        policyDigest: digest("policy"),
+      })
+      expect(statusFromCandidateA(row)).toBe(status)
+      expect(row.state).toBe(status === "satisfied" ? "verified" : "invalid")
+    }
+  })
+
+  test("policy content and pool identity are explicit", () => {
+    const fixture = manifest()
+    const evidence = {
+      format_version: 1 as const,
+      requirements_digest: digest("requirements"),
+      migration_checksums_digest: digest("checksums"),
+      classifications_digest: digest("classifications"),
+      canonical_expected_digest: digest("canonical"),
+      canonical_baseline_digest: digest("baseline"),
+      drift_policy_digest: digest("drift"),
+    }
+    expect(effectivePolicyDigest(evidence)).not.toBe(effectivePolicyDigest({
+      ...evidence,
+      requirements_digest: digest("changed requirements"),
+    }))
+    const proof = candidateBProof(fixture.shards[0], "pool-worker-b")
+    expect(proof.shard_worker_id).toBe("pool-worker-b")
+  })
+
+  test("rejects incomplete or placeholder policy evidence", () => {
+    expect(() => effectivePolicyDigest({
+      format_version: 1,
+      requirements_digest: digest("requirements"),
+      migration_checksums_digest: "phase0-legacy:unavailable",
+      classifications_digest: digest("classifications"),
+      canonical_expected_digest: digest("canonical"),
+      canonical_baseline_digest: digest("baseline"),
+      drift_policy_digest: digest("drift"),
+    })).toThrow("six source-content SHA-256 digests")
+  })
+
+  test("rejects incomplete manifest classification", () => {
+    const fixture = manifest()
+    fixture.live_shards = 2
+    expect(() => validateManifest(fixture)).toThrow("incomplete shard classification")
+  })
+
+  test("rejects non-content policy identifiers and inconsistent summaries", () => {
+    const fixture = manifest()
+    expect(() => candidateARow(fixture.shards[0], fixture, {
+      shardWorkerId: "worker-a",
+      runId: "run-1",
+      verifiedAt: "2026-08-03T00:00:00.000Z",
+      policyDigest: "git-commit-is-not-policy-content",
+    })).toThrow("source-content policy SHA-256")
+    fixture.summary = { error: 1 }
+    expect(() => validateManifest(fixture)).toThrow("summary does not reproduce")
+  })
+
+  test("quarantine removal exposes missing proof and pool identity prevents collisions", () => {
+    const fixture = manifest()
+    const policyDigest = digest("policy")
+    const row = candidateARow(fixture.shards[0], fixture, {
+      shardWorkerId: "worker-a",
+      runId: "run-1",
+      verifiedAt: "2026-08-03T00:00:00.000Z",
+      policyDigest,
+    })
+    const otherPoolRow = { ...row, shard_worker_id: "worker-b" }
+    const quarantined = evaluatePoolVerdicts({
+      shardWorkerId: "worker-a",
+      liveBindings: [row.binding_name, "DB_CMTY_0002"],
+      quarantinedBindings: new Set(["DB_CMTY_0002"]),
+      policyDigest,
+      rows: [row, otherPoolRow],
+    })
+    expect(quarantined).toMatchObject({ hit: true, live: 1, quarantined: 1 })
+
+    const removed = evaluatePoolVerdicts({
+      shardWorkerId: "worker-a",
+      liveBindings: [row.binding_name, "DB_CMTY_0002"],
+      quarantinedBindings: new Set(),
+      policyDigest,
+      rows: [row, otherPoolRow],
+    })
+    expect(removed).toMatchObject({ hit: false, missing: 1 })
+  })
+
+  test("policy changes miss and historical canonical profiles keep distinct fingerprints", () => {
+    const fixture = manifest()
+    const first = candidateARow(fixture.shards[0], fixture, {
+      shardWorkerId: "worker-a",
+      runId: "run-1",
+      verifiedAt: "2026-08-03T00:00:00.000Z",
+      policyDigest: digest("policy-v1"),
+    })
+    const changedProfile = candidateARow({
+      ...fixture.shards[0],
+      canonical_missing: ["column:legacy.missing"],
+    }, fixture, {
+      shardWorkerId: "worker-a",
+      runId: "run-1",
+      verifiedAt: "2026-08-03T00:00:00.000Z",
+      policyDigest: digest("policy-v1"),
+    })
+    expect(changedProfile.schema_fingerprint).not.toBe(first.schema_fingerprint)
+    expect(evaluatePoolVerdicts({
+      shardWorkerId: "worker-a",
+      liveBindings: [first.binding_name],
+      quarantinedBindings: new Set(),
+      policyDigest: digest("policy-v2"),
+      rows: [first],
+    })).toMatchObject({ hit: false, policyMismatch: 1 })
+  })
+})
