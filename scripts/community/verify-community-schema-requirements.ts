@@ -44,6 +44,16 @@ import { writeFile } from "node:fs/promises"
 import { dirname, resolve } from "node:path"
 
 import { partitionQuarantinedBindings } from "./lib/community-shard-quarantine"
+import type {
+  D1ApiEnvelope,
+  D1DatabaseTarget,
+  D1ProbeResult,
+  D1ProbeRunner,
+  D1QueryMetrics,
+  D1QueryResult,
+  D1RestClient,
+  D1SchemaObjectRow,
+} from "./lib/d1-rest-types"
 import { type Artifacts, artifactCount, expectedArtifacts } from "./community-schema-artifacts"
 
 type Requirements = {
@@ -268,7 +278,6 @@ export function canonicalSchemaRegressions(
 }
 
 type SchemaArtifactKind = "column" | "index" | "table"
-type SchemaObjectRow = { type: "index" | "table"; name: string; sql: string | null }
 
 export const CANONICAL_SCHEMA_INVENTORY_SQL = `
   SELECT type, name, sql
@@ -339,7 +348,7 @@ function splitCreateTableColumns(sql: string): string[] {
     .filter(Boolean)
 }
 
-export function schemaArtifactsFromRows(rows: SchemaObjectRow[]): Set<string> {
+export function schemaArtifactsFromRows(rows: D1SchemaObjectRow[]): Set<string> {
   const artifacts = new Set<string>()
   for (const row of rows) {
     if (row.type === "index") {
@@ -374,7 +383,7 @@ export async function buildCanonicalSchemaArtifacts(input: {
       db.exec(await readFile(resolve(input.migrationsDir, name), "utf8"))
     }
     return schemaArtifactsFromRows(
-      db.query<SchemaObjectRow, []>(CANONICAL_SCHEMA_INVENTORY_SQL).all(),
+      db.query<D1SchemaObjectRow, []>(CANONICAL_SCHEMA_INVENTORY_SQL).all(),
     )
   } finally {
     db.close()
@@ -510,45 +519,6 @@ migrations are NOT required (that is how 1126 stays feature-conditional).
     driftPolicy: resolve(get("--drift-policy") ?? "db/known-community-migration-drifts.json"),
     canonicalBaseline: get("--canonical-baseline") ? resolve(get("--canonical-baseline")!) : undefined,
   }
-}
-
-type D1DatabaseTarget = {
-  name: string
-  id: string
-}
-
-type D1QueryResult = {
-  results?: unknown[]
-  success?: boolean
-  meta?: Record<string, unknown>
-}
-
-type D1ApiError = {
-  code?: number | string
-  message?: string
-}
-
-type D1ApiEnvelope = {
-  success?: boolean
-  errors?: D1ApiError[]
-  result?: D1QueryResult[]
-}
-
-type D1QueryMetrics = {
-  logical_batches: number
-  statements_submitted: number
-  http_attempts: number
-  retries: number
-  errors_by_code: Record<string, number>
-  cumulative_http_attempt_duration_ms: number
-}
-
-type D1RestClient = {
-  accountId: string
-  apiToken: string
-  fetch: typeof fetch
-  sleep: (milliseconds: number) => Promise<void>
-  metrics?: D1QueryMetrics
 }
 
 export function databaseTargetsFromWranglerConfig(
@@ -696,8 +666,6 @@ export async function d1QueryBatch(
   throw new Error(`D1 query ${target.name} failed after ${maxAttempts} attempts: ${lastError}`)
 }
 
-type ProbeRunner = (statements: string[]) => Promise<D1QueryResult[]>
-
 function queryResultRows<T>(result: D1QueryResult | undefined, label: string): T[] {
   if (!result || !Array.isArray(result.results)) {
     throw new Error(`${label} returned no rows`)
@@ -713,15 +681,15 @@ export async function probeShard(
   required: string[],
   expected: ReadonlyMap<string, { checksum: string; artifacts: Artifacts }>,
   includeCanonicalInventory: boolean,
-  run: ProbeRunner,
-): Promise<{ row: Record<string, number>; inventoryRows: SchemaObjectRow[] }> {
+  run: D1ProbeRunner,
+): Promise<D1ProbeResult> {
   const canonicalStatements = includeCanonicalInventory ? [CANONICAL_SCHEMA_INVENTORY_SQL] : []
   try {
     const results = await run([buildProbe(required, expected), ...canonicalStatements])
     const row = queryResultRows<Record<string, number>>(results[0], "combined migration probe")[0]
     if (!row) throw new Error("combined migration probe returned no rows")
     const inventoryRows = includeCanonicalInventory
-      ? queryResultRows<SchemaObjectRow>(results[1], "canonical schema inventory")
+      ? queryResultRows<D1SchemaObjectRow>(results[1], "canonical schema inventory")
       : []
     return { row, inventoryRows }
   } catch (error) {
@@ -742,7 +710,7 @@ export async function probeShard(
       merged[`a${i}`] = Number(row.a0 ?? 0)
     }
     const inventoryRows = includeCanonicalInventory
-      ? queryResultRows<SchemaObjectRow>(results[required.length], "canonical schema inventory")
+      ? queryResultRows<D1SchemaObjectRow>(results[required.length], "canonical schema inventory")
       : []
     return { row: merged, inventoryRows }
   }
