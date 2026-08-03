@@ -36,15 +36,17 @@ function row(input: {
   version: number
   schema?: string
   status?: PolicyVerdictRow["verdict_status"]
+  runId?: string
 }): PolicyVerdictRow {
   const status = input.status ?? "satisfied"
   const satisfied = status === "satisfied"
+  const runId = input.runId ?? "run-1"
   return {
     shard_worker_id: "community-d1-shard-staging",
     binding_name: input.binding,
     community_id: input.community,
     pool_version: input.version,
-    attestation_epoch: "run-1",
+    attestation_epoch: runId,
     state: satisfied ? "verified" : "invalid",
     verdict_status: status,
     effective_policy_digest: digest("policy"),
@@ -53,7 +55,7 @@ function row(input: {
     canonical_inventory_digest: digest(`canonical:${input.binding}`),
     verified_at: satisfied ? "2026-08-04T00:00:00.000Z" : null,
     writer_kind: "full_scan",
-    writer_run_id: "run-1",
+    writer_run_id: runId,
     last_error_code: satisfied ? null : status,
     last_error_detail: satisfied ? null : "probe failed",
   }
@@ -93,6 +95,17 @@ describe("schema attestation publisher", () => {
       db.exec(`INSERT INTO d1_pool VALUES
         ('DB_CMTY_0016', 'cmt_16', '2026-08-04T00:00:00.000Z', 2),
         ('DB_CMTY_0020', 'cmt_20', '2026-08-04T00:00:00.000Z', 3)`)
+      await invalidatePoolAttestations({
+        shardWorkerId: "community-d1-shard-staging",
+        writerRunId: "run-1",
+        policyDigest: digest("policy"),
+        unavailableDigest: digest("unavailable"),
+        expectedRoster: [
+          { binding_name: "DB_CMTY_0016", community_id: "cmt_16", version: 2 },
+          { binding_name: "DB_CMTY_0020", community_id: "cmt_20", version: 3 },
+        ],
+        run,
+      })
       await publishPoolAttestations({
         rows: [
           row({ binding: "DB_CMTY_0016", community: "cmt_16", version: 2, schema: "profile-80" }),
@@ -104,6 +117,41 @@ describe("schema attestation publisher", () => {
         "SELECT schema_fingerprint FROM d1_pool_schema_attestations ORDER BY binding_name",
       ).all()
       expect(new Set(fingerprints.map((entry) => entry.schema_fingerprint)).size).toBe(2)
+    } finally {
+      db.close()
+    }
+  })
+
+  test("rejects an older scan after a newer writer epoch invalidates the roster", async () => {
+    const { db, run } = setup()
+    try {
+      const generation = { binding_name: "DB_CMTY_0001", community_id: "cmt_1", version: 4 }
+      db.exec("INSERT INTO d1_pool VALUES ('DB_CMTY_0001', 'cmt_1', '2026-08-04T00:00:00.000Z', 4)")
+      await invalidatePoolAttestations({
+        shardWorkerId: "community-d1-shard-staging",
+        writerRunId: "run-1",
+        policyDigest: digest("policy"),
+        unavailableDigest: digest("unavailable"),
+        expectedRoster: [generation],
+        run,
+      })
+      await invalidatePoolAttestations({
+        shardWorkerId: "community-d1-shard-staging",
+        writerRunId: "run-2",
+        policyDigest: digest("policy"),
+        unavailableDigest: digest("unavailable"),
+        expectedRoster: [generation],
+        run,
+      })
+
+      await expect(publishPoolAttestations({
+        rows: [row({ binding: "DB_CMTY_0001", community: "cmt_1", version: 4, runId: "run-1" })],
+        run,
+      })).rejects.toThrow("generation fence rejected")
+      expect(db.query("SELECT state, writer_run_id FROM d1_pool_schema_attestations").get()).toEqual({
+        state: "invalid",
+        writer_run_id: "run-2",
+      })
     } finally {
       db.close()
     }

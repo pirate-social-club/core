@@ -105,7 +105,9 @@ the pool ledger. Before contacting community databases, the writer invalidates
 the complete allocated-and-loaded roster and verifies that the rows returned by
 that write exactly match the roster it discovered. After the scan, it publishes
 each verdict only while `(binding_name, community_id, version)` still matches
-`d1_pool`; a release or reallocation during the scan therefore fails closed.
+`d1_pool` and the ledger still carries that scan's writer epoch. A release,
+reallocation, or newer overlapping scan therefore makes the older writer fail
+closed instead of overwriting fresher invalidation evidence.
 Quarantined allocations are invalidated but are not republished until a later
 authoritative scan observes them as live.
 

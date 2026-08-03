@@ -79,6 +79,14 @@ INNER JOIN d1_pool p
   ON p.binding_name = i.binding_name
  AND p.community_id = i.community_id
  AND p.version = i.pool_version
+INNER JOIN d1_pool_schema_attestations current
+  ON current.shard_worker_id = i.shard_worker_id
+ AND current.binding_name = i.binding_name
+ AND current.community_id = i.community_id
+ AND current.pool_version = i.pool_version
+ AND current.attestation_epoch = i.attestation_epoch
+ AND current.writer_run_id = i.writer_run_id
+ AND current.state = 'invalid'
 WHERE p.last_loaded_at IS NOT NULL
 ON CONFLICT(shard_worker_id, binding_name) DO UPDATE SET
   community_id = excluded.community_id,
