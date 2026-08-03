@@ -467,13 +467,15 @@ RewardCampaignCapabilities:
         $ref: ./rewards.yaml#/RewardCampaignEligibleActivity
     nationality_payout_tiers:
       type: string
-      enum: [unavailable, draft_only, binding_preview]
+      enum: [unavailable, draft_only, binding_preview, enabled]
       description: >-
         Current server support for nationality-conditioned payout terms.
         draft_only permits creating and inspecting immutable draft terms, but
         clients must not offer funding or imply that claims resolve tiers.
         binding_preview additionally permits explicit reward-document selection,
         while tiered funding and claim-time payout differences remain blocked.
+        enabled permits funding and claim-time tier resolution under the pool's
+        immutable identity provider.
     chain_id:
       type: integer
       minimum: 1
