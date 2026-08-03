@@ -88,8 +88,35 @@ SELECT
 FROM d1_pool p
 LEFT JOIN quarantined q ON q.binding_name = p.binding_name
 LEFT JOIN d1_pool_schema_attestations a
-  ON a.binding_name = p.binding_name AND a.shard_worker_id = ?1
+  ON a.binding_name = p.binding_name
+ AND a.shard_worker_id = ?1
+ AND a.community_id = p.community_id
+ AND a.pool_version = p.version
 WHERE p.community_id IS NOT NULL
   AND p.last_loaded_at IS NOT NULL
   AND q.binding_name IS NULL
 ```
+
+## Publisher phase
+
+`verify-community-schema-requirements.ts --publish-attestations` keeps the REST
+full-fleet scan as the sole release authority while publishing its evidence to
+the pool ledger. Before contacting community databases, the writer invalidates
+the complete allocated-and-loaded roster and verifies that the rows returned by
+that write exactly match the roster it discovered. After the scan, it publishes
+each verdict only while `(binding_name, community_id, version)` still matches
+`d1_pool`; a release or reallocation during the scan therefore fails closed.
+Quarantined allocations are invalidated but are not republished until a later
+authoritative scan observes them as live.
+
+Publication status is recorded in the manifest as `pending` before the final
+write and changed to `published` only after every generation-fenced chunk is
+confirmed. A publication error fails the command, but no ledger result changes
+how the full scan classifies the release.
+
+Fast-path activation remains a later review gate. Shadow evidence must span at
+least one real community-template schema change and demonstrate correct
+invalidation, migration, and re-attestation. It must also include a quarantine
+transition, an unavailable or failed observation, and every canonical schema
+profile present in staging. Consecutive quiet green releases alone are not
+sufficient activation evidence.

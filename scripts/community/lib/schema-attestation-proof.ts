@@ -438,7 +438,10 @@ SELECT
 FROM d1_pool p
 LEFT JOIN quarantined q ON q.binding_name = p.binding_name
 LEFT JOIN d1_pool_schema_attestations a
-  ON a.binding_name = p.binding_name AND a.shard_worker_id = ?1
+  ON a.binding_name = p.binding_name
+ AND a.shard_worker_id = ?1
+ AND a.community_id = p.community_id
+ AND a.pool_version = p.version
 WHERE p.community_id IS NOT NULL
   AND p.last_loaded_at IS NOT NULL
   AND q.binding_name IS NULL`

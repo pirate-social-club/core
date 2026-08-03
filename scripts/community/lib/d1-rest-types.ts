@@ -9,6 +9,11 @@ export type D1QueryResult = {
   meta?: Record<string, unknown>
 }
 
+export type D1QueryStatement = {
+  sql: string
+  params?: unknown[]
+}
+
 export type D1ApiError = {
   code?: number | string
   message?: string
