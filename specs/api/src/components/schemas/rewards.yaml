@@ -73,6 +73,7 @@ RewardsCashoutSummary:
       type: string
       enum:
         - self
+        - zkpassport
         - very
       nullable: true
 RewardPendingVerificationSummary:
@@ -387,7 +388,7 @@ RewardIdentityBindingResponse:
       $ref: ./rewards.yaml#/RewardIdentityBindingCapability
     provider:
       type: string
-      enum: [self, very]
+      enum: [self, zkpassport, very]
       nullable: true
     active_binding:
       allOf:
@@ -548,6 +549,7 @@ RewardCampaign:
     - post
     - song_artifact_bundle
     - song_owner
+    - reward_identity_provider
     - status
     - funding_tx_hash
     - eligible_activity
@@ -586,6 +588,13 @@ RewardCampaign:
       type: string
     song_owner:
       type: string
+    reward_identity_provider:
+      type: string
+      enum:
+        - self
+        - zkpassport
+        - very
+      description: Immutable unique-human provider selected for the permanent song pool.
     status:
       $ref: ./rewards.yaml#/RewardCampaignStatus
     eligible_activity:
@@ -676,6 +685,7 @@ RewardCampaignCreateRequest:
   required:
     - community
     - post
+    - reward_identity_provider
     - eligible_activity
     - min_score_bps
     - daily_reward_cents
@@ -691,6 +701,13 @@ RewardCampaignCreateRequest:
       type: string
     post:
       type: string
+    reward_identity_provider:
+      type: string
+      enum:
+        - self
+        - zkpassport
+        - very
+      description: Permanent provider for this song pool. Nationality-tiered pools cannot select very.
     eligible_activity:
       $ref: ./rewards.yaml#/RewardCampaignEligibleActivity
     min_score_bps:
@@ -832,6 +849,13 @@ RewardCampaignFundingQuoteRequest:
       minimum: 1
     idempotency_key:
       type: string
+    reward_identity_provider:
+      type: string
+      enum:
+        - self
+        - zkpassport
+        - very
+      description: Optional assertion for a top-up; when supplied it must equal the pool's immutable provider.
 RewardCampaignFundingConfirmRequest:
   type: object
   required:
