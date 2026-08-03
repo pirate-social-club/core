@@ -29,9 +29,13 @@ activation-capable reader rejects a placeholder, missing field, unknown format,
 non-SHA-256 value, or aggregate digest mismatch; the legacy reader is confined
 to the local Phase 0 replay. This closes the policy-content evidence gap but
 does not activate the release fast path. The manifest's missing-artifact arrays
-remain insufficient as authoritative per-shard schema/ledger fingerprints;
-those three proof digests must be computed from raw verifier observations in a
-later publisher phase.
+remain insufficient as authoritative per-shard schema/ledger fingerprints.
+The publisher phase now computes all three from raw observations returned by
+the verifier's existing per-shard REST batch: the ordered `sqlite_master`
+inventory, the ordered `(migration_name, checksum)` ledger, and the normalized
+canonical artifact inventory. This adds statements and response bytes to the
+existing batch but no additional HTTP request. Activation remains a separate,
+reviewed phase; the REST full-fleet scan is still the release authority.
 
 A release performs one aggregate query per shard-owned D1_POOL and combines all pool results fail closed. This is the multi-pool-safe interpretation of the original one-query goal; a single D1 query cannot span independent pool databases. Pool identity is part of every proof key.
 

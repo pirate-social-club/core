@@ -47,6 +47,7 @@ import { partitionQuarantinedBindings } from "./lib/community-shard-quarantine"
 import type {
   D1ApiEnvelope,
   D1DatabaseTarget,
+  D1MigrationLedgerRow,
   D1ProbeResult,
   D1ProbeRunner,
   D1QueryMetrics,
@@ -56,6 +57,8 @@ import type {
 } from "./lib/d1-rest-types"
 import { type Artifacts, artifactCount, expectedArtifacts } from "./community-schema-artifacts"
 import {
+  shardObservationProof,
+  unavailableShardObservationProof,
   effectivePolicyDigest,
   effectivePolicyEvidenceFromContent,
 } from "./lib/schema-attestation-proof"
@@ -230,6 +233,7 @@ type ShardReport = {
   canonical_missing?: string[]
   canonical_regressions?: string[]
   detail?: string
+  observation_proof?: ReturnType<typeof shardObservationProof>
 }
 
 type CanonicalSchemaBaseline = {
@@ -288,6 +292,12 @@ export const CANONICAL_SCHEMA_INVENTORY_SQL = `
   FROM sqlite_master
   WHERE type IN ('table', 'index') AND name NOT LIKE 'sqlite_%'
   ORDER BY type, name
+`
+
+export const MIGRATION_LEDGER_INVENTORY_SQL = `
+  SELECT migration_name, checksum
+  FROM schema_migrations
+  ORDER BY migration_name
 `
 
 function unquoteSqlIdentifier(value: string): string {
@@ -687,22 +697,27 @@ export async function probeShard(
   includeCanonicalInventory: boolean,
   run: D1ProbeRunner,
 ): Promise<D1ProbeResult> {
-  const canonicalStatements = includeCanonicalInventory ? [CANONICAL_SCHEMA_INVENTORY_SQL] : []
+  const observationStatements = includeCanonicalInventory
+    ? [CANONICAL_SCHEMA_INVENTORY_SQL, MIGRATION_LEDGER_INVENTORY_SQL]
+    : []
   try {
-    const results = await run([buildProbe(required, expected), ...canonicalStatements])
+    const results = await run([buildProbe(required, expected), ...observationStatements])
     const row = queryResultRows<Record<string, number>>(results[0], "combined migration probe")[0]
     if (!row) throw new Error("combined migration probe returned no rows")
     const inventoryRows = includeCanonicalInventory
       ? queryResultRows<D1SchemaObjectRow>(results[1], "canonical schema inventory")
       : []
-    return { row, inventoryRows }
+    const migrationLedgerRows = includeCanonicalInventory
+      ? queryResultRows<D1MigrationLedgerRow>(results[2], "migration ledger inventory")
+      : []
+    return { row, inventoryRows, migrationLedgerRows }
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error)
     if (!/\bcode(?:=|:\s*)7500\b/i.test(detail)) throw error
 
     const statements = [
       ...required.map((name) => buildProbe([name], expected)),
-      ...canonicalStatements,
+      ...observationStatements,
     ]
     const results = await run(statements)
     const merged: Record<string, number> = {}
@@ -716,7 +731,10 @@ export async function probeShard(
     const inventoryRows = includeCanonicalInventory
       ? queryResultRows<D1SchemaObjectRow>(results[required.length], "canonical schema inventory")
       : []
-    return { row: merged, inventoryRows }
+    const migrationLedgerRows = includeCanonicalInventory
+      ? queryResultRows<D1MigrationLedgerRow>(results[required.length + 1], "migration ledger inventory")
+      : []
+    return { row: merged, inventoryRows, migrationLedgerRows }
   }
 }
 
@@ -918,6 +936,7 @@ async function main() {
         status: "missing_from_config",
         missing: requiredSet,
         detail: `live in the pool but absent from ${o.wranglerConfig} — the config is stale`,
+        observation_proof: unavailableShardObservationProof("missing_from_config"),
       })
       continue
     }
@@ -935,13 +954,19 @@ async function main() {
         const probe = await probeShard(
           requiredSet,
           expected,
-          Boolean(req.canonical_schema),
+          true,
           (statements) => d1QueryBatch(client, database, statements),
         )
         const row = probe.row
         const missing: string[] = []
         let status: ShardStatus = SATISFIED
         const details: string[] = []
+        const actual = schemaArtifactsFromRows(probe.inventoryRows)
+        const observationProof = shardObservationProof({
+          schemaRows: probe.inventoryRows,
+          migrationLedgerRows: probe.migrationLedgerRows,
+          canonicalArtifacts: [...actual],
+        })
 
         requiredSet.forEach((name, i) => {
           const exp = expected.get(name)!
@@ -990,7 +1015,6 @@ async function main() {
           }
         })
         if (req.canonical_schema) {
-          const actual = schemaArtifactsFromRows(probe.inventoryRows)
           const canonicalMissing = [...canonicalExpected]
             .filter((artifact) => !actual.has(artifact) && !compatibleMissingSchemaArtifacts.has(artifact))
             .sort()
@@ -1015,6 +1039,7 @@ async function main() {
             missing,
             canonical_missing: canonicalMissing,
             canonical_regressions: canonicalRegressions,
+            observation_proof: observationProof,
             ...(details.length ? { detail: details.join("; ") } : {}),
           })
           continue
@@ -1024,6 +1049,7 @@ async function main() {
           database_name: database.name,
           status,
           missing,
+          observation_proof: observationProof,
           ...(details.length ? { detail: details.join("; ") } : {}),
         })
       } catch (error) {
@@ -1033,6 +1059,10 @@ async function main() {
           status: "error",
           missing: requiredSet,
           detail: error instanceof Error ? error.message : String(error),
+          observation_proof: unavailableShardObservationProof({
+            status: "error",
+            detail: error instanceof Error ? error.message : String(error),
+          }),
         })
       }
     }

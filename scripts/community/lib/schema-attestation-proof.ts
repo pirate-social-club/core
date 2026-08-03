@@ -24,6 +24,15 @@ export type ManifestShard = {
   canonical_missing?: string[]
   canonical_regressions?: string[]
   detail?: string
+  observation_proof?: ShardObservationProof
+}
+
+export type ShardObservationProof = {
+  format_version: 1
+  kind: "raw" | "unavailable"
+  schema_fingerprint: string
+  migration_ledger_digest: string
+  canonical_inventory_digest: string
 }
 
 export type SchemaManifest = {
@@ -117,6 +126,38 @@ export function digest(value: unknown): string {
   return createHash("sha256").update(stableJson(value)).digest("hex")
 }
 
+export function shardObservationProof(input: {
+  schemaRows: Array<{ type: "index" | "table"; name: string; sql: string | null }>
+  migrationLedgerRows: Array<{ migration_name: string; checksum: string }>
+  canonicalArtifacts: string[]
+}): ShardObservationProof {
+  const schemaRows = [...input.schemaRows]
+    .map(({ type, name, sql }) => ({ type, name, sql }))
+    .sort((left, right) => left.type.localeCompare(right.type) || left.name.localeCompare(right.name))
+  const migrationLedgerRows = [...input.migrationLedgerRows]
+    .map(({ migration_name, checksum }) => ({ migration_name, checksum }))
+    .sort((left, right) => left.migration_name.localeCompare(right.migration_name))
+  const canonicalArtifacts = [...input.canonicalArtifacts].sort()
+  return {
+    format_version: 1,
+    kind: "raw",
+    schema_fingerprint: digest(schemaRows),
+    migration_ledger_digest: digest(migrationLedgerRows),
+    canonical_inventory_digest: digest(canonicalArtifacts),
+  }
+}
+
+export function unavailableShardObservationProof(reason: unknown): ShardObservationProof {
+  const unavailable = digest({ unavailable: reason })
+  return {
+    format_version: 1,
+    kind: "unavailable",
+    schema_fingerprint: unavailable,
+    migration_ledger_digest: unavailable,
+    canonical_inventory_digest: unavailable,
+  }
+}
+
 export function phase0LegacyManifestPolicyEvidence(manifest: SchemaManifest): EffectivePolicyEvidence {
   return {
     format_version: 1,
@@ -204,6 +245,7 @@ export function candidateARow(
   const satisfied = shard.status === "satisfied"
   const canonicalMissing = [...(shard.canonical_missing ?? [])].sort()
   const canonicalRegressions = [...(shard.canonical_regressions ?? [])].sort()
+  const observationProof = shard.observation_proof
   return {
     shard_worker_id: input.shardWorkerId,
     binding_name: shard.binding,
@@ -213,16 +255,22 @@ export function candidateARow(
     state: satisfied ? "verified" : "invalid",
     verdict_status: shard.status,
     effective_policy_digest: input.policyDigest,
-    schema_fingerprint: digest({ canonicalMissing, canonicalRegressions }),
-    migration_ledger_digest: digest({
-      required: [...manifest.required_migrations].sort(),
-      missing: [...shard.missing].sort(),
-      status: shard.status,
-    }),
-    canonical_inventory_digest: digest({
-      expectedCount: manifest.canonical_schema_expected_artifacts,
-      missing: canonicalMissing,
-    }),
+    // Legacy fallbacks keep the Phase 0 fixture replay reproducible. An
+    // activation-capable manifest is validated first and must carry the raw
+    // observation proofs, so production publisher rows always take this path.
+    schema_fingerprint: observationProof?.schema_fingerprint
+      ?? digest({ canonicalMissing, canonicalRegressions }),
+    migration_ledger_digest: observationProof?.migration_ledger_digest
+      ?? digest({
+        required: [...manifest.required_migrations].sort(),
+        missing: [...shard.missing].sort(),
+        status: shard.status,
+      }),
+    canonical_inventory_digest: observationProof?.canonical_inventory_digest
+      ?? digest({
+        expectedCount: manifest.canonical_schema_expected_artifacts,
+        missing: canonicalMissing,
+      }),
     verified_at: satisfied ? input.verifiedAt : null,
     writer_kind: "full_scan",
     writer_run_id: input.runId,
@@ -325,6 +373,19 @@ export function validateManifest(value: unknown, source = "schema manifest"): Sc
   }
   if (computed !== manifest.effective_policy_digest) {
     throw new Error(`${source}: effective policy digest does not match its six content digests`)
+  }
+  for (const shard of manifest.shards) {
+    const proof = shard.observation_proof
+    const digests = proof && [proof.schema_fingerprint, proof.migration_ledger_digest, proof.canonical_inventory_digest]
+    if (
+      proof?.format_version !== 1
+      || (proof.kind !== "raw" && proof.kind !== "unavailable")
+      || (shard.status === "satisfied" && proof.kind !== "raw")
+      || !digests
+      || digests.some((value) => !/^[0-9a-f]{64}$/u.test(value))
+    ) {
+      throw new Error(`${source}: ${shard.binding} is missing authoritative per-shard observation evidence`)
+    }
   }
   return manifest
 }

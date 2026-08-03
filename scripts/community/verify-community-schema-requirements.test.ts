@@ -6,6 +6,7 @@ import {
   buildCanonicalSchemaArtifacts,
   buildProbe,
   CANONICAL_SCHEMA_INVENTORY_SQL,
+  MIGRATION_LEDGER_INVENTORY_SQL,
   databaseTargetsFromWranglerConfig,
   d1QueryBatch,
   probeShard,
@@ -191,6 +192,7 @@ describe("schema requirements probe", () => {
     expect(result).toEqual({
       row: { l0: 1, k0: 1, a0: 2, l1: 1, k1: 0, a1: 3 },
       inventoryRows: [],
+      migrationLedgerRows: [],
     })
   })
 
@@ -225,13 +227,19 @@ describe("schema requirements probe", () => {
           success: true,
           results: [{ type: "table", name: "posts", sql: "CREATE TABLE posts (post_id TEXT)" }],
         },
+        {
+          success: true,
+          results: [{ migration_name: "one.sql", checksum: "one" }],
+        },
       ]
     })
 
     expect(calls).toHaveLength(1)
-    expect(calls[0]).toHaveLength(2)
+    expect(calls[0]).toHaveLength(3)
     expect(calls[0][1]).toBe(CANONICAL_SCHEMA_INVENTORY_SQL)
+    expect(calls[0][2]).toBe(MIGRATION_LEDGER_INVENTORY_SQL)
     expect(result.inventoryRows).toHaveLength(1)
+    expect(result.migrationLedgerRows).toEqual([{ migration_name: "one.sql", checksum: "one" }])
   })
 })
 

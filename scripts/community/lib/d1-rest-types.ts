@@ -40,8 +40,10 @@ export type D1RestClient = {
 export type D1ProbeResult = {
   row: Record<string, number>
   inventoryRows: D1SchemaObjectRow[]
+  migrationLedgerRows: D1MigrationLedgerRow[]
 }
 
 export type D1SchemaObjectRow = { type: "index" | "table"; name: string; sql: string | null }
+export type D1MigrationLedgerRow = { migration_name: string; checksum: string }
 
 export type D1ProbeRunner = (statements: string[]) => Promise<D1QueryResult[]>
