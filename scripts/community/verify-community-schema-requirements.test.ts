@@ -348,6 +348,30 @@ describe("D1 REST query batching", () => {
     })
   })
 
+  test("preserves bound parameters for attestation writes", async () => {
+    let requestInit: RequestInit | undefined
+    await d1QueryBatch({
+      accountId: "account-id",
+      apiToken: "token",
+      fetch: (async (_input, init) => {
+        requestInit = init
+        return Response.json({
+          success: true,
+          errors: [],
+          result: [{ success: true, results: [{ binding_name: "DB_CMTY_0001" }] }],
+        })
+      }) as typeof fetch,
+      sleep: async () => {},
+    }, {
+      name: "community-d1-pool-staging",
+      id: "database-id",
+    }, [{ sql: "SELECT ?1 AS binding_name", params: ["DB_CMTY_0001"] }])
+
+    expect(JSON.parse(String(requestInit?.body))).toEqual({
+      batch: [{ sql: "SELECT ?1 AS binding_name", params: ["DB_CMTY_0001"] }],
+    })
+  })
+
   test("retries API failures with backoff and redacts identifiers", async () => {
     const delays: number[] = []
     let attempts = 0

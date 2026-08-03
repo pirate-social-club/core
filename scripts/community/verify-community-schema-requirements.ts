@@ -31,13 +31,15 @@
  *   feature-enable workflow demand 1126 *before* flipping REWARDS_*, without
  *   forcing us to apply it just to make the release gate green.
  *
- * Strictly READ-ONLY. It never writes to a shard.
+ * Read-only by default. `--publish-attestations` writes only generation-fenced
+ * verdicts to the shard-owned D1_POOL after invalidating the observed roster;
+ * it never writes to a community database and never changes the gate verdict.
  *
  * Deliberately NOT "every historical migration on every configured D1": blank
  * pool databases and known historical drift make that noisy and untrustworthy.
  * Requirements are declared, versioned, and travel with the API commit.
  */
-import { createHash } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 import { Database } from "bun:sqlite"
 import { mkdir, readFile, readdir } from "node:fs/promises"
 import { writeFile } from "node:fs/promises"
@@ -52,6 +54,7 @@ import type {
   D1ProbeRunner,
   D1QueryMetrics,
   D1QueryResult,
+  D1QueryStatement,
   D1RestClient,
   D1SchemaObjectRow,
 } from "./lib/d1-rest-types"
@@ -61,7 +64,14 @@ import {
   unavailableShardObservationProof,
   effectivePolicyDigest,
   effectivePolicyEvidenceFromContent,
+  candidateARow,
+  digest,
+  validateManifest,
 } from "./lib/schema-attestation-proof"
+import {
+  invalidatePoolAttestations,
+  publishPoolAttestations,
+} from "./lib/schema-attestation-publisher"
 
 type Requirements = {
   $comment?: string | string[]
@@ -492,6 +502,7 @@ type Options = {
   concurrency: number
   driftPolicy: string
   canonicalBaseline?: string
+  publishAttestations: boolean
 }
 
 function parseArgs(): Options {
@@ -511,8 +522,10 @@ Verify that every LIVE community shard satisfies the pinned API's schema require
     --wrangler-config <api>/services/community-d1-shard/wrangler.jsonc \\
     [--prod] [--features rewards] [--manifest PATH] [--quarantines PATH]
     [--drift-policy PATH] [--canonical-baseline PATH] [--concurrency N]
+    [--publish-attestations]
 
-READ-ONLY. Exits non-zero unless every allocated+loaded shard is satisfied.
+READ-ONLY unless --publish-attestations is explicit. Exits non-zero unless every
+allocated+loaded shard is satisfied.
 --features adds that feature's migrations to the required set; omit it and those
 migrations are NOT required (that is how 1126 stays feature-conditional).
 `)
@@ -534,6 +547,7 @@ migrations are NOT required (that is how 1126 stays feature-conditional).
     concurrency,
     driftPolicy: resolve(get("--drift-policy") ?? "db/known-community-migration-drifts.json"),
     canonicalBaseline: get("--canonical-baseline") ? resolve(get("--canonical-baseline")!) : undefined,
+    publishAttestations: argv.includes("--publish-attestations"),
   }
 }
 
@@ -632,7 +646,7 @@ function recordD1Error(metrics: D1QueryMetrics | undefined, detail: string): voi
 export async function d1QueryBatch(
   client: D1RestClient,
   target: D1DatabaseTarget,
-  statements: string[],
+  statements: Array<string | D1QueryStatement>,
 ): Promise<D1QueryResult[]> {
   if (statements.length === 0) throw new Error("D1 query batch must contain at least one statement")
   if (client.metrics) {
@@ -655,7 +669,7 @@ export async function d1QueryBatch(
             "content-type": "application/json",
           },
           body: JSON.stringify({
-            batch: statements.map((sql) => ({ sql })),
+            batch: statements.map((statement) => typeof statement === "string" ? { sql: statement } : statement),
           }),
         },
       )
@@ -952,6 +966,23 @@ async function main() {
     }
   }
   if (bindings.length === 0) throw new Error("quarantine policy leaves ZERO live shards; refusing to pass the release gate")
+  const writerRunId = [
+    "full-scan",
+    fleet,
+    process.env.GITHUB_RUN_ID?.trim() || "local",
+    process.env.GITHUB_RUN_ATTEMPT?.trim() || "1",
+    randomUUID(),
+  ].join(":")
+  if (o.publishAttestations) {
+    await invalidatePoolAttestations({
+      shardWorkerId,
+      writerRunId,
+      policyDigest,
+      unavailableDigest: digest({ unavailable: "authoritative_full_scan_in_progress" }),
+      expectedRoster: livePoolBindings,
+      run: (statements) => d1QueryBatch(client, pool, statements),
+    })
+  }
   const reports: ShardReport[] = []
   const shardTargets: Array<{ binding: string; database: D1DatabaseTarget; allocation: LivePoolBinding }> = []
   for (const b of bindings) {
@@ -1112,43 +1143,73 @@ async function main() {
   for (const r of reports) summary[r.status] = (summary[r.status] ?? 0) + 1
   const failures = reports.filter((r) => r.status !== SATISFIED)
 
+  const publication: {
+    enabled: boolean
+    writer_run_id: string | null
+    invalidated: number
+    published: number
+    status: "disabled" | "pending" | "published"
+  } = {
+    enabled: o.publishAttestations,
+    writer_run_id: o.publishAttestations ? writerRunId : null,
+    invalidated: o.publishAttestations ? livePoolBindings.length : 0,
+    published: 0,
+    status: o.publishAttestations ? "pending" : "disabled",
+  }
+  const manifest = {
+    fleet,
+    shard_worker_id: shardWorkerId,
+    requirements_version: req.version,
+    requirements_file: o.requirements,
+    shard_config: o.wranglerConfig,
+    features_checked: o.features,
+    required_migrations: requiredSet,
+    feature_migrations: featureRequired,
+    canonical_schema_checked: Boolean(req.canonical_schema),
+    canonical_schema_mode: canonicalBaseline ? "ratchet" as const : req.canonical_schema ? "strict" as const : "disabled" as const,
+    canonical_schema_baseline: o.canonicalBaseline ?? null,
+    canonical_schema_expected_artifacts: canonicalExpected.size,
+    canonical_schema_excluded_migrations: [...canonicalExcludedMigrations].sort(),
+    compatible_missing_schema_artifacts: [...compatibleMissingSchemaArtifacts].sort(),
+    policy_evidence: policyEvidence,
+    effective_policy_digest: policyDigest,
+    d1_query_transport: "rest_batch",
+    d1_query_metrics: d1QueryMetrics,
+    allocated_loaded_shards: allocatedBindings.length,
+    live_shards: bindings.length,
+    quarantined_shards: partition.quarantined.length,
+    quarantine_registry: o.quarantineRegistry,
+    quarantine_registry_checksum: partition.registryChecksum,
+    quarantines: partition.quarantined,
+    classified: reports.length,
+    summary,
+    shards: reports,
+    attestation_publication: publication,
+  }
+
   await mkdir(dirname(o.manifest), { recursive: true })
-  await writeFile(
-    o.manifest,
-    `${JSON.stringify(
-      {
-        fleet,
-        shard_worker_id: shardWorkerId,
-        requirements_version: req.version,
-        requirements_file: o.requirements,
-        shard_config: o.wranglerConfig,
-        features_checked: o.features,
-        required_migrations: requiredSet,
-        feature_migrations: featureRequired,
-        canonical_schema_checked: Boolean(req.canonical_schema),
-        canonical_schema_mode: canonicalBaseline ? "ratchet" : req.canonical_schema ? "strict" : "disabled",
-        canonical_schema_baseline: o.canonicalBaseline ?? null,
-        canonical_schema_expected_artifacts: canonicalExpected.size,
-        canonical_schema_excluded_migrations: [...canonicalExcludedMigrations].sort(),
-        compatible_missing_schema_artifacts: [...compatibleMissingSchemaArtifacts].sort(),
-        policy_evidence: policyEvidence,
-        effective_policy_digest: policyDigest,
-        d1_query_transport: "rest_batch",
-        d1_query_metrics: d1QueryMetrics,
-        allocated_loaded_shards: allocatedBindings.length,
-        live_shards: bindings.length,
-        quarantined_shards: partition.quarantined.length,
-        quarantine_registry: o.quarantineRegistry,
-        quarantine_registry_checksum: partition.registryChecksum,
-        quarantines: partition.quarantined,
-        classified: reports.length,
-        summary,
-        shards: reports,
-      },
-      null,
-      2,
-    )}\n`,
-  )
+  const writeManifest = () => writeFile(o.manifest, `${JSON.stringify(manifest, null, 2)}\n`)
+  await writeManifest()
+
+  if (o.publishAttestations) {
+    const validated = validateManifest(manifest, o.manifest)
+    const verifiedAt = new Date().toISOString()
+    const rows = reports.map((report) => candidateARow(report, validated, {
+      shardWorkerId,
+      communityId: report.community_id,
+      poolVersion: report.pool_version,
+      runId: writerRunId,
+      verifiedAt,
+      policyDigest,
+    }))
+    await publishPoolAttestations({
+      rows,
+      run: (statements) => d1QueryBatch(client, pool, statements),
+    })
+    publication.published = reports.length
+    publication.status = "published"
+    await writeManifest()
+  }
 
   console.log(`fleet=${o.prod ? "PRODUCTION" : "staging"}  allocated+loaded=${allocatedBindings.length}  live=${bindings.length}  quarantined=${partition.quarantined.length}`)
   console.log(`required (unconditional): ${req.unconditional.join(", ")}`)
@@ -1161,6 +1222,7 @@ async function main() {
   )
   console.log(`D1 REST query metrics: ${JSON.stringify(d1QueryMetrics)}`)
   console.log(`manifest: ${o.manifest}`)
+  console.log(`attestation publication: ${o.publishAttestations ? `published ${reports.length} generation-fenced verdict(s)` : "disabled"}`)
 
   // Every live shard must be classified. An unclassified shard is not a pass.
   if (reports.length !== bindings.length) {
