@@ -13,7 +13,7 @@ import {
   phase0LegacyManifestPolicyEvidence,
   stableJson,
   statusFromCandidateA,
-  validateManifest,
+  validatePhase0LegacyManifest,
   type PolicyVerdictRow,
   type SchemaManifest,
 } from "./lib/schema-attestation-proof"
@@ -122,7 +122,7 @@ async function main() {
   const findings: string[] = []
   for (const input of options.inputs) {
     const raw = JSON.parse(await readFile(input.manifest, "utf8"))
-    const manifest = compactManifest(validateManifest(raw, input.manifest))
+    const manifest = compactManifest(validatePhase0LegacyManifest(raw, input.manifest))
     const runId = `phase0:${manifest.fleet}:${digest(manifest).slice(0, 12)}`
     const legacyEvidence = phase0LegacyManifestPolicyEvidence(manifest)
     const replayPolicyDigest = digest(legacyEvidence)
@@ -188,7 +188,7 @@ async function main() {
     `## Findings\n\n${findings.join("\n")}\n\n` +
     `Candidate A is selected. Its row size is fixed and bounded (Candidate B is smaller for the sparse staging fixture but grows with recorded inventory drift, as the production fixture shows), it preserves every current status through the bounded verdict code, and it makes policy changes fail closed by digest. Candidate B is retained only as the byte-size comparison; the current manifest does not contain enough raw ledger/checksum observations to make Candidate B safely re-evaluate arbitrary future policy.\n\n` +
     `## Blocking evidence gap found by the spike\n\n` +
-    `Current schema-gate manifests do not record the source-content digests required for a trusted effective-policy identity: requirements content, migration names+checksums, effective classifications, canonical expected inventory, canonical baseline profiles, and known-drift policy. The replay fixtures use visibly invalid \`phase0-legacy:*\` placeholders for sizing only. Phase 2 must add all six SHA-256 fields, and publishers/readers must reject a placeholder, missing field, unknown format, or non-SHA-256 value. Likewise, the manifest's missing-artifact arrays are sufficient for status replay but not authoritative schema/ledger fingerprints; those three proof digests must be computed from the raw verifier observations before publication.\n\n` +
+    `The Phase 0 fixtures predate trusted policy identity and retain visibly invalid \`phase0-legacy:*\` placeholders for local sizing only. Phase 2 adds six SHA-256 fields to newly published schema-gate manifests: requirements content, migration names+checksums, effective classifications, canonical expected inventory, canonical baseline profiles, and known-drift policy. The activation-capable reader rejects a placeholder, missing field, unknown format, non-SHA-256 value, or aggregate digest mismatch; the legacy reader is confined to the local Phase 0 replay. This closes the policy-content evidence gap but does not activate the release fast path. The manifest's missing-artifact arrays remain insufficient as authoritative per-shard schema/ledger fingerprints; those three proof digests must be computed from raw verifier observations in a later publisher phase.\n\n` +
     `A release performs one aggregate query per shard-owned D1_POOL and combines all pool results fail closed. This is the multi-pool-safe interpretation of the original one-query goal; a single D1 query cannot span independent pool databases. Pool identity is part of every proof key.\n\n` +
     `The proof state machine uses only invalid and verified. The proposed verifying state is removed because Phase 0 found no owner or safety property that requires it.\n\n` +
     `## Proposed DDL\n\n\`\`\`sql\n${PROPOSED_LEDGER_DDL}\n\`\`\`\n`
