@@ -9,12 +9,15 @@ import {
   buildFleetExpectations,
   classifyShardClosure,
   columnProbeSql,
+  DELETED_TEMPLATE_MIGRATIONS,
+  diffShardLedger,
   FLEET_CLOSURE_EXCEPTIONS,
   fleetClosed,
   LEDGER_DUMP_SQL,
   probedTables,
   SCHEMA_OBJECTS_SQL,
   snapshotFromRows,
+  type DeletedMigrationRecord,
   type FleetClosureException,
   type MigrationExpectation,
   type ShardSchemaSnapshot,
@@ -28,15 +31,21 @@ const KARAOKE_ENABLED = "1096_community_karaoke_enabled.sql"
 const KARAOKE_POLICY = "1098_community_karaoke_scoring_policy.sql"
 const THREAD_LOCKS_STUB = "1064_thread_comment_locks.sql"
 const POST_LOCKS_STUB = "1080_post_comment_locks.sql"
+const DELETED_ALLOCATION_LEGS = "1097_purchase_allocation_legs_performer.sql"
 
 let expectations: MigrationExpectation[]
+let templateMigrations: ReadonlySet<string>
+let deletedMigrations: readonly DeletedMigrationRecord[]
 let tables: string[]
 
 beforeAll(async () => {
-  expectations = (await buildFleetExpectations({
+  const built = await buildFleetExpectations({
     migrationsDir: MIGRATIONS_DIR,
     driftPolicyPath: DRIFT_POLICY,
-  })).expectations
+  })
+  expectations = built.expectations
+  templateMigrations = built.templateMigrations
+  deletedMigrations = built.deletedMigrations
   tables = probedTables(expectations)
 })
 
@@ -314,13 +323,21 @@ describe("auditFleetClosure — shard buckets", () => {
     try {
       const report = await auditFleetClosure({
         expectations,
+        templateMigrations,
+        deletedMigrations,
         live,
         quarantined: [],
         missingFromConfig: [],
         probe: probeDb(db),
         concurrency: 4,
       })
-      expect(report.live).toEqual([{ binding: "DB_CMTY_0001", database_name: live[0].name, bucket: "ok", gaps: [] }])
+      expect(report.live).toEqual([{
+        binding: "DB_CMTY_0001",
+        database_name: live[0].name,
+        bucket: "ok",
+        gaps: [],
+        ledgerEntries: [],
+      }])
       expect(fleetClosed(report)).toBe(true)
     } finally {
       db.close()
@@ -332,6 +349,8 @@ describe("auditFleetClosure — shard buckets", () => {
     try {
       const report = await auditFleetClosure({
         expectations,
+        templateMigrations,
+        deletedMigrations,
         live,
         quarantined: [],
         missingFromConfig: [],
@@ -351,6 +370,8 @@ describe("auditFleetClosure — shard buckets", () => {
   test("a shard whose probe throws is unreachable, never silently ok", async () => {
     const report = await auditFleetClosure({
       expectations,
+      templateMigrations,
+      deletedMigrations,
       live,
       quarantined: [],
       missingFromConfig: [],
@@ -370,6 +391,8 @@ describe("auditFleetClosure — shard buckets", () => {
     try {
       const report = await auditFleetClosure({
         expectations,
+        templateMigrations,
+        deletedMigrations,
         live,
         quarantined,
         missingFromConfig: [],
@@ -395,6 +418,8 @@ describe("auditFleetClosure — shard buckets", () => {
     try {
       const report = await auditFleetClosure({
         expectations,
+        templateMigrations,
+        deletedMigrations,
         live,
         quarantined: [],
         missingFromConfig: ["DB_CMTY_0999"],
@@ -406,5 +431,130 @@ describe("auditFleetClosure — shard buckets", () => {
     } finally {
       db.close()
     }
+  })
+})
+
+function insertLedgerRow(db: Database, migration: string, checksum = "f".repeat(64)): void {
+  db.prepare(
+    "INSERT INTO schema_migrations (migration_name, migration_label, checksum) VALUES (?, 'community-template', ?)",
+  ).run(migration, checksum)
+}
+
+describe("deleted-migrations registry — the shard-to-template direction of closure", () => {
+  test("the registry documents 1097 with its provenance, and the file is really gone", () => {
+    expect(DELETED_TEMPLATE_MIGRATIONS.map((record) => record.migration)).toEqual([
+      DELETED_ALLOCATION_LEGS,
+    ])
+    const record = DELETED_TEMPLATE_MIGRATIONS[0]
+    // Added 2026-06-22 in 062e750 on the pre-cutover branches; never merged to
+    // main, so no deletion commit exists — the field documents that instead.
+    expect(record.deleted_in).toContain("062e750")
+    expect(record.reason).toContain("062e750")
+    expect(record.reason.trim().length).toBeGreaterThan(0)
+    expect(readdirSync(MIGRATIONS_DIR)).not.toContain(DELETED_ALLOCATION_LEGS)
+  })
+
+  test("a shard carrying the registered 1097 row is acknowledged, still ok, still closed", async () => {
+    const db = buildShardDb()
+    insertLedgerRow(db, DELETED_ALLOCATION_LEGS)
+    try {
+      const notes = diffShardLedger(await probeDb(db)(), templateMigrations, deletedMigrations)
+      expect(notes).toEqual([{
+        migration: DELETED_ALLOCATION_LEGS,
+        status: "acknowledged_deleted",
+        detail: expect.stringContaining("062e750"),
+      }])
+
+      const report = await auditFleetClosure({
+        expectations,
+        templateMigrations,
+        deletedMigrations,
+        live: [{ binding: "DB_CMTY_0077", name: "community-d1-pool-0077-prod" }],
+        quarantined: [],
+        missingFromConfig: [],
+        probe: probeDb(db),
+        concurrency: 4,
+      })
+      expect(report.live[0].bucket).toBe("ok")
+      expect(report.live[0].gaps).toEqual([])
+      expect(report.live[0].ledgerEntries[0]?.status).toBe("acknowledged_deleted")
+      expect(fleetClosed(report)).toBe(true)
+    } finally {
+      db.close()
+    }
+  })
+
+  test("a shard carrying an UNREGISTERED deleted migration is flagged and fails closure", async () => {
+    const db = buildShardDb()
+    insertLedgerRow(db, "9999_phantom_migration.sql")
+    try {
+      const notes = diffShardLedger(await probeDb(db)(), templateMigrations, deletedMigrations)
+      expect(notes.length).toBe(1)
+      expect(notes[0].migration).toBe("9999_phantom_migration.sql")
+      expect(notes[0].status).toBe("unknown_ledger_entry")
+
+      const report = await auditFleetClosure({
+        expectations,
+        templateMigrations,
+        deletedMigrations,
+        live: [{ binding: "DB_CMTY_0077", name: "community-d1-pool-0077-prod" }],
+        quarantined: [],
+        missingFromConfig: [],
+        probe: probeDb(db),
+        concurrency: 4,
+      })
+      expect(report.live[0].bucket).toBe("gaps")
+      expect(fleetClosed(report)).toBe(false)
+    } finally {
+      db.close()
+    }
+  })
+
+  test("ledger rows for exception migrations (snapshot-provisioned shards) are not unknown", () => {
+    // Shards provisioned from the api schema snapshot legitimately carry ledger
+    // rows for 1116/1122 — the template set for the shard->template diff is the
+    // whole dir, exceptions included.
+    const snapshot: ShardSchemaSnapshot = {
+      ledger: new Map([
+        ["1116_buyer_funding_tx_single_use.sql", "a".repeat(64)],
+        ["1122_live_room_audience_gates.sql", "b".repeat(64)],
+      ]),
+      tables: new Set(),
+      indexes: new Set(),
+      columns: new Map(),
+    }
+    expect(templateMigrations.has("1116_buyer_funding_tx_single_use.sql")).toBe(true)
+    expect(diffShardLedger(snapshot, templateMigrations, deletedMigrations)).toEqual([])
+  })
+
+  test("fail-closed rot guard: a registry entry whose file exists in the template dir is an error", async () => {
+    const restored: DeletedMigrationRecord = {
+      migration: KARAOKE_ENABLED,
+      reason: "test",
+      deleted_in: "0000000",
+      approved_at: "2026-08-03T00:00:00Z",
+      review_after: "2026-09-02T00:00:00Z",
+      expires_at: "2026-11-01T00:00:00Z",
+    }
+    await expect(buildFleetExpectations({ migrationsDir: MIGRATIONS_DIR, deletedMigrations: [restored] }))
+      .rejects.toThrow("must leave the registry")
+  })
+
+  test("fail-closed expiry: an expired registry entry is an error, not silent tolerance", async () => {
+    const expired: DeletedMigrationRecord = {
+      migration: DELETED_ALLOCATION_LEGS,
+      reason: "test",
+      deleted_in: "never merged to main; last carried by 062e750",
+      approved_at: "2026-01-01T00:00:00Z",
+      review_after: "2026-02-01T00:00:00Z",
+      expires_at: "2026-03-01T00:00:00Z",
+    }
+    await expect(
+      buildFleetExpectations({
+        migrationsDir: MIGRATIONS_DIR,
+        deletedMigrations: [expired],
+        now: Date.parse("2026-08-03T00:00:00Z"),
+      }),
+    ).rejects.toThrow("expired")
   })
 })

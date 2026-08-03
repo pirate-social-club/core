@@ -54,6 +54,17 @@
  * documented oldChecksum in db/known-community-migration-drifts.json whose
  * newChecksum pins the current bytes (check:migrations enforces that pin).
  *
+ * Two directions of closure
+ * -------------------------
+ * Template -> shard: every template migration is present on every shard (above).
+ * Shard -> template: every ledger row on a shard names a file that still exists
+ * in the template dir, or sits in the deleted-migrations registry below. A row
+ * naming neither is an unknown_ledger_entry and FAILS the audit — otherwise a
+ * deleted migration (1097_purchase_allocation_legs_performer.sql, still ledgered
+ * on shards migrated from the pre-cutover branches, e.g. DB_CMTY_0077) stays a
+ * permanent blind spot in the check built to close blind spots. The registry is
+ * how a deletion becomes a deliberate, reviewed act instead of silent tolerance.
+ *
  * Exceptions
  * ----------
  * Migrations NO active shard is expected to carry are an explicit in-code list
@@ -72,8 +83,9 @@
  * - READ-ONLY. There is no --execute and no resume file: only a full pass over
  *   the whole fleet means anything, so every run IS a full pass.
  *
- * Exit code: 0 = every live allocated shard carries every non-exempt migration;
- * 1 = gaps, unreachable shards, config drift, or any other error.
+ * Exit code: 0 = every live allocated shard carries every non-exempt migration
+ * and every ledger row is explained; 1 = gaps, unknown ledger entries,
+ * unreachable shards, config drift, or any other error.
  */
 
 import { createHash } from "node:crypto"
@@ -122,6 +134,49 @@ export const FLEET_CLOSURE_EXCEPTIONS: readonly FleetClosureException[] = [
   },
 ]
 
+/**
+ * A migration file that no longer exists in the template dir but may legitimately
+ * still appear in shard LEDGERS. `deleted_in` is the commit that removed it from
+ * the template — or, when the file never landed on main at all, a note saying so
+ * plus the commit that last carried it.
+ */
+export type DeletedMigrationRecord = {
+  migration: string
+  reason: string
+  deleted_in: string
+  approved_at: string
+  review_after: string
+  expires_at: string
+}
+
+/**
+ * Deleted-migration registry — the shard->template direction of closure. A shard
+ * ledger row naming a file that is in NEITHER the template dir NOR this registry
+ * is an unknown_ledger_entry and fails the audit; a row naming a registered file
+ * is reported as acknowledged, not as a failure.
+ *
+ * Same fail-closed discipline as FLEET_CLOSURE_EXCEPTIONS: an entry whose file
+ * RE-APPEARS in the template dir is an error (a restored file must leave the
+ * registry and return to normal template expectations), and an expired entry is
+ * an error, so the registry can never rot into silent tolerance.
+ */
+export const DELETED_TEMPLATE_MIGRATIONS: readonly DeletedMigrationRecord[] = [
+  {
+    migration: "1097_purchase_allocation_legs_performer.sql",
+    reason:
+      "Added 2026-06-22 in 062e750 on the pre-cutover branches; the 2026-07-04 restore to main (#63) " +
+      "brought back 1095/1096/1098 but deliberately not 1097. Shards migrated during that window " +
+      "(e.g. DB_CMTY_0077) retain the ledger row.",
+    // There is no deletion commit: `git log --diff-filter=D` over the template dir
+    // is empty across all refs — the file never landed on main, so main never
+    // deleted it.
+    deleted_in: "never merged to main; last carried by 062e750",
+    approved_at: "2026-08-03T00:00:00Z",
+    review_after: "2026-09-02T00:00:00Z",
+    expires_at: "2026-11-01T00:00:00Z",
+  },
+]
+
 export type MigrationExpectation = {
   migration: string
   /** sha256 of the current file bytes. */
@@ -142,13 +197,13 @@ export type MigrationExpectation = {
   attestable: boolean
 }
 
-function instant(value: string, field: string, migration: string): number {
+function instant(value: string, field: string, owner: string): number {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T/.test(value)) {
-    throw new Error(`set-closure exception ${migration}: ${field} must be an ISO-8601 timestamp`)
+    throw new Error(`${owner}: ${field} must be an ISO-8601 timestamp`)
   }
   const parsed = Date.parse(value)
   if (!Number.isFinite(parsed)) {
-    throw new Error(`set-closure exception ${migration}: ${field} is invalid`)
+    throw new Error(`${owner}: ${field} is invalid`)
   }
   return parsed
 }
@@ -162,10 +217,14 @@ export async function buildFleetExpectations(input: {
   migrationsDir: string
   driftPolicyPath?: string
   exceptions?: readonly FleetClosureException[]
+  deletedMigrations?: readonly DeletedMigrationRecord[]
   now?: number
 }): Promise<{
   expectations: MigrationExpectation[]
   exceptions: readonly FleetClosureException[]
+  deletedMigrations: readonly DeletedMigrationRecord[]
+  /** Every file currently in the template dir, exceptions included. */
+  templateMigrations: ReadonlySet<string>
 }> {
   const now = input.now ?? Date.now()
   const exceptions = input.exceptions ?? FLEET_CLOSURE_EXCEPTIONS
@@ -188,9 +247,9 @@ export async function buildFleetExpectations(input: {
     if (typeof exception.reason !== "string" || !exception.reason.trim()) {
       throw new Error(`set-closure exception ${exception.migration}: reason is required`)
     }
-    const approved = instant(exception.approved_at, "approved_at", exception.migration)
-    const review = instant(exception.review_after, "review_after", exception.migration)
-    const expires = instant(exception.expires_at, "expires_at", exception.migration)
+    const approved = instant(exception.approved_at, "approved_at", `set-closure exception ${exception.migration}`)
+    const review = instant(exception.review_after, "review_after", `set-closure exception ${exception.migration}`)
+    const expires = instant(exception.expires_at, "expires_at", `set-closure exception ${exception.migration}`)
     if (!(approved <= review && review < expires)) {
       throw new Error(`set-closure exception ${exception.migration}: require approved_at <= review_after < expires_at`)
     }
@@ -200,6 +259,37 @@ export async function buildFleetExpectations(input: {
       )
     }
     exempt.add(exception.migration)
+  }
+
+  const deletedMigrations = input.deletedMigrations ?? DELETED_TEMPLATE_MIGRATIONS
+  const deletedSeen = new Set<string>()
+  for (const record of deletedMigrations) {
+    const owner = `deleted-migration registry entry ${record.migration}`
+    if (deletedSeen.has(record.migration)) {
+      throw new Error(`duplicate ${owner}`)
+    }
+    deletedSeen.add(record.migration)
+    if (names.has(record.migration)) {
+      throw new Error(
+        `${owner} exists in ${input.migrationsDir} — ` +
+          "a restored file must leave the registry and return to normal template expectations",
+      )
+    }
+    if (typeof record.reason !== "string" || !record.reason.trim()) {
+      throw new Error(`${owner}: reason is required`)
+    }
+    if (typeof record.deleted_in !== "string" || !record.deleted_in.trim()) {
+      throw new Error(`${owner}: deleted_in (commit or documented note) is required`)
+    }
+    const approved = instant(record.approved_at, "approved_at", owner)
+    const review = instant(record.review_after, "review_after", owner)
+    const expires = instant(record.expires_at, "expires_at", owner)
+    if (!(approved <= review && review < expires)) {
+      throw new Error(`${owner}: require approved_at <= review_after < expires_at`)
+    }
+    if (expires <= now) {
+      throw new Error(`${owner} expired at ${record.expires_at}; renew or remove it explicitly`)
+    }
   }
 
   // Documented alternate ledger checksums. An oldChecksum is accepted only when
@@ -265,7 +355,7 @@ export async function buildFleetExpectations(input: {
       attestable: derived.unrecognized.length === 0,
     })
   }
-  return { expectations, exceptions }
+  return { expectations, exceptions, deletedMigrations, templateMigrations: names }
 }
 
 /** Tables the audit must read column lists for: everything an attestable migration ALTERs. */
@@ -421,11 +511,52 @@ export function classifyShardClosure(
   return gaps
 }
 
+export type LedgerEntryNote = {
+  migration: string
+  status: "acknowledged_deleted" | "unknown_ledger_entry"
+  detail: string
+}
+
+/**
+ * The shard->template direction of closure: ledger rows naming migration files
+ * that no longer exist in the template dir. Rows named in the deleted-migrations
+ * registry are acknowledged (a reviewed deletion); anything else is an
+ * unknown_ledger_entry and fails closure.
+ */
+export function diffShardLedger(
+  snapshot: ShardSchemaSnapshot,
+  templateMigrations: ReadonlySet<string>,
+  deletedMigrations: readonly DeletedMigrationRecord[],
+): LedgerEntryNote[] {
+  const deleted = new Map(deletedMigrations.map((record) => [record.migration, record]))
+  const notes: LedgerEntryNote[] = []
+  for (const name of snapshot.ledger.keys()) {
+    if (templateMigrations.has(name)) continue
+    const record = deleted.get(name)
+    notes.push(
+      record
+        ? {
+            migration: name,
+            status: "acknowledged_deleted",
+            detail: `ledger row retained for a migration deleted from the template (${record.deleted_in})`,
+          }
+        : {
+            migration: name,
+            status: "unknown_ledger_entry",
+            detail: "ledger row names a migration absent from both the template dir and the deleted-migrations registry",
+          },
+    )
+  }
+  return notes.sort((a, b) => a.migration.localeCompare(b.migration))
+}
+
 export type ShardClosureReport = {
   binding: string
   database_name: string
   bucket: "ok" | "gaps" | "unreachable"
   gaps: MigrationGap[]
+  /** Shard->template findings: acknowledged deletions and unknown ledger entries. */
+  ledgerEntries: LedgerEntryNote[]
   detail?: string
 }
 
@@ -439,6 +570,8 @@ export type FleetClosureReport = {
 
 export async function auditFleetClosure(input: {
   expectations: readonly MigrationExpectation[]
+  templateMigrations: ReadonlySet<string>
+  deletedMigrations: readonly DeletedMigrationRecord[]
   live: Array<{ binding: string; name: string }>
   quarantined: Array<{ binding: string; name: string }>
   missingFromConfig: readonly string[]
@@ -456,11 +589,14 @@ export async function auditFleetClosure(input: {
         try {
           const snapshot = await input.probe(target.name)
           const gaps = classifyShardClosure(input.expectations, snapshot)
+          const ledgerEntries = diffShardLedger(snapshot, input.templateMigrations, input.deletedMigrations)
+          const unknown = ledgerEntries.some((entry) => entry.status === "unknown_ledger_entry")
           results.push({
             binding: target.binding,
             database_name: target.name,
-            bucket: gaps.length > 0 ? "gaps" : "ok",
+            bucket: gaps.length > 0 || unknown ? "gaps" : "ok",
             gaps,
+            ledgerEntries,
           })
         } catch (error) {
           results.push({
@@ -468,6 +604,7 @@ export async function auditFleetClosure(input: {
             database_name: target.name,
             bucket: "unreachable",
             gaps: [],
+            ledgerEntries: [],
             detail: error instanceof Error ? error.message : String(error),
           })
         }
@@ -593,6 +730,11 @@ function gapMatrix(reports: ShardClosureReport[]): Array<Record<string, string |
       const key = `${gap.status}:${gap.migration}`
       tally.set(key, (tally.get(key) ?? 0) + 1)
     }
+    for (const entry of report.ledgerEntries) {
+      if (entry.status !== "unknown_ledger_entry") continue
+      const key = `unknown_ledger_entry:${entry.migration}`
+      tally.set(key, (tally.get(key) ?? 0) + 1)
+    }
   }
   return [...tally.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
@@ -600,6 +742,32 @@ function gapMatrix(reports: ShardClosureReport[]): Array<Record<string, string |
       const separator = key.indexOf(":")
       return { status: key.slice(0, separator), migration: key.slice(separator + 1), shards }
     })
+}
+
+function ledgerEntryCounts(reports: ShardClosureReport[]): Record<string, number> {
+  let unknown = 0
+  let acknowledged = 0
+  for (const report of reports) {
+    for (const entry of report.ledgerEntries) {
+      if (entry.status === "unknown_ledger_entry") unknown += 1
+      else acknowledged += 1
+    }
+  }
+  return { unknown_ledger_entries: unknown, acknowledged_deleted: acknowledged }
+}
+
+function printLedgerEntries(title: string, reports: ShardClosureReport[]): void {
+  const withEntries = reports.filter((r) => r.ledgerEntries.length > 0)
+  if (withEntries.length === 0) return
+  console.log(`\n${title}:`)
+  for (const report of withEntries) {
+    for (const entry of report.ledgerEntries) {
+      console.log(
+        `  ${report.database_name} [${report.binding}] ` +
+          `${entry.status === "unknown_ledger_entry" ? "UNKNOWN" : "acknowledged"}: ${entry.migration} — ${entry.detail}`,
+      )
+    }
+  }
 }
 
 function printSection(title: string, reports: ShardClosureReport[]): void {
@@ -620,7 +788,7 @@ function printSection(title: string, reports: ShardClosureReport[]): void {
 
 async function main(scriptPath: string): Promise<void> {
   const options = parseArgs(scriptPath)
-  const { expectations, exceptions } = await buildFleetExpectations({
+  const { expectations, exceptions, deletedMigrations, templateMigrations } = await buildFleetExpectations({
     migrationsDir: options.migrationsDir,
     driftPolicyPath: options.driftPolicy,
   })
@@ -675,10 +843,14 @@ async function main(scriptPath: string): Promise<void> {
   console.log(
     `fleet=${options.prod ? "PRODUCTION" : "staging"}  template files: ${expectations.length} expected ` +
       `(${expectations.filter((e) => e.attestable).length} object-attested, ` +
-      `${expectations.filter((e) => !e.attestable).length} ledger-only), ${exceptions.length} documented exception(s)`,
+      `${expectations.filter((e) => !e.attestable).length} ledger-only), ${exceptions.length} documented exception(s), ` +
+      `${deletedMigrations.length} acknowledged deletion(s)`,
   )
   for (const exception of exceptions) {
     console.log(`  exception: ${exception.migration} — ${exception.reason} (review ${exception.review_after})`)
+  }
+  for (const record of deletedMigrations) {
+    console.log(`  deleted migration: ${record.migration} — ${record.reason} (review ${record.review_after})`)
   }
   console.log(
     `allocated+loaded: ${allocatedBindings.length}  live: ${live.length}  quarantined: ${quarantined.length}` +
@@ -687,6 +859,8 @@ async function main(scriptPath: string): Promise<void> {
 
   const report = await auditFleetClosure({
     expectations,
+    templateMigrations,
+    deletedMigrations,
     live,
     quarantined,
     missingFromConfig,
@@ -698,13 +872,15 @@ async function main(scriptPath: string): Promise<void> {
     console.log(`  ${r.database_name.padEnd(34)} ok`)
   }
   printSection("LIVE shards with gaps or errors", report.live)
+  printLedgerEntries("Shard ledger rows naming files absent from the template (live fleet)", report.live)
   printSection("Quarantined shards (reported separately; do not decide closure)", report.quarantined)
+  printLedgerEntries("Shard ledger rows naming files absent from the template (quarantined)", report.quarantined)
   for (const missing of report.missingFromConfig) {
     console.error(`  ${missing.binding}: ${missing.detail}`)
   }
 
-  const liveSummary = bucketCounts(report.live)
-  const quarantinedSummary = bucketCounts(report.quarantined)
+  const liveSummary = { ...bucketCounts(report.live), ...ledgerEntryCounts(report.live) }
+  const quarantinedSummary = { ...bucketCounts(report.quarantined), ...ledgerEntryCounts(report.quarantined) }
   const matrix = gapMatrix(report.live)
   if (matrix.length > 0) {
     console.log("\nper-migration gap matrix (live fleet):")
@@ -728,6 +904,7 @@ async function main(scriptPath: string): Promise<void> {
           attestable: e.attestable,
         })),
         exceptions,
+        deleted_migrations: deletedMigrations,
         shard_config: options.wranglerConfig,
         pool_db: options.poolDb,
         allocated_loaded_shards: allocatedBindings.length,
@@ -753,10 +930,11 @@ async function main(scriptPath: string): Promise<void> {
 
   if (!fleetClosed(report)) {
     console.error(
-      "\nFLEET NOT CLOSED: live shards have gaps, are unreachable, or are missing from the shard config. " +
-        "The catch-up path for a skipped contiguous block is a per-migration apply script " +
-        "(e.g. apply-karaoke-policy-columns-d1-migration.ts); investigate ledger_without_objects " +
-        "and checksum_mismatch by hand — never paper over them.",
+      "\nFLEET NOT CLOSED: live shards have gaps, unknown ledger entries, are unreachable, or are missing " +
+        "from the shard config. The catch-up path for a skipped contiguous block is a per-migration apply " +
+        "script (e.g. apply-karaoke-policy-columns-d1-migration.ts); investigate ledger_without_objects, " +
+        "checksum_mismatch, and unknown_ledger_entry by hand — never paper over them. A ledger row for a " +
+        "genuinely deleted migration belongs in DELETED_TEMPLATE_MIGRATIONS with a reason and a review date.",
     )
     process.exit(1)
   }
