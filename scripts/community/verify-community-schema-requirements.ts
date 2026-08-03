@@ -228,6 +228,8 @@ const SATISFIED: ShardStatus = "satisfied"
 type ShardReport = {
   binding: string
   database_name: string
+  community_id?: string
+  pool_version?: number
   status: ShardStatus
   missing: string[]
   canonical_missing?: string[]
@@ -567,6 +569,16 @@ export function databaseTargetsFromWranglerConfig(
   return targets
 }
 
+function shardWorkerIdFromWranglerConfig(raw: unknown, prod: boolean, source: string): string {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error(`${source}: expected an object`)
+  const config = raw as { name?: unknown; env?: Record<string, { name?: unknown }> }
+  const name = prod ? config.env?.production?.name : config.name
+  if (typeof name !== "string" || !name.trim()) {
+    throw new Error(`${source}: selected environment is missing a shard Worker name`)
+  }
+  return name.trim()
+}
+
 function boundedDetail(value: string): string {
   return value.length > 2_000 ? `${value.slice(0, 2_000)}…` : value
 }
@@ -739,15 +751,28 @@ export async function probeShard(
 }
 
 /** The pool is authoritative for which shards are LIVE — not a prior artifact. */
-async function liveBindings(client: D1RestClient, pool: D1DatabaseTarget): Promise<string[]> {
+type LivePoolBinding = {
+  binding_name: string
+  community_id: string
+  version: number
+}
+
+/** Capture allocation identity in the same roster read that defines the scan.
+ * A later publisher must match all three values before it writes a verdict. */
+async function liveBindings(client: D1RestClient, pool: D1DatabaseTarget): Promise<LivePoolBinding[]> {
   const results = await d1QueryBatch(client, pool, [
-    "SELECT binding_name FROM d1_pool WHERE community_id IS NOT NULL AND last_loaded_at IS NOT NULL ORDER BY binding_name",
+    "SELECT binding_name, community_id, version FROM d1_pool WHERE community_id IS NOT NULL AND last_loaded_at IS NOT NULL ORDER BY binding_name",
   ])
-  const rows = queryResultRows<{ binding_name: string }>(results[0], "live shard pool query")
+  const rows = queryResultRows<LivePoolBinding>(results[0], "live shard pool query")
   if (rows.length === 0) {
     throw new Error(`${pool.name} reported ZERO live shards. That is a broken view of the fleet, not a pass.`)
   }
-  return rows.map((r) => r.binding_name)
+  for (const row of rows) {
+    if (!row.binding_name || !row.community_id || !Number.isInteger(row.version) || row.version < 0) {
+      throw new Error(`${pool.name} returned an invalid live shard allocation row`)
+    }
+  }
+  return rows
 }
 
 async function main() {
@@ -903,11 +928,15 @@ async function main() {
     metrics: d1QueryMetrics,
   }
   const raw = (await readFile(o.wranglerConfig, "utf8")).replace(/^\s*\/\/.*$/gm, "")
-  const targets = databaseTargetsFromWranglerConfig(JSON.parse(raw), o.prod, o.wranglerConfig)
+  const wranglerConfig = JSON.parse(raw)
+  const shardWorkerId = shardWorkerIdFromWranglerConfig(wranglerConfig, o.prod, o.wranglerConfig)
+  const targets = databaseTargetsFromWranglerConfig(wranglerConfig, o.prod, o.wranglerConfig)
   const pool = targets.get("D1_POOL")
   if (!pool) throw new Error(`${o.wranglerConfig}: selected environment is missing D1_POOL`)
 
-  const allocatedBindings = await liveBindings(client, pool)
+  const livePoolBindings = await liveBindings(client, pool)
+  const allocatedBindings = livePoolBindings.map((row) => row.binding_name)
+  const allocationByBinding = new Map(livePoolBindings.map((row) => [row.binding_name, row]))
   const partition = await partitionQuarantinedBindings(
     o.quarantineRegistry,
     o.prod ? "production" : "staging",
@@ -924,8 +953,10 @@ async function main() {
   }
   if (bindings.length === 0) throw new Error("quarantine policy leaves ZERO live shards; refusing to pass the release gate")
   const reports: ShardReport[] = []
-  const shardTargets: Array<{ binding: string; database: D1DatabaseTarget }> = []
+  const shardTargets: Array<{ binding: string; database: D1DatabaseTarget; allocation: LivePoolBinding }> = []
   for (const b of bindings) {
+    const allocation = allocationByBinding.get(b)
+    if (!allocation) throw new Error(`live shard ${b} disappeared from its allocation roster`)
     const database = targets.get(b)
     if (!database) {
       // A live shard the config does not know about means our config is stale.
@@ -933,6 +964,8 @@ async function main() {
       reports.push({
         binding: b,
         database_name: "(absent from shard config)",
+        community_id: allocation.community_id,
+        pool_version: allocation.version,
         status: "missing_from_config",
         missing: requiredSet,
         detail: `live in the pool but absent from ${o.wranglerConfig} — the config is stale`,
@@ -940,7 +973,7 @@ async function main() {
       })
       continue
     }
-    shardTargets.push({ binding: b, database })
+    shardTargets.push({ binding: b, database, allocation })
   }
 
   // ONE HTTP request per shard in the healthy path. The migration probe and
@@ -949,7 +982,7 @@ async function main() {
   let idx = 0
   async function worker() {
     while (idx < shardTargets.length) {
-      const { binding, database } = shardTargets[idx++]
+      const { binding, database, allocation } = shardTargets[idx++]
       try {
         const probe = await probeShard(
           requiredSet,
@@ -1035,6 +1068,8 @@ async function main() {
           reports.push({
             binding,
             database_name: database.name,
+            community_id: allocation.community_id,
+            pool_version: allocation.version,
             status,
             missing,
             canonical_missing: canonicalMissing,
@@ -1047,6 +1082,8 @@ async function main() {
         reports.push({
           binding,
           database_name: database.name,
+          community_id: allocation.community_id,
+          pool_version: allocation.version,
           status,
           missing,
           observation_proof: observationProof,
@@ -1056,6 +1093,8 @@ async function main() {
         reports.push({
           binding,
           database_name: database.name,
+          community_id: allocation.community_id,
+          pool_version: allocation.version,
           status: "error",
           missing: requiredSet,
           detail: error instanceof Error ? error.message : String(error),
@@ -1079,6 +1118,7 @@ async function main() {
     `${JSON.stringify(
       {
         fleet,
+        shard_worker_id: shardWorkerId,
         requirements_version: req.version,
         requirements_file: o.requirements,
         shard_config: o.wranglerConfig,
