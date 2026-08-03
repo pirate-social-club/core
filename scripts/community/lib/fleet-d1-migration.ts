@@ -321,7 +321,13 @@ export function parseArgs(spec: MigrationSpec, scriptPath: string): Options {
   return options
 }
 
-async function wranglerJson(options: Options, db: string, args: string[]): Promise<any[]> {
+/**
+ * The wrangler d1 execute transport. Exported (with `loadedBindings`/`shardMap`)
+ * so the read-only fleet audit resolves the fleet through the exact same pool
+ * query and binding resolution as a fleet migration — a second implementation
+ * would eventually disagree about which shards are live.
+ */
+export async function wranglerJson(options: Pick<Options, "env" | "cwd">, db: string, args: string[]): Promise<any[]> {
   const cmd = [
     "bunx",
     "wrangler@4.100.0",
@@ -343,7 +349,7 @@ async function wranglerJson(options: Options, db: string, args: string[]): Promi
   return extractWranglerJson(stdout) as any[]
 }
 
-async function loadedBindings(options: Options): Promise<string[]> {
+export async function loadedBindings(options: Pick<Options, "env" | "cwd" | "poolDb">): Promise<string[]> {
   const rows = (
     await wranglerJson(options, options.poolDb, [
       "--command",
@@ -353,7 +359,7 @@ async function loadedBindings(options: Options): Promise<string[]> {
   return rows.map((r) => r.binding_name)
 }
 
-async function shardMap(options: Options): Promise<Map<string, { name: string; id: string }>> {
+export async function shardMap(options: Pick<Options, "wranglerConfig" | "prod">): Promise<Map<string, { name: string; id: string }>> {
   const raw = (await readFile(options.wranglerConfig, "utf8")).replace(/^\s*\/\/.*$/gm, "")
   const config = JSON.parse(raw)
   const entries = options.prod ? config.env.production.d1_databases : config.d1_databases
