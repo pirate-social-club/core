@@ -8,6 +8,8 @@ import {
   evaluatePoolVerdicts,
   digest,
   statusFromCandidateA,
+  shardObservationProof,
+  unavailableShardObservationProof,
   validateManifest,
   type SchemaManifest,
 } from "./lib/schema-attestation-proof"
@@ -40,7 +42,17 @@ function manifest(status: SchemaManifest["shards"][number]["status"] = "satisfie
     quarantines: [],
     classified: 1,
     summary: { [status]: 1 },
-    shards: [{ binding: "DB_CMTY_0001", database_name: "fixture", status, missing: [] }],
+    shards: [{
+      binding: "DB_CMTY_0001",
+      database_name: "fixture",
+      status,
+      missing: [],
+      observation_proof: shardObservationProof({
+        schemaRows: [],
+        migrationLedgerRows: [],
+        canonicalArtifacts: [],
+      }),
+    }],
     policy_evidence,
     effective_policy_digest: effectivePolicyDigest(policy_evidence),
   }
@@ -162,6 +174,50 @@ describe("schema attestation proof", () => {
     })).toThrow("invalid effective policy content evidence")
     expect(() => validateManifest({ ...fixture, effective_policy_digest: digest("wrong") }))
       .toThrow("does not match its six content digests")
+    expect(() => validateManifest({
+      ...fixture,
+      shards: [{ ...fixture.shards[0], observation_proof: undefined }],
+    })).toThrow("missing authoritative per-shard observation evidence")
+    expect(() => validateManifest({
+      ...fixture,
+      shards: [{ ...fixture.shards[0], observation_proof: unavailableShardObservationProof("failed") }],
+    })).toThrow("missing authoritative per-shard observation evidence")
+
+    const failed = manifest("error")
+    failed.shards[0].observation_proof = unavailableShardObservationProof("probe failed")
+    expect(validateManifest(failed).shards[0].observation_proof?.kind).toBe("unavailable")
+  })
+
+  test("raw shard observations produce deterministic, independently sensitive proofs", () => {
+    const input = {
+      schemaRows: [
+        { type: "table" as const, name: "posts", sql: "CREATE TABLE posts (post_id TEXT)" },
+        { type: "index" as const, name: "idx_posts", sql: "CREATE INDEX idx_posts ON posts(post_id)" },
+      ],
+      migrationLedgerRows: [
+        { migration_name: "two.sql", checksum: digest("two") },
+        { migration_name: "one.sql", checksum: digest("one") },
+      ],
+      canonicalArtifacts: ["table:posts", "column:posts.post_id", "index:idx_posts"],
+    }
+    const first = shardObservationProof(input)
+    expect(shardObservationProof({
+      schemaRows: [...input.schemaRows].reverse(),
+      migrationLedgerRows: [...input.migrationLedgerRows].reverse(),
+      canonicalArtifacts: [...input.canonicalArtifacts].reverse(),
+    })).toEqual(first)
+    expect(shardObservationProof({
+      ...input,
+      schemaRows: [{ ...input.schemaRows[0], sql: "CREATE TABLE posts (post_id TEXT, title TEXT)" }],
+    }).schema_fingerprint).not.toBe(first.schema_fingerprint)
+    expect(shardObservationProof({
+      ...input,
+      migrationLedgerRows: [{ migration_name: "one.sql", checksum: digest("changed") }],
+    }).migration_ledger_digest).not.toBe(first.migration_ledger_digest)
+    expect(shardObservationProof({
+      ...input,
+      canonicalArtifacts: ["table:posts"],
+    }).canonical_inventory_digest).not.toBe(first.canonical_inventory_digest)
   })
 
   test("rejects non-content policy identifiers and inconsistent summaries", () => {
@@ -216,6 +272,11 @@ describe("schema attestation proof", () => {
     const changedProfile = candidateARow({
       ...fixture.shards[0],
       canonical_missing: ["column:legacy.missing"],
+      observation_proof: shardObservationProof({
+        schemaRows: [{ type: "table", name: "legacy", sql: "CREATE TABLE legacy (id TEXT)" }],
+        migrationLedgerRows: [],
+        canonicalArtifacts: ["table:legacy", "column:legacy.id"],
+      }),
     }, fixture, {
       shardWorkerId: "worker-a",
       runId: "run-1",
