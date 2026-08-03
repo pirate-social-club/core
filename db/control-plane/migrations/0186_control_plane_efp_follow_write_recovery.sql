@@ -3,8 +3,12 @@
 -- semantic follow action.
 
 ALTER TABLE efp_follow_write_intents
-    ADD COLUMN semantic_attempt_key TEXT,
-    ADD COLUMN sponsorship_budget_date DATE,
+    ADD COLUMN semantic_attempt_key TEXT;
+
+ALTER TABLE efp_follow_write_intents
+    ADD COLUMN sponsorship_budget_date DATE;
+
+ALTER TABLE efp_follow_write_intents
     ADD COLUMN sponsorship_review_after TIMESTAMPTZ;
 
 ALTER TABLE efp_follow_write_intents
