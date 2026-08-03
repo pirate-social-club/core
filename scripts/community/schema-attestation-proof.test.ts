@@ -26,6 +26,7 @@ function manifest(status: SchemaManifest["shards"][number]["status"] = "satisfie
   }
   return {
     fleet: "staging",
+    shard_worker_id: "community-d1-shard-staging",
     requirements_version: 1,
     features_checked: [],
     required_migrations: ["one.sql"],
@@ -45,6 +46,8 @@ function manifest(status: SchemaManifest["shards"][number]["status"] = "satisfie
     shards: [{
       binding: "DB_CMTY_0001",
       database_name: "fixture",
+      community_id: "community-1",
+      pool_version: 7,
       status,
       missing: [],
       observation_proof: shardObservationProof({
@@ -178,6 +181,12 @@ describe("schema attestation proof", () => {
       ...fixture,
       shards: [{ ...fixture.shards[0], observation_proof: undefined }],
     })).toThrow("missing authoritative per-shard observation evidence")
+    expect(() => validateManifest({
+      ...fixture,
+      shards: [{ ...fixture.shards[0], pool_version: undefined }],
+    })).toThrow("missing authoritative per-shard observation evidence")
+    expect(() => validateManifest({ ...fixture, shard_worker_id: undefined }))
+      .toThrow("missing shard worker identity")
     expect(() => validateManifest({
       ...fixture,
       shards: [{ ...fixture.shards[0], observation_proof: unavailableShardObservationProof("failed") }],

@@ -19,6 +19,8 @@ export type ShardStatus = typeof SHARD_STATUSES[number]
 export type ManifestShard = {
   binding: string
   database_name: string
+  community_id?: string
+  pool_version?: number
   status: ShardStatus
   missing: string[]
   canonical_missing?: string[]
@@ -37,6 +39,7 @@ export type ShardObservationProof = {
 
 export type SchemaManifest = {
   fleet: "production" | "staging"
+  shard_worker_id?: string
   requirements_version: number
   features_checked: string[]
   required_migrations: string[]
@@ -365,6 +368,9 @@ export function validateManifest(value: unknown, source = "schema manifest"): Sc
   if (!manifest.policy_evidence || !manifest.effective_policy_digest) {
     throw new Error(`${source}: missing effective policy content evidence`)
   }
+  if (typeof manifest.shard_worker_id !== "string" || !manifest.shard_worker_id.trim()) {
+    throw new Error(`${source}: missing shard worker identity`)
+  }
   let computed: string
   try {
     computed = effectivePolicyDigest(manifest.policy_evidence)
@@ -381,6 +387,10 @@ export function validateManifest(value: unknown, source = "schema manifest"): Sc
       proof?.format_version !== 1
       || (proof.kind !== "raw" && proof.kind !== "unavailable")
       || (shard.status === "satisfied" && proof.kind !== "raw")
+      || typeof shard.community_id !== "string"
+      || !shard.community_id
+      || !Number.isInteger(shard.pool_version)
+      || (shard.pool_version as number) < 0
       || !digests
       || digests.some((value) => !/^[0-9a-f]{64}$/u.test(value))
     ) {
