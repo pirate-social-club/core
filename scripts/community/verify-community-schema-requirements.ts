@@ -55,6 +55,10 @@ import type {
   D1SchemaObjectRow,
 } from "./lib/d1-rest-types"
 import { type Artifacts, artifactCount, expectedArtifacts } from "./community-schema-artifacts"
+import {
+  effectivePolicyDigest,
+  effectivePolicyEvidenceFromContent,
+} from "./lib/schema-attestation-proof"
 
 type Requirements = {
   $comment?: string | string[]
@@ -730,10 +734,14 @@ async function liveBindings(client: D1RestClient, pool: D1DatabaseTarget): Promi
 
 async function main() {
   const o = parseArgs()
-  const req = validateRequirements(JSON.parse(await readFile(o.requirements, "utf8")), o.requirements)
+  const requirementsContent = await readFile(o.requirements, "utf8")
+  const req = validateRequirements(JSON.parse(requirementsContent), o.requirements)
   const fleet = o.prod ? "production" : "staging"
+  const canonicalBaselineContent = o.canonicalBaseline
+    ? await readFile(o.canonicalBaseline, "utf8")
+    : null
   const canonicalBaseline = o.canonicalBaseline
-    ? validateCanonicalSchemaBaseline(JSON.parse(await readFile(o.canonicalBaseline, "utf8")), fleet, o.canonicalBaseline)
+    ? validateCanonicalSchemaBaseline(JSON.parse(canonicalBaselineContent!), fleet, o.canonicalBaseline)
     : undefined
   if (canonicalBaseline && !req.canonical_schema) {
     throw new Error("--canonical-baseline requires canonical_schema: true in the requirements manifest")
@@ -762,9 +770,10 @@ async function main() {
         excludedMigrations: canonicalExcludedMigrations,
       })
     : new Set<string>()
+  const driftPolicyContent = await readFile(o.driftPolicy, "utf8")
   let compatibleMissingSchemaArtifacts = new Set<string>()
   if (req.canonical_schema) {
-    const driftPolicy = JSON.parse(await readFile(o.driftPolicy, "utf8")) as {
+    const driftPolicy = JSON.parse(driftPolicyContent) as {
       communityTemplate?: { compatibleMissingSchemaArtifacts?: unknown }
     }
     compatibleMissingSchemaArtifacts = validateCompatibleMissingSchemaArtifacts(
@@ -819,6 +828,41 @@ async function main() {
     )
     process.exit(2)
   }
+
+  const migrationContents = await Promise.all(
+    (await readdir(o.migrationsDir))
+      .filter((name) => name.endsWith(".sql"))
+      .sort()
+      .map(async (name) => ({
+        name,
+        checksum: createHash("sha256")
+          .update(await readFile(resolve(o.migrationsDir, name), "utf8"))
+          .digest("hex"),
+      })),
+  )
+  const policyEvidence = effectivePolicyEvidenceFromContent({
+    requirementsContent,
+    migrations: migrationContents,
+    classifications: {
+      features_checked: [...o.features].sort(),
+      unconditional: [...req.unconditional].sort(),
+      features: Object.fromEntries(Object.entries(req.features ?? {})
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([feature, spec]) => [feature, {
+          enabled: o.features.includes(feature),
+          flags: [...spec.flags].sort(),
+          migrations: [...spec.migrations].sort(),
+        }])),
+      transitional: Object.keys(req.transitional ?? {}).sort(),
+      deferred: Object.keys(req.deferred ?? {}).sort(),
+      ledger_only: Object.keys(req.ledger_only ?? {}).sort(),
+      canonical_excluded_migrations: [...canonicalExcludedMigrations].sort(),
+    },
+    canonicalExpectedArtifacts: [...canonicalExpected],
+    canonicalBaselineProfiles: canonicalBaseline?.profiles ?? null,
+    driftPolicyContent,
+  })
+  const policyDigest = effectivePolicyDigest(policyEvidence)
 
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim()
   const apiToken = process.env.CLOUDFLARE_API_TOKEN?.trim()
@@ -1017,6 +1061,8 @@ async function main() {
         canonical_schema_expected_artifacts: canonicalExpected.size,
         canonical_schema_excluded_migrations: [...canonicalExcludedMigrations].sort(),
         compatible_missing_schema_artifacts: [...compatibleMissingSchemaArtifacts].sort(),
+        policy_evidence: policyEvidence,
+        effective_policy_digest: policyDigest,
         d1_query_transport: "rest_batch",
         d1_query_metrics: d1QueryMetrics,
         allocated_loaded_shards: allocatedBindings.length,

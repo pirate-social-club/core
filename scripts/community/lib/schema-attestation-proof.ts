@@ -45,6 +45,8 @@ export type SchemaManifest = {
   classified: number
   summary: Partial<Record<ShardStatus, number>>
   shards: ManifestShard[]
+  policy_evidence?: EffectivePolicyEvidence
+  effective_policy_digest?: string
 }
 
 export type EffectivePolicyEvidence = {
@@ -55,6 +57,15 @@ export type EffectivePolicyEvidence = {
   canonical_expected_digest: string
   canonical_baseline_digest: string
   drift_policy_digest: string
+}
+
+export type EffectivePolicyContent = {
+  requirementsContent: string
+  migrations: Array<{ name: string; checksum: string }>
+  classifications: unknown
+  canonicalExpectedArtifacts: string[]
+  canonicalBaselineProfiles: unknown
+  driftPolicyContent: string
 }
 
 export type PolicyVerdictRow = {
@@ -143,6 +154,36 @@ export function effectivePolicyDigest(evidence: EffectivePolicyEvidence): string
     throw new Error("effective policy evidence requires six source-content SHA-256 digests")
   }
   return digest(evidence)
+}
+
+/** Bind a verdict to the complete content that can change its meaning.
+ *
+ * Raw policy files are hashed as bytes so even a source edit that happens to
+ * preserve today's derived summary invalidates old proofs. Derived collections
+ * are sorted here, making their identity independent of filesystem, Set, or
+ * object insertion order.
+ */
+export function effectivePolicyEvidenceFromContent(
+  content: EffectivePolicyContent,
+): EffectivePolicyEvidence {
+  const migrations = [...content.migrations]
+    .map(({ name, checksum }) => ({ name, checksum }))
+    .sort((left, right) => left.name.localeCompare(right.name))
+  if (
+    migrations.some(({ name, checksum }) => !name || !/^[0-9a-f]{64}$/u.test(checksum))
+    || new Set(migrations.map(({ name }) => name)).size !== migrations.length
+  ) {
+    throw new Error("migration policy evidence requires unique names and SHA-256 checksums")
+  }
+  return {
+    format_version: 1,
+    requirements_digest: createHash("sha256").update(content.requirementsContent).digest("hex"),
+    migration_checksums_digest: digest(migrations),
+    classifications_digest: digest(content.classifications),
+    canonical_expected_digest: digest([...content.canonicalExpectedArtifacts].sort()),
+    canonical_baseline_digest: digest(content.canonicalBaselineProfiles),
+    drift_policy_digest: createHash("sha256").update(content.driftPolicyContent).digest("hex"),
+  }
 }
 
 export function candidateARow(
@@ -239,7 +280,7 @@ export function evaluatePoolVerdicts(input: {
   }
 }
 
-export function validateManifest(value: unknown, source = "schema manifest"): SchemaManifest {
+function validateManifestShape(value: unknown, source: string): SchemaManifest {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${source}: expected object`)
   const manifest = value as SchemaManifest
   if (manifest.fleet !== "production" && manifest.fleet !== "staging") throw new Error(`${source}: invalid fleet`)
@@ -260,6 +301,30 @@ export function validateManifest(value: unknown, source = "schema manifest"): Sc
   for (const shard of manifest.shards) observed[shard.status] = (observed[shard.status] ?? 0) + 1
   if (stableJson(observed) !== stableJson(manifest.summary)) {
     throw new Error(`${source}: summary does not reproduce per-shard statuses`)
+  }
+  return manifest
+}
+
+/** Historical scan artifacts are accepted only by the local Phase 0 replay. */
+export function validatePhase0LegacyManifest(value: unknown, source = "legacy schema manifest"): SchemaManifest {
+  return validateManifestShape(value, source)
+}
+
+/** Activation-capable readers fail closed unless all six content proofs exist
+ * and reproduce the published effective-policy digest. */
+export function validateManifest(value: unknown, source = "schema manifest"): SchemaManifest {
+  const manifest = validateManifestShape(value, source)
+  if (!manifest.policy_evidence || !manifest.effective_policy_digest) {
+    throw new Error(`${source}: missing effective policy content evidence`)
+  }
+  let computed: string
+  try {
+    computed = effectivePolicyDigest(manifest.policy_evidence)
+  } catch (error) {
+    throw new Error(`${source}: invalid effective policy content evidence: ${error instanceof Error ? error.message : String(error)}`)
+  }
+  if (computed !== manifest.effective_policy_digest) {
+    throw new Error(`${source}: effective policy digest does not match its six content digests`)
   }
   return manifest
 }

@@ -20,7 +20,18 @@ Candidate A is selected. Its row size is fixed and bounded (Candidate B is small
 
 ## Blocking evidence gap found by the spike
 
-Current schema-gate manifests do not record the source-content digests required for a trusted effective-policy identity: requirements content, migration names+checksums, effective classifications, canonical expected inventory, canonical baseline profiles, and known-drift policy. The replay fixtures use visibly invalid `phase0-legacy:*` placeholders for sizing only. Phase 2 must add all six SHA-256 fields, and publishers/readers must reject a placeholder, missing field, unknown format, or non-SHA-256 value. Likewise, the manifest's missing-artifact arrays are sufficient for status replay but not authoritative schema/ledger fingerprints; those three proof digests must be computed from the raw verifier observations before publication.
+The Phase 0 fixtures predate trusted policy identity and retain visibly invalid
+`phase0-legacy:*` placeholders for local sizing only. Phase 2 adds six SHA-256
+fields to newly published schema-gate manifests: requirements content,
+migration names+checksums, effective classifications, canonical expected
+inventory, canonical baseline profiles, and known-drift policy. The
+activation-capable reader rejects a placeholder, missing field, unknown format,
+non-SHA-256 value, or aggregate digest mismatch; the legacy reader is confined
+to the local Phase 0 replay. This closes the policy-content evidence gap but
+does not activate the release fast path. The manifest's missing-artifact arrays
+remain insufficient as authoritative per-shard schema/ledger fingerprints;
+those three proof digests must be computed from raw verifier observations in a
+later publisher phase.
 
 A release performs one aggregate query per shard-owned D1_POOL and combines all pool results fail closed. This is the multi-pool-safe interpretation of the original one-query goal; a single D1 query cannot span independent pool databases. Pool identity is part of every proof key.
 

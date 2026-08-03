@@ -4,6 +4,7 @@ import {
   candidateARow,
   candidateBProof,
   effectivePolicyDigest,
+  effectivePolicyEvidenceFromContent,
   evaluatePoolVerdicts,
   digest,
   statusFromCandidateA,
@@ -12,6 +13,15 @@ import {
 } from "./lib/schema-attestation-proof"
 
 function manifest(status: SchemaManifest["shards"][number]["status"] = "satisfied"): SchemaManifest {
+  const policy_evidence = {
+    format_version: 1 as const,
+    requirements_digest: digest("requirements"),
+    migration_checksums_digest: digest("checksums"),
+    classifications_digest: digest("classifications"),
+    canonical_expected_digest: digest("canonical"),
+    canonical_baseline_digest: digest("baseline"),
+    drift_policy_digest: digest("drift"),
+  }
   return {
     fleet: "staging",
     requirements_version: 1,
@@ -31,6 +41,8 @@ function manifest(status: SchemaManifest["shards"][number]["status"] = "satisfie
     classified: 1,
     summary: { [status]: 1 },
     shards: [{ binding: "DB_CMTY_0001", database_name: "fixture", status, missing: [] }],
+    policy_evidence,
+    effective_policy_digest: effectivePolicyDigest(policy_evidence),
   }
 }
 
@@ -80,10 +92,76 @@ describe("schema attestation proof", () => {
     })).toThrow("six source-content SHA-256 digests")
   })
 
+  test("builds six deterministic content digests and changes each independently", () => {
+    const content = {
+      requirementsContent: '{"version":1}\n',
+      migrations: [{ name: "one.sql", checksum: digest("one.sql") }],
+      classifications: { unconditional: ["one.sql"] },
+      canonicalExpectedArtifacts: ["table:posts", "column:posts.post_id"],
+      canonicalBaselineProfiles: { legacy: ["column:posts.missing"] },
+      driftPolicyContent: '{"communityTemplate":{}}\n',
+    }
+    const first = effectivePolicyEvidenceFromContent(content)
+    expect(Object.values(first).filter((value) => typeof value === "string"))
+      .toHaveLength(6)
+    expect(effectivePolicyEvidenceFromContent({
+      ...content,
+      migrations: [...content.migrations].reverse(),
+      canonicalExpectedArtifacts: [...content.canonicalExpectedArtifacts].reverse(),
+    })).toEqual(first)
+
+    const variants = [
+      { requirementsContent: `${content.requirementsContent} ` },
+      { migrations: [{ name: "one.sql", checksum: digest("changed") }] },
+      { classifications: { deferred: ["one.sql"] } },
+      { canonicalExpectedArtifacts: ["table:posts"] },
+      { canonicalBaselineProfiles: { legacy: [] } },
+      { driftPolicyContent: `${content.driftPolicyContent} ` },
+    ]
+    for (const changed of variants) {
+      expect(effectivePolicyDigest(effectivePolicyEvidenceFromContent({ ...content, ...changed })))
+        .not.toBe(effectivePolicyDigest(first))
+    }
+  })
+
+  test("rejects malformed or duplicate migration content evidence", () => {
+    const content = {
+      requirementsContent: "requirements",
+      migrations: [{ name: "one.sql", checksum: digest("one") }],
+      classifications: {},
+      canonicalExpectedArtifacts: [],
+      canonicalBaselineProfiles: null,
+      driftPolicyContent: "drift",
+    }
+    expect(() => effectivePolicyEvidenceFromContent({
+      ...content,
+      migrations: [...content.migrations, ...content.migrations],
+    })).toThrow("unique names")
+    expect(() => effectivePolicyEvidenceFromContent({
+      ...content,
+      migrations: [{ name: "one.sql", checksum: "not-a-digest" }],
+    })).toThrow("SHA-256")
+  })
+
   test("rejects incomplete manifest classification", () => {
     const fixture = manifest()
     fixture.live_shards = 2
     expect(() => validateManifest(fixture)).toThrow("incomplete shard classification")
+  })
+
+  test("activation reader rejects missing, placeholder, or mismatched content evidence", () => {
+    const fixture = manifest()
+    expect(() => validateManifest({ ...fixture, policy_evidence: undefined }))
+      .toThrow("missing effective policy content evidence")
+    expect(() => validateManifest({
+      ...fixture,
+      policy_evidence: {
+        ...fixture.policy_evidence!,
+        drift_policy_digest: "phase0-legacy:unavailable",
+      },
+    })).toThrow("invalid effective policy content evidence")
+    expect(() => validateManifest({ ...fixture, effective_policy_digest: digest("wrong") }))
+      .toThrow("does not match its six content digests")
   })
 
   test("rejects non-content policy identifiers and inconsistent summaries", () => {
