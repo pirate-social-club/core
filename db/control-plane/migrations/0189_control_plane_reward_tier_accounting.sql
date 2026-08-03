@@ -4,6 +4,25 @@
 ALTER TABLE reward_nationality_decisions
     ADD COLUMN resolved_amount_cents INTEGER;
 
+-- Decisions written before tier accounting stored only the immutable result key.
+-- Recover their amount from the campaign terms that produced that key before the
+-- shape constraint becomes authoritative. Corrupt or out-of-range keys remain
+-- NULL and deliberately fail the constraint instead of receiving a guessed value.
+UPDATE reward_nationality_decisions AS decision
+SET resolved_amount_cents = CASE
+    WHEN decision.result_key = 'default' THEN campaign.default_amount_cents
+    WHEN decision.result_key ~ '^tier:[0-9]+$' THEN (
+        SELECT (tier.value ->> 'amount_cents')::INTEGER
+        FROM jsonb_array_elements(campaign.payout_tiers_json)
+            WITH ORDINALITY AS tier(value, ordinal)
+        WHERE tier.ordinal = substring(decision.result_key FROM '^tier:([0-9]+)$')::INTEGER + 1
+    )
+    ELSE NULL
+END
+FROM reward_campaigns AS campaign
+WHERE decision.retryability = 'resolved'
+  AND campaign.reward_campaign_id = decision.reward_campaign_id;
+
 ALTER TABLE reward_nationality_decisions
     ADD CONSTRAINT reward_nationality_decisions_amount_shape_check CHECK (
         (retryability = 'resolved'
