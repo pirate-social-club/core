@@ -81,6 +81,12 @@
         "oldChecksum": "050981eeaf24c29cdc8d7542302dd5b0a8b9ca91adcdd9de150568a8027164d9",
         "newChecksum": "6b200cd1545eae0a58fad2c16dece7fd6cd17552315e4c0ab174d718f234a3e4",
         "reason": "pre-deployment repair follow-up: cast the validated date back to text with syntax portable across PostgreSQL and SQLite"
+      },
+      {
+        "migrationName": "0189_control_plane_reward_tier_accounting.sql",
+        "oldChecksum": "0774d2f511a9233cdf11ef17247c61a153e3fdf3b6ea8816594316b04b45e692",
+        "newChecksum": "9b4d59185fe793678c77e687b749634028c2c790ca74ac7e7d5b368b284bff25",
+        "reason": "pre-deployment repair: backfill resolved shadow decisions from immutable campaign payout terms before adding the amount-shape constraint"
       }
     ]
   }
