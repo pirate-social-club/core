@@ -59,7 +59,6 @@ const PROFILE_COLUMNS: Record<Profile, readonly { table: string; column: string 
     { table: "booking_settlement_effects", column: "coordinator_ref" },
     { table: "booking_payment_intents", column: "claimed_tx_ref" },
     { table: "booking_payment_intents", column: "platform_fee_bps" },
-    { table: "dance_attempt", column: "upload_invalid_reason" },
   ],
   replay_and_streaks: [
     { table: "live_rooms", column: "recording_enabled" },
@@ -81,7 +80,8 @@ const PROFILE_INDEXES: Record<Profile, readonly string[]> = {
     "idx_booking_attendance_sessions_booking",
     "idx_booking_payment_intents_claimed_tx",
     "idx_bookings_settlement_review_pending",
-    "idx_dance_attempt_community_created",
+    "idx_dance_attempt_user_post",
+    "idx_dance_attempt_revision_score",
   ],
   replay_and_streaks: [
     "idx_live_room_recordings_room_status",
@@ -144,10 +144,15 @@ export function probeSql(profile: Profile): string {
     .map(({ table, column }) => `(SELECT COUNT(*) FROM pragma_table_info('${table}') WHERE name='${column}') AS column__${table}__${column}`)
   const indexes = PROFILE_INDEXES[profile]
     .map((index) => `(SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='${index}') AS index__${index}`)
+  const fragments = profile === "bookings_and_dance"
+    ? [
+        `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='dance_attempt' AND instr(sql, '''upload_invalid''') > 0) AS fragment__dance_upload_invalid`,
+      ]
+    : []
   return `SELECT
   (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='communities') AS required__communities,
   (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='live_rooms') AS required__live_rooms,
-  ${[...tables, ...columns, ...indexes].join(",\n  ")}`
+  ${[...tables, ...columns, ...indexes, ...fragments].join(",\n  ")}`
 }
 
 type Probe = Record<string, number | string>
@@ -187,6 +192,9 @@ export function convergenceFailures(profile: Profile, probe: Probe): string[] {
   }
   for (const index of PROFILE_INDEXES[profile]) {
     if (Number(probe[`index__${index}`] ?? 0) !== 1) failures.push(`missing index ${index}`)
+  }
+  if (profile === "bookings_and_dance" && Number(probe.fragment__dance_upload_invalid ?? 0) !== 1) {
+    failures.push("dance_attempt reason_code CHECK does not admit upload_invalid")
   }
   return failures
 }
