@@ -59,6 +59,16 @@ const PROFILE_COLUMNS: Record<Profile, readonly { table: string; column: string 
     { table: "booking_settlement_effects", column: "coordinator_ref" },
     { table: "booking_payment_intents", column: "claimed_tx_ref" },
     { table: "booking_payment_intents", column: "platform_fee_bps" },
+    { table: "posts", column: "idempotency_body_hash" },
+    { table: "live_rooms", column: "audience_gate_json" },
+    { table: "karaoke_attempt", column: "scoring_diagnostics_json" },
+    { table: "song_engagement_days", column: "activity_timezone" },
+    { table: "song_streaks", column: "timezone" },
+    { table: "song_streaks", column: "timezone_updated_at" },
+    { table: "song_streaks", column: "active_until_at" },
+    { table: "moderation_actions", column: "previous_content_safety_state" },
+    { table: "moderation_actions", column: "next_content_safety_state" },
+    { table: "moderation_actions", column: "evidence_ref" },
   ],
   replay_and_streaks: [
     { table: "live_rooms", column: "recording_enabled" },
@@ -87,6 +97,8 @@ const PROFILE_INDEXES: Record<Profile, readonly string[]> = {
     "idx_bookings_settlement_review_pending",
     "idx_dance_attempt_user_post",
     "idx_dance_attempt_revision_score",
+    "idx_purchase_settlement_effects_funding_tx_singleuse",
+    "idx_song_streaks_active",
   ],
   replay_and_streaks: [
     "idx_live_room_recordings_room",
@@ -99,6 +111,21 @@ const PROFILE_INDEXES: Record<Profile, readonly string[]> = {
     "idx_song_streaks_active",
   ],
 }
+
+const BOOKING_FOLLOWUP_FAILURES = new Set([
+  "missing column posts.idempotency_body_hash",
+  "missing column live_rooms.audience_gate_json",
+  "missing column karaoke_attempt.scoring_diagnostics_json",
+  "missing column song_engagement_days.activity_timezone",
+  "missing column song_streaks.timezone",
+  "missing column song_streaks.timezone_updated_at",
+  "missing column song_streaks.active_until_at",
+  "missing column moderation_actions.previous_content_safety_state",
+  "missing column moderation_actions.next_content_safety_state",
+  "missing column moderation_actions.evidence_ref",
+  "missing index idx_purchase_settlement_effects_funding_tx_singleuse",
+  "missing index idx_song_streaks_active",
+])
 
 type Options = {
   wranglerConfig: string
@@ -177,7 +204,12 @@ export function plan(profile: Profile, probe: Probe): "repair" | "converged" {
   }
   if (allPresent) {
     const failures = convergenceFailures(profile, probe)
-    if (failures.length > 0) throw new Error(`tables exist but profile is not canonical: ${failures.join("; ")}`)
+    if (failures.length > 0) {
+      if (profile === "bookings_and_dance" && failures.every((failure) => BOOKING_FOLLOWUP_FAILURES.has(failure))) {
+        return "repair"
+      }
+      throw new Error(`tables exist but profile is not canonical: ${failures.join("; ")}`)
+    }
     return "converged"
   }
   if (profile === "replay_and_streaks") {
@@ -213,6 +245,21 @@ async function migration(options: Options, name: string): Promise<string> {
 
 export async function repairSql(options: Options, profile: Profile, probe: Probe): Promise<string> {
   if (profile === "bookings_and_dance") {
+    const tablesAlreadyPresent = PROFILE_TABLES.bookings_and_dance.every(
+      (table) => Number(probe[`table__${table}`] ?? 0) === 1,
+    )
+    if (tablesAlreadyPresent) {
+      const idempotencyColumn = "ALTER TABLE posts ADD COLUMN idempotency_body_hash TEXT;"
+      const names = [
+        "1116_buyer_funding_tx_single_use.sql",
+        "1122_live_room_audience_gates.sql",
+        "1123_song_engagement_activity_timezone.sql",
+        "1144_karaoke_scoring_diagnostics.sql",
+        "1149_song_streak_owner_timezone.sql",
+        "1150_moderation_content_rating_audit.sql",
+      ]
+      return `${idempotencyColumn}\n\n${(await Promise.all(names.map((name) => migration(options, name)))).join("\n\n")}\n`
+    }
     const names = [
       "1101_booking_holds_and_bookings.sql",
       "1102_booking_settlement_and_attendance.sql",
