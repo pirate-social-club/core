@@ -85,8 +85,14 @@
       {
         "migrationName": "0189_control_plane_reward_tier_accounting.sql",
         "oldChecksum": "0774d2f511a9233cdf11ef17247c61a153e3fdf3b6ea8816594316b04b45e692",
-        "newChecksum": "9b4d59185fe793678c77e687b749634028c2c790ca74ac7e7d5b368b284bff25",
+        "newChecksum": "7d5368f8994792df999879ccaa649806d6cc093f346d3a54e7372d413641d681",
         "reason": "pre-deployment repair: backfill resolved shadow decisions from immutable campaign payout terms before adding the amount-shape constraint"
+      },
+      {
+        "migrationName": "0189_control_plane_reward_tier_accounting.sql",
+        "oldChecksum": "9b4d59185fe793678c77e687b749634028c2c790ca74ac7e7d5b368b284bff25",
+        "newChecksum": "7d5368f8994792df999879ccaa649806d6cc093f346d3a54e7372d413641d681",
+        "reason": "pre-deployment repair follow-up: use portable tier-key validation and JSON extraction across PostgreSQL and SQLite"
       }
     ]
   }
