@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { findAnonymousTableChecks } from "./lib/migration-constraint-lint.mjs";
+import { findAnonymousTableChecks, findExistingTableCheckSafetyGaps } from "./lib/migration-constraint-lint.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(__filename), "..");
@@ -262,6 +262,21 @@ function checkNamedTableConstraints(baseRef) {
     for (const issue of findAnonymousTableChecks(sql)) {
       failures.push(
         `${filePath}:${issue.line}: table-level CHECK constraints must be named with CONSTRAINT <name> CHECK (...)`,
+      );
+    }
+  }
+  return failures;
+}
+
+function checkExistingTableCheckSafety(baseRef) {
+  const failures = [];
+  for (const filePath of addedMigrationFiles(baseRef)) {
+    const absolutePath = path.join(repoRoot, filePath);
+    if (!fs.existsSync(absolutePath)) continue;
+    const sql = fs.readFileSync(absolutePath, "utf8");
+    for (const issue of findExistingTableCheckSafetyGaps(sql)) {
+      failures.push(
+        `${filePath}:${issue.line}: CHECK constraint ${issue.constraint} on existing table ${issue.table} needs a preceding UPDATE/DELETE or -- migration-safety: existing-table-check-reviewed: <reason>`,
       );
     }
   }
@@ -556,6 +571,7 @@ async function main() {
   failures.push(...checkImmutableAppliedMigrations(baseRef));
   failures.push(...checkImmutableWorkingTreeMigrations());
   failures.push(...checkNamedTableConstraints(baseRef));
+  failures.push(...checkExistingTableCheckSafety(baseRef));
   failures.push(...await checkCommunityDriftPolicy());
   failures.push(...await checkLocalControlPlaneDriftPolicy());
 
