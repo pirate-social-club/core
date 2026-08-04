@@ -47,9 +47,15 @@ describe("staging quarantine profile repair plan", () => {
     expect(plan("replay_and_streaks", row)).toBe("converged")
   })
 
-  test("refuses present tables with a missing canonical index", () => {
+  test("plans a follow-up repair for a reviewed missing canonical artifact", () => {
+    const row = probe("bookings_and_dance", true)
+    row.column__posts__idempotency_body_hash = 0
+    expect(plan("bookings_and_dance", row)).toBe("repair")
+  })
+
+  test("refuses a present profile with an unexpected missing artifact", () => {
     const row = probe("bookings_and_dance", true)
     row.index__idx_bookings_active_slot = 0
-    expect(() => plan("bookings_and_dance", row)).toThrow("missing index idx_bookings_active_slot")
+    expect(() => plan("bookings_and_dance", row)).toThrow("not canonical")
   })
 })
