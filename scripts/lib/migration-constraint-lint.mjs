@@ -98,3 +98,63 @@ export function findAnonymousTableChecks(sql) {
   }
   return failures;
 }
+
+function normalizedTableName(value) {
+  return value.replaceAll('"', "").split(".").at(-1).toLowerCase();
+}
+
+function hasSafetyReviewAnnotation(sql, beforeIndex) {
+  const precedingLines = sql.slice(0, beforeIndex).split("\n").slice(-4).join("\n");
+  return /--\s*migration-safety:\s*existing-table-check-reviewed\s*:\s*\S/iu.test(precedingLines);
+}
+
+function newNullableColumnAllowsExistingRows(masked, table, beforeIndex, checkBody) {
+  const addColumnPattern = /\bALTER\s+TABLE\s+(?:ONLY\s+)?([\w."]+)\s+ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?([\w"]+)([^;]*);/giu;
+  for (const match of masked.slice(0, beforeIndex).matchAll(addColumnPattern)) {
+    if (normalizedTableName(match[1]) !== table || /\bNOT\s+NULL\b/iu.test(match[3])) continue;
+    const column = match[2].replaceAll('"', "");
+    const nullableAlternative = new RegExp(`\\b${column}\\s+IS\\s+NULL\\s+OR\\b`, "iu");
+    if (nullableAlternative.test(checkBody)) return true;
+  }
+  return false;
+}
+
+// Existing rows are checked as soon as PostgreSQL adds a CHECK constraint. New
+// tables have no pre-existing rows, but a constraint added to an old table
+// needs an explicit proof that its current rows are safe: a migration-side
+// UPDATE/DELETE, or a short reviewer-owned annotation when data is known to be
+// safe without a rewrite.
+export function findExistingTableCheckSafetyGaps(sql) {
+  const masked = maskSqlLiteralsAndComments(sql);
+  const createdTables = new Set();
+  for (const match of masked.matchAll(/\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([\w."]+)/giu)) {
+    createdTables.add(normalizedTableName(match[1]));
+  }
+
+  const mutations = [];
+  for (const match of masked.matchAll(/\b(?:UPDATE|DELETE\s+FROM)\s+([\w."]+)/giu)) {
+    mutations.push({ index: match.index, table: normalizedTableName(match[1]) });
+  }
+
+  const failures = [];
+  const addCheckPattern = /\bALTER\s+TABLE\s+(?:ONLY\s+)?([\w."]+)\s+ADD\s+CONSTRAINT\s+([\w"]+)\s+CHECK\s*\(/giu;
+  for (const match of masked.matchAll(addCheckPattern)) {
+    const table = normalizedTableName(match[1]);
+    if (createdTables.has(table)) continue;
+    const hasPriorMutation = mutations.some((mutation) => mutation.table === table && mutation.index < match.index);
+    const openIndex = match.index + match[0].lastIndexOf("(");
+    const closeIndex = matchingParen(masked, openIndex);
+    const checkBody = closeIndex < 0 ? "" : masked.slice(openIndex + 1, closeIndex);
+    if (
+      hasPriorMutation
+      || newNullableColumnAllowsExistingRows(masked, table, match.index, checkBody)
+      || hasSafetyReviewAnnotation(sql, match.index)
+    ) continue;
+    failures.push({
+      line: lineAt(masked, match.index),
+      table,
+      constraint: match[2].replaceAll('"', ""),
+    });
+  }
+  return failures;
+}
