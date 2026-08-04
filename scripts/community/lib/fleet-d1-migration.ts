@@ -17,6 +17,11 @@
  *   requires `--confirm-time-travel` (D1 Time Travel is the rollback path).
  * - Fleet writes REQUIRE `--resume-file`, so a transient failure can never leave
  *   an unrecorded tail: completed shards are appended as they land.
+ * - Fleet writes REQUIRE origin/main provenance: with `--execute`, HEAD must be
+ *   contained in the local origin/main ref and the working tree clean — twice,
+ *   fleet-affecting state was built from non-main refs (1097 ledger rows; two
+ *   shards provisioned from an unmerged template bundle). `--allow-non-main` is
+ *   a loud, manifest-recorded break-glass, not a convenience.
  * - The pool is authoritative for fleet membership. Zero allocated shards is an
  *   error, never "no work to do".
  * - A shard allocated in the pool but absent from the shard config is BLOCKING,
@@ -34,6 +39,7 @@ import { createHash } from "node:crypto"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { dirname, resolve } from "node:path"
 import { partitionQuarantinedBindings } from "./community-shard-quarantine"
+import { decideRolloutProvenance, probeRolloutProvenance } from "./rollout-provenance"
 
 /** The schema objects a migration creates. Presence is how a shard is classified. */
 export type ObjectSpec =
@@ -115,6 +121,7 @@ export type Options = {
   prod: boolean
   execute: boolean
   confirmTimeTravel: boolean
+  allowNonMain: boolean
   manifest: string
   resumeFile?: string
   only?: string
@@ -271,6 +278,9 @@ Options:
   --concurrency N          Default 8.
   --execute                Write. Without it, this is a read-only dry run.
   --confirm-time-travel    Required with --execute.
+  --allow-non-main         Break-glass: allow --execute from a HEAD that is not
+                           contained in origin/main (loud warning; recorded in
+                           the manifest as overrideUsed).
 
 Read-only by default. Blank, never-loaded pool databases are never touched.
 `)
@@ -301,6 +311,7 @@ export function parseArgs(spec: MigrationSpec, scriptPath: string): Options {
     prod,
     execute: argv.includes("--execute"),
     confirmTimeTravel: argv.includes("--confirm-time-travel"),
+    allowNonMain: argv.includes("--allow-non-main"),
     manifest: resolve(get("--manifest") ?? `tmp/${slug}-${prod ? "prod" : "staging"}-manifest.json`),
     resumeFile: get("--resume-file") ? resolve(get("--resume-file")!) : undefined,
     only: get("--only"),
@@ -442,6 +453,24 @@ async function applyToShard(
 
 export async function runFleetMigration(spec: MigrationSpec, scriptPath: string): Promise<void> {
   const options = parseArgs(spec, scriptPath)
+
+  // Provenance chokepoint: every apply-* script flows through here. The probe
+  // targets THIS checkout (the core repo root) — never options.cwd, which is
+  // the shard config's repo. Refusal happens before any network call, let
+  // alone any shard write.
+  const rolloutProvenance = decideRolloutProvenance(
+    probeRolloutProvenance(resolve(import.meta.dir, "../../..")),
+    { execute: options.execute, allowNonMain: options.allowNonMain },
+  )
+  if (!rolloutProvenance.allow) throw new Error(rolloutProvenance.reason)
+  if (rolloutProvenance.provenance.overrideUsed) {
+    console.error(
+      `\nWARNING: --allow-non-main break-glass override in effect: ${rolloutProvenance.reason}\n`,
+    )
+  } else {
+    console.log(`provenance: ${rolloutProvenance.reason}`)
+  }
+
   const { sql, checksum } = await migrationSql(options, spec)
   const map = await shardMap(options)
 
@@ -558,6 +587,9 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
         migration: spec.migration,
         checksum,
         executed: options.execute,
+        // Checkout provenance: which git state produced this run. overrideUsed
+        // means a break-glass --allow-non-main execution.
+        rollout_provenance: rolloutProvenance.provenance,
         // Provenance: which config decided the fleet's membership. A stale config
         // here is the difference between migrating the fleet and migrating a slice.
         shard_config: options.wranglerConfig,
