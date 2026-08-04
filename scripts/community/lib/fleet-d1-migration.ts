@@ -16,7 +16,12 @@
  * - Read-only by default. `--execute` is required to write, and it in turn
  *   requires `--confirm-time-travel` (D1 Time Travel is the rollback path).
  * - Fleet writes REQUIRE `--resume-file`, so a transient failure can never leave
- *   an unrecorded tail: completed shards are appended as they land.
+ *   an unrecorded tail: completed shards are appended as they land, keyed by
+ *   migration AND shard (`migration<TAB>shard`). A bare shard-only line from a
+ *   pre-keyed runner is IGNORED — it loses skip power rather than being
+ *   misparsed, so the worst case is an idempotent re-classification, never a
+ *   skipped write. Keying is what keeps one shared resume file safe across a
+ *   multi-spec run: a shard done for spec A is still classified for spec B.
  * - Fleet writes REQUIRE origin/main provenance: with `--execute`, HEAD must be
  *   contained in the local origin/main ref and the working tree clean — twice,
  *   fleet-affecting state was built from non-main refs (1097 ledger rows; two
@@ -274,7 +279,8 @@ Options:
   --only DB_NAME           Canary a single database.
   --manifest PATH          Write the classification manifest / results here.
   --quarantines PATH       Versioned quarantine registry.
-  --resume-file PATH       Record completed shards; re-runs skip them.
+  --resume-file PATH       Record completed shards (keyed migration+shard);
+                           re-runs skip them.
   --concurrency N          Default 8.
   --execute                Write. Without it, this is a read-only dry run.
   --confirm-time-travel    Required with --execute.
@@ -451,6 +457,38 @@ async function applyToShard(
   return "applied_migration"
 }
 
+/**
+ * Resume-file entries are keyed by migration AND shard, tab-separated. Keying is
+ * what makes ONE shared resume file safe across a multi-spec run: a shard done
+ * for spec A must still be classified (and applied) for spec B. A bare
+ * shard-only key would let spec B "complete" without touching the shard —
+ * exactly the 2026-08-04 near-miss, where passes 2 and 3 of a three-spec run
+ * reported empty summaries over a shard still missing five columns.
+ */
+export function resumeEntryKey(migration: string, shard: string): string {
+  return `${migration}\t${shard}`
+}
+
+/**
+ * The shard names a resume file marks done FOR THIS migration. Only keyed lines
+ * whose migration part equals the current spec count. Bare shard-only lines
+ * written by pre-keyed runners match NOTHING: they lose skip power rather than
+ * being misparsed. That is safe — classification is idempotent and ok_recorded
+ * shards are never re-written, so a stale entry's worst case is a
+ * re-classification, never a skipped write.
+ */
+export function resumeDoneShards(fileContents: string, migration: string): Set<string> {
+  const done = new Set<string>()
+  for (const line of fileContents.split("\n")) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    const tab = trimmed.indexOf("\t")
+    if (tab === -1) continue // legacy bare-name line: no skip power
+    if (trimmed.slice(0, tab) === migration) done.add(trimmed.slice(tab + 1))
+  }
+  return done
+}
+
 export async function runFleetMigration(spec: MigrationSpec, scriptPath: string): Promise<void> {
   const options = parseArgs(spec, scriptPath)
 
@@ -523,12 +561,10 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
     )
   }
 
-  const done = new Set<string>()
+  let done = new Set<string>()
   if (options.resumeFile) {
     try {
-      for (const line of (await readFile(options.resumeFile, "utf8")).split("\n")) {
-        if (line.trim()) done.add(line.trim())
-      }
+      done = resumeDoneShards(await readFile(options.resumeFile, "utf8"), spec.migration)
     } catch {
       /* first run */
     }
@@ -556,8 +592,11 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
         if (options.execute && writable) {
           action = await applyToShard(options, spec, t.name, status, sql, checksum)
           // Append the instant it lands, so a transient failure on a LATER shard
-          // can never lose the record of this one.
-          if (options.resumeFile) await writeFile(options.resumeFile, `${t.name}\n`, { flag: "a" })
+          // can never lose the record of this one. Keyed by migration AND shard:
+          // another spec's entries must never satisfy this run.
+          if (options.resumeFile) {
+            await writeFile(options.resumeFile, `${resumeEntryKey(spec.migration, t.name)}\n`, { flag: "a" })
+          }
         }
         results.push({ ...base, status, action, ...(detail ? { detail } : {}) })
         console.log(`  ${t.name.padEnd(34)} ${status}${action !== "none" ? ` -> ${action}` : ""}`)
