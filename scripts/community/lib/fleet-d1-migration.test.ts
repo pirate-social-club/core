@@ -14,6 +14,8 @@ import {
   classifyRow,
   executionBody,
   ledgerBackfillBody,
+  resumeDoneShards,
+  resumeEntryKey,
   type MigrationSpec,
 } from "./fleet-d1-migration"
 
@@ -399,5 +401,57 @@ describe("BLOCKING_STATUSES", () => {
     }
     expect(BLOCKING_STATUSES).not.toContain("ok_recorded")
     expect(BLOCKING_STATUSES).not.toContain("needs_migration")
+  })
+})
+
+describe("resume file — keyed by migration AND shard", () => {
+  const M1095 = "1095_community_assistant_telegram_preview_prompt_suffix.sql"
+  const M1096 = "1096_community_karaoke_enabled.sql"
+  const SHARD = "community-d1-pool-0078-prod"
+
+  test("REGRESSION 2026-08-04: a keyed entry for ANOTHER migration must not skip this spec", () => {
+    // The incident: pass 1 (1095) appended the shard to a shared resume file;
+    // passes 2 and 3 (1096, 1098) then classified ZERO shards and reported
+    // empty summaries over a shard still missing five columns.
+    const contents = `${M1095}\t${SHARD}\n`
+    const done = resumeDoneShards(contents, M1096)
+    expect(done.has(SHARD)).toBe(false)
+    expect(done.size).toBe(0)
+  })
+
+  test("a keyed entry for the CURRENT migration skips exactly that shard", () => {
+    const contents = [
+      `${M1095}\t${SHARD}`,
+      `${M1096}\t${SHARD}`,
+      `${M1096}\tcommunity-d1-pool-0079-prod`,
+      "",
+    ].join("\n")
+    const done = resumeDoneShards(contents, M1096)
+    expect([...done].sort()).toEqual(["community-d1-pool-0078-prod", "community-d1-pool-0079-prod"])
+  })
+
+  test("a bare shard-only line from a pre-keyed runner matches NOTHING", () => {
+    // Legacy files lose skip power rather than being misparsed. Safe:
+    // classification is idempotent; ok_recorded shards are never re-written.
+    expect(resumeDoneShards(`${SHARD}\n`, M1096).size).toBe(0)
+  })
+
+  test("mixed legacy, other-migration, and current-migration lines: only current keyed lines count", () => {
+    const contents = [
+      "community-d1-pool-0001-prod", // legacy bare name
+      `${M1095}\tcommunity-d1-pool-0002-prod`, // done for a different spec
+      `${M1096}\tcommunity-d1-pool-0003-prod`, // done for THIS spec
+    ].join("\n")
+    const done = resumeDoneShards(contents, M1096)
+    expect(done.size).toBe(1)
+    expect(done.has("community-d1-pool-0003-prod")).toBe(true)
+  })
+
+  test("the write format is migration + tab + shard, and it round-trips", () => {
+    const key = resumeEntryKey(M1096, SHARD)
+    expect(key).toBe(`${M1096}\t${SHARD}`)
+    expect(key).not.toBe(SHARD) // never a bare name
+    // Single-spec crash-resume is unchanged: same migration + shard still skips.
+    expect(resumeDoneShards(`${key}\n`, M1096).has(SHARD)).toBe(true)
   })
 })
