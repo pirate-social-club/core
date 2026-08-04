@@ -937,13 +937,13 @@ Platform-level note:
 
 The community policy contract already anticipates two layers:
 
-- a human verification lane
+- human gate requirements plus an optional verification-provider preference
 - an optional stricter override for accepted KYA providers
 
 Recommended v0 rule:
 
 - when `accepted_agent_ownership_providers` is null, Pirate derives the effective KYA provider set from:
-  - the community's `human_verification_lane`
+  - the community's effective human gate requirements
   - the community trust floor
   - Pirate's platform-approved KYA provider list
 
@@ -955,12 +955,9 @@ Source of truth rule:
 - mere presence in an OpenAPI enum does not automatically make a provider platform-approved
 - public v0 may satisfy this with an env-backed allowlist such as `PLATFORM_APPROVED_KYA_PROVIDERS`, so long as deploys can narrow or disable derived acceptance without code edits
 
-Suggested default derivation:
-
-- `human_verification_lane = very`
-  - accept any approved KYA provider whose bound human satisfies Pirate's baseline unique-human requirement
-- `human_verification_lane = self`
-  - still default to trust-floor compatibility, not same-family matching, unless the community opts into stricter provider restrictions
+`preferred_verification_provider` is not an input to KYA authorization. It controls verification UX
+ordering only. Derived KYA acceptance remains trust-floor compatible unless the community opts into
+stricter provider restrictions.
 
 Important nuance:
 
