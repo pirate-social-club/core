@@ -95,6 +95,7 @@ import { dirname, resolve } from "node:path"
 import { expectedArtifacts, type Artifacts } from "./community-schema-artifacts"
 import { partitionQuarantinedBindings } from "./lib/community-shard-quarantine"
 import { loadedBindings, shardMap, wranglerJson } from "./lib/fleet-d1-migration"
+import { decideRolloutProvenance, probeConfigRepoProvenance } from "./lib/rollout-provenance"
 import { buildCanonicalSchemaArtifacts } from "./verify-community-schema-requirements"
 
 export type FleetClosureException = {
@@ -788,6 +789,25 @@ function printSection(title: string, reports: ShardClosureReport[]): void {
 
 async function main(scriptPath: string): Promise<void> {
   const options = parseArgs(scriptPath)
+
+  // Config-side provenance: the shard config lives in the api repo, so attest
+  // the checkout that produced it. This audit is read-only by construction —
+  // it never blocks — but a stale config once showed a fleet tool 26 of ~205
+  // bindings, so an anomaly gets a loud stderr warning, not a quiet log line.
+  const configProbe = probeConfigRepoProvenance(options.wranglerConfig)
+  const configProvenance = decideRolloutProvenance(configProbe.probe, {
+    execute: false,
+    allowNonMain: false,
+  })
+  if (configProvenance.failure !== null) {
+    console.error(
+      `\nWARNING config provenance: ${configProvenance.failure}\n` +
+        "The report below may cover only a fraction of the fleet (the 26-of-205 failure shape).\n",
+    )
+  } else {
+    console.log(`config provenance: ${configProvenance.reason}`)
+  }
+
   const { expectations, exceptions, deletedMigrations, templateMigrations } = await buildFleetExpectations({
     migrationsDir: options.migrationsDir,
     driftPolicyPath: options.driftPolicy,
@@ -906,6 +926,15 @@ async function main(scriptPath: string): Promise<void> {
         exceptions,
         deleted_migrations: deletedMigrations,
         shard_config: options.wranglerConfig,
+        // Which checkout produced that config. null fields mean the audit could
+        // not prove the config repo's state — see the stderr warning.
+        config_provenance: {
+          repoPath: configProbe.repoPath,
+          headSha: configProvenance.provenance.headSha,
+          branch: configProvenance.provenance.branch,
+          onMain: configProvenance.provenance.onMain,
+          dirty: configProvenance.provenance.dirty,
+        },
         pool_db: options.poolDb,
         allocated_loaded_shards: allocatedBindings.length,
         live_shards: report.live.length,

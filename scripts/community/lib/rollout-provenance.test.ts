@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { execFileSync } from "node:child_process"
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import {
+  decideFleetProvenance,
   decideRolloutProvenance,
+  probeConfigRepoProvenance,
   probeRolloutProvenance,
+  type ConfigRepoProbe,
   type RolloutProvenanceProbe,
 } from "./rollout-provenance"
 
@@ -238,5 +241,237 @@ describe("probeRolloutProvenance — against real temp git repos (no network)", 
     expect(probe.headSha).toBeNull()
     expect(probe.gitError).toBeDefined()
     expect(decideRolloutProvenance(probe, { execute: true, allowNonMain: false }).allow).toBe(false)
+  })
+})
+
+/** A fabricated config-side probe: clean, on-main, inside a repo. */
+function fabricatedConfigProbe(
+  overrides: Partial<RolloutProvenanceProbe> = {},
+  repoPath: string | null = "/tmp/api-checkout",
+): ConfigRepoProbe {
+  return {
+    configPath: "/tmp/api-checkout/services/community-d1-shard/wrangler.jsonc",
+    repoPath,
+    probe: fabricatedProbe(overrides),
+  }
+}
+
+describe("decideFleetProvenance — the both-sides compose", () => {
+  test("both sides clean and on-main, execute: allow, no override", () => {
+    const decision = decideFleetProvenance({
+      core: fabricatedProbe(),
+      config: fabricatedConfigProbe(),
+      execute: true,
+      allowNonMain: false,
+    })
+    expect(decision.allow).toBe(true)
+    expect(decision.overrideUsed).toBe(false)
+    expect(decision.overriddenSides).toEqual([])
+    expect(decision.coreFailure).toBeNull()
+    expect(decision.configFailure).toBeNull()
+    expect(decision.configRecord.repoPath).toBe("/tmp/api-checkout")
+    expect(decision.reason).toContain("core checkout:")
+    expect(decision.reason).toContain("config checkout")
+  })
+
+  test("config side off-main, execute: refuse, naming the config side", () => {
+    const decision = decideFleetProvenance({
+      core: fabricatedProbe(),
+      config: fabricatedConfigProbe({ branch: "feat/stale-config", onMain: false }),
+      execute: true,
+      allowNonMain: false,
+    })
+    expect(decision.allow).toBe(false)
+    expect(decision.reason).toContain("config checkout")
+    expect(decision.reason).toContain("not contained in origin/main")
+    expect(decision.configFailure).not.toBeNull()
+    expect(decision.coreFailure).toBeNull()
+  })
+
+  test("core side off-main, execute: refuse, naming the core side", () => {
+    const decision = decideFleetProvenance({
+      core: fabricatedProbe({ branch: "feat/side", onMain: false }),
+      config: fabricatedConfigProbe(),
+      execute: true,
+      allowNonMain: false,
+    })
+    expect(decision.allow).toBe(false)
+    expect(decision.reason).toContain("core checkout")
+    expect(decision.coreFailure).not.toBeNull()
+    expect(decision.configFailure).toBeNull()
+  })
+
+  test("both sides failing: refuse, naming both", () => {
+    const decision = decideFleetProvenance({
+      core: fabricatedProbe({ onMain: false }),
+      config: fabricatedConfigProbe({ dirty: true }),
+      execute: true,
+      allowNonMain: false,
+    })
+    expect(decision.allow).toBe(false)
+    expect(decision.reason).toContain("core checkout")
+    expect(decision.reason).toContain("config checkout")
+    expect(decision.reason).toContain("dirty")
+  })
+
+  test("config path not inside a git repository: fail closed for execute with a clear message", () => {
+    const decision = decideFleetProvenance({
+      core: fabricatedProbe(),
+      config: fabricatedConfigProbe(
+        {
+          headSha: null,
+          branch: null,
+          originMainSha: null,
+          onMain: null,
+          dirty: null,
+          gitError: "not inside a git repository",
+        },
+        null,
+      ),
+      execute: true,
+      allowNonMain: false,
+    })
+    expect(decision.allow).toBe(false)
+    expect(decision.reason).toContain("not inside a git repository")
+    expect(decision.configRecord.repoPath).toBeNull()
+    expect(decision.configRecord.headSha).toBeNull()
+  })
+
+  test("config side dirty, execute: refuse naming the config side and the dirty tree", () => {
+    const decision = decideFleetProvenance({
+      core: fabricatedProbe(),
+      config: fabricatedConfigProbe({ dirty: true }),
+      execute: true,
+      allowNonMain: false,
+    })
+    expect(decision.allow).toBe(false)
+    expect(decision.reason).toContain("config checkout")
+    expect(decision.reason).toContain("dirty")
+  })
+
+  test("config side missing origin/main, execute: fail closed with the fetch instruction", () => {
+    const decision = decideFleetProvenance({
+      core: fabricatedProbe(),
+      config: fabricatedConfigProbe({ originMainSha: null, onMain: null }),
+      execute: true,
+      allowNonMain: false,
+    })
+    expect(decision.allow).toBe(false)
+    expect(decision.reason).toContain("config checkout")
+    expect(decision.reason).toContain("git fetch origin main")
+  })
+
+  test("one --allow-non-main covers the config side and records which side was overridden", () => {
+    const decision = decideFleetProvenance({
+      core: fabricatedProbe(),
+      config: fabricatedConfigProbe({ branch: "feat/stale-config", onMain: false }),
+      execute: true,
+      allowNonMain: true,
+    })
+    expect(decision.allow).toBe(true)
+    expect(decision.overrideUsed).toBe(true)
+    expect(decision.overriddenSides).toEqual(["config"])
+    expect(decision.coreRecord.overrideUsed).toBe(true)
+    expect(decision.coreRecord.overriddenSides).toEqual(["config"])
+  })
+
+  test("both sides failing with --allow-non-main: allow, both sides recorded", () => {
+    const decision = decideFleetProvenance({
+      core: fabricatedProbe({ onMain: false }),
+      config: fabricatedConfigProbe({ onMain: false }),
+      execute: true,
+      allowNonMain: true,
+    })
+    expect(decision.allow).toBe(true)
+    expect(decision.overriddenSides).toEqual(["core", "config"])
+  })
+
+  test("read-only with a config-side anomaly: never blocks, but the failure is exposed for the loud warning", () => {
+    const decision = decideFleetProvenance({
+      core: fabricatedProbe(),
+      config: fabricatedConfigProbe({ branch: "feat/stale-config", onMain: false }),
+      execute: false,
+      allowNonMain: false,
+    })
+    expect(decision.allow).toBe(true)
+    expect(decision.overrideUsed).toBe(false)
+    expect(decision.configFailure).toContain("not contained in origin/main")
+    expect(decision.configRecord.onMain).toBe(false)
+  })
+})
+
+describe("probeConfigRepoProvenance — against real temp git repos (no network)", () => {
+  function makeConfigRepo(): { dir: string; configPath: string } {
+    const dir = makeRepo()
+    const configDir = join(dir, "services", "community-d1-shard")
+    mkdirSync(configDir, { recursive: true })
+    const configPath = join(configDir, "wrangler.jsonc")
+    writeFileSync(configPath, '{ "d1_databases": [] }\n')
+    return { dir, configPath }
+  }
+
+  test("resolves the containing repo from a nested config path and probes it", () => {
+    const { dir, configPath } = makeConfigRepo()
+    git(dir, ["add", "."])
+    git(dir, ["commit", "-q", "-m", "add shard config"])
+    trackOriginMain(dir)
+    const result = probeConfigRepoProvenance(configPath)
+    expect(result.repoPath).toBe(dir)
+    expect(result.configPath).toBe(configPath)
+    expect(result.probe.onMain).toBe(true)
+    expect(result.probe.dirty).toBe(false)
+    expect(result.probe.branch).toBe("main")
+  })
+
+  test("an uncommitted config edit makes the config repo dirty", () => {
+    const { dir, configPath } = makeConfigRepo()
+    trackOriginMain(dir)
+    const before = probeConfigRepoProvenance(configPath)
+    expect(before.probe.dirty).toBe(true) // the config file itself is untracked
+    git(dir, ["add", "."])
+    git(dir, ["commit", "-q", "-m", "add shard config"])
+    trackOriginMain(dir) // origin/main at the config commit
+    expect(probeConfigRepoProvenance(configPath).probe.dirty).toBe(false)
+    writeFileSync(configPath, '{ "d1_databases": ["stale"] }\n')
+    expect(probeConfigRepoProvenance(configPath).probe.dirty).toBe(true)
+  })
+
+  test("a config repo on a side branch probes as not-on-main; the composed execute refuses", () => {
+    const { dir, configPath } = makeConfigRepo()
+    git(dir, ["add", "."])
+    git(dir, ["commit", "-q", "-m", "add shard config"])
+    trackOriginMain(dir)
+    git(dir, ["checkout", "-q", "-b", "feat/stale-config"])
+    writeFileSync(join(dir, "side.txt"), "side\n")
+    git(dir, ["add", "."])
+    git(dir, ["commit", "-q", "-m", "side work"])
+    const result = probeConfigRepoProvenance(configPath)
+    expect(result.probe.onMain).toBe(false)
+    const decision = decideFleetProvenance({
+      core: fabricatedProbe(),
+      config: result,
+      execute: true,
+      allowNonMain: false,
+    })
+    expect(decision.allow).toBe(false)
+    expect(decision.reason).toContain("config checkout")
+  })
+
+  test("a plain config directory (no git repo) probes as fail-closed, not as a crash", () => {
+    const dir = mkdtempSync(join(tmpdir(), "rollout-provenance-plainconfig-"))
+    tempDirs.push(dir)
+    const configPath = join(dir, "wrangler.jsonc")
+    writeFileSync(configPath, '{ "d1_databases": [] }\n')
+    const result = probeConfigRepoProvenance(configPath)
+    expect(result.repoPath).toBeNull()
+    expect(result.probe.gitError).toBe("not inside a git repository")
+    const decision = decideFleetProvenance({
+      core: fabricatedProbe(),
+      config: result,
+      execute: true,
+      allowNonMain: false,
+    })
+    expect(decision.allow).toBe(false)
+    expect(decision.reason).toContain("not inside a git repository")
   })
 })

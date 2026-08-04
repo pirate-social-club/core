@@ -27,6 +27,11 @@
  *   fleet-affecting state was built from non-main refs (1097 ledger rows; two
  *   shards provisioned from an unmerged template bundle). `--allow-non-main` is
  *   a loud, manifest-recorded break-glass, not a convenience.
+ * - Fleet writes REQUIRE config provenance too: the checkout holding
+ *   `--wrangler-config` must also be main-contained and clean — a stale config
+ *   checkout once showed a fleet tool 26 of ~205 bindings. Read-only runs never
+ *   block but warn loudly on config-side anomalies, because a stale config on
+ *   a dry run produces a confidently wrong report.
  * - The pool is authoritative for fleet membership. Zero allocated shards is an
  *   error, never "no work to do".
  * - A shard allocated in the pool but absent from the shard config is BLOCKING,
@@ -44,7 +49,7 @@ import { createHash } from "node:crypto"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { dirname, resolve } from "node:path"
 import { partitionQuarantinedBindings } from "./community-shard-quarantine"
-import { decideRolloutProvenance, probeRolloutProvenance } from "./rollout-provenance"
+import { decideFleetProvenance, probeConfigRepoProvenance, probeRolloutProvenance } from "./rollout-provenance"
 
 /** The schema objects a migration creates. Presence is how a shard is classified. */
 export type ObjectSpec =
@@ -526,21 +531,29 @@ export function resumeDoneShards(fileContents: string, migration: string): Set<s
 export async function runFleetMigration(spec: MigrationSpec, scriptPath: string): Promise<void> {
   const options = parseArgs(spec, scriptPath)
 
-  // Provenance chokepoint: every apply-* script flows through here. The probe
-  // targets THIS checkout (the core repo root) — never options.cwd, which is
-  // the shard config's repo. Refusal happens before any network call, let
-  // alone any shard write.
-  const rolloutProvenance = decideRolloutProvenance(
-    probeRolloutProvenance(resolve(import.meta.dir, "../../..")),
-    { execute: options.execute, allowNonMain: options.allowNonMain },
-  )
-  if (!rolloutProvenance.allow) throw new Error(rolloutProvenance.reason)
-  if (rolloutProvenance.provenance.overrideUsed) {
+  // Provenance chokepoint: every apply-* script flows through here, and BOTH
+  // sides of the seam are attested — THIS core checkout (the script's repo
+  // root) and the checkout containing --wrangler-config. Refusal happens before
+  // any network call, let alone any shard write.
+  const fleetProvenance = decideFleetProvenance({
+    core: probeRolloutProvenance(resolve(import.meta.dir, "../../..")),
+    config: probeConfigRepoProvenance(options.wranglerConfig),
+    execute: options.execute,
+    allowNonMain: options.allowNonMain,
+  })
+  if (!fleetProvenance.allow) throw new Error(fleetProvenance.reason)
+  if (fleetProvenance.overrideUsed) {
     console.error(
-      `\nWARNING: --allow-non-main break-glass override in effect: ${rolloutProvenance.reason}\n`,
+      `\nWARNING: --allow-non-main break-glass override in effect (${fleetProvenance.overriddenSides.join(" + ")} side overridden):\n${fleetProvenance.reason}\n`,
     )
   } else {
-    console.log(`provenance: ${rolloutProvenance.reason}`)
+    console.log(`provenance: ${fleetProvenance.reason}`)
+  }
+  // A read-only pass never blocks — but a stale config on a dry run produces a
+  // confidently wrong report (26 of ~205 bindings once looked like the whole
+  // fleet), so a config-side anomaly gets a loud warning, not a quiet log line.
+  if (!options.execute && fleetProvenance.configFailure !== null) {
+    console.error(`\nWARNING config provenance: ${fleetProvenance.configFailure}\n`)
   }
 
   const { sql, checksum } = await migrationSql(options, spec)
@@ -665,9 +678,12 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
         migration: spec.migration,
         checksum,
         executed: options.execute,
-        // Checkout provenance: which git state produced this run. overrideUsed
-        // means a break-glass --allow-non-main execution.
-        rollout_provenance: rolloutProvenance.provenance,
+        // Checkout provenance: which git state produced this run, on BOTH sides
+        // of the seam (executing core checkout + the config's own checkout).
+        // overriddenSides lists which side(s) a break-glass --allow-non-main
+        // execution actually overrode.
+        rollout_provenance: fleetProvenance.coreRecord,
+        config_provenance: fleetProvenance.configRecord,
         // Provenance: which config decided the fleet's membership. A stale config
         // here is the difference between migrating the fleet and migrating a slice.
         shard_config: options.wranglerConfig,
