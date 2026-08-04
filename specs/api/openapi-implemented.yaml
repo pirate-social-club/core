@@ -9814,26 +9814,32 @@ components:
             - very
             - self
           nullable: true
+          deprecated: true
           description: |
-            Primary public-v0 human-verification lane for this community. This is the UX-facing trust
-            lane that tells users which verification path to complete first. `very` is the lighter
-            baseline `unique_human` lane. `self` is the higher-friction lane for communities that also
-            need richer identity-derived capabilities or stronger agent-native trust semantics. When
-            omitted on create, the server may resolve a platform default lane. The server must reject
-            or normalize lane selections that are inconsistent with the effective gate set. For
-            example, a community whose resolved gates require Self-only capabilities such as
-            `nationality` or `age_over_18` must not resolve to `human_verification_lane = very`.
+            Deprecated compatibility input for the community's former primary verification lane.
+            New clients should send `preferred_verification_provider`. Omitting both fields must not
+            cause the server to invent a provider preference. The server must reject lane selections
+            that are inconsistent with the effective gate set.
+        preferred_verification_provider:
+          allOf:
+            - $ref: "#/components/schemas/CommunityHumanVerificationProvider"
+          nullable: true
+          description: |
+            Optional community preference for the verification provider presented first. This is a UX
+            preference, not an additional gate requirement, and must be accepted by the effective gate
+            policy. When omitted, clients should present the supported accepted-provider choices rather
+            than assume a platform default.
         accepted_agent_ownership_providers:
           type: array
           nullable: true
           description: |
             Optional stricter override for agent KYA acceptance. When omitted, reads should derive the
-            effective accepted agent-ownership providers from `human_verification_lane` and the
-            community trust floor: any platform-approved KYA provider is acceptable so long as the
-            bound human clears the required lane. The platform-approved provider set must come from an
-            explicit server-side policy source such as a config-backed allowlist or policy table; mere
-            presence in an enum is not sufficient. Set this only when the community wants a narrower
-            agent-auth posture, such as Self-only agent ownership.
+            effective accepted agent-ownership providers from the human gate requirements and community
+            trust floor. `preferred_verification_provider` is presentation-only and must not affect this
+            derivation. The platform-approved provider set must come from an explicit server-side policy
+            source such as a config-backed allowlist or policy table; mere presence in an enum is not
+            sufficient. Set this only when the community wants a narrower agent-auth posture, such as
+            Self-only agent ownership.
           items:
             $ref: "#/components/schemas/AgentOwnershipProvider"
         namespace:
@@ -10406,10 +10412,16 @@ components:
         human_verification_lane:
           $ref: "#/components/schemas/HumanVerificationLane"
           nullable: true
+          deprecated: true
           description: |
-            Optional update-time override for the community's primary human-verification lane. Null
-            clears the explicit override so the server can re-derive the effective lane from the
-            current gate set or platform default.
+            Deprecated compatibility override. Null clears it without selecting a replacement.
+        preferred_verification_provider:
+          allOf:
+            - $ref: "#/components/schemas/CommunityHumanVerificationProvider"
+          nullable: true
+          description: |
+            Optional update-time provider preference. Null clears the preference. The selected provider
+            must be accepted by the effective gate policy and does not become a gate requirement.
         accepted_agent_ownership_providers:
           type: array
           nullable: true
@@ -11564,13 +11576,23 @@ components:
           nullable: true
         human_verification_lane:
           $ref: "#/components/schemas/HumanVerificationLane"
+          nullable: true
+          deprecated: true
           description: |
-            Resolved effective public-v0 human-verification lane for this community.
+            Deprecated compatibility summary. Null when no explicit or unambiguous lane exists.
+        preferred_verification_provider:
+          allOf:
+            - $ref: "#/components/schemas/CommunityHumanVerificationProvider"
+          nullable: true
+          description: |
+            Explicit community provider preference when configured. This does not narrow or expand the
+            effective gate's accepted-provider set.
         human_verification_lane_origin:
           $ref: "#/components/schemas/CommunityAgentResolutionOrigin"
+          deprecated: true
           description: |
-            Whether `human_verification_lane` came from an explicit community override or was derived
-            from the effective gate set or platform default.
+            Deprecated compatibility provenance. A null lane uses `derived` because no explicit legacy
+            override selected it.
         allowed_disclosed_qualifiers:
           type: array
           items:
@@ -11681,8 +11703,8 @@ components:
           description: |
             Resolved effective accepted agent-ownership providers for this community. The server must
             always return the concrete effective provider set on reads, whether it came from an
-            explicit override or from derivation based on `human_verification_lane` and the
-            underlying trust floor.
+            explicit override or from derivation based on the human gate requirements and underlying
+            trust floor. Verification-provider preference must not affect this set.
           items:
             $ref: "#/components/schemas/AgentOwnershipProvider"
         accepted_agent_ownership_providers_origin:

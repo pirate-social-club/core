@@ -195,7 +195,8 @@ export type Community = {
   karaoke_enabled: boolean;
   allow_anonymous_identity: boolean;
   anonymous_identity_scope?: "community_stable" | "thread_stable" | "post_ephemeral" | null;
-  human_verification_lane: HumanVerificationLane;
+  human_verification_lane: HumanVerificationLane | null;
+  preferred_verification_provider?: CommunityHumanVerificationProvider | null;
   human_verification_lane_origin: CommunityAgentResolutionOrigin;
   allowed_disclosed_qualifiers?: Array<string> | null;
   allow_qualifiers_on_anonymous_posts?: boolean | null;
@@ -783,6 +784,8 @@ type CommunityGraphicContentPolicy = {
   body_horror_disturbing: CommunityModerationDecisionLevel;
   animal_harm: CommunityModerationDecisionLevel;
 };
+
+type CommunityHumanVerificationProvider = "self" | "zkpassport" | "very";
 
 type CommunityIdentifiedPersonMediaScope = "subject_only" | "subject_or_authorized" | "public_source_allowed";
 
