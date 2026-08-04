@@ -122,3 +122,9 @@ invalidation, migration, and re-attestation. It must also include a quarantine
 transition, an unavailable or failed observation, and every canonical schema
 profile present in staging. Consecutive quiet green releases alone are not
 sufficient activation evidence.
+
+Each shadow manifest records both `authoritative_match` and
+`would_fast_path_fire`. The latter is required: agreement alone cannot detect a
+reader that abstains forever. Quarantined bindings are excluded through the
+freshly validated registry at read time, so their intentionally invalid ledger
+rows neither block nor falsely satisfy the aggregate.
