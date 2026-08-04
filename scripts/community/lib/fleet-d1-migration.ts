@@ -127,6 +127,7 @@ export type Options = {
   execute: boolean
   confirmTimeTravel: boolean
   allowNonMain: boolean
+  repairQuarantinedOnly: boolean
   manifest: string
   resumeFile?: string
   only?: string
@@ -287,6 +288,10 @@ Options:
   --allow-non-main         Break-glass: allow --execute from a HEAD that is not
                            contained in origin/main (loud warning; recorded in
                            the manifest as overrideUsed).
+  --repair-quarantined-only
+                           Permit --only to target that one explicitly
+                           quarantined database for in-place remediation. Never
+                           includes other quarantined shards.
 
 Read-only by default. Blank, never-loaded pool databases are never touched.
 `)
@@ -318,6 +323,7 @@ export function parseArgs(spec: MigrationSpec, scriptPath: string): Options {
     execute: argv.includes("--execute"),
     confirmTimeTravel: argv.includes("--confirm-time-travel"),
     allowNonMain: argv.includes("--allow-non-main"),
+    repairQuarantinedOnly: argv.includes("--repair-quarantined-only"),
     manifest: resolve(get("--manifest") ?? `tmp/${slug}-${prod ? "prod" : "staging"}-manifest.json`),
     resumeFile: get("--resume-file") ? resolve(get("--resume-file")!) : undefined,
     only: get("--only"),
@@ -330,12 +336,40 @@ export function parseArgs(spec: MigrationSpec, scriptPath: string): Options {
   if (options.execute && !options.resumeFile && !options.only) {
     throw new Error("--execute against the fleet requires --resume-file")
   }
+  if (options.repairQuarantinedOnly && !options.only) {
+    throw new Error("--repair-quarantined-only requires --only DB_NAME")
+  }
   // A concurrency of 0 (or NaN, from a typo) would spawn no workers, do no work,
   // and still write a clean-looking manifest.
   if (!Number.isInteger(options.concurrency) || options.concurrency < 1) {
     throw new Error(`--concurrency must be a positive integer, got "${get("--concurrency")}"`)
   }
   return options
+}
+
+export function selectMigrationBindings(input: {
+  liveBindings: readonly string[]
+  quarantinedTargets: readonly { binding: string; databaseName: string }[]
+  only?: string
+  repairQuarantinedOnly: boolean
+}): { bindings: string[]; repairedQuarantineBinding?: string } {
+  const quarantined = input.only
+    ? input.quarantinedTargets.find((target) => target.databaseName === input.only)
+    : undefined
+  if (quarantined && !input.repairQuarantinedOnly) {
+    throw new Error(`--only ${input.only} targets quarantined binding ${quarantined.binding}`)
+  }
+  if (input.repairQuarantinedOnly && !quarantined) {
+    throw new Error(
+      `--repair-quarantined-only target ${input.only} is not explicitly quarantined; refusing override`,
+    )
+  }
+  return quarantined
+    ? {
+        bindings: [...input.liveBindings, quarantined.binding],
+        repairedQuarantineBinding: quarantined.binding,
+      }
+    : { bindings: [...input.liveBindings] }
 }
 
 /**
@@ -526,12 +560,17 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
     allocatedBindings,
     new Set(map.keys()),
   )
-  const bindings = partition.live
+  const selection = selectMigrationBindings({
+    liveBindings: partition.live,
+    quarantinedTargets: partition.quarantined.flatMap((entry) => {
+      const databaseName = map.get(entry.binding)?.name
+      return databaseName ? [{ binding: entry.binding, databaseName }] : []
+    }),
+    only: options.only,
+    repairQuarantinedOnly: options.repairQuarantinedOnly,
+  })
+  const bindings = selection.bindings
   if (bindings.length === 0) throw new Error("quarantine policy leaves ZERO live shards; refusing to continue")
-  if (options.only) {
-    const quarantined = partition.quarantined.find((q) => map.get(q.binding)?.name === options.only)
-    if (quarantined) throw new Error(`--only ${options.only} targets quarantined binding ${quarantined.binding}`)
-  }
 
   const targets: Array<{ binding: string; name: string; id: string }> = []
   // A binding that is allocated in the pool but absent from the shard config is
@@ -640,6 +679,12 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
         quarantine_registry: options.quarantineRegistry,
         quarantine_registry_checksum: partition.registryChecksum,
         quarantines: partition.quarantined,
+        quarantine_repair_override: selection.repairedQuarantineBinding
+          ? {
+              binding: selection.repairedQuarantineBinding,
+              database_name: options.only,
+            }
+          : null,
         classified: results.length - skippedByResume,
         skipped_by_resume_file: skippedByResume,
         // A resume file skips shards WITHOUT reclassifying them, so a run that used

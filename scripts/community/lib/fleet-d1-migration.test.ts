@@ -16,12 +16,50 @@ import {
   ledgerBackfillBody,
   resumeDoneShards,
   resumeEntryKey,
+  selectMigrationBindings,
   type MigrationSpec,
 } from "./fleet-d1-migration"
 
 const CHECKSUM = "a".repeat(64)
 
 const MIGRATIONS_DIR = resolve(import.meta.dir, "../../../db/community-template/migrations")
+
+describe("quarantined single-shard remediation", () => {
+  const input = {
+    liveBindings: ["DB_CMTY_0001"],
+    quarantinedTargets: [{
+      binding: "DB_CMTY_0092",
+      databaseName: "community-d1-pool-0092-prod",
+    }],
+  }
+
+  test("refuses a quarantined --only target without the explicit repair flag", () => {
+    expect(() => selectMigrationBindings({
+      ...input,
+      only: "community-d1-pool-0092-prod",
+      repairQuarantinedOnly: false,
+    })).toThrow("targets quarantined binding DB_CMTY_0092")
+  })
+
+  test("adds only the named quarantined binding for repair", () => {
+    expect(selectMigrationBindings({
+      ...input,
+      only: "community-d1-pool-0092-prod",
+      repairQuarantinedOnly: true,
+    })).toEqual({
+      bindings: ["DB_CMTY_0001", "DB_CMTY_0092"],
+      repairedQuarantineBinding: "DB_CMTY_0092",
+    })
+  })
+
+  test("refuses to use the repair flag for a non-quarantined target", () => {
+    expect(() => selectMigrationBindings({
+      ...input,
+      only: "community-d1-pool-0001-prod",
+      repairQuarantinedOnly: true,
+    })).toThrow("is not explicitly quarantined")
+  })
+})
 
 /** Read the REAL migration off disk, so this test cannot drift from what ships. */
 function realMigration(spec: MigrationSpec): string {
