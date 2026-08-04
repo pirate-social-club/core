@@ -86,7 +86,7 @@
         "migrationName": "0189_control_plane_reward_tier_accounting.sql",
         "oldChecksum": "9b4d59185fe793678c77e687b749634028c2c790ca74ac7e7d5b368b284bff25",
         "newChecksum": "6c2f1b80f5fd77acfddf0e759c1b7e09e8c36bf03662ae21a80ea1dbda188e02",
-        "reason": "pre-deployment repair: backfill resolved amounts for minimal nationality decisions written before tier accounting"
+        "reason": "pre-deployment repair after the staging constraint failure: backfill resolved amounts for minimal nationality decisions written before tier accounting"
       }
     ]
   }
