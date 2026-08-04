@@ -1,7 +1,4 @@
-/**
- * Operator spec for applying community-template migration
- * 1122_live_room_audience_gates.sql across the allocated+loaded D1 fleet.
- */
+/** Apply live-room audience gates across the community D1 fleet. */
 
 import { runFleetMigration, type MigrationSpec } from "./lib/fleet-d1-migration"
 
@@ -10,14 +7,12 @@ export const SPEC: MigrationSpec = {
   label: "community-template",
   requiredTables: ["live_rooms"],
   creates: {
-    kind: "schema_objects",
-    columns: [
-      { table: "live_rooms", column: "audience_gate_json" },
-    ],
-    indexes: [],
+    kind: "columns",
+    table: "live_rooms",
+    columns: ["audience_gate_json"],
   },
   replayableDdl: false,
-  description: "Persist the audience-gate policy attached to a live room.",
+  description: "Nullable per-room audience gate configuration.",
 }
 
 if (import.meta.main) {
