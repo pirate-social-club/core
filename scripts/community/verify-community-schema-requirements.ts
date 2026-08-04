@@ -1255,6 +1255,17 @@ async function main() {
   console.log(`attestation publication: ${o.publishAttestations ? `published ${reports.length} generation-fenced verdict(s)` : "disabled"}`)
   if (attestationShadow.comparison) {
     console.log(`attestation shadow: would_fast_path_fire=${attestationShadow.comparison.would_fast_path_fire} authoritative_match=${attestationShadow.comparison.authoritative_match}`)
+    if (!attestationShadow.comparison.would_fast_path_fire) {
+      console.log(`attestation shadow non-fire reasons: ${JSON.stringify({
+        missing: attestationShadow.comparison.missing_count,
+        fresh_allocation_unattested: attestationShadow.comparison.fresh_allocation_unattested_count,
+        stale_generation_proof: attestationShadow.comparison.stale_generation_proof_count,
+        unexplained_missing_proof: attestationShadow.comparison.unexplained_missing_proof_count,
+        invalid: attestationShadow.comparison.invalid_count,
+        policy_mismatch: attestationShadow.comparison.policy_mismatch_count,
+        roster_mismatch: !attestationShadow.comparison.roster_matches_authoritative,
+      })}`)
+    }
   }
 
   // Every live shard must be classified. An unclassified shard is not a pass.

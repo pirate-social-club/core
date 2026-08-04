@@ -10,7 +10,11 @@ export type PoolAttestationAggregate = {
   verified_count: number
   invalid_count: number
   policy_mismatch_count: number
+  fresh_allocation_unattested_count: number
+  stale_generation_proof_count: number
+  unexplained_missing_proof_count: number
   oldest_verified_at: string | null
+  latest_full_scan_verified_at: string | null
 }
 
 export type AttestationShadowComparison = PoolAttestationAggregate & {
@@ -27,6 +31,12 @@ export type AttestationShadowComparison = PoolAttestationAggregate & {
 export const ATTESTATION_AGGREGATE_SQL = `
 WITH quarantined(binding_name) AS (
   SELECT CAST(value AS TEXT) FROM json_each(?3)
+), latest_full_scan(verified_at) AS (
+  SELECT MAX(verified_at)
+  FROM d1_pool_schema_attestations
+  WHERE shard_worker_id = ?1
+    AND writer_kind = 'full_scan'
+    AND state = 'verified'
 )
 SELECT
   COUNT(*) AS live_count,
@@ -34,7 +44,22 @@ SELECT
   COALESCE(SUM(CASE WHEN a.state = 'verified' AND a.effective_policy_digest = ?2 THEN 1 ELSE 0 END), 0) AS verified_count,
   COALESCE(SUM(CASE WHEN a.binding_name IS NOT NULL AND a.state != 'verified' THEN 1 ELSE 0 END), 0) AS invalid_count,
   COALESCE(SUM(CASE WHEN a.state = 'verified' AND a.effective_policy_digest != ?2 THEN 1 ELSE 0 END), 0) AS policy_mismatch_count,
-  MIN(CASE WHEN a.state = 'verified' AND a.effective_policy_digest = ?2 THEN a.verified_at END) AS oldest_verified_at
+  COALESCE(SUM(CASE
+    WHEN a.binding_name IS NULL
+      AND a_any.binding_name IS NULL
+      AND latest_full_scan.verified_at IS NOT NULL
+      AND p.allocated_at > latest_full_scan.verified_at
+    THEN 1 ELSE 0 END), 0) AS fresh_allocation_unattested_count,
+  COALESCE(SUM(CASE
+    WHEN a.binding_name IS NULL AND a_any.binding_name IS NOT NULL
+    THEN 1 ELSE 0 END), 0) AS stale_generation_proof_count,
+  COALESCE(SUM(CASE
+    WHEN a.binding_name IS NULL
+      AND a_any.binding_name IS NULL
+      AND (latest_full_scan.verified_at IS NULL OR p.allocated_at IS NULL OR p.allocated_at <= latest_full_scan.verified_at)
+    THEN 1 ELSE 0 END), 0) AS unexplained_missing_proof_count,
+  MIN(CASE WHEN a.state = 'verified' AND a.effective_policy_digest = ?2 THEN a.verified_at END) AS oldest_verified_at,
+  latest_full_scan.verified_at AS latest_full_scan_verified_at
 FROM d1_pool p
 LEFT JOIN quarantined q ON q.binding_name = p.binding_name
 LEFT JOIN d1_pool_schema_attestations a
@@ -42,6 +67,10 @@ LEFT JOIN d1_pool_schema_attestations a
  AND a.shard_worker_id = ?1
  AND a.community_id = p.community_id
  AND a.pool_version = p.version
+LEFT JOIN d1_pool_schema_attestations a_any
+  ON a_any.binding_name = p.binding_name
+ AND a_any.shard_worker_id = ?1
+CROSS JOIN latest_full_scan
 WHERE p.community_id IS NOT NULL
   AND p.last_loaded_at IS NOT NULL
   AND q.binding_name IS NULL
@@ -68,13 +97,30 @@ function readAggregate(result: D1QueryResult | undefined): PoolAttestationAggreg
   if (oldest !== null && typeof oldest !== "string") {
     throw new Error("attestation aggregate oldest_verified_at must be a string or null")
   }
+  const latestFullScan = record.latest_full_scan_verified_at
+  if (latestFullScan !== null && typeof latestFullScan !== "string") {
+    throw new Error("attestation aggregate latest_full_scan_verified_at must be a string or null")
+  }
   return {
     live_count: nonNegativeInteger(record.live_count, "live_count"),
     missing_count: nonNegativeInteger(record.missing_count, "missing_count"),
     verified_count: nonNegativeInteger(record.verified_count, "verified_count"),
     invalid_count: nonNegativeInteger(record.invalid_count, "invalid_count"),
     policy_mismatch_count: nonNegativeInteger(record.policy_mismatch_count, "policy_mismatch_count"),
+    fresh_allocation_unattested_count: nonNegativeInteger(
+      record.fresh_allocation_unattested_count,
+      "fresh_allocation_unattested_count",
+    ),
+    stale_generation_proof_count: nonNegativeInteger(
+      record.stale_generation_proof_count,
+      "stale_generation_proof_count",
+    ),
+    unexplained_missing_proof_count: nonNegativeInteger(
+      record.unexplained_missing_proof_count,
+      "unexplained_missing_proof_count",
+    ),
     oldest_verified_at: oldest,
+    latest_full_scan_verified_at: latestFullScan,
   }
 }
 
