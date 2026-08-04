@@ -6,6 +6,7 @@ function probe(profile: "bookings_and_dance" | "replay_and_streaks", present: bo
   const row: Record<string, number> = { required__communities: 1, required__live_rooms: 1 }
   const sql = probeSql(profile)
   for (const match of sql.matchAll(/ AS (table|column|index)__([A-Za-z0-9_]+)/g)) row[`${match[1]}__${match[2]}`] = present ? 1 : 0
+  if (profile === "bookings_and_dance") row.fragment__dance_upload_invalid = present ? 1 : 0
   if (profile === "replay_and_streaks") {
     row.column__live_rooms__recording_enabled = 1
     row.column__live_rooms__replay_asset_id = 1
