@@ -360,34 +360,30 @@ Recommended v0 rules:
 
 Examples:
 
-- a community that needs only baseline uniqueness resolves to `very` or `self` lane and requests only `unique_human`
+- a community that needs only baseline uniqueness accepts its configured provider set and may
+  explicitly prefer one provider for initial presentation
 - a Self 18+ community requests `age_over_18`, which should also imply `unique_human`
 - a Self nationality-gated community requests `nationality`, which should also imply `unique_human`
 - a user who already has Self `age_over_18` should not be asked to repeat that proof when joining another 18+ community
 
 This keeps community policy stable while letting Pirate evolve the provider-specific verification wiring behind the scenes.
 
-## Public V0 Human Verification Lane
+## Public V0 Verification Provider Presentation
 
-Public v0 community configuration should prefer one primary human-verification lane rather than presenting `self` and `very` as parallel asks for the same baseline trust floor.
+Public v0 community configuration must not invent a verification provider when the gate accepts
+multiple providers. The gate's `accepted_providers` remains the authorization boundary.
 
 Recommended v0 posture:
 
-- a community should choose one primary `human_verification_lane`
-  - `very`
-  - `self`
-- `very` is the lighter-weight baseline lane for `unique_human`
-- `self` is the higher-friction, higher-capability lane that can also support things such as `age_over_18`, `nationality`, or stronger agent-native trust postures
-- public v0 community UX should not encourage configuring both `self` and `very` as separate asks for the same `unique_human` gate
+- `preferred_verification_provider` is optional and controls initial UX ordering only
+- an explicit preference must belong to the effective accepted-provider set
+- when no preference exists, clients present the intersection of gate-accepted and
+  platform-supported providers
+- a preference never narrows or expands the gate and never becomes a verification requirement
+- `human_verification_lane` is deprecated compatibility data and may be null when no explicit or
+  unambiguous provider summary exists
 
-Interpretation:
-
-- if the community's needs stop at baseline `unique_human`, `very` is a reasonable lane
-- if the community needs richer identity-derived capabilities or stronger agent-native trust semantics, `self` is the appropriate lane
-- if the community uses Self-only capabilities such as `age_over_18` or `nationality`, the lane must resolve to `self`
-- the internal gate model may remain capability-oriented and provider-neutral where possible, but the public v0 configuration surface should stay simple
-
-This keeps community setup legible without giving up Pirate's more general capability model under the hood.
+This keeps provider choice explicit while preserving the capability-oriented gate model.
 
 ## Adult Communities
 
