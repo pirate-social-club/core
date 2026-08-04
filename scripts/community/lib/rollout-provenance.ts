@@ -14,6 +14,18 @@
  * The git probing (probeRolloutProvenance) is deliberately separate from the
  * decision (decideRolloutProvenance) so the policy is unit-testable without git.
  *
+ * Both sides of the seam
+ * ----------------------
+ * The shard/wrangler config a run consumes lives in the API repo — a second
+ * checkout with its own HEAD. A fleet tool once read its shard config from a
+ * STALE api checkout and confidently inventoried 26 of ~205 bindings. So fleet
+ * tooling attests BOTH repos: probeConfigRepoProvenance resolves the config
+ * path's containing repo (git rev-parse --show-toplevel) and probes it with the
+ * same rigor; decideFleetProvenance composes the two sides — refuse --execute
+ * unless both are main-contained and clean, one --allow-non-main covering
+ * whichever side(s) failed, recorded per side. A config path that is not inside
+ * a git repository fails closed for execute with a clear message.
+ *
  * Semantics
  * ---------
  * - Refuse only when: execute && NOT (onMain && clean) && !allowNonMain.
@@ -28,6 +40,7 @@
  */
 
 import { execFileSync } from "node:child_process"
+import { dirname, resolve } from "node:path"
 
 export type RolloutProvenanceProbe = {
   /** HEAD sha, null when git itself failed (not a git repository). */
@@ -58,6 +71,8 @@ export type RolloutProvenanceRecord = {
 export type RolloutProvenanceDecision = {
   allow: boolean
   reason: string
+  /** The specific provenance failure, null when the side is fully proven. */
+  failure: string | null
   provenance: RolloutProvenanceRecord
 }
 
@@ -154,6 +169,7 @@ export function decideRolloutProvenance(
     return {
       allow: true,
       reason: `HEAD ${probe.headSha?.slice(0, 12)} is contained in origin/main and the working tree is clean`,
+      failure: null,
       provenance,
     }
   }
@@ -162,6 +178,7 @@ export function decideRolloutProvenance(
     return {
       allow: true,
       reason: `${failure} — read-only run, not blocking; an --execute run would refuse here`,
+      failure,
       provenance,
     }
   }
@@ -170,6 +187,7 @@ export function decideRolloutProvenance(
     return {
       allow: true,
       reason: `${failure} — overridden by --allow-non-main (break-glass)`,
+      failure,
       provenance,
     }
   }
@@ -178,6 +196,114 @@ export function decideRolloutProvenance(
     reason:
       `${failure}. Refusing to execute a fleet rollout without origin/main provenance; ` +
       "pass --allow-non-main only for a deliberate, reviewed break-glass run",
+    failure,
     provenance,
+  }
+}
+
+/**
+ * The OTHER side of the seam: the shard/wrangler config that tells the fleet
+ * machinery which databases exist lives in the api repo, and nothing used to
+ * attest that checkout — a fleet tool once resolved its shard config from a
+ * STALE api checkout and confidently inventoried 26 of ~205 bindings.
+ */
+export type ConfigRepoProbe = {
+  /** The config path the run was pointed at (e.g. --wrangler-config). */
+  configPath: string
+  /** Git toplevel containing the config; null when the path is not in a repo. */
+  repoPath: string | null
+  probe: RolloutProvenanceProbe
+}
+
+/**
+ * Resolve the git repository containing `configPath` and probe THAT repo with
+ * the same rigor as the executing checkout. A config path that is not inside a
+ * git repository is not an exception — it is a probe whose gitError the
+ * decision fails closed on for --execute (operators sometimes point at plain
+ * config dirs; --allow-non-main is the documented way out).
+ */
+export function probeConfigRepoProvenance(configPath: string): ConfigRepoProbe {
+  const top = git(dirname(resolve(configPath)), ["rev-parse", "--show-toplevel"])
+  if (!top.ok || !top.stdout) {
+    return {
+      configPath,
+      repoPath: null,
+      probe: {
+        headSha: null,
+        branch: null,
+        detached: false,
+        originMainSha: null,
+        onMain: null,
+        dirty: null,
+        gitError: "not inside a git repository",
+      },
+    }
+  }
+  return { configPath, repoPath: top.stdout, probe: probeRolloutProvenance(top.stdout) }
+}
+
+/** Manifest record for the config-side checkout. */
+export type ConfigProvenanceRecord = {
+  repoPath: string | null
+  headSha: string | null
+  /** Branch name, or "(detached)". */
+  branch: string
+  onMain: boolean | null
+  dirty: boolean | null
+}
+
+/** The composed both-sides decision the fleet machinery enforces. */
+export type FleetProvenanceDecision = {
+  allow: boolean
+  /** Combined message; each side's segment is prefixed with its label. */
+  reason: string
+  overrideUsed: boolean
+  /** Which side(s) the --allow-non-main override actually covered. */
+  overriddenSides: Array<"core" | "config">
+  /** Manifest record for the executing checkout, with the override detail. */
+  coreRecord: RolloutProvenanceRecord & { overriddenSides: Array<"core" | "config"> }
+  /** Manifest record for the config checkout. */
+  configRecord: ConfigProvenanceRecord
+  /** Per-side failures (null when proven); drives read-only loud warnings. */
+  coreFailure: string | null
+  configFailure: string | null
+}
+
+/**
+ * Compose both sides: refuse an --execute run unless the core checkout AND the
+ * config checkout are each main-contained and clean. A single --allow-non-main
+ * covers whichever side(s) failed, recorded per side. Read-only runs always
+ * allow; the per-side failure fields let callers warn loudly instead.
+ */
+export function decideFleetProvenance(input: {
+  core: RolloutProvenanceProbe
+  config: ConfigRepoProbe
+  execute: boolean
+  allowNonMain: boolean
+}): FleetProvenanceDecision {
+  const options = { execute: input.execute, allowNonMain: input.allowNonMain }
+  const core = decideRolloutProvenance(input.core, options)
+  const config = decideRolloutProvenance(input.config.probe, options)
+
+  const overriddenSides: Array<"core" | "config"> = []
+  if (core.provenance.overrideUsed) overriddenSides.push("core")
+  if (config.provenance.overrideUsed) overriddenSides.push("config")
+
+  const configLabel = `config checkout (${input.config.repoPath ?? input.config.configPath})`
+  return {
+    allow: core.allow && config.allow,
+    reason: [`core checkout: ${core.reason}`, `${configLabel}: ${config.reason}`].join("\n"),
+    overrideUsed: overriddenSides.length > 0,
+    overriddenSides,
+    coreRecord: { ...core.provenance, overrideUsed: overriddenSides.length > 0, overriddenSides },
+    configRecord: {
+      repoPath: input.config.repoPath,
+      headSha: config.provenance.headSha,
+      branch: config.provenance.branch,
+      onMain: config.provenance.onMain,
+      dirty: config.provenance.dirty,
+    },
+    coreFailure: core.failure,
+    configFailure: config.failure,
   }
 }
