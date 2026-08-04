@@ -72,6 +72,11 @@ import {
   invalidatePoolAttestations,
   publishPoolAttestations,
 } from "./lib/schema-attestation-publisher"
+import {
+  compareAttestationShadow,
+  readPoolAttestationAggregate,
+  type AttestationShadowComparison,
+} from "./lib/schema-attestation-reader"
 
 type Requirements = {
   $comment?: string | string[]
@@ -1156,6 +1161,18 @@ async function main() {
     published: 0,
     status: o.publishAttestations ? "pending" : "disabled",
   }
+  // Shadow evidence intentionally does not affect this command's exit status:
+  // the REST scan remains the release authority until a later activation review.
+  // It must, however, distinguish agreement from a reader that always abstains.
+  const attestationShadow: {
+    enabled: boolean
+    status: "disabled" | "pending" | "compared"
+    comparison: AttestationShadowComparison | null
+  } = {
+    enabled: o.publishAttestations,
+    status: o.publishAttestations ? "pending" : "disabled",
+    comparison: null,
+  }
   const manifest = {
     fleet,
     shard_worker_id: shardWorkerId,
@@ -1185,6 +1202,7 @@ async function main() {
     summary,
     shards: reports,
     attestation_publication: publication,
+    attestation_shadow: attestationShadow,
   }
 
   await mkdir(dirname(o.manifest), { recursive: true })
@@ -1208,6 +1226,18 @@ async function main() {
     })
     publication.published = reports.length
     publication.status = "published"
+    const aggregate = await readPoolAttestationAggregate({
+      shardWorkerId,
+      policyDigest,
+      quarantinedBindings: partition.quarantined.map((quarantine) => quarantine.binding),
+      run: (statements) => d1QueryBatch(client, pool, statements),
+    })
+    attestationShadow.comparison = compareAttestationShadow({
+      aggregate,
+      expectedLiveCount: bindings.length,
+      authoritativePass: failures.length === 0,
+    })
+    attestationShadow.status = "compared"
     await writeManifest()
   }
 
@@ -1223,6 +1253,9 @@ async function main() {
   console.log(`D1 REST query metrics: ${JSON.stringify(d1QueryMetrics)}`)
   console.log(`manifest: ${o.manifest}`)
   console.log(`attestation publication: ${o.publishAttestations ? `published ${reports.length} generation-fenced verdict(s)` : "disabled"}`)
+  if (attestationShadow.comparison) {
+    console.log(`attestation shadow: would_fast_path_fire=${attestationShadow.comparison.would_fast_path_fire} authoritative_match=${attestationShadow.comparison.authoritative_match}`)
+  }
 
   // Every live shard must be classified. An unclassified shard is not a pass.
   if (reports.length !== bindings.length) {
