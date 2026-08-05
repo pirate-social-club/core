@@ -92,7 +92,7 @@ Isolation rule: everything lives in a scratch repo / `spike/` directory — **ze
 
 ### Phase B — blueprint
 - [ ] B1. Author registry blueprint (docs: zk-email-sdk/creating-a-new-pattern): DKIM verify, `h=` coverage assertions, single-From parse, `To == From`, subject regex `pirate-verify:(.+)` with nonce public, From-domain public, app-salted commitment public, header-only.
-- [ ] B2. Verify the blueprint DSL can actually express the `d=`/From alignment + `To == From` checks (NOT automatic per zk.email docs). If not expressible → custom circuit territory; cost re-estimate → possible no-go.
+- [x] B2 desk check. `@zk-email/sdk@2.0.11` can expose/hash regex extractions, so proof-bound From-domain comparison and hashed From/To equality can be enforced after proof verification. However, the ordinary blueprint fixes one `senderDomain`, and the schema cannot compose an extracted mailbox with an application salt. The complete arbitrary-domain + app-salted-nullifier protocol is not expressible as one ordinary hosted blueprint. See `spikes/email-domain-gate/b2-blueprint-dsl.md`; generated-project and dynamic-domain-wrapper validation remain before the final custom-circuit/no-go decision.
 - [ ] B3. Pin blueprint version; document verifying-key extraction for server-side `verifyProof`.
 
 ### Phase C — proving bench
