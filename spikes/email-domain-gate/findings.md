@@ -1,7 +1,11 @@
 # Phase A findings
 
-Only manually reviewed structural metadata belongs in this file. Raw messages,
+Only manually reviewed sanitized metadata belongs in this file. Raw messages,
 addresses, subjects, signatures, paths, and DNS keys must remain private.
+
+Structural inspection is triage only. A sample is not a pass until its DKIM
+signature verifies cryptographically against the published DNS key, including
+the body hash.
 
 ## Proton custom-domain self-send
 
@@ -23,16 +27,32 @@ explanations:
    may strip/lose DKIM material even when the wire message was signed (zk.email
    docs warn about exactly this for Proton-received mail).
 
-Two controls are required to separate them:
+Two controls were collected:
 
-- **Control 1 (outbound signing):** Proton custom-domain → external Gmail, same
-  subject, exported FROM GMAIL (known-good export fidelity). Signature present ⇒
-  Proton signs external delivery; failure was ceremony- or export-side.
+- **Control 1 (outbound signing):** Proton custom-domain → external Gmail,
+  exported from Gmail. **PASS:** one strictly aligned RSA-SHA256 DKIM signature
+  covers From, To, and Subject and verifies cryptographically against the
+  published DNS key, including its body hash. This proves the intended
+  work→personal ceremony end-to-end for this provider pair.
 - **Control 2 (export fidelity):** Gmail → the Proton custom-domain address,
-  exported FROM PROTON. If Gmail's `d=gmail.com` signature does not survive the
-  Proton export, Proton is disqualified as the *exporting* mailbox for any
-  ceremony variant, independent of the internal-delivery question.
+  exported from Proton. **FAIL:** the exported artifact retains a structurally
+  complete, aligned Gmail DKIM header covering From, To, and Subject, but
+  cryptographic verification fails with a body-hash mismatch. Verification also
+  fails when body-hash checking is bypassed for diagnosis, indicating that at
+  least one signed header value was rewritten as well. Proton is therefore
+  disqualified as the exporting/personal mailbox for this ceremony.
 
-Only 1-pass + 2-pass would localize the failure to internal delivery. 2-fail
-means Proton export fidelity is the binding constraint (a Proton-specific
-disqualification, not evidence about the Workspace/M365 internal-delivery risk).
+### Decision table
+
+| Artifact | Structural result | Cryptographic result | Decision |
+|---|---|---|---|
+| Proton custom-domain self-send, exported from Proton | no DKIM header | not applicable | self-send ceremony fails for this provider |
+| Proton custom-domain → Gmail, exported from Gmail | pass | **pass** | work→personal ceremony viable for this provider pair |
+| Gmail → Proton custom-domain, exported from Proton | pass | **fail** | Proton export is not byte-faithful enough for proving received mail |
+
+Header presence proves only that a DKIM-shaped header survived export; it does
+not establish message fidelity. The self-send artifact contains no signature at
+all, while Proton does preserve a DKIM header when one existed on an externally
+received message. Internal delivery bypass remains the leading explanation for
+the self-send result, but it is not direct wire-level proof. This Proton result
+does not resolve Workspace or M365 behavior.

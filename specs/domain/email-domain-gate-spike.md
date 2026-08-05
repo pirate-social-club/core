@@ -87,7 +87,7 @@ Isolation rule: everything lives in a scratch repo / `spike/` directory — **ze
 ### Phase A — corpus + ground truth
 - [ ] A1. Collect real `.eml` corpus: Google Workspace (custom domain), Microsoft 365 (custom domain), consumer Gmail/Outlook (should FAIL domain gates — `d=gmail.com` control case), forwarded mail (should FAIL nonce/To binding), mailing-list mail (should FAIL), plus-addressed self-send, multi-`DKIM-Signature` messages, delegated-subdomain senders (`d=mail.acme.com` vs `From @acme.com` — expect FAIL under strict alignment; measure prevalence).
 - [ ] A1b. **Internal-delivery check (per provider):** does a same-mailbox self-send's exported copy contain a valid `DKIM-Signature` at all? Test Workspace, M365 (intra-tenant is the prime suspect), and Proton custom-domain. Also export the same message from an external mailbox (corp → Gmail) as the control — establishes whether outbound signing works even when internal delivery skips it. Optional starter lane while Workspace/M365 mailboxes are unavailable: Proton custom-domain (note zk.email docs warn Proton exports may not preserve DKIM material on received mail; a `@proton.me` address only proves `proton.me`).
-- [ ] A2. For each: record `d=`, `s=`, `h=` list, canonicalization (`c=`), key alg/size, whether From/To/Subject are signed. Produce the alignment-pass-rate table → feeds go/no-go Q1/Q2.
+- [ ] A2. For each: record `d=`, `s=`, `h=` list, canonicalization (`c=`), key alg/size, whether From/To/Subject are signed, then cryptographically verify the signature and body hash against the published DNS key. Structural inspection is triage only and cannot support a provider verdict. Produce the alignment-and-verification pass-rate table → feeds go/no-go Q1/Q2.
 - [ ] A3. Corpus handling: raw `.eml` files stay in a gitignored, access-restricted local directory; are never committed, uploaded, logged, or attached to issues; use dedicated test mailboxes where possible; publish only manually reviewed/redacted metadata and synthetic fixtures; document retention and securely delete raw samples when the spike ends.
 
 ### Phase B — blueprint
@@ -131,7 +131,7 @@ Isolation rule: everything lives in a scratch repo / `spike/` directory — **ze
 | T13 | Subject/From/To not in `h=` | FAIL |
 | T14 | Unicode domain (IDN) | Normalized UTS-46 canonical compare |
 | T15 | ed25519-signed DKIM (if found) | Documented behavior (likely unsupported → FAIL cleanly) |
-| T16 | Self-send exported from same tenant (per provider) | Exported copy contains valid, verifiable `DKIM-Signature`; if absent (internal-delivery gap), record per-provider and evaluate the corp→personal fallback ceremony |
+| T16 | Self-send exported from same tenant (per provider) | Exported copy contains a cryptographically valid `DKIM-Signature`; header presence alone is insufficient. If absent or invalid, record per-provider and evaluate the corp→personal fallback ceremony |
 
 ## 8. Out of scope (post-spike implementation checklist, for reference only)
 

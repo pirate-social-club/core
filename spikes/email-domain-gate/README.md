@@ -3,9 +3,10 @@
 Phase A tooling for `specs/domain/email-domain-gate-spike.md`.
 
 Raw email is sensitive. Put samples only in `corpus/`; Git ignores everything
-there except its handling instructions. The inspector emits structural metadata
-only: it never emits an address, subject, body, signature, DNS key, input path,
-or filename.
+there except its handling instructions. The tools emit sanitized metadata only:
+they never emit an address, subject, body, signature, DNS key, input path, or
+filename. Structural inspection is triage only; every provider verdict requires
+cryptographic verification against DNS.
 
 Inspect one sample:
 
@@ -26,3 +27,24 @@ Run the focused synthetic tests:
 rtk node --test inspect-eml.test.mjs
 ```
 
+Create an isolated verifier environment:
+
+```bash
+rtk python3 -m venv .venv
+rtk .venv/bin/pip install -r requirements.txt
+```
+
+Cryptographically verify a positive sample:
+
+```bash
+rtk .venv/bin/python verify-dkim.py \
+  --label proton-to-gmail \
+  --file corpus/proton-to-gmail.eml \
+  --expect pass \
+  --out results/proton-to-gmail.crypto.json
+```
+
+`--expect fail` records a message containing DKIM signatures that do not verify;
+`--expect no-signature` records a message with no DKIM signature. The command
+fails if the observed cryptographic result differs from the declared corpus
+expectation.
