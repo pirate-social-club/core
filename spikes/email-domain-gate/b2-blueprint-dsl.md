@@ -71,8 +71,43 @@ must therefore choose one of:
 
 Option 3 changes gate semantics and is not recommended. Option 2 may be
 acceptable only if proof outputs remain off-chain/private and the API continues
-to store only `HMAC(server_secret, commitment)`; it still permits linkage when
-the same proof output is disclosed elsewhere.
+to store only `HMAC(server_secret, commitment)`.
+
+The precise security cost of option 2 is narrower than operator privacy. Pirate
+operators are already able to enumerate likely addresses because the specified
+application salt must be available to the prover. Removing that salt leaves
+operator deanonymization, database-breach containment, and isolation from
+ordinary users/communities unchanged. It adds two risks whenever the raw digest
+escapes:
+
+- anyone can dictionary-attack the unsalted digest using candidate email
+  addresses; and
+- another zk.email application hashing the same extracted From value can join
+  its user set with Pirate's.
+
+Consequently, keeping the digest transient and off-chain is a security control,
+not merely logging hygiene. It must be sent only in a request body over TLS,
+must never appear in URLs/query parameters, logs, traces, analytics, Sentry
+events or breadcrumbs, and must never be echoed by the API. The API should
+immediately derive `HMAC(server_secret, digest)`, persist only that value, and
+discard the digest with the request/proof payload.
+
+### Dedup normalization prerequisite
+
+The generated-project experiment must also establish exactly which bytes
+`isHashed` commits to. The API receives only the digest, so it cannot normalize
+the mailbox before applying its HMAC. If the circuit hashes the raw header form,
+differences in display names, mailbox/domain casing, comments, folding, quoting,
+or encoding may create different nullifiers for the same mailbox.
+
+Before option 2 can support a "one proven mailbox ↔ one Pirate account"
+claim, the extraction must demonstrably hash one canonical mailbox value. At a
+minimum, the experiment must compare equivalent headers such as
+`Alice <A@Acme.com>` and `<A@acme.com>` and document whether local-part casing is
+intentionally byte-exact while the domain is canonicalized. If the hosted
+circuit cannot perform that canonicalization, its dedup guarantee is only over
+the exact extracted byte string and option 2 needs another product/security
+decision.
 
 ## Additional SDK finding: Outlook fetch path
 
@@ -101,6 +136,7 @@ Released files inspected from the npm source maps/type declarations:
 
 Before declaring custom-circuit work mandatory, build a tiny domain-specific
 draft blueprint using hashed From/To extractions and a public subject nonce, then
-inspect its generated project/public signals. Separately prototype the
+inspect its generated project/public signals. Test the normalization-equivalence
+cases above, not only one well-formed address. Separately prototype the
 lower-level dynamic-domain verification wrapper and prove that changing the
 asserted domain makes verification fail.
