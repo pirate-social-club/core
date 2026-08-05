@@ -56,3 +56,25 @@ all, while Proton does preserve a DKIM header when one existed on an externally
 received message. Internal delivery bypass remains the leading explanation for
 the self-send result, but it is not direct wire-level proof. This Proton result
 does not resolve Workspace or M365 behavior.
+
+## Proton same-mailbox From-presentation variation
+
+Observed 2026-08-05 from two distinct Proton custom-domain → Gmail messages,
+exported by Gmail. One used the account's canonical sender presentation and one
+attempted a different presentation. Only sanitized comparisons are recorded:
+
+- both messages have one strictly aligned, gate-usable DKIM signature covering
+  From, To, and Subject;
+- both signatures verify cryptographically against DNS, including body hashes;
+- the messages are distinct (different Message-ID, Date, and Subject values);
+- the signed From header values are byte-for-byte identical;
+- parsed display-name presence/value and addr-spec are identical; and
+- local-part bytes and canonical domains are identical.
+
+Conclusion: this attempted variation does **not** create a second prospective
+nullifier. Proton emitted the same signed sender presentation for both messages,
+which is provider-side mitigation evidence for this account/interface. It does
+not establish that every Proton interface, alias, Workspace/M365 tenant, or
+arbitrary allowed domain canonicalizes From. Plus aliases and other
+provider-permitted sender identities remain untested, so the broader A1c Sybil
+question stays open.
