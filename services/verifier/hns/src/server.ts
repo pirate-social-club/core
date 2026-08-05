@@ -1159,7 +1159,11 @@ async function verifyOwnerDnsTxt(body: {
     inspectExpiryHorizon(normalizedRoot),
   ]);
   const verified = observedValues.includes(body.challenge_txt_value);
-  const pirateDnsAuthorityVerified = nameservers.some(matchesDefaultNameserver);
+  // The owner's apex NS answer is not a Handshake delegation. Only the
+  // on-chain root resource can establish that Pirate is authoritative for the
+  // HNS root; keep the recursive answer as diagnostic evidence only.
+  const pirateDnsAuthorityVerified = (rootResource?.nameservers ?? [])
+    .some(matchesDefaultNameserver);
   const rootExists = expiryEvidence.expiry_root_exists
     ?? (rootResource != null ? true : null);
 
@@ -1173,6 +1177,7 @@ async function verifyOwnerDnsTxt(body: {
         ? "challenge_not_published"
         : "challenge_mismatch",
     observed_values: observedValues,
+    owner_dns_nameservers: nameservers,
     root_exists: rootExists,
     root_control_verified: verified,
     ...expiryEvidence,

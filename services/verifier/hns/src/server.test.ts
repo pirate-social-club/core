@@ -464,6 +464,34 @@ describe("hns verifier server", () => {
     resetOwnerManagedProofs();
   });
 
+  test("does not mistake an owner-side apex NS answer for on-chain delegation", async () => {
+    resetOwnerManagedProofs();
+    Bun.env.HNS_OWNER_MANAGED_RESOLVERS = "192.0.2.53";
+    mockLiveResourceFetch({
+      rawHex: "000601056f74686572",
+    });
+    Resolver.prototype.resolveTxt = async () => [["pirate-verification=nvs_test"]];
+    Resolver.prototype.resolveNs = async () => ["ns1.pirate", "ns2.pirate"];
+
+    const response = await handleRequest(new Request("http://127.0.0.1:4048/verify-txt-public", {
+      method: "POST",
+      body: JSON.stringify({
+        root_label: "xn--pokmon-dva",
+        challenge_host: "_pirate.xn--pokmon-dva",
+        challenge_txt_value: "pirate-verification=nvs_test",
+      }),
+    }));
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.verified).toBe(true);
+    expect(Array.isArray(body.owner_dns_nameservers)).toBe(true);
+    expect(body.pirate_dns_authority_verified).toBe(false);
+    expect(body.routing_enabled).toBe(false);
+
+    resetOwnerManagedProofs();
+  });
+
   test("authority-health reports unprovisioned zones without claiming ownership", async () => {
     resetOwnerManagedProofs();
     const response = await handleRequest(new Request(
