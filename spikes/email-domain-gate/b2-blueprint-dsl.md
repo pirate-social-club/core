@@ -99,6 +99,8 @@ The generated-project experiment must also establish exactly which bytes
 the mailbox before applying its HMAC. If the circuit hashes the raw header form,
 differences in display names, mailbox/domain casing, comments, folding, quoting,
 or encoding may create different nullifiers for the same mailbox.
+This is an active Sybil vector: a mailbox owner who can make the provider sign
+those variants can bind each digest to a different Pirate account.
 
 Before option 2 can support a "one proven mailbox ↔ one Pirate account"
 claim, the extraction must demonstrably hash one canonical mailbox value. At a
@@ -107,7 +109,15 @@ minimum, the experiment must compare equivalent headers such as
 intentionally byte-exact while the domain is canonicalized. If the hosted
 circuit cannot perform that canonicalization, its dedup guarantee is only over
 the exact extracted byte string and option 2 needs another product/security
-decision.
+decision. The same applies to provider aliases such as plus-addressing: treating
+them as distinct is compatible with an affiliation badge, but not with a claim
+that the domain proof itself supplies one-person-one-account resistance.
+
+Before blueprint generation, collect same-mailbox work→personal samples with
+different permitted From presentations. This cheaply determines whether the
+current provider canonicalizes, rejects, or signs the variants. A canonicalized
+result narrows risk for that provider/configuration only; arbitrary gated
+domains still require an in-circuit rule or an explicit badge-only semantic.
 
 ## Additional SDK finding: Outlook fetch path
 

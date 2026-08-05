@@ -17,7 +17,9 @@ A new gate atom (future work, not this spike):
 
 The proof establishes, at verification time only:
 - the prover can **send** from some mailbox whose From-domain is exactly `D` (DKIM `d=` == From domain, strict alignment);
-- a deterministic, app-scoped **mailbox commitment** for global one-mailbox-one-account dedup;
+- a deterministic, app-scoped **mailbox commitment** intended for global
+  one-mailbox-one-account dedup, subject to the alias/presentation Sybil decision
+  in §3 and go/no-go Q4;
 - freshness and intent, via a server-issued single-use challenge.
 
 It does **not** assert current employment (point-in-time only; mitigated by capability TTL, default 90d) and does **not** hide the mailbox from every adversary (see §3).
@@ -44,7 +46,7 @@ email_domain: {
 }
 ```
 
-**Normalization:** dedicated utility (do NOT reuse `normalizeLabelWithIdna` in `global-handle-policy.ts:28` — private, single-label, handle-coupled). UTS-46/IDNA → ASCII, lowercase, trailing-dot strip, length caps, exact canonical comparison. Local part: byte-exact, no plus-stripping (provider-specific semantics; accept the small alias sybil surface).
+**Normalization:** dedicated utility (do NOT reuse `normalizeLabelWithIdna` in `global-handle-policy.ts:28` — private, single-label, handle-coupled). UTS-46/IDNA → ASCII, lowercase, trailing-dot strip, length caps, exact canonical comparison. Local-part casing, plus aliases, display names, quoting, comments, and folding are unresolved Sybil surfaces, not merely parsing/correctness details. They may be tolerated only if `email_domain` is explicitly an affiliation badge whose anti-Sybil guarantees come from another gate; otherwise equivalent presentations/aliases must converge in-circuit before the commitment.
 
 ## 3. Threat model — per-adversary guarantees (document, don't oversell)
 
@@ -57,7 +59,7 @@ email_domain: {
 | Employer (mail admin, outbound logs, archives) | Sees a self-addressed email with an opaque nonce subject. No Pirate-identifying recipient, no account-linkable data. This is why self-send beats a Pirate-controlled inbox. |
 | Replay / cross-deployment attacker | Nonce is single-use, server-mapped to `{user, session, audience, purpose, expiry}`, consumed atomically. A third party holding an old `.eml` from the target cannot produce the fresh nonce. |
 
-**Dedup semantics:** global (matches existing `identity_nullifiers` for self/zkpassport). Enforces one proven mailbox ↔ one Pirate account; it does not constrain which communities that account then joins.
+**Dedup scope:** global (matches existing `identity_nullifiers` for self/zkpassport); it does not constrain which communities an account then joins. The stronger claim — one real mailbox/person ↔ one Pirate account — is **not established** while provider aliases or attacker-controlled From presentations can yield distinct commitments. Before product implementation, Q4 must classify `email_domain` as either (a) anti-Sybil-load-bearing, requiring canonicalization/alias defenses commensurate with the supported providers, or (b) an affiliation badge that must be combined with another anti-Sybil gate. Gate-author UI and documentation must not imply (a) if the implementation provides only (b).
 
 ## 4. DKIM key trust policy (launch)
 
@@ -77,7 +79,7 @@ The spike answers all five; any hard failure kills or reshapes the feature.
 1. **Provider matrix:** can ONE circuit/policy (strict `d=` == From) handle real Google Workspace AND Microsoft 365 corporate mail? What fraction of the target population fails strict alignment?
 2. **Signed-field coverage:** are From, To, Subject demonstrably inside `h=` across the matrix (incl. multiple-signature messages)? Is single-author-address parsing from the signed canonicalized header robust?
 3. **Proving cost:** does local in-browser proving meet targets — desktop ≤ 60s / ≤ 4GB, mid-range Android phone ≤ 3min without OOM? (Numbers are targets to refine, but must be measured, not estimated.)
-4. **Dedup without a guessable identifier:** does the commitment+HMAC design hold up under review, with the §3 per-adversary limits explicitly accepted?
+4. **Dedup and gate semantics:** is `email_domain` anti-Sybil-load-bearing or only an affiliation badge? If load-bearing, do presentation variants, casing and supported-provider aliases converge to one commitment without exposing a guessable identifier? If badge-only, are that limitation and the need for a separate anti-Sybil gate explicit to gate authors? In either case, do the commitment+HMAC controls satisfy the §3 per-adversary limits?
 5. **Ceremony completion rate:** can a non-expert complete nonce → self-send → export `.eml` → prove, per provider, following written instructions? (Gmail "Show original → Download", Outlook varies — document per-client paths; compare Gmail-query-based `.eml` acquisition from the SDK docs.)
 
 ## 6. Spike tasks
@@ -87,6 +89,7 @@ Isolation rule: everything lives in a scratch repo / `spike/` directory — **ze
 ### Phase A — corpus + ground truth
 - [ ] A1. Collect real `.eml` corpus: Google Workspace (custom domain), Microsoft 365 (custom domain), consumer Gmail/Outlook (should FAIL domain gates — `d=gmail.com` control case), forwarded mail (should FAIL nonce/To binding), mailing-list mail (should FAIL), plus-addressed self-send, multi-`DKIM-Signature` messages, delegated-subdomain senders (`d=mail.acme.com` vs `From @acme.com` — expect FAIL under strict alignment; measure prevalence).
 - [ ] A1b. **Three-axis provider check:** measure independently whether (1) external outbound mail is DKIM-signed and strictly aligned, (2) same-tenant/self delivery traverses the DKIM signer, and (3) each supported personal-mailbox export is byte-faithful enough for full cryptographic DKIM verification. Test Workspace, M365, and Proton custom-domain as senders; test Gmail and Outlook as exporting personal mailboxes. Header presence is structural triage only. Optional starter lane while Workspace/M365 mailboxes are unavailable: Proton custom-domain (a `@proton.me` address only proves `proton.me`).
+- [ ] A1c. **Same-mailbox presentation/alias Sybil check:** from one work mailbox, send fresh-nonce work→personal samples while varying only permitted From presentation (display name present/absent and casing where the provider UI/API allows it), then compare the exact signed/extracted From bytes and prospective digests. Separately test supported-provider aliases such as plus-addressing. Record whether the provider canonicalizes, rejects, or signs each variant. Provider canonicalization is evidence for that provider/configuration, not a circuit guarantee or a safe assumption for every allowed domain.
 - [ ] A2. For each: record `d=`, `s=`, `h=` list, canonicalization (`c=`), key alg/size, whether From/To/Subject are signed, then cryptographically verify the signature and body hash against the published DNS key. Structural inspection is triage only and cannot support a provider verdict. Produce the alignment-and-verification pass-rate table → feeds go/no-go Q1/Q2.
 - [ ] A3. Corpus handling: raw `.eml` files stay in a gitignored, access-restricted local directory; are never committed, uploaded, logged, or attached to issues; use dedicated test mailboxes where possible; publish only manually reviewed/redacted metadata and synthetic fixtures; document retention and securely delete raw samples when the spike ends.
 
@@ -124,7 +127,8 @@ Isolation rule: everything lives in a scratch repo / `spike/` directory — **ze
 | T6 | Correct nonce, `To ≠ From` | FAIL |
 | T7 | Same mailbox, same account, second session/new nonce | PASS proof; dedup insert is idempotent |
 | T8 | Same mailbox, different Pirate account | PASS proof; finalization FAILS on active global nullifier conflict |
-| T9 | `alice+x@` vs `alice@` | Distinct commitments (documented alias surface) |
+| T9 | `alice+x@` vs `alice@` from one underlying account | If anti-Sybil-load-bearing: same commitment or alias rejected; distinct commitments are a FAIL. If badge-only: distinct commitments are an explicitly accepted limitation |
+| T9a | Same mailbox with varied display name/casing/quoting | If anti-Sybil-load-bearing: same commitment or variant rejected; distinct commitments are a FAIL. Record provider canonicalization separately from circuit behavior |
 | T10 | Replay of already-consumed proof | FAIL atomically |
 | T11 | Expired session, valid proof | FAIL (server expiry authoritative; email `Date:` ignored) |
 | T12 | Multi-signature email | Deterministic selection; PASS iff selected sig meets all obligations |
