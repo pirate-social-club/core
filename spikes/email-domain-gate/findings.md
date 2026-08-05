@@ -72,9 +72,9 @@ attempted a different presentation. Only sanitized comparisons are recorded:
 - local-part bytes and canonical domains are identical.
 
 Conclusion: this attempted variation does **not** create a second prospective
-nullifier. Proton emitted the same signed sender presentation for both messages,
-which is provider-side mitigation evidence for this account/interface. It does
-not establish that every Proton interface, alias, Workspace/M365 tenant, or
-arbitrary allowed domain canonicalizes From. Plus aliases and other
-provider-permitted sender identities remain untested, so the broader A1c Sybil
-question stays open.
+nullifier because the variant never appeared in the emitted message. This is
+evidence about the Proton Web compose path only, not evidence that Proton's
+signing gateway canonicalizes attacker-authored From headers. The UI may simply
+have provided no per-message control. SMTP submission, Bridge, aliases, other
+Proton interfaces, Workspace/M365 tenants, and arbitrary allowed domains remain
+untested, so A1c remains open for Proton and globally.

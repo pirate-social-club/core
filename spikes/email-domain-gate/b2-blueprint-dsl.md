@@ -92,7 +92,7 @@ events or breadcrumbs, and must never be echoed by the API. The API should
 immediately derive `HMAC(server_secret, digest)`, persist only that value, and
 discard the digest with the request/proof payload.
 
-### Dedup normalization prerequisite
+### Dedup normalization quality
 
 The generated-project experiment must also establish exactly which bytes
 `isHashed` commits to. The API receives only the digest, so it cannot normalize
@@ -102,22 +102,24 @@ or encoding may create different nullifiers for the same mailbox.
 This is an active Sybil vector: a mailbox owner who can make the provider sign
 those variants can bind each digest to a different Pirate account.
 
-Before option 2 can support a "one proven mailbox ↔ one Pirate account"
-claim, the extraction must demonstrably hash one canonical mailbox value. At a
-minimum, the experiment must compare equivalent headers such as
+The product decision is to treat `email_domain` as an affiliation badge and the
+digest as best-effort global deduplication, not as the anti-Sybil boundary.
+Canonical extraction is therefore a dedup-quality property rather than a launch
+security blocker. The experiment must still compare equivalent headers such as
 `Alice <A@Acme.com>` and `<A@acme.com>` and document whether local-part casing is
 intentionally byte-exact while the domain is canonicalized. If the hosted
 circuit cannot perform that canonicalization, its dedup guarantee is only over
-the exact extracted byte string and option 2 needs another product/security
-decision. The same applies to provider aliases such as plus-addressing: treating
-them as distinct is compatible with an affiliation badge, but not with a claim
-that the domain proof itself supplies one-person-one-account resistance.
+the exact extracted byte string. The same applies to provider aliases such as
+plus-addressing. Communities requiring Sybil resistance must compose the badge
+with a personhood gate; the builder must not claim that email-domain proof alone
+supplies one-person-one-account resistance.
 
-Before blueprint generation, collect same-mailbox work→personal samples with
-different permitted From presentations. This cheaply determines whether the
-current provider canonicalizes, rejects, or signs the variants. A canonicalized
-result narrows risk for that provider/configuration only; arbitrary gated
-domains still require an in-circuit rule or an explicit badge-only semantic.
+Corpus work may collect same-mailbox work→personal samples with different
+permitted From presentations to determine whether a given interface
+canonicalizes, rejects, or transmits the variants. An
+identical emitted From value does not prove signer normalization unless the
+variant demonstrably reached the submission boundary. Any result remains
+specific to that provider, interface, and configuration.
 
 ## Additional SDK finding: Outlook fetch path
 
@@ -144,8 +146,8 @@ Released files inspected from the npm source maps/type declarations:
 
 ## Next validation
 
-Before declaring custom-circuit work mandatory, build a tiny domain-specific
-draft blueprint using hashed From/To extractions and a public subject nonce, then
+Build a tiny domain-specific draft blueprint using hashed From/To extractions
+and a public subject nonce, then
 inspect its generated project/public signals. Test the normalization-equivalence
 cases above, not only one well-formed address. Separately prototype the
 lower-level dynamic-domain verification wrapper and prove that changing the

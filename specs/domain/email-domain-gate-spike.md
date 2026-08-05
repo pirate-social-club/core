@@ -17,9 +17,8 @@ A new gate atom (future work, not this spike):
 
 The proof establishes, at verification time only:
 - the prover can **send** from some mailbox whose From-domain is exactly `D` (DKIM `d=` == From domain, strict alignment);
-- a deterministic, app-scoped **mailbox commitment** intended for global
-  one-mailbox-one-account dedup, subject to the alias/presentation Sybil decision
-  in §3 and go/no-go Q4;
+- a deterministic mailbox digest for best-effort global deduplication; this is
+  defense-in-depth, not the gate's anti-Sybil boundary (see §3 and Q4);
 - freshness and intent, via a server-issued single-use challenge.
 
 It does **not** assert current employment (point-in-time only; mitigated by capability TTL, default 90d) and does **not** hide the mailbox from every adversary (see §3).
@@ -46,7 +45,7 @@ email_domain: {
 }
 ```
 
-**Normalization:** dedicated utility (do NOT reuse `normalizeLabelWithIdna` in `global-handle-policy.ts:28` — private, single-label, handle-coupled). UTS-46/IDNA → ASCII, lowercase, trailing-dot strip, length caps, exact canonical comparison. Local-part casing, plus aliases, display names, quoting, comments, and folding are unresolved Sybil surfaces, not merely parsing/correctness details. They may be tolerated only if `email_domain` is explicitly an affiliation badge whose anti-Sybil guarantees come from another gate; otherwise equivalent presentations/aliases must converge in-circuit before the commitment.
+**Normalization:** dedicated domain utility (do NOT reuse `normalizeLabelWithIdna` in `global-handle-policy.ts:28` — private, single-label, handle-coupled). UTS-46/IDNA → ASCII, lowercase, trailing-dot strip, length caps, exact canonical comparison. Local-part casing, plus aliases, display names, quoting, comments, and folding remain known ways one underlying mailbox/person may produce different digests. Because `email_domain` is an affiliation badge rather than an anti-Sybil primitive, canonical mailbox extraction improves best-effort deduplication but is not a security boundary.
 
 ## 3. Threat model — per-adversary guarantees (document, don't oversell)
 
@@ -54,12 +53,12 @@ email_domain: {
 |---|---|
 | Other users / communities | Never see address or commitment; see only domain + anonymous byline. Tiny-domain re-identification remains (cf. country-boards small-population risk) — surface a warning to gate authors. |
 | Database reader (breach) | Sees only `HMAC(server_secret, commitment)`; cannot enumerate without the HMAC key. |
-| Other zk.email applications | App-scoped salt in-circuit prevents cross-application commitment linkage. |
-| **Pirate operators** | **NOT address-private.** The app salt is necessarily prover-available, so the verifier can precompute commitments from public employee directories and test equality pre-HMAC. Commitment+HMAC = breach containment + cross-app unlinkability, not operator-blindness. Operator-blindness would need threshold-OPRF / external evaluation — out of scope; documented as a known limit. |
+| Other zk.email applications | The hosted `isHashed` path is not cryptographically app-scoped. If a raw digest escapes, another application hashing the same extracted From bytes can link it. Transient/off-chain handling is a security control. |
+| **Pirate operators** | **NOT address-private.** The verifier can enumerate likely addresses against the unsalted digest before HMAC. The HMAC provides at-rest breach containment, not operator-blindness. Operator-blindness would need threshold-OPRF / external evaluation — out of scope. |
 | Employer (mail admin, outbound logs, archives) | Sees a self-addressed email with an opaque nonce subject. No Pirate-identifying recipient, no account-linkable data. This is why self-send beats a Pirate-controlled inbox. |
 | Replay / cross-deployment attacker | Nonce is single-use, server-mapped to `{user, session, audience, purpose, expiry}`, consumed atomically. A third party holding an old `.eml` from the target cannot produce the fresh nonce. |
 
-**Dedup scope:** global (matches existing `identity_nullifiers` for self/zkpassport); it does not constrain which communities an account then joins. The stronger claim — one real mailbox/person ↔ one Pirate account — is **not established** while provider aliases or attacker-controlled From presentations can yield distinct commitments. Before product implementation, Q4 must classify `email_domain` as either (a) anti-Sybil-load-bearing, requiring canonicalization/alias defenses commensurate with the supported providers, or (b) an affiliation badge that must be combined with another anti-Sybil gate. Gate-author UI and documentation must not imply (a) if the implementation provides only (b).
+**Dedup scope and resolved product semantics:** keep the nullifier global (matching existing `identity_nullifiers`) as best-effort defense-in-depth, but classify `email_domain` as an **affiliation badge**, not an anti-Sybil primitive. It proves ability to send from the domain at verification time; it does not establish one person or one underlying mailbox. Communities needing one-person-one-account properties must compose it with an existing personhood gate such as Self or ZKPassport. The builder should make that composition the obvious default and must not imply that the email-domain atom alone provides Sybil resistance. PoW/browser checks may add abuse friction but are not equivalent to identity-backed personhood nullifiers.
 
 ## 4. DKIM key trust policy (launch)
 
@@ -79,7 +78,7 @@ The spike answers all five; any hard failure kills or reshapes the feature.
 1. **Provider matrix:** can ONE circuit/policy (strict `d=` == From) handle real Google Workspace AND Microsoft 365 corporate mail? What fraction of the target population fails strict alignment?
 2. **Signed-field coverage:** are From, To, Subject demonstrably inside `h=` across the matrix (incl. multiple-signature messages)? Is single-author-address parsing from the signed canonicalized header robust?
 3. **Proving cost:** does local in-browser proving meet targets — desktop ≤ 60s / ≤ 4GB, mid-range Android phone ≤ 3min without OOM? (Numbers are targets to refine, but must be measured, not estimated.)
-4. **Dedup and gate semantics:** is `email_domain` anti-Sybil-load-bearing or only an affiliation badge? If load-bearing, do presentation variants, casing and supported-provider aliases converge to one commitment without exposing a guessable identifier? If badge-only, are that limitation and the need for a separate anti-Sybil gate explicit to gate authors? In either case, do the commitment+HMAC controls satisfy the §3 per-adversary limits?
+4. **Dedup and gate semantics — RESOLVED:** `email_domain` is an affiliation badge. Global digest/HMAC dedup is best-effort defense-in-depth; aliases and presentation variants are not treated as a personhood boundary. Gate-author UX must recommend composition with Self/ZKPassport when Sybil resistance matters, and the digest-handling controls must satisfy the §3 per-adversary limits.
 5. **Ceremony completion rate:** can a non-expert complete nonce → self-send → export `.eml` → prove, per provider, following written instructions? (Gmail "Show original → Download", Outlook varies — document per-client paths; compare Gmail-query-based `.eml` acquisition from the SDK docs.)
 
 ## 6. Spike tasks
@@ -94,8 +93,8 @@ Isolation rule: everything lives in a scratch repo / `spike/` directory — **ze
 - [ ] A3. Corpus handling: raw `.eml` files stay in a gitignored, access-restricted local directory; are never committed, uploaded, logged, or attached to issues; use dedicated test mailboxes where possible; publish only manually reviewed/redacted metadata and synthetic fixtures; document retention and securely delete raw samples when the spike ends.
 
 ### Phase B — blueprint
-- [ ] B1. Author registry blueprint (docs: zk-email-sdk/creating-a-new-pattern): DKIM verify, `h=` coverage assertions, single-From parse, `To == From`, subject regex `pirate-verify:(.+)` with nonce public, From-domain public, app-salted commitment public, header-only.
-- [x] B2 desk check. `@zk-email/sdk@2.0.11` can expose/hash regex extractions, so proof-bound From-domain comparison and hashed From/To equality can be enforced after proof verification. However, the ordinary blueprint fixes one `senderDomain`, and the schema cannot compose an extracted mailbox with an application salt. The complete arbitrary-domain + app-salted-nullifier protocol is not expressible as one ordinary hosted blueprint. The provisional hosted alternative is an unsalted digest that is immediately HMACed and never logged, returned, or placed in a URL; this preserves at-rest breach containment but makes any escaped raw digest universally enumerable and cross-application linkable. Because the API never receives the mailbox preimage, generated-project validation must also prove that `isHashed` commits to the intended canonical mailbox rather than display-name/header bytes. See `spikes/email-domain-gate/b2-blueprint-dsl.md`; generated-project and dynamic-domain-wrapper validation remain before the final custom-circuit/no-go decision.
+- [ ] B1. Author registry blueprint (docs: zk-email-sdk/creating-a-new-pattern): DKIM verify, `h=` coverage assertions, single-From parse, `To == From`, subject regex `pirate-verify:(.+)` with nonce public, From-domain public, unsalted hashed From output for best-effort dedup, header-only.
+- [x] B2 desk check. `@zk-email/sdk@2.0.11` can expose/hash regex extractions, so proof-bound From-domain comparison and hashed From/To equality can be enforced after proof verification. However, the ordinary blueprint fixes one `senderDomain`, and the schema cannot compose an extracted mailbox with an application salt. Q4's badge-only decision makes the hosted unsalted `isHashed` output acceptable for best-effort dedup if it is immediately HMACed and never logged, returned, or placed in a URL. Any escaped raw digest remains universally enumerable and cross-application linkable. Generated-project validation must document exactly what `isHashed` commits to and test equivalent presentations, but canonical mailbox extraction is now a dedup-quality property rather than a launch security blocker. See `spikes/email-domain-gate/b2-blueprint-dsl.md`; generated-project and dynamic-domain-wrapper validation remain required.
 - [ ] B3. Pin blueprint version; document verifying-key extraction for server-side `verifyProof`.
 
 ### Phase C — proving bench
@@ -127,8 +126,8 @@ Isolation rule: everything lives in a scratch repo / `spike/` directory — **ze
 | T6 | Correct nonce, `To ≠ From` | FAIL |
 | T7 | Same mailbox, same account, second session/new nonce | PASS proof; dedup insert is idempotent |
 | T8 | Same mailbox, different Pirate account | PASS proof; finalization FAILS on active global nullifier conflict |
-| T9 | `alice+x@` vs `alice@` from one underlying account | If anti-Sybil-load-bearing: same commitment or alias rejected; distinct commitments are a FAIL. If badge-only: distinct commitments are an explicitly accepted limitation |
-| T9a | Same mailbox with varied display name/casing/quoting | If anti-Sybil-load-bearing: same commitment or variant rejected; distinct commitments are a FAIL. Record provider canonicalization separately from circuit behavior |
+| T9 | `alice+x@` vs `alice@` from one underlying account | Record whether commitments differ; distinct values are an accepted best-effort-dedup limitation, not a proof failure |
+| T9a | Same mailbox with varied display name/casing/quoting | Record whether commitments differ and where variation is introduced; distinct values are an accepted best-effort-dedup limitation |
 | T10 | Replay of already-consumed proof | FAIL atomically |
 | T11 | Expired session, valid proof | FAIL (server expiry authoritative; email `Date:` ignored) |
 | T12 | Multi-signature email | Deterministic selection; PASS iff selected sig meets all obligations |
