@@ -5103,6 +5103,30 @@ paths:
                 $ref: "#/components/schemas/RewardCampaign"
         "404":
           description: Campaign not found
+  /reward_campaigns/{campaign_id}/cancel:
+    parameters:
+      - name: campaign_id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: reward_campaigns_cancel
+      tags:
+        - Rewards
+      summary: Cancel an unfunded draft reward campaign
+      description: The campaign rewarder may cancel only a draft that has no funding effect and no funded, reserved, credited, paid, or refunded balance. Cancellation releases the song pool slot. Replays return the same canceled campaign.
+      responses:
+        "200":
+          description: Canceled campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RewardCampaign"
+        "404":
+          description: Campaign not found for the current rewarder
+        "409":
+          description: Campaign is not an unfunded draft and cannot be canceled
   /public/reward_campaigns/{campaign_id}:
     parameters:
       - name: campaign_id
