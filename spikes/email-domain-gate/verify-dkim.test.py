@@ -27,6 +27,7 @@ class VerifyDkimTest(unittest.TestCase):
         self.assertFalse(result["has_verified_dkim"])
         self.assertTrue(VERIFY_DKIM.expectation_met(result, "no-signature"))
         self.assertFalse(VERIFY_DKIM.expectation_met(result, "pass"))
+        self.assertIsNone(result["header_signature_only_verified"])
         self.assertNotIn("private", serialized)
         self.assertNotIn("example.com", serialized)
 

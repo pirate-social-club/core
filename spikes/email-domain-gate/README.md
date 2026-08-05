@@ -48,3 +48,16 @@ rtk .venv/bin/python verify-dkim.py \
 `--expect no-signature` records a message with no DKIM signature. The command
 fails if the observed cryptographic result differs from the declared corpus
 expectation.
+
+For a failed sample, add `--ignore-body-hash` to diagnose whether the signed
+headers still verify independently. This diagnostic never converts an invalid
+DKIM message into a pass:
+
+```bash
+rtk .venv/bin/python verify-dkim.py \
+  --label gmail-to-proton \
+  --file corpus/gmail-to-proton.eml \
+  --expect fail \
+  --ignore-body-hash \
+  --out results/gmail-to-proton.crypto.json
+```
