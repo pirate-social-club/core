@@ -55,12 +55,22 @@ def signed_message(*, signing_domain: bytes = b"example.test") -> bytes:
         signing_domain,
         PRIVATE_KEY,
         canonicalize=(b"relaxed", b"relaxed"),
-        include_headers=[b"from", b"to", b"subject", b"date"],
+        include_headers=[b"from", b"to", b"subject", b"date", b"from"],
     )
     return signature + message
 
 
 class VerifyDkimTest(unittest.TestCase):
+    def test_from_oversigning_requires_two_h_list_occurrences(self) -> None:
+        self.assertFalse(
+            VERIFY_DKIM.has_from_oversigning([b"from", b"subject", b"date"])
+        )
+        self.assertTrue(
+            VERIFY_DKIM.has_from_oversigning(
+                [b"from", b"subject", b"date", b"from"]
+            )
+        )
+
     def test_no_signature_result_contains_no_message_material(self) -> None:
         message = (
             b"From: private@example.com\r\n"
@@ -107,6 +117,7 @@ class VerifyDkimTest(unittest.TestCase):
         self.assertFalse(result["has_verified_dkim"])
         self.assertEqual(result["signatures"][0]["failure_code"], "body_hash_mismatch")
         self.assertTrue(result["header_signature_only_verified"])
+        self.assertTrue(result["signatures"][0]["from_oversigned"])
 
     def test_header_only_verification_rejects_signed_subject_tampering(self) -> None:
         message = signed_message().replace(b"synthetic-nonce", b"tampered-nonce")

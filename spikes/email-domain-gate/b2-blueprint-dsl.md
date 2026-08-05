@@ -125,6 +125,15 @@ Content-Type, and body. It does not fetch/preserve the original raw DKIM header.
 That helper therefore cannot be assumed to produce a provable `.eml`. Manual
 Outlook export remains a separate required corpus test.
 
+## Registry UI confirmation
+
+The live blueprint form independently confirms the released schema: External
+Inputs expose only name and maximum length, while a manually added extracted
+field exposes **Hash Public Output** (`isHashed`). The three domain-gate fields
+therefore belong under **Add values to extract**, with External Inputs empty;
+only the From-mailbox extraction has hashing enabled. No registry blueprint was
+submitted as part of this observation.
+
 ## Evidence
 
 - [Official blueprint creation documentation](https://docs.zk.email/zk-email-sdk/create-blueprint)

@@ -9,7 +9,7 @@ const completeSignature = [
   "c=relaxed/relaxed",
   "d=example.com",
   "s=selector1",
-  "h=From:To:Subject:Date",
+  "h=From:To:Subject:Date:From",
   "bh=synthetic-body-hash",
   "b=synthetic-signature",
 ].join("; ")
@@ -31,6 +31,7 @@ test("reports an aligned work-to-personal structurally complete signature", () =
     from: true,
     subject: true,
   })
+  assert.equal(result.signatures[0].from_oversigned, true)
   assert.equal(JSON.stringify(result).includes("case-sensitive"), false)
 })
 

@@ -47,6 +47,15 @@ validly signed two-From message may exercise different witness behavior. The
 generated circuit/project must still be fed an adversarial two-From case before
 B1 can pass.
 
+DKIM selects repeated header fields bottom-up, while the hosted regex uses its
+first match. If `h=` lists From only once, an attacker can prepend a forged From:
+the signature continues to authenticate the original lower occurrence while the
+regex may extract the forged upper occurrence. Proton and Gmail samples list
+`from` twice, so the additional occurrence is pulled into verification and the
+mutation fails closed. Until the circuit binds the last/authenticated occurrence
+or proves cardinality, From oversigning is a mandatory provider eligibility
+condition, not merely a corpus statistic.
+
 ## Dynamic-domain result
 
 Changing `senderDomain` makes local `testBlueprint()` reject the sample. This

@@ -84,6 +84,7 @@ export function inspectEmail(rawEmail, label) {
       .map((item) => item.trim().toLowerCase())
       .filter(Boolean)
     const signingDomain = canonicalDomain(tags.get("d"))
+    const fromOversigned = signedHeaders.filter((name) => name === "from").length >= 2
 
     return {
       index,
@@ -95,6 +96,7 @@ export function inspectEmail(rawEmail, label) {
       required_headers_signed: Object.fromEntries(
         REQUIRED_SIGNED_HEADERS.map((name) => [name, signedHeaders.includes(name)]),
       ),
+      from_oversigned: fromOversigned,
       strict_from_alignment: signingDomain !== null && from !== null && signingDomain === from.domain,
       structurally_complete: Boolean(tags.get("b") && tags.get("bh") && tags.get("d") && tags.get("s")),
     }

@@ -26,6 +26,15 @@ test("exposes only the intended three fields and never To", () => {
   assert.equal(JSON.stringify(draft).toLowerCase().includes('"name":"to'), false)
 })
 
+test("uses alternating visibility and a bounded measured header length", () => {
+  assert.equal(draft.emailHeaderMaxLength, 1024)
+  for (const field of draft.decomposedRegexes) {
+    for (let index = 1; index < field.parts.length; index += 1) {
+      assert.notEqual(field.parts[index - 1].isPublic, field.parts[index].isPublic)
+    }
+  }
+})
+
 test("draft regexes match a canonicalized work-to-personal header", () => {
   const header = [
     "from:Employee <employee@example.test>",

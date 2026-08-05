@@ -22,6 +22,10 @@ LABEL_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 REQUIRED_SIGNED_HEADERS = (b"from", b"subject")
 
 
+def has_from_oversigning(signed_headers: list[bytes]) -> bool:
+    return signed_headers.count(b"from") >= 2
+
+
 def classify_error(error: Exception) -> str:
     message = str(error).lower()
     if "body hash mismatch" in message:
@@ -151,6 +155,7 @@ def verify_message(
             name.decode("ascii"): name in signed_headers
             for name in REQUIRED_SIGNED_HEADERS
         }
+        from_oversigned = has_from_oversigning(signed_headers)
         strict_from_alignment = (
             signing_domain is not None
             and from_domain is not None
@@ -178,7 +183,7 @@ def verify_message(
             except Exception as error:
                 header_signature_only_verified = False
                 header_signature_only_failure_code = classify_error(error)
-        required_coverage = all(required_headers_signed.values())
+        required_coverage = all(required_headers_signed.values()) and from_oversigned
         gate_usable = verified and strict_from_alignment and required_coverage
         header_signature_only_gate_usable = (
             header_signature_only_verified
@@ -193,6 +198,7 @@ def verify_message(
             "selector": selector_text,
             "strict_from_alignment": strict_from_alignment,
             "required_headers_signed": required_headers_signed,
+            "from_oversigned": from_oversigned,
             "verified": verified,
             "failure_code": failure_code,
             "gate_usable": gate_usable,
