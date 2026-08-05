@@ -49,6 +49,11 @@ rtk .venv/bin/python verify-dkim.py \
 fails if the observed cryptographic result differs from the declared corpus
 expectation.
 
+`--expect pass` requires at least one signature that verifies cryptographically,
+is strictly aligned (`d=` equals the single parsed From domain), and signs From,
+To, and Subject. A valid but unaligned forwarder or mailing-list signature does
+not pass the gate.
+
 For a failed sample, add `--ignore-body-hash` to diagnose whether the signed
 headers still verify independently. This diagnostic never converts an invalid
 DKIM message into a pass:
