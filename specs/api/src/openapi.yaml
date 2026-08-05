@@ -483,6 +483,8 @@ paths:
     $ref: ./paths/rewards.yaml#/reward_song_policies_by_target
   /reward_campaigns/{campaign_id}:
     $ref: ./paths/rewards.yaml#/reward_campaigns_by_campaign_id
+  /reward_campaigns/{campaign_id}/cancel:
+    $ref: ./paths/rewards.yaml#/reward_campaigns_by_campaign_id_cancel
   /public/reward_campaigns/{campaign_id}:
     $ref: ./paths/rewards.yaml#/public_reward_campaigns_by_campaign_id
   /public/reward_campaigns:

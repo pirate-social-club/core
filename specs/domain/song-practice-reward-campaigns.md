@@ -50,14 +50,22 @@ Non-goals for v1:
 
 Campaign statuses:
 
-- `draft`: rewarder is editing rate, duration, and budget.
+- `draft`: immutable campaign terms are registered and awaiting the first funding action.
 - `funding_quoted`: the funding quote is open and awaiting payment.
 - `funding_confirming`: an on-chain payment was observed and is being bound.
 - `active`: funding is confirmed and the campaign window is open.
 - `paused`: campaign is temporarily stopped by the rewarder or platform ops.
 - `exhausted`: remaining budget cannot cover the next credit.
 - `ended`: campaign reached `ends_at`.
-- `canceled`: campaign was withdrawn before activation or closed with remaining budget reclaimed.
+- `canceled`: an unfunded draft was withdrawn by its rewarder or expired before funding.
+
+Creating a draft reserves the song's pool slot, so an unfunded draft may not
+hold that slot indefinitely. The rewarder may cancel a draft only while it has
+no funding effect and every accounting counter is zero. The lifecycle sweep
+automatically cancels drafts still untouched 24 hours after creation. Both
+paths release the pool slot. A quote, observed transfer, confirmed contribution,
+or non-zero accounting counter makes this cancellation path unavailable; funded
+pools remain governed by the existing end/refund lifecycle.
 
 Multiple active campaigns on one song are allowed (no uniqueness constraint). Credits never
 stack: at credit time a qualified day resolves to the single highest applicable rate among active,

@@ -528,6 +528,7 @@ const ROUTE_EXPORTS = [
   { name: "rewardCampaigns", path: "/reward_campaigns" },
   { name: "rewardSongPolicies", path: "/reward_song_policies/{community_id}/{post_id}" },
   { name: "rewardCampaign", path: "/reward_campaigns/{campaign_id}" },
+  { name: "rewardCampaignCancel", path: "/reward_campaigns/{campaign_id}/cancel" },
   { name: "rewardCampaignCapabilities", path: "/reward_campaign_capabilities" },
   { name: "publicRewardCampaign", path: "/public/reward_campaigns/{campaign_id}" },
   { name: "publicRewardCampaigns", path: "/public/reward_campaigns" },
