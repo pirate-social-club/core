@@ -19,7 +19,7 @@ import dkim
 
 
 LABEL_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
-REQUIRED_SIGNED_HEADERS = (b"from", b"to", b"subject")
+REQUIRED_SIGNED_HEADERS = (b"from", b"subject")
 
 
 def classify_error(error: Exception) -> str:

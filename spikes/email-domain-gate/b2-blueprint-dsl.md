@@ -24,12 +24,8 @@ That is sufficient to:
 1. extract the signed subject nonce and compare it with the server session after
    proof verification;
 2. extract the From domain publicly and compare it after proof verification;
-3. extract From and To mailbox values as hashed proof outputs and compare those
-   outputs after verification for the self-send ceremony; and
+3. extract the From mailbox as a hashed proof output for best-effort dedup; and
 4. use a header-only proof (`ignoreBodyHashCheck`).
-
-The equality checks above need not be in-circuit: equality of proof-bound public
-outputs is sound when the backend verifies the proof first.
 
 ## What it cannot express
 
@@ -146,9 +142,12 @@ Released files inspected from the npm source maps/type declarations:
 
 ## Next validation
 
-Build a tiny domain-specific draft blueprint using hashed From/To extractions
-and a public subject nonce, then
+Build a tiny domain-specific draft blueprint using a hashed From extraction and
+a public subject nonce, with no To extraction, then
 inspect its generated project/public signals. Test the normalization-equivalence
-cases above, not only one well-formed address. Separately prototype the
-lower-level dynamic-domain verification wrapper and prove that changing the
-asserted domain makes verification fail.
+cases above and a duplicate-From adversarial message, not only one well-formed
+address. The official regex documentation says only the first match is used when
+multiple matches exist, so regex extraction alone does not establish exactly-one
+From cardinality. Separately prototype the lower-level dynamic-domain
+verification wrapper and prove that changing the asserted domain makes
+verification fail.

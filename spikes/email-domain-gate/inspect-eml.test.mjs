@@ -14,22 +14,21 @@ const completeSignature = [
   "b=synthetic-signature",
 ].join("; ")
 
-test("reports an aligned, self-addressed, structurally complete signature", () => {
+test("reports an aligned work-to-personal structurally complete signature", () => {
   const result = inspectEmail([
     "From: Test User <case-sensitive@example.com>",
-    "To: case-sensitive@example.com",
+    "To: personal@example.net",
     "Subject: pirate-verify:synthetic",
     `DKIM-Signature: ${completeSignature}`,
     "",
     "",
-  ].join("\r\n"), "synthetic-self")
+  ].join("\r\n"), "synthetic-work-personal")
 
   assert.equal(result.has_structurally_complete_dkim, true)
-  assert.equal(result.to_equals_from, true)
+  assert.equal(result.to_equals_from, false)
   assert.equal(result.signatures[0].strict_from_alignment, true)
   assert.deepEqual(result.signatures[0].required_headers_signed, {
     from: true,
-    to: true,
     subject: true,
   })
   assert.equal(JSON.stringify(result).includes("case-sensitive"), false)
@@ -61,4 +60,3 @@ test("requires byte-exact local parts for self-send equality", () => {
 
   assert.equal(result.to_equals_from, false)
 })
-

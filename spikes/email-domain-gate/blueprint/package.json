@@ -1,0 +1,12 @@
+{
+  "name": "email-domain-gate-blueprint-spike",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test draft-blueprint.test.mjs",
+    "test:corpus": "node corpus-validation.mjs"
+  },
+  "dependencies": {
+    "@zk-email/sdk": "2.0.11"
+  }
+}

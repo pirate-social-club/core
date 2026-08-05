@@ -1,0 +1,79 @@
+{
+  "title": "EmailDomainAffiliationSpike",
+  "description": "Test-only domain-specific blueprint for an affiliation badge. Reveals a nonce and From domain; emits a hashed From for best-effort dedup. Does not extract To.",
+  "emailQuery": "subject:pirate-verify:",
+  "circuitName": "EmailDomainAffiliationSpike",
+  "ignoreBodyHashCheck": true,
+  "emailBodyMaxLength": 64,
+  "emailHeaderMaxLength": 4096,
+  "senderDomain": "pirate.sc",
+  "isPublic": false,
+  "decomposedRegexes": [
+    {
+      "name": "fromMailboxDigest",
+      "maxLength": 320,
+      "isHashed": true,
+      "location": "header",
+      "parts": [
+        {
+          "isPublic": false,
+          "regexDef": "(\\r\\n|^)from:"
+        },
+        {
+          "isPublic": false,
+          "regexDef": "([^\\r\\n]+<)?"
+        },
+        {
+          "isPublic": true,
+          "regexDef": "[A-Za-z0-9!#$%&'*+\\-/=?^_`{|}~.]+@[A-Za-z0-9.-]+"
+        },
+        {
+          "isPublic": false,
+          "regexDef": ">?\\r\\n"
+        }
+      ]
+    },
+    {
+      "name": "fromDomain",
+      "maxLength": 253,
+      "location": "header",
+      "parts": [
+        {
+          "isPublic": false,
+          "regexDef": "(\\r\\n|^)from:"
+        },
+        {
+          "isPublic": false,
+          "regexDef": "([^\\r\\n]+<)?[A-Za-z0-9!#$%&'*+\\-/=?^_`{|}~.]+@"
+        },
+        {
+          "isPublic": true,
+          "regexDef": "[A-Za-z0-9.-]+"
+        },
+        {
+          "isPublic": false,
+          "regexDef": ">?\\r\\n"
+        }
+      ]
+    },
+    {
+      "name": "sessionNonce",
+      "maxLength": 128,
+      "location": "header",
+      "parts": [
+        {
+          "isPublic": false,
+          "regexDef": "(\\r\\n|^)subject:pirate-verify:"
+        },
+        {
+          "isPublic": true,
+          "regexDef": "[A-Za-z0-9_-]+"
+        },
+        {
+          "isPublic": false,
+          "regexDef": "\\r\\n"
+        }
+      ]
+    }
+  ]
+}

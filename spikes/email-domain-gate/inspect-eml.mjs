@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { dirname } from "node:path"
 import { pathToFileURL } from "node:url"
 
-const REQUIRED_SIGNED_HEADERS = ["from", "to", "subject"]
+const REQUIRED_SIGNED_HEADERS = ["from", "subject"]
 
 function unfoldHeaderLines(rawHeader) {
   return rawHeader.replace(/\r?\n[\t ]+/g, " ").split(/\r?\n/)
