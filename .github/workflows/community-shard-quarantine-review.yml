@@ -1,0 +1,57 @@
+name: Community shard quarantine review
+
+on:
+  schedule:
+    - cron: "17 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Open, update, or close the review issue
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        with:
+          script: |
+            const fs = require("node:fs");
+            const path = require("node:path");
+            const { pathToFileURL } = require("node:url");
+            const moduleUrl = pathToFileURL(path.join(process.env.GITHUB_WORKSPACE, "scripts/community/quarantine-review-reminder.mjs")).href;
+            const { quarantineReviewIssueBody, quarantineReviews } = await import(moduleUrl);
+            const registry = JSON.parse(fs.readFileSync("scripts/community/community-shard-quarantines.json", "utf8"));
+            const report = quarantineReviews(registry, { leadHours: 48 });
+            const title = "Community shard quarantine reviews due";
+            const label = "community-shard-quarantine-review";
+            try {
+              await github.rest.issues.createLabel({ ...context.repo, name: label, color: "b60205", description: "Expiring D1 shard quarantine review" });
+            } catch (error) {
+              if (error.status !== 422) throw error;
+            }
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              ...context.repo, state: "all", labels: label, per_page: 100,
+            });
+            const issue = issues.find((candidate) => candidate.title === title);
+            if (report.due.length === 0) {
+              if (issue?.state === "open") {
+                await github.rest.issues.update({ ...context.repo, issue_number: issue.number, state: "closed" });
+              }
+              core.notice("No quarantine review is due within 48 hours.");
+              return;
+            }
+            const body = quarantineReviewIssueBody(report);
+            if (!issue) {
+              await github.rest.issues.create({ ...context.repo, title, body, labels: [label] });
+            } else if (!issue.body?.includes(`community-shard-quarantine-review:${report.signature}`) || issue.state !== "open") {
+              await github.rest.issues.update({ ...context.repo, issue_number: issue.number, body, state: "open" });
+            } else {
+              core.notice("The open quarantine-review issue already describes the current due set.");
+            }

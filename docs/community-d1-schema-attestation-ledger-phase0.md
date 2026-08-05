@@ -1,5 +1,13 @@
 # D1 schema attestation ledger Phase 0 spike
 
+## Current operational status (2026-08-05)
+
+The multi-pool ledger storage, generation-fenced publisher, quarantine-aware aggregate reader, provisioning publisher, and release shadow comparison are deployed. The REST full-fleet scan remains the sole release authority until the activation review tracked in [Web #960](https://github.com/pirate-social-club/web/issues/960).
+
+Web records effective-policy and shadow-decision transitions from both failed and successful Release attempts. Activation requires a real policy transition showing decline without a stale-green verdict and recovery under the same digest; see the [activation runbook](https://github.com/pirate-social-club/web/blob/main/docs/runbooks/d1-attestation-fast-path-activation.md). Core separately schedules reminders for quarantine `review_after` dates through the [quarantine review runbook](runbooks/community-shard-quarantine-review.md).
+
+The full scan is unchanged and remains the rollback path. Attestations are evidence and a release optimization, never the schema source of truth.
+
 Generated from recent read-only staging and production schema-gate manifests. Timings are local Bun SQLite measurements over 1,000 executions; they validate query shape and response size, not Cloudflare network latency.
 
 | fleet | pools | live | quarantined | statuses | profiles | A bytes/shard | B bytes/shard | aggregate bytes | local query ms | fixture SHA |
