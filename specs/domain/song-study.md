@@ -155,6 +155,13 @@ the authoritative lesson transition.
   legacy path and performs no revision conflict check so already-deployed web
   bundles continue to work. Rejecting an absent revision is a later, versioned
   tightening after both Web and Telegram have adopted the field.
+- During that compatibility phase only, a revision-absent submission may name a
+  different unresolved session card than `current_exercise_id`, because a
+  deployed web bundle may still be following its private queue. The server
+  accepts that card as the transition source and atomically adopts it as the
+  authoritative current appearance. A revision-present submission for a card
+  other than `current_exercise_id` is a typed stale-orchestration conflict. This
+  compatibility exception is removed when revision becomes mandatory.
 - The server increments its dedicated revision on every orchestration change,
   including a free ungradable re-record that consumes no graded attempt.
 - Idempotent replay returns the **original response snapshot**, including its
@@ -373,13 +380,30 @@ The first implementation slice is additive contract and persistence work, not
 a presentation patch:
 
 1. Add one community-shard migration containing the dedicated session revision,
-   durable `appearance_ordinal`, per-appearance ungradable receipt, immutable
+   authoritative nullable `current_exercise_id`, nullable
+   `completion_reason`, durable `appearance_ordinal`, per-appearance graded
+   `appearance_attempt_count`, per-card `lesson_resolved`, deterministic
+   `last_served_index`, per-appearance ungradable receipt, immutable
    `qualifies_for_reward` snapshot, and durable attempt-response/orchestration
-   snapshot. Do not add persisted spacing eligibility unless measurement shows
-   the attempt-derived query is inadequate.
+   snapshot. `last_served_index` records the
+   session-wide graded-presentation index at which the card was last served; it
+   is sequencing evidence, not a materialized eligibility decision. Do not add
+   any further persisted spacing eligibility unless measurement shows the
+   attempt-derived policy is inadequate.
    - Existing sessions backfill `session_revision = 0`.
    - Existing session exercises backfill `qualifies_for_reward = 1` and a valid
-     initial `appearance_ordinal`.
+     initial `appearance_ordinal` and `appearance_attempt_count`. Backfill
+     `lesson_resolved` from existing mastery/exhaustion state; every already
+     completed session's cards are resolved. Initialize `last_served_index`
+     deterministically so an active session can continue without granting an
+     early retry.
+   - `current_exercise_id` is the shard-side orchestration authority after v2
+     adopts a session. It starts nullable for migrated legacy sessions and is
+     established by their first v2 transition. Response JSON and Telegram's
+     control-plane chat session are projections, not the lesson authority.
+   - `completion_reason` is written exactly when the session completes and is
+     constrained to the result contract's `all_resolved` or
+     `presentation_budget` values.
    - A seeded-upgrade test carries an active, partially completed lesson across
      the migration and proves it can continue afterward.
    - Update the canonical community-template migration, generated community
