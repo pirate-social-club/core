@@ -232,6 +232,17 @@ The attempt event, review-state update, lesson transition, revision increment,
 and response snapshot commit atomically. The GET payload and stale-revision
 conflict use the same render-safe projection.
 
+Community D1 write transactions do not support reads. The implementation
+therefore pre-reads state, computes a pure transition plan, and commits it as
+one conditional atomic write batch. The first statement claims the idempotency
+response row with both the expected session revision and a unique internal
+commit token; every subsequent mutation is conditional on that exact token.
+Conditioning only on idempotency key or request fingerprint is insufficient,
+because two equivalent concurrent requests could otherwise both apply the same
+transition after one wins the response-row insert. A batch loser re-reads and
+replays the winner's snapshot. No production path may depend on reads from a
+buffered D1 write transaction.
+
 ### Independent learner-state axes
 
 The contract does not collapse lesson state and spaced repetition into one
@@ -385,10 +396,9 @@ a presentation patch:
    `appearance_attempt_count`, per-card `lesson_resolved`, deterministic
    `last_served_index`, per-appearance ungradable receipt, immutable
    `qualifies_for_reward` snapshot, and durable attempt-response/orchestration
-   snapshot. `last_served_index` records the
+   snapshot with an internal unique commit token. `last_served_index` records the
    session-wide graded-presentation index at which the card was last served; it
-   is sequencing evidence, not a materialized eligibility decision. Zero is
-   the durable sentinel for an exercise that has not been served. Do not add
+   is sequencing evidence, not a materialized eligibility decision. Do not add
    any further persisted spacing eligibility unless measurement shows the
    attempt-derived policy is inadequate.
    - Existing sessions backfill `session_revision = 0`.
