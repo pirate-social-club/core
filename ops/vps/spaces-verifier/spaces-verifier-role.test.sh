@@ -49,6 +49,11 @@ grep -Fq 'SPACES_VERIFIER_NATIVE_BIN=/srv/pirate-spaces/current/bin/spaces-verif
   "$role_dir/env/verifier.env.example"
 grep -Fq 'SPACES_FABRIC_SEEDS=https://relay-cosmos.spacesprotocol.org,https://relay-atlas.spacesprotocol.org' \
   "$role_dir/env/verifier.env.example"
+grep -Fq 'SPACES_BITCOIN_TIP_RPC_URL=https://bitcoin-rpc.publicnode.com' \
+  "$role_dir/env/verifier.env.example"
+grep -Fq 'SPACES_CHAIN_MAX_TIP_LAG_BLOCKS=6' "$role_dir/env/verifier.env.example"
+grep -Fq 'SPACES_CHAIN_MAX_ANCHOR_LAG_BLOCKS=108' "$role_dir/env/verifier.env.example"
+grep -Fq 'SPACES_VERIFIER_MAX_ANCHOR_AGE_BLOCKS=4032' "$role_dir/env/verifier.env.example"
 
 cat > "$work/curl" <<'EOF'
 #!/usr/bin/env bash
@@ -56,7 +61,7 @@ printf '%s\n' "${SPACES_HEALTH_TEST_JSON:?}"
 EOF
 chmod +x "$work/curl"
 
-PATH="$work:$PATH" SPACES_HEALTH_TEST_JSON='{"ok":true,"fabric_record_reader_ready":true,"fallback_target_disagreements":0,"fabric_relay_disagreements":0}' \
+PATH="$work:$PATH" SPACES_HEALTH_TEST_JSON='{"ok":true,"fabric_record_reader_ready":true,"fallback_target_disagreements":0,"fabric_relay_disagreements":0,"chain_state_ready":true}' \
   bash "$role_dir/bin/check-verifier-health.sh" >/dev/null
 if PATH="$work:$PATH" SPACES_HEALTH_TEST_JSON='{"ok":false,"fabric_record_reader_ready":false,"fabric_relay_disagreements":0}' \
   bash "$role_dir/bin/check-verifier-health.sh" >/dev/null 2>&1; then
@@ -76,6 +81,11 @@ fi
 if PATH="$work:$PATH" SPACES_HEALTH_TEST_JSON='{"ok":true,"fabric_record_reader_ready":true,"fallback_target_disagreements":0,"fabric_relay_disagreements":1}' \
   bash "$role_dir/bin/check-verifier-health.sh" >/dev/null 2>&1; then
   echo "health check accepted a Fabric relay disagreement" >&2
+  exit 1
+fi
+if PATH="$work:$PATH" SPACES_HEALTH_TEST_JSON='{"ok":false,"fabric_record_reader_ready":true,"fallback_target_disagreements":0,"fabric_relay_disagreements":0,"chain_state_ready":false}' \
+  bash "$role_dir/bin/check-verifier-health.sh" >/dev/null 2>&1; then
+  echo "health check accepted stale chain or anchor state" >&2
   exit 1
 fi
 

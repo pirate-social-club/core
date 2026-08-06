@@ -4,6 +4,11 @@ set -euo pipefail
 readonly HEALTH_URL="${SPACES_VERIFIER_HEALTH_URL:-http://127.0.0.1:4047/health}"
 body="$(curl --fail --silent --show-error --max-time 15 "$HEALTH_URL")"
 
+if ! grep -Eq '"ok"[[:space:]]*:[[:space:]]*true' <<< "$body"; then
+  echo "Spaces verifier health is degraded" >&2
+  exit 1
+fi
+
 if ! grep -Eq '"fabric_record_reader_ready"[[:space:]]*:[[:space:]]*true' <<< "$body"; then
   echo "Spaces verifier Fabric record reader is not ready" >&2
   exit 1
@@ -16,5 +21,9 @@ if ! grep -Eq '"fabric_relay_disagreements"[[:space:]]*:[[:space:]]*0([,}])' <<<
   echo "Spaces verifier reports a verified Fabric relay disagreement" >&2
   exit 1
 fi
+if ! grep -Eq '"chain_state_ready"[[:space:]]*:[[:space:]]*true' <<< "$body"; then
+  echo "Spaces verifier chain or anchor state is stale" >&2
+  exit 1
+fi
 
-echo "Spaces verifier Fabric record reader is ready"
+echo "Spaces verifier Fabric and chain state are ready"

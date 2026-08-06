@@ -9,6 +9,12 @@ export function ensureAtPrefix(value: string): string {
   return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
 }
 
+export function isRootHandleInput(value: string): boolean {
+  const trimmed = value.trim().normalize("NFKC");
+  const unprefixed = trimmed.startsWith("@") ? trimmed.slice(1) : trimmed;
+  return unprefixed.length > 0 && !unprefixed.includes("@") && !unprefixed.includes(".");
+}
+
 function toAsciiRootLabel(value: string): string {
   if (!value || value.includes(".")) {
     return value;

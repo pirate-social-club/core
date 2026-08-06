@@ -1,4 +1,5 @@
 import { json, requireBearerAuth } from "../../shared/http";
+import { ChainHealthMonitor } from "./chain-health";
 import { rpc } from "./json-rpc";
 import {
   type NativeExecutionConfig,
@@ -6,7 +7,7 @@ import {
   runNative,
   decodeNativeJson,
 } from "./native";
-import { normalizeRootLabel } from "./labels";
+import { isRootHandleInput, normalizeRootLabel } from "./labels";
 import { parsePublishedFallbackTargets, PublishedFallbackRegistry } from "./fallback-targets";
 import {
   FabricRecordReaderUnavailableError,
@@ -35,6 +36,10 @@ type RpcFullSpace = {
   txid?: string;
   n?: number;
   script_pubkey?: string | null;
+};
+
+type ServerInfo = {
+  tip?: { height?: number };
 };
 
 type InspectNativeResult = {
@@ -86,7 +91,14 @@ const spacedRpcUrl = Bun.env.SPACED_RPC_URL?.trim() || "http://127.0.0.1:7225";
 const spacedRpcAuthToken = Bun.env.SPACED_RPC_AUTH_TOKEN?.trim() || null;
 const verifierHost = Bun.env.SPACES_VERIFIER_HOST?.trim() || "0.0.0.0";
 const verifierPort = Number(Bun.env.SPACES_VERIFIER_PORT || "4047");
-const maxAnchorAgeBlocks = Number(Bun.env.SPACES_VERIFIER_MAX_ANCHOR_AGE_BLOCKS || "144");
+// Production spaced retains 120 anchors at a 36-block cadence. Its historical
+// proof selector deliberately leaves an eight-anchor safety margin, so a valid
+// proof can be 111 intervals (3,996 blocks) behind the newest retained anchor.
+const maxAnchorAgeBlocks = Number(Bun.env.SPACES_VERIFIER_MAX_ANCHOR_AGE_BLOCKS || "4032");
+const bitcoinTipRpcUrl = Bun.env.SPACES_BITCOIN_TIP_RPC_URL?.trim() || null;
+const chainHealthIntervalMs = Number(Bun.env.SPACES_CHAIN_HEALTH_INTERVAL_MS || "60000");
+const maxTipLagBlocks = Number(Bun.env.SPACES_CHAIN_MAX_TIP_LAG_BLOCKS || "6");
+const maxAnchorLagBlocks = Number(Bun.env.SPACES_CHAIN_MAX_ANCHOR_LAG_BLOCKS || "108");
 const verifierAuthToken = Bun.env.SPACES_VERIFIER_AUTH_TOKEN?.trim() || null;
 const publishedTargetsFile = Bun.env.SPACES_PUBLISHED_TARGETS_FILE?.trim() || null;
 const publishedTargetsJson = publishedTargetsFile
@@ -122,6 +134,7 @@ const resolveCache = new ResolveCache<ResolveFabricRecordsResult | null>(
   resolveCacheMaxEntries,
 );
 const fabricRelayDisagreementHandles = new Set<string>();
+const chainHealth = new ChainHealthMonitor(maxTipLagBlocks, maxAnchorLagBlocks);
 
 function recordFabricRelayDisagreement(handle: string, error: unknown): void {
   const message = error instanceof Error ? error.message : String(error);
@@ -182,6 +195,31 @@ function spacedRpc<T>(method: string, params: unknown[] = []): Promise<T> {
   return rpc<T>(spacedRpcUrl, spacedRpcAuthToken, method, params);
 }
 
+async function refreshChainHealth(): Promise<void> {
+  await chainHealth.check(async () => {
+    if (!bitcoinTipRpcUrl) {
+      throw new Error("SPACES_BITCOIN_TIP_RPC_URL is required");
+    }
+    const [serverInfo, anchors, externalTipHeight] = await Promise.all([
+      spacedRpc<ServerInfo>("getserverinfo"),
+      spacedRpc<RootAnchor[]>("getrootanchors"),
+      rpc<number>(bitcoinTipRpcUrl, null, "getblockcount"),
+    ]);
+    const indexedHeight = serverInfo.tip?.height;
+    if (!Number.isInteger(indexedHeight)) {
+      throw new Error("spaced getserverinfo returned no indexed tip height");
+    }
+    if (!Number.isInteger(externalTipHeight)) {
+      throw new Error("independent Bitcoin RPC returned no tip height");
+    }
+    const newestAnchorHeight = anchors.reduce<number | null>(
+      (newest, anchor) => newest == null || anchor.block.height > newest ? anchor.block.height : newest,
+      null,
+    );
+    return { indexedHeight, externalTipHeight, newestAnchorHeight };
+  });
+}
+
 export function deriveTaprootPubkey(scriptPubkey: string | null | undefined) {
   const normalized = scriptPubkey?.trim().toLowerCase() ?? "";
   return normalized.startsWith("5120") && normalized.length === 68
@@ -211,8 +249,39 @@ async function inspectRoot(rootLabel: string) {
     };
   }
 
-  const anchors = await spacedRpc<RootAnchor[]>("getrootanchors");
-  const proof = await spacedRpc<ProofResult>("provespaceoutpoint", [`@${normalizedRootLabel}`]);
+  const liveOutpoint = typeof existingRoot.txid === "string" && Number.isInteger(existingRoot.n)
+    ? `${existingRoot.txid}:${existingRoot.n}`
+    : null;
+  if (liveOutpoint == null) {
+    return {
+      root_exists: true,
+      root_key_proof_verified: false,
+      anchor_fresh_enough: false,
+      accepted_anchor_height: null,
+      accepted_anchor_block_hash: null,
+      accepted_anchor_root_hash: null,
+      proof_root_hash: null,
+      root_pubkey: deriveTaprootPubkey(existingRoot.script_pubkey),
+      control_class: "single_holder_root",
+      operation_class: "owner_managed_namespace",
+      observation_provider: "spaced_rpc+veritas_native",
+      evidence_bundle_ref: null,
+      failure_reason: "live_outpoint_missing",
+      proof_payload: null,
+    };
+  }
+
+  const [anchors, recentProof] = await Promise.all([
+    spacedRpc<RootAnchor[]>("getrootanchors"),
+    spacedRpc<ProofResult>("provespaceoutpoint", [`@${normalizedRootLabel}`]),
+  ]);
+
+  let proof = recentProof;
+  let matchedAnchor = anchors.find((anchor) => anchor.root === proof.root) ?? null;
+  if (matchedAnchor == null) {
+    proof = await spacedRpc<ProofResult>("provespaceout", [liveOutpoint, false]);
+    matchedAnchor = anchors.find((anchor) => anchor.root === proof.root) ?? null;
+  }
 
   if (!proof.root || !proof.proof) {
     return {
@@ -233,25 +302,30 @@ async function inspectRoot(rootLabel: string) {
     };
   }
 
-  const matchedAnchor = anchors.find((anchor) => anchor.root === proof.root) ?? null;
   const newestHeight = anchors.reduce((max, anchor) => Math.max(max, anchor.block.height), 0);
   const native = decodeNativeJson<InspectNativeResult>(
-    runNative(nativeExecutionConfig, ["inspect", `@${normalizedRootLabel}`, proof.proof, proof.root]),
+    runNative(nativeExecutionConfig, [
+      "inspect",
+      `@${normalizedRootLabel}`,
+      proof.proof,
+      proof.root,
+      liveOutpoint,
+    ]),
   );
   const provedOutpoint = typeof native.proved_outpoint === "string" ? native.proved_outpoint : null;
-  const liveOutpoint = typeof existingRoot.txid === "string" && Number.isInteger(existingRoot.n)
-    ? `${existingRoot.txid}:${existingRoot.n}`
-    : null;
   const rootPubkey = deriveTaprootPubkey(existingRoot.script_pubkey);
   const proofOutpointMatches = provedOutpoint != null && liveOutpoint != null && provedOutpoint === liveOutpoint;
-  const rootKeyProofVerified = native.root_key_proof_verified === true && proofOutpointMatches && rootPubkey != null;
+  const anchorFreshEnough = matchedAnchor != null
+    && newestHeight - matchedAnchor.block.height <= maxAnchorAgeBlocks;
+  const rootKeyProofVerified = native.root_key_proof_verified === true
+    && proofOutpointMatches
+    && rootPubkey != null
+    && anchorFreshEnough;
 
   return {
     root_exists: true,
     root_key_proof_verified: rootKeyProofVerified,
-    anchor_fresh_enough: matchedAnchor != null
-      ? newestHeight - matchedAnchor.block.height <= maxAnchorAgeBlocks
-      : false,
+    anchor_fresh_enough: anchorFreshEnough,
     accepted_anchor_height: matchedAnchor?.block.height ?? null,
     accepted_anchor_block_hash: matchedAnchor?.block.hash ?? null,
     accepted_anchor_root_hash: matchedAnchor?.root ?? null,
@@ -483,11 +557,14 @@ Bun.serve({
 
     if (url.pathname === "/health") {
       const fabricReaderHealth = publisherHealth.snapshot();
+      const chainStateHealth = chainHealth.snapshot();
       const fallbackDisagreements = publishedFallbacks.disagreementSnapshot();
       const cacheHealth = resolveCache.snapshot();
       const publisherCapacity = publisherLimiter.snapshot();
       return json({
-        ok: fabricReaderHealth.ready && fabricRelayDisagreementHandles.size === 0,
+        ok: fabricReaderHealth.ready
+          && fabricRelayDisagreementHandles.size === 0
+          && chainStateHealth.ready,
         bind_host: verifierHost,
         bind_port: verifierPort,
         spaced_rpc_url: spacedRpcUrl,
@@ -504,6 +581,17 @@ Bun.serve({
         fallback_target_disagreement_handles: fallbackDisagreements.handles,
         fabric_relay_disagreements: fabricRelayDisagreementHandles.size,
         fabric_relay_disagreement_handles: Array.from(fabricRelayDisagreementHandles).sort(),
+        chain_state_ready: chainStateHealth.ready,
+        chain_state_checking: chainStateHealth.checking,
+        indexed_height: chainStateHealth.indexed_height,
+        external_tip_height: chainStateHealth.external_tip_height,
+        newest_anchor_height: chainStateHealth.newest_anchor_height,
+        tip_lag_blocks: chainStateHealth.tip_lag_blocks,
+        anchor_lag_blocks: chainStateHealth.anchor_lag_blocks,
+        last_index_progress_at: chainStateHealth.last_index_progress_at,
+        chain_state_last_checked_at: chainStateHealth.last_checked_at,
+        chain_state_last_success_at: chainStateHealth.last_success_at,
+        chain_state_error: chainStateHealth.error,
         resolve_cache: cacheHealth,
         publisher_capacity: publisherCapacity,
       });
@@ -517,6 +605,12 @@ Bun.serve({
       const handle = url.searchParams.get("handle");
       if (!handle || !normalizeRootLabel(handle)) {
         return json({ error: "handle is required" }, { status: 400 });
+      }
+      if (!isRootHandleInput(handle)) {
+        return json({
+          error: "unsupported_handle_type",
+          message: "this endpoint resolves parent Spaces only",
+        }, { status: 422 });
       }
 
       try {
@@ -589,3 +683,9 @@ const publisherKeepalive = setInterval(() => {
   void refreshPublisherHealth();
 }, spacesPublisherKeepaliveIntervalMs);
 publisherKeepalive.unref?.();
+
+void refreshChainHealth();
+const chainHealthKeepalive = setInterval(() => {
+  void refreshChainHealth();
+}, chainHealthIntervalMs);
+chainHealthKeepalive.unref?.();
