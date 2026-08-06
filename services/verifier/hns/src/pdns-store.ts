@@ -272,6 +272,12 @@ export class PowerDnsApiClient {
 
 function buildManagedRrsets(input: EnsureZoneInput) {
   const zoneName = canonical(input.zoneName);
+  const extraRrsets = (input.extraRrsets ?? []).map((extra) => ({
+    ...extra,
+    name: canonical(extra.name),
+  }));
+  const appName = `app.${zoneName}`;
+  const hasExplicitAppA = extraRrsets.some((rrset) => rrset.name === appName && rrset.type === "A");
   const rrsets: PowerDnsRrsetInput[] = [
     {
       name: zoneName,
@@ -291,21 +297,26 @@ function buildManagedRrsets(input: EnsureZoneInput) {
   if (input.apexIpv4) {
     rrsets.push({ name: zoneName, type: "A", ttl: input.ttl, records: [input.apexIpv4] });
   }
+  const appIpv4 = input.wildcardIpv4 ?? input.apexIpv4;
+  if (appIpv4 && !hasExplicitAppA) {
+    rrsets.push({ name: appName, type: "A", ttl: input.ttl, records: [appIpv4] });
+  }
   if (input.profileIpv4) {
     rrsets.push({ name: `profile.${zoneName}`, type: "A", ttl: input.ttl, records: [input.profileIpv4] });
   }
   if (input.wildcardIpv4) {
     rrsets.push({ name: `*.${zoneName}`, type: "A", ttl: input.ttl, records: [input.wildcardIpv4] });
   }
-  for (const extra of input.extraRrsets ?? []) {
-    rrsets.push({ ...extra, name: canonical(extra.name) });
-  }
+  rrsets.push(...extraRrsets);
 
   rrsets.push(...buildManagedTlsaRrsets({
     zoneName,
     ttl: input.tlsaTtl ?? input.ttl,
     associations: input.tlsaAssociations ?? [],
-    explicitWebHosts: input.profileIpv4 ? [`profile.${zoneName}`] : [],
+    explicitWebHosts: [
+      ...(appIpv4 || hasExplicitAppA ? [appName] : []),
+      ...(input.profileIpv4 ? [`profile.${zoneName}`] : []),
+    ],
   }));
 
   return rrsets.map(toReplacePayload);
