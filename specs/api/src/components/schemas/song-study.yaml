@@ -184,6 +184,22 @@ SongStudyExercise:
 
 SongStudySessionSummary:
   type: object
+  example:
+    id: sts_example
+    status: active
+    due_count: 0
+    served_count: 10
+    total_units: 10
+    required_correct_count: 7
+    max_presentations: 20
+    presentation_count: 7
+    completed_exercise_count: 7
+    resolved_exercise_count: 4
+    first_pass_correct_count: 4
+    mastered_exercise_count: 4
+    qualified: false
+    session_revision: 7
+    completion_reason: null
   required:
     - id
     - status
@@ -194,9 +210,12 @@ SongStudySessionSummary:
     - max_presentations
     - presentation_count
     - completed_exercise_count
+    - resolved_exercise_count
+    - completion_reason
     - first_pass_correct_count
     - mastered_exercise_count
     - qualified
+    - session_revision
   properties:
     id:
       type: string
@@ -227,12 +246,27 @@ SongStudySessionSummary:
       type: integer
     completed_exercise_count:
       type: integer
+      minimum: 0
       description: Distinct cards presented at least once.
+    resolved_exercise_count:
+      type: integer
+      minimum: 0
+      description: Cards resolved for this lesson, independently of mastery or future review due state.
     first_pass_correct_count:
       type: integer
     mastered_exercise_count:
       type: integer
+      minimum: 0
       description: Distinct cards eventually answered correctly.
+    session_revision:
+      type: integer
+      minimum: 0
+      description: Server orchestration revision used for optional optimistic concurrency.
+    completion_reason:
+      type: string
+      nullable: true
+      enum: [all_resolved, presentation_budget]
+      description: Why the lesson closed; null while it remains active.
     qualified:
       type: boolean
     next_due_at:
@@ -418,7 +452,6 @@ SongStudyAttemptResult:
     - exercise_id
     - outcome
     - attempts_remaining
-    - lesson
   properties:
     object:
       type: string

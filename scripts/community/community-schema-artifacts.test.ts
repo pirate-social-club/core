@@ -326,9 +326,9 @@ describe("expectedArtifacts — real migration files", () => {
     expect(a.indexes).toEqual(["idx_song_study_attempt_response_session"])
     expect(a.altered).toEqual(["song_study_session", "song_study_session_exercise"])
     expect(a.unrecognized).toEqual([
-      "UPDATE song_study_session_exercise SET",
-      "UPDATE song_study_session_exercise SET",
       "UPDATE song_study_session SET",
+      "UPDATE song_study_session_exercise SET",
+      "UPDATE song_study_session_exercise SET",
     ])
     expect(artifactCount(a)).toBe(11)
   })

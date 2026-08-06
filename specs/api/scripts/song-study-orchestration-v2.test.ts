@@ -12,7 +12,8 @@ describe("Song Study orchestration v2 contract", () => {
 
     expect(request.required).not.toContain("session_revision")
     expect(request.properties.session_revision).toMatchObject({ type: "integer", minimum: 0 })
-    expect(result.required).toContain("lesson")
+    expect(result.required).not.toContain("lesson")
+    expect(result.properties.lesson).toBeDefined()
     expect(result.properties.outcome.enum).toContain("ungradable")
     expect(result.properties.lesson.$ref).toBe("#/components/schemas/SongStudyLessonState")
   })

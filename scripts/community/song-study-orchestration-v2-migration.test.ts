@@ -144,15 +144,86 @@ describe("1151 Song Study orchestration v2 migration", () => {
     }
   })
 
-  test("enforces revision, appearance, qualification, and snapshot bounds", async () => {
+  test("backfills completed-session reasons with individual resolution before budget closure", async () => {
     const db = new Database(":memory:")
     try {
+      db.exec("PRAGMA foreign_keys = ON")
       db.exec(`
         CREATE TABLE posts (post_id TEXT PRIMARY KEY);
         CREATE TABLE communities (community_id TEXT PRIMARY KEY);
         CREATE TABLE song_study_attempt (
           id TEXT PRIMARY KEY, user_id TEXT NOT NULL, exercise_id TEXT NOT NULL
         );
+        INSERT INTO posts VALUES ('pst_1');
+        INSERT INTO communities VALUES ('cmt_1');
+      `)
+      db.exec(await Bun.file(sessionsMigrationPath).text())
+      for (const [id, presentations, maximum] of [
+        ["all_before_budget", 2, 6],
+        ["budget_with_open_card", 6, 6],
+        ["all_and_budget", 6, 6],
+      ] as const) {
+        db.prepare(`
+          INSERT INTO song_study_session (
+            id, user_id, post_id, community_id, target_language, status,
+            exercise_count, required_correct_count, max_presentations,
+            presentation_count, completed_exercise_count,
+            first_pass_correct_count, mastered_exercise_count,
+            created_at, expires_at, completed_at, updated_at
+          ) VALUES (?1, ?2, 'pst_1', 'cmt_1', 'ru', 'completed',
+                    2, 2, ?3, ?4, 2, 2, 2, 'before', 'later', 'before', 'before')
+        `).run(id, `usr_${id}`, maximum, presentations)
+      }
+      const insertCard = db.prepare(`
+        INSERT INTO song_study_session_exercise (
+          session_id, exercise_id, ordinal, presentation_count,
+          first_outcome, last_outcome, mastered, created_at, updated_at
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?5, ?6, 'before', 'before')
+      `)
+      insertCard.run("all_before_budget", "all_1", 0, 1, "correct", 1)
+      insertCard.run("all_before_budget", "all_2", 1, 1, "correct", 1)
+      insertCard.run("budget_with_open_card", "budget_1", 0, 3, "incorrect", 0)
+      insertCard.run("budget_with_open_card", "budget_2", 1, 0, null, 0)
+      insertCard.run("all_and_budget", "edge_1", 0, 3, "incorrect", 0)
+      insertCard.run("all_and_budget", "edge_2", 1, 3, "incorrect", 0)
+
+      db.exec(await Bun.file(orchestrationMigrationPath).text())
+
+      expect(db.query(`
+        SELECT id, completion_reason
+        FROM song_study_session
+        ORDER BY id
+      `).all()).toEqual([
+        { id: "all_and_budget", completion_reason: "all_resolved" },
+        { id: "all_before_budget", completion_reason: "all_resolved" },
+        { id: "budget_with_open_card", completion_reason: "presentation_budget" },
+      ])
+      expect(db.query(`
+        SELECT appearance_ordinal, appearance_attempt_count
+        FROM song_study_session_exercise
+        WHERE session_id = 'budget_with_open_card'
+        ORDER BY ordinal
+      `).all()).toEqual([
+        { appearance_ordinal: 0, appearance_attempt_count: 0 },
+        { appearance_ordinal: 0, appearance_attempt_count: 0 },
+      ])
+    } finally {
+      db.close()
+    }
+  })
+
+  test("negative constraint probes reject invalid revision, appearance, qualification snapshot, and response bounds", async () => {
+    const db = new Database(":memory:")
+    try {
+      db.exec("PRAGMA foreign_keys = ON")
+      db.exec(`
+        CREATE TABLE posts (post_id TEXT PRIMARY KEY);
+        CREATE TABLE communities (community_id TEXT PRIMARY KEY);
+        CREATE TABLE song_study_attempt (
+          id TEXT PRIMARY KEY, user_id TEXT NOT NULL, exercise_id TEXT NOT NULL
+        );
+        INSERT INTO posts VALUES ('pst_1');
+        INSERT INTO communities VALUES ('cmt_1');
       `)
       db.exec(await Bun.file(sessionsMigrationPath).text())
       db.exec(await Bun.file(orchestrationMigrationPath).text())

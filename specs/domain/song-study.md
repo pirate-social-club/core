@@ -406,8 +406,10 @@ a presentation patch:
    `appearance_attempt_count`, per-card `lesson_resolved`, deterministic
    `last_served_index`, per-appearance ungradable receipt, immutable
    `qualifies_for_reward` snapshot, and durable attempt-response/orchestration
-   snapshot with an internal unique commit token and internal pending/final
-   lifecycle. `last_served_index` records the
+snapshot with an internal unique commit token and internal pending/final
+   lifecycle. A pending completion snapshot also freezes its activity instant
+   and learner-timezone input so retry finalization cannot move money/streak
+   evidence across a calendar boundary. `last_served_index` records the
    session-wide graded-presentation index at which the card was last served; it
    is sequencing evidence, not a materialized eligibility decision. Do not add
    any further persisted spacing eligibility unless measurement shows the
@@ -419,6 +421,12 @@ a presentation patch:
      completed session's cards are resolved. Initialize `last_served_index`
      deterministically so an active session can continue without granting an
      early retry.
+     Migrated active sessions reset `appearance_ordinal` and
+     `appearance_attempt_count` to zero. Legacy rows cannot reconstruct an
+     exact mid-appearance boundary or whether its free re-record was already
+     spent. This bounded loss is accepted for the additive rollout: the
+     per-card three-presentation cap and 24-hour session TTL remain in force,
+     and every v2 transition persists exact appearance state thereafter.
    - `current_exercise_id` is the shard-side orchestration authority after v2
      adopts a session. It starts nullable for migrated legacy sessions and is
      established by their first v2 transition. Response JSON and Telegram's

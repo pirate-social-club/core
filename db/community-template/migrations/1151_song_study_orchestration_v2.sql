@@ -32,6 +32,22 @@ ALTER TABLE song_study_session_exercise
     ADD COLUMN qualifies_for_reward INTEGER NOT NULL DEFAULT 1
     CHECK (qualifies_for_reward IN (0, 1));
 
+-- Classify completed sessions from their pre-v2 card state. Individual card
+-- resolution wins when it and the global budget happen on the same attempt.
+UPDATE song_study_session
+SET completion_reason = CASE
+    WHEN NOT EXISTS (
+        SELECT 1
+        FROM song_study_session_exercise e
+        WHERE e.session_id = song_study_session.id
+          AND e.mastered = 0
+          AND e.presentation_count < 3
+    ) THEN 'all_resolved'
+    WHEN presentation_count >= max_presentations THEN 'presentation_budget'
+    ELSE 'all_resolved'
+END
+WHERE status = 'completed';
+
 -- Preserve completed lessons as resolved. For active lessons, cards already
 -- mastered or exhausted retain those facts while all other cards remain open.
 UPDATE song_study_session_exercise
@@ -53,12 +69,10 @@ SET last_served_index = COALESCE((
 ), 0)
 WHERE presentation_count > 0;
 
-UPDATE song_study_session
-SET completion_reason = CASE
-    WHEN presentation_count >= max_presentations THEN 'presentation_budget'
-    ELSE 'all_resolved'
-END
-WHERE status = 'completed';
+-- Migrated active sessions deliberately restart appearance-local state at zero.
+-- Historical appearance boundaries and free re-record use cannot be reconstructed
+-- from legacy rows. The loss is bounded by the three-presentation card cap and
+-- the existing 24-hour session TTL; v2 persists exact state from its first turn.
 
 -- A receipt, rather than an attempt event, spends the one free ungradable
 -- re-record allowed during an appearance. An appearance can span two graded
@@ -89,6 +103,7 @@ CREATE TABLE song_study_attempt_response (
     commit_token TEXT NOT NULL,
     response_status TEXT NOT NULL CHECK (response_status IN ('pending', 'final')),
     response_json TEXT NOT NULL,
+    materialization_context_json TEXT,
     http_status INTEGER NOT NULL CHECK (http_status >= 100 AND http_status <= 599),
     result_kind TEXT NOT NULL CHECK (
         result_kind IN ('graded', 'ungradable', 'revision_conflict')

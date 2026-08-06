@@ -625,6 +625,8 @@ components:
       $ref: ./components/schemas/common.yaml#/Error
     SongStudyPayload:
       $ref: ./components/schemas/song-study.yaml#/SongStudyPayload
+    SongStudySessionSummary:
+      $ref: ./components/schemas/song-study.yaml#/SongStudySessionSummary
     SongStudyAccessState:
       $ref: ./components/schemas/song-study.yaml#/SongStudyAccessState
     SongStudyLockedReason:
