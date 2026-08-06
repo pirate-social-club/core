@@ -260,7 +260,11 @@ describe("hns verifier server", () => {
           result: {
             records: [
               { type: "NS", ns: "ns1.pirate." },
+              { type: "TXT", txt: ["owner=", "alice"] },
+              { type: "SYNTH4", address: "192.0.2.44" },
               { type: "NS", ns: "ns2.pirate." },
+              { type: "SYNTH6", address: "2001:db8::44" },
+              { type: "FUTURE9", payload: { opaque: ["keep", 9] } },
               { type: "GLUE4", ns: "ns1.pirate.", address: "192.0.2.10" },
               { type: "GLUE6", ns: "ns2.pirate.", address: "2001:db8::20" },
               {
@@ -329,6 +333,23 @@ describe("hns verifier server", () => {
         median_time: nowSeconds - 60,
       },
       parent: {
+        raw_records: [
+          { type: "NS", ns: "ns1.pirate." },
+          { type: "TXT", txt: ["owner=", "alice"] },
+          { type: "SYNTH4", address: "192.0.2.44" },
+          { type: "NS", ns: "ns2.pirate." },
+          { type: "SYNTH6", address: "2001:db8::44" },
+          { type: "FUTURE9", payload: { opaque: ["keep", 9] } },
+          { type: "GLUE4", ns: "ns1.pirate.", address: "192.0.2.10" },
+          { type: "GLUE6", ns: "ns2.pirate.", address: "2001:db8::20" },
+          {
+            type: "DS",
+            keyTag: 12345,
+            algorithm: 13,
+            digestType: 2,
+            digest: "AABBCCDD",
+          },
+        ],
         nameservers: ["ns1.pirate.", "ns2.pirate."],
         ds_records: [{
           key_tag: 12345,
