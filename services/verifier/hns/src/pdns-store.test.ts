@@ -135,7 +135,10 @@ describe("PowerDnsApiClient", () => {
   test("creates a missing zone with every managed rrset in a single POST", async () => {
     const result = await client().ensureZone({
       ...ENSURE_INPUT,
-      extraRrsets: [{ name: "_pirate.crew.", type: "TXT", ttl: 300, records: ['"pirate-verification=abc"'] }],
+      extraRrsets: [
+        { name: "_pirate.crew.", type: "TXT", ttl: 300, records: ['"pirate-verification=abc"'] },
+        { name: "app.crew.", type: "A", ttl: 60, records: ["192.0.2.80"] },
+      ],
     });
 
     expect(result.created).toBe(true);
@@ -151,6 +154,8 @@ describe("PowerDnsApiClient", () => {
     expect(types).toContain("crew.|SOA");
     expect(types).toContain("crew.|NS");
     expect(types).toContain("crew.|A");
+    expect(types).toContain("app.crew.|A");
+    expect(types.filter((type) => type === "app.crew.|A")).toHaveLength(1);
     expect(types).toContain("*.crew.|A");
     expect(types).toContain("_pirate.crew.|TXT");
     expect(result.dsRecords).toEqual([]);
@@ -173,6 +178,7 @@ describe("PowerDnsApiClient", () => {
     expect(posted.api_rectify).toBe(true);
     expect(posted.rrsets.filter((rrset) => rrset.type === "TLSA").map((rrset) => rrset.name)).toEqual([
       "*.crew.",
+      "_443._tcp.app.crew.",
       "_443._tcp.crew.",
       "_443._tcp.profile.crew.",
     ]);
