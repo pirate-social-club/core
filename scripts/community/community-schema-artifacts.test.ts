@@ -307,6 +307,32 @@ describe("expectedArtifacts — real migration files", () => {
     expect(artifactCount(a)).toBe(6)
   })
 
+  test("1151_song_study_orchestration_v2: durable orchestration state and snapshots", () => {
+    const a = expectedArtifacts(readMigration("1151_song_study_orchestration_v2.sql"))
+    expect(a.columns).toEqual([
+      ["song_study_session", "session_revision"],
+      ["song_study_session", "current_exercise_id"],
+      ["song_study_session", "completion_reason"],
+      ["song_study_session_exercise", "appearance_ordinal"],
+      ["song_study_session_exercise", "appearance_attempt_count"],
+      ["song_study_session_exercise", "lesson_resolved"],
+      ["song_study_session_exercise", "last_served_index"],
+      ["song_study_session_exercise", "qualifies_for_reward"],
+    ])
+    expect(a.tables).toEqual([
+      "song_study_ungradable_receipt",
+      "song_study_attempt_response",
+    ])
+    expect(a.indexes).toEqual(["idx_song_study_attempt_response_session"])
+    expect(a.altered).toEqual(["song_study_session", "song_study_session_exercise"])
+    expect(a.unrecognized).toEqual([
+      "UPDATE song_study_session_exercise SET",
+      "UPDATE song_study_session_exercise SET",
+      "UPDATE song_study_session SET",
+    ])
+    expect(artifactCount(a)).toBe(11)
+  })
+
   test("1143_lyrics_language: applies cleanly and defaults are inert", () => {
     const db = new Database(":memory:")
     try {

@@ -387,7 +387,8 @@ a presentation patch:
    `qualifies_for_reward` snapshot, and durable attempt-response/orchestration
    snapshot. `last_served_index` records the
    session-wide graded-presentation index at which the card was last served; it
-   is sequencing evidence, not a materialized eligibility decision. Do not add
+   is sequencing evidence, not a materialized eligibility decision. Zero is
+   the durable sentinel for an exercise that has not been served. Do not add
    any further persisted spacing eligibility unless measurement shows the
    attempt-derived policy is inadequate.
    - Existing sessions backfill `session_revision = 0`.
