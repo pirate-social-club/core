@@ -86,6 +86,7 @@ CREATE TABLE song_study_attempt_response (
     session_id TEXT NOT NULL,
     exercise_id TEXT NOT NULL,
     request_fingerprint TEXT NOT NULL,
+    commit_token TEXT NOT NULL,
     response_json TEXT NOT NULL,
     http_status INTEGER NOT NULL CHECK (http_status >= 100 AND http_status <= 599),
     result_kind TEXT NOT NULL CHECK (
