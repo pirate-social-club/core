@@ -126,6 +126,7 @@ pirate. 300 IN RRSIG ${type} 13 1 300 20260823010000 20260723010000 12345 pirate
 
     const result = await observeRootAuthority({
       rootLabel: "pirate",
+      observedAt: "2026-07-23T01:00:00.000Z",
       anchors: [{
         key_tag: 12345,
         algorithm: 13,
@@ -150,6 +151,7 @@ pirate. 300 IN RRSIG ${type} 13 1 300 20260823010000 20260723010000 12345 pirate
     }, runner);
 
     expect(result.authoritative_dnssec_valid).toBe(true);
+    expect(result.observed_at).toBe("2026-07-23T01:00:00.000Z");
     expect(result.parent_ds_matches_live_dnskey).toBe(true);
     expect(result.parent_ds_results).toEqual([{
       key_tag: 12345,

@@ -755,6 +755,7 @@ async function observeRootServingAuthority(rootLabel: string) {
   }
   const authorityObservation = await observeRootAuthority({
     rootLabel: parentObservation.root_label,
+    observedAt: parentObservation.observed_at,
     anchors: parentObservation.parent.ds_records,
     requiredRrsets: requiredAuthorityRrsets(parentObservation.zone_name, zone),
     authorities: await resolveParentAuthorityTargets(
