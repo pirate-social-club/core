@@ -232,6 +232,16 @@ The attempt event, review-state update, lesson transition, revision increment,
 and response snapshot commit atomically. The GET payload and stale-revision
 conflict use the same render-safe projection.
 
+For a completed graded transition whose existing response includes derived
+`study_progress`, the atomic batch stores the immutable core result as an
+internal `pending` response claim. The winner then runs the existing idempotent
+engagement/streak/reward materialization, adds that projection, and atomically
+finalizes the response. A same-key replay that observes `pending` MUST re-drive
+finalization or read the competing finalizer's result; it MUST NOT return the
+pending response. Once final, response JSON is immutable. This preserves the
+deployed completion response without exposing two different results for one
+idempotency key.
+
 Community D1 write transactions do not support reads. The implementation
 therefore pre-reads state, computes a pure transition plan, and commits it as
 one conditional atomic write batch. The first statement claims the idempotency
@@ -396,7 +406,8 @@ a presentation patch:
    `appearance_attempt_count`, per-card `lesson_resolved`, deterministic
    `last_served_index`, per-appearance ungradable receipt, immutable
    `qualifies_for_reward` snapshot, and durable attempt-response/orchestration
-   snapshot with an internal unique commit token. `last_served_index` records the
+   snapshot with an internal unique commit token and internal pending/final
+   lifecycle. `last_served_index` records the
    session-wide graded-presentation index at which the card was last served; it
    is sequencing evidence, not a materialized eligibility decision. Do not add
    any further persisted spacing eligibility unless measurement shows the
