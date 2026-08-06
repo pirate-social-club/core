@@ -1,5 +1,5 @@
 import { json, requireBearerAuth } from "../../shared/http";
-import { ChainHealthMonitor } from "./chain-health";
+import { ChainHealthMonitor, parseExternalTipHeight } from "./chain-health";
 import { rpc } from "./json-rpc";
 import {
   type NativeExecutionConfig,
@@ -95,7 +95,7 @@ const verifierPort = Number(Bun.env.SPACES_VERIFIER_PORT || "4047");
 // proof selector deliberately leaves an eight-anchor safety margin, so a valid
 // proof can be 111 intervals (3,996 blocks) behind the newest retained anchor.
 const maxAnchorAgeBlocks = Number(Bun.env.SPACES_VERIFIER_MAX_ANCHOR_AGE_BLOCKS || "4032");
-const bitcoinTipRpcUrl = Bun.env.SPACES_BITCOIN_TIP_RPC_URL?.trim() || null;
+const bitcoinTipUrl = Bun.env.SPACES_BITCOIN_TIP_URL?.trim() || null;
 const chainHealthIntervalMs = Number(Bun.env.SPACES_CHAIN_HEALTH_INTERVAL_MS || "60000");
 const maxTipLagBlocks = Number(Bun.env.SPACES_CHAIN_MAX_TIP_LAG_BLOCKS || "6");
 const maxAnchorLagBlocks = Number(Bun.env.SPACES_CHAIN_MAX_ANCHOR_LAG_BLOCKS || "108");
@@ -197,20 +197,24 @@ function spacedRpc<T>(method: string, params: unknown[] = []): Promise<T> {
 
 async function refreshChainHealth(): Promise<void> {
   await chainHealth.check(async () => {
-    if (!bitcoinTipRpcUrl) {
-      throw new Error("SPACES_BITCOIN_TIP_RPC_URL is required");
+    if (!bitcoinTipUrl) {
+      throw new Error("SPACES_BITCOIN_TIP_URL is required");
     }
-    const [serverInfo, anchors, externalTipHeight] = await Promise.all([
+    const [serverInfo, anchors, externalTipResponse] = await Promise.all([
       spacedRpc<ServerInfo>("getserverinfo"),
       spacedRpc<RootAnchor[]>("getrootanchors"),
-      rpc<number>(bitcoinTipRpcUrl, null, "getblockcount"),
+      fetch(bitcoinTipUrl, {
+        headers: { accept: "text/plain" },
+        signal: AbortSignal.timeout(10_000),
+      }),
     ]);
+    if (!externalTipResponse.ok) {
+      throw new Error(`independent Bitcoin tip endpoint returned HTTP ${externalTipResponse.status}`);
+    }
+    const externalTipHeight = parseExternalTipHeight(await externalTipResponse.text());
     const indexedHeight = serverInfo.tip?.height;
     if (!Number.isInteger(indexedHeight)) {
       throw new Error("spaced getserverinfo returned no indexed tip height");
-    }
-    if (!Number.isInteger(externalTipHeight)) {
-      throw new Error("independent Bitcoin RPC returned no tip height");
     }
     const newestAnchorHeight = anchors.reduce<number | null>(
       (newest, anchor) => newest == null || anchor.block.height > newest ? anchor.block.height : newest,

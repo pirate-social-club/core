@@ -18,6 +18,14 @@ export type ChainHealthSnapshot = {
   error: string | null;
 };
 
+export function parseExternalTipHeight(value: string): number {
+  const height = Number(value.trim());
+  if (!Number.isInteger(height) || height < 0) {
+    throw new Error("independent Bitcoin tip endpoint returned an invalid height");
+  }
+  return height;
+}
+
 export class ChainHealthMonitor {
   private checking = false;
   private indexedHeight: number | null = null;

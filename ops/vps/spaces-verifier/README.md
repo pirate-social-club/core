@@ -59,7 +59,8 @@ This VPS slice may share a machine with the HNS DNS stack, but it remains operat
   Check Fabric readiness, the absence of native/fallback disagreements, and
   independent Bitcoin index/anchor freshness every five minutes. Chain health
   compares `spaced` against the separately configured
-  `SPACES_BITCOIN_TIP_RPC_URL`; it exposes `tip_lag_blocks`,
+  `SPACES_BITCOIN_TIP_URL`; production uses mempool.space so the freshness
+  oracle does not share PublicNode with `spaced`. It exposes `tip_lag_blocks`,
   `anchor_lag_blocks`, and `last_index_progress_at`. A degraded, missing,
   divergent, or stale signal fails the oneshot and invokes the existing
   authenticated ops-alert delivery path through `alert-on-failure.sh`.

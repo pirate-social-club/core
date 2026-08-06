@@ -49,7 +49,7 @@ grep -Fq 'SPACES_VERIFIER_NATIVE_BIN=/srv/pirate-spaces/current/bin/spaces-verif
   "$role_dir/env/verifier.env.example"
 grep -Fq 'SPACES_FABRIC_SEEDS=https://relay-cosmos.spacesprotocol.org,https://relay-atlas.spacesprotocol.org' \
   "$role_dir/env/verifier.env.example"
-grep -Fq 'SPACES_BITCOIN_TIP_RPC_URL=https://bitcoin-rpc.publicnode.com' \
+grep -Fq 'SPACES_BITCOIN_TIP_URL=https://mempool.space/api/blocks/tip/height' \
   "$role_dir/env/verifier.env.example"
 grep -Fq 'SPACES_CHAIN_MAX_TIP_LAG_BLOCKS=6' "$role_dir/env/verifier.env.example"
 grep -Fq 'SPACES_CHAIN_MAX_ANCHOR_LAG_BLOCKS=108' "$role_dir/env/verifier.env.example"

@@ -1,5 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { ChainHealthMonitor } from "./chain-health";
+import { ChainHealthMonitor, parseExternalTipHeight } from "./chain-health";
+
+describe("parseExternalTipHeight", () => {
+  test("accepts a plain-text block height", () => {
+    expect(parseExternalTipHeight("961279\n")).toBe(961_279);
+  });
+
+  test("rejects malformed or negative responses", () => {
+    expect(() => parseExternalTipHeight("{\"height\":961279}")).toThrow("invalid height");
+    expect(() => parseExternalTipHeight("-1")).toThrow("invalid height");
+  });
+});
 
 describe("ChainHealthMonitor", () => {
   test("reports independent tip and anchor lag", async () => {
