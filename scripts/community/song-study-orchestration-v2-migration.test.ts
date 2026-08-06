@@ -102,23 +102,24 @@ describe("1151 Song Study orchestration v2 migration", () => {
         ) VALUES ('sts_active', 'ex_current', 1, 'usr_1', 'idem_free_1', 'after');
         INSERT INTO song_study_attempt_response (
           user_id, idempotency_key, session_id, exercise_id,
-          request_fingerprint, commit_token, response_json,
+          request_fingerprint, commit_token, response_status, response_json,
           http_status, result_kind, created_at
         ) VALUES (
           'usr_1', 'idem_free_1', 'sts_active', 'ex_current',
-          'sha256:request', 'commit_random_1',
+          'sha256:request', 'commit_random_1', 'final',
           '{"outcome":"ungradable","session_revision":1}',
           200, 'ungradable', 'after'
         );
       `)
 
       expect(db.query(`
-        SELECT result_kind, commit_token, response_json
+        SELECT result_kind, commit_token, response_status, response_json
         FROM song_study_attempt_response
         WHERE user_id = 'usr_1' AND idempotency_key = 'idem_free_1'
       `).get()).toEqual({
         result_kind: "ungradable",
         commit_token: "commit_random_1",
+        response_status: "final",
         response_json: '{"outcome":"ungradable","session_revision":1}',
       })
 
@@ -131,11 +132,11 @@ describe("1151 Song Study orchestration v2 migration", () => {
       expect(() => db.prepare(`
         INSERT INTO song_study_attempt_response (
           user_id, idempotency_key, session_id, exercise_id,
-          request_fingerprint, commit_token, response_json,
+          request_fingerprint, commit_token, response_status, response_json,
           http_status, result_kind, created_at
         ) VALUES (
           'usr_1', 'idem_free_1', 'sts_active', 'ex_current',
-          'different', 'commit_random_2', '{}', 200, 'ungradable', 'after'
+          'different', 'commit_random_2', 'final', '{}', 200, 'ungradable', 'after'
         )
       `).run()).toThrow(/UNIQUE constraint failed/)
     } finally {
@@ -177,10 +178,10 @@ describe("1151 Song Study orchestration v2 migration", () => {
       expect(() => db.prepare(`
         INSERT INTO song_study_attempt_response (
           user_id, idempotency_key, session_id, exercise_id,
-          request_fingerprint, commit_token, response_json,
+          request_fingerprint, commit_token, response_status, response_json,
           http_status, result_kind, created_at
         ) VALUES (
-          'usr_1', 'idem_1', 'sts_1', 'ex_1', 'hash', 'commit_random_1',
+          'usr_1', 'idem_1', 'sts_1', 'ex_1', 'hash', 'commit_random_1', 'final',
           '{}', 99, 'graded', 'now'
         )
       `).run()).toThrow(/CHECK/)
@@ -188,10 +189,38 @@ describe("1151 Song Study orchestration v2 migration", () => {
       expect(() => db.prepare(`
         INSERT INTO song_study_attempt_response (
           user_id, idempotency_key, session_id, exercise_id,
-          request_fingerprint, response_json, http_status, result_kind, created_at
+          request_fingerprint, response_status, response_json,
+          http_status, result_kind, created_at
         ) VALUES ('usr_1', 'idem_missing_token', 'sts_1', 'ex_1', 'hash',
-                  '{}', 200, 'graded', 'now')
+                  'final', '{}', 200, 'graded', 'now')
       `).run()).toThrow(/NOT NULL constraint failed: song_study_attempt_response.commit_token/)
+
+      expect(() => db.prepare(`
+        INSERT INTO song_study_attempt_response (
+          user_id, idempotency_key, session_id, exercise_id,
+          request_fingerprint, commit_token, response_status, response_json,
+          http_status, result_kind, created_at
+        ) VALUES ('usr_1', 'idem_bad_status', 'sts_1', 'ex_1', 'hash',
+                  'commit_random_2', 'complete', '{}', 200, 'graded', 'now')
+      `).run()).toThrow(/CHECK constraint failed/)
+
+      db.prepare(`
+        INSERT INTO song_study_attempt_response (
+          user_id, idempotency_key, session_id, exercise_id,
+          request_fingerprint, commit_token, response_status, response_json,
+          http_status, result_kind, created_at
+        ) VALUES ('usr_1', 'idem_pending', 'sts_1', 'ex_1', 'hash',
+                  'commit_random_3', 'pending', '{}', 200, 'graded', 'now')
+      `).run()
+      db.prepare(`
+        UPDATE song_study_attempt_response
+        SET response_status = 'final'
+        WHERE user_id = 'usr_1' AND idempotency_key = 'idem_pending'
+      `).run()
+      expect(db.query(`
+        SELECT response_status FROM song_study_attempt_response
+        WHERE user_id = 'usr_1' AND idempotency_key = 'idem_pending'
+      `).get()).toEqual({ response_status: "final" })
     } finally {
       db.close()
     }

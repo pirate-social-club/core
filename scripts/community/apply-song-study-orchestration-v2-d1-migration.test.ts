@@ -8,10 +8,14 @@ describe("Song Study orchestration v2 fleet migration", () => {
     expect(SPEC.requiredTables).toEqual(["song_study_session", "song_study_session_exercise"])
     expect(SPEC.creates.kind).toBe("schema_objects")
     if (SPEC.creates.kind !== "schema_objects") throw new Error("schema object attestation required")
-    expect(SPEC.creates.columns).toHaveLength(9)
+    expect(SPEC.creates.columns).toHaveLength(10)
     expect(SPEC.creates.columns).toContainEqual({
       table: "song_study_attempt_response",
       column: "commit_token",
+    })
+    expect(SPEC.creates.columns).toContainEqual({
+      table: "song_study_attempt_response",
+      column: "response_status",
     })
     expect(SPEC.creates.tables).toEqual([
       "song_study_ungradable_receipt",
@@ -24,5 +28,6 @@ describe("Song Study orchestration v2 fleet migration", () => {
     expect(sql).toContain("obj_table__song_study_ungradable_receipt")
     expect(sql).toContain("obj_table__song_study_attempt_response")
     expect(sql).toContain("obj_song_study_attempt_response__commit_token")
+    expect(sql).toContain("obj_song_study_attempt_response__response_status")
   })
 })

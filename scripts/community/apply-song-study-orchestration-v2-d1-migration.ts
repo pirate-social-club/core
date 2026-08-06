@@ -18,6 +18,7 @@ export const SPEC: MigrationSpec = {
       { table: "song_study_session_exercise", column: "last_served_index" },
       { table: "song_study_session_exercise", column: "qualifies_for_reward" },
       { table: "song_study_attempt_response", column: "commit_token" },
+      { table: "song_study_attempt_response", column: "response_status" },
     ],
     tables: ["song_study_ungradable_receipt", "song_study_attempt_response"],
     indexes: ["idx_song_study_attempt_response_session"],
