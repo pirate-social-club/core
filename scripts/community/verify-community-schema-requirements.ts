@@ -235,10 +235,20 @@ type ShardStatus =
   | "canonical_schema_regression" // missing canonical artifacts exceed the ratchet baseline
   | "schema_not_ready"
   | "missing_from_config"
+  | "unreachable" // the shard could not be inspected; this is not schema drift
   | "error"
 
 /** Anything other than `satisfied` fails the gate. Silence is not success. */
 const SATISFIED: ShardStatus = "satisfied"
+
+export function unavailableShardStatus(error: unknown): ShardStatus {
+  const detail = error instanceof Error ? error.message : String(error)
+  // Cloudflare 7429 is an exhausted overload retry, not evidence that a
+  // migration is missing. Keep the gate fail-closed, but make the verdict and
+  // remediation truthful so an operator can retry the measurement.
+  if (/\bcode(?:=|:\s*)7429\b/i.test(detail)) return "unreachable"
+  return "error"
+}
 
 type ShardReport = {
   binding: string
@@ -1126,17 +1136,18 @@ async function main() {
           ...(details.length ? { detail: details.join("; ") } : {}),
         })
       } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error)
         reports.push({
           binding,
           database_name: database.name,
           community_id: allocation.community_id,
           pool_version: allocation.version,
-          status: "error",
+          status: unavailableShardStatus(error),
           missing: requiredSet,
-          detail: error instanceof Error ? error.message : String(error),
+          detail,
           observation_proof: unavailableShardObservationProof({
-            status: "error",
-            detail: error instanceof Error ? error.message : String(error),
+            status: unavailableShardStatus(error),
+            detail,
           }),
         })
       }
@@ -1277,15 +1288,23 @@ async function main() {
   }
 
   if (failures.length > 0) {
-    console.error(`\n::error::${failures.length} live shard(s) do NOT satisfy the pinned API's schema requirements.`)
+    console.error(`\n::error::${failures.length} live shard(s) do not have a passing pinned-schema attestation.`)
     for (const f of failures.slice(0, 20)) {
       console.error(`  ${f.database_name} [${f.binding}]: ${f.status} — ${f.detail ?? f.missing.join(", ")}`)
     }
     if (failures.length > 20) console.error(`  ... and ${failures.length - 20} more (see manifest)`)
-    console.error(
-      `\nApply the missing community-template migrations to the fleet before this API can deploy.\n` +
-        `Do NOT weaken this gate to go green — it exists because 1124 and 1127 each broke production.`,
-    )
+    const unreachable = failures.filter((report) => report.status === "unreachable")
+    const schemaFailures = failures.filter((report) => report.status !== "unreachable")
+    if (schemaFailures.length > 0) {
+      console.error("\nApply the missing community-template migrations to the fleet before this API can deploy.")
+    }
+    if (unreachable.length > 0) {
+      console.error(
+        `\n${unreachable.length} shard(s) could not be inspected after retries; this is not schema-drift evidence. ` +
+          "Retry the unchanged gate, and investigate the fleet if the same shard remains unreachable.",
+      )
+    }
+    console.error("Do NOT weaken this gate to go green — it exists because 1124 and 1127 each broke production.")
     process.exit(2)
   }
 
