@@ -98,7 +98,7 @@
         "migrationName": "0195_control_plane_reward_funding_retirements.sql",
         "oldChecksum": "95318a979c3ad81763742caf09caf9ab9ea527571755dae281a8b2ead6a10f98",
         "newChecksum": "8442aaff1b04c7ca0045b678a9d0a128fdcefe0773907ca033399103ab5656e3",
-        "reason": "pre-deployment repair: seed the explicitly authorized workspace-owner attribution directly so no nonexistent personal identity is written transiently"
+        "reason": "pre-deployment repair: seed the explicitly authorized workspace-owner attribution directly so no nonexistent personal identity is ever written"
       },
       {
         "migrationName": "0196_control_plane_reward_funding_retirement_hardening.sql",
