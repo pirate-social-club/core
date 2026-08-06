@@ -251,6 +251,7 @@ async function observeAuthority(
 export async function observeRootAuthority(
   input: {
     rootLabel: string;
+    observedAt?: string;
     anchors: DsTrustAnchor[];
     requiredRrsets: RequiredRrset[];
     authorities: AuthorityTarget[];
@@ -258,6 +259,7 @@ export async function observeRootAuthority(
   },
   runner: CommandRunner = runCommand,
 ) {
+  const observedAt = input.observedAt ?? new Date().toISOString();
   if (input.requiredRrsets.length === 0) {
     throw new Error("required authoritative RRset inventory is empty");
   }
@@ -369,7 +371,7 @@ export async function observeRootAuthority(
 
     return {
       provider: "bind_delv_with_hsd_ds_anchor",
-      observed_at: new Date().toISOString(),
+      observed_at: observedAt,
       authoritative_dnssec_valid: rrsets.every((rrset) => rrset.validated),
       parent_ds_matches_live_dnskey: anchorResults.some(
         (anchor) => anchor.matches_live_dnskey === true,
