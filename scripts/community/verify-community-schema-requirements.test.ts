@@ -10,6 +10,7 @@ import {
   databaseTargetsFromWranglerConfig,
   d1QueryBatch,
   probeShard,
+  unavailableShardStatus,
   schemaArtifactsFromRows,
   canonicalSchemaRegressions,
   validateCanonicalSchemaBaseline,
@@ -117,6 +118,17 @@ describe("schema requirements policy validation", () => {
         },
       },
     })).toThrow("overlaps policy classes unconditional and transitional")
+  })
+})
+
+describe("unavailable shard classification", () => {
+  test("reports exhausted D1 overload as unreachable, not schema drift", () => {
+    expect(unavailableShardStatus(new Error("D1 query shard failed after 4 attempts: APIError code=7429: overloaded")))
+      .toBe("unreachable")
+  })
+
+  test("keeps other probe failures fail-closed as errors", () => {
+    expect(unavailableShardStatus(new Error("combined migration probe returned no rows"))).toBe("error")
   })
 })
 
