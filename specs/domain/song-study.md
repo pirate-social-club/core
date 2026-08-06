@@ -10,6 +10,12 @@ This document is the normative contract for the study endpoints. The OpenAPI
 shapes live in `specs/api/src/paths/song-study.yaml` and
 `specs/api/src/components/schemas/song-study.yaml`.
 
+**Contract revision:** lesson orchestration v2 was locked on 2026-08-06. It
+makes the server authoritative for card order, in-place retries, lesson
+resolution, progress, and the next render-safe exercise. Web and Telegram are
+renderers of the same transition result; neither surface maintains a private
+lesson queue or derives progress locally.
+
 ## Endpoints
 
 ```
@@ -133,7 +139,8 @@ the returned session id and cannot choose or alter those values on an attempt.
 `POST .../study/attempts` validates one attempt **server-side**, records the
 attempt as an **event** (not merely the final state, so the schedule can be
 recomputed if the algorithm or parameters change), advances the FSRS schedule
-for the review unit, and returns the verdict.
+for the review unit when the result is gradable, and returns the verdict plus
+the authoritative lesson transition.
 
 - Attempt writes MUST be idempotent. The client supplies an `idempotency_key`;
   the durable deduplication guarantees rest on `(user_id, idempotency_key)` and
@@ -141,6 +148,24 @@ for the review unit, and returns the verdict.
   The server returns the original result for an equivalent retry and rejects
   conflicting payload reuse. A retry MUST NOT double-record an event or
   double-advance FSRS.
+- During the additive v2 rollout, a submission MAY supply the last
+  `session_revision` rendered by the client. When present, a stale revision MUST
+  NOT grade the submitted card; it returns a typed conflict containing the
+  current render-safe orchestration state. When absent, the server follows the
+  legacy path and performs no revision conflict check so already-deployed web
+  bundles continue to work. Rejecting an absent revision is a later, versioned
+  tightening after both Web and Telegram have adopted the field.
+- The server increments its dedicated revision on every orchestration change,
+  including a free ungradable re-record that consumes no graded attempt.
+- Idempotent replay returns the **original response snapshot**, including its
+  verdict, feedback, revision, progress, completion reason, and next exercise.
+  It MUST NOT recompute those fields from current session state after another
+  client has advanced the session. The response snapshot is persisted durably
+  in the community shard under the idempotency key.
+- Idempotency lookup has precedence over revision validation. A matching key
+  replays its stored snapshot unconditionally, even if the submitted revision
+  has since become stale. Only a fresh idempotency key proceeds to revision
+  validation and then grading.
 - `attempt_number` is the 1-based presentation number for that exercise in this
   server session. A future due review uses a different session id and may validly
   submit `attempt_number = 1` again.
@@ -150,6 +175,110 @@ for the review unit, and returns the verdict.
   language's** tokenization / accent / punctuation policy (whitespace
   tokenization is not sufficient for space-less scripts) and returns a token-level
   matched / missing / extra diff.
+
+### Authoritative attempt-result projection (v2)
+
+The attempt result carries the orchestration needed to render the next state in
+the same round trip. Its normative shape is:
+
+```text
+lesson:
+  session_revision: integer
+  resolved_count: integer
+  total_count: integer
+  completion_reason: null | all_resolved | presentation_budget
+  serving_index: integer
+  next: null | {
+    exercise_id
+    type
+    is_reappearance
+    presentation_number
+    attempts_this_appearance
+    retry_in_place
+    prompt: RenderSafeExercise
+  }
+```
+
+`serving_index` is the monotonic session presentation index. It may exceed
+`total_count` and is bounded by the session presentation budget. It is not
+progress. Clients SHOULD render resolved progress and serving position as two
+separate concepts, and SHOULD mark `is_reappearance` visibly. A client MAY omit
+the numeric serving index if it is confusing, but MUST NOT substitute it for
+resolved progress.
+
+A **presentation** is a graded submission that consumes the global budget and
+increments that exercise's `presentation_number`. An **appearance** is the
+uninterrupted period for which one card remains current. A spoken card may
+consume two consecutive presentations in one appearance because of its
+in-place retry. A free ungradable re-record changes the revision but increments
+neither presentation number nor serving index. `attempts_this_appearance`
+counts graded submissions only.
+
+`RenderSafeExercise` contains everything needed to draw the next prompt. A
+translation choice may contain its shuffled options, but neither
+`correct_option_id` nor `explanation_text` may appear. Grading secrets and
+post-grade feedback are never serialized in the next-exercise projection.
+`feedback.explanation` is reserved for an optional, graded translation-result
+field in a later slice; it is not part of the next-exercise projection.
+
+The attempt event, review-state update, lesson transition, revision increment,
+and response snapshot commit atomically. The GET payload and stale-revision
+conflict use the same render-safe projection.
+
+### Independent learner-state axes
+
+The contract does not collapse lesson state and spaced repetition into one
+enum. These facts are independent:
+
+- `lesson_resolved` — this card requires no more presentations in the current
+  lesson;
+- `mastered` — the learner answered it correctly in this lesson;
+- `due_at` — the review scheduler's next due time for this review unit.
+
+A card can be resolved but unmastered and remain due for later review. Session
+progress is therefore `lesson_resolved_count / lesson_total_count`, computed by
+the server. It is neither cards seen nor cards mastered. The numerator never
+decreases, never exceeds the denominator, and reaches the denominator when the
+session completes. It may legitimately stay unchanged across several learner
+interactions.
+
+### Ungradable voice submissions
+
+An ungradable voice result is a server outcome, not a client heuristic. It is
+considered only after both correctness gates, including the phonetic near-miss
+gate, have failed. Its overlap is exactly:
+
+```text
+|matched tokens| / |normalized reference tokens|
+```
+
+using the existing source-language tokenizer. An overlap below one third is
+ungradable while the appearance's free re-record remains available.
+
+Each `(session, exercise, appearance)` receives one durable free ungradable
+re-record. It consumes no graded attempt, writes no `song_study_attempt`, makes
+no FSRS or reward progress, and retries the same card in place. It does consume
+its idempotency key and increments `session_revision`; replaying that key returns
+the identical ungradable response. New audio uses a new idempotency key. Once
+the allowance is spent, another otherwise-ungradable recording is graded as a
+normal incorrect submission and consumes an attempt. This is the anti-farming
+boundary.
+
+Appearance identity is durable, not inferred from timestamps or presentation
+numbers. Each session-exercise row stores an `appearance_ordinal`; it increments
+when that card ceases to be current. The allowance receipt is unique on
+`(session_id, exercise_id, appearance_ordinal)`. It MUST NOT be keyed by
+`presentation_number`, because one appearance can contain two graded
+presentations and would incorrectly receive two free re-records.
+
+The allowance MUST be persisted in the community shard. Logs cannot enforce
+it, and `ungradable` MUST NOT be added to the fleet-constrained
+`song_study_attempt.outcome` enum merely for operational bookkeeping.
+
+Ungradable evaluation ships behind a server-side feature flag that defaults off.
+The engine and contract tests exercise the flag-on behavior, but production
+enables it only as each surface adopts the ungradable result. Until then,
+low-overlap recordings continue through the legacy graded-miss path.
 
 ### FSRS mapping (server-internal)
 
@@ -168,25 +297,121 @@ MUST NOT be conflated.
 ### Session completion and qualification
 
 - A normal session contains `N = min(10, eligible exercise count)` distinct cards.
-- The first-pass correctness target is `ceil(0.70 * N)`.
-- A wrong card is eligible to reappear after other cards, at most three
-  presentations per card.
+- Each session exercise snapshots an immutable `qualifies_for_reward` value at
+  session creation. Qualification counters and the required correctness target
+  are derived only from qualifying cards. A future exercise type can therefore
+  enter lessons without silently changing reward difficulty for existing
+  sessions.
+- The first-pass correctness target is `ceil(0.70 * qualifying_exercise_count)`.
+- A missed card becomes eligible after at least three graded attempts on any
+  cards have been recorded in the session since that card's last presentation,
+  or immediately when it is the only eligible card remaining. Ties are broken
+  by fewest presentations, then original ordinal. This policy may initially be
+  reconstructed from attempt events; persisted eligibility may replace that
+  query only if it preserves identical behavior.
+  Counting graded attempts rather than distinct intervening cards is deliberate:
+  an intervening card's in-place retry contributes a second attempt to the
+  spacing interval.
+- A spoken miss receives one graded in-place retry per appearance. If that retry
+  also misses, the card advances and is eligible for later reappearance under
+  the spacing rule. Translation-choice misses advance without an in-place retry.
+- Each card has at most three graded presentations. A free ungradable re-record
+  is not a presentation.
 - Total presentations are capped at `min(20, 3 * N)`.
-- A session completes when all cards are mastered, every unresolved card has
-  reached three presentations, or the global presentation cap is reached.
-- Qualification requires all `N` distinct cards to have been presented and at
-  least the first-pass correctness target to have been met. Repetitions teach
-  mistakes but never inflate the first-pass score.
+- A correct card and a card that exhausts its third presentation both become
+  lesson-resolved. When the global presentation budget closes first, every
+  remaining card becomes resolved for this lesson without becoming mastered;
+  its review state remains due. Completion reason is `all_resolved` when cards
+  resolve individually, otherwise `presentation_budget`.
+- Qualification requires every qualifying card to have been presented and at
+  least the qualifying first-pass correctness target to have been met.
+  Repetitions and non-qualifying cards teach mistakes but never inflate the
+  qualifying first-pass score.
 - Streak and reward qualification MUST consume this same completed-session
   decision. Neither path may independently infer completion from arbitrary
   attempts or trust a client-provided target language.
 
-The attempt event, FSRS update, and session progress commit atomically. Derived
+For a graded submission, the attempt event, FSRS update, session transition,
+revision, and original response snapshot commit atomically. For a free
+ungradable re-record, the durable allowance receipt, session transition,
+revision, and original response snapshot commit atomically. Derived
 engagement-day, reward-outbox, and streak materialization writes intentionally
 run afterward in an idempotent transaction. This creates a small
 completed-session-before-derived-state consistency window if that second write
 fails; an equivalent attempt retry re-drives the derived writes. There is no
 background reconciliation sweep in the initial rollout.
+
+### Normative transition fixture
+
+The implementation contract tests MUST exercise this table directly. “FSRS”
+means the normal review-state transition for the consumed graded attempt.
+
+| Event | Graded attempt consumed | FSRS | Same card now | Requeue in lesson | Resolved progress |
+|---|---:|---:|---:|---:|---:|
+| Correct | yes | yes | no | no | advances |
+| Correct on reappearance | yes | yes | no | no | advances |
+| Spoken miss, first graded try in appearance | yes | yes | yes | no | unchanged |
+| Spoken miss, second graded try in appearance, presentations remain | yes | yes | no | yes | unchanged |
+| Translation-choice miss, presentations remain | yes | yes | no | yes | unchanged |
+| Ungradable, free re-record available | no | no | yes | no | unchanged |
+| Ungradable after free re-record spent | yes | yes | follows normal miss rule | follows normal miss rule | unchanged unless final presentation |
+| Incorrect final presentation | yes | yes | no | no | advances; resolved unmastered |
+| Session presentation budget closes | n/a | n/a | no | no | all remaining cards resolve; unmastered cards remain due |
+
+Every row that changes orchestration increments `session_revision`. Every row is
+covered for fresh submission, equivalent idempotent replay, and stale-revision
+conflict. Web and Telegram contract tests consume the returned orchestration;
+neither test fixture may implement a client-owned queue.
+
+The fixture MUST also cover replay after advancement: submit key A, advance the
+session through another client, then replay key A with its old revision. The
+result is A's original stored snapshot, not a revision conflict.
+
+### Orchestration-v2 rollout boundary
+
+The first implementation slice is additive contract and persistence work, not
+a presentation patch:
+
+1. Add one community-shard migration containing the dedicated session revision,
+   durable `appearance_ordinal`, per-appearance ungradable receipt, immutable
+   `qualifies_for_reward` snapshot, and durable attempt-response/orchestration
+   snapshot. Do not add persisted spacing eligibility unless measurement shows
+   the attempt-derived query is inadequate.
+   - Existing sessions backfill `session_revision = 0`.
+   - Existing session exercises backfill `qualifies_for_reward = 1` and a valid
+     initial `appearance_ordinal`.
+   - A seeded-upgrade test carries an active, partially completed lesson across
+     the migration and proves it can continue afterward.
+   - Update the canonical community-template migration, generated community
+     schema snapshot, and schema-requirements manifest together so existing and
+     newly provisioned shards have the same contract.
+2. Implement the transactional attempt-result projection, typed stale-revision
+   conflict, ungradable allowance, resolution rules, canonical spacing, and the
+   transition-table contract tests.
+3. Only after that contract is stable, remove the web client's private queue and
+   make both Web and Telegram render the returned orchestration fields.
+
+Contract delivery follows the established core-first boundary: merge the core
+contract and regenerate/commit `@pirate/api-contracts` before the API consumer
+change. Authoring order is not production order. Production rollout is:
+
+1. migrate and verify the staging community fleet;
+2. migrate and verify the production community fleet across all shards;
+3. only then bump and deploy the API writer pin.
+
+Merged code is not deployment evidence, and writer code MUST NOT reach
+production before fleet migration attestation succeeds.
+
+Attempt-response snapshots initially follow the existing unbounded-retention
+pattern. That is accepted operational debt for v2, not a lifecycle guarantee;
+retention/compaction requires a later design that preserves idempotent replay.
+
+Pre-generated translation explanations are adjacent follow-up work: return them
+only in a graded attempt result, never in an exercise payload. A future
+`say_translation` exercise is also out of this slice. Before any code emits that
+type, add schema/code parity tests, migrate every exercise-type CHECK across the
+fleet, and keep it excluded from reward qualification until explicitly
+calibrated and versioned.
 
 ### Due-review serving rollout
 
