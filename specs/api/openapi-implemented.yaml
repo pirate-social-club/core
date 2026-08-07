@@ -3012,6 +3012,8 @@ paths:
           - `403 forbidden`   — caller is not entitled to study this post
             (mirrors a `locked` GET).
           - `404 not_found`   — community, post, or exercise not found.
+          - `409 study_session_revision_conflict` — a fresh idempotency key
+            supplied a stale optional session revision; no attempt was graded.
       parameters:
         - $ref: "#/components/parameters/CommunityId"
         - $ref: "#/components/parameters/PostId"
@@ -3026,6 +3028,8 @@ paths:
                 summary: Multiple-choice selection
                 value:
                   idempotency_key: study_attempt_choice_001
+                  session_id: sts_001
+                  session_revision: 4
                   exercise_id: ex_choice_1
                   type: translation_choice
                   attempt_number: 1
@@ -3034,6 +3038,8 @@ paths:
                 summary: Spoken transcript
                 value:
                   idempotency_key: study_attempt_say_001
+                  session_id: sts_001
+                  session_revision: 4
                   exercise_id: ex_say_1
                   type: say_it_back
                   attempt_number: 1
@@ -3045,41 +3051,53 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SongStudyAttemptResult"
-              examples:
-                correct:
-                  summary: Correct multiple-choice answer
-                  value:
-                    object: song_study_attempt_result
-                    exercise_id: ex_choice_1
-                    outcome: correct
-                    attempts_remaining: 1
-                    correct_option_id: opt_a
-                    next_review_hint: good
-                incorrect_not_spent:
-                  summary: Wrong first attempt, answer withheld
-                  value:
-                    object: song_study_attempt_result
-                    exercise_id: ex_choice_1
-                    outcome: incorrect
-                    attempts_remaining: 1
-                say_it_back_partial:
-                  summary: Spoken attempt with token feedback
-                  value:
-                    object: song_study_attempt_result
-                    exercise_id: ex_say_1
-                    outcome: incorrect
-                    attempts_remaining: 1
-                    feedback:
-                      matched:
-                        - I
-                        - was
-                        - in
-                        - the
-                        - midnight
-                        - waves
-                      missing:
-                        - lost
-                      extra: []
+              example:
+                object: song_study_attempt_result
+                exercise_id: ex_choice_1
+                outcome: correct
+                attempts_remaining: 2
+                correct_option_id: opt_a
+                next_review_hint: good
+                session:
+                  id: sts_001
+                  status: active
+                  due_count: 0
+                  served_count: 10
+                  total_units: 10
+                  required_correct_count: 7
+                  max_presentations: 20
+                  presentation_count: 5
+                  completed_exercise_count: 5
+                  resolved_exercise_count: 1
+                  first_pass_correct_count: 1
+                  mastered_exercise_count: 1
+                  qualified: false
+                  session_revision: 5
+                  completion_reason: null
+                lesson:
+                  session_revision: 5
+                  resolved_count: 1
+                  total_count: 10
+                  completion_reason: null
+                  serving_index: 2
+                  next:
+                    exercise_id: ex_say_2
+                    type: say_it_back
+                    is_reappearance: false
+                    presentation_number: 1
+                    attempts_this_appearance: 0
+                    retry_in_place: false
+                    prompt:
+                      id: ex_say_2
+                      type: say_it_back
+                      line_id: line_002
+                      line_index: 1
+                      prompt_text: I was lost in the midnight waves
+                      reference_text: I was lost in the midnight waves
+                      max_attempts: 3
+                      presentation_count: 0
+                      mastered: false
+                      first_outcome: null
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -3088,6 +3106,12 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: The optional session revision is stale; no attempt was graded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SongStudyRevisionConflict"
   /communities/{community_id}/posts/{post_id}/study/telegram_voice_intents:
     post:
       tags:
@@ -6052,6 +6076,12 @@ components:
             $ref: "#/components/schemas/SongStudyExercise"
         session:
           $ref: "#/components/schemas/SongStudySessionSummary"
+        lesson:
+          $ref: "#/components/schemas/SongStudyLessonState"
+          description: |
+            Present for an active or just-completed orchestration-v2 session. This
+            is the same render-safe projection returned after an attempt and in a
+            stale-revision conflict.
         study_pack_version:
           type: integer
           description: |
@@ -6068,6 +6098,107 @@ components:
           $ref: "#/components/schemas/SongStudyLockedReason"
         unavailable_reason:
           $ref: "#/components/schemas/SongStudyUnavailableReason"
+      additionalProperties: false
+    SongStudySessionSummary:
+      type: object
+      example:
+        id: sts_example
+        status: active
+        due_count: 0
+        served_count: 10
+        total_units: 10
+        required_correct_count: 7
+        max_presentations: 20
+        presentation_count: 7
+        completed_exercise_count: 7
+        resolved_exercise_count: 4
+        first_pass_correct_count: 4
+        mastered_exercise_count: 4
+        qualified: false
+        session_revision: 7
+        completion_reason: null
+      required:
+        - id
+        - status
+        - due_count
+        - served_count
+        - total_units
+        - required_correct_count
+        - max_presentations
+        - presentation_count
+        - completed_exercise_count
+        - resolved_exercise_count
+        - completion_reason
+        - first_pass_correct_count
+        - mastered_exercise_count
+        - qualified
+        - session_revision
+      properties:
+        id:
+          type: string
+          nullable: true
+          description: Server-issued session identifier. Null only in the caught-up state.
+        status:
+          type: string
+          enum:
+            - active
+            - completed
+            - caught_up
+            - expired
+        due_count:
+          type: integer
+          description: |
+            Number of exercises due under the currently enabled session-builder
+            policy, before any future cap. During the staged rollout this excludes
+            already-attempted due reviews until re-serving is explicitly enabled.
+        served_count:
+          type: integer
+          description: Number of exercises returned in this payload.
+        total_units:
+          type: integer
+          description: Total currently available study exercises for this song and target language.
+        required_correct_count:
+          type: integer
+          description: First-presentation correct answers required for qualification.
+        max_presentations:
+          type: integer
+          description: Hard cap across original cards and mistake repetitions.
+        presentation_count:
+          type: integer
+        completed_exercise_count:
+          type: integer
+          minimum: 0
+          description: Distinct cards presented at least once.
+        resolved_exercise_count:
+          type: integer
+          minimum: 0
+          description: Cards resolved for this lesson, independently of mastery or future review due state.
+        first_pass_correct_count:
+          type: integer
+        mastered_exercise_count:
+          type: integer
+          minimum: 0
+          description: Distinct cards eventually answered correctly.
+        session_revision:
+          type: integer
+          minimum: 0
+          description: Server orchestration revision used for optional optimistic concurrency.
+        completion_reason:
+          type: string
+          nullable: true
+          enum:
+            - all_resolved
+            - presentation_budget
+          description: Why the lesson closed; null while it remains active.
+        qualified:
+          type: boolean
+        next_due_at:
+          type: integer
+          format: int64
+          description: |
+            Unix seconds for the next reviewed exercise that becomes due. Present
+            only when there are no new cards and no due cards in the current
+            session-builder policy.
       additionalProperties: false
     SongStudyAccessState:
       type: string
@@ -6255,6 +6386,112 @@ components:
                 - incorrect
                 - revealed
           additionalProperties: false
+    SongStudyRenderSafeExercise:
+      description: |
+        Complete next-prompt projection safe to render before grading. It never
+        contains `correct_option_id` or `explanation_text`.
+      allOf:
+        - $ref: "#/components/schemas/SongStudyExercise"
+    SongStudyLessonNext:
+      type: object
+      required:
+        - exercise_id
+        - type
+        - is_reappearance
+        - presentation_number
+        - attempts_this_appearance
+        - retry_in_place
+        - prompt
+      properties:
+        exercise_id:
+          type: string
+        type:
+          type: string
+          enum:
+            - say_it_back
+            - translation_choice
+        is_reappearance:
+          type: boolean
+        presentation_number:
+          type: integer
+          minimum: 1
+          description: Next 1-based graded presentation number for this exercise.
+        attempts_this_appearance:
+          type: integer
+          minimum: 0
+          description: Graded submissions in the current uninterrupted appearance.
+        retry_in_place:
+          type: boolean
+        prompt:
+          $ref: "#/components/schemas/SongStudyRenderSafeExercise"
+      additionalProperties: false
+    SongStudyLessonState:
+      type: object
+      description: Server-authoritative lesson orchestration projection.
+      required:
+        - session_revision
+        - resolved_count
+        - total_count
+        - completion_reason
+        - serving_index
+        - next
+      properties:
+        session_revision:
+          type: integer
+          minimum: 0
+        resolved_count:
+          type: integer
+          minimum: 0
+        total_count:
+          type: integer
+          minimum: 0
+        completion_reason:
+          type: string
+          nullable: true
+          enum:
+            - all_resolved
+            - presentation_budget
+        serving_index:
+          type: integer
+          minimum: 1
+          description: |
+            Monotonic session presentation index. It may exceed total_count but is
+            bounded by the session presentation budget; it is not progress.
+        next:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/SongStudyLessonNext"
+      additionalProperties: false
+    SongStudyRevisionConflict:
+      type: object
+      description: |
+        Typed stale-client response. Idempotency lookup precedes this check, so an
+        existing key always replays its original snapshot instead of conflicting.
+      required:
+        - code
+        - message
+        - retryable
+        - details
+      properties:
+        code:
+          type: string
+          enum:
+            - study_session_revision_conflict
+        message:
+          type: string
+        retryable:
+          type: boolean
+          enum:
+            - false
+        details:
+          type: object
+          required:
+            - lesson
+          properties:
+            lesson:
+              $ref: "#/components/schemas/SongStudyLessonState"
+          additionalProperties: false
+      additionalProperties: false
     SongStudyAttemptRequest:
       type: object
       description: |
@@ -6295,6 +6532,14 @@ components:
             1-based presentation attempt index within the currently served
             exercise instance. It drives grading and reveal behavior; durable
             attempt identity is the idempotency key, not this number.
+        session_revision:
+          type: integer
+          minimum: 0
+          description: |
+            Optional during the orchestration-v2 adoption window. When present,
+            this is the last server revision rendered by the client and a stale
+            value is rejected without grading. When absent, the server follows the
+            legacy no-conflict-check path so already-deployed clients keep working.
         selected_option_id:
           type: string
           description: Required for `translation_choice`; omitted otherwise.
@@ -6335,9 +6580,11 @@ components:
             - correct
             - incorrect
             - revealed
+            - ungradable
           description: |
             `revealed` is returned when the final attempt was incorrect and the
-            answer is now disclosed.
+            answer is now disclosed. `ungradable` is a feature-gated free re-record:
+            it consumes no graded attempt and keeps the same appearance current.
         attempts_remaining:
           type: integer
         correct_option_id:
@@ -6377,6 +6624,8 @@ components:
             scheduling itself is server-internal; the client does not compute it.
         session:
           $ref: "#/components/schemas/SongStudySessionSummary"
+        lesson:
+          $ref: "#/components/schemas/SongStudyLessonState"
         study_progress:
           type: object
           description: |

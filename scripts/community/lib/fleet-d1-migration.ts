@@ -60,6 +60,7 @@ export type ObjectSpec =
       kind: "schema_objects"
       columns: readonly { table: string; column: string }[]
       indexes: readonly string[]
+      tables?: readonly string[]
     }
   | { kind: "tables"; tables: readonly string[] }
 
@@ -190,6 +191,9 @@ export function classificationSql(spec: MigrationSpec): string {
             ...spec.creates.indexes.map((index) =>
               `(SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='${index}') AS obj_index__${index}`
             ),
+            ...(spec.creates.tables ?? []).map((table) =>
+              `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${table}') AS obj_table__${table}`
+            ),
           ].join(",\n  ")
         : spec.creates.tables
           .map((t) => `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${t}') AS obj_${t}`)
@@ -214,6 +218,7 @@ function objectNames(spec: MigrationSpec): readonly string[] {
     return [
       ...spec.creates.columns.map(({ table, column }) => `${table}__${column}`),
       ...spec.creates.indexes.map((index) => `index__${index}`),
+      ...(spec.creates.tables ?? []).map((table) => `table__${table}`),
     ]
   }
   return spec.creates.tables

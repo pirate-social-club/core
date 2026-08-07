@@ -625,6 +625,8 @@ components:
       $ref: ./components/schemas/common.yaml#/Error
     SongStudyPayload:
       $ref: ./components/schemas/song-study.yaml#/SongStudyPayload
+    SongStudySessionSummary:
+      $ref: ./components/schemas/song-study.yaml#/SongStudySessionSummary
     SongStudyAccessState:
       $ref: ./components/schemas/song-study.yaml#/SongStudyAccessState
     SongStudyLockedReason:
@@ -633,6 +635,14 @@ components:
       $ref: ./components/schemas/song-study.yaml#/SongStudyUnavailableReason
     SongStudyExercise:
       $ref: ./components/schemas/song-study.yaml#/SongStudyExercise
+    SongStudyRenderSafeExercise:
+      $ref: ./components/schemas/song-study.yaml#/SongStudyRenderSafeExercise
+    SongStudyLessonNext:
+      $ref: ./components/schemas/song-study.yaml#/SongStudyLessonNext
+    SongStudyLessonState:
+      $ref: ./components/schemas/song-study.yaml#/SongStudyLessonState
+    SongStudyRevisionConflict:
+      $ref: ./components/schemas/song-study.yaml#/SongStudyRevisionConflict
     SongStudyAttemptRequest:
       $ref: ./components/schemas/song-study.yaml#/SongStudyAttemptRequest
     SongStudyAttemptResult:
