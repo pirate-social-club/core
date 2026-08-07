@@ -109,6 +109,8 @@ fi
 
 grep -Fq 'OnFailure=pirate-spaces-verifier-health-alert.service' \
   "$role_dir/systemd/pirate-spaces-verifier-health.service"
+grep -Fq 'EnvironmentFile=/srv/pirate-spaces/config/verifier.env' \
+  "$role_dir/systemd/pirate-spaces-verifier-health.service"
 grep -Fq 'OnUnitActiveSec=5m' "$role_dir/systemd/pirate-spaces-verifier-health.timer"
 grep -Fq 'alert-on-failure.sh' "$role_dir/systemd/pirate-spaces-verifier-health-alert.service"
 
