@@ -2,6 +2,8 @@
 set -euo pipefail
 
 readonly HEALTH_URL="${SPACES_VERIFIER_HEALTH_URL:-http://127.0.0.1:4047/health}"
+readonly INSPECT_URL="${SPACES_VERIFIER_INSPECT_URL:-http://127.0.0.1:4047/inspect?root_label=@pirate}"
+readonly AUTH_TOKEN="${SPACES_VERIFIER_AUTH_TOKEN:?SPACES_VERIFIER_AUTH_TOKEN is required}"
 body="$(curl --fail --silent --show-error --max-time 15 "$HEALTH_URL")"
 
 if ! grep -Eq '"ok"[[:space:]]*:[[:space:]]*true' <<< "$body"; then
@@ -26,4 +28,21 @@ if ! grep -Eq '"chain_state_ready"[[:space:]]*:[[:space:]]*true' <<< "$body"; th
   exit 1
 fi
 
-echo "Spaces verifier Fabric and chain state are ready"
+inspection="$(curl --fail --silent --show-error --max-time 30 \
+  --header "Authorization: Bearer $AUTH_TOKEN" \
+  "$INSPECT_URL")"
+
+if ! grep -Eq '"root_key_proof_verified"[[:space:]]*:[[:space:]]*true' <<< "$inspection"; then
+  echo "Spaces verifier authenticated inspection did not verify the root proof" >&2
+  exit 1
+fi
+if ! grep -Eq '"root_pubkey"[[:space:]]*:[[:space:]]*"[0-9a-fA-F]{64}"' <<< "$inspection"; then
+  echo "Spaces verifier authenticated inspection returned no root key" >&2
+  exit 1
+fi
+if ! grep -Eq '"accepted_anchor_height"[[:space:]]*:[[:space:]]*[0-9]+' <<< "$inspection"; then
+  echo "Spaces verifier authenticated inspection returned no accepted anchor" >&2
+  exit 1
+fi
+
+echo "Spaces verifier Fabric, chain state, and authenticated inspection are ready"
