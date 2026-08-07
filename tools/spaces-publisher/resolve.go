@@ -56,6 +56,10 @@ func runResolve(args []string) error {
 
 	context, err := resolveHandleContext(client, handle)
 	if err != nil {
+		diagnostics, encodeErr := json.Marshal(client.LastQueryDiagnostics())
+		if encodeErr == nil && len(diagnostics) > 2 {
+			return fmt.Errorf("%w; relay diagnostics: %s", err, diagnostics)
+		}
 		return err
 	}
 
