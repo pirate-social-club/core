@@ -97,8 +97,14 @@
       {
         "migrationName": "0195_control_plane_reward_funding_retirements.sql",
         "oldChecksum": "95318a979c3ad81763742caf09caf9ab9ea527571755dae281a8b2ead6a10f98",
-        "newChecksum": "8442aaff1b04c7ca0045b678a9d0a128fdcefe0773907ca033399103ab5656e3",
-        "reason": "pre-deployment repair: seed the explicitly authorized workspace-owner attribution directly so no nonexistent personal identity is written transiently"
+        "newChecksum": "c50a7292f735a0fb9cb175234fbf2eb486eac9c92cd751edac0669a72a89b815",
+        "reason": "pre-deployment repair: seed the explicitly authorized workspace-owner attribution directly so no personal identity is written transiently"
+      },
+      {
+        "migrationName": "0195_control_plane_reward_funding_retirements.sql",
+        "oldChecksum": "8442aaff1b04c7ca0045b678a9d0a128fdcefe0773907ca033399103ab5656e3",
+        "newChecksum": "c50a7292f735a0fb9cb175234fbf2eb486eac9c92cd751edac0669a72a89b815",
+        "reason": "pre-deployment repair follow-up: replace the date-only placeholder with the earliest durable timestamp proving workspace-owner authorization"
       },
       {
         "migrationName": "0196_control_plane_reward_funding_retirement_hardening.sql",

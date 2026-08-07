@@ -100,5 +100,5 @@ INSERT INTO reward_funding_asset_retirements (
     'non_material_test_asset',
     'workspace_owner',
     'web-release-run:30581575428;owner-chat-authorization:2026-08-06',
-    '2026-08-06T00:00:00.000Z'
+    '2026-08-06T14:58:43.000Z'
 );
