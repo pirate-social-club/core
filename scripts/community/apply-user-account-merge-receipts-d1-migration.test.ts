@@ -12,8 +12,7 @@ describe("user account merge receipt fleet migration", () => {
       indexes: ["idx_user_account_merge_receipts_canonical"],
     })
     expect(classificationSql(SPEC)).toContain("user_account_merge_receipts")
-    expect(SPEC.requiredTables).toContain("song_study_review_state")
-    expect(SPEC.requiredTables).toContain("reward_qualification_outbox")
+    expect(SPEC.requiredTables).toEqual([])
     expect(SPEC.replayableDdl).toBe(false)
   })
 })

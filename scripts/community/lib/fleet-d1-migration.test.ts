@@ -13,6 +13,7 @@ import {
   classificationSql,
   classifyRow,
   executionBody,
+  isTransientWranglerFailure,
   ledgerBackfillBody,
   resumeDoneShards,
   resumeEntryKey,
@@ -23,6 +24,14 @@ import {
 const CHECKSUM = "a".repeat(64)
 
 const MIGRATIONS_DIR = resolve(import.meta.dir, "../../../db/community-template/migrations")
+
+describe("wrangler transport retry classification", () => {
+  test("retries transient transport and overload failures", () => {
+    expect(isTransientWranglerFailure('{"error":{"text":"fetch failed"}}')).toBe(true)
+    expect(isTransientWranglerFailure("Cloudflare code 7429")).toBe(true)
+    expect(isTransientWranglerFailure("no such table: posts")).toBe(false)
+  })
+})
 
 describe("quarantined single-shard remediation", () => {
   const input = {

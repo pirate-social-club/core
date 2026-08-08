@@ -5,18 +5,9 @@ import { runFleetMigration, type MigrationSpec } from "./lib/fleet-d1-migration"
 export const SPEC: MigrationSpec = {
   migration: "1152_user_account_merge_receipts.sql",
   label: "community-template",
-  requiredTables: [
-    "community_memberships",
-    "posts",
-    "purchases",
-    "bookings",
-    "song_study_attempt",
-    "song_study_review_state",
-    "song_study_session",
-    "song_engagement_days",
-    "song_streaks",
-    "reward_qualification_outbox",
-  ],
+  // The receipt table is independent and safe to install on legacy loaded pool
+  // databases. Runtime account merges still preflight only ready communities.
+  requiredTables: [],
   creates: {
     kind: "schema_objects",
     columns: [],
