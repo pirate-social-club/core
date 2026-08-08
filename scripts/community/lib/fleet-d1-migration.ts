@@ -400,14 +400,25 @@ export async function wranglerJson(options: Pick<Options, "env" | "cwd">, db: st
     "--json",
     ...args,
   ]
-  const proc = Bun.spawn(cmd, { cwd: options.cwd, stdout: "pipe", stderr: "pipe" })
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ])
-  if (code !== 0) throw new Error(`wrangler exited ${code}: ${stderr.slice(0, 400)}`)
-  return extractWranglerJson(stdout) as any[]
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    const proc = Bun.spawn(cmd, { cwd: options.cwd, stdout: "pipe", stderr: "pipe" })
+    const [stdout, stderr, code] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ])
+    if (code === 0) return extractWranglerJson(stdout) as any[]
+    const detail = `${stderr}\n${stdout}`.trim().slice(0, 800)
+    if (!isTransientWranglerFailure(detail) || attempt === 4) {
+      throw new Error(`wrangler exited ${code}: ${detail}`)
+    }
+    await Bun.sleep(250 * 2 ** (attempt - 1))
+  }
+  throw new Error("wrangler retry loop exhausted")
+}
+
+export function isTransientWranglerFailure(detail: string): boolean {
+  return /fetch failed|rate.?limit|timeout|timed out|ECONNRESET|ETIMEDOUT|EAI_AGAIN|code.?7429|network/iu.test(detail)
 }
 
 export async function loadedBindings(options: Pick<Options, "env" | "cwd" | "poolDb">): Promise<string[]> {
