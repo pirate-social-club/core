@@ -8563,6 +8563,20 @@ components:
           description: |
             Final STT transcript for `say_it_back`; omitted otherwise. The server
             owns normalization and the accepted-variant policy.
+        transcription_language_code:
+          type: string
+          description: |
+            Language code returned by the speech-to-text provider for this
+            `say_it_back` recording. The server compares it with the exercise's
+            source language when the ungradable re-record flag is enabled.
+            Omitted for clients that do not have provider language metadata.
+        transcription_language_probability:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: |
+            Provider confidence for `transcription_language_code`, when supplied.
+            Omitted when the provider does not return a probability.
         timezone:
           type: string
           description: |
