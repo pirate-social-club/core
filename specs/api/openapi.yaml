@@ -11580,11 +11580,13 @@ components:
           type: string
           enum:
             - dns_txt
+            - hns_import
             - fabric_txt_publish
           nullable: true
           description: |
             Family-specific challenge type for the current session.
             `dns_txt` is used by HNS-style TXT proof flows.
+            `hns_import` is used by complete-resource HNS import flows.
             `fabric_txt_publish` is used by Spaces Fabric publish proof flows.
         challenge_host:
           type: string
