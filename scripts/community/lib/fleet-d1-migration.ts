@@ -410,8 +410,9 @@ export async function wranglerJson(options: Pick<Options, "env" | "cwd">, db: st
       proc.exited,
     ])
     if (code === 0) return extractWranglerJson(stdout) as any[]
-    const detail = `${stderr}\n${stdout}`.trim().slice(0, 800)
-    if (!isTransientWranglerFailure(detail) || attempt === 4) {
+    const fullDetail = `${stderr}\n${stdout}`.trim()
+    const detail = fullDetail.length > 800 ? fullDetail.slice(-800) : fullDetail
+    if (!isTransientWranglerFailure(fullDetail) || attempt === 4) {
       throw new Error(`wrangler exited ${code}: ${detail}`)
     }
     await Bun.sleep(250 * 2 ** (attempt - 1))
