@@ -199,11 +199,13 @@ export function classificationSql(spec: MigrationSpec): string {
           .map((t) => `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${t}') AS obj_${t}`)
           .join(",\n  ")
 
-  return `SELECT
-  (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='schema_migrations') AS has_ledger,
-  (SELECT COALESCE(GROUP_CONCAT(checksum), '') FROM schema_migrations WHERE migration_name='${spec.migration}') AS ledger_checksum,
-  ${required},
-  ${objects}`
+  const probes = [
+    "(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='schema_migrations') AS has_ledger",
+    `(SELECT COALESCE(GROUP_CONCAT(checksum), '') FROM schema_migrations WHERE migration_name='${spec.migration}') AS ledger_checksum`,
+    ...(required ? [required] : []),
+    ...(objects ? [objects] : []),
+  ]
+  return `SELECT\n  ${probes.join(",\n  ")}`
 }
 
 function objectNames(spec: MigrationSpec): readonly string[] {
