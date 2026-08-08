@@ -205,6 +205,8 @@ describe("hns verifier server", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.ok).toBe(true);
+    expect(body.capabilities).toEqual(["raw_root_records_v1"]);
+    expect(body.app_commit === null || /^[0-9a-f]{40}$/.test(body.app_commit)).toBe(true);
     expect(body.observation_provider).toBe("powerdns_api");
     expect(body.authoritative_secure_new_zones).toBe(false);
     expect(body.authoritative_tlsa_associations).toEqual([]);

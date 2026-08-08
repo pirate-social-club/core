@@ -87,6 +87,28 @@ const verifierAuth = resolveHnsVerifierAuth(
   Bun.env.HNS_VERIFIER_OBSERVER_AUTH_TOKEN,
 );
 
+// Response-contract features this build serves. Consumers (api release gates,
+// operators) compare these against their pinned Core requirements instead of
+// discovering drift as a runtime type error.
+const VERIFIER_CAPABILITIES = [
+  // observe-root-parent returns parent.raw_records (verbatim chain records,
+  // required to build complete-resource publish plans).
+  "raw_root_records_v1",
+] as const;
+
+// Deployments run from a make-app-release.sh snapshot, which has no .git but
+// records its commit in .pirate-deployment/DEPLOYMENT.
+async function readDeployedAppCommit(): Promise<string | null> {
+  try {
+    const deployment = await Bun.file(".pirate-deployment/DEPLOYMENT").text();
+    const match = deployment.match(/^APP_COMMIT=([0-9a-f]{40})$/m);
+    return match?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+const deployedAppCommit = await readDeployedAppCommit();
+
 const pdnsApiUrl = Bun.env.PDNS_API_URL?.trim() || "http://127.0.0.1:8081";
 const pdnsApiKey = Bun.env.PDNS_API_KEY?.trim() || null;
 const defaultSoaContent = Bun.env.PDNS_DEFAULT_SOA_CONTENT?.trim() || "ns1.pirate. dns.pirate. 0 3600 900 1209600 300";
@@ -1213,6 +1235,8 @@ export async function handleRequest(request: Request) {
     if (url.pathname === "/health") {
       return json({
         ok: true,
+        app_commit: deployedAppCommit,
+        capabilities: VERIFIER_CAPABILITIES,
         bind_host: verifierHost,
         bind_port: verifierPort,
         pdns_api_url: pdnsApiUrl,
