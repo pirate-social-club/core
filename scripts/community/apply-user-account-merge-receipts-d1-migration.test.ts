@@ -11,7 +11,9 @@ describe("user account merge receipt fleet migration", () => {
       tables: ["user_account_merge_receipts"],
       indexes: ["idx_user_account_merge_receipts_canonical"],
     })
-    expect(classificationSql(SPEC)).toContain("user_account_merge_receipts")
+    const sql = classificationSql(SPEC)
+    expect(sql).toContain("user_account_merge_receipts")
+    expect(sql).not.toContain(",\n  ,")
     expect(SPEC.requiredTables).toEqual([])
     expect(SPEC.replayableDdl).toBe(false)
   })
