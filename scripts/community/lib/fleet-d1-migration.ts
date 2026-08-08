@@ -420,7 +420,7 @@ export async function wranglerJson(options: Pick<Options, "env" | "cwd">, db: st
 }
 
 export function isTransientWranglerFailure(detail: string): boolean {
-  return /fetch failed|rate.?limit|timeout|timed out|ECONNRESET|ETIMEDOUT|EAI_AGAIN|code.?7429|network/iu.test(detail)
+  return /fetch failed|rate.?limit|timeout|timed out|ECONNRESET|ETIMEDOUT|EAI_AGAIN|code[^0-9]*7429|authentication error.*code[^0-9]*10000|network/isu.test(detail)
 }
 
 export async function loadedBindings(options: Pick<Options, "env" | "cwd" | "poolDb">): Promise<string[]> {
