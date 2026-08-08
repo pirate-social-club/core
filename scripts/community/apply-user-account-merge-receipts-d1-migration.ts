@@ -19,6 +19,7 @@ export const SPEC: MigrationSpec = {
   ],
   creates: {
     kind: "schema_objects",
+    columns: [],
     tables: ["user_account_merge_receipts"],
     indexes: ["idx_user_account_merge_receipts_canonical"],
   },
