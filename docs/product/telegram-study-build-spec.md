@@ -32,6 +32,51 @@ needed.
   Currently enabled for: Music (`cmt_fb2bacac74b144eaa58802b476eb9f3b`,
   @karaoke_english_bot) + the Tame Impala canary.
 
+### 1.1 Telegram lesson presentation (locked 2026-08-08)
+
+This section supersedes every earlier progress and feedback presentation proposal in
+this document. Web is the behavioral reference; Telegram renders the server-owned
+lesson state and MUST NOT implement its own retry or requeue rules.
+
+- **Progress:** no bar, cells, fraction, percentage, duration estimate, or lesson-start
+  message. Each prompt has a localized, standalone `#️⃣ Questions left: N` line, where
+  `N = lesson.total_count - lesson.resolved_count`. The value describes questions
+  remaining in the lesson, may remain unchanged after a miss, and is never an ETA.
+  Completion replaces a would-be `0` prompt.
+- **Review:** `lesson.next.is_reappearance` alone adds a localized `🔁 Review` line
+  above the remaining count. `retry_in_place` is an immediate retry, not a review.
+- **Multiple choice:** correct renders localized `✅ Correct`. Incorrect renders
+  localized `❌ Incorrect` plus `✅ <correct option>`; retain the answer reveal for
+  parity with Web.
+- **Spoken recall:** correct renders localized `✅ Correct`. Incorrect with a non-empty
+  transcript renders localized `❌ Incorrect` and `You said: "<transcript>"` only;
+  an empty transcript renders only `❌ Incorrect`. Never render `The line was`,
+  `Missed`, `Extra`, a target-line echo, or a token diff. The renderer has no overlap
+  gate. Server-side ungradable behavior is separate and remains disabled.
+- **Transcription failures:** temporary, terminal, and non-chat continuation failures
+  are localized technical failures. They do not submit an answer, consume an attempt,
+  or advance lesson progress.
+- **Completion:** localized `🎉 Lesson complete`, then
+  `✅ first_pass_correct_count/served_count`, then a localized `🔥 N days` streak.
+  The score comes only from an authoritative completed session. Omit it when that
+  session is unavailable or `served_count <= 0`; never substitute daily engagement
+  counters or `required_correct_count`.
+- **Localization:** all surrounding chrome uses the helper language in `en`, `zh`,
+  `ar`, `ka`, and `ru`; only the studied lyric or phrase remains in its learning
+  language. Locale copy owns word order and number handling.
+- **Scope:** presentation only. No engine, contract, migration, reward, ranking, or
+  feature-flag changes. `SONG_STUDY_UNGRADABLE_RERECORD_ENABLED` stays off.
+
+Required regression coverage: no `▰`/`▱`; remaining count holds on incorrect and no
+`0` prompt is sent; review appears only for `is_reappearance`; feedback variants and
+all transcription-failure branches match the rules above in all five locales; stale
+callbacks use refreshed lesson state; completion never reads score from
+`study_progress` or `required_correct_count`; missing session data omits score. The
+completion ratio is currently honest because every served question is stored with
+`qualifies_for_reward = 1`. Pin that invariant in a test: if a future non-qualifying
+question such as `say_translation` enters lessons, the test MUST fail until the score
+uses a genuine all-question first-attempt numerator.
+
 ## 2. As-built architecture (api)
 
 - **Webhook entry:** `POST /telegram/community-bots/:webhookId/webhook` (per-bot
@@ -82,7 +127,7 @@ needed.
 |---|---|---|
 | D1 | Identity asymmetry (§3.2) | **SHIPPED api#976** — regression-watch only. |
 | D2 | **PARTIALLY fixed in #976.** Reorder shipped (intent+prompt now precede the `await_voice` CAS), which fixes the original stranding but introduces the inverse: Telegram can receive "Say this line back" while the session CAS then fails → recording arrives against a session not awaiting voice. (`chat-study-service.ts:632-649` vs prompt delivery `study-voice-service.ts:263-280`.) | **Harden:** split intent creation into prepare/persist vs deliver phases. One control-plane transaction: insert intent + CAS session → `await_voice`, commit, THEN send the Telegram prompt, then record sent/uncertain. DB internally consistent before Telegram sees anything; preserves the uncertain-delivery model. |
-| D3 | Feedback is a raw token diff ("Missing: every, time, i…"). MCQ reveal is shipped+tested (#960: message edit shows selection + "✅ Correct answer: …") but is followed by a redundant generic "Not quite." message. | Voice: `SongStudyAttemptResult` has neither transcript nor reference — pass a voice-feedback context `{result, transcript: transcription.text}` from `processClaimedVoice` into chat continuation; `presentNextExercise` recovers the reference line from its already-loaded study payload via `result.exercise_id` and renders "Not quite. / The line was: '…' / You said: '…'". Do NOT add the transcript to the public attempt-result API. MCQ: suppress the redundant second verdict message. |
+| D3 | Earlier feedback shipped a raw token diff and repeated the target line. | **SUPERSEDED by §1.1.** Match Web: transcript only on spoken misses, terse localized verdicts, and retain the MCQ answer reveal. |
 | D4 | Voice disclosure repeats on EVERY prompt (`study-voice-service.ts:266-270`, unconditional). | Include the disclosure only when the `chat_study_session_id` has no earlier prompt with status sent/uncertain; suppress on subsequent prompts. No schema migration needed (a `voice_disclosure_sent_at` column is the more explicit later option). Preserve the disclosure for Mini-App/non-chat intents. |
 | D5 | Song list = newest-40-then-filter, 8/page; older ready songs invisible; sequential N+1 capability scan | Real pagination over ALL eligible songs; batch capability (and campaign, §5.4) lookups. |
 | D6 | Repeat-tap dedupe can't distinguish sequential Telegram redelivery from human re-tap (message_id-keyed) | Dedupe menu taps by `callback_query_id` first, message_id for the human-re-tap signal. Low priority. |
