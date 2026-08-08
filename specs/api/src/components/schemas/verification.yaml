@@ -816,6 +816,7 @@ StartNamespaceVerificationSessionRequest:
       description: Root label as entered by the creator before server normalization. Values starting with `@` are Spaces roots; bare labels are HNS roots. The prefix must match `family`.
 CompleteNamespaceVerificationSessionRequest:
   type: object
+  additionalProperties: false
   description: |
     Trigger a refresh of challenge observations and assertion derivation after the creator has completed the required proof step. The body is optional because many implementations can treat this as an idempotent recheck.
   properties:
