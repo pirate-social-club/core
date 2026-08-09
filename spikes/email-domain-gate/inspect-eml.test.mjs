@@ -27,6 +27,10 @@ test("reports an aligned work-to-personal structurally complete signature", () =
   assert.equal(result.has_structurally_complete_dkim, true)
   assert.equal(result.to_equals_from, false)
   assert.equal(result.signatures[0].strict_from_alignment, true)
+  assert.equal(result.signatures[0].canonicalization, "relaxed/relaxed")
+  assert.equal(result.signatures[0].header_canonicalization, "relaxed")
+  assert.equal(result.signatures[0].body_canonicalization, "relaxed")
+  assert.equal(result.signatures[0].draft_regex_header_assumption_met, true)
   assert.deepEqual(result.signatures[0].required_headers_signed, {
     from: true,
     subject: true,
@@ -51,8 +55,8 @@ test("reports the internal-delivery gap without exposing message content", () =>
 
 test("requires byte-exact local parts for self-send equality", () => {
   const result = inspectEmail([
-    "From: Alice@example.com",
-    "To: alice@example.com",
+    "From: WORKSPACE_OWNER@example.com",
+    "To: workspace_owner@example.com",
     "Subject: pirate-verify:synthetic",
     `DKIM-Signature: ${completeSignature}`,
     "",
@@ -60,4 +64,21 @@ test("requires byte-exact local parts for self-send equality", () => {
   ].join("\r\n"), "synthetic-case")
 
   assert.equal(result.to_equals_from, false)
+})
+
+test("records simple canonicalization as outside the draft regex assumption", () => {
+  const signature = completeSignature.replace("c=relaxed/relaxed; ", "")
+  const result = inspectEmail([
+    "From: employee@example.com",
+    "To: personal@example.net",
+    "Subject: pirate-verify:synthetic",
+    `DKIM-Signature: ${signature}`,
+    "",
+    "",
+  ].join("\r\n"), "synthetic-simple-canonicalization")
+
+  assert.equal(result.signatures[0].canonicalization, "simple/simple")
+  assert.equal(result.signatures[0].header_canonicalization, "simple")
+  assert.equal(result.signatures[0].body_canonicalization, "simple")
+  assert.equal(result.signatures[0].draft_regex_header_assumption_met, false)
 })

@@ -38,6 +38,18 @@ function parseTagList(value) {
   return tags
 }
 
+function parseCanonicalization(value) {
+  const [header = "simple", body = "simple"] = (value || "simple/simple")
+    .toLowerCase()
+    .split("/", 2)
+  return {
+    canonicalization: `${header}/${body}`,
+    header_canonicalization: header,
+    body_canonicalization: body,
+    draft_regex_header_assumption_met: header === "relaxed",
+  }
+}
+
 function canonicalDomain(value) {
   if (!value) return null
   const candidate = value.trim().replace(/\.$/, "").toLowerCase()
@@ -85,13 +97,14 @@ export function inspectEmail(rawEmail, label) {
       .filter(Boolean)
     const signingDomain = canonicalDomain(tags.get("d"))
     const fromOversigned = signedHeaders.filter((name) => name === "from").length >= 2
+    const canonicalization = parseCanonicalization(tags.get("c"))
 
     return {
       index,
       signing_domain: signingDomain,
       selector: tags.get("s") || null,
       algorithm: tags.get("a") || null,
-      canonicalization: tags.get("c") || "simple/simple",
+      ...canonicalization,
       signed_headers: signedHeaders,
       required_headers_signed: Object.fromEntries(
         REQUIRED_SIGNED_HEADERS.map((name) => [name, signedHeaders.includes(name)]),
@@ -103,7 +116,7 @@ export function inspectEmail(rawEmail, label) {
   })
 
   return {
-    schema_version: 1,
+    schema_version: 2,
     label,
     dkim_signature_count: signatures.length,
     has_structurally_complete_dkim: signatures.some((signature) => signature.structurally_complete),

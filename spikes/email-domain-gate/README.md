@@ -51,11 +51,16 @@ expectation.
 
 `--expect pass` requires at least one signature that verifies cryptographically,
 is strictly aligned (`d=` equals the single parsed From domain), and signs From,
-and Subject. Until the generated circuit proves From cardinality or binds the
-last From occurrence, `h=` must also oversign From by listing it at least twice;
-this makes a prepended From invalidate the signature. To is intentionally not a
-proof obligation or public output in the work→personal ceremony. A valid but
-unaligned forwarder or mailing-list signature does not pass the gate.
+and Subject. Oversigning From is recorded as provider metadata but is not a gate
+requirement: ZK Email passes only the canonicalized, `h=`-selected signed header
+sequence into the circuit. To is intentionally not a proof obligation or public
+output in the work→personal ceremony. A valid but unaligned forwarder or
+mailing-list signature does not pass the gate.
+
+The inspector records both header and body canonicalization modes. The draft
+blueprint regexes have been exercised only against relaxed header
+canonicalization; a simple-header sample is a compatibility test, not an
+automatic security failure.
 
 For a failed sample, add `--ignore-body-hash` to diagnose whether the signed
 headers still verify independently. This diagnostic never converts an invalid

@@ -41,7 +41,12 @@ def synthetic_dns(_name: bytes, timeout: int = 5) -> bytes:
     return PUBLIC_KEY_DNS
 
 
-def signed_message(*, signing_domain: bytes = b"example.test") -> bytes:
+def signed_message(
+    *,
+    signing_domain: bytes = b"example.test",
+    header_canonicalization: bytes = b"relaxed",
+    oversign_from: bool = False,
+) -> bytes:
     message = (
         b"From: employee@example.test\r\n"
         b"To: personal@example.net\r\n"
@@ -49,13 +54,16 @@ def signed_message(*, signing_domain: bytes = b"example.test") -> bytes:
         b"Date: Tue, 5 Aug 2026 12:00:00 +0000\r\n\r\n"
         b"synthetic body\r\n"
     )
+    include_headers = [b"from", b"to", b"subject", b"date"]
+    if oversign_from:
+        include_headers.append(b"from")
     signature = VERIFY_DKIM.dkim.sign(
         message,
         b"test",
         signing_domain,
         PRIVATE_KEY,
-        canonicalize=(b"relaxed", b"relaxed"),
-        include_headers=[b"from", b"to", b"subject", b"date", b"from"],
+        canonicalize=(header_canonicalization, b"relaxed"),
+        include_headers=include_headers,
     )
     return signature + message
 
@@ -70,6 +78,30 @@ class VerifyDkimTest(unittest.TestCase):
                 [b"from", b"subject", b"date", b"from"]
             )
         )
+
+    def test_valid_non_oversigned_signature_remains_gate_usable(self) -> None:
+        result = VERIFY_DKIM.verify_message(
+            signed_message(),
+            "synthetic-non-oversigned",
+            dnsfunc=synthetic_dns,
+        )
+
+        self.assertTrue(result["has_verified_dkim"])
+        self.assertTrue(result["has_gate_usable_dkim"])
+        self.assertFalse(result["signatures"][0]["from_oversigned"])
+
+    def test_records_header_and_body_canonicalization_modes(self) -> None:
+        result = VERIFY_DKIM.verify_message(
+            signed_message(header_canonicalization=b"simple"),
+            "synthetic-simple-canonicalization",
+            dnsfunc=synthetic_dns,
+        )
+        signature = result["signatures"][0]
+
+        self.assertEqual(signature["canonicalization"], "simple/relaxed")
+        self.assertEqual(signature["header_canonicalization"], "simple")
+        self.assertEqual(signature["body_canonicalization"], "relaxed")
+        self.assertFalse(signature["draft_regex_header_assumption_met"])
 
     def test_no_signature_result_contains_no_message_material(self) -> None:
         message = (
@@ -117,7 +149,7 @@ class VerifyDkimTest(unittest.TestCase):
         self.assertFalse(result["has_verified_dkim"])
         self.assertEqual(result["signatures"][0]["failure_code"], "body_hash_mismatch")
         self.assertTrue(result["header_signature_only_verified"])
-        self.assertTrue(result["signatures"][0]["from_oversigned"])
+        self.assertFalse(result["signatures"][0]["from_oversigned"])
 
     def test_header_only_verification_rejects_signed_subject_tampering(self) -> None:
         message = signed_message().replace(b"synthetic-nonce", b"tampered-nonce")

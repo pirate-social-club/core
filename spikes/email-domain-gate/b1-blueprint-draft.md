@@ -38,23 +38,27 @@ email did not leave the machine.
 ## Duplicate-From result
 
 The official regex documentation states that when multiple matches exist only
-the first is used. The draft regex therefore cannot express From cardinality.
+the first is used. That does not create the previously suspected unsigned-header
+forgery: the regex runs over `status.signedHeaders`, the same canonicalized,
+`h=`-selected byte sequence used for RSA verification. Selection walks repeated
+headers bottom-up. An unsigned prepended From is absent from the circuit input,
+while changing a selected occurrence invalidates the signature.
 
-The released SDK parser rejects the current duplicate-From mutation with a
-multiple-address error before regex extraction. This is defense-in-depth, not a
-circuit guarantee: a malicious prover can bypass the client parser, and a
-validly signed two-From message may exercise different witness behavior. The
-generated circuit/project must still be fed an adversarial two-From case before
-B1 can pass.
+The released SDK parser also rejects the current duplicate-From mutation with a
+multiple-address error. That is separate defense-in-depth. The generated
+circuit/project must still exercise duplicate and non-oversigned cases to confirm
+the generated artifact preserves the audited input pipeline, but From
+oversigning is corpus metadata rather than provider eligibility policy.
 
-DKIM selects repeated header fields bottom-up, while the hosted regex uses its
-first match. If `h=` lists From only once, an attacker can prepend a forged From:
-the signature continues to authenticate the original lower occurrence while the
-regex may extract the forged upper occurrence. Proton and Gmail samples list
-`from` twice, so the additional occurrence is pulled into verification and the
-mutation fails closed. Until the circuit binds the last/authenticated occurrence
-or proves cardinality, From oversigning is a mandatory provider eligibility
-condition, not merely a corpus statistic.
+## Header canonicalization result
+
+The current samples use relaxed header canonicalization. Their canonicalized
+field names are lowercase and whitespace after the colon is removed, matching
+the draft regexes. Simple header canonicalization preserves the original header
+form, so common forms such as `Subject: pirate-verify:...` do not match the
+current lowercase/no-space patterns. Record the header canonicalization mode for
+every provider and test any simple-header sample against generated inputs before
+claiming compatibility. Do not classify simple mode as a cryptographic failure.
 
 ## Dynamic-domain result
 

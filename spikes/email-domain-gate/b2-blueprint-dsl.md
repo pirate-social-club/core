@@ -117,6 +117,13 @@ identical emitted From value does not prove signer normalization unless the
 variant demonstrably reached the submission boundary. Any result remains
 specific to that provider, interface, and configuration.
 
+The regex operates on the canonicalized, DKIM-selected signed header sequence,
+not the raw message header block. This binds extraction to authenticated header
+occurrences even though the DSL cannot express raw-header cardinality. It also
+makes matching dependent on DKIM header canonicalization. The current draft is
+validated against relaxed headers; simple-header compatibility must be measured
+and, if encountered, implemented and tested explicitly.
+
 ## Additional SDK finding: Outlook fetch path
 
 The released SDK's Microsoft login helper fetches selected Graph fields and
@@ -154,9 +161,9 @@ Released files inspected from the npm source maps/type declarations:
 Build a tiny domain-specific draft blueprint using a hashed From extraction and
 a public subject nonce, with no To extraction, then
 inspect its generated project/public signals. Test the normalization-equivalence
-cases above and a duplicate-From adversarial message, not only one well-formed
-address. The official regex documentation says only the first match is used when
-multiple matches exist, so regex extraction alone does not establish exactly-one
-From cardinality. Separately prototype the lower-level dynamic-domain
-verification wrapper and prove that changing the asserted domain makes
-verification fail.
+cases above, duplicate and non-oversigned From attempts, and every observed
+header canonicalization mode—not only one well-formed relaxed-header address.
+Confirm that extraction receives exactly the canonicalized, `h=`-selected byte
+sequence authenticated by the signature. Separately prototype the lower-level
+dynamic-domain verification wrapper and prove that changing the asserted domain
+makes verification fail.

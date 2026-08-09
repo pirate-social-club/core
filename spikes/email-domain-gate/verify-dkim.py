@@ -26,6 +26,14 @@ def has_from_oversigning(signed_headers: list[bytes]) -> bool:
     return signed_headers.count(b"from") >= 2
 
 
+def canonicalization_modes(value: bytes | None) -> tuple[str, str, str]:
+    raw_value = value or b"simple/simple"
+    parts = raw_value.decode("ascii", errors="replace").lower().split("/", 1)
+    header = parts[0]
+    body = parts[1] if len(parts) == 2 else "simple"
+    return f"{header}/{body}", header, body
+
+
 def classify_error(error: Exception) -> str:
     message = str(error).lower()
     if "body hash mismatch" in message:
@@ -156,6 +164,9 @@ def verify_message(
             for name in REQUIRED_SIGNED_HEADERS
         }
         from_oversigned = has_from_oversigning(signed_headers)
+        canonicalization, header_canonicalization, body_canonicalization = (
+            canonicalization_modes(tags.get(b"c"))
+        )
         strict_from_alignment = (
             signing_domain is not None
             and from_domain is not None
@@ -183,7 +194,7 @@ def verify_message(
             except Exception as error:
                 header_signature_only_verified = False
                 header_signature_only_failure_code = classify_error(error)
-        required_coverage = all(required_headers_signed.values()) and from_oversigned
+        required_coverage = all(required_headers_signed.values())
         gate_usable = verified and strict_from_alignment and required_coverage
         header_signature_only_gate_usable = (
             header_signature_only_verified
@@ -196,6 +207,10 @@ def verify_message(
             "index": index,
             "signing_domain": signing_domain,
             "selector": selector_text,
+            "canonicalization": canonicalization,
+            "header_canonicalization": header_canonicalization,
+            "body_canonicalization": body_canonicalization,
+            "draft_regex_header_assumption_met": header_canonicalization == "relaxed",
             "strict_from_alignment": strict_from_alignment,
             "required_headers_signed": required_headers_signed,
             "from_oversigned": from_oversigned,
@@ -213,7 +228,7 @@ def verify_message(
         if item["header_signature_only_verified"] is not None
     ]
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "label": label,
         "dkim_signature_count": signature_count,
         "has_verified_dkim": any(item["verified"] for item in signatures),

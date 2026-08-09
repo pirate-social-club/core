@@ -48,14 +48,16 @@ test("draft regexes match a canonicalized work-to-personal header", () => {
   }
 })
 
-test("duplicate From is a confirmed cardinality gap, not a passing claim", () => {
+test("first match follows the order of the authenticated selected sequence", () => {
   const header = [
-    "from:attacker@evil.test",
     "from:employee@example.test",
+    "from:forged@evil.test",
     "subject:pirate-verify:synthetic_nonce-1",
     "",
   ].join("\r\n")
   const fromField = draft.decomposedRegexes[0]
+  const matches = [...header.matchAll(combinedRegex(fromField))]
 
-  assert.equal([...header.matchAll(combinedRegex(fromField))].length, 2)
+  assert.equal(matches.length, 2)
+  assert.equal(matches[0][0].includes("employee@example.test"), true)
 })

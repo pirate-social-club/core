@@ -23,11 +23,14 @@ rtk bun run test:corpus
 ```
 
 The SDK parser rejects the current duplicate-From mutation before regex
-extraction. That is useful defense-in-depth but is not proof of circuit
-soundness: a malicious prover need not use the SDK parser. The official ZK
-Email regex semantics select the first match, so regex extraction itself does
-not prove that exactly one From header exists. The generated circuit/project
-must still be tested adversarially.
+extraction. Independently, the circuit input is the canonicalized,
+`h=`-selected signed header sequence, so an unsigned prepended From is not
+available to the regex. The generated circuit/project must still exercise
+duplicate and non-oversigned cases to confirm that audited pipeline end to end.
+
+The current regexes assume relaxed header canonicalization (lowercase field
+names and normalized colon whitespace). Simple-header compatibility is unproven
+and must be tested if the provider corpus contains it.
 
 Generating the project requires authenticating to the ZK Email Registry and
 submitting a private/draft blueprint. Do not publish the blueprint or upload a

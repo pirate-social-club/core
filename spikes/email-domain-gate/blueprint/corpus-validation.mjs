@@ -61,7 +61,7 @@ requireCondition(
 
 console.log(
   JSON.stringify({
-    schema_version: 1,
+    schema_version: 2,
     primary_sample_valid: true,
     extraction_count: primaryOutputs.length,
     to_extracted: false,
@@ -73,7 +73,7 @@ console.log(
     presentation_pair_nonce_different:
       JSON.stringify(canonicalOutputs[2]) !== JSON.stringify(variantOutputs[2]),
     duplicate_from_rejected_by_sdk_parser: duplicateFromRejectedByParser,
-    generated_circuit_cardinality_verified: false,
+    generated_circuit_signed_sequence_binding_verified: false,
     dynamic_verifier_wrapper_verified: false,
   }),
 )
