@@ -32,8 +32,11 @@ The current regexes assume relaxed header canonicalization (lowercase field
 names and normalized colon whitespace). Simple-header compatibility is unproven
 and must be tested if the provider corpus contains it.
 
-Generating the project requires authenticating to the ZK Email Registry and
-submitting a private/draft blueprint. Do not publish the blueprint or upload a
-raw corpus email. If the registry requires a test email, use a sanitized
-synthetic DKIM fixture or explicitly approve the private corpus disclosure
-first.
+Generating the project currently depends on the ZK Email conductor recovering
+from the HTTP 500 tracked in
+[`zkemail/registry#320`](https://github.com/zkemail/registry/issues/320). A
+minimal private draft saved successfully before the outage, so this is recorded
+as an availability blocker rather than a capability verdict. Do not publish the
+blueprint or upload a raw corpus email. If compilation requires an email, use a
+sanitized synthetic DKIM fixture only. After compilation, follow
+`artifact-pinning.md` and prove that no registry or archive call is needed.

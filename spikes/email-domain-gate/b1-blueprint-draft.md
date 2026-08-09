@@ -70,9 +70,14 @@ the verifier substitutes another.
 
 ## External blocker
 
-The registry redirects blueprint creation to GitHub authentication. No
-authenticated browser session was available, so no draft was submitted and no
-raw corpus email was uploaded. Registry submission is an external mutation and
-the generated project cannot be inspected until authentication is supplied.
-Keep the blueprint private/draft and use a synthetic fixture if the registry
-requires an uploaded test email.
+An authenticated registry session successfully saved a minimal private draft on
+2026-08-09 before the conductor blueprint API began returning HTTP 500. The
+domain-gate blueprint has not compiled, so no generated project is available to
+inspect. This is currently an availability blocker rather than evidence that the
+blueprint is unsupported. It is tracked upstream in
+[`zkemail/registry#320`](https://github.com/zkemail/registry/issues/320).
+
+No raw corpus email was uploaded. Keep the blueprint private and use only a
+synthetic fixture if compilation requires an email. When the service recovers,
+pin the complete artifact set immediately according to
+`blueprint/artifact-pinning.md`.

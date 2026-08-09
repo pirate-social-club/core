@@ -95,24 +95,30 @@ Isolation rule: everything lives in a scratch repo / `spike/` directory — **ze
 ### Phase B — blueprint
 - [ ] B1. Author registry blueprint (docs: zk-email-sdk/creating-a-new-pattern): DKIM verify, `h=` coverage assertions, extraction from the authenticated canonicalized header sequence tested adversarially with duplicate and non-oversigned From cases, observed canonicalization-mode compatibility, subject nonce public, From-domain public, unsalted hashed From output for best-effort dedup, header-only. Do not extract To.
 - [x] B2 desk check. `@zk-email/sdk@2.0.11` can expose/hash regex extractions for the subject nonce, From domain, and best-effort From digest. However, the ordinary blueprint fixes one `senderDomain`, and the schema cannot compose an extracted mailbox with an application salt. Its lack of raw-From cardinality constraints is not itself a forgery surface because extraction consumes the canonicalized, `h=`-selected signed sequence. Q4's badge-only decision makes the hosted unsalted `isHashed` output acceptable if it is immediately HMACed and never logged, returned, or placed in a URL. Any escaped raw digest remains universally enumerable and cross-application linkable. Generated-project validation must document exactly what `isHashed` commits to, verify the signed-sequence binding with duplicate and non-oversigned From attempts, exercise observed header canonicalization modes, and test the lower-level dynamic-domain wrapper. Canonical mailbox extraction is a dedup-quality property rather than a launch security blocker. See `spikes/email-domain-gate/b2-blueprint-dsl.md`.
-- [ ] B3. Pin blueprint version; document verifying-key extraction for server-side `verifyProof`.
+- [ ] B3. Compile one private blueprint using only a synthetic fixture, then pin the complete generated artifact set locally: normalized blueprint properties and version/ID, generated source, build manifest and lockfiles, compiler/SDK versions, WASM, R1CS or equivalent constraint artifact when available, verification key, every proving-key chunk, and SHA-256 hashes for every file. See `spikes/email-domain-gate/blueprint/artifact-pinning.md`.
 
-### Phase C — proving bench
-- [ ] C1. Node harness: `initZkEmailSdk() → getBlueprint(slug) → createProver() → generateProof(eml)` over the Phase A corpus; assert expected pass/fail per case.
-- [ ] C2. Browser bench (Vite page): time + peak memory, desktop Chrome/Firefox + mid-range Android Chrome → go/no-go Q3.
-- [ ] C3. Measure remote-proving latency once, for the labeled-fallback comparison only (raw `.eml` disclosure noted).
+### Phase C — generated artifacts + circuit correctness
+- [ ] C1. Confirm the pinned artifact set is complete and hash-stable; no artifact may be fetched by mutable slug or unpinned URL after this point.
+- [ ] C2. Prove and verify locally from the pinned artifacts with registry, archive, and remote prover access disabled. Raw corpus email remains local.
+- [ ] C3. Inspect generated source and public signals: document whether any sender-domain constant exists, the exact public-signal layout, what `isHashed` commits to, and that regex constraints consume the authenticated `emailHeader` buffer.
+- [ ] C4. Circuit correctness suite before benchmarking: wrong nonce, wrong pinned key, wrong From domain, unsigned duplicate From, valid non-oversigned From, observed canonicalization modes, and deterministic multi-signature selection.
 
 ### Phase D — server-side mock (spike-local, no product code)
 - [ ] D1. Mock nonce issuance + server-side session map; single-use atomic consumption.
 - [ ] D2. Mock `{d,s}` → DNS resolution + pinning endpoint (record `{d, s, key_hash, evidence, resolved_at}`); implement multi-signature selection policy from §2.3.
-- [ ] D3. `blueprint.verifyProof()` off-chain + public-output validation (nonce match, domain ∈ allowlist, commitment extraction) + HMAC + fake-ledger insert, all in one transaction shape.
-- [ ] D4. Negative suite: replayed proof (consumed nonce), expired session, wrong audience salt, tampered public outputs, unpinned key, alignment-violating corpus cases.
+- [ ] D3. Prototype the dynamic-domain verifier wrapper: verify the Groth16 proof with the pinned verification key, compare its DKIM public-key hash with the session-pinned DNS key, and compare the extracted From domain with pinned `d=`. Prove that substituting either domain or key fails.
+- [ ] D4. Public-output validation (nonce match, domain ∈ allowlist, commitment extraction) + HMAC + fake-ledger insert, all in one transaction shape.
+- [ ] D5. Negative suite: replayed proof (consumed nonce), expired session, tampered public outputs, unpinned/substituted key, substituted domain, and alignment-violating corpus cases.
 
-### Phase E — write-ups (gate the go/no-go)
-- [ ] E1. Threat-model note = §3 table finalized, incl. explicit "not operator-blind" statement + OPRF future-work note.
-- [ ] E2. Key-trust policy note = §4 checklist answered.
-- [ ] E3. Ceremony UX note: per-client `.eml` export instructions + observed completion friction → Q5.
-- [ ] E4. Go/no-go memo answering Q1–Q5 with data.
+### Phase E — proving bench (after correctness)
+- [ ] E1. Browser bench from pinned local artifacts: time + peak memory, desktop Chrome/Firefox + mid-range Android Chrome → go/no-go Q3.
+- [ ] E2. Measure remote-proving latency once, for the labeled-fallback comparison only (raw `.eml` disclosure noted). Remote proving remains out of launch scope.
+
+### Phase F — write-ups (gate the go/no-go)
+- [ ] F1. Threat-model note = §3 table finalized, incl. explicit "not operator-blind" statement + OPRF future-work note.
+- [ ] F2. Key-trust policy note = §4 checklist answered.
+- [ ] F3. Ceremony UX note: per-client `.eml` export instructions + observed completion friction → Q5.
+- [ ] F4. Go/no-go memo answering Q1–Q5 with data.
 
 ## 7. Test matrix (spike acceptance)
 

@@ -44,11 +44,11 @@ Two controls were collected:
 
 ### Decision table
 
-| Artifact | Structural result | Cryptographic result | Decision |
-|---|---|---|---|
-| Proton custom-domain self-send, exported from Proton | no DKIM header | not applicable | self-send ceremony fails for this provider |
-| Proton custom-domain → Gmail, exported from Gmail | pass | **pass** | work→personal ceremony viable for this provider pair |
-| Gmail → Proton custom-domain, exported from Proton | pass | **fail** | Proton export is not byte-faithful enough for proving received mail |
+| Artifact | Header canonicalization | Structural result | Cryptographic result | Decision |
+|---|---|---|---|---|
+| Proton custom-domain self-send, exported from Proton | not applicable | no DKIM header | not applicable | self-send ceremony fails for this provider |
+| Proton custom-domain → Gmail, exported from Gmail | relaxed | pass | **pass** | work→personal ceremony viable for this provider pair |
+| Gmail → Proton custom-domain, exported from Proton | relaxed | pass | **fail** | Proton export is not byte-faithful enough for proving received mail |
 
 Header presence proves only that a DKIM-shaped header survived export; it does
 not establish message fidelity. The self-send artifact contains no signature at
@@ -78,3 +78,33 @@ signing gateway canonicalizes attacker-authored From headers. The UI may simply
 have provided no per-message control. SMTP submission, Bridge, aliases, other
 Proton interfaces, Workspace/M365 tenants, and arbitrary allowed domains remain
 untested, so A1c remains open for Proton and globally.
+
+Both presentation samples use relaxed header and body canonicalization. No
+simple-header provider sample has been measured. Workspace and M365 must report
+their observed `c=` modes before the draft regexes are treated as portable.
+
+## Corpus expectation replay
+
+All five recorded expectations were rerun after removing oversigning from gate
+eligibility: three passes, one cryptographic failure, and one no-signature case
+remain unchanged. The replay used one explicit historical evaluation instant
+inside the signer-supplied DKIM `x=` validity windows. Present-time verification
+of the older positive artifacts now rejects them as expired, which is expected
+and does not change their historical corpus verdict. All four signed artifacts
+report `relaxed/relaxed` canonicalization.
+
+## Registry availability
+
+On 2026-08-09, a minimal private blueprint saved successfully and advanced past
+the initial registry editor before the conductor API began returning HTTP 500.
+The registry frontend continued serving HTTP 200 while the unauthenticated
+blueprint-list endpoint returned HTTP 500. This is currently evidence of an
+availability failure, not a demonstrated blueprint capability failure.
+The outage is reported upstream as
+[`zkemail/registry#320`](https://github.com/zkemail/registry/issues/320).
+
+The hosted route therefore remains the preferred compile-time experiment. It
+must not become a production runtime dependency. If compilation succeeds, all
+generated source, manifests, WASM, verification keys, proving-key chunks, and
+their hashes must be pinned locally before offline proving is evaluated. No real
+corpus email may be uploaded to the registry.
