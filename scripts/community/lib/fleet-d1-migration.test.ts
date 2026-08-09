@@ -28,6 +28,7 @@ const MIGRATIONS_DIR = resolve(import.meta.dir, "../../../db/community-template/
 describe("wrangler transport retry classification", () => {
   test("retries transient transport and overload failures", () => {
     expect(isTransientWranglerFailure('{"error":{"text":"fetch failed"}}')).toBe(true)
+    expect(isTransientWranglerFailure(`${"warning ".repeat(200)}fetch failed`)).toBe(true)
     expect(isTransientWranglerFailure("Cloudflare code 7429")).toBe(true)
     expect(isTransientWranglerFailure("Authentication error [code: 10000]")).toBe(true)
     expect(isTransientWranglerFailure("no such table: posts")).toBe(false)
