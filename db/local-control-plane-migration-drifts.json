@@ -111,6 +111,12 @@
         "oldChecksum": "de36104c5a8fd6335cc03e0e3b101bced54fd05502fca7d54ec7901c2d1b1797",
         "newChecksum": "2951eb691aa419b0a6ab2d34838c81d36da0ff016e2f058e48554f423d27b519",
         "reason": "pre-deployment repair: remove the now-unnecessary attribution correction and retain only immutable-audit triggers"
+      },
+      {
+        "migrationName": "0200_control_plane_user_account_merges.sql",
+        "oldChecksum": "75fe3586d561345ff7d3158b5b4ee7924cf1310d651659335c05074f117931a3",
+        "newChecksum": "17eb003263096a6c3abc0bd022d19666b749637dc9619142baf7aff443f8014d",
+        "reason": "pre-deployment repair: give the block-reason value and blocked-state checks distinct PostgreSQL constraint names"
       }
     ]
   }
