@@ -1,4 +1,5 @@
 import unittest
+from unittest import mock
 
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
@@ -68,6 +69,43 @@ def signed_message(
     return signature + message
 
 
+def expired_signed_message() -> bytes:
+    message = (
+        b"From: employee@example.test\r\n"
+        b"To: personal@example.net\r\n"
+        b"Subject: Account verification code: synthetic-expired\r\n"
+        b"Date: Tue, 5 Aug 2026 12:00:00 +0000\r\n\r\n"
+        b"synthetic body\r\n"
+    )
+    signer = VERIFY_DKIM.dkim.DKIM(message)
+    original_gen_header = signer.gen_header
+
+    def gen_header_with_expiration(fields, *args, **kwargs):
+        expanded_fields = []
+        for field in fields:
+            if field[0] == b"h":
+                expanded_fields.append((b"x", b"1003600"))
+            expanded_fields.append(field)
+        return original_gen_header(expanded_fields, *args, **kwargs)
+
+    with (
+        mock.patch.object(VERIFY_DKIM.dkim.time, "time", return_value=1000000),
+        mock.patch.object(
+            signer,
+            "gen_header",
+            side_effect=gen_header_with_expiration,
+        ),
+    ):
+        signature = signer.sign(
+            b"test",
+            b"example.test",
+            PRIVATE_KEY,
+            canonicalize=(b"relaxed", b"relaxed"),
+            include_headers=[b"from", b"to", b"subject", b"date"],
+        )
+    return signature + message
+
+
 class VerifyDkimTest(unittest.TestCase):
     def test_from_oversigning_requires_two_h_list_occurrences(self) -> None:
         self.assertFalse(
@@ -128,6 +166,36 @@ class VerifyDkimTest(unittest.TestCase):
             "body hash mismatch (got secret-computed-hash, expected secret-signed-hash)"
         )
         self.assertEqual(VERIFY_DKIM.classify_error(error), "body_hash_mismatch")
+
+    def test_expiration_failure_has_a_distinct_code(self) -> None:
+        result = VERIFY_DKIM.verify_message(
+            expired_signed_message(),
+            "synthetic-expired-enforced",
+            signature_time_policy="enforce",
+            dnsfunc=synthetic_dns,
+        )
+        signature = result["signatures"][0]
+
+        self.assertFalse(signature["verified"])
+        self.assertEqual(signature["failure_code"], "signature_expired")
+        self.assertEqual(signature["signature_timestamp_status"], "not-future")
+        self.assertEqual(signature["signature_expiration_status"], "expired")
+        self.assertTrue(signature["signature_expiration_enforced"])
+
+    def test_record_only_policy_verifies_expired_signature_bytes(self) -> None:
+        result = VERIFY_DKIM.verify_message(
+            expired_signed_message(),
+            "synthetic-expired-record-only",
+            signature_time_policy="record-only",
+            dnsfunc=synthetic_dns,
+        )
+        signature = result["signatures"][0]
+
+        self.assertTrue(signature["verified"])
+        self.assertTrue(signature["gate_usable"])
+        self.assertEqual(signature["signature_expiration_status"], "expired")
+        self.assertEqual(signature["signature_validity_seconds"], 3600)
+        self.assertFalse(signature["signature_expiration_enforced"])
 
     def test_pass_expectation_requires_an_aligned_gate_usable_signature(self) -> None:
         result = {

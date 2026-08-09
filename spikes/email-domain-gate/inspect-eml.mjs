@@ -50,6 +50,12 @@ function parseCanonicalization(value) {
   }
 }
 
+function parseUnixTag(value) {
+  if (!/^\d+$/.test(value ?? "")) return null
+  const parsed = Number(value)
+  return Number.isSafeInteger(parsed) ? parsed : null
+}
+
 function canonicalDomain(value) {
   if (!value) return null
   const candidate = value.trim().replace(/\.$/, "").toLowerCase()
@@ -98,6 +104,13 @@ export function inspectEmail(rawEmail, label) {
     const signingDomain = canonicalDomain(tags.get("d"))
     const fromOversigned = signedHeaders.filter((name) => name === "from").length >= 2
     const canonicalization = parseCanonicalization(tags.get("c"))
+    const signatureTimestamp = parseUnixTag(tags.get("t"))
+    const signatureExpiration = parseUnixTag(tags.get("x"))
+    const signatureValiditySeconds = signatureTimestamp !== null
+      && signatureExpiration !== null
+      && signatureExpiration >= signatureTimestamp
+      ? signatureExpiration - signatureTimestamp
+      : null
 
     return {
       index,
@@ -105,6 +118,9 @@ export function inspectEmail(rawEmail, label) {
       selector: tags.get("s") || null,
       algorithm: tags.get("a") || null,
       ...canonicalization,
+      signature_timestamp: signatureTimestamp,
+      signature_expiration: signatureExpiration,
+      signature_validity_seconds: signatureValiditySeconds,
       signed_headers: signedHeaders,
       required_headers_signed: Object.fromEntries(
         REQUIRED_SIGNED_HEADERS.map((name) => [name, signedHeaders.includes(name)]),
@@ -116,7 +132,7 @@ export function inspectEmail(rawEmail, label) {
   })
 
   return {
-    schema_version: 2,
+    schema_version: 3,
     label,
     dkim_signature_count: signatures.length,
     has_structurally_complete_dkim: signatures.some((signature) => signature.structurally_complete),

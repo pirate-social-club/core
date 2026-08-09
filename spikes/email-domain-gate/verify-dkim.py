@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+from contextlib import nullcontext
 from email import policy
 from email.parser import BytesParser
 from email.utils import getaddresses
@@ -14,12 +15,15 @@ import os
 import re
 import tempfile
 from pathlib import Path
+from time import time as wall_time
+from unittest.mock import patch
 
 import dkim
 
 
 LABEL_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 REQUIRED_SIGNED_HEADERS = (b"from", b"subject")
+SIGNATURE_TIME_POLICIES = ("enforce", "record-only")
 
 
 def has_from_oversigning(signed_headers: list[bytes]) -> bool:
@@ -34,10 +38,90 @@ def canonicalization_modes(value: bytes | None) -> tuple[str, str, str]:
     return f"{header}/{body}", header, body
 
 
+def parse_unix_tag(value: bytes | None) -> int | None:
+    if value is None or re.fullmatch(br"\d+", value) is None:
+        return None
+    return int(value)
+
+
+def signature_time_metadata(
+    tags: dict[bytes, bytes],
+    observed_at: int,
+) -> dict[str, int | str | None]:
+    timestamp = parse_unix_tag(tags.get(b"t"))
+    expiration = parse_unix_tag(tags.get(b"x"))
+    validity_seconds = (
+        expiration - timestamp
+        if timestamp is not None
+        and expiration is not None
+        and expiration >= timestamp
+        else None
+    )
+    if b"t" not in tags:
+        timestamp_status = "not-declared"
+    elif timestamp is None:
+        timestamp_status = "invalid"
+    elif timestamp > observed_at:
+        timestamp_status = "future"
+    else:
+        timestamp_status = "not-future"
+    if b"x" not in tags:
+        expiration_status = "not-declared"
+    elif expiration is None:
+        expiration_status = "invalid"
+    elif expiration < observed_at:
+        expiration_status = "expired"
+    else:
+        expiration_status = "unexpired"
+    return {
+        "signature_timestamp": timestamp,
+        "signature_timestamp_status": timestamp_status,
+        "signature_expiration": expiration,
+        "signature_validity_seconds": validity_seconds,
+        "signature_expiration_status": expiration_status,
+    }
+
+
+def record_only_verification_time(tags: dict[bytes, bytes], observed_at: int) -> int:
+    timestamp = parse_unix_tag(tags.get(b"t"))
+    expiration = parse_unix_tag(tags.get(b"x"))
+    if timestamp is not None:
+        return timestamp
+    if expiration is not None:
+        return min(observed_at, expiration)
+    return observed_at
+
+
+def signature_time_validation_context(
+    tags: dict[bytes, bytes],
+    observed_at: int,
+    policy: str,
+):
+    if policy == "enforce":
+        return nullcontext()
+
+    effective_time = record_only_verification_time(tags, observed_at)
+    original_validate = dkim.validate_signature_fields
+
+    def validate_at_effective_time(*args, **kwargs):
+        with patch.object(dkim.time, "time", return_value=effective_time):
+            return original_validate(*args, **kwargs)
+
+    return patch.object(
+        dkim,
+        "validate_signature_fields",
+        side_effect=validate_at_effective_time,
+    )
+
+
 def classify_error(error: Exception) -> str:
     message = str(error).lower()
     if "body hash mismatch" in message:
         return "body_hash_mismatch"
+    if "x= value is past" in message:
+        return "signature_expired"
+    if "t= value is in the future" in message:
+        return "signature_timestamp_in_future"
     if isinstance(error, dkim.ValidationError):
         return "validation_error"
     if isinstance(error, dkim.MessageFormatError):
@@ -136,11 +220,17 @@ def verify_message(
     label: str,
     *,
     ignore_body_hash: bool = False,
+    signature_time_policy: str = "enforce",
     dnsfunc=dkim.get_txt,
 ) -> dict[str, object]:
     if not LABEL_PATTERN.fullmatch(label):
         raise ValueError("label must be a non-identifying slug of 1-64 characters")
+    if signature_time_policy not in SIGNATURE_TIME_POLICIES:
+        raise ValueError(
+            f"signature_time_policy must be one of {', '.join(SIGNATURE_TIME_POLICIES)}"
+        )
 
+    observed_at = int(wall_time())
     parsed = dkim.DKIM(raw_message)
     from_domain = parse_single_from_domain(raw_message)
     signature_headers = [
@@ -167,33 +257,39 @@ def verify_message(
         canonicalization, header_canonicalization, body_canonicalization = (
             canonicalization_modes(tags.get(b"c"))
         )
+        time_metadata = signature_time_metadata(tags, observed_at)
         strict_from_alignment = (
             signing_domain is not None
             and from_domain is not None
             and signing_domain == from_domain
         )
         verifier = dkim.DKIM(raw_message)
-        try:
-            verified = bool(verifier.verify(index, dnsfunc=dnsfunc))
-            failure_code = None if verified else "signature_or_key_verification_failed"
-        except Exception as error:  # dkimpy exposes several format/validation subclasses.
-            verified = False
-            failure_code = classify_error(error)
-
-        header_signature_only_verified = None
-        header_signature_only_failure_code = None
-        if ignore_body_hash:
+        with signature_time_validation_context(
+            tags,
+            observed_at,
+            signature_time_policy,
+        ):
             try:
-                header_signature_only_verified = verify_header_signature(
-                    raw_message,
-                    index,
-                    dnsfunc=dnsfunc,
-                )
-                if not header_signature_only_verified:
-                    header_signature_only_failure_code = "header_signature_verification_failed"
-            except Exception as error:
-                header_signature_only_verified = False
-                header_signature_only_failure_code = classify_error(error)
+                verified = bool(verifier.verify(index, dnsfunc=dnsfunc))
+                failure_code = None if verified else "signature_or_key_verification_failed"
+            except Exception as error:  # dkimpy exposes several format/validation subclasses.
+                verified = False
+                failure_code = classify_error(error)
+
+            header_signature_only_verified = None
+            header_signature_only_failure_code = None
+            if ignore_body_hash:
+                try:
+                    header_signature_only_verified = verify_header_signature(
+                        raw_message,
+                        index,
+                        dnsfunc=dnsfunc,
+                    )
+                    if not header_signature_only_verified:
+                        header_signature_only_failure_code = "header_signature_verification_failed"
+                except Exception as error:
+                    header_signature_only_verified = False
+                    header_signature_only_failure_code = classify_error(error)
         required_coverage = all(required_headers_signed.values())
         gate_usable = verified and strict_from_alignment and required_coverage
         header_signature_only_gate_usable = (
@@ -211,6 +307,8 @@ def verify_message(
             "header_canonicalization": header_canonicalization,
             "body_canonicalization": body_canonicalization,
             "draft_regex_header_assumption_met": header_canonicalization == "relaxed",
+            **time_metadata,
+            "signature_expiration_enforced": signature_time_policy == "enforce",
             "strict_from_alignment": strict_from_alignment,
             "required_headers_signed": required_headers_signed,
             "from_oversigned": from_oversigned,
@@ -228,8 +326,10 @@ def verify_message(
         if item["header_signature_only_verified"] is not None
     ]
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "label": label,
+        "observed_at_unix": observed_at,
+        "signature_time_policy": signature_time_policy,
         "dkim_signature_count": signature_count,
         "has_verified_dkim": any(item["verified"] for item in signatures),
         "has_verified_aligned_dkim": any(
@@ -245,7 +345,8 @@ def verify_message(
         "signatures": signatures,
         "note": (
             "Cryptographic verification against DNS; header-only verification is diagnostic "
-            "and does not make a DKIM-invalid message valid; no message or key material emitted."
+            "and does not make a DKIM-invalid message valid; DKIM t=/x= are reported under "
+            "the selected signature-time policy; no message or key material emitted."
         ),
     }
 
@@ -288,6 +389,15 @@ def main() -> int:
         action="store_true",
         help="also diagnose the signed-header signature without validating the body hash",
     )
+    parser.add_argument(
+        "--signature-time-policy",
+        required=True,
+        choices=SIGNATURE_TIME_POLICIES,
+        help=(
+            "enforce signer t=/x= against current time, or record-only to verify archived "
+            "signature bytes while reporting timestamp status separately"
+        ),
+    )
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
 
@@ -295,6 +405,7 @@ def main() -> int:
         args.file.read_bytes(),
         args.label,
         ignore_body_hash=args.ignore_body_hash,
+        signature_time_policy=args.signature_time_policy,
     )
     if args.out:
         write_private_json(args.out, result)

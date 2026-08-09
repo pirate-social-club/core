@@ -9,6 +9,8 @@ const completeSignature = [
   "c=relaxed/relaxed",
   "d=example.com",
   "s=selector1",
+  "t=1000",
+  "x=4600",
   "h=From:To:Subject:Date:From",
   "bh=synthetic-body-hash",
   "b=synthetic-signature",
@@ -31,6 +33,9 @@ test("reports an aligned work-to-personal structurally complete signature", () =
   assert.equal(result.signatures[0].header_canonicalization, "relaxed")
   assert.equal(result.signatures[0].body_canonicalization, "relaxed")
   assert.equal(result.signatures[0].draft_regex_header_assumption_met, true)
+  assert.equal(result.signatures[0].signature_timestamp, 1000)
+  assert.equal(result.signatures[0].signature_expiration, 4600)
+  assert.equal(result.signatures[0].signature_validity_seconds, 3600)
   assert.deepEqual(result.signatures[0].required_headers_signed, {
     from: true,
     subject: true,

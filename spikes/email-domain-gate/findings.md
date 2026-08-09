@@ -44,11 +44,11 @@ Two controls were collected:
 
 ### Decision table
 
-| Artifact | Header canonicalization | Structural result | Cryptographic result | Decision |
-|---|---|---|---|---|
-| Proton custom-domain self-send, exported from Proton | not applicable | no DKIM header | not applicable | self-send ceremony fails for this provider |
-| Proton custom-domain → Gmail, exported from Gmail | relaxed | pass | **pass** | work→personal ceremony viable for this provider pair |
-| Gmail → Proton custom-domain, exported from Proton | relaxed | pass | **fail** | Proton export is not byte-faithful enough for proving received mail |
+| Artifact | Header canonicalization | Signer validity window | Structural result | Cryptographic result | Decision |
+|---|---|---:|---|---|---|
+| Proton custom-domain self-send, exported from Proton | not applicable | not applicable | no DKIM header | not applicable | self-send ceremony fails for this provider |
+| Proton custom-domain → Gmail, exported from Gmail | relaxed | 72 hours | pass | **pass** | work→personal ceremony viable for this provider pair |
+| Gmail → Proton custom-domain, exported from Proton | relaxed | 7 days | pass | **fail** | Proton export is not byte-faithful enough for proving received mail |
 
 Header presence proves only that a DKIM-shaped header survived export; it does
 not establish message fidelity. The self-send artifact contains no signature at
@@ -81,17 +81,31 @@ untested, so A1c remains open for Proton and globally.
 
 Both presentation samples use relaxed header and body canonicalization. No
 simple-header provider sample has been measured. Workspace and M365 must report
-their observed `c=` modes before the draft regexes are treated as portable.
+their observed `c=` modes and signer `t=`/`x=` windows before the draft regexes
+and provider matrix are treated as portable. Both presentation samples use the
+same 72-hour signer validity window as the primary Proton outbound sample.
+
+## Signed To decision
+
+To coverage was deliberately removed when the ceremony changed from self-send
+to work→personal. The proof establishes no ownership of the personal recipient,
+To is not extracted or disclosed, and binding it would add no claim beyond the
+fresh signed session nonce. Required signed-header coverage is therefore From +
+Subject. Revisit To only if a future protocol makes a recipient claim.
 
 ## Corpus expectation replay
 
 All five recorded expectations were rerun after removing oversigning from gate
-eligibility: three passes, one cryptographic failure, and one no-signature case
-remain unchanged. The replay used one explicit historical evaluation instant
-inside the signer-supplied DKIM `x=` validity windows. Present-time verification
-of the older positive artifacts now rejects them as expired, which is expected
-and does not change their historical corpus verdict. All four signed artifacts
-report `relaxed/relaxed` canonicalization.
+eligibility under the explicit `record-only` signature-time policy: three
+passes, one cryptographic failure, and one no-signature case remain unchanged.
+Present-time `enforce` mode records the three Proton positives as
+`signature_expired`; it does not collapse expiration into generic signature
+failure. All four signed artifacts report `relaxed/relaxed` canonicalization.
+
+The product policy is record-only for DKIM `t=`/`x=`. The ZK circuit verifies
+the signed bytes but does not parse those tags, and the fresh nonce can only be
+produced after session issuance. Server session expiry therefore supplies the
+actual completion deadline and prevents an archived email from being reused.
 
 ## Registry availability
 

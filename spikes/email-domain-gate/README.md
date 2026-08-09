@@ -41,6 +41,7 @@ rtk .venv/bin/python verify-dkim.py \
   --label proton-to-gmail \
   --file corpus/proton-to-gmail.eml \
   --expect pass \
+  --signature-time-policy record-only \
   --out results/proton-to-gmail.crypto.json
 ```
 
@@ -49,13 +50,23 @@ rtk .venv/bin/python verify-dkim.py \
 fails if the observed cryptographic result differs from the declared corpus
 expectation.
 
+`--signature-time-policy` is required so timestamp semantics cannot be implicit:
+
+- `enforce` applies dkimpy's current-time checks to signer `t=`/`x=` and reports
+  expiration as `signature_expired`, distinct from bad signature bytes.
+- `record-only` verifies the signed bytes while recording timestamp, expiration,
+  validity-window length, and current expiration status separately. This is the
+  domain-gate policy and archived-corpus mode: a fresh signed session nonce plus
+  server expiry is the authoritative freshness/replay control.
+
 `--expect pass` requires at least one signature that verifies cryptographically,
 is strictly aligned (`d=` equals the single parsed From domain), and signs From,
 and Subject. Oversigning From is recorded as provider metadata but is not a gate
 requirement: ZK Email passes only the canonicalized, `h=`-selected signed header
-sequence into the circuit. To is intentionally not a proof obligation or public
-output in the work→personal ceremony. A valid but unaligned forwarder or
-mailing-list signature does not pass the gate.
+sequence into the circuit. To is intentionally neither a signed-header
+requirement nor a proof output in the work→personal ceremony because recipient
+ownership is not proven and the nonce already binds the session. A valid but
+unaligned forwarder or mailing-list signature does not pass the gate.
 
 The inspector records both header and body canonicalization modes. The draft
 blueprint regexes have been exercised only against relaxed header
@@ -71,6 +82,7 @@ rtk .venv/bin/python verify-dkim.py \
   --label gmail-to-proton \
   --file corpus/gmail-to-proton.eml \
   --expect fail \
+  --signature-time-policy record-only \
   --ignore-body-hash \
   --out results/gmail-to-proton.crypto.json
 ```
