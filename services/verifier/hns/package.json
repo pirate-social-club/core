@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "audit:app-records": "bun scripts/audit-app-records.ts",
     "start": "bun src/server.ts"
   }
 }

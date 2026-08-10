@@ -232,6 +232,8 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_money_policy
   /communities/{community_id}/pricing-policy:
     $ref: ./paths/communities.yaml#/communities_by_community_id_pricing_policy
+  /communities/{community_id}/presentation:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_presentation
   /communities/{community_id}/machine-access-policy:
     $ref: ./paths/community-machine-access.yaml#/communities_by_community_id_machine_access_policy
   /communities/{community_id}/listings:

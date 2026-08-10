@@ -32,9 +32,11 @@ verifier.pirate.sc {
 
 https:// {
 	tls /etc/caddy/hns-dane/current/cert.pem /etc/caddy/hns-dane/current/key.pem
+	encode zstd gzip
 	reverse_proxy 127.0.0.1:4049
 }
 
 http:// {
+	encode zstd gzip
 	reverse_proxy 127.0.0.1:4049
 }
