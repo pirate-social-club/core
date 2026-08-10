@@ -6,6 +6,7 @@ const RESERVED_HOSTS = new Set([
   "api-staging",
   "spaces",
   "app",
+  "home",
   "admin",
   "assets",
   "static",

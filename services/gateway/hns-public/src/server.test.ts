@@ -25,6 +25,7 @@ describe("extractPublicProfileHost", () => {
 
   test("rejects reserved hosts", () => {
     expect(extractPublicProfileHost("api.pirate", "pirate")).toBeNull();
+    expect(extractPublicProfileHost("home.pirate", "pirate")).toBeNull();
   });
 
   test("rejects nested subdomains", () => {

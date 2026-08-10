@@ -1924,6 +1924,39 @@ paths:
           $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /communities/{community_id}/presentation:
+    post:
+      tags:
+        - Communities
+      summary: Update community presentation
+      description: |
+        Updates the deterministic default surface and constrained visual branding for a community.
+        Selecting the video surface requires the community video-feed surface to remain enabled.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommunityPresentationPatch"
+      responses:
+        "200":
+          description: Community presentation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityPresentation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/EligibilityFailed"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /communities/{community_id}/listings:
     get:
       tags:

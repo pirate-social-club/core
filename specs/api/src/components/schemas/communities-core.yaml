@@ -1654,12 +1654,106 @@ CommunityRoleSummary:
         - owner
         - admin
         - moderator
+CommunityBranding:
+  type: object
+  additionalProperties: false
+  required:
+    - accent_color
+    - theme
+    - header_style
+    - tagline
+  properties:
+    accent_color:
+      type: string
+      pattern: '^#[0-9A-F]{6}$'
+      nullable: true
+    theme:
+      type: string
+      enum:
+        - system
+        - light
+        - dark
+    header_style:
+      type: string
+      enum:
+        - standard
+        - compact
+        - immersive
+    tagline:
+      type: string
+      maxLength: 120
+      nullable: true
+CommunityBrandingPatch:
+  type: object
+  additionalProperties: false
+  properties:
+    accent_color:
+      type: string
+      pattern: '^#[0-9A-Fa-f]{6}$'
+      nullable: true
+    theme:
+      type: string
+      enum:
+        - system
+        - light
+        - dark
+    header_style:
+      type: string
+      enum:
+        - standard
+        - compact
+        - immersive
+    tagline:
+      type: string
+      maxLength: 120
+      nullable: true
+CommunityPresentationPatch:
+  type: object
+  additionalProperties: false
+  properties:
+    branding:
+      $ref: ./communities-core.yaml#/CommunityBrandingPatch
+    default_surface:
+      type: string
+      enum:
+        - threads
+        - videos
+CommunityPresentation:
+  type: object
+  additionalProperties: false
+  required:
+    - id
+    - object
+    - community
+    - branding
+    - default_surface
+  properties:
+    id:
+      type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - community_presentation
+    community:
+      type: string
+      readOnly: true
+    branding:
+      $ref: ./communities-core.yaml#/CommunityBranding
+    default_surface:
+      type: string
+      enum:
+        - threads
+        - videos
 CommunityPreview:
   type: object
   required:
     - id
     - object
     - display_name
+    - branding
+    - default_surface
     - membership_mode
     - human_verification_lane
     - moderators
@@ -1695,6 +1789,13 @@ CommunityPreview:
     banner_ref:
       type: string
       nullable: true
+    branding:
+      $ref: ./communities-core.yaml#/CommunityBranding
+    default_surface:
+      type: string
+      enum:
+        - threads
+        - videos
     store_url:
       type: string
       nullable: true
