@@ -8,12 +8,32 @@ import {
   canonicalizeForwarderContext,
   FORWARDER_SIGNATURE_HEADER,
   FORWARDER_TIMESTAMP_HEADER,
+  signForwarderContext,
 } from "./forwarder-signature";
 import {
   extractImportedNamespaceHost,
   extractPublicProfileHost,
   handleRequest,
 } from "./server";
+
+test("forwarder signature interoperability vector remains stable", async () => {
+  const context = {
+    timestamp: "1770000000",
+    method: "GET",
+    host: "xn--pokmon-dva",
+    pathAndQuery: "/c/crew?sort=top",
+    root: "xn--pokmon-dva",
+    communityId: "com_cmt_public_namespace_test",
+    communityRoute: "xn--pokmon-dva",
+    subdomain: "",
+  };
+  expect(canonicalizeForwarderContext(context)).toBe(
+    '["pirate-hns-forwarder-v1","1770000000","GET","xn--pokmon-dva","/c/crew?sort=top","xn--pokmon-dva","com_cmt_public_namespace_test","xn--pokmon-dva",""]',
+  );
+  expect(await signForwarderContext(context, "test-forwarder-hmac-key-with-32-bytes")).toBe(
+    "v1=e42b921d8029a9067fcc230b039d8513727ca88ad2b0253a39263b220154b9a3",
+  );
+});
 
 describe("extractPublicProfileHost", () => {
   test("extracts a simple pirate hostname", () => {
@@ -345,6 +365,7 @@ describe("handleRequest", () => {
     root?: string | null;
     subdomain?: string | null;
   }): void {
+    expect(input.headers.get("x-pirate-hns-forwarder-path")).toBe(input.pathAndQuery);
     const timestamp = input.headers.get(FORWARDER_TIMESTAMP_HEADER);
     expect(timestamp).toMatch(/^\d+$/u);
     const expected = createHmac("sha256", forwarderHmacKey)
@@ -811,7 +832,44 @@ describe("handleRequest", () => {
       root: "xn--pokmon-dva",
     });
     expect(calls[1].headers.has("host")).toBe(false);
-    expect(calls[1].headers.get("accept-encoding")).toBeNull();
+    expect(calls[1].headers.get("accept-encoding")).toBe("identity");
+  });
+
+  test("does not forward stale compression headers after Bun inflates an upstream body", async () => {
+    const compressed = Bun.gzipSync(new TextEncoder().encode("inflated community page"));
+    const origin = Bun.serve({
+      port: 0,
+      fetch(request) {
+        const url = new URL(request.url);
+        if (url.pathname.startsWith("/public-namespaces/")) {
+          return Response.json({
+            root_label: "compressed-root",
+            namespace_verification: "nv_compressed",
+            community: { id: "com_compressed", display_name: "Compressed", route_slug: "compressed-root" },
+          });
+        }
+        expect(request.headers.get("accept-encoding")).toBe("identity");
+        return new Response(compressed, {
+          headers: {
+            "content-encoding": "gzip",
+            "content-length": String(compressed.byteLength),
+            "content-type": "text/plain",
+          },
+        });
+      },
+    });
+    try {
+      const response = await handleRequest(new Request("https://compressed-root/"), {
+        ...env,
+        HNS_PUBLIC_API_ORIGIN: origin.url.toString(),
+        HNS_PUBLIC_APP_ORIGIN: origin.url.toString(),
+      });
+      expect(await response.text()).toBe("inflated community page");
+      expect(response.headers.get("content-encoding")).toBeNull();
+      expect(response.headers.get("content-length")).toBeNull();
+    } finally {
+      origin.stop(true);
+    }
   });
 
   test("caches and coalesces imported namespace resolution", async () => {
@@ -939,11 +997,42 @@ describe("handleRequest", () => {
     });
   });
 
-  test("fails closed before proxying when the forwarder HMAC key is missing or too short", async () => {
+  test("dual-emits HMAC and the legacy token during the compatibility window", async () => {
+    const calls: Headers[] = [];
+    const response = await handleRequest(
+      new Request("https://app.pirate/path?view=top", { headers: { "x-forwarded-proto": "https" } }),
+      { ...env, HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "legacy-rollout-token" },
+      async (_url, init) => {
+        calls.push(new Headers(init?.headers));
+        return new Response("app");
+      },
+    );
+    expect(response.status).toBe(200);
+    expect(calls[0].get("x-pirate-hns-forwarder-token")).toBe("legacy-rollout-token");
+    expect(calls[0].get("x-pirate-hns-forwarder-path")).toBe("/path?view=top");
+    expect(calls[0].get(FORWARDER_SIGNATURE_HEADER)).toMatch(/^v1=[0-9a-f]{64}$/u);
+  });
+
+  test("accepts a legacy-only gateway configuration during the compatibility window", async () => {
+    const calls: Headers[] = [];
+    const response = await handleRequest(
+      new Request("https://app.pirate/", { headers: { "x-forwarded-proto": "https" } }),
+      { ...env, HNS_PUBLIC_FORWARDER_HMAC_KEY: undefined, HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "legacy-rollout-token" },
+      async (_url, init) => {
+        calls.push(new Headers(init?.headers));
+        return new Response("app");
+      },
+    );
+    expect(response.status).toBe(200);
+    expect(calls[0].get("x-pirate-hns-forwarder-token")).toBe("legacy-rollout-token");
+    expect(calls[0].has(FORWARDER_SIGNATURE_HEADER)).toBe(false);
+  });
+
+  test("fails closed before proxying when neither rollout credential is usable", async () => {
     for (const hmacKey of [undefined, "too-short"]) {
       const response = await handleRequest(
         new Request("https://app.pirate/", { headers: { "x-forwarded-proto": "https" } }),
-        { ...env, HNS_PUBLIC_FORWARDER_HMAC_KEY: hmacKey },
+        { ...env, HNS_PUBLIC_FORWARDER_HMAC_KEY: hmacKey, HNS_PUBLIC_FORWARDER_AUTH_TOKEN: undefined },
         async () => {
           throw new Error("misconfigured gateway must not reach an origin");
         },

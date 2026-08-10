@@ -61,8 +61,6 @@ HomeFeedCommunitySummary:
     - id
     - object
     - display_name
-    - branding
-    - default_surface
   properties:
     id:
       type: string
@@ -87,6 +85,8 @@ HomeFeedCommunitySummary:
       enum:
         - threads
         - videos
+    video_feed_enabled:
+      type: boolean
     member_count:
       type: integer
       nullable: true

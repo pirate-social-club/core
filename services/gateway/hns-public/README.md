@@ -34,6 +34,8 @@ It is the server-side counterpart to Freedom's HNS browsing path:
 - `HNS_PUBLIC_APP_ORIGIN`
 - `HNS_PUBLIC_FORWARDER_HMAC_KEY` (at least 32 random bytes; must match the
   Worker's `HNS_FORWARDER_HMAC_KEY` secret)
+- `HNS_PUBLIC_FORWARDER_AUTH_TOKEN` (legacy rollout credential; configure it
+  alongside the HMAC key only during the dual-emit compatibility window)
 - `HNS_PUBLIC_NAMESPACE_RESOLVE_TIMEOUT_MS` (default `2000`)
 - `HNS_PUBLIC_NAMESPACE_CACHE_TTL_MS` (default `30000`)
 - `HNS_PUBLIC_NAMESPACE_CACHE_STALE_MS` (default `300000` after the fresh TTL)

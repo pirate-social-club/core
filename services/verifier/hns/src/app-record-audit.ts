@@ -44,7 +44,9 @@ export function auditManagedAppRecords(zone: PowerDnsZoneSnapshot): ManagedAppRe
   }
 
   const issues: string[] = [];
-  if (!sameRecords(appA, expectedA)) issues.push(appA.length === 0 ? "missing_app_a" : "app_a_mismatch");
+  // An explicit app A record may deliberately target a different gateway than
+  // the wildcard. The launch invariant is presence, not value equality.
+  if (appA.length === 0) issues.push("missing_app_a");
   if (expectedTlsa.length > 0 && !sameRecords(appTlsa, expectedTlsa)) {
     issues.push(appTlsa.length === 0 ? "missing_app_tlsa" : "app_tlsa_mismatch");
   }

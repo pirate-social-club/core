@@ -1,5 +1,6 @@
 export const FORWARDER_SIGNATURE_HEADER = "x-pirate-hns-forwarder-signature";
 export const FORWARDER_TIMESTAMP_HEADER = "x-pirate-hns-forwarder-timestamp";
+export const FORWARDER_PATH_HEADER = "x-pirate-hns-forwarder-path";
 export const FORWARDER_SIGNATURE_VERSION = "v1";
 export const MIN_FORWARDER_HMAC_KEY_BYTES = 32;
 

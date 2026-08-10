@@ -82,8 +82,11 @@ a Worker secret. The Worker accepts `HNS_FORWARDER_HMAC_PREVIOUS_KEY` during a
 rotation; remove that previous-key secret after the maximum five-minute replay
 window has elapsed.
 
-For an initial migration from the legacy token, deploy the signing gateway
-first, then deploy the verifying Worker. For later rotations, configure the
+For an initial migration from the legacy token, first configure the gateway
+with both credentials so it dual-emits, then deploy a Worker that accepts both.
+Remove Worker token acceptance only after every gateway emits HMAC; remove the
+gateway token after that Worker release is live. Neither credential is trusted
+without the configured forwarder source IP. For later rotations, configure the
 Worker with the new current key and old previous key, rotate the gateway, wait
 out the replay window, and remove the previous key.
 

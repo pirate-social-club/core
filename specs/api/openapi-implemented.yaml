@@ -11942,8 +11942,6 @@ components:
         - id
         - object
         - display_name
-        - branding
-        - default_surface
         - status
         - provisioning_state
         - membership_mode
@@ -12001,6 +11999,8 @@ components:
           enum:
             - threads
             - videos
+        video_feed_enabled:
+          type: boolean
         namespace_verification:
           type: string
           nullable: true

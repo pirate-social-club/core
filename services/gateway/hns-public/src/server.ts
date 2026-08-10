@@ -8,6 +8,7 @@ import {
 import {
   FORWARDER_SIGNATURE_HEADER,
   FORWARDER_TIMESTAMP_HEADER,
+  FORWARDER_PATH_HEADER,
   isValidForwarderHmacKey,
   signForwarderContext,
   type HnsForwarderContext,
@@ -30,6 +31,7 @@ export type HnsPublicGatewayEnv = CaddyAskEnv & {
   HNS_PUBLIC_GATEWAY_EXTERNAL_SCHEME?: string;
   HNS_PUBLIC_APP_ORIGIN?: string;
   HNS_PUBLIC_FORWARDER_HMAC_KEY?: string;
+  HNS_PUBLIC_FORWARDER_AUTH_TOKEN?: string;
   HNS_PUBLIC_NAMESPACE_CACHE_TTL_MS?: string;
   HNS_PUBLIC_NAMESPACE_CACHE_STALE_MS?: string;
   HNS_PUBLIC_NAMESPACE_CACHE_MAX_ENTRIES?: string;
@@ -434,7 +436,21 @@ function buildProxyHeaders(request: Request, url: URL): Headers {
   }
 
   headers.set("x-pirate-hns-host", url.hostname);
+  headers.set("accept-encoding", "identity");
   return headers;
+}
+
+function normalizeFetchedProxyResponse(response: Response): Response {
+  if (!response.headers.get("content-encoding")) return response;
+  const headers = new Headers(response.headers);
+  headers.delete("content-encoding");
+  headers.delete("content-length");
+  headers.delete("transfer-encoding");
+  return new Response(response.body, {
+    headers,
+    status: response.status,
+    statusText: response.statusText,
+  });
 }
 
 async function buildSignedProxyHeaders(input: {
@@ -444,21 +460,27 @@ async function buildSignedProxyHeaders(input: {
   context?: Omit<HnsForwarderContext, "host" | "method" | "pathAndQuery" | "timestamp">;
 }): Promise<Headers | null> {
   const secret = input.env.HNS_PUBLIC_FORWARDER_HMAC_KEY?.trim() ?? "";
-  if (!isValidForwarderHmacKey(secret)) {
+  const legacyToken = input.env.HNS_PUBLIC_FORWARDER_AUTH_TOKEN?.trim() ?? "";
+  if (!isValidForwarderHmacKey(secret) && !legacyToken) {
     return null;
   }
 
   const headers = buildProxyHeaders(input.request, input.url);
   const timestamp = String(Math.floor(Date.now() / 1_000));
+  const pathAndQuery = `${input.url.pathname}${input.url.search}`;
   const context: HnsForwarderContext = {
     ...input.context,
     host: input.url.hostname,
     method: input.request.method,
-    pathAndQuery: `${input.url.pathname}${input.url.search}`,
+    pathAndQuery,
     timestamp,
   };
-  headers.set(FORWARDER_TIMESTAMP_HEADER, timestamp);
-  headers.set(FORWARDER_SIGNATURE_HEADER, await signForwarderContext(context, secret));
+  headers.set(FORWARDER_PATH_HEADER, pathAndQuery);
+  if (isValidForwarderHmacKey(secret)) {
+    headers.set(FORWARDER_TIMESTAMP_HEADER, timestamp);
+    headers.set(FORWARDER_SIGNATURE_HEADER, await signForwarderContext(context, secret));
+  }
+  if (legacyToken) headers.set("x-pirate-hns-forwarder-token", legacyToken);
   return headers;
 }
 
@@ -529,12 +551,13 @@ async function proxyReservedHostRequest(input: {
   if (!headers) {
     return renderForwarderConfigurationError();
   }
-  return input.fetchImpl(rebaseUrlToOrigin(input.request.url, input.targetOrigin), {
+  const response = await input.fetchImpl(rebaseUrlToOrigin(input.request.url, input.targetOrigin), {
     headers,
     method: input.request.method,
     redirect: "manual",
     ...buildProxyBodyInit(input.request),
   });
+  return normalizeFetchedProxyResponse(response);
 }
 
 async function proxyImportedNamespaceRequest(input: {
@@ -547,7 +570,8 @@ async function proxyImportedNamespaceRequest(input: {
   fetchImpl: typeof fetch;
 }): Promise<Response | null> {
   const secret = input.env.HNS_PUBLIC_FORWARDER_HMAC_KEY?.trim() ?? "";
-  if (!isValidForwarderHmacKey(secret)) {
+  const legacyToken = input.env.HNS_PUBLIC_FORWARDER_AUTH_TOKEN?.trim() ?? "";
+  if (!isValidForwarderHmacKey(secret) && !legacyToken) {
     return renderForwarderConfigurationError();
   }
   let resolution: PublicNamespaceResolution | null;
@@ -588,12 +612,13 @@ async function proxyImportedNamespaceRequest(input: {
     headers.set("x-pirate-hns-subdomain", input.namespaceHost.subdomain);
   }
 
-  return input.fetchImpl(rebaseUrlToOrigin(input.request.url, input.appOrigin), {
+  const response = await input.fetchImpl(rebaseUrlToOrigin(input.request.url, input.appOrigin), {
     headers,
     method: input.request.method,
     redirect: "manual",
     ...buildProxyBodyInit(input.request),
   });
+  return normalizeFetchedProxyResponse(response);
 }
 
 export async function handleRequest(
