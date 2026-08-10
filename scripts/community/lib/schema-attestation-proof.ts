@@ -11,6 +11,7 @@ export const SHARD_STATUSES = [
   "canonical_schema_regression",
   "schema_not_ready",
   "missing_from_config",
+  "unreachable",
   "error",
 ] as const
 
