@@ -70,13 +70,14 @@ async function resolveImportedNamespace(input: {
   apiOrigin: string;
   env: HnsPublicGatewayEnv;
   fetchImpl: typeof fetch;
+  forceRefresh?: boolean;
   rootLabel: string;
 }): Promise<PublicNamespaceResolution | null> {
   const cache = namespaceCacheFor(input.fetchImpl);
   const key = `${input.apiOrigin}\n${input.rootLabel}`;
   const now = Date.now();
   const cached = cache.entries.get(key);
-  if (cached && cached.freshUntil > now) return cached.resolution;
+  if (!input.forceRefresh && cached && cached.freshUntil > now) return cached.resolution;
 
   const pending = cache.inflight.get(key);
   if (pending) return pending;
@@ -127,6 +128,17 @@ async function resolveImportedNamespace(input: {
   })();
   cache.inflight.set(key, request);
   return request;
+}
+
+function isDocumentNavigation(request: Request): boolean {
+  const destination = request.headers.get("sec-fetch-dest")?.trim().toLowerCase();
+  if (destination === "document" || destination === "iframe") return true;
+
+  const mode = request.headers.get("sec-fetch-mode")?.trim().toLowerCase();
+  if (mode === "navigate") return true;
+
+  return request.method === "GET"
+    && (request.headers.get("accept") ?? "").toLowerCase().includes("text/html");
 }
 
 export function buildCommunityPath(communityId: string, routeSlug: string | null): string {
@@ -593,6 +605,10 @@ async function proxyImportedNamespaceRequest(input: {
       apiOrigin: input.apiOrigin,
       env: input.env,
       fetchImpl: input.fetchImpl,
+      // Route/community metadata can be reused for subresource bursts, but a
+      // new page load must re-read wallet authority so a hard deny or operator
+      // revocation takes effect without waiting for the cache TTL.
+      forceRefresh: isDocumentNavigation(input.request),
       rootLabel: input.namespaceHost.rootLabel,
     });
   } catch {

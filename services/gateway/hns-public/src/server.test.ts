@@ -901,6 +901,53 @@ describe("handleRequest", () => {
     expect(namespaceCalls).toBe(1);
   });
 
+  test("refreshes wallet authority on a new document navigation", async () => {
+    let namespaceCalls = 0;
+    let walletInteractive = true;
+    const forwardedWalletHeaders: string[] = [];
+    const fetchImpl: typeof fetch = async (url, init) => {
+      if (String(url).endsWith("/public-namespaces/revoked-root")) {
+        namespaceCalls += 1;
+        return Response.json({
+          root_label: "revoked-root",
+          namespace_verification: "nv_revoked",
+          wallet_interactive: walletInteractive,
+          community: { id: "com_revoked", display_name: "Revoked", route_slug: "revoked-root" },
+        });
+      }
+      forwardedWalletHeaders.push(
+        new Headers(init?.headers).get("x-pirate-hns-wallet-interactive") ?? "missing",
+      );
+      return new Response("community page");
+    };
+    const documentHeaders = {
+      accept: "text/html,application/xhtml+xml",
+      "sec-fetch-dest": "document",
+      "sec-fetch-mode": "navigate",
+    };
+
+    expect((await handleRequest(
+      new Request("https://app.revoked-root/", { headers: documentHeaders }),
+      env,
+      fetchImpl,
+    )).status).toBe(200);
+    expect((await handleRequest(
+      new Request("https://app.revoked-root/assets/app.js", { headers: { accept: "*/*" } }),
+      env,
+      fetchImpl,
+    )).status).toBe(200);
+
+    walletInteractive = false;
+    expect((await handleRequest(
+      new Request("https://app.revoked-root/settings", { headers: documentHeaders }),
+      env,
+      fetchImpl,
+    )).status).toBe(200);
+
+    expect(namespaceCalls).toBe(2);
+    expect(forwardedWalletHeaders).toEqual(["1", "1", "0"]);
+  });
+
   test("serves stale namespace resolution when refresh fails", async () => {
     let namespaceCalls = 0;
     let failRefresh = false;
