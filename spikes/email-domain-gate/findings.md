@@ -120,6 +120,16 @@ only the structural inspector would be insufficient: the Proton export control
 already demonstrated that intact-looking DKIM headers can also fail header-only
 cryptographic verification.
 
+The same check is required earlier at the gate-author boundary. Before an
+author activates a rule for `D`, they supply a representative existing external
+email whose From domain is `D`; the browser returns the same path-scoped
+three-way verdict. This prevents a likely-broken rule from being published and
+members invited before anyone discovers the incompatibility. It remains
+advisory rather than security evidence: it carries no nonce, proves no author
+ownership, makes no organization-wide claim, uploads no raw mail, and emits no
+domain/result telemetry by default. Production activation and override
+semantics remain out of spike scope.
+
 The result is path-specific, not automatically domain-wide. An externally
 delivered email from the same work mailbox through the same sender path,
 exported by the intended personal client, is strong evidence. Mail from another

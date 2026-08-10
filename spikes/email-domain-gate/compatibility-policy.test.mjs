@@ -37,6 +37,23 @@ test("classifies aligned supported evidence as compatible", () => {
   assert.deepEqual(result.reason_codes, [])
 })
 
+test("gate configuration requires the sample From domain to match the configured domain", () => {
+  const matching = evaluateCompatibility({ signatures: [signature()] }, {
+    context: "gate-configuration",
+    confidence: "representative-domain-path",
+    policy: { expectedDomain: "company.example" },
+  })
+  assert.equal(matching.verdict, "compatible")
+
+  const mismatching = evaluateCompatibility({ signatures: [signature()] }, {
+    context: "gate-configuration",
+    confidence: "representative-domain-path",
+    policy: { expectedDomain: "other.example" },
+  })
+  assert.equal(mismatching.verdict, "incompatible")
+  assert.deepEqual(mismatching.reason_codes, ["configured_domain_mismatch"])
+})
+
 test("uses the first fully compatible signature deterministically", () => {
   const result = evaluate([
     signature({ index: 0, signing_domain: "relay.example" }),
@@ -91,14 +108,15 @@ test("ignores signer expiration and body-only rewriting with warnings", () => {
   ])
 })
 
-test("produces the same verdict in all three contexts", () => {
+test("produces the same verdict in all four contexts", () => {
   const evidence = { signatures: [signature()] }
   const verdicts = [
+    ["gate-configuration", "representative-domain-path"],
     ["advisory-preflight", "same-mailbox-external-path"],
     ["fresh-preproof", "actual-ceremony-message"],
     ["postproof", "verified-proof"],
   ].map(([context, confidence]) => evaluateCompatibility(evidence, { context, confidence }).verdict)
-  assert.deepEqual(verdicts, ["compatible", "compatible", "compatible"])
+  assert.deepEqual(verdicts, ["compatible", "compatible", "compatible", "compatible"])
 })
 
 test("adapts verifier output without consulting legacy gate verdict fields", () => {

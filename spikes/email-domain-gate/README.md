@@ -183,11 +183,13 @@ rtk node --test survey-mail-archive.test.mjs
 
 ## Shared compatibility policy
 
-`compatibility-policy.mjs` is the single spike policy for advisory pre-flight,
-fresh-message pre-proof validation, and future API post-proof enforcement. Each
-path supplies normalized evidence; none reimplements strict alignment, signed
-header coverage, algorithm, canonicalization, deterministic signature
-selection, or signer-time policy.
+`compatibility-policy.mjs` is the single spike policy for gate-configuration
+pre-flight, member advisory pre-flight, fresh-message pre-proof validation, and
+future API post-proof enforcement. Each path supplies normalized evidence; none
+reimplements strict alignment, signed-header coverage, algorithm,
+canonicalization, deterministic signature selection, or signer-time policy.
+Gate configuration additionally supplies the expected configured domain so a
+valid sample from another domain cannot satisfy the advisory check.
 
 The Python verifier's derived `gate_usable` and `--expect` values remain Phase A
 corpus diagnostics for backward compatibility. They are not consumed by the

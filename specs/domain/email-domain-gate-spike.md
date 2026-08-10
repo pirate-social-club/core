@@ -32,6 +32,15 @@ The proof establishes, at verification time only:
 
 It does **not** assert current employment (point-in-time only; mitigated by capability TTL, default 90d) and does **not** hide the mailbox from every adversary (see §3).
 
+**Authorization principle.** Evidence that an organization controls or
+delegates email infrastructure is not evidence that the signer controls a
+mailbox at the claimed From domain. Provider fallback names, child signing
+domains, parent signing domains, SPF/DMARC outcomes, and other organizational
+relationships may be useful compatibility observations, but cannot substitute
+for a valid DKIM signature whose `d=` exactly equals the signed From domain.
+This exact binding is what supports the gate's mailbox-domain claim; any future
+relaxation changes that claim and requires a separate threat-model decision.
+
 ## 2. Protocol (converged)
 
 **Optional advisory pre-flight (before session start).** A user may select an
@@ -53,6 +62,18 @@ local explanation, never an organization-wide claim. Raw email stays in the
 browser. Do not send pre-flight results or domains as product telemetry by
 default; any future aggregate measurement requires separate privacy review and
 explicit consent because failed attempts reveal affiliation and intent.
+
+**Mandatory gate-configuration pre-flight (future product work).** Before a
+community author can activate an `email_domain` rule for `D`, the configuration
+UI should require a representative externally delivered raw email whose From
+domain is `D` and run it through the same local evidence adapter and shared
+policy. Report path-specific `compatible`, `incompatible`, or `inconclusive`
+immediately; never claim organization-wide support. This is an early broken-gate
+guard, not authorization evidence: the sample has no nonce, the author may not
+own its mailbox, and a browser-side result cannot mint a capability. Raw email
+stays local and no domain/result telemetry is sent by default. The spike records
+the policy context and tests only; production UI, persistence, activation and
+override semantics remain blocked by the go/no-go decision.
 
 **One policy, three evidence adapters.** Compatibility predicates and
 deterministic signature selection live in one pure shared policy module. The
@@ -181,7 +202,7 @@ go/no-go questions pass.
 ### Phase F — write-ups (gate the go/no-go)
 - [ ] F1. Threat-model note = §3 table finalized, incl. explicit "not operator-blind" statement + OPRF future-work note.
 - [ ] F2. Key-trust policy note = §4 checklist answered.
-- [ ] F3. Ceremony UX note: optional pre-flight confidence/explanations, per-client `.eml` export instructions, fresh-email validation before proving, and observed completion friction → Q5.
+- [ ] F3. Ceremony UX note: mandatory gate-configuration pre-flight, optional member pre-flight confidence/explanations, per-client `.eml` export instructions, fresh-email validation before proving, and observed completion friction → Q5.
 - [ ] F4. Go/no-go memo answering Q1–Q5 with data.
 
 ## 7. Test matrix (spike acceptance)
@@ -193,6 +214,7 @@ go/no-go questions pass.
 | T0c | Internal/forwarded/header-rewritten existing email with absent or invalid header signature | Advisory `inconclusive` unless a verified unaligned signature establishes incompatibility for the sampled path |
 | T0d | Body rewritten but authenticated selected headers still verify | Advisory `compatible` under header-only circuit policy; report body-hash mismatch separately |
 | T0e | Existing email has valid aligned header signature but signer `x=` is past | Advisory `compatible`; record expiration warning but do not change policy |
+| T0f | Gate author configures `acme.com` using an aligned sample from another domain | Configuration `incompatible` (`configured_domain_mismatch`); no capability or organization-wide claim |
 | T1 | Workspace corp→personal, fresh nonce | PASS; outputs domain + digest |
 | T2 | M365 corp→personal, fresh nonce | PASS |
 | T3 | Consumer gmail.com→personal | PASS proof, FAIL gate (domain not in allowlist) — control |
@@ -225,4 +247,4 @@ Touch map verified against canonical trees 2026-07-20 — do NOT start until go/
 - New domain-normalization utility (dedicated, not `global-handle-policy.ts`)
 - Web: `RuleKind`/dropdown/`defaultGateForKind`/`getRuleKind`/label switches in `gate-tree-builder.tsx`, `gate-requirement-groups.ts`, `gate-atom-validation.ts`, sidebar, `use-zk-email-verification.tsx`; `{label}` binding → "anonymous @ acme.com" byline via identity-presentation qualifiers
 - Logging hygiene: `.eml`, headers, addresses, commitments excluded from logs/Sentry by construction; client-side file-size caps
-- Dark flag + tiny-domain re-identification warning in gate author UI
+- Dark flag + mandatory local compatibility pre-flight + tiny-domain re-identification warning in gate author UI

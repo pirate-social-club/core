@@ -5,8 +5,14 @@ const DEFAULT_POLICY = Object.freeze({
   signerTimePolicy: "record-only",
 })
 
-const CONTEXTS = new Set(["advisory-preflight", "fresh-preproof", "postproof"])
+const CONTEXTS = new Set([
+  "gate-configuration",
+  "advisory-preflight",
+  "fresh-preproof",
+  "postproof",
+])
 const CONFIDENCE_LEVELS = new Set([
+  "representative-domain-path",
   "same-mailbox-external-path",
   "other-domain-mailbox",
   "actual-ceremony-message",
@@ -62,6 +68,9 @@ function evaluateSignature(signature, policy) {
   if (signingDomain === null || fromDomain === null || signingDomain !== fromDomain) {
     failures.push("strict_alignment_failed")
   }
+  if (policy.expectedDomain !== null && fromDomain !== policy.expectedDomain) {
+    failures.push("configured_domain_mismatch")
+  }
   for (const requiredHeader of policy.requiredSignedHeaders) {
     if (!signedHeaders.has(requiredHeader)) {
       failures.push(`required_header_missing:${requiredHeader}`)
@@ -101,6 +110,9 @@ export function evaluateCompatibility(evidence, options = {}) {
   if (!CONFIDENCE_LEVELS.has(confidence)) throw new Error("unsupported confidence level")
 
   const policy = {
+    expectedDomain: options.policy?.expectedDomain === undefined
+      ? null
+      : canonicalDomain(options.policy.expectedDomain),
     requiredSignedHeaders: normalizedStrings(
       options.policy?.requiredSignedHeaders ?? DEFAULT_POLICY.requiredSignedHeaders,
     ),
@@ -112,6 +124,9 @@ export function evaluateCompatibility(evidence, options = {}) {
         ?? DEFAULT_POLICY.supportedHeaderCanonicalizations,
     ),
     signerTimePolicy: options.policy?.signerTimePolicy ?? DEFAULT_POLICY.signerTimePolicy,
+  }
+  if (options.policy?.expectedDomain !== undefined && policy.expectedDomain === null) {
+    throw new Error("expected domain is invalid")
   }
   if (policy.signerTimePolicy !== "record-only") {
     throw new Error("only the committed record-only signer-time policy is supported")
