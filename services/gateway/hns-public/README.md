@@ -34,6 +34,10 @@ It is the server-side counterpart to Freedom's HNS browsing path:
 - `HNS_PUBLIC_APP_ORIGIN`
 - `HNS_PUBLIC_FORWARDER_HMAC_KEY` (at least 32 random bytes; must match the
   Worker's `HNS_FORWARDER_HMAC_KEY` secret)
+- `HNS_PUBLIC_NAMESPACE_RESOLVE_TIMEOUT_MS` (default `2000`)
+- `HNS_PUBLIC_NAMESPACE_CACHE_TTL_MS` (default `30000`)
+- `HNS_PUBLIC_NAMESPACE_CACHE_STALE_MS` (default `300000` after the fresh TTL)
+- `HNS_PUBLIC_NAMESPACE_CACHE_MAX_ENTRIES` (default `2048`)
 - `HNS_PUBLIC_CADDY_ASK_PORT` (always bound to `127.0.0.1`)
 - `HNS_PUBLIC_CADDY_ASK_DB_PATH`
 - `HNS_PUBLIC_CADDY_MAX_HOSTS_PER_NAMESPACE`

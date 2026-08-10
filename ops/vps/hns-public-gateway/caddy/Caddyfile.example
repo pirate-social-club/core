@@ -32,9 +32,11 @@ https:// {
 	tls internal {
 		on_demand
 	}
+	encode zstd gzip
 	reverse_proxy 127.0.0.1:4049
 }
 
 http:// {
+	encode zstd gzip
 	reverse_proxy 127.0.0.1:4049
 }

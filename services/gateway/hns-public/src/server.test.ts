@@ -811,7 +811,61 @@ describe("handleRequest", () => {
       root: "xn--pokmon-dva",
     });
     expect(calls[1].headers.has("host")).toBe(false);
-    expect(calls[1].headers.get("accept-encoding")).toBe("identity");
+    expect(calls[1].headers.get("accept-encoding")).toBeNull();
+  });
+
+  test("caches and coalesces imported namespace resolution", async () => {
+    let namespaceCalls = 0;
+    const fetchImpl: typeof fetch = async (url) => {
+      if (String(url).endsWith("/public-namespaces/coalesced-root")) {
+        namespaceCalls += 1;
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        return Response.json({
+          root_label: "coalesced-root",
+          namespace_verification: "nv_coalesced",
+          community: { id: "com_coalesced", display_name: "Coalesced", route_slug: "coalesced-root" },
+        });
+      }
+      return new Response("community page");
+    };
+
+    const responses = await Promise.all([
+      handleRequest(new Request("https://coalesced-root/"), env, fetchImpl),
+      handleRequest(new Request("https://app.coalesced-root/"), env, fetchImpl),
+    ]);
+    const cached = await handleRequest(new Request("https://coalesced-root/p/post-1"), env, fetchImpl);
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    expect(cached.status).toBe(200);
+    expect(namespaceCalls).toBe(1);
+  });
+
+  test("serves stale namespace resolution when refresh fails", async () => {
+    let namespaceCalls = 0;
+    let failRefresh = false;
+    const fetchImpl: typeof fetch = async (url) => {
+      if (String(url).endsWith("/public-namespaces/stale-root")) {
+        namespaceCalls += 1;
+        if (failRefresh) return new Response("unavailable", { status: 503 });
+        return Response.json({
+          root_label: "stale-root",
+          namespace_verification: "nv_stale",
+          community: { id: "com_stale", display_name: "Stale", route_slug: "stale-root" },
+        });
+      }
+      return new Response("community page");
+    };
+    const cacheEnv = {
+      ...env,
+      HNS_PUBLIC_NAMESPACE_CACHE_STALE_MS: "10000",
+      HNS_PUBLIC_NAMESPACE_CACHE_TTL_MS: "1",
+    };
+
+    expect((await handleRequest(new Request("https://stale-root/"), cacheEnv, fetchImpl)).status).toBe(200);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    failRefresh = true;
+    expect((await handleRequest(new Request("https://stale-root/p/post-1"), cacheEnv, fetchImpl)).status).toBe(200);
+    expect(namespaceCalls).toBe(2);
   });
 
   test("signs imported HNS proxy requests with a timestamped HMAC", async () => {

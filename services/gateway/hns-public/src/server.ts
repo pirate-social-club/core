@@ -30,7 +30,100 @@ export type HnsPublicGatewayEnv = CaddyAskEnv & {
   HNS_PUBLIC_GATEWAY_EXTERNAL_SCHEME?: string;
   HNS_PUBLIC_APP_ORIGIN?: string;
   HNS_PUBLIC_FORWARDER_HMAC_KEY?: string;
+  HNS_PUBLIC_NAMESPACE_CACHE_TTL_MS?: string;
+  HNS_PUBLIC_NAMESPACE_CACHE_STALE_MS?: string;
+  HNS_PUBLIC_NAMESPACE_CACHE_MAX_ENTRIES?: string;
+  HNS_PUBLIC_NAMESPACE_RESOLVE_TIMEOUT_MS?: string;
 };
+
+type CachedNamespaceResolution = {
+  freshUntil: number;
+  resolution: PublicNamespaceResolution | null;
+  staleUntil: number;
+};
+
+type NamespaceResolutionCache = {
+  entries: Map<string, CachedNamespaceResolution>;
+  inflight: Map<string, Promise<PublicNamespaceResolution | null>>;
+};
+
+const namespaceCaches = new WeakMap<typeof fetch, NamespaceResolutionCache>();
+
+function positiveInteger(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
+function namespaceCacheFor(fetchImpl: typeof fetch): NamespaceResolutionCache {
+  const existing = namespaceCaches.get(fetchImpl);
+  if (existing) return existing;
+  const created = { entries: new Map(), inflight: new Map() };
+  namespaceCaches.set(fetchImpl, created);
+  return created;
+}
+
+async function resolveImportedNamespace(input: {
+  apiOrigin: string;
+  env: HnsPublicGatewayEnv;
+  fetchImpl: typeof fetch;
+  rootLabel: string;
+}): Promise<PublicNamespaceResolution | null> {
+  const cache = namespaceCacheFor(input.fetchImpl);
+  const key = `${input.apiOrigin}\n${input.rootLabel}`;
+  const now = Date.now();
+  const cached = cache.entries.get(key);
+  if (cached && cached.freshUntil > now) return cached.resolution;
+
+  const pending = cache.inflight.get(key);
+  if (pending) return pending;
+
+  const request = (async () => {
+    try {
+      const response = await input.fetchImpl(
+        `${input.apiOrigin}/public-namespaces/${encodeURIComponent(input.rootLabel)}`,
+        {
+          headers: { accept: "application/json" },
+          redirect: "manual",
+          signal: AbortSignal.timeout(positiveInteger(
+            input.env.HNS_PUBLIC_NAMESPACE_RESOLVE_TIMEOUT_MS,
+            2_000,
+          )),
+        },
+      );
+      let resolution: PublicNamespaceResolution | null;
+      if (response.status === 404) {
+        resolution = null;
+      } else if (response.ok) {
+        resolution = await response.json() as PublicNamespaceResolution;
+      } else {
+        throw new Error(`Namespace resolution failed with ${response.status}`);
+      }
+      const storedAt = Date.now();
+      const ttl = positiveInteger(input.env.HNS_PUBLIC_NAMESPACE_CACHE_TTL_MS, 30_000);
+      const stale = positiveInteger(input.env.HNS_PUBLIC_NAMESPACE_CACHE_STALE_MS, 300_000);
+      cache.entries.delete(key);
+      cache.entries.set(key, {
+        freshUntil: storedAt + ttl,
+        resolution,
+        staleUntil: storedAt + ttl + stale,
+      });
+      const maxEntries = positiveInteger(input.env.HNS_PUBLIC_NAMESPACE_CACHE_MAX_ENTRIES, 2_048);
+      while (cache.entries.size > maxEntries) {
+        const oldestKey = cache.entries.keys().next().value;
+        if (typeof oldestKey !== "string") break;
+        cache.entries.delete(oldestKey);
+      }
+      return resolution;
+    } catch (error) {
+      if (cached && cached.staleUntil > Date.now()) return cached.resolution;
+      throw error;
+    } finally {
+      cache.inflight.delete(key);
+    }
+  })();
+  cache.inflight.set(key, request);
+  return request;
+}
 
 export function buildCommunityPath(communityId: string, routeSlug: string | null): string {
   return `/c/${encodeURIComponent(routeSlug || communityId)}`;
@@ -340,7 +433,6 @@ function buildProxyHeaders(request: Request, url: URL): Headers {
     }
   }
 
-  headers.set("accept-encoding", "identity");
   headers.set("x-pirate-hns-host", url.hostname);
   return headers;
 }
@@ -458,27 +550,22 @@ async function proxyImportedNamespaceRequest(input: {
   if (!isValidForwarderHmacKey(secret)) {
     return renderForwarderConfigurationError();
   }
-  const namespaceResponse = await input.fetchImpl(
-    `${input.apiOrigin}/public-namespaces/${encodeURIComponent(input.namespaceHost.rootLabel)}`,
-    {
-      headers: { accept: "application/json" },
-      redirect: "manual",
-    },
-  );
-
-  if (namespaceResponse.status === 404) {
-    return null;
-  }
-
-  if (!namespaceResponse.ok) {
+  let resolution: PublicNamespaceResolution | null;
+  try {
+    resolution = await resolveImportedNamespace({
+      apiOrigin: input.apiOrigin,
+      env: input.env,
+      fetchImpl: input.fetchImpl,
+      rootLabel: input.namespaceHost.rootLabel,
+    });
+  } catch {
     return renderErrorPage(
       "Imported namespace",
       "This imported HNS namespace could not be loaded right now.",
       502,
     );
   }
-
-  const resolution = await namespaceResponse.json() as PublicNamespaceResolution;
+  if (!resolution) return null;
   const headers = await buildSignedProxyHeaders({
     request: input.request,
     url: input.url,
