@@ -107,6 +107,35 @@ and five DMARC records, with no resolver errors. This is a tooling check only.
 The tiny, recognizable, hand-picked set is not a defined target population and
 supports no general compatibility percentage.
 
+## Client-side compatibility pre-flight
+
+The product should invert compatibility discovery at the user boundary rather
+than extrapolate from a hand-picked domain survey. Before session issuance, a
+user may select an existing raw email for a local advisory check. The browser
+must cryptographically verify the authenticated selected headers against DNS
+under the same header-only policy as the circuit, then check strict alignment,
+signed-field coverage, algorithm, canonicalization, and export fidelity. Body
+hash integrity is reported separately and does not gate compatibility. Reusing
+only the structural inspector would be insufficient: the Proton export control
+already demonstrated that intact-looking DKIM headers can also fail header-only
+cryptographic verification.
+
+The result is path-specific, not automatically domain-wide. An externally
+delivered email from the same work mailbox through the same sender path,
+exported by the intended personal client, is strong evidence. Mail from another
+address at the same domain may use different infrastructure; internal delivery
+may omit DKIM; forwarding and recipient export can rewrite signed bytes. Those
+cases must be labeled weak evidence or inconclusive rather than "unsupported
+organization."
+
+The fresh ceremony email receives the same local compatibility check before
+the expensive proving step. That is the authoritative compatibility result for
+the actual message and prevents a late unexplained proof failure. The optional
+old-email pre-flight remains nonce-free and cannot mint a capability. Raw email
+never leaves the browser. Failed pre-flight telemetry is off by default because
+reporting it would reveal a user's possible affiliation and verification intent
+even when they never complete the gate.
+
 ## Proton same-mailbox From-presentation variation
 
 Observed 2026-08-05 from two distinct Proton custom-domain → Gmail messages,

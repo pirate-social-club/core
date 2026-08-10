@@ -25,6 +25,26 @@ It does **not** assert current employment (point-in-time only; mitigated by capa
 
 ## 2. Protocol (converged)
 
+**Optional advisory pre-flight (before session start).** A user may select an
+existing raw email locally to learn whether the observed sending/export path is
+likely compatible before beginning the ceremony. The browser must parse and
+cryptographically verify the DKIM header signature against DNS under the same
+header-only policy as the circuit, then check strict `d=`/From
+alignment, From/Subject coverage, supported key algorithm, export fidelity, and
+canonicalization compatibility. Body-hash integrity is reported separately but
+does not gate a header-only proof. Header presence or a matching unverified
+`d=` is insufficient. No nonce or proof is required because this step mints no
+capability and has no security authority. Confidence is explicit: an old
+external message from the same work mailbox, sent through the same outbound
+path and exported by the intended personal client is strong path evidence; a
+message from another mailbox at the domain is only weak domain evidence;
+internal delivery, forwarding, mailing lists, and rewriting exporters can cause
+false negatives. Return `compatible`, `incompatible`, or `inconclusive` with a
+local explanation, never an organization-wide claim. Raw email stays in the
+browser. Do not send pre-flight results or domains as product telemetry by
+default; any future aggregate measurement requires separate privacy review and
+explicit consent because failed attempts reveal affiliation and intent.
+
 1. **Session start.** API issues an opaque random nonce (≥128 bit) + server-side session record `{user_id, session_id, audience/env, purpose, expires_at}`. All transcript binding is via this server-side mapping — **no user/account-linkable data is ever embedded in the email** (subjects transit and are archived by employer mail infrastructure).
 2. **Ceremony: work→personal.** User sends an email from the work mailbox to a personal mailbox they can export from, using a fresh nonce in the subject, then exports the raw `.eml` from the receiving client. This is the measured viable path: external delivery traverses the DKIM signer and Gmail export preserved the signed message. The proof does not establish ownership of the recipient mailbox, so To is neither extracted nor disclosed; the session nonce already supplies freshness, intent, audience, and replay binding.
    **Why not self-send:** the measured Proton self-send contained no DKIM signature, while Proton→Gmail verified end-to-end. Internal delivery may bypass outbound DKIM signing on other providers too. Self-send remains corpus data, not the launch ceremony.
@@ -80,7 +100,7 @@ The spike answers all five; any hard failure kills or reshapes the feature.
 2. **Signed-field coverage:** are From and Subject demonstrably covered across the matrix (incl. multiple-signature messages)? Does the circuit extract only from the same canonicalized, DKIM-selected sequence that signature verification authenticates? Are duplicate-From attempts harmless, and do the blueprint regexes handle the observed header canonicalization modes?
 3. **Proving cost:** does local in-browser proving meet targets — desktop ≤ 60s / ≤ 4GB, mid-range Android phone ≤ 3min without OOM? (Numbers are targets to refine, but must be measured, not estimated.)
 4. **Dedup and gate semantics — RESOLVED:** `email_domain` is an affiliation badge. Global digest/HMAC dedup is best-effort defense-in-depth; aliases and presentation variants are not treated as a personhood boundary. Gate-author UX must recommend composition with Self/ZKPassport when Sybil resistance matters, and the digest-handling controls must satisfy the §3 per-adversary limits.
-5. **Ceremony completion rate:** can a non-expert complete nonce → work→personal send → recipient export `.eml` → prove, per receiving client, following written instructions? (Gmail "Show original → Download", Outlook varies — document per-client paths; compare Gmail-query-based `.eml` acquisition from the SDK docs.)
+5. **Ceremony completion rate:** can a non-expert complete optional local pre-flight → nonce → work→personal send → recipient export `.eml` → local validation → prove, per receiving client, following written instructions? (Gmail "Show original → Download", Outlook varies — document per-client paths; compare Gmail-query-based `.eml` acquisition from the SDK docs.)
 
 ## 6. Spike tasks
 
@@ -92,6 +112,7 @@ Isolation rule: everything lives in a scratch repo / `spike/` directory — **ze
 - [ ] A1c. **Same-mailbox presentation/alias Sybil check:** from one work mailbox, send fresh-nonce work→personal samples while varying only permitted From presentation (display name present/absent and casing where the provider UI/API allows it), then compare the exact signed/extracted From bytes and prospective digests. Separately test supported-provider aliases such as plus-addressing. Record whether the provider canonicalizes, rejects, or signs each variant. Provider canonicalization is evidence for that provider/configuration, not a circuit guarantee or a safe assumption for every allowed domain.
 - [ ] A2. For each: record `d=`, `s=`, full `h=` list including the number/position of `from` occurrences, header/body canonicalization (`c=`), signer timestamp/expiration (`t=`/`x=`) and validity-window length, key alg/size, and From/Subject coverage, then cryptographically verify the signature and body hash against the published DNS key. Oversigning remains useful corpus metadata but is not an eligibility requirement: the circuit receives only the canonicalized headers selected by `h=`. Record whether each canonicalized header form matches the draft regexes. Structural inspection is triage only. Produce the alignment/canonicalization/signature-window/verification pass-rate table → feeds go/no-go Q1/Q2.
 - [ ] A2a. **Passive DNS fingerprint survey:** pre-register a target population and sampling rule, then probe the default Workspace selector (`google`), both documented M365 selectors (`selector1`/`selector2`), and DMARC. Report this separately from message compatibility. A positive selector is only evidence that a record is published (it may be stale/inactive); a negative Workspace default-selector probe is inconclusive because administrators can choose another selector; dual-provider records do not identify the active outbound path; DMARC may pass through SPF. Actual compatibility still requires a cryptographically verified, strictly aligned message. Use `survey-dkim-dns.mjs`; keep labeled domain inputs ignored and publish only reviewed aggregate metadata.
+- [ ] A2b. **Local pre-flight prototype:** reuse the structural and cryptographic verifier logic in a browser-only spike. Accept an existing `.eml`, keep it local, and return `compatible`/`incompatible`/`inconclusive` plus confidence (`same-mailbox external path` or `other-domain mailbox evidence`). Match the circuit's header-only policy: verify the authenticated selected headers against DNS, report body-hash integrity separately, and do not reject a body-only rewrite. Confirm invalid header signatures, signed-header rewriting, no-signature internal mail, forwarding, unsupported algorithms/canonicalization, and unaligned `d=` are distinguished rather than collapsed. Repeat the same checks on the fresh ceremony email before proving. No telemetry in the spike.
 - [ ] A3. Corpus handling: raw `.eml` files stay in a gitignored, access-restricted local directory; are never committed, uploaded, logged, or attached to issues; use dedicated test mailboxes where possible; publish only manually reviewed/redacted metadata and synthetic fixtures; document retention and securely delete raw samples when the spike ends.
 
 ### Phase B — blueprint
@@ -119,13 +140,17 @@ Isolation rule: everything lives in a scratch repo / `spike/` directory — **ze
 ### Phase F — write-ups (gate the go/no-go)
 - [ ] F1. Threat-model note = §3 table finalized, incl. explicit "not operator-blind" statement + OPRF future-work note.
 - [ ] F2. Key-trust policy note = §4 checklist answered.
-- [ ] F3. Ceremony UX note: per-client `.eml` export instructions + observed completion friction → Q5.
+- [ ] F3. Ceremony UX note: optional pre-flight confidence/explanations, per-client `.eml` export instructions, fresh-email validation before proving, and observed completion friction → Q5.
 - [ ] F4. Go/no-go memo answering Q1–Q5 with data.
 
 ## 7. Test matrix (spike acceptance)
 
 | # | Case | Expected |
 |---|---|---|
+| T0a | Existing external email from the same work mailbox/path, valid aligned DKIM | Advisory `compatible`; no capability or authoritative organization-wide claim |
+| T0b | Existing email from another mailbox at the domain, valid aligned DKIM | Advisory `compatible` with weak domain-evidence confidence |
+| T0c | Internal/forwarded/header-rewritten existing email with absent or invalid header signature | Advisory `inconclusive` unless a verified unaligned signature establishes incompatibility for the sampled path |
+| T0d | Body rewritten but authenticated selected headers still verify | Advisory `compatible` under header-only circuit policy; report body-hash mismatch separately |
 | T1 | Workspace corp→personal, fresh nonce | PASS; outputs domain + digest |
 | T2 | M365 corp→personal, fresh nonce | PASS |
 | T3 | Consumer gmail.com→personal | PASS proof, FAIL gate (domain not in allowlist) — control |
