@@ -12,6 +12,7 @@ export { extractImportedNamespaceHost, extractPublicProfileHost } from "./hostna
 type PublicNamespaceResolution = {
   root_label: string;
   namespace_verification: string | null;
+  wallet_interactive?: boolean;
   community: {
     id: string;
     display_name: string | null;
@@ -436,6 +437,7 @@ async function proxyImportedNamespaceRequest(input: {
   headers.set("x-pirate-hns-root", resolution.root_label);
   headers.set("x-pirate-hns-community-id", resolution.community.id);
   headers.set("x-pirate-hns-community-route", resolution.community.route_slug);
+  headers.set("x-pirate-hns-wallet-interactive", resolution.wallet_interactive === true ? "1" : "0");
   if (input.namespaceHost.subdomain) {
     headers.set("x-pirate-hns-subdomain", input.namespaceHost.subdomain);
   }

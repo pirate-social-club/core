@@ -732,6 +732,7 @@ describe("handleRequest", () => {
           return Response.json({
             root_label: "xn--pokmon-dva",
             namespace_verification: "nv_namespace_public_test",
+            wallet_interactive: true,
             community: {
               id: "com_cmt_public_namespace_test",
               display_name: "Imported Root",
@@ -755,6 +756,7 @@ describe("handleRequest", () => {
     expect(calls[1].headers.get("x-pirate-hns-root")).toBe("xn--pokmon-dva");
     expect(calls[1].headers.get("x-pirate-hns-community-id")).toBe("com_cmt_public_namespace_test");
     expect(calls[1].headers.get("x-pirate-hns-community-route")).toBe("xn--pokmon-dva");
+    expect(calls[1].headers.get("x-pirate-hns-wallet-interactive")).toBe("1");
     expect(calls[1].headers.has("x-pirate-hns-forwarder-token")).toBe(false);
     expect(calls[1].headers.has("host")).toBe(false);
     expect(calls[1].headers.get("accept-encoding")).toBe("identity");
