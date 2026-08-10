@@ -118,6 +118,8 @@ another server.
 A defensible design requires at least:
 
 - SMTP TLS termination and plaintext parsing inside the measured workload;
+- an MX TLS private key generated or released only inside an approved
+  measurement, with the key never available to the host or operator;
 - receipt-key release restricted to approved measurements;
 - reproducible workload images and published accepted measurements;
 - a public append-only log of accepted measurement/key/policy transitions;
@@ -128,13 +130,41 @@ A defensible design requires at least:
 - alerting plus capability-issuance shutdown on unexplained route or
   measurement changes.
 
-These controls make silent change detectable and reduce downgrade paths. They
-do not prove that plaintext was never copied: MTA-STS authenticates an MX
-hostname/certificate, DANE binds mail TLS material under DNSSEC, and neither
-standard natively binds SMTP delivery to a TEE measurement. Pirate also controls
-its DNS policy unless that authority is separately governed. A transparency log
-detects logged changes, but cannot by itself prevent an unlogged/race-window MX
-reroute or a collector that forwards a copy into the legitimate workload.
+### Attestation-gated MX TLS key
+
+Keeping the MX hostname's TLS private key inside the measured workload
+materially narrows the reroute hole. The key manager releases or unwraps it only
+after validating the workload measurement. A different host cannot terminate
+TLS as that endpoint with the pinned key; a TCP proxy can relay encrypted bytes
+to the real workload but cannot read them. The measured workload must also keep
+decrypted SMTP bytes internal rather than forwarding plaintext to its host.
+
+This pattern exists in current confidential-computing infrastructure: enclave
+KMS policies can condition cryptographic operations on measurements, and ACM
+for Nitro Enclaves keeps TLS private keys isolated from the parent. Its packaged
+integration currently targets supported web servers, so SMTP/PKCS#11 wiring is
+a feasibility task, not an assumed product feature.
+
+The resulting guarantee depends on sender enforcement:
+
+| Sender behavior | Effect of rerouting away from the attested key holder |
+|---|---|
+| DANE-validating SMTP with DNSSEC TLSA pinned to the enclave-held SPKI | Delivery must fail unless the TLS key is compromised or a DNSSEC-authorized TLSA change is made. The latter is externally monitorable. |
+| MTA-STS-enforcing SMTP | The replacement must present a publicly trusted certificate for an allowed MX hostname. Certificate Transparency monitoring can expose normal public-CA issuance, but MTA-STS itself neither pins the original SPKI nor mandates CT. |
+| Opportunistic SMTP without DANE/MTA-STS enforcement | No strong route binding. A DNS/MX controller may redirect delivery to another TLS endpoint or downgrade according to sender behavior. |
+
+This is materially stronger than a bare transparency log. For enforcing
+senders it changes silent rerouting from an ordinary operator action into key
+compromise, a DNSSEC-authorized policy change, or publicly observable
+certificate issuance under the required CA/CT policy.
+
+Residual limits remain. Neither MTA-STS nor DANE natively names a TEE
+measurement; the binding is indirect through exclusive possession of the TLS
+key. Pirate controls its DNS and certificate issuance unless those authorities
+are separately governed. Certificate, TLSA, and measurement monitors have a
+detection interval, and non-enforcing senders retain the weak opportunistic
+path. A transparency log also cannot prevent an unlogged/race-window policy
+change; it can only make governed changes auditable and trigger shutdown.
 
 Therefore the strongest honest dead-drop guarantee is **attested and publicly
 auditable operator isolation under an explicitly governed mail route**, not a
@@ -144,7 +174,9 @@ References:
 
 - [DKIM signed-header semantics (RFC 6376)](https://www.rfc-editor.org/info/rfc6376/)
 - [MTA-STS and its SMTP TLS threat model (RFC 8461)](https://www.rfc-editor.org/info/rfc8461/)
+- [DANE authentication for SMTP (RFC 7672)](https://www.rfc-editor.org/info/rfc7672/)
 - [AWS Nitro Enclaves isolation and attestation](https://docs.aws.amazon.com/enclaves/latest/user/security.html)
+- [TLS private-key isolation with ACM for Nitro Enclaves](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave-refapp.html)
 - [Google Confidential VM remote attestation](https://docs.cloud.google.com/confidential-computing/confidential-vm/docs/attestation-overview)
 - [Azure confidential VM overview](https://learn.microsoft.com/en-us/azure/confidential-computing/confidential-vm-overview)
 
