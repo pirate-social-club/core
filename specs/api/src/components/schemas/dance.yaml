@@ -1,0 +1,207 @@
+DanceSessionStatus:
+  type: string
+  enum:
+    - initialized
+    - uploading
+    - submitted
+    - grading
+    - finalized
+    - rejected
+    - failed
+    - expired
+DanceAttemptStatus:
+  type: string
+  enum:
+    - initialized
+    - uploading
+    - submitted
+    - grading
+    - passed
+    - rejected
+    - failed
+    - expired
+DanceAttemptReason:
+  type: string
+  nullable: true
+  enum:
+    - video_invalid
+    - upload_invalid
+    - duration_out_of_range
+    - insufficient_coverage
+    - insufficient_pose_presence
+    - multiple_people
+    - reference_replay
+    - duplicate_attempt
+    - scoring_unavailable
+    - below_platform_floor
+    - version_mismatch
+    - insufficient_motion
+    - insufficient_alignment
+    - session_expired
+DanceSession:
+  type: object
+  required:
+    - id
+    - object
+    - attempt
+    - post
+    - choreography
+    - choreography_revision
+    - status
+    - max_bytes
+    - expires_at
+    - created
+  properties:
+    id:
+      type: string
+    object:
+      type: string
+      enum:
+        - dance_session
+    attempt:
+      type: string
+    post:
+      type: string
+    choreography:
+      type: string
+    choreography_revision:
+      type: string
+    status:
+      $ref: ./dance.yaml#/DanceSessionStatus
+    max_bytes:
+      type: integer
+      format: int64
+      minimum: 1
+    expires_at:
+      type: integer
+      format: int64
+    created:
+      type: integer
+      format: int64
+DanceAttempt:
+  type: object
+  required:
+    - id
+    - object
+    - session
+    - post
+    - choreography_revision
+    - status
+    - score_bps
+    - rank_eligible
+    - reason
+    - completed_at
+  properties:
+    id:
+      type: string
+    object:
+      type: string
+      enum:
+        - dance_attempt
+    session:
+      type: string
+    post:
+      type: string
+    choreography_revision:
+      type: string
+    status:
+      $ref: ./dance.yaml#/DanceAttemptStatus
+    score_bps:
+      type: integer
+      nullable: true
+      minimum: 0
+      maximum: 10000
+    rank_eligible:
+      type: boolean
+      nullable: true
+    reason:
+      $ref: ./dance.yaml#/DanceAttemptReason
+    coverage_bps:
+      type: integer
+      nullable: true
+      minimum: 0
+      maximum: 10000
+    pose_detection_bps:
+      type: integer
+      nullable: true
+      minimum: 0
+      maximum: 10000
+    duration_ratio_bps:
+      type: integer
+      nullable: true
+      minimum: 0
+      maximum: 20000
+    completed_at:
+      type: integer
+      format: int64
+      nullable: true
+DanceChoreographyReference:
+  type: object
+  required:
+    - url
+    - mime_type
+    - duration_ms
+    - width
+    - height
+  properties:
+    url:
+      type: string
+      format: uri
+    mime_type:
+      type: string
+      enum:
+        - video/mp4
+        - video/webm
+        - video/quicktime
+    duration_ms:
+      type: integer
+      minimum: 1000
+      maximum: 90000
+    width:
+      type: integer
+      minimum: 1
+    height:
+      type: integer
+      minimum: 1
+DanceChoreography:
+  type: object
+  required:
+    - id
+    - object
+    - community
+    - post
+    - song_post
+    - song_artifact_bundle
+    - creator
+    - official
+    - revision
+    - mirror_policy
+    - reference
+  properties:
+    id:
+      type: string
+    object:
+      type: string
+      enum:
+        - dance_choreography
+    community:
+      type: string
+    post:
+      type: string
+    song_post:
+      type: string
+    song_artifact_bundle:
+      type: string
+    creator:
+      type: string
+    official:
+      type: boolean
+    revision:
+      type: string
+    mirror_policy:
+      type: string
+      enum:
+        - strict
+        - allowed
+    reference:
+      $ref: ./dance.yaml#/DanceChoreographyReference

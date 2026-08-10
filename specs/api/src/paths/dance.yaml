@@ -1,0 +1,122 @@
+dance_sessions_by_dance_session_id:
+  parameters:
+    - in: path
+      name: dance_session_id
+      required: true
+      schema:
+        type: string
+  get:
+    x-implemented: true
+    operationId: dance_session_retrieve
+    tags:
+      - Dance
+    summary: Get an owned dance session
+    responses:
+      "200":
+        description: Current session state
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/dance.yaml#/DanceSession
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+dance_sessions_by_dance_session_id_cancel:
+  parameters:
+    - in: path
+      name: dance_session_id
+      required: true
+      schema:
+        type: string
+  post:
+    x-implemented: true
+    operationId: dance_session_cancel
+    tags:
+      - Dance
+    summary: Cancel an owned unsubmitted dance session
+    responses:
+      "200":
+        description: Cancelled or already-cancelled session
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/dance.yaml#/DanceSession
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+dance_attempts_by_dance_attempt_id:
+  parameters:
+    - in: path
+      name: dance_attempt_id
+      required: true
+      schema:
+        type: string
+  get:
+    x-implemented: true
+    operationId: dance_attempt_retrieve
+    tags:
+      - Dance
+    summary: Get an owned dance attempt
+    responses:
+      "200":
+        description: Current attempt state and bounded grading outcome
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/dance.yaml#/DanceAttempt
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+dance_choreographies_by_dance_choreography_id:
+  parameters:
+    - in: path
+      name: dance_choreography_id
+      required: true
+      schema:
+        type: string
+  get:
+    x-implemented: true
+    operationId: dance_choreography_retrieve
+    tags:
+      - Dance
+    summary: Get a ready dance choreography
+    responses:
+      "200":
+        description: Ready active choreography revision
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/dance.yaml#/DanceChoreography
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+posts_by_post_id_dance_choreography:
+  parameters:
+    - in: path
+      name: post_id
+      required: true
+      schema:
+        type: string
+  get:
+    x-implemented: true
+    operationId: post_dance_choreography_retrieve
+    tags:
+      - Dance
+    summary: Get the ready dance choreography hosted by a post
+    responses:
+      "200":
+        description: Ready active choreography revision
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/dance.yaml#/DanceChoreography
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
