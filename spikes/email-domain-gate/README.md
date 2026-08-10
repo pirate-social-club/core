@@ -86,3 +86,35 @@ rtk .venv/bin/python verify-dkim.py \
   --ignore-body-hash \
   --out results/gmail-to-proton.crypto.json
 ```
+
+## Passive DNS fingerprint survey
+
+`survey-dkim-dns.mjs` probes the default Workspace selector, both documented
+M365 selectors, and DMARC without collecting email. Keep the input file
+gitignored and use non-identifying labels:
+
+```json
+[
+  { "label": "target-001", "domain": "engineering.example" },
+  { "label": "target-002", "domain": "research.example" }
+]
+```
+
+```bash
+rtk node survey-dkim-dns.mjs \
+  --file survey-targets/employers.json \
+  --out results/employer-dkim-survey.json
+```
+
+The output never contains input domains or DNS values. It is a fingerprint
+survey, not a compatibility verdict:
+
+- Workspace permits a non-default selector, so absence at `google` is
+  inconclusive.
+- Published selector records may be stale or not activated.
+- Multiple provider fingerprints do not identify the active outbound route.
+- DMARC may pass through SPF alone and does not prove aligned DKIM.
+- Only a cryptographically verified message establishes gate compatibility.
+
+The target population and sampling rule must be fixed before running a survey;
+an ad-hoc list of recognizable domains cannot support a general coverage rate.

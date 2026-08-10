@@ -74,6 +74,39 @@ starts authentication, recollect the work→personal sample. A passing Workspace
 provider result remains open until that replacement has strict `d=`/From
 alignment. No identifying domain or mailbox value is recorded here.
 
+## Passive DNS survey limits and Workspace fallback policy
+
+Known-selector DNS probes are useful for prioritizing corpus collection, but
+they cannot measure gate compatibility by themselves. Workspace documents
+`google` as the recommended default while allowing a different selector;
+therefore a miss is not proof that aligned DKIM is absent. A published record
+can be stale or not activated, and records for multiple providers do not reveal
+which outbound path is active. M365 documents fixed `selector1` and `selector2`
+hostnames, making that fingerprint more complete, but still not proof of active
+aligned signing. DMARC publication is not a substitute because DMARC can pass
+through SPF alone.
+
+The observed Workspace fallback `d=` embeds a hyphen-mangled representation of
+the From domain plus provider-controlled suffixes. It is not accepted as a
+launch alignment rule. The convention is undocumented as an authorization
+contract, the mangling is not injective across all valid domain spellings, and
+there is no published guarantee that allocation and rotation preserve the
+binding required by this gate. Accepting it would replace strict DKIM alignment
+with provider-specific trust. It remains a possible research compatibility
+extension only if the provider documents the invariant or an adversarial study
+establishes a safe, collision-resistant rule.
+
+The spike now includes `survey-dkim-dns.mjs` for a labeled, non-identifying
+fingerprint survey. A target population and sampling rule must be chosen before
+using its aggregates as product evidence. Cryptographically verified messages
+remain the provider-matrix ground truth.
+
+The harness reproduced the initial five-domain seed observation on 2026-08-10:
+four default Workspace-selector fingerprints, one M365-selector fingerprint,
+and five DMARC records, with no resolver errors. This is a tooling check only.
+The tiny, recognizable, hand-picked set is not a defined target population and
+supports no general compatibility percentage.
+
 ## Proton same-mailbox From-presentation variation
 
 Observed 2026-08-05 from two distinct Proton custom-domain → Gmail messages,

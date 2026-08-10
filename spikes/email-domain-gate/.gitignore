@@ -1,5 +1,6 @@
 corpus/*
 !corpus/README.md
 results/*.json
+survey-targets/*.json
 .venv/
 __pycache__/
