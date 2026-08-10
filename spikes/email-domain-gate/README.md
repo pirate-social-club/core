@@ -118,3 +118,33 @@ survey, not a compatibility verdict:
 
 The target population and sampling rule must be fixed before running a survey;
 an ad-hoc list of recognizable domains cannot support a general coverage rate.
+
+## Shared compatibility policy
+
+`compatibility-policy.mjs` is the single spike policy for advisory pre-flight,
+fresh-message pre-proof validation, and future API post-proof enforcement. Each
+path supplies normalized evidence; none reimplements strict alignment, signed
+header coverage, algorithm, canonicalization, deterministic signature
+selection, or signer-time policy.
+
+The Python verifier's derived `gate_usable` and `--expect` values remain Phase A
+corpus diagnostics for backward compatibility. They are not consumed by the
+shared module and are not product policy. The corpus conformance command below
+is the drift gate between cryptographic evidence and compatibility decisions.
+
+Run the self-contained policy tests:
+
+```bash
+rtk node --test compatibility-policy.test.mjs
+```
+
+After regenerating the ignored `results/*.crypto.json` evidence with
+`verify-dkim.py --ignore-body-hash --signature-time-policy record-only`, run the
+private corpus conformance suite:
+
+```bash
+rtk node compatibility-policy.corpus.mjs
+```
+
+This module is spike-only. It has no production UI, gate-builder integration,
+API provider plumbing, or deployment authorization.

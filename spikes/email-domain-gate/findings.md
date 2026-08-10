@@ -136,6 +136,51 @@ never leaves the browser. Failed pre-flight telemetry is off by default because
 reporting it would reveal a user's possible affiliation and verification intent
 even when they never complete the gate.
 
+The pre-flight, fresh-message check, and future API post-proof enforcement must
+consume one shared pure policy module. Only evidence acquisition differs. This
+prevents the structural-versus-cryptographic drift already observed in the
+corpus from recurring at the product-policy layer. The spike module is an
+explicit exception to the no-product-work rule: it remains local and unstyled,
+with no gate-builder/API integration or deployment while circuit correctness
+and proving cost remain unresolved.
+
+Advisory browser verification necessarily performs a network lookup for the
+DKIM key. It must query a neutral public DoH resolver directly rather than a
+Pirate endpoint. The resolver learns the user's network address and `{d,s}`
+query, while Pirate learns nothing from an abandoned pre-flight. This resolver
+is not trusted for authorization: an incorrect answer can only change the local
+recommendation, because the real proof path independently resolves and pins the
+key server-side.
+
+The installed ZK Email helper's default HTTP resolver queries two public DoH
+providers and compares their results. The browser adapter must not inherit that
+behavior silently: it would expose the same candidate `{d,s}` query to two
+parties. The spike requires explicit resolver injection and one disclosed
+neutral resolver for advisory checks. Production resolver selection remains a
+reviewed privacy/availability choice, not an SDK default.
+
+Expired signer `x=` is part of the shared conformance suite. Under the committed
+record-only policy it remains compatible when the authenticated selected
+headers satisfy all other obligations; expiration is a warning, not a failure.
+
+The spike-local pure policy core is now implemented in
+`compatibility-policy.mjs`. It owns exact domain comparison, required signed
+headers, supported algorithm/canonicalization, record-only signer time,
+header-only body handling, and deterministic first-eligible signature
+selection. The verifier adapter supplies raw evidence and the post-proof adapter
+requires proof verification plus a pinned-key match before policy evaluation.
+The module ignores the verifier's older derived `gate_usable` fields so they
+cannot become a second policy implementation.
+
+The six-sample private corpus conformance run currently produces three
+compatible expired-signature cases, one strict-alignment incompatibility, one
+invalid-header-signature inconclusive case, and one no-signature inconclusive
+case. Synthetic tests additionally cover body-only rewriting, missing signed
+headers, unsupported algorithm/canonicalization, malformed domains,
+multi-signature selection, cross-context consistency, and post-proof fail
+closed behavior. The browser cryptographic/DoH evidence adapter remains A2b's
+next step; no production integration has started.
+
 ## Proton same-mailbox From-presentation variation
 
 Observed 2026-08-05 from two distinct Proton custom-domain → Gmail messages,

@@ -140,6 +140,9 @@ class VerifyDkimTest(unittest.TestCase):
         self.assertEqual(signature["header_canonicalization"], "simple")
         self.assertEqual(signature["body_canonicalization"], "relaxed")
         self.assertFalse(signature["draft_regex_header_assumption_met"])
+        self.assertEqual(signature["algorithm"], "rsa-sha256")
+        self.assertIn("from", signature["signed_headers"])
+        self.assertIn("subject", signature["signed_headers"])
 
     def test_no_signature_result_contains_no_message_material(self) -> None:
         message = (

@@ -244,6 +244,12 @@ def verify_message(
         signing_domain = canonical_domain(tags.get(b"d"))
         selector = tags.get(b"s")
         selector_text = selector.decode("ascii", errors="replace") if selector else None
+        algorithm = tags.get(b"a")
+        algorithm_text = (
+            algorithm.decode("ascii", errors="replace").lower()
+            if algorithm
+            else None
+        )
         signed_headers = [
             item.strip().lower()
             for item in tags.get(b"h", b"").split(b":")
@@ -303,6 +309,10 @@ def verify_message(
             "index": index,
             "signing_domain": signing_domain,
             "selector": selector_text,
+            "algorithm": algorithm_text,
+            "signed_headers": [
+                name.decode("ascii", errors="replace") for name in signed_headers
+            ],
             "canonicalization": canonicalization,
             "header_canonicalization": header_canonicalization,
             "body_canonicalization": body_canonicalization,
@@ -328,6 +338,9 @@ def verify_message(
     return {
         "schema_version": 3,
         "label": label,
+        # The policy owns alignment. Expose the canonical From domain only when
+        # a DKIM candidate exists; a no-signature diagnostic must not disclose it.
+        "from_domain": from_domain if signature_count > 0 else None,
         "observed_at_unix": observed_at,
         "signature_time_policy": signature_time_policy,
         "dkim_signature_count": signature_count,

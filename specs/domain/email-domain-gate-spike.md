@@ -45,6 +45,27 @@ browser. Do not send pre-flight results or domains as product telemetry by
 default; any future aggregate measurement requires separate privacy review and
 explicit consent because failed attempts reveal affiliation and intent.
 
+**One policy, three evidence adapters.** Compatibility predicates and
+deterministic signature selection live in one pure shared policy module. The
+optional pre-flight adapter supplies locally verified email evidence; the fresh
+ceremony adapter supplies the same evidence before proving; the future API
+adapter supplies verified proof outputs plus the pinned circuit/session facts.
+Adapters may establish facts differently, but must not reimplement alignment,
+signed-header, algorithm, canonicalization, or signer-time policy. The same
+normalized evidence must produce the same verdict in every path, and the private
+corpus plus synthetic fixtures are the shared module's conformance suite.
+
+**Advisory DNS privacy.** Browser verification requires a DKIM key lookup. The
+pre-flight uses one explicitly selected neutral public DNS-over-HTTPS resolver
+directly from the browser, not a Pirate endpoint, so Pirate does not learn candidate domains from
+users who abandon verification. The resolver observes the user's network
+address and the queried `{d,s}` name; disclose that dependency. A poisoned or
+incorrect advisory response can only misrecommend compatibility and cannot mint
+a capability. The real ceremony still resolves and pins the key server-side
+under §4 before accepting a proof. Do not inherit the installed helper's default
+dual-resolver lookup, which discloses the query to two providers; the adapter
+must inject the selected resolver explicitly.
+
 1. **Session start.** API issues an opaque random nonce (≥128 bit) + server-side session record `{user_id, session_id, audience/env, purpose, expires_at}`. All transcript binding is via this server-side mapping — **no user/account-linkable data is ever embedded in the email** (subjects transit and are archived by employer mail infrastructure).
 2. **Ceremony: work→personal.** User sends an email from the work mailbox to a personal mailbox they can export from, using a fresh nonce in the subject, then exports the raw `.eml` from the receiving client. This is the measured viable path: external delivery traverses the DKIM signer and Gmail export preserved the signed message. The proof does not establish ownership of the recipient mailbox, so To is neither extracted nor disclosed; the session nonce already supplies freshness, intent, audience, and replay binding.
    **Why not self-send:** the measured Proton self-send contained no DKIM signature, while Proton→Gmail verified end-to-end. Internal delivery may bypass outbound DKIM signing on other providers too. Self-send remains corpus data, not the launch ceremony.
@@ -76,6 +97,7 @@ email_domain: {
 | Other zk.email applications | The hosted `isHashed` path is not cryptographically app-scoped. If a raw digest escapes, another application hashing the same extracted From bytes can link it. Transient/off-chain handling is a security control. |
 | **Pirate operators** | **NOT address-private.** The verifier can enumerate likely addresses against the unsalted digest before HMAC. The HMAC provides at-rest breach containment, not operator-blindness. Operator-blindness would need threshold-OPRF / external evaluation — out of scope. |
 | Employer (mail admin, outbound logs, archives) | Sees an email to the user's chosen personal mailbox with an opaque, non-Pirate-branded verification subject. This leaks the personal recipient to the employer, but no Pirate account identifier or Pirate-controlled recipient. |
+| Public DoH resolver (optional pre-flight) | Sees the user's network address and queried DKIM `{d,s}` name, but never the mailbox, raw email, subject, or Pirate account. It is advisory only and is not trusted for grants. |
 | Replay / cross-deployment attacker | Nonce is single-use, server-mapped to `{user, session, audience, purpose, expiry}`, consumed atomically. A third party holding an old `.eml` from the target cannot produce the fresh nonce. |
 
 **Dedup scope and resolved product semantics:** keep the nullifier global (matching existing `identity_nullifiers`) as best-effort defense-in-depth, but classify `email_domain` as an **affiliation badge**, not an anti-Sybil primitive. It proves ability to send from the domain at verification time; it does not establish one person or one underlying mailbox. Communities needing one-person-one-account properties must compose it with an existing personhood gate such as Self or ZKPassport. The builder should make that composition the obvious default and must not imply that the email-domain atom alone provides Sybil resistance. PoW/browser checks may add abuse friction but are not equivalent to identity-backed personhood nullifiers.
@@ -106,13 +128,21 @@ The spike answers all five; any hard failure kills or reshapes the feature.
 
 Isolation rule: everything lives in a scratch repo / `spike/` directory — **zero product-code changes**. (This also removes any sequencing dependency on `asset_balance` landing end-to-end first; that ordering is organizational preference only.)
 
+**Deliberate carve-out:** A2b may implement a browser-compatible pure policy
+module and spike-local adapter because it directly measures Q1/Q5 and prevents
+policy drift. It is not authorization for production UI, styling, gate-builder
+integration, API provider plumbing, or deployment. Q3 proving cost remains
+unmeasured and can still kill the feature; no product build starts before all
+go/no-go questions pass.
+
 ### Phase A — corpus + ground truth
 - [ ] A1. Collect real `.eml` corpus: Google Workspace (custom domain), Microsoft 365 (custom domain), consumer Gmail/Outlook (should FAIL domain gates — `d=gmail.com` control case), forwarded mail (should FAIL nonce binding/alignment as applicable), mailing-list mail (should FAIL), plus-addressed sends, multi-`DKIM-Signature` messages, delegated-subdomain senders (`d=mail.acme.com` vs `From @acme.com` — expect FAIL under strict alignment; measure prevalence).
 - [ ] A1b. **Three-axis provider check:** measure independently whether (1) external outbound mail is DKIM-signed and strictly aligned, (2) same-tenant/self delivery traverses the DKIM signer, and (3) each supported personal-mailbox export is byte-faithful enough for full cryptographic DKIM verification. Test Workspace, M365, and Proton custom-domain as senders; test Gmail and Outlook as exporting personal mailboxes. Header presence is structural triage only. Optional starter lane while Workspace/M365 mailboxes are unavailable: Proton custom-domain (a `@proton.me` address only proves `proton.me`).
 - [ ] A1c. **Same-mailbox presentation/alias Sybil check:** from one work mailbox, send fresh-nonce work→personal samples while varying only permitted From presentation (display name present/absent and casing where the provider UI/API allows it), then compare the exact signed/extracted From bytes and prospective digests. Separately test supported-provider aliases such as plus-addressing. Record whether the provider canonicalizes, rejects, or signs each variant. Provider canonicalization is evidence for that provider/configuration, not a circuit guarantee or a safe assumption for every allowed domain.
 - [ ] A2. For each: record `d=`, `s=`, full `h=` list including the number/position of `from` occurrences, header/body canonicalization (`c=`), signer timestamp/expiration (`t=`/`x=`) and validity-window length, key alg/size, and From/Subject coverage, then cryptographically verify the signature and body hash against the published DNS key. Oversigning remains useful corpus metadata but is not an eligibility requirement: the circuit receives only the canonicalized headers selected by `h=`. Record whether each canonicalized header form matches the draft regexes. Structural inspection is triage only. Produce the alignment/canonicalization/signature-window/verification pass-rate table → feeds go/no-go Q1/Q2.
 - [ ] A2a. **Passive DNS fingerprint survey:** pre-register a target population and sampling rule, then probe the default Workspace selector (`google`), both documented M365 selectors (`selector1`/`selector2`), and DMARC. Report this separately from message compatibility. A positive selector is only evidence that a record is published (it may be stale/inactive); a negative Workspace default-selector probe is inconclusive because administrators can choose another selector; dual-provider records do not identify the active outbound path; DMARC may pass through SPF. Actual compatibility still requires a cryptographically verified, strictly aligned message. Use `survey-dkim-dns.mjs`; keep labeled domain inputs ignored and publish only reviewed aggregate metadata.
-- [ ] A2b. **Local pre-flight prototype:** reuse the structural and cryptographic verifier logic in a browser-only spike. Accept an existing `.eml`, keep it local, and return `compatible`/`incompatible`/`inconclusive` plus confidence (`same-mailbox external path` or `other-domain mailbox evidence`). Match the circuit's header-only policy: verify the authenticated selected headers against DNS, report body-hash integrity separately, and do not reject a body-only rewrite. Confirm invalid header signatures, signed-header rewriting, no-signature internal mail, forwarding, unsupported algorithms/canonicalization, and unaligned `d=` are distinguished rather than collapsed. Repeat the same checks on the fresh ceremony email before proving. No telemetry in the spike.
+- [x] A2b1. **Shared compatibility-policy core:** one browser-compatible pure module accepts normalized evidence and returns `compatible`/`incompatible`/`inconclusive` plus confidence and sanitized reason codes. It owns exact alignment, signed-header coverage, supported algorithm/canonicalization, record-only signer time, header-only body handling, and deterministic first-eligible signature selection. Verifier and future post-proof adapters feed evidence without consulting legacy `gate_usable` fields. Synthetic tests and the six-sample private corpus conformance run cover invalid header signatures, body/signed-header rewriting, no-signature mail, unsupported algorithms/canonicalization, unaligned `d=`, malformed domains, multi-signature selection, and expired `x=`. Keep it spike-local with no production UI or integration.
+- [ ] A2b2. **Browser cryptographic/DoH adapter:** accept an existing `.eml`, keep it local, cryptographically verify authenticated selected headers, and feed A2b1 for advisory pre-flight and fresh-message pre-proof validation. Inject one explicitly selected neutral public DoH resolver; do not use the installed helper's dual-resolver default, a Pirate pre-flight endpoint, or telemetry. Return path-scoped confidence and sanitized explanations. Confirm browser bundling and all corpus classifications before calling A2b complete.
 - [ ] A3. Corpus handling: raw `.eml` files stay in a gitignored, access-restricted local directory; are never committed, uploaded, logged, or attached to issues; use dedicated test mailboxes where possible; publish only manually reviewed/redacted metadata and synthetic fixtures; document retention and securely delete raw samples when the spike ends.
 
 ### Phase B — blueprint
@@ -151,6 +181,7 @@ Isolation rule: everything lives in a scratch repo / `spike/` directory — **ze
 | T0b | Existing email from another mailbox at the domain, valid aligned DKIM | Advisory `compatible` with weak domain-evidence confidence |
 | T0c | Internal/forwarded/header-rewritten existing email with absent or invalid header signature | Advisory `inconclusive` unless a verified unaligned signature establishes incompatibility for the sampled path |
 | T0d | Body rewritten but authenticated selected headers still verify | Advisory `compatible` under header-only circuit policy; report body-hash mismatch separately |
+| T0e | Existing email has valid aligned header signature but signer `x=` is past | Advisory `compatible`; record expiration warning but do not change policy |
 | T1 | Workspace corp→personal, fresh nonce | PASS; outputs domain + digest |
 | T2 | M365 corp→personal, fresh nonce | PASS |
 | T3 | Consumer gmail.com→personal | PASS proof, FAIL gate (domain not in allowlist) — control |
