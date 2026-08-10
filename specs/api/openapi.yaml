@@ -13980,6 +13980,8 @@ components:
         - id
         - object
         - display_name
+        - branding
+        - default_surface
         - status
         - provisioning_state
         - membership_mode
@@ -14031,6 +14033,13 @@ components:
         banner_ref:
           type: string
           nullable: true
+        branding:
+          $ref: "#/components/schemas/CommunityBranding"
+        default_surface:
+          type: string
+          enum:
+            - threads
+            - videos
         namespace_verification:
           type: string
           nullable: true
