@@ -5,6 +5,15 @@
 **Owner:** TBD
 **Scope:** Prove or refute that Pirate can gate communities on "member controls a mailbox at `acme.com`" using a DKIM-based ZK proof (`@zk-email/sdk` + a custom registry blueprint), without the address ever reaching Pirate.
 
+**Architecture fork (decision pending):** an attested SMTP dead drop could
+replace the export/local-proof ceremony, improve operator privacy with a
+TEE-held HMAC, and eliminate proving/export risks. It would also disclose a
+verification-service recipient to employer logs and make vendor attestation
+plus always-online SMTP a trust root. This is not authorized as an
+implementation or launch fallback. Decide one path using
+[`architecture-fork-local-zk-vs-tee.md`](../../spikes/email-domain-gate/architecture-fork-local-zk-vs-tee.md);
+do not ship a hybrid.
+
 ---
 
 ## 1. What the gate asserts

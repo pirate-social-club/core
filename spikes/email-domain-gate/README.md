@@ -2,6 +2,12 @@
 
 Phase A tooling for `specs/domain/email-domain-gate-spike.md`.
 
+The proposed attested SMTP dead-drop alternative is an unresolved architecture
+fork, not authorized product work. See
+[`architecture-fork-local-zk-vs-tee.md`](architecture-fork-local-zk-vs-tee.md)
+for the privacy/trust comparison and decision record. Continue DKIM alignment
+coverage work because it gates both architectures.
+
 Raw email is sensitive. Put samples only in `corpus/`; Git ignores everything
 there except its handling instructions. The tools emit sanitized metadata only:
 they never emit an address, subject, body, signature, DNS key, input path, or
