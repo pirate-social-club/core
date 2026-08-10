@@ -125,6 +125,37 @@ survey, not a compatibility verdict:
 The target population and sampling rule must be fixed before running a survey;
 an ad-hoc list of recognizable domains cannot support a general coverage rate.
 
+## Local received-mail coverage survey
+
+`survey-mail-archive.mjs` measures the actual domains represented in a local
+MBOX export. It streams headers and discards bodies, filters likely list,
+bulk, automated, and sent-folder messages before DKIM lookup, applies the shared
+compatibility policy, and emits aggregate counts only. Repeated correspondents
+collapse to one best observed verdict per From domain.
+
+Use a recent, inbox-scoped export where possible. Keep it outside the repository
+or under ignored `survey-archives/`, and write results under ignored `results/`:
+
+```bash
+rtk node survey-mail-archive.mjs \
+  --mbox /absolute/path/to/recent-inbox.mbox \
+  --since 2026-02-01 \
+  --out results/received-mail-coverage.json
+```
+
+The raw archive never enters the output, but the phrase "fully local" would be
+misleading: cryptographic verification performs live DKIM TXT lookups, exposing
+queried selector/domain names to the configured DNS path. Old selectors may no
+longer exist, so the explicit recent window is required. The output records
+filter counts, DNS lookup count, archive-age risk, and sampling bias; it contains
+no domain, address, subject, identifier, path, or header value.
+
+Run its synthetic tests with:
+
+```bash
+rtk node --test survey-mail-archive.test.mjs
+```
+
 ## Shared compatibility policy
 
 `compatibility-policy.mjs` is the single spike policy for advisory pre-flight,

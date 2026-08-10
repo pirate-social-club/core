@@ -206,6 +206,25 @@ parity. With those explicit compatibility choices the smoke bundle is
 overhead only; it does not answer the still-blocked proving-time/memory Q3. No
 production integration has started.
 
+## Received-mail coverage method
+
+The hand-picked-domain survey cannot support a compatibility percentage. The
+spike now has an aggregate-only alternative over a local MBOX export from an
+opt-in mailbox. It streams message headers without retaining bodies, excludes
+likely list/bulk/automated and sent-folder messages before any DKIM lookup,
+cryptographically evaluates remaining signed headers through the JavaScript
+evidence adapter and shared policy, and reduces repeated correspondence to one
+best observed category per From domain. No archive has been scanned yet.
+
+This is a real correspondence distribution but not a census: the mailbox is
+sector-, geography-, relationship-, and receiver-biased, and the human-mail
+filter is heuristic. A best-observed domain verdict estimates whether at least
+one observed path works; it does not prove every mailbox or tenant path works.
+Live DKIM verification also means raw email remains local while selector/domain
+queries leave through DNS. Removed historical selectors and exporter rewriting
+can create inconclusive results, so the tool requires an explicit recent date
+window and reports those limitations with the aggregate.
+
 ## Proton same-mailbox From-presentation variation
 
 Observed 2026-08-05 from two distinct Proton custom-domain → Gmail messages,

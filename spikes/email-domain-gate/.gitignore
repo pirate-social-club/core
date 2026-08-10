@@ -2,5 +2,7 @@ corpus/*
 !corpus/README.md
 results/*.json
 survey-targets/*.json
+survey-archives/*
+!survey-archives/README.md
 .venv/
 __pycache__/
