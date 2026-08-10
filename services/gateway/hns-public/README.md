@@ -49,3 +49,29 @@ Run from the repo root:
 ```bash
 rtk bun services/gateway/hns-public/src/server.ts
 ```
+
+## Video range capacity gate
+
+Before launch, run the bounded range-load probe against the gateway path, not
+the ICANN API origin. A loopback Caddy target can carry the reserved HNS host
+explicitly:
+
+```bash
+rtk bun run --cwd services/gateway/hns-public load:video-ranges -- \
+  --url http://127.0.0.1:8080/public-communities/<community>/song-artifact-uploads/<upload>/content \
+  --host api.pirate \
+  --object-bytes <video-size> \
+  --requests 500 \
+  --concurrency 25 \
+  --range-bytes 1048576 \
+  --disconnect-every 10 \
+  --read-delay-ms 5
+```
+
+The probe requires `206` plus `Content-Range`, cycles across the declared
+object size, slowly consumes ordinary responses to exercise backpressure, and
+intentionally cancels every Nth response to exercise disconnect cleanup. It
+exits nonzero on any unexpected status, empty range, timeout, or accounting
+mismatch. Record throughput and p50/p95/p99 latency alongside gateway CPU,
+memory, open sockets, and upstream errors; do not point it at production
+without an approved load window.
