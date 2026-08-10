@@ -12,6 +12,7 @@ const MIGRATION_FILES = [
   "db/control-plane/migrations/0170_control_plane_dance_attempt_sessions.sql",
   "db/control-plane/migrations/0171_control_plane_dance_attempt_reason_contract.sql",
   "db/control-plane/migrations/0201_control_plane_dance_attempt_cancellation.sql",
+  "db/control-plane/migrations/0203_control_plane_dance_placeholder_expiry_cleanup.sql",
 ]
 const OVERLONG_SEGMENT_FINGERPRINT_JSON = JSON.stringify(
   Array.from({ length: 33 }, () => "8".repeat(64)),
@@ -39,7 +40,7 @@ async function expectSqlState(
   expect(caught?.errno).toBe(expected)
 }
 
-describe.skipIf(!RUN)("dance migrations 0168-0171 and 0201 (real Postgres)", () => {
+describe.skipIf(!RUN)("dance migrations 0168-0171, 0201, and 0203 (real Postgres)", () => {
   beforeAll(async () => {
     const root = connect()
     await root.unsafe(`DROP DATABASE IF EXISTS ${TEST_DB} WITH (FORCE)`)
@@ -425,6 +426,49 @@ describe.skipIf(!RUN)("dance migrations 0168-0171 and 0201 (real Postgres)", () 
       SET status = 'expired', terminal_reason = 'session_expired'
       WHERE dance_attempt_session_id = 'dse_cancelled'
     `, "P0001")
+    await db.end()
+  })
+
+  test("expired placeholder sessions do not require object cleanup", async () => {
+    const db = connect(TEST_DB)
+    await db.unsafe(`
+      INSERT INTO dance_attempt_sessions (
+        dance_attempt_session_id, dance_attempt_id, subject_user_id, community_id,
+        host_post_id, referenced_song_post_id, song_artifact_bundle_id,
+        dance_choreography_id, dance_choreography_revision_id,
+        reference_content_sha256, reference_feature_ref, reference_feature_sha256,
+        reference_feature_size_bytes, pose_model_version, pose_model_sha256,
+        feature_schema_version, scorer_version, artifact_version,
+        required_calibration_version, required_calibration_checksum,
+        required_fingerprint_policy_version, required_integrity_policy_version,
+        mirror_policy, status, activity_date, activity_timezone,
+        creation_idempotency_key, upload_object_key, expected_mime_type,
+        maximum_bytes, expires_at
+      ) VALUES (
+        'dse_expired_placeholder', 'dat_expired_placeholder', 'usr_creator', 'cmty_test',
+        'post_attempt_dance', 'post_song', 'sab_song',
+        'dch_attempt', 'dcr_attempt',
+        '${"1".repeat(64)}', 'r2://features/attempt.json', '${"2".repeat(64)}',
+        2048, 'pose_v1', '${"3".repeat(64)}',
+        'features_v1', 'scorer_v1', 'artifact_v1',
+        'provisional_v1', '${"5".repeat(64)}', 'fingerprint_v1', 'integrity_v1',
+        'allowed', 'initialized', CURRENT_DATE, 'UTC',
+        'idem_expired_placeholder',
+        'dance/attempt-media/dse_expired_placeholder/pending.mp4',
+        'video/mp4', 67108864, NOW() - INTERVAL '1 minute'
+      );
+      UPDATE dance_attempt_sessions SET
+        status = 'expired', terminal_reason = 'session_expired',
+        finalized_at = NOW(), cleanup_status = 'not_required'
+      WHERE dance_attempt_session_id = 'dse_expired_placeholder';
+    `)
+
+    const [row] = await db`
+      SELECT status, cleanup_status
+      FROM dance_attempt_sessions
+      WHERE dance_attempt_session_id = 'dse_expired_placeholder'
+    `
+    expect(row).toMatchObject({ status: "expired", cleanup_status: "not_required" })
     await db.end()
   })
 })
