@@ -411,6 +411,10 @@ const INTERNAL_HEADER_PREFIX = "x-pirate-hns-";
 const CREDENTIAL_HEADERS = ["authorization", "cookie", "proxy-authorization"];
 const READ_ONLY_METHODS = new Set(["GET", "HEAD"]);
 
+function canonicalForwarderHost(url: URL): string {
+  return url.hostname.trim().toLowerCase().replace(/\.+$/u, "");
+}
+
 /**
  * The gateway is the trust boundary: downstream (the app Worker) accepts
  * x-pirate-hns-* only from this gateway's IP + timestamped HMAC. A public client can send
@@ -435,7 +439,7 @@ function buildProxyHeaders(request: Request, url: URL): Headers {
     }
   }
 
-  headers.set("x-pirate-hns-host", url.hostname);
+  headers.set("x-pirate-hns-host", canonicalForwarderHost(url));
   headers.set("accept-encoding", "identity");
   return headers;
 }
@@ -468,9 +472,10 @@ async function buildSignedProxyHeaders(input: {
   const headers = buildProxyHeaders(input.request, input.url);
   const timestamp = String(Math.floor(Date.now() / 1_000));
   const pathAndQuery = `${input.url.pathname}${input.url.search}`;
+  const host = canonicalForwarderHost(input.url);
   const context: HnsForwarderContext = {
     ...input.context,
-    host: input.url.hostname,
+    host,
     method: input.request.method,
     pathAndQuery,
     timestamp,

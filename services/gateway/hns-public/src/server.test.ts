@@ -1000,7 +1000,7 @@ describe("handleRequest", () => {
   test("dual-emits HMAC and the legacy token during the compatibility window", async () => {
     const calls: Headers[] = [];
     const response = await handleRequest(
-      new Request("https://app.pirate/path?view=top", { headers: { "x-forwarded-proto": "https" } }),
+      new Request("https://APP.PIRATE./path?view=top", { headers: { "x-forwarded-proto": "https" } }),
       { ...env, HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "legacy-rollout-token" },
       async (_url, init) => {
         calls.push(new Headers(init?.headers));
@@ -1008,6 +1008,7 @@ describe("handleRequest", () => {
       },
     );
     expect(response.status).toBe(200);
+    expect(calls[0].get("x-pirate-hns-host")).toBe("app.pirate");
     expect(calls[0].get("x-pirate-hns-forwarder-token")).toBe("legacy-rollout-token");
     expect(calls[0].get("x-pirate-hns-forwarder-path")).toBe("/path?view=top");
     expect(calls[0].get(FORWARDER_SIGNATURE_HEADER)).toMatch(/^v1=[0-9a-f]{64}$/u);

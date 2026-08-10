@@ -90,6 +90,14 @@ without the configured forwarder source IP. For later rotations, configure the
 Worker with the new current key and old previous key, rotate the gateway, wait
 out the replay window, and remove the previous key.
 
+The signed `X-Pirate-HNS-Forwarder-Path` is not a substitute for the receiving
+Worker's request URL. The Worker must compare it byte-for-byte with its own
+`pathname + search` before HMAC verification and reject any mismatch; this is
+what binds a captured envelope to one route. Once any signed-envelope header is
+present, verification must not downgrade to the legacy token. Schedule token
+removal as part of the same rollout, and treat any legacy-only acceptance after
+that deadline as an authentication incident rather than a permanent fallback.
+
 ## Public DNSSEC + DANE mode
 
 `caddy/Caddyfile.dane.example` is the canonical public HNS HTTPS mode. It loads
