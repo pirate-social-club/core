@@ -210,20 +210,35 @@ production integration has started.
 
 The hand-picked-domain survey cannot support a compatibility percentage. The
 spike now has an aggregate-only alternative over a local MBOX export from an
-opt-in mailbox. It streams message headers without retaining bodies, excludes
-likely list/bulk/automated and sent-folder messages before any DKIM lookup,
-cryptographically evaluates remaining signed headers through the JavaScript
-evidence adapter and shared policy, and reduces repeated correspondence to one
-best observed category per From domain. No archive has been scanned yet.
+opt-in mailbox. It streams message headers without retaining bodies and uses
+only DKIM results stamped contemporaneously by an explicitly trusted receiving
+`authserv-id` (`mx.google.com` for Gmail exports). It compares the recorded
+passing `header.i`/`header.d` domain with From, reduces repeated correspondence
+to one best observed category per From domain, and makes zero network requests.
+This is appropriate for a coverage statistic and is never authorization
+evidence. No archive has been scanned yet.
+
+A zero-network sanity check over the two existing Gmail-delivered corpus
+messages reproduced the cryptographic ground truth exactly: one strictly
+aligned case and one Workspace provider-fallback case. The parser uses only the
+first matching trusted receiver result, so a lower sender-injected header with
+the same `authserv-id` cannot override the receiver's prepended verdict under
+the measured Gmail export ordering.
 
 This is a real correspondence distribution but not a census: the mailbox is
 sector-, geography-, relationship-, and receiver-biased, and the human-mail
 filter is heuristic. A best-observed domain verdict estimates whether at least
 one observed path works; it does not prove every mailbox or tenant path works.
-Live DKIM verification also means raw email remains local while selector/domain
-queries leave through DNS. Removed historical selectors and exporter rewriting
-can create inconclusive results, so the tool requires an explicit recent date
-window and reports those limitations with the aggregate.
+The report includes the bulk-inclusive and human-candidate rates side by side so
+mass-mail hygiene inflation is measurable rather than assumed. Trusting the
+recipient's stored verdict avoids both DKIM-key-rotation false negatives and a
+DNS-query correspondence leak. A separately consented small recent subsample
+can compare stored verdicts with live cryptographic verification; that networked
+validation is not part of the aggregate run.
+
+`Feedback-ID` is deliberately not an automation filter: the measured
+human-composed Proton-to-Gmail message carries it. Treating it as bulk would
+have removed a known valid correspondence path and biased the filtered rate.
 
 ## Proton same-mailbox From-presentation variation
 

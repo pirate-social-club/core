@@ -2,22 +2,15 @@
 
 import { createReadStream } from "node:fs"
 import { chmod, writeFile } from "node:fs/promises"
-import { resolveTxt } from "node:dns/promises"
 import { domainToASCII, pathToFileURL } from "node:url"
 
-import { evidenceFromRawEmail } from "./blueprint/browser-evidence-adapter.mjs"
-import { evaluateCompatibility } from "./compatibility-policy.mjs"
-
 const CATEGORY_PRIORITY = new Map([
-  ["verification_error", 0],
-  ["no_verified_header_signature", 1],
-  ["no_dkim_signature", 2],
+  ["no_trusted_authentication_results", 0],
+  ["no_dkim_result", 1],
+  ["dkim_not_passed", 2],
   ["unaligned_other", 3],
-  ["required_header_missing", 4],
-  ["unsupported_algorithm", 5],
-  ["unsupported_canonicalization", 6],
-  ["workspace_provider_fallback", 7],
-  ["aligned_compatible", 8],
+  ["workspace_provider_fallback", 4],
+  ["aligned_compatible", 5],
 ])
 
 function headerMap(rawHeader) {
@@ -44,32 +37,90 @@ function firstHeader(headers, name) {
   return headers.get(name)?.[0] ?? null
 }
 
-function domainFromHeader(rawHeader) {
-  const fromValues = headerMap(rawHeader).get("from") ?? []
+function normalizeDomain(value) {
+  if (typeof value !== "string") return null
+  const ascii = domainToASCII(value.trim().replace(/^['"]|['"]$/g, "").replace(/\.$/, ""))
+    .toLowerCase()
+  const labels = ascii.split(".")
+  if (
+    !ascii.includes(".")
+    || ascii.length > 253
+    || labels.some((label) => (
+      label.length > 63
+      || !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label)
+    ))
+  ) return null
+  return ascii
+}
+
+function domainFromHeaderMap(headers) {
+  const fromValues = headers.get("from") ?? []
   if (fromValues.length !== 1) return null
   const matches = [...fromValues[0].matchAll(
     /[A-Za-z0-9!#$%&'*+\-/=?^_`{|}~.]+@([A-Za-z0-9.-]+)/g,
   )]
-  if (matches.length !== 1) return null
-  const domain = domainToASCII(matches[0][1].replace(/\.$/, "")).toLowerCase()
-  return domain && domain.includes(".") ? domain : null
+  return matches.length === 1 ? normalizeDomain(matches[0][1]) : null
 }
 
-export function exclusionReason(rawHeader, sinceUnix = null) {
-  const headers = headerMap(rawHeader)
+function trustedAuthenticationResults(headers, authservId) {
+  const trusted = (headers.get("authentication-results") ?? []).filter((value) => {
+    const separator = value.indexOf(";")
+    return separator > 0 && value.slice(0, separator).trim().toLowerCase() === authservId
+  })
+  return trusted.slice(0, 1)
+}
+
+function dkimResults(values) {
+  const results = []
+  for (const value of values) {
+    for (const match of value.matchAll(/(?:^|;)\s*dkim\s*=\s*([a-z]+)\b([^;]*)/gi)) {
+      const properties = match[2]
+      const identity = properties.match(/\bheader\.i\s*=\s*([^\s;]+)/i)?.[1]
+      const headerDomain = properties.match(/\bheader\.d\s*=\s*([^\s;]+)/i)?.[1]
+      const identityDomain = identity?.includes("@")
+        ? identity.slice(identity.lastIndexOf("@") + 1)
+        : identity
+      results.push({
+        status: match[1].toLowerCase(),
+        signingDomain: normalizeDomain(identityDomain ?? headerDomain),
+      })
+    }
+  }
+  return results
+}
+
+function classifyDeliveryEvidence(headers, fromDomain, authservId) {
+  const trusted = trustedAuthenticationResults(headers, authservId)
+  if (trusted.length === 0) return "no_trusted_authentication_results"
+  const results = dkimResults(trusted)
+  if (results.length === 0) return "no_dkim_result"
+  const passing = results.filter((result) => result.status === "pass")
+  if (passing.some((result) => result.signingDomain === fromDomain)) {
+    return "aligned_compatible"
+  }
+  if (passing.some((result) => /(?:^|\.)gappssmtp\.com$/.test(result.signingDomain ?? ""))) {
+    return "workspace_provider_fallback"
+  }
+  if (passing.length > 0) return "unaligned_other"
+  return "dkim_not_passed"
+}
+
+function baseExclusionReason(headers, sinceUnix) {
   const labels = (headers.get("x-gmail-labels") ?? []).join(",").toLowerCase()
   if (/(?:^|,)\s*(?:sent|draft|spam|trash)(?:\s*,|$)/.test(labels)) return "non_inbox_folder"
+  const timestamp = Date.parse(firstHeader(headers, "date") ?? "")
+  if (!Number.isFinite(timestamp)) return "missing_or_invalid_date"
+  if (Math.floor(timestamp / 1000) < sinceUnix) return "older_than_window"
+  return null
+}
+
+export function bulkExclusionReason(rawHeader) {
+  const headers = headerMap(rawHeader)
   if (headers.has("list-unsubscribe") || headers.has("list-id")) return "list_or_bulk"
   const precedence = (headers.get("precedence") ?? []).join(" ").toLowerCase()
   if (/\b(?:bulk|list|junk)\b/.test(precedence)) return "list_or_bulk"
   const autoSubmitted = firstHeader(headers, "auto-submitted")
   if (autoSubmitted && !/^no\b/i.test(autoSubmitted)) return "automated"
-  if (headers.has("x-auto-response-suppress") || headers.has("feedback-id")) return "automated"
-  if (sinceUnix !== null) {
-    const timestamp = Date.parse(firstHeader(headers, "date") ?? "")
-    if (!Number.isFinite(timestamp)) return "missing_or_invalid_date"
-    if (Math.floor(timestamp / 1000) < sinceUnix) return "older_than_window"
-  }
   return null
 }
 
@@ -116,49 +167,10 @@ export async function* readMboxHeaders(path) {
   if (headerChunks.length > 0) yield Buffer.concat(headerChunks)
 }
 
-function classify(evidence, result) {
-  if (result.verdict === "compatible") return "aligned_compatible"
-  if (result.reason_codes.includes("header_canonicalization_unsupported")) {
-    return "unsupported_canonicalization"
-  }
-  if (result.reason_codes.includes("algorithm_unsupported")) return "unsupported_algorithm"
-  if (result.reason_codes.some((code) => code.startsWith("required_header_missing:"))) {
-    return "required_header_missing"
-  }
-  if (result.reason_codes.includes("strict_alignment_failed")) {
-    const selected = evidence.signatures.find(
-      (signature) => signature.index === result.selected_signature_index,
-    )
-    return /(?:^|\.)gappssmtp\.com$/i.test(selected?.signing_domain ?? "")
-      ? "workspace_provider_fallback"
-      : "unaligned_other"
-  }
-  if (result.reason_codes.includes("no_dkim_signature")) return "no_dkim_signature"
-  return "no_verified_header_signature"
-}
-
-function domainFromEvidence(evidence) {
-  const domains = new Set(evidence.signatures
-    .map((signature) => signature.from_domain)
-    .filter((value) => typeof value === "string" && value.includes("."))
-    .map((value) => value.toLowerCase()))
-  return domains.size === 1 ? [...domains][0] : null
-}
-
-function cachedSystemResolver() {
-  const cache = new Map()
-  let queryCount = 0
-  return {
-    get queryCount() { return queryCount },
-    async resolve(name, type) {
-      if (type !== "TXT") throw new Error("only TXT lookups are supported")
-      const key = name.toLowerCase()
-      if (!cache.has(key)) {
-        queryCount += 1
-        cache.set(key, resolveTxt(name).then((records) => records.map((parts) => parts.join(""))))
-      }
-      return cache.get(key)
-    },
+function recordBest(domainResults, domain, category) {
+  const prior = domainResults.get(domain)
+  if (!prior || CATEGORY_PRIORITY.get(category) > CATEGORY_PRIORITY.get(prior)) {
+    domainResults.set(domain, category)
   }
 }
 
@@ -166,85 +178,83 @@ function rate(numerator, denominator) {
   return denominator === 0 ? null : Number((numerator / denominator).toFixed(4))
 }
 
+function summarize(domainResults, messageCount) {
+  const domainCategories = Object.fromEntries([...CATEGORY_PRIORITY.keys()].map(
+    (category) => [category, [...domainResults.values()].filter((value) => value === category).length],
+  ))
+  const passDomainCount = domainCategories.aligned_compatible
+    + domainCategories.workspace_provider_fallback
+    + domainCategories.unaligned_other
+  return {
+    message_count: messageCount,
+    unique_sender_domains: domainResults.size,
+    domain_categories: domainCategories,
+    aligned_rate_all_domains: rate(domainCategories.aligned_compatible, domainResults.size),
+    aligned_rate_among_dkim_pass_domains: rate(domainCategories.aligned_compatible, passDomainCount),
+  }
+}
+
 export async function surveyArchive(messages, options = {}) {
   const observedAt = options.observedAt ?? Math.floor(Date.now() / 1000)
-  const sinceUnix = options.sinceUnix ?? null
-  const resolverState = options.resolver
-    ? { resolve: options.resolver, get queryCount() { return null } }
-    : cachedSystemResolver()
-  const evidenceAdapter = options.evidenceAdapter ?? evidenceFromRawEmail
-  const domainResults = new Map()
+  const sinceUnix = options.sinceUnix
+  const authservId = options.authservId?.trim().toLowerCase()
+  if (!Number.isInteger(sinceUnix)) throw new Error("sinceUnix is required")
+  if (!authservId || !/^[a-z0-9.-]+$/.test(authservId)) throw new Error("authservId is required")
+
+  const allDomains = new Map()
+  const humanDomains = new Map()
   const excluded = {}
   let messagesScanned = 0
+  let allReceivedMessages = 0
   let humanCandidateMessages = 0
 
   for await (const rawHeader of messages) {
     messagesScanned += 1
-    const reason = exclusionReason(rawHeader, sinceUnix)
-    if (reason) {
-      excluded[reason] = (excluded[reason] ?? 0) + 1
+    const headers = headerMap(rawHeader)
+    const baseReason = baseExclusionReason(headers, sinceUnix)
+    if (baseReason) {
+      excluded[baseReason] = (excluded[baseReason] ?? 0) + 1
       continue
     }
-    humanCandidateMessages += 1
-    let evidence
-    try {
-      evidence = await evidenceAdapter(rawHeader, {
-        observedAt,
-        resolver: resolverState.resolve.bind(resolverState),
-      })
-    } catch {
-      excluded.verification_error = (excluded.verification_error ?? 0) + 1
-      continue
-    }
-    const headerDomain = domainFromHeader(rawHeader)
-    const evidenceDomain = domainFromEvidence(evidence)
-    const domain = evidenceDomain ?? headerDomain
-    if (domain === null || (evidenceDomain !== null && evidenceDomain !== headerDomain)) {
+    const domain = domainFromHeaderMap(headers)
+    if (domain === null) {
       excluded.missing_or_ambiguous_from_domain =
         (excluded.missing_or_ambiguous_from_domain ?? 0) + 1
       continue
     }
-    const result = evaluateCompatibility(evidence, {
-      context: "advisory-preflight",
-      confidence: "other-domain-mailbox",
-    })
-    const category = classify(evidence, result)
-    const prior = domainResults.get(domain)
-    if (!prior || CATEGORY_PRIORITY.get(category) > CATEGORY_PRIORITY.get(prior)) {
-      domainResults.set(domain, category)
+    allReceivedMessages += 1
+    const category = classifyDeliveryEvidence(headers, domain, authservId)
+    recordBest(allDomains, domain, category)
+
+    const bulkReason = bulkExclusionReason(rawHeader)
+    if (bulkReason) {
+      excluded[bulkReason] = (excluded[bulkReason] ?? 0) + 1
+      continue
     }
+    humanCandidateMessages += 1
+    recordBest(humanDomains, domain, category)
   }
 
-  const domainCategories = Object.fromEntries([...CATEGORY_PRIORITY.keys()].map(
-    (category) => [category, [...domainResults.values()].filter((value) => value === category).length],
-  ))
-  const definitiveDomainCount = domainResults.size
-    - domainCategories.no_verified_header_signature
-    - domainCategories.verification_error
   return {
-    schema_version: 1,
+    schema_version: 2,
+    evidence_source: "trusted_recipient_authentication_results",
+    trusted_authserv_id: authservId,
     observed_at: new Date(observedAt * 1000).toISOString(),
-    since: sinceUnix === null ? null : new Date(sinceUnix * 1000).toISOString(),
+    since: new Date(sinceUnix * 1000).toISOString(),
     messages_scanned: messagesScanned,
-    human_candidate_messages: humanCandidateMessages,
-    unique_sender_domains: domainResults.size,
-    domain_categories: domainCategories,
-    observed_compatible_rate_all_domains: rate(
-      domainCategories.aligned_compatible,
-      domainResults.size,
-    ),
-    observed_compatible_rate_definitive_domains: rate(
-      domainCategories.aligned_compatible,
-      definitiveDomainCount,
-    ),
+    populations: {
+      all_received: summarize(allDomains, allReceivedMessages),
+      human_candidate: summarize(humanDomains, humanCandidateMessages),
+    },
     excluded_messages: Object.fromEntries(Object.entries(excluded).sort()),
-    dns_queries: resolverState.queryCount,
-    privacy: "Aggregate counts only. No domain, address, subject, message identifier, path, or header value is emitted.",
+    network_requests: 0,
+    privacy: "Aggregate counts only. No sender domain, address, subject, message identifier, path, or raw header value is emitted; the explicitly configured receiving authserv-id is recorded.",
     methodology: {
       unit: "One best observed verdict per From domain, so frequent correspondents do not dominate.",
-      human_filter: "Excludes list headers, bulk/list/junk precedence, common automated-mail headers, and Gmail sent/draft/spam/trash labels. This is a heuristic, not a human-authorship proof.",
-      dns_disclosure: "Raw mail stays local, but live DKIM TXT lookups disclose selector/domain queries to the configured DNS path.",
-      archive_age: "Rotated or removed DKIM selectors can make old valid mail inconclusive; use a recent explicit --since window.",
+      delivery_evidence: `Only Authentication-Results whose authserv-id exactly equals ${authservId} are trusted; this is coverage evidence, never authorization evidence.`,
+      human_filter: "The human-candidate population excludes List-Unsubscribe/List-Id, bulk/list/junk Precedence, non-no Auto-Submitted, and Gmail sent/draft/spam/trash labels. Feedback-ID is not an exclusion because a measured human-composed message carried it. This is a heuristic, not a human-authorship proof.",
+      comparison: "all_received includes bulk/automated mail after the shared date/folder/From filters; human_candidate excludes it so hygiene inflation is visible.",
+      no_network: "No DNS or HTTP lookup is performed. DKIM status is the receiving provider's contemporaneous delivery verdict preserved in the archive.",
       sampling_bias: "The archive reflects this mailbox's correspondents, sectors, and receiving paths; it is not a general census.",
     },
   }
@@ -258,21 +268,27 @@ function parseArguments(argv) {
     if (!key?.startsWith("--") || value === undefined) throw new Error("invalid arguments")
     values.set(key.slice(2), value)
   }
-  if (!values.get("mbox") || !values.get("since")) {
-    throw new Error("usage: survey-mail-archive.mjs --mbox <archive.mbox> --since <YYYY-MM-DD> [--out <aggregate.json>]")
+  if (!values.get("mbox") || !values.get("since") || !values.get("authserv-id")) {
+    throw new Error("required arguments are missing")
   }
   const since = `${values.get("since")}T00:00:00Z`
   const sinceUnix = Math.floor(Date.parse(since) / 1000)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(values.get("since")) || !Number.isFinite(sinceUnix)) {
-    throw new Error("--since must be YYYY-MM-DD")
+    throw new Error("invalid date")
   }
-  return { mbox: values.get("mbox"), sinceUnix, output: values.get("out") }
+  return {
+    mbox: values.get("mbox"),
+    sinceUnix,
+    authservId: values.get("authserv-id"),
+    output: values.get("out"),
+  }
 }
 
 async function main() {
   const args = parseArguments(process.argv.slice(2))
   const output = `${JSON.stringify(await surveyArchive(readMboxHeaders(args.mbox), {
     sinceUnix: args.sinceUnix,
+    authservId: args.authservId,
   }), null, 2)}\n`
   if (args.output) {
     await writeFile(args.output, output, { encoding: "utf8", mode: 0o600 })
@@ -282,7 +298,7 @@ async function main() {
   }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch(() => {
     process.stderr.write("archive survey failed; check arguments and local input\n")
     process.exitCode = 1

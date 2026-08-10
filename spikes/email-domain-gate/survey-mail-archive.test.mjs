@@ -4,77 +4,85 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
 
-import { exclusionReason, readMboxHeaders, surveyArchive } from "./survey-mail-archive.mjs"
+import { bulkExclusionReason, readMboxHeaders, surveyArchive } from "./survey-mail-archive.mjs"
 
-function message(domain, marker, extra = []) {
+function message(domain, dkimIdentity = domain, extra = []) {
+  const authentication = dkimIdentity === null
+    ? []
+    : [`Authentication-Results: mx.google.com; dkim=pass header.i=@${dkimIdentity} header.s=test`]
   return Buffer.from([
     `From: employee@${domain}`,
-    `Date: Tue, 04 Aug 2026 12:00:00 +0000`,
-    `Subject: ${marker}`,
+    "Date: Tue, 04 Aug 2026 12:00:00 +0000",
+    "Subject: synthetic",
+    ...authentication,
     ...extra,
     "",
     "",
   ].join("\r\n"))
 }
 
-function fakeEvidence(rawHeader) {
-  const raw = rawHeader.toString("latin1")
-  const fromDomain = raw.match(/From: [^@]+@([^\r\n]+)/i)?.[1] ?? null
-  const fallback = raw.includes("fallback")
-  const noSignature = raw.includes("no-signature")
-  return Promise.resolve({
-    signatures: noSignature ? [] : [{
-      index: 0,
-      header_signature_verified: true,
-      body_hash_verified: null,
-      signing_domain: fallback ? "alpha-example.20260101.gappssmtp.com" : fromDomain,
-      from_domain: fromDomain,
-      signed_headers: ["from", "subject"],
-      algorithm: "rsa-sha256",
-      header_canonicalization: "relaxed",
-      signature_expiration_status: "not-declared",
-    }],
-  })
-}
-
-test("filters bulk, automated, sent, and old messages before verification", () => {
-  const since = Date.parse("2026-01-01T00:00:00Z") / 1000
-  assert.equal(exclusionReason(message("alpha.example", "bulk", ["List-Unsubscribe: <x>"]), since), "list_or_bulk")
-  assert.equal(exclusionReason(message("alpha.example", "auto", ["Auto-Submitted: auto-generated"]), since), "automated")
-  assert.equal(exclusionReason(message("alpha.example", "sent", ["X-Gmail-Labels: Sent"]), since), "non_inbox_folder")
-  assert.equal(
-    exclusionReason(Buffer.from("From: employee@alpha.example\r\nDate: Tue, 04 Aug 2020 12:00:00 +0000\r\n\r\n"), since),
-    "older_than_window",
-  )
+test("identifies bulk and automated messages", () => {
+  assert.equal(bulkExclusionReason(message("alpha.example", "alpha.example", ["List-Unsubscribe: <x>"])), "list_or_bulk")
+  assert.equal(bulkExclusionReason(message("alpha.example", "alpha.example", ["Auto-Submitted: auto-generated"])), "automated")
+  assert.equal(bulkExclusionReason(message("alpha.example")), null)
 })
 
-test("emits aggregate domain verdicts without identifiers", async () => {
+test("trusts only the configured receiver and compares filtered populations", async () => {
+  const spoofed = Buffer.from([
+    "From: employee@gamma.example",
+    "Date: Tue, 04 Aug 2026 12:00:00 +0000",
+    "Subject: synthetic",
+    "Authentication-Results: attacker.example; dkim=pass header.i=@gamma.example",
+    "",
+    "",
+  ].join("\r\n"))
   const messages = [
-    message("alpha.example", "compatible-one"),
-    message("alpha.example", "compatible-two"),
-    message("beta.example", "fallback"),
-    message("gamma.example", "no-signature"),
-    message("bulk.example", "bulk", ["Precedence: bulk"]),
+    message("alpha.example"),
+    message("alpha.example"),
+    message("beta.example", "beta-example.20260101.gappssmtp.com"),
+    spoofed,
+    message("bulk.example", "bulk.example", ["Precedence: bulk"]),
   ]
   const result = await surveyArchive(messages, {
     observedAt: Date.parse("2026-08-10T00:00:00Z") / 1000,
     sinceUnix: Date.parse("2026-01-01T00:00:00Z") / 1000,
-    resolver: async () => [],
-    evidenceAdapter: fakeEvidence,
+    authservId: "mx.google.com",
   })
-  assert.equal(result.messages_scanned, 5)
-  assert.equal(result.human_candidate_messages, 4)
-  assert.equal(result.unique_sender_domains, 3)
-  assert.equal(result.domain_categories.aligned_compatible, 1)
-  assert.equal(result.domain_categories.workspace_provider_fallback, 1)
-  assert.equal(result.domain_categories.no_dkim_signature, 1)
-  assert.equal(result.observed_compatible_rate_all_domains, 0.3333)
-  assert.equal(result.observed_compatible_rate_definitive_domains, 0.3333)
+  assert.equal(result.network_requests, 0)
+  assert.equal(result.populations.all_received.unique_sender_domains, 4)
+  assert.equal(result.populations.all_received.domain_categories.aligned_compatible, 2)
+  assert.equal(result.populations.all_received.aligned_rate_all_domains, 0.5)
+  assert.equal(result.populations.all_received.aligned_rate_among_dkim_pass_domains, 0.6667)
+  assert.equal(result.populations.human_candidate.unique_sender_domains, 3)
+  assert.equal(result.populations.human_candidate.domain_categories.aligned_compatible, 1)
+  assert.equal(result.populations.human_candidate.domain_categories.workspace_provider_fallback, 1)
+  assert.equal(result.populations.human_candidate.domain_categories.no_trusted_authentication_results, 1)
+  assert.equal(result.populations.human_candidate.aligned_rate_all_domains, 0.3333)
+  assert.equal(result.populations.human_candidate.aligned_rate_among_dkim_pass_domains, 0.5)
   assert.equal(result.excluded_messages.list_or_bulk, 1)
   const serialized = JSON.stringify(result)
   for (const identifier of ["alpha.example", "beta.example", "gamma.example", "employee@"]) {
     assert.equal(serialized.includes(identifier), false)
   }
+})
+
+test("uses only the first matching trusted receiver result", async () => {
+  const raw = Buffer.from([
+    "From: employee@alpha.example",
+    "Date: Tue, 04 Aug 2026 12:00:00 +0000",
+    "Subject: synthetic",
+    "Authentication-Results: mx.google.com; dkim=fail header.i=@alpha.example",
+    "Authentication-Results: mx.google.com; dkim=pass header.i=@alpha.example",
+    "",
+    "",
+  ].join("\r\n"))
+  const result = await surveyArchive([raw], {
+    observedAt: Date.parse("2026-08-10T00:00:00Z") / 1000,
+    sinceUnix: Date.parse("2026-01-01T00:00:00Z") / 1000,
+    authservId: "mx.google.com",
+  })
+  assert.equal(result.populations.human_candidate.domain_categories.dkim_not_passed, 1)
+  assert.equal(result.populations.human_candidate.domain_categories.aligned_compatible, 0)
 })
 
 test("streams mbox headers without retaining bodies", async () => {

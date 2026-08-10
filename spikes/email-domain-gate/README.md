@@ -128,10 +128,11 @@ an ad-hoc list of recognizable domains cannot support a general coverage rate.
 ## Local received-mail coverage survey
 
 `survey-mail-archive.mjs` measures the actual domains represented in a local
-MBOX export. It streams headers and discards bodies, filters likely list,
-bulk, automated, and sent-folder messages before DKIM lookup, applies the shared
-compatibility policy, and emits aggregate counts only. Repeated correspondents
-collapse to one best observed verdict per From domain.
+MBOX export. It streams headers and discards bodies, trusts only an explicitly
+named receiving provider's contemporaneous `Authentication-Results`, and makes
+no DNS or HTTP requests. Repeated correspondents collapse to one best observed
+verdict per From domain. This is observational coverage evidence, never gate
+authorization evidence.
 
 Use a recent, inbox-scoped export where possible. Keep it outside the repository
 or under ignored `survey-archives/`, and write results under ignored `results/`:
@@ -140,15 +141,22 @@ or under ignored `survey-archives/`, and write results under ignored `results/`:
 rtk node survey-mail-archive.mjs \
   --mbox /absolute/path/to/recent-inbox.mbox \
   --since 2026-02-01 \
+  --authserv-id mx.google.com \
   --out results/received-mail-coverage.json
 ```
 
-The raw archive never enters the output, but the phrase "fully local" would be
-misleading: cryptographic verification performs live DKIM TXT lookups, exposing
-queried selector/domain names to the configured DNS path. Old selectors may no
-longer exist, so the explicit recent window is required. The output records
-filter counts, DNS lookup count, archive-age risk, and sampling bias; it contains
-no domain, address, subject, identifier, path, or header value.
+The run is fully local and records `network_requests: 0`. It compares two
+populations: all received mail after date/folder/From validation, and a
+human-candidate subset excluding strong list/bulk/automated signals. Reporting both makes
+bulk-sender hygiene inflation visible. The receiving provider's result was
+computed when the message arrived, so removed/rotated DKIM keys do not create
+archive-age false negatives. The output contains no domain, address, subject,
+identifier, path, or header value. A separate, explicitly consented small
+recent-message re-verification may validate this method, but is not part of the
+archive survey.
+
+The aggregate records the configured receiver identifier (for example,
+`mx.google.com`) as methodology. It emits no sender domain.
 
 Run its synthetic tests with:
 
