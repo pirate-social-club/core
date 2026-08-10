@@ -1,4 +1,4 @@
-+-- Make recording consent immutable and align persisted dance media envelopes
+-- Make recording consent immutable and align persisted dance media envelopes
 -- with the public V1 contract.
 
 CREATE OR REPLACE FUNCTION enforce_dance_consent_receipt_immutability()
@@ -78,4 +78,3 @@ ALTER TABLE dance_choreography_revisions
             AND reference_duration_ms BETWEEN 1000 AND 90000
         )
     );
-
