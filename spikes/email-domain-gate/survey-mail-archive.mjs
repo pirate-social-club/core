@@ -9,9 +9,11 @@ const CATEGORY_PRIORITY = new Map([
   ["no_trusted_authentication_results", 0],
   ["no_dkim_result", 1],
   ["dkim_not_passed", 2],
-  ["unaligned_other", 3],
-  ["workspace_provider_fallback", 4],
-  ["aligned_compatible", 5],
+  ["unrelated_signing_domain", 3],
+  ["from_subdomain_of_signer", 4],
+  ["signer_subdomain_of_from", 5],
+  ["workspace_provider_fallback", 6],
+  ["aligned_compatible", 7],
 ])
 
 function headerMap(rawHeader) {
@@ -102,7 +104,13 @@ function classifyDeliveryEvidence(headers, fromDomain, authservId) {
   if (passing.some((result) => /(?:^|\.)gappssmtp\.com$/.test(result.signingDomain ?? ""))) {
     return "workspace_provider_fallback"
   }
-  if (passing.length > 0) return "unaligned_other"
+  if (passing.some((result) => result.signingDomain?.endsWith(`.${fromDomain}`))) {
+    return "signer_subdomain_of_from"
+  }
+  if (passing.some((result) => fromDomain.endsWith(`.${result.signingDomain}`))) {
+    return "from_subdomain_of_signer"
+  }
+  if (passing.length > 0) return "unrelated_signing_domain"
   return "dkim_not_passed"
 }
 
@@ -253,7 +261,9 @@ function summarize(domainResults, messageCount) {
   ))
   const passDomainCount = domainCategories.aligned_compatible
     + domainCategories.workspace_provider_fallback
-    + domainCategories.unaligned_other
+    + domainCategories.signer_subdomain_of_from
+    + domainCategories.from_subdomain_of_signer
+    + domainCategories.unrelated_signing_domain
   return {
     message_count: messageCount,
     unique_sender_domains: domainResults.size,
@@ -326,7 +336,7 @@ export async function surveyArchive(messages, options = {}) {
   }
 
   return {
-    schema_version: 3,
+    schema_version: 4,
     evidence_source: "trusted_recipient_authentication_results",
     trusted_authserv_id: authservId,
     observed_at: new Date(observedAt * 1000).toISOString(),
@@ -345,7 +355,8 @@ export async function surveyArchive(messages, options = {}) {
       delivery_evidence: `Only Authentication-Results whose authserv-id exactly equals ${authservId} are trusted; this is coverage evidence, never authorization evidence.`,
       header_filter: "The header-filtered population excludes List-Unsubscribe/List-Id, bulk/list/junk Precedence, non-no Auto-Submitted, and source Sent/Draft/Spam/Trash labels. Feedback-ID is not an exclusion because a measured human-composed message carried it. This is a loose heuristic, not a human-authorship proof.",
       replied_filter: "For Proton EML exports, replied_to_candidate further requires sidecar IsReplied or IsRepliedAll. This is higher precision for human correspondence but lower recall and biased toward conversations the mailbox owner answered.",
-      comparison: "all_received includes bulk/automated mail after the shared date/folder/From filters; human_candidate excludes it so hygiene inflation is visible.",
+      comparison: "all_received includes bulk/automated mail after the shared date/folder/From filters; header_filtered_candidate excludes it so hygiene inflation is visible.",
+      alignment_relationships: "Non-exact DKIM pass domains are split observationally into signer-subdomain-of-From, From-subdomain-of-signer, Workspace fallback, and unrelated categories. These categories do not relax the gate's exact-alignment authorization rule.",
       no_network: "No DNS or HTTP lookup is performed. DKIM status is the receiving provider's contemporaneous delivery verdict preserved in the archive.",
       sampling_bias: "The archive reflects this mailbox's correspondents, sectors, and receiving paths; it is not a general census.",
     },

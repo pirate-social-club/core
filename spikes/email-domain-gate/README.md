@@ -169,6 +169,12 @@ archive survey.
 The aggregate records the configured receiver identifier (for example,
 `mx.google.com`) as methodology. It emits no sender domain.
 
+Passing but non-exact signatures are split into signer-subdomain-of-From,
+From-subdomain-of-signer, Workspace fallback, and unrelated categories. This
+is observational: none is accepted by the strict gate. In particular, control
+of a delegated child signing domain does not prove authority over arbitrary
+mailboxes at its parent domain.
+
 Run its synthetic tests with:
 
 ```bash

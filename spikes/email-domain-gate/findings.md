@@ -294,11 +294,11 @@ with `since=2025-08-10` and trusted receiver `mail.protonmail.ch`. The survey
 streamed 5,756 EML files, used Proton sidecar label/reply metadata, made zero
 network requests, and emitted aggregate counts only.
 
-| Population | Messages | Unique From domains | Aligned | Workspace fallback | Other unaligned | DKIM not passed | Alignment rate over all domains |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| All received | 5,686 | 143 | 81 | 2 | 54 | 1 | 56.64% |
-| Loose header-filtered | 5,325 | 107 | 61 | 2 | 43 | 1 | 57.01% |
-| Replied-to, after header/folder filters | 27 | 7 | 5 | 0 | 1 | 1 | 71.43% |
+| Population | Messages | Unique From domains | Exact aligned | Signer child of From | From child of signer | Workspace fallback | Unrelated signer | DKIM not passed | Exact-alignment rate |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| All received | 5,686 | 143 | 81 | 7 | 1 | 2 | 46 | 1 | 56.64% |
+| Loose header-filtered | 5,325 | 107 | 61 | 3 | 1 | 2 | 39 | 1 | 57.01% |
+| Replied-to, after header/folder filters | 27 | 7 | 5 | 0 | 0 | 0 | 1 | 1 | 71.43% |
 
 The folder-aware pass excluded 69 Sent/Draft/Spam/Trash messages, 360 messages
 with strong list/bulk signals, 1 automated message, and 1 message with an
@@ -314,6 +314,22 @@ result demonstrates both real compatibility and a real non-aligned human path;
 it cannot establish a general rate. The broad 81-of-143 result is separately
 useful: strict alignment is neither rare nor universal across actual received
 domains, and a launch must expect a meaningful unsupported-domain population.
+
+The 54 all-received non-exact domains split into 7 signer-child-of-From, 1
+From-child-of-signer, and 46 unrelated signers; the loose header-filtered split
+is 3, 1, and 39. Even if signer-child-of-From were accepted, coverage would
+rise only from 81/143 (56.64%) to 88/143 (61.54%) for all received domains and
+from 61/107 (57.01%) to 64/107 (59.81%) for the loose subset. It would add no
+domain to the seven-domain replied-to population.
+
+This split is observational only. A DNS owner may delegate a child zone or its
+mail operation without granting that delegate authority to authenticate every
+mailbox at the parent domain. DKIM validates the signing domain and does not by
+itself link that domain to the From domain. Therefore
+`d.endsWith("." + fromDomain)` is not an authorization rule for this gate;
+strict exact alignment remains required. Standards-style relaxed alignment is
+a separate organizational-domain policy requiring public-suffix handling and
+would also weaken the gate's stated mailbox-domain claim.
 
 ## Proton same-mailbox From-presentation variation
 

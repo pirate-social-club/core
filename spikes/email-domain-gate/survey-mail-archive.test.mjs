@@ -45,6 +45,9 @@ test("trusts only the configured receiver and compares filtered populations", as
     { rawHeader: message("alpha.example"), sourceRepliedTo: true },
     message("alpha.example"),
     message("beta.example", "beta-example.20260101.gappssmtp.com"),
+    message("parent.example", "mailer.parent.example"),
+    message("staff.parent.example", "parent.example"),
+    message("unrelated.example", "sender.other.example"),
     spoofed,
     message("bulk.example", "bulk.example", ["Precedence: bulk"]),
   ]
@@ -54,16 +57,19 @@ test("trusts only the configured receiver and compares filtered populations", as
     authservId: "mx.google.com",
   })
   assert.equal(result.network_requests, 0)
-  assert.equal(result.populations.all_received.unique_sender_domains, 4)
+  assert.equal(result.populations.all_received.unique_sender_domains, 7)
   assert.equal(result.populations.all_received.domain_categories.aligned_compatible, 2)
-  assert.equal(result.populations.all_received.aligned_rate_all_domains, 0.5)
-  assert.equal(result.populations.all_received.aligned_rate_among_dkim_pass_domains, 0.6667)
-  assert.equal(result.populations.header_filtered_candidate.unique_sender_domains, 3)
+  assert.equal(result.populations.all_received.domain_categories.signer_subdomain_of_from, 1)
+  assert.equal(result.populations.all_received.domain_categories.from_subdomain_of_signer, 1)
+  assert.equal(result.populations.all_received.domain_categories.unrelated_signing_domain, 1)
+  assert.equal(result.populations.all_received.aligned_rate_all_domains, 0.2857)
+  assert.equal(result.populations.all_received.aligned_rate_among_dkim_pass_domains, 0.3333)
+  assert.equal(result.populations.header_filtered_candidate.unique_sender_domains, 6)
   assert.equal(result.populations.header_filtered_candidate.domain_categories.aligned_compatible, 1)
   assert.equal(result.populations.header_filtered_candidate.domain_categories.workspace_provider_fallback, 1)
   assert.equal(result.populations.header_filtered_candidate.domain_categories.no_trusted_authentication_results, 1)
-  assert.equal(result.populations.header_filtered_candidate.aligned_rate_all_domains, 0.3333)
-  assert.equal(result.populations.header_filtered_candidate.aligned_rate_among_dkim_pass_domains, 0.5)
+  assert.equal(result.populations.header_filtered_candidate.aligned_rate_all_domains, 0.1667)
+  assert.equal(result.populations.header_filtered_candidate.aligned_rate_among_dkim_pass_domains, 0.2)
   assert.equal(result.populations.replied_to_candidate.unique_sender_domains, 1)
   assert.equal(result.populations.replied_to_candidate.domain_categories.aligned_compatible, 1)
   assert.equal(result.excluded_messages.list_or_bulk, 1)
