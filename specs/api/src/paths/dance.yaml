@@ -35,6 +35,10 @@ dance_sessions:
         $ref: ../components/responses.yaml#/ValidationError
       "401":
         $ref: ../components/responses.yaml#/AuthError
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "503":
+        $ref: ../components/responses.yaml#/ServiceUnavailable
 dance_sessions_by_dance_session_id:
   parameters:
     - in: path
@@ -59,6 +63,8 @@ dance_sessions_by_dance_session_id:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
+      "503":
+        $ref: ../components/responses.yaml#/ServiceUnavailable
 dance_sessions_by_dance_session_id_cancel:
   parameters:
     - in: path
@@ -85,6 +91,8 @@ dance_sessions_by_dance_session_id_cancel:
         $ref: ../components/responses.yaml#/NotFound
       "409":
         $ref: ../components/responses.yaml#/Conflict
+      "503":
+        $ref: ../components/responses.yaml#/ServiceUnavailable
 dance_sessions_by_dance_session_id_upload_intent:
   parameters:
     - in: path
@@ -117,6 +125,10 @@ dance_sessions_by_dance_session_id_upload_intent:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
+      "503":
+        $ref: ../components/responses.yaml#/ServiceUnavailable
 dance_sessions_by_dance_session_id_submit:
   parameters:
     - in: path
@@ -149,8 +161,12 @@ dance_sessions_by_dance_session_id_submit:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
+      "409":
+        $ref: ../components/responses.yaml#/Conflict
       "422":
         $ref: ../components/responses.yaml#/ValidationError
+      "503":
+        $ref: ../components/responses.yaml#/ServiceUnavailable
 dance_attempts_by_dance_attempt_id:
   parameters:
     - in: path
@@ -175,6 +191,8 @@ dance_attempts_by_dance_attempt_id:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
+      "503":
+        $ref: ../components/responses.yaml#/ServiceUnavailable
 dance_choreographies_by_dance_choreography_id:
   parameters:
     - in: path
@@ -199,6 +217,8 @@ dance_choreographies_by_dance_choreography_id:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
+      "503":
+        $ref: ../components/responses.yaml#/ServiceUnavailable
 posts_by_post_id_dance_choreography:
   parameters:
     - in: path
@@ -223,3 +243,5 @@ posts_by_post_id_dance_choreography:
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
+      "503":
+        $ref: ../components/responses.yaml#/ServiceUnavailable

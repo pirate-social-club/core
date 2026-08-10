@@ -15,6 +15,7 @@ const MIGRATION_FILES = [
   "db/control-plane/migrations/0203_control_plane_dance_placeholder_expiry_cleanup.sql",
   "db/control-plane/migrations/0204_control_plane_dance_placeholder_cleanup_backfill.sql",
   "db/control-plane/migrations/0206_control_plane_dance_consent_receipts.sql",
+  "db/control-plane/migrations/0210_control_plane_dance_consent_contract_tightening.sql",
 ]
 const OVERLONG_SEGMENT_FINGERPRINT_JSON = JSON.stringify(
   Array.from({ length: 33 }, () => "8".repeat(64)),
@@ -42,7 +43,7 @@ async function expectSqlState(
   expect(caught?.errno).toBe(expected)
 }
 
-describe.skipIf(!RUN)("dance migrations 0168-0171 and 0201-0206 (real Postgres)", () => {
+describe.skipIf(!RUN)("dance migrations 0168-0171 and 0201-0210 (real Postgres)", () => {
   beforeAll(async () => {
     const root = connect()
     await root.unsafe(`DROP DATABASE IF EXISTS ${TEST_DB} WITH (FORCE)`)
@@ -268,7 +269,8 @@ describe.skipIf(!RUN)("dance migrations 0168-0171 and 0201-0206 (real Postgres)"
         required_fingerprint_policy_version, required_integrity_policy_version,
         mirror_policy,
         status, activity_date, activity_timezone, creation_idempotency_key,
-        upload_object_key, expected_mime_type, maximum_bytes, expires_at
+        upload_object_key, expected_mime_type, maximum_bytes, expires_at,
+        consent_policy_version, consented_at, consent_source
       ) VALUES (
         'dse_attempt', 'dat_attempt', 'usr_creator', 'cmty_test',
         'post_attempt_dance', 'post_song', 'sab_song',
@@ -279,8 +281,9 @@ describe.skipIf(!RUN)("dance migrations 0168-0171 and 0201-0206 (real Postgres)"
         'provisional_v1', '${"5".repeat(64)}', 'fingerprint_v1', 'integrity_v1',
         'allowed',
         'initialized', CURRENT_DATE, 'UTC', 'idem_attempt',
-        'dance-attempts/random/attempt.mp4', 'video/mp4', 67108864,
-        NOW() + INTERVAL '15 minutes'
+        'dance-attempts/random/attempt.mp4', 'video/mp4', 19000000,
+        NOW() + INTERVAL '15 minutes',
+        'dance_recording_v1', NOW(), 'api'
       );
     `)
 
@@ -406,7 +409,7 @@ describe.skipIf(!RUN)("dance migrations 0168-0171 and 0201-0206 (real Postgres)"
         'provisional_v1', '${"5".repeat(64)}', 'fingerprint_v1', 'integrity_v1',
         'allowed', 'initialized', CURRENT_DATE, 'UTC',
         'idem_cancelled', 'dance/attempt-media/dse_cancelled/pending.mp4',
-        'video/mp4', 67108864, NOW() + INTERVAL '15 minutes'
+        'video/mp4', 19000000, NOW() + INTERVAL '15 minutes'
       );
       UPDATE dance_attempt_sessions SET
         status = 'cancelled', terminal_reason = 'cancelled', finalized_at = NOW()
@@ -431,27 +434,22 @@ describe.skipIf(!RUN)("dance migrations 0168-0171 and 0201-0206 (real Postgres)"
     await db.end()
   })
 
-  test("recording consent receipts are complete, versioned, and source-bounded", async () => {
+  test("recording consent receipts are complete, versioned, source-bounded, and immutable", async () => {
     const db = connect(TEST_DB)
     await expectSqlState(db, `
       UPDATE dance_attempt_sessions
-      SET consent_policy_version = 'dance_recording_v1'
+      SET consent_policy_version = NULL,
+          consented_at = NULL,
+          consent_source = NULL
       WHERE dance_attempt_session_id = 'dse_attempt'
-    `, "23514")
+    `, "P0001")
     await expectSqlState(db, `
       UPDATE dance_attempt_sessions
       SET consent_policy_version = 'dance_recording_v1',
           consented_at = NOW(),
-          consent_source = 'unknown'
+          consent_source = 'telegram'
       WHERE dance_attempt_session_id = 'dse_attempt'
-    `, "23514")
-    await db.unsafe(`
-      UPDATE dance_attempt_sessions
-      SET consent_policy_version = 'dance_recording_v1',
-          consented_at = NOW(),
-          consent_source = 'api'
-      WHERE dance_attempt_session_id = 'dse_attempt'
-    `)
+    `, "P0001")
     const [row] = await db`
       SELECT consent_policy_version, consented_at, consent_source
       FROM dance_attempt_sessions
@@ -491,7 +489,7 @@ describe.skipIf(!RUN)("dance migrations 0168-0171 and 0201-0206 (real Postgres)"
         'allowed', 'initialized', CURRENT_DATE, 'UTC',
         'idem_expired_placeholder',
         'dance/attempt-media/dse_expired_placeholder/pending.mp4',
-        'video/mp4', 67108864, NOW() - INTERVAL '1 minute'
+        'video/mp4', 19000000, NOW() - INTERVAL '1 minute'
       );
       UPDATE dance_attempt_sessions SET
         status = 'expired', terminal_reason = 'session_expired',
@@ -535,7 +533,7 @@ describe.skipIf(!RUN)("dance migrations 0168-0171 and 0201-0206 (real Postgres)"
         'allowed', 'expired', CURRENT_DATE, 'UTC',
         'idem_backfill_placeholder',
         'dance/attempt-media/dse_backfill_placeholder/pending.mp4',
-        'video/mp4', 67108864, NOW() - INTERVAL '2 minutes', NOW(),
+        'video/mp4', 19000000, NOW() - INTERVAL '2 minutes', NOW(),
         'session_expired', 'pending', NOW()
       );
     `)
