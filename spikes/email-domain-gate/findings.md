@@ -240,6 +240,40 @@ validation is not part of the aggregate run.
 human-composed Proton-to-Gmail message carries it. Treating it as bulk would
 have removed a known valid correspondence path and biased the filtered rate.
 
+### Six-month Gmail archive result
+
+Observed 2026-08-10 over an explicitly supplied local Gmail Takeout MBOX, with
+`since=2026-02-01` and trusted receiver `mx.google.com`. The tool made zero
+network requests. The raw ZIP was not modified; its temporary extraction was
+deleted after the run. The ignored aggregate result is mode 0600.
+
+| Population | Messages | Unique From domains | Aligned | Workspace fallback | Other unaligned | Alignment rate |
+|---|---:|---:|---:|---:|---:|---:|
+| All received after date/folder/From validation | 51 | 11 | 9 | 0 | 2 | 81.82% |
+| Human-candidate after strong bulk/automation filters | 39 | 8 | 8 | 0 | 0 | 100% |
+
+Of 92 scanned messages, 39 were outside the date window, 2 were excluded by
+mailbox folder labels, and 12 recent received messages were removed from the
+human-candidate population by strong list/bulk signals. Every included domain
+had a trusted receiver DKIM result; there were no missing verdicts, no recorded
+DKIM failures, and no no-DKIM cases.
+
+This sample does not support a general 100% coverage claim. Eight
+human-candidate domains is small, and the mailbox is correspondent-, sector-,
+geography-, and receiver-biased. Domain reduction also records the best observed
+path, so it answers "did at least one observed human-mail path align?" rather
+than "will every mailbox/configuration at this organization align?" In this
+sample the anticipated bulk-mail hygiene inflation did not occur: both
+unaligned domains were in the bulk-inclusive population and disappeared under
+the human filter. Reporting both populations remains necessary because the
+direction of that bias cannot be assumed.
+
+Interpretation: strict aligned custom-domain DKIM was normal rather than rare
+among this mailbox's recent human-business correspondents. That keeps both the
+local-ZK and attested-dead-drop architectures viable on coverage grounds; it
+does not resolve their employer-disclosure or vendor-attestation decision axes,
+and it does not replace the planned configured Workspace/M365 provider matrix.
+
 ## Proton same-mailbox From-presentation variation
 
 Observed 2026-08-05 from two distinct Proton custom-domain → Gmail messages,
