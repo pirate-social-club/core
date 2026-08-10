@@ -160,6 +160,11 @@ rtk bun run --cwd services/verifier/hns audit:app-records
 rtk bun run --cwd services/verifier/hns audit:app-records -- --zones pirate,example
 ```
 
+An intentionally distinct app address must be named explicitly with
+`--allow-explicit-app-a-zones <zone,...>`. Do not use that exception for a
+normal gateway migration: exact A-record equality is what detects a stale app
+origin.
+
 Supply `PDNS_API_URL`, `PDNS_API_KEY`, and optionally `PDNS_SERVER_ID`. Repair
 reported zones through the normal `/ensure-zone` reconciliation path so app A
 and TLSA are applied together; do not add the TLSA owner by itself.

@@ -36,14 +36,24 @@ describe("managed app record audit", () => {
     });
   });
 
-  test("accepts a deliberate explicit app address", () => {
+  test("reports a stale or unexpected explicit app address", () => {
     expect(auditManagedAppRecords(zone([
       { name: "community", type: "A", ttl: 300, records: ["192.0.2.1"] },
       { name: "*.community", type: "A", ttl: 300, records: ["192.0.2.2"] },
       { name: "app.community", type: "A", ttl: 300, records: ["192.0.2.99"] },
       { name: "_443._tcp.community", type: "TLSA", ttl: 300, records: ["3 1 1 ABCD"] },
       { name: "_443._tcp.app.community", type: "TLSA", ttl: 300, records: ["3 1 1 ABCD"] },
-    ]))).toMatchObject({ status: "ok", issues: [] });
+    ]))).toMatchObject({ status: "drift", issues: ["app_a_mismatch"] });
+  });
+
+  test("accepts an explicitly allowlisted app address override", () => {
+    expect(auditManagedAppRecords(zone([
+      { name: "community", type: "A", ttl: 300, records: ["192.0.2.1"] },
+      { name: "*.community", type: "A", ttl: 300, records: ["192.0.2.2"] },
+      { name: "app.community", type: "A", ttl: 300, records: ["192.0.2.99"] },
+      { name: "_443._tcp.community", type: "TLSA", ttl: 300, records: ["3 1 1 ABCD"] },
+      { name: "_443._tcp.app.community", type: "TLSA", ttl: 300, records: ["3 1 1 ABCD"] },
+    ]), { allowExplicitAppA: true })).toMatchObject({ status: "ok", issues: [] });
   });
 
   test("skips zones without a managed web address", () => {
