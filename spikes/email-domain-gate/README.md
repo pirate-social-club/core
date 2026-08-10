@@ -181,6 +181,18 @@ Run its synthetic tests with:
 rtk node --test survey-mail-archive.test.mjs
 ```
 
+## Direct OIDC claim probe
+
+The provisional direct-OIDC branch has a spike-only Google probe under
+[`direct-oidc/`](direct-oidc/). It measures the claim names disclosed by the
+minimum documented `openid profile` request without integrating OAuth into any
+product. The probe uses disposable accounts, binds only to localhost, validates
+the ID token locally, calls no UserInfo endpoint, and never stores token or
+claim values.
+
+See [`direct-oidc/README.md`](direct-oidc/README.md) for the exact disposable
+Google Cloud client setup and focused test command.
+
 ## Shared compatibility policy
 
 `compatibility-policy.mjs` is the single spike policy for gate-configuration

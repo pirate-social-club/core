@@ -1,7 +1,7 @@
 # Minimal direct-OIDC feasibility spike
 
-**Status:** specified, not started. No product integration or production OAuth
-credentials are authorized.
+**Status:** localhost Google probe implemented; live provider measurement not
+started. No product integration or production OAuth credentials are authorized.
 
 **Decision prerequisite:** run only if employer/provider-visible application
 authentication is acceptable for the target users. Use disposable organization
@@ -61,6 +61,10 @@ Pre-commit the interpretation of G3 rather than rationalizing it afterward:
 3. Every permitted scope combination necessarily yields unacceptable identity
    data → reopen ZK-OIDC versus TEE-OIDC. Their sole justification becomes
    preventing that mandatory disclosure, not abstract operator blindness.
+
+The spike-only implementation is in [`direct-oidc/`](direct-oidc/). It binds to
+localhost, stores results only in memory, and must not be used with private or
+production accounts.
 
 ## Microsoft second
 
