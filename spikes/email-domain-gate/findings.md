@@ -240,7 +240,7 @@ validation is not part of the aggregate run.
 human-composed Proton-to-Gmail message carries it. Treating it as bulk would
 have removed a known valid correspondence path and biased the filtered rate.
 
-### Six-month Gmail archive result
+### Provisional six-month Gmail archive result
 
 Observed 2026-08-10 over an explicitly supplied local Gmail Takeout MBOX, with
 `since=2026-02-01` and trusted receiver `mx.google.com`. The tool made zero
@@ -258,21 +258,34 @@ human-candidate population by strong list/bulk signals. Every included domain
 had a trusted receiver DKIM result; there were no missing verdicts, no recorded
 DKIM failures, and no no-DKIM cases.
 
-This sample does not support a general 100% coverage claim. Eight
-human-candidate domains is small, and the mailbox is correspondent-, sector-,
-geography-, and receiver-biased. Domain reduction also records the best observed
-path, so it answers "did at least one observed human-mail path align?" rather
-than "will every mailbox/configuration at this organization align?" In this
-sample the anticipated bulk-mail hygiene inflation did not occur: both
-unaligned domains were in the bulk-inclusive population and disappeared under
-the human filter. Reporting both populations remains necessary because the
-direction of that bias cannot be assumed.
+The headline is **8 of 8 human-candidate domains aligned**, not "100% coverage."
+Eight domains is too small to distinguish near-universal support from a merely
+common configuration: if the true alignment rate were 80%, observing 8 of 8
+would still occur about 16.8% of the time. The mailbox is also correspondent-,
+sector-, geography-, and receiver-biased. Domain reduction records the best
+observed path, so it answers "did at least one observed human-mail path align?"
+rather than "will every mailbox/configuration at this organization align?"
 
-Interpretation: strict aligned custom-domain DKIM was normal rather than rare
-among this mailbox's recent human-business correspondents. That keeps both the
-local-ZK and attested-dead-drop architectures viable on coverage grounds; it
-does not resolve their employer-disclosure or vendor-attestation decision axes,
-and it does not replace the planned configured Workspace/M365 provider matrix.
+The export's 92 total messages over six months is unexpectedly small for a
+normally used Gmail mailbox, and the absence of any missing/no-DKIM/failed DKIM
+verdict strengthens the possibility that the Takeout was label-restricted or
+otherwise partial. Before this rate is cited externally, compare the source
+mailbox count for the same window with 92. If materially larger, classify this
+run as a partial non-random sample and rerun a complete export. If comparable,
+record that the source mailbox itself is low traffic and keep the resulting
+population limitation prominent.
+
+In this provisional sample the anticipated bulk-mail hygiene inflation did not
+occur: both unaligned domains were in the bulk-inclusive population and
+disappeared under the human filter. Reporting both populations remains
+necessary because the direction of that bias cannot be assumed.
+
+Provisional interpretation: the sample provides no evidence that strict
+alignment is rare, but it is too small and potentially incomplete to establish
+a reliable coverage rate. It therefore does not kill either the local-ZK or
+attested-dead-drop architecture, does not resolve their employer-disclosure or
+vendor-attestation decision axes, and does not replace the planned configured
+Workspace/M365 provider matrix.
 
 ## Proton same-mailbox From-presentation variation
 
