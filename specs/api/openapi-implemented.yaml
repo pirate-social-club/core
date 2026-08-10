@@ -161,6 +161,10 @@ paths:
           $ref: "#/components/responses/ValidationError"
         "401":
           $ref: "#/components/responses/AuthError"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /dance-sessions/{dance_session_id}:
     parameters:
       - in: path
@@ -184,6 +188,8 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /dance-sessions/{dance_session_id}/cancel:
     parameters:
       - in: path
@@ -209,6 +215,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /dance-sessions/{dance_session_id}/upload-intent:
     parameters:
       - in: path
@@ -240,6 +248,10 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /dance-sessions/{dance_session_id}/submit:
     parameters:
       - in: path
@@ -271,8 +283,12 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "422":
           $ref: "#/components/responses/ValidationError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /dance-attempts/{dance_attempt_id}:
     parameters:
       - in: path
@@ -296,6 +312,8 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /dance-choreographies/{dance_choreography_id}:
     parameters:
       - in: path
@@ -319,6 +337,8 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /posts/{post_id}/dance-choreography:
     parameters:
       - in: path
@@ -342,6 +362,8 @@ paths:
           $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /oauth/device_authorize:
     post:
       tags:
