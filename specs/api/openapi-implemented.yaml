@@ -17040,6 +17040,7 @@ components:
         - amount_cents
         - recipient_address
         - status
+        - settlement_stage
         - settlement_ref
         - failure_reason
       properties:
@@ -17054,6 +17055,8 @@ components:
           type: string
         status:
           $ref: "#/components/schemas/RewardPayoutStatus"
+        settlement_stage:
+          $ref: "#/components/schemas/RewardSettlementStage"
         settlement_ref:
           type: string
           nullable: true

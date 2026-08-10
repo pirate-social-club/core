@@ -206,6 +206,15 @@ RewardPayoutStatus:
     - submitted
     - confirmed
     - failed
+RewardSettlementStage:
+  type: string
+  enum:
+    - reserved
+    - signed
+    - broadcast
+    - needs_review
+    - confirmed
+    - failed
 RewardPayoutSummary:
   type: object
   required:
@@ -214,6 +223,7 @@ RewardPayoutSummary:
     - amount_cents
     - recipient_address
     - status
+    - settlement_stage
     - settlement_ref
     - failure_reason
   properties:
@@ -228,6 +238,8 @@ RewardPayoutSummary:
       type: string
     status:
       $ref: ./rewards.yaml#/RewardPayoutStatus
+    settlement_stage:
+      $ref: ./rewards.yaml#/RewardSettlementStage
     settlement_ref:
       type: string
       nullable: true
