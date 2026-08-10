@@ -250,7 +250,7 @@ deleted after the run. The ignored aggregate result is mode 0600.
 | Population | Messages | Unique From domains | Aligned | Workspace fallback | Other unaligned | Alignment rate |
 |---|---:|---:|---:|---:|---:|---:|
 | All received after date/folder/From validation | 51 | 11 | 9 | 0 | 2 | 81.82% |
-| Human-candidate after strong bulk/automation filters | 39 | 8 | 8 | 0 | 0 | 100% |
+| Header-filtered candidate after strong bulk/automation filters | 39 | 8 | 8 | 0 | 0 | 100% |
 
 Of 92 scanned messages, 39 were outside the date window, 2 were excluded by
 mailbox folder labels, and 12 recent received messages were removed from the
@@ -258,7 +258,7 @@ human-candidate population by strong list/bulk signals. Every included domain
 had a trusted receiver DKIM result; there were no missing verdicts, no recorded
 DKIM failures, and no no-DKIM cases.
 
-The headline is **8 of 8 human-candidate domains aligned**, not "100% coverage."
+The headline is **8 of 8 header-filtered domains aligned**, not "100% coverage."
 Eight domains is too small to distinguish near-universal support from a merely
 common configuration: if the true alignment rate were 80%, observing 8 of 8
 would still occur about 16.8% of the time. The mailbox is also correspondent-,
@@ -286,6 +286,34 @@ a reliable coverage rate. It therefore does not kill either the local-ZK or
 attested-dead-drop architecture, does not resolve their employer-disclosure or
 vendor-attestation decision axes, and does not replace the planned configured
 Workspace/M365 provider matrix.
+
+### One-year Proton archive result
+
+Observed 2026-08-10 over an explicitly supplied Proton Export Tool directory,
+with `since=2025-08-10` and trusted receiver `mail.protonmail.ch`. The survey
+streamed 5,756 EML files, used Proton sidecar label/reply metadata, made zero
+network requests, and emitted aggregate counts only.
+
+| Population | Messages | Unique From domains | Aligned | Workspace fallback | Other unaligned | DKIM not passed | Alignment rate over all domains |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| All received | 5,686 | 143 | 81 | 2 | 54 | 1 | 56.64% |
+| Loose header-filtered | 5,325 | 107 | 61 | 2 | 43 | 1 | 57.01% |
+| Replied-to, after header/folder filters | 27 | 7 | 5 | 0 | 1 | 1 | 71.43% |
+
+The folder-aware pass excluded 69 Sent/Draft/Spam/Trash messages, 360 messages
+with strong list/bulk signals, 1 automated message, and 1 message with an
+ambiguous/missing From domain. The first Gmail-oriented pass incorrectly called
+the 5,325-message loose subset "human candidate"; Proton's inbox composition
+shows that header exclusions alone are far too weak for that claim. The output
+and documentation now call it header-filtered.
+
+The replied-to population is higher precision for person-to-person
+correspondence because the mailbox owner actually answered, but it is only 7
+domains and is biased toward conversations worth answering. Its 5-of-7 aligned
+result demonstrates both real compatibility and a real non-aligned human path;
+it cannot establish a general rate. The broad 81-of-143 result is separately
+useful: strict alignment is neither rare nor universal across actual received
+domains, and a launch must expect a meaningful unsupported-domain population.
 
 ## Proton same-mailbox From-presentation variation
 

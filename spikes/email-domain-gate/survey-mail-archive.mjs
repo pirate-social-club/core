@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import { createReadStream } from "node:fs"
-import { chmod, writeFile } from "node:fs/promises"
+import { chmod, opendir, readFile, writeFile } from "node:fs/promises"
+import { join } from "node:path"
 import { domainToASCII, pathToFileURL } from "node:url"
 
 const CATEGORY_PRIORITY = new Map([
@@ -167,6 +168,74 @@ export async function* readMboxHeaders(path) {
   if (headerChunks.length > 0) yield Buffer.concat(headerChunks)
 }
 
+async function readEmlHeader(path) {
+  let buffered = Buffer.alloc(0)
+  for await (const chunk of createReadStream(path)) {
+    buffered = Buffer.concat([buffered, chunk])
+    const text = buffered.toString("latin1")
+    const separator = text.search(/\r?\n\r?\n/)
+    if (separator >= 0) return buffered.subarray(0, separator + (text[separator] === "\r" ? 4 : 2))
+    if (buffered.length > 1024 * 1024) throw new Error("message header exceeds limit")
+  }
+  throw new Error("message header is incomplete")
+}
+
+async function protonExcludedLabelIds(root) {
+  const excludedNames = new Set(["sent", "all sent", "drafts", "all drafts", "spam", "trash"])
+  async function findMapping(directory) {
+    const entries = await opendir(directory)
+    for await (const entry of entries) {
+      const path = join(directory, entry.name)
+      if (entry.isDirectory()) {
+        const nested = await findMapping(path)
+        if (nested) return nested
+      }
+      if (entry.isFile() && entry.name.toLowerCase().endsWith(".json")) {
+        try {
+          const parsed = JSON.parse(await readFile(path, "utf8"))
+          if (Array.isArray(parsed.Payload)) return parsed.Payload
+        } catch {
+          // Ignore non-JSON or per-message metadata here.
+        }
+      }
+    }
+    return null
+  }
+  const labels = await findMapping(root)
+  if (!labels) throw new Error("Proton label metadata is missing")
+  return new Set(labels
+    .filter((label) => excludedNames.has(String(label.Name ?? "").trim().toLowerCase()))
+    .map((label) => label.ID))
+}
+
+export async function* readEmlDirectoryHeaders(root) {
+  const excludedLabelIds = await protonExcludedLabelIds(root)
+  async function* walk(directory) {
+    const entries = await opendir(directory)
+    for await (const entry of entries) {
+      const path = join(directory, entry.name)
+      if (entry.isDirectory()) yield* walk(path)
+      if (entry.isFile() && entry.name.toLowerCase().endsWith(".eml")) {
+        const metadataPath = `${path.slice(0, -4)}.metadata.json`
+        let metadata
+        try {
+          metadata = JSON.parse(await readFile(metadataPath, "utf8"))?.Payload
+        } catch {
+          metadata = null
+        }
+        yield {
+          rawHeader: await readEmlHeader(path),
+          sourceFolderExcluded: Array.isArray(metadata?.LabelIDs)
+            ? metadata.LabelIDs.some((id) => excludedLabelIds.has(id))
+            : null,
+          sourceRepliedTo: metadata?.IsReplied === 1 || metadata?.IsRepliedAll === 1,
+        }
+      }
+    }
+  }
+  yield* walk(root)
+}
+
 function recordBest(domainResults, domain, category) {
   const prior = domainResults.get(domain)
   if (!prior || CATEGORY_PRIORITY.get(category) > CATEGORY_PRIORITY.get(prior)) {
@@ -203,14 +272,31 @@ export async function surveyArchive(messages, options = {}) {
 
   const allDomains = new Map()
   const humanDomains = new Map()
+  const repliedDomains = new Map()
   const excluded = {}
   let messagesScanned = 0
   let allReceivedMessages = 0
   let humanCandidateMessages = 0
+  let repliedToMessages = 0
 
   for await (const rawHeader of messages) {
     messagesScanned += 1
-    const headers = headerMap(rawHeader)
+    const message = Buffer.isBuffer(rawHeader) ? { rawHeader } : rawHeader
+    const headerBytes = message.rawHeader
+    if (!Buffer.isBuffer(headerBytes)) {
+      excluded.invalid_source_record = (excluded.invalid_source_record ?? 0) + 1
+      continue
+    }
+    if (message.sourceFolderExcluded === true) {
+      excluded.non_inbox_folder = (excluded.non_inbox_folder ?? 0) + 1
+      continue
+    }
+    if (message.sourceFolderExcluded === null) {
+      excluded.missing_source_folder_metadata =
+        (excluded.missing_source_folder_metadata ?? 0) + 1
+      continue
+    }
+    const headers = headerMap(headerBytes)
     const baseReason = baseExclusionReason(headers, sinceUnix)
     if (baseReason) {
       excluded[baseReason] = (excluded[baseReason] ?? 0) + 1
@@ -226,17 +312,21 @@ export async function surveyArchive(messages, options = {}) {
     const category = classifyDeliveryEvidence(headers, domain, authservId)
     recordBest(allDomains, domain, category)
 
-    const bulkReason = bulkExclusionReason(rawHeader)
+    const bulkReason = bulkExclusionReason(headerBytes)
     if (bulkReason) {
       excluded[bulkReason] = (excluded[bulkReason] ?? 0) + 1
       continue
     }
     humanCandidateMessages += 1
     recordBest(humanDomains, domain, category)
+    if (message.sourceRepliedTo === true) {
+      repliedToMessages += 1
+      recordBest(repliedDomains, domain, category)
+    }
   }
 
   return {
-    schema_version: 2,
+    schema_version: 3,
     evidence_source: "trusted_recipient_authentication_results",
     trusted_authserv_id: authservId,
     observed_at: new Date(observedAt * 1000).toISOString(),
@@ -244,7 +334,8 @@ export async function surveyArchive(messages, options = {}) {
     messages_scanned: messagesScanned,
     populations: {
       all_received: summarize(allDomains, allReceivedMessages),
-      human_candidate: summarize(humanDomains, humanCandidateMessages),
+      header_filtered_candidate: summarize(humanDomains, humanCandidateMessages),
+      replied_to_candidate: summarize(repliedDomains, repliedToMessages),
     },
     excluded_messages: Object.fromEntries(Object.entries(excluded).sort()),
     network_requests: 0,
@@ -252,7 +343,8 @@ export async function surveyArchive(messages, options = {}) {
     methodology: {
       unit: "One best observed verdict per From domain, so frequent correspondents do not dominate.",
       delivery_evidence: `Only Authentication-Results whose authserv-id exactly equals ${authservId} are trusted; this is coverage evidence, never authorization evidence.`,
-      human_filter: "The human-candidate population excludes List-Unsubscribe/List-Id, bulk/list/junk Precedence, non-no Auto-Submitted, and Gmail sent/draft/spam/trash labels. Feedback-ID is not an exclusion because a measured human-composed message carried it. This is a heuristic, not a human-authorship proof.",
+      header_filter: "The header-filtered population excludes List-Unsubscribe/List-Id, bulk/list/junk Precedence, non-no Auto-Submitted, and source Sent/Draft/Spam/Trash labels. Feedback-ID is not an exclusion because a measured human-composed message carried it. This is a loose heuristic, not a human-authorship proof.",
+      replied_filter: "For Proton EML exports, replied_to_candidate further requires sidecar IsReplied or IsRepliedAll. This is higher precision for human correspondence but lower recall and biased toward conversations the mailbox owner answered.",
       comparison: "all_received includes bulk/automated mail after the shared date/folder/From filters; human_candidate excludes it so hygiene inflation is visible.",
       no_network: "No DNS or HTTP lookup is performed. DKIM status is the receiving provider's contemporaneous delivery verdict preserved in the archive.",
       sampling_bias: "The archive reflects this mailbox's correspondents, sectors, and receiving paths; it is not a general census.",
@@ -268,7 +360,8 @@ function parseArguments(argv) {
     if (!key?.startsWith("--") || value === undefined) throw new Error("invalid arguments")
     values.set(key.slice(2), value)
   }
-  if (!values.get("mbox") || !values.get("since") || !values.get("authserv-id")) {
+  const sources = [values.get("mbox"), values.get("eml-dir")].filter(Boolean)
+  if (sources.length !== 1 || !values.get("since") || !values.get("authserv-id")) {
     throw new Error("required arguments are missing")
   }
   const since = `${values.get("since")}T00:00:00Z`
@@ -278,6 +371,7 @@ function parseArguments(argv) {
   }
   return {
     mbox: values.get("mbox"),
+    emlDirectory: values.get("eml-dir"),
     sinceUnix,
     authservId: values.get("authserv-id"),
     output: values.get("out"),
@@ -286,7 +380,10 @@ function parseArguments(argv) {
 
 async function main() {
   const args = parseArguments(process.argv.slice(2))
-  const output = `${JSON.stringify(await surveyArchive(readMboxHeaders(args.mbox), {
+  const messages = args.mbox
+    ? readMboxHeaders(args.mbox)
+    : readEmlDirectoryHeaders(args.emlDirectory)
+  const output = `${JSON.stringify(await surveyArchive(messages, {
     sinceUnix: args.sinceUnix,
     authservId: args.authservId,
   }), null, 2)}\n`

@@ -145,10 +145,21 @@ rtk node survey-mail-archive.mjs \
   --out results/received-mail-coverage.json
 ```
 
-The run is fully local and records `network_requests: 0`. It compares two
-populations: all received mail after date/folder/From validation, and a
-human-candidate subset excluding strong list/bulk/automated signals. Reporting both makes
-bulk-sender hygiene inflation visible. The receiving provider's result was
+For a Proton Export Tool directory, use the same survey with Proton's receiving
+authentication service identifier:
+
+```bash
+rtk node survey-mail-archive.mjs \
+  --eml-dir /absolute/path/to/proton-mail-backup \
+  --since 2026-02-01 \
+  --authserv-id mail.protonmail.ch \
+  --out results/received-mail-coverage-proton.json
+```
+
+The run is fully local and records `network_requests: 0`. It compares all
+received mail with a loose header-filtered subset. Proton sidecars additionally
+produce a higher-precision replied-to population. Reporting all tiers makes
+filter and interaction bias visible. The receiving provider's result was
 computed when the message arrived, so removed/rotated DKIM keys do not create
 archive-age false negatives. The output contains no domain, address, subject,
 identifier, path, or header value. A separate, explicitly consented small
