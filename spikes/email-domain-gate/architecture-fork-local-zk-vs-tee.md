@@ -26,9 +26,12 @@ The architecture decision starts with one product question:
 If yes, local email ZK is the only current candidate: OIDC applications and
 SMTP dead drops are both visible to the employer/provider control plane. If its
 ceremony is unusable, defer the gate rather than silently weaken that boundary.
-If employer visibility is acceptable, compare direct OIDC, ZK-OIDC, and
-TEE-wrapped OIDC before building SMTP infrastructure. Operator blindness and
-vendor-attestation acceptance then decide between those OIDC variants.
+If employer visibility is acceptable, the already accepted Q4 threat model does
+not require operator blindness, so minimal direct OIDC is the provisional
+answer. ZK-OIDC and TEE-wrapped OIDC have no current launch justification and
+remain deferred research. Promote operator blindness to a requirement only by
+reopening both OIDC and email-ZK: the accepted hosted email path is explicitly
+enumerable by Pirate operators too.
 
 ## Compared flows
 
@@ -99,6 +102,14 @@ signed client, reproducible extension/application, or another mechanism that
 prevents the operator from silently changing the prover. A proof protects the
 protocol transcript; it does not make hostile frontend code harmless.
 
+The same caveat applies to local email ZK: its browser receives the raw `.eml`
+and witness, so a maliciously replaced Pirate bundle can exfiltrate them before
+proving. Published hashes, reproducible builds, CSP/SRI where applicable, and
+independent verification improve detection and ordinary supply-chain integrity;
+they do not prevent the operator from replacing a mutable top-level web client.
+A signed/reproducible installed client is a materially stronger boundary. This
+is cross-cutting, not a reason to prefer one local ZK input over the other.
+
 ### TEE-wrapped OIDC
 
 The browser sends the authorization code directly to an attested workload. The
@@ -156,6 +167,28 @@ claim masking but explicitly says it is unaudited and not intended for
 production. Production use cannot inherit maturity from unrelated deployments;
 the circuit, helpers, setup artifacts and browser path require their own audit
 and feasibility result. See `zk-oidc-feasibility.md`.
+
+## Current decision reduction
+
+Q4 deliberately accepted that Pirate operators can enumerate the email path's
+unsalted digest. Applying that same requirement consistently removes the sole
+launch justification for both local ZK-OIDC and TEE-wrapped OIDC. Therefore:
+
+1. If a recognizable employer/provider authentication trace is unacceptable,
+   retain email ZK as the research path or do not ship.
+2. If that trace is acceptable, use minimal direct OIDC. Request and retain no
+   email claim unless a provider-specific test proves it unavoidable; use the
+   stable provider subject only for best-effort dedup and the affiliation claim
+   (`hd`, or `tid` mapped to `verifiedDomains`) for gating.
+3. Reopen ZK-OIDC versus TEE-OIDC only if operator blindness becomes a stated
+   requirement. That decision simultaneously invalidates the accepted hosted
+   email-ZK privacy posture and must revisit Q4 rather than applying a stricter
+   standard only to OIDC.
+
+Direct OIDC does not mean universal coverage. It covers supported Google and
+Microsoft organizational tenants whose administrators allow the application;
+self-hosted and other providers need a different mechanism or remain
+unsupported.
 
 ## Privacy consequences
 

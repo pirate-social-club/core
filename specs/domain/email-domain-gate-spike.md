@@ -5,13 +5,16 @@
 **Owner:** TBD
 **Scope:** Prove or refute that Pirate can gate communities on "member controls a mailbox at `acme.com`" using a DKIM-based ZK proof (`@zk-email/sdk` + a custom registry blueprint), without the address ever reaching Pirate.
 
-**Architecture fork (decision pending):** if employer-unlinked verification is
-required, local email ZK or no launch are the current choices. If
-employer/provider-visible OIDC is acceptable, compare direct OIDC, local
-ZK-OIDC and TEE-wrapped OIDC before an SMTP dead drop. Google `hd` represents
-hosted-domain membership; Microsoft `tid` mapped to `verifiedDomains` represents
-tenant membership and is a looser claim than mailbox-at-domain. None is
-authorized as an implementation or launch fallback. Decide one path using
+**Architecture fork (one product decision pending):** if employer-unlinked
+verification is required, local email ZK or no launch are the current choices.
+If employer/provider-visible OIDC is acceptable, minimal direct OIDC is the
+provisional answer under Q4's already accepted non-operator-blind threat model.
+ZK-OIDC and TEE-wrapped OIDC are deferred unless operator blindness is promoted
+to a launch requirement, which would also reopen the accepted email design.
+Google `hd` represents hosted-domain membership; Microsoft `tid` mapped to
+`verifiedDomains` represents tenant membership and is a looser claim than
+mailbox-at-domain. None is authorized as an implementation or launch fallback.
+Decide one path using
 [`architecture-fork-local-zk-vs-tee.md`](../../spikes/email-domain-gate/architecture-fork-local-zk-vs-tee.md);
 the bounded [`zk-oidc-feasibility.md`](../../spikes/email-domain-gate/zk-oidc-feasibility.md)
 when applicable, and do not ship a hybrid.
@@ -128,6 +131,7 @@ email_domain: {
 | Database reader (breach) | Sees only `HMAC(server_secret, commitment)`; cannot enumerate without the HMAC key. |
 | Other zk.email applications | The hosted `isHashed` path is not cryptographically app-scoped. If a raw digest escapes, another application hashing the same extracted From bytes can link it. Transient/off-chain handling is a security control. |
 | **Pirate operators** | **NOT address-private.** The verifier can enumerate likely addresses against the unsalted digest before HMAC. The HMAC provides at-rest breach containment, not operator-blindness. Operator-blindness would need threshold-OPRF / external evaluation — out of scope. |
+| Served-client compromise / malicious operator bundle | The browser necessarily sees the raw `.eml` and proof witness. Privacy therefore assumes the executed client matches the reviewed build; malicious same-origin code could exfiltrate them before proving. Published hashes, reproducible builds, CSP/SRI where applicable, and independent verification improve detection and supply-chain integrity but do not make a mutable operator-served top-level web application cryptographically trustworthy. A signed/reproducible installed client would be a stronger boundary. This assumption applies equally to local email ZK and local ZK-OIDC. |
 | Employer (mail admin, outbound logs, archives) | Sees an email to the user's chosen personal mailbox with an opaque, non-Pirate-branded verification subject. This leaks the personal recipient to the employer, but no Pirate account identifier or Pirate-controlled recipient. |
 | Public DoH resolver (optional pre-flight) | Sees the user's network address and queried DKIM `{d,s}` name, but never the mailbox, raw email, subject, or Pirate account. It is advisory only and is not trusted for grants. |
 | Replay / cross-deployment attacker | Nonce is single-use, server-mapped to `{user, session, audience, purpose, expiry}`, consumed atomically. A third party holding an old `.eml` from the target cannot produce the fresh nonce. |

@@ -1,11 +1,18 @@
 # ZK-OIDC feasibility spike
 
-**Status:** approved for research only; no product integration.
+**Status:** deferred after Z1a; do not start custom-circuit work unless operator
+blindness becomes a launch requirement and Q4 is reopened.
 
 **Goal:** determine whether a real provider ID token can produce a private,
 session-bound affiliation proof locally at acceptable desktop/mobile cost,
 without relying on the ZK Email conductor or disclosing the raw token to the
 Pirate API.
+
+Under the current accepted threat model this goal is not required for launch:
+the email design already concedes operator enumeration, so direct OIDC is the
+proportionate path whenever employer/provider visibility is acceptable. Keep
+the plan for a future stricter privacy requirement; do not proceed to Z2 merely
+because the research path exists.
 
 ## Claim profiles
 
