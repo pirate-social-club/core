@@ -82,6 +82,12 @@ not that no computation ever knows it.
 
 This is the simplest familiar ceremony, but Pirate receives provider identity
 material and the provider/employer can associate the user with the application.
+Google's current OIDC documentation does not establish an `openid`-only flow:
+it says `openid` must be accompanied by `profile`, `email`, or both. The
+`email` scope guarantees address disclosure; `profile` may return identifying
+profile claims. A dedicated test must determine whether `openid profile` plus
+`hd=*` yields `hd` and `sub` without `email` for a real Workspace account. Until
+then, describe the goal as data minimization—not address-blindness.
 
 ### Local ZK-OIDC
 
@@ -136,7 +142,10 @@ always-on inbound email service.
 
 Google's signed `hd` claim is designed for restricting access to members of a
 Workspace or Cloud organization domain. Do not infer hosted-domain membership
-from the mutable email claim.
+from the mutable email claim. Google's `sub` is stable, opaque and never reused,
+but its discovery metadata advertises public rather than pairwise subject
+identifiers. It is not safely described as client-scoped; HMAC it at rest and
+do not expose it in responses or telemetry.
 
 Microsoft is different. Validate immutable `tid` and `oid`/`sub`, then map the
 tenant to its Graph `verifiedDomains`. Never authorize from `email`,
@@ -177,9 +186,10 @@ launch justification for both local ZK-OIDC and TEE-wrapped OIDC. Therefore:
 1. If a recognizable employer/provider authentication trace is unacceptable,
    retain email ZK as the research path or do not ship.
 2. If that trace is acceptable, use minimal direct OIDC. Request and retain no
-   email claim unless a provider-specific test proves it unavoidable; use the
-   stable provider subject only for best-effort dedup and the affiliation claim
-   (`hd`, or `tid` mapped to `verifiedDomains`) for gating.
+   email claim when the provider permits, but do not claim address-blindness
+   until the provider-specific scope test passes. Use the stable provider
+   subject only for best-effort dedup and the affiliation claim (`hd`, or `tid`
+   mapped to `verifiedDomains`) for gating.
 3. Reopen ZK-OIDC versus TEE-OIDC only if operator blindness becomes a stated
    requirement. That decision simultaneously invalidates the accepted hosted
    email-ZK privacy posture and must revisit Q4 rather than applying a stricter
@@ -285,6 +295,7 @@ cryptographic proof that Pirate could never observe the sender.
 References:
 
 - [Google OpenID Connect and `hd`](https://developers.google.com/identity/openid-connect/openid-connect)
+- [Direct OIDC feasibility plan](direct-oidc-feasibility.md)
 - [Microsoft claims validation](https://learn.microsoft.com/en-us/entra/identity-platform/claims-validation)
 - [Microsoft Graph tenant `verifiedDomains`](https://learn.microsoft.com/en-us/graph/api/resources/verifieddomain?view=graph-rest-1.0)
 - [`zkemail/zk-jwt` research implementation](https://github.com/zkemail/zk-jwt)
@@ -319,6 +330,9 @@ TEE, and the recorded unconfigured Workspace sample fails both. OIDC variants
 replace that constraint with provider/tenant coverage and administrator consent
 policy. Configured Workspace/M365 samples remain useful for the email branches;
 dedicated Google/Microsoft test clients are required for the OIDC branches.
+The first direct-OIDC test is specified in `direct-oidc-feasibility.md` and
+requires an explicitly disposable organizational test account because the
+authentication event is provider/admin-visible by definition.
 
 ## Decision record template
 

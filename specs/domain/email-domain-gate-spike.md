@@ -16,7 +16,9 @@ Google `hd` represents hosted-domain membership; Microsoft `tid` mapped to
 mailbox-at-domain. None is authorized as an implementation or launch fallback.
 Decide one path using
 [`architecture-fork-local-zk-vs-tee.md`](../../spikes/email-domain-gate/architecture-fork-local-zk-vs-tee.md);
-the bounded [`zk-oidc-feasibility.md`](../../spikes/email-domain-gate/zk-oidc-feasibility.md)
+use [`direct-oidc-feasibility.md`](../../spikes/email-domain-gate/direct-oidc-feasibility.md)
+to test the minimum provider disclosures before integration;
+use the bounded [`zk-oidc-feasibility.md`](../../spikes/email-domain-gate/zk-oidc-feasibility.md)
 when applicable, and do not ship a hybrid.
 
 ---
