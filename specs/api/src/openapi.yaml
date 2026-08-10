@@ -72,6 +72,10 @@ paths:
     $ref: ./paths/dance.yaml#/dance_sessions_by_dance_session_id
   /dance-sessions/{dance_session_id}/cancel:
     $ref: ./paths/dance.yaml#/dance_sessions_by_dance_session_id_cancel
+  /dance-sessions/{dance_session_id}/upload-intent:
+    $ref: ./paths/dance.yaml#/dance_sessions_by_dance_session_id_upload_intent
+  /dance-sessions/{dance_session_id}/submit:
+    $ref: ./paths/dance.yaml#/dance_sessions_by_dance_session_id_submit
   /dance-attempts/{dance_attempt_id}:
     $ref: ./paths/dance.yaml#/dance_attempts_by_dance_attempt_id
   /dance-choreographies/{dance_choreography_id}:

@@ -14,6 +14,7 @@ const MIGRATION_FILES = [
   "db/control-plane/migrations/0201_control_plane_dance_attempt_cancellation.sql",
   "db/control-plane/migrations/0203_control_plane_dance_placeholder_expiry_cleanup.sql",
   "db/control-plane/migrations/0204_control_plane_dance_placeholder_cleanup_backfill.sql",
+  "db/control-plane/migrations/0206_control_plane_dance_consent_receipts.sql",
 ]
 const OVERLONG_SEGMENT_FINGERPRINT_JSON = JSON.stringify(
   Array.from({ length: 33 }, () => "8".repeat(64)),
@@ -41,7 +42,7 @@ async function expectSqlState(
   expect(caught?.errno).toBe(expected)
 }
 
-describe.skipIf(!RUN)("dance migrations 0168-0171 and 0201-0204 (real Postgres)", () => {
+describe.skipIf(!RUN)("dance migrations 0168-0171 and 0201-0206 (real Postgres)", () => {
   beforeAll(async () => {
     const root = connect()
     await root.unsafe(`DROP DATABASE IF EXISTS ${TEST_DB} WITH (FORCE)`)
@@ -427,6 +428,40 @@ describe.skipIf(!RUN)("dance migrations 0168-0171 and 0201-0204 (real Postgres)"
       SET status = 'expired', terminal_reason = 'session_expired'
       WHERE dance_attempt_session_id = 'dse_cancelled'
     `, "P0001")
+    await db.end()
+  })
+
+  test("recording consent receipts are complete, versioned, and source-bounded", async () => {
+    const db = connect(TEST_DB)
+    await expectSqlState(db, `
+      UPDATE dance_attempt_sessions
+      SET consent_policy_version = 'dance_recording_v1'
+      WHERE dance_attempt_session_id = 'dse_attempt'
+    `, "23514")
+    await expectSqlState(db, `
+      UPDATE dance_attempt_sessions
+      SET consent_policy_version = 'dance_recording_v1',
+          consented_at = NOW(),
+          consent_source = 'unknown'
+      WHERE dance_attempt_session_id = 'dse_attempt'
+    `, "23514")
+    await db.unsafe(`
+      UPDATE dance_attempt_sessions
+      SET consent_policy_version = 'dance_recording_v1',
+          consented_at = NOW(),
+          consent_source = 'api'
+      WHERE dance_attempt_session_id = 'dse_attempt'
+    `)
+    const [row] = await db`
+      SELECT consent_policy_version, consented_at, consent_source
+      FROM dance_attempt_sessions
+      WHERE dance_attempt_session_id = 'dse_attempt'
+    `
+    expect(row).toMatchObject({
+      consent_policy_version: "dance_recording_v1",
+      consent_source: "api",
+    })
+    expect(row.consented_at).toBeInstanceOf(Date)
     await db.end()
   })
 
