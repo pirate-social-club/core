@@ -40,6 +40,8 @@ export type HnsPublicGatewayEnv = CaddyAskEnv & {
   HNS_PUBLIC_NAMESPACE_RESOLVE_TIMEOUT_MS?: string;
 };
 
+export type HnsForwarderMode = "dual" | "hmac_required" | "token_only" | "unconfigured";
+
 type CachedNamespaceResolution = {
   freshUntil: number;
   resolution: PublicNamespaceResolution | null;
@@ -429,12 +431,19 @@ function canonicalForwarderHost(url: URL): string {
   return url.hostname.trim().toLowerCase().replace(/\.+$/u, "");
 }
 
-function hasUsableForwarderCredentials(env: HnsPublicGatewayEnv): boolean {
+export function resolveForwarderMode(env: HnsPublicGatewayEnv): HnsForwarderMode {
   const hmacValid = isValidForwarderHmacKey(env.HNS_PUBLIC_FORWARDER_HMAC_KEY?.trim() ?? "");
-  if (env.HNS_PUBLIC_FORWARDER_REQUIRE_HMAC?.trim().toLowerCase() === "true") {
-    return hmacValid;
-  }
-  return hmacValid || Boolean(env.HNS_PUBLIC_FORWARDER_AUTH_TOKEN?.trim());
+  const tokenConfigured = Boolean(env.HNS_PUBLIC_FORWARDER_AUTH_TOKEN?.trim());
+  const requireHmac = env.HNS_PUBLIC_FORWARDER_REQUIRE_HMAC?.trim().toLowerCase() === "true";
+
+  if (hmacValid && (requireHmac || !tokenConfigured)) return "hmac_required";
+  if (hmacValid && tokenConfigured) return "dual";
+  if (tokenConfigured && !requireHmac) return "token_only";
+  return "unconfigured";
+}
+
+function hasUsableForwarderCredentials(env: HnsPublicGatewayEnv): boolean {
+  return resolveForwarderMode(env) !== "unconfigured";
 }
 
 /**
@@ -663,7 +672,10 @@ export async function handleRequest(
   }
 
   if (url.pathname === "/health") {
-    return Response.json({ ok: true });
+    return Response.json({
+      ok: true,
+      forwarder_mode: resolveForwarderMode(env),
+    });
   }
 
   const rootSuffix = env.HNS_PUBLIC_GATEWAY_ROOT_SUFFIX?.trim() || "pirate";
