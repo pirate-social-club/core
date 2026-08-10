@@ -14,6 +14,7 @@ import {
   extractImportedNamespaceHost,
   extractPublicProfileHost,
   handleRequest,
+  resolveForwarderMode,
 } from "./server";
 
 test("forwarder signature interoperability vector remains stable", async () => {
@@ -386,7 +387,26 @@ describe("handleRequest", () => {
   test("serves health", async () => {
     const response = await handleRequest(new Request("http://127.0.0.1/health"), env);
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true });
+    expect(await response.json()).toEqual({ ok: true, forwarder_mode: "hmac_required" });
+  });
+
+  test("reports the effective non-secret forwarder mode", () => {
+    expect(resolveForwarderMode({
+      HNS_PUBLIC_FORWARDER_HMAC_KEY: forwarderHmacKey,
+      HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "legacy-rollout-token",
+    })).toBe("dual");
+    expect(resolveForwarderMode({
+      HNS_PUBLIC_FORWARDER_HMAC_KEY: forwarderHmacKey,
+      HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "legacy-rollout-token",
+      HNS_PUBLIC_FORWARDER_REQUIRE_HMAC: "true",
+    })).toBe("hmac_required");
+    expect(resolveForwarderMode({
+      HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "legacy-rollout-token",
+    })).toBe("token_only");
+    expect(resolveForwarderMode({
+      HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "legacy-rollout-token",
+      HNS_PUBLIC_FORWARDER_REQUIRE_HMAC: "true",
+    })).toBe("unconfigured");
   });
 
   test("does not exempt health from the plain-HTTP read-only policy", async () => {

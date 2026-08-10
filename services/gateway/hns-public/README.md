@@ -10,7 +10,8 @@ It is the server-side counterpart to Freedom's HNS browsing path:
 
 ## Responsibilities
 
-- serve `GET /health`
+- serve `GET /health` with the non-secret effective `forwarder_mode`
+  (`hmac_required`, `dual`, `token_only`, or `unconfigured`)
 - accept host-based `.pirate` requests
 - map `<label>.pirate` -> `<label>.pirate` Pirate handle
 - call `GET /public-profiles/:handle`

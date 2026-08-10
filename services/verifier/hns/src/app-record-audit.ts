@@ -10,6 +10,10 @@ export type ManagedAppRecordAudit = {
   zone: string;
 };
 
+export type ManagedAppRecordAuditOptions = {
+  allowExplicitAppA?: boolean;
+};
+
 function records(zone: PowerDnsZoneSnapshot, name: string, type: string): string[] {
   return zone.rrsets
     .filter((rrset) => rrset.name === name && rrset.type.toUpperCase() === type)
@@ -21,7 +25,10 @@ function sameRecords(left: string[], right: string[]): boolean {
   return left.length === right.length && left.every((record, index) => record === right[index]);
 }
 
-export function auditManagedAppRecords(zone: PowerDnsZoneSnapshot): ManagedAppRecordAudit {
+export function auditManagedAppRecords(
+  zone: PowerDnsZoneSnapshot,
+  options: ManagedAppRecordAuditOptions = {},
+): ManagedAppRecordAudit {
   const zoneName = zone.name.replace(/\.$/u, "");
   const appName = `app.${zoneName}`;
   const wildcardA = records(zone, `*.${zoneName}`, "A");
@@ -44,9 +51,11 @@ export function auditManagedAppRecords(zone: PowerDnsZoneSnapshot): ManagedAppRe
   }
 
   const issues: string[] = [];
-  // An explicit app A record may deliberately target a different gateway than
-  // the wildcard. The launch invariant is presence, not value equality.
-  if (appA.length === 0) issues.push("missing_app_a");
+  if (appA.length === 0) {
+    issues.push("missing_app_a");
+  } else if (!options.allowExplicitAppA && !sameRecords(appA, expectedA)) {
+    issues.push("app_a_mismatch");
+  }
   if (expectedTlsa.length > 0 && !sameRecords(appTlsa, expectedTlsa)) {
     issues.push(appTlsa.length === 0 ? "missing_app_tlsa" : "app_tlsa_mismatch");
   }
