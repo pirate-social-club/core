@@ -9,6 +9,7 @@ DanceSessionStatus:
     - rejected
     - failed
     - expired
+    - cancelled
 DanceAttemptStatus:
   type: string
   enum:
@@ -20,6 +21,7 @@ DanceAttemptStatus:
     - rejected
     - failed
     - expired
+    - cancelled
 DanceAttemptReason:
   type: string
   nullable: true
@@ -38,6 +40,7 @@ DanceAttemptReason:
     - insufficient_motion
     - insufficient_alignment
     - session_expired
+    - cancelled
 DanceSession:
   type: object
   required:
