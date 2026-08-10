@@ -66,6 +66,8 @@ paths:
     $ref: ./paths/agent-discovery.yaml#/sitemap_xml
   /auth/session/exchange:
     $ref: ./paths/auth.yaml#/auth_session_exchange
+  /dance-sessions:
+    $ref: ./paths/dance.yaml#/dance_sessions
   /dance-sessions/{dance_session_id}:
     $ref: ./paths/dance.yaml#/dance_sessions_by_dance_session_id
   /dance-sessions/{dance_session_id}/cancel:

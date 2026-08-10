@@ -338,6 +338,43 @@ paths:
                 $ref: "#/components/schemas/SessionExchangeResponse"
         "401":
           $ref: "#/components/responses/AuthError"
+  /dance-sessions:
+    post:
+      x-implemented: true
+      operationId: dance_session_create
+      tags:
+        - Dance
+      summary: Create an expiring dance upload session
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DanceSessionCreateRequest"
+      responses:
+        "200":
+          description: Existing session for the idempotency key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DanceSession"
+        "201":
+          description: Dance session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DanceSession"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/AuthError"
   /dance-sessions/{dance_session_id}:
     parameters:
       - in: path

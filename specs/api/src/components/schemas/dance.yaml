@@ -54,6 +54,7 @@ DanceSession:
     - max_bytes
     - expires_at
     - created
+    - idempotent
   properties:
     id:
       type: string
@@ -81,6 +82,15 @@ DanceSession:
     created:
       type: integer
       format: int64
+    idempotent:
+      type: boolean
+DanceSessionCreateRequest:
+  type: object
+  required:
+    - post
+  properties:
+    post:
+      type: string
 DanceAttempt:
   type: object
   required:
