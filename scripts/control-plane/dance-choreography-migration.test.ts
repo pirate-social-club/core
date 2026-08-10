@@ -15,7 +15,7 @@ const MIGRATION_FILES = [
   "db/control-plane/migrations/0203_control_plane_dance_placeholder_expiry_cleanup.sql",
   "db/control-plane/migrations/0204_control_plane_dance_placeholder_cleanup_backfill.sql",
   "db/control-plane/migrations/0206_control_plane_dance_consent_receipts.sql",
-  "db/control-plane/migrations/0207_control_plane_dance_consent_contract_tightening.sql",
+  "db/control-plane/migrations/0208_control_plane_dance_consent_contract_tightening.sql",
 ]
 const OVERLONG_SEGMENT_FINGERPRINT_JSON = JSON.stringify(
   Array.from({ length: 33 }, () => "8".repeat(64)),
@@ -43,7 +43,7 @@ async function expectSqlState(
   expect(caught?.errno).toBe(expected)
 }
 
-describe.skipIf(!RUN)("dance migrations 0168-0171 and 0201-0207 (real Postgres)", () => {
+describe.skipIf(!RUN)("dance migrations 0168-0171 and 0201-0208 (real Postgres)", () => {
   beforeAll(async () => {
     const root = connect()
     await root.unsafe(`DROP DATABASE IF EXISTS ${TEST_DB} WITH (FORCE)`)
