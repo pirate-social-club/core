@@ -8,9 +8,11 @@
 **Architecture fork (one product decision pending):** if employer-unlinked
 verification is required, local email ZK or no launch are the current choices.
 If employer/provider-visible OIDC is acceptable, minimal direct OIDC is the
-provisional answer under Q4's already accepted non-operator-blind threat model.
-ZK-OIDC and TEE-wrapped OIDC are deferred unless operator blindness is promoted
-to a launch requirement, which would also reopen the accepted email design.
+provisional answer only if the minimum Google scope avoids unacceptable direct
+identity claims. Q4 accepted an enumerable-address risk, not routine receipt of
+real names or photographs. ZK-OIDC and TEE-wrapped OIDC are deferred unless the
+scope test makes such disclosure unavoidable, or operator blindness is promoted
+to a launch requirement—which would also reopen the accepted email design.
 Google `hd` represents hosted-domain membership; Microsoft `tid` mapped to
 `verifiedDomains` represents tenant membership and is a looser claim than
 mailbox-at-domain. None is authorized as an implementation or launch fallback.

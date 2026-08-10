@@ -21,19 +21,23 @@ included when the `email` scope is requested. Its current OIDC flow documentatio
 also says `openid` must be accompanied by `profile`, `email`, or both, so the
 proposed `openid`-only flow is not established. Google advertises public subject
 identifiers; `sub` is stable and opaque but not safely treated as pairwise or
-client-scoped.
+client-scoped. That permits cross-relying-party joining by parties that already
+hold matching subject lists, but it is not directory-enumerable like an
+unsalted hash of a work address; keep those risks distinct.
 
 - [ ] G1. Register a disposable test OAuth client with exact redirect URIs and
   no production branding/domain.
 - [ ] G2. Use authorization code + PKCE, fresh `state` and `nonce`, `hd=*`, and
-  request `openid profile` without `email`. Do not call UserInfo.
+  request `openid profile` without `email`. Treat request-side `hd=*` only as an
+  account-chooser hint; it is attacker-modifiable and has no authorization
+  value. Do not call UserInfo.
 - [ ] G3. Validate signature/JWK, `iss`, `aud`, `nonce`, `iat` and `exp` locally.
   Record only claim **names**, consent-screen permission text and whether `hd`,
   `sub`, `email`, name/profile claims are present. Never commit/log the token or
   claim values.
 - [ ] G4. Confirm an organizational test account returns trustworthy `hd` and a
   consumer Gmail control returns no `hd`. Confirm a mismatched expected domain
-  fails.
+  fails. Only the `hd` inside the verified ID token may satisfy the gate.
 - [ ] G5. Repeat a fresh login to establish `sub` stability for Pirate dedup;
   store only `HMAC(server_secret, issuer || sub)` in the mock. Never echo raw
   `sub`.
@@ -45,6 +49,18 @@ the `email` scope, the returned incidental claims are explicitly accepted, and
 the employer/provider-visible event is acceptable. Call the result
 “email-scope-free” unless the real token proves no address is returned; do not
 promise operator address-blindness from scopes alone.
+
+Pre-commit the interpretation of G3 rather than rationalizing it afterward:
+
+1. `profile` yields `hd`/`sub` without address, real name, photograph or other
+   direct identity → the minimal direct-OIDC reduction holds.
+2. `profile` necessarily yields name, photograph or comparable direct identity
+   → direct OIDC is not minimal for a pseudonymous platform. Compare that
+   unavoidable disclosure against the email path's enumerable-address risk;
+   Q4 did not pre-authorize routine name/photo collection.
+3. Every permitted scope combination necessarily yields unacceptable identity
+   data → reopen ZK-OIDC versus TEE-OIDC. Their sole justification becomes
+   preventing that mandatory disclosure, not abstract operator blindness.
 
 ## Microsoft second
 

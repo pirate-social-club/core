@@ -88,6 +88,8 @@ it says `openid` must be accompanied by `profile`, `email`, or both. The
 profile claims. A dedicated test must determine whether `openid profile` plus
 `hd=*` yields `hd` and `sub` without `email` for a real Workspace account. Until
 then, describe the goal as data minimization—not address-blindness.
+Request-side `hd=*` is only a mutable account-chooser hint; authorization uses
+only `hd` from the cryptographically verified ID token.
 
 ### Local ZK-OIDC
 
@@ -145,7 +147,9 @@ Workspace or Cloud organization domain. Do not infer hosted-domain membership
 from the mutable email claim. Google's `sub` is stable, opaque and never reused,
 but its discovery metadata advertises public rather than pairwise subject
 identifiers. It is not safely described as client-scoped; HMAC it at rest and
-do not expose it in responses or telemetry.
+do not expose it in responses or telemetry. Unlike an unsalted email digest,
+the high-entropy opaque subject cannot be enumerated from an employee directory;
+cross-RP linkage requires a party that already holds a matching subject list.
 
 Microsoft is different. Validate immutable `tid` and `oid`/`sub`, then map the
 tenant to its Graph `verifiedDomains`. Never authorize from `email`,
@@ -180,20 +184,24 @@ and feasibility result. See `zk-oidc-feasibility.md`.
 ## Current decision reduction
 
 Q4 deliberately accepted that Pirate operators can enumerate the email path's
-unsalted digest. Applying that same requirement consistently removes the sole
-launch justification for both local ZK-OIDC and TEE-wrapped OIDC. Therefore:
+unsalted digest. Applying that requirement consistently removes abstract
+operator blindness as a standalone launch justification for local ZK-OIDC or
+TEE-wrapped OIDC. It does not authorize every stronger identity disclosure:
+routine receipt of real names or photographs is materially different from the
+effortful ability to enumerate candidate addresses. Therefore:
 
 1. If a recognizable employer/provider authentication trace is unacceptable,
    retain email ZK as the research path or do not ship.
-2. If that trace is acceptable, use minimal direct OIDC. Request and retain no
+2. If that trace is acceptable, test minimal direct OIDC first. Request and retain no
    email claim when the provider permits, but do not claim address-blindness
    until the provider-specific scope test passes. Use the stable provider
    subject only for best-effort dedup and the affiliation claim (`hd`, or `tid`
    mapped to `verifiedDomains`) for gating.
-3. Reopen ZK-OIDC versus TEE-OIDC only if operator blindness becomes a stated
-   requirement. That decision simultaneously invalidates the accepted hosted
-   email-ZK privacy posture and must revisit Q4 rather than applying a stricter
-   standard only to OIDC.
+3. If the mandatory Google scope returns real name/photo or otherwise
+   unacceptable identity, reopen ZK-OIDC versus TEE-OIDC specifically to avoid
+   that disclosure. Separately, if operator blindness itself becomes a stated
+   requirement, that decision also invalidates the accepted hosted email-ZK
+   privacy posture and must revisit Q4.
 
 Direct OIDC does not mean universal coverage. It covers supported Google and
 Microsoft organizational tenants whose administrators allow the application;
