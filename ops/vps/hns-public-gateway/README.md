@@ -90,6 +90,11 @@ without the configured forwarder source IP. For later rotations, configure the
 Worker with the new current key and old previous key, rotate the gateway, wait
 out the replay window, and remove the previous key.
 
+Set `HNS_PUBLIC_FORWARDER_REQUIRE_HMAC=true` on the gateway when retiring the
+legacy token. This converts accidental token-only rollback or missing-key state
+into a gateway-side 503 instead of relying on the downstream Worker to detect
+the incomplete rollout.
+
 The signed `X-Pirate-HNS-Forwarder-Path` is not a substitute for the receiving
 Worker's request URL. The Worker must compare it byte-for-byte with its own
 `pathname + search` before HMAC verification and reject any mismatch; this is

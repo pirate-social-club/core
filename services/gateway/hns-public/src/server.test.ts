@@ -800,6 +800,7 @@ describe("handleRequest", () => {
           return Response.json({
             root_label: "xn--pokmon-dva",
             namespace_verification: "nv_namespace_public_test",
+            wallet_interactive: true,
             community: {
               id: "com_cmt_public_namespace_test",
               display_name: "Imported Root",
@@ -831,6 +832,8 @@ describe("handleRequest", () => {
       pathAndQuery: "/",
       root: "xn--pokmon-dva",
     });
+    expect(calls[1].headers.get("x-pirate-hns-wallet-interactive")).toBe("1");
+    expect(calls[1].headers.has("x-pirate-hns-forwarder-token")).toBe(false);
     expect(calls[1].headers.has("host")).toBe(false);
     expect(calls[1].headers.get("accept-encoding")).toBe("identity");
   });
@@ -1027,6 +1030,23 @@ describe("handleRequest", () => {
     expect(response.status).toBe(200);
     expect(calls[0].get("x-pirate-hns-forwarder-token")).toBe("legacy-rollout-token");
     expect(calls[0].has(FORWARDER_SIGNATURE_HEADER)).toBe(false);
+    expect(calls[0].has("x-pirate-hns-forwarder-path")).toBe(false);
+  });
+
+  test("rejects token-only configuration after HMAC enforcement is enabled", async () => {
+    const response = await handleRequest(
+      new Request("https://app.pirate/", { headers: { "x-forwarded-proto": "https" } }),
+      {
+        ...env,
+        HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "legacy-rollout-token",
+        HNS_PUBLIC_FORWARDER_HMAC_KEY: undefined,
+        HNS_PUBLIC_FORWARDER_REQUIRE_HMAC: "true",
+      },
+      async () => {
+        throw new Error("required HMAC configuration must fail before proxying");
+      },
+    );
+    expect(response.status).toBe(503);
   });
 
   test("fails closed before proxying when neither rollout credential is usable", async () => {

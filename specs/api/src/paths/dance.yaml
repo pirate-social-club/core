@@ -24,13 +24,13 @@ dance_sessions:
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/dance.yaml#/DanceSession
+              $ref: ../components/schemas/dance.yaml#/DanceSessionMutationResponse
       "201":
         description: Dance session created
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/dance.yaml#/DanceSession
+              $ref: ../components/schemas/dance.yaml#/DanceSessionMutationResponse
       "400":
         $ref: ../components/responses.yaml#/ValidationError
       "401":
@@ -78,13 +78,79 @@ dance_sessions_by_dance_session_id_cancel:
         content:
           application/json:
             schema:
-              $ref: ../components/schemas/dance.yaml#/DanceSession
+              $ref: ../components/schemas/dance.yaml#/DanceSessionMutationResponse
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "404":
         $ref: ../components/responses.yaml#/NotFound
       "409":
         $ref: ../components/responses.yaml#/Conflict
+dance_sessions_by_dance_session_id_upload_intent:
+  parameters:
+    - in: path
+      name: dance_session_id
+      required: true
+      schema:
+        type: string
+  post:
+    x-implemented: true
+    operationId: dance_session_upload_intent_create
+    tags:
+      - Dance
+    summary: Bind a private upload intent to an owned dance session
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/dance.yaml#/DanceSessionUploadIntentRequest
+    responses:
+      "200":
+        description: Bound upload intent
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/dance.yaml#/DanceSessionUploadIntent
+      "400":
+        $ref: ../components/responses.yaml#/ValidationError
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+dance_sessions_by_dance_session_id_submit:
+  parameters:
+    - in: path
+      name: dance_session_id
+      required: true
+      schema:
+        type: string
+  post:
+    x-implemented: true
+    operationId: dance_session_submit
+    tags:
+      - Dance
+    summary: Submit an uploaded dance attempt for grading
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/dance.yaml#/DanceSessionSubmitRequest
+    responses:
+      "202":
+        description: Attempt accepted for grading
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/dance.yaml#/DanceSessionSubmission
+      "400":
+        $ref: ../components/responses.yaml#/ValidationError
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "422":
+        $ref: ../components/responses.yaml#/ValidationError
 dance_attempts_by_dance_attempt_id:
   parameters:
     - in: path

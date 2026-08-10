@@ -20,6 +20,7 @@ export { extractImportedNamespaceHost, extractPublicProfileHost } from "./hostna
 type PublicNamespaceResolution = {
   root_label: string;
   namespace_verification: string | null;
+  wallet_interactive?: boolean;
   community: {
     id: string;
     display_name: string | null;
@@ -32,6 +33,7 @@ export type HnsPublicGatewayEnv = CaddyAskEnv & {
   HNS_PUBLIC_APP_ORIGIN?: string;
   HNS_PUBLIC_FORWARDER_HMAC_KEY?: string;
   HNS_PUBLIC_FORWARDER_AUTH_TOKEN?: string;
+  HNS_PUBLIC_FORWARDER_REQUIRE_HMAC?: string;
   HNS_PUBLIC_NAMESPACE_CACHE_TTL_MS?: string;
   HNS_PUBLIC_NAMESPACE_CACHE_STALE_MS?: string;
   HNS_PUBLIC_NAMESPACE_CACHE_MAX_ENTRIES?: string;
@@ -415,6 +417,14 @@ function canonicalForwarderHost(url: URL): string {
   return url.hostname.trim().toLowerCase().replace(/\.+$/u, "");
 }
 
+function hasUsableForwarderCredentials(env: HnsPublicGatewayEnv): boolean {
+  const hmacValid = isValidForwarderHmacKey(env.HNS_PUBLIC_FORWARDER_HMAC_KEY?.trim() ?? "");
+  if (env.HNS_PUBLIC_FORWARDER_REQUIRE_HMAC?.trim().toLowerCase() === "true") {
+    return hmacValid;
+  }
+  return hmacValid || Boolean(env.HNS_PUBLIC_FORWARDER_AUTH_TOKEN?.trim());
+}
+
 /**
  * The gateway is the trust boundary: downstream (the app Worker) accepts
  * x-pirate-hns-* only from this gateway's IP + timestamped HMAC. A public client can send
@@ -465,7 +475,7 @@ async function buildSignedProxyHeaders(input: {
 }): Promise<Headers | null> {
   const secret = input.env.HNS_PUBLIC_FORWARDER_HMAC_KEY?.trim() ?? "";
   const legacyToken = input.env.HNS_PUBLIC_FORWARDER_AUTH_TOKEN?.trim() ?? "";
-  if (!isValidForwarderHmacKey(secret) && !legacyToken) {
+  if (!hasUsableForwarderCredentials(input.env)) {
     return null;
   }
 
@@ -480,8 +490,8 @@ async function buildSignedProxyHeaders(input: {
     pathAndQuery,
     timestamp,
   };
-  headers.set(FORWARDER_PATH_HEADER, pathAndQuery);
   if (isValidForwarderHmacKey(secret)) {
+    headers.set(FORWARDER_PATH_HEADER, pathAndQuery);
     headers.set(FORWARDER_TIMESTAMP_HEADER, timestamp);
     headers.set(FORWARDER_SIGNATURE_HEADER, await signForwarderContext(context, secret));
   }
@@ -574,9 +584,7 @@ async function proxyImportedNamespaceRequest(input: {
   namespaceHost: { rootLabel: string; subdomain: string | null };
   fetchImpl: typeof fetch;
 }): Promise<Response | null> {
-  const secret = input.env.HNS_PUBLIC_FORWARDER_HMAC_KEY?.trim() ?? "";
-  const legacyToken = input.env.HNS_PUBLIC_FORWARDER_AUTH_TOKEN?.trim() ?? "";
-  if (!isValidForwarderHmacKey(secret) && !legacyToken) {
+  if (!hasUsableForwarderCredentials(input.env)) {
     return renderForwarderConfigurationError();
   }
   let resolution: PublicNamespaceResolution | null;
@@ -613,6 +621,7 @@ async function proxyImportedNamespaceRequest(input: {
   headers.set("x-pirate-hns-root", resolution.root_label);
   headers.set("x-pirate-hns-community-id", resolution.community.id);
   headers.set("x-pirate-hns-community-route", resolution.community.route_slug);
+  headers.set("x-pirate-hns-wallet-interactive", resolution.wallet_interactive === true ? "1" : "0");
   if (input.namespaceHost.subdomain) {
     headers.set("x-pirate-hns-subdomain", input.namespaceHost.subdomain);
   }
