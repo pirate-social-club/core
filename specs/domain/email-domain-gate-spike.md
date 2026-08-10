@@ -5,14 +5,16 @@
 **Owner:** TBD
 **Scope:** Prove or refute that Pirate can gate communities on "member controls a mailbox at `acme.com`" using a DKIM-based ZK proof (`@zk-email/sdk` + a custom registry blueprint), without the address ever reaching Pirate.
 
-**Architecture fork (decision pending):** an attested SMTP dead drop could
-replace the export/local-proof ceremony, improve operator privacy with a
-TEE-held HMAC, and eliminate proving/export risks. It would also disclose a
-verification-service recipient to employer logs and make vendor attestation
-plus always-online SMTP a trust root. This is not authorized as an
-implementation or launch fallback. Decide one path using
+**Architecture fork (decision pending):** if employer-unlinked verification is
+required, local email ZK or no launch are the current choices. If
+employer/provider-visible OIDC is acceptable, compare direct OIDC, local
+ZK-OIDC and TEE-wrapped OIDC before an SMTP dead drop. Google `hd` represents
+hosted-domain membership; Microsoft `tid` mapped to `verifiedDomains` represents
+tenant membership and is a looser claim than mailbox-at-domain. None is
+authorized as an implementation or launch fallback. Decide one path using
 [`architecture-fork-local-zk-vs-tee.md`](../../spikes/email-domain-gate/architecture-fork-local-zk-vs-tee.md);
-do not ship a hybrid.
+the bounded [`zk-oidc-feasibility.md`](../../spikes/email-domain-gate/zk-oidc-feasibility.md)
+when applicable, and do not ship a hybrid.
 
 ---
 

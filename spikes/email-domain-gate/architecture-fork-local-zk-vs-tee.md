@@ -1,31 +1,34 @@
-# Architecture fork: local ZK proof vs attested SMTP dead drop
+# Architecture fork: email ZK vs OIDC privacy variants
 
-**Status:** decision required; neither path is authorized for product build.
+**Status:** decision required; no path is authorized for product build.
 
 **Date:** 2026-08-10
 
 ## Decision being made
 
-The current spike uses a local ZK proof over a work-to-personal email export. A
-proposed alternative sends the fresh challenge email to an SMTP dead drop whose
-entire receiver, DKIM verifier, commitment derivation, and receipt signer run in
-an attestable confidential workload.
+The current spike uses a local ZK proof over a work-to-personal email export.
+The alternatives are direct OIDC, a local ZK proof over an OIDC ID token,
+TEE-wrapped OIDC, and an attested SMTP dead drop. The SMTP design remains
+documented below but is no longer the default alternative: once employer-visible
+third-party authentication is accepted, OIDC has better UX and avoids DKIM
+alignment/export constraints.
 
 This is not a transport substitution. It changes the privacy disclosure, trust
-root, availability model, and proof authority. Do not launch both paths: two
-ceremonies would create two security surfaces and let an attacker choose the
-weaker one.
+root, availability model, and proof authority. Do not launch a hybrid: multiple
+ceremonies would create multiple security surfaces and let an attacker choose
+the weakest one.
 
-The architecture decision turns principally on two product questions:
+The architecture decision starts with one product question:
 
-1. Is disclosure of a verification-recipient domain in employer outbound-mail
-   logs, DLP systems, and archives acceptable?
-2. Is a cloud/hardware attestation chain acceptable as a community-access trust
-   root?
+1. Must verification avoid a recognizable third-party authentication event in
+   employer-controlled systems?
 
-If either answer is no, the TEE path is not an acceptable replacement. If the
-local ceremony is also unusable, the honest outcome is to defer or abandon the
-email-domain gate rather than silently weaken its guarantees.
+If yes, local email ZK is the only current candidate: OIDC applications and
+SMTP dead drops are both visible to the employer/provider control plane. If its
+ceremony is unusable, defer the gate rather than silently weaken that boundary.
+If employer visibility is acceptable, compare direct OIDC, ZK-OIDC, and
+TEE-wrapped OIDC before building SMTP infrastructure. Operator blindness and
+vendor-attestation acceptance then decide between those OIDC variants.
 
 ## Compared flows
 
@@ -62,21 +65,97 @@ The TEE necessarily sees the raw address transiently. The claim is that the
 reviewed measured workload is the only Pirate-controlled code able to see it,
 not that no computation ever knows it.
 
+### Direct OIDC
+
+1. Browser begins a provider authorization flow with a Pirate client ID and a
+   fresh nonce.
+2. Google returns a signed ID token containing `hd`; Microsoft returns a token
+   containing immutable tenant/user identifiers.
+3. Pirate validates signature, issuer, audience, nonce and expiry. Google gates
+   directly on `hd`. Microsoft gates on `tid` mapped to the tenant's Graph
+   `verifiedDomains`, never on mutable `email` or `preferred_username`.
+4. Pirate retains the minimum stable identifier needed for best-effort dedup and
+   grants the affiliation capability.
+
+This is the simplest familiar ceremony, but Pirate receives provider identity
+material and the provider/employer can associate the user with the application.
+
+### Local ZK-OIDC
+
+1. Browser begins the same OIDC flow with a fresh nonce bound to the Pirate
+   session and approved client audience.
+2. The browser receives the signed ID token and locally proves provider
+   signature plus required claims. It reveals only the affiliation claim
+   (`hd`, or `tid`) and an application-scoped nullifier derived from the stable
+   subject; the raw token and subject are not sent to Pirate.
+3. Pirate verifies the proof against a session-pinned provider JWK, checks
+   issuer/audience/nonce/expiry and domain policy, then grants the capability.
+
+This removes email export, DKIM parsing and DKIM alignment from supported OIDC
+providers. It is not automatically operator-blind: Pirate controls ordinary web
+assets and could serve JavaScript that exfiltrates the token before proving.
+That stronger claim requires a trusted delivery boundary such as a reviewed
+signed client, reproducible extension/application, or another mechanism that
+prevents the operator from silently changing the prover. A proof protects the
+protocol transcript; it does not make hostile frontend code harmless.
+
+### TEE-wrapped OIDC
+
+The browser sends the authorization code directly to an attested workload. The
+workload redeems and validates it, emits only domain/tenant plus a keyed
+pseudonymous identifier, and discards the token. This can provide operator
+isolation without browser proving, but adds the vendor attestation/key-release
+trust root. Unlike SMTP-in-TEE, it needs no MX, mail parser, DANE/MTA-STS or
+always-on inbound email service.
+
 ## Comparison
 
-| Property | Local ZK | Attested SMTP dead drop |
-|---|---|---|
-| User ceremony | Send, export, select, prove | Open prefilled mail and press Send |
-| Pirate application/operator sees address | The hosted unsalted digest is enumerable by an operator | Not if TLS terminates in the approved workload and its HMAC interface cannot be abused |
-| Employer-visible recipient | User's personal mailbox | Verification service domain |
-| Personal mail provider sees work identity | Yes | No |
-| Raw-message export fidelity | Required | Irrelevant |
-| Browser proving artifacts/performance | Load-bearing | Eliminated |
-| Runtime dependency | Client plus Pirate verifier | 24/7 SMTP, confidential workload, attestation, key release, monitoring |
-| Primary trust root | DKIM, pinned ZK artifacts, proof verifier | DKIM plus hardware/cloud attestation and measured receipt signer |
-| Public proof portability | Possible | No; receipt inherits the attestation trust model |
-| DKIM strict-alignment coverage | Required | Identically required |
-| Gate semantics | Affiliation badge | Affiliation badge |
+| Property | Email ZK | Direct OIDC | ZK-OIDC | TEE OIDC | SMTP TEE |
+|---|---|---|---|---|---|
+| User ceremony | Send, export, select, prove | Provider sign-in | Provider sign-in + local prove | Provider sign-in | Send one email |
+| Employer/provider sees third-party authentication | No recognizable Pirate service; ordinary external personal mail remains logged | Yes | Yes | Yes | Yes, via recipient |
+| Pirate operator identity access | Email digest is enumerable in hosted path | Yes | Protocol hides token, but hostile served JS can exfiltrate it | Isolated by attested workload | Isolated by attested workload |
+| Coverage basis | Strictly aligned DKIM (~57% observed sample) | Supported OIDC tenants | Supported OIDC tenants | Supported OIDC tenants | Strictly aligned DKIM |
+| Browser proof cost | Load-bearing, unmeasured | None | Load-bearing, unmeasured | None | None |
+| Novel runtime | Proof verifier | Standard OAuth backend | Proof verifier + JWK policy | Confidential OAuth callback/exchange | Confidential SMTP + mail security stack |
+| Primary trust root | Provider DKIM + ZK artifacts | OIDC provider | OIDC provider + ZK artifacts + client-delivery integrity | OIDC provider + vendor attestation | DKIM + vendor attestation |
+| Gate semantics | Mailbox-at-exact-domain affiliation | Google domain membership; Microsoft tenant membership mapped to verified domain | Same as direct OIDC | Same as direct OIDC | Mailbox-at-exact-domain affiliation |
+
+## OIDC claim semantics and unresolved trust
+
+Google's signed `hd` claim is designed for restricting access to members of a
+Workspace or Cloud organization domain. Do not infer hosted-domain membership
+from the mutable email claim.
+
+Microsoft is different. Validate immutable `tid` and `oid`/`sub`, then map the
+tenant to its Graph `verifiedDomains`. Never authorize from `email`,
+`preferred_username`, or `unique_name`. A tenant may verify several domains, so
+this establishes **membership in a tenant that controls the configured domain**,
+not possession of a mailbox at that domain. A contractor or guest account in
+that tenant may qualify. This is acceptable only under the resolved
+affiliation-badge semantics and must be visible to gate authors; it is a real
+loosening from the DKIM mailbox claim.
+
+ZK-OIDC also retains key and client-delivery trust:
+
+- The proof must bind `iss`, `aud`, `nonce`, `exp`, `kid`, the provider claim,
+  and an application-scoped salted nullifier derived from the stable subject.
+- Provider JWK rotation is manageable because tokens are short-lived, but not
+  irrelevant. Pin the selected JWK to the session before proving and verify the
+  proof's key hash against it; define cache, revocation and stale-session policy.
+- Local proving prevents the normal backend from receiving the JWT only when
+  the authorization response and prover run inside a client the operator cannot
+  silently replace. A normal Pirate-served web bundle does not provide that
+  guarantee against a malicious Pirate operator.
+- Never place tokens or authorization codes in application logs, analytics,
+  Sentry, query retention, referrers or responses. Use authorization code + PKCE
+  where supported and make redirect/callback logging part of the threat model.
+
+The available `zkemail/zk-jwt` repository demonstrates RSA JWT verification and
+claim masking but explicitly says it is unaudited and not intended for
+production. Production use cannot inherit maturity from unrelated deployments;
+the circuit, helpers, setup artifacts and browser path require their own audit
+and feasibility result. See `zk-oidc-feasibility.md`.
 
 ## Privacy consequences
 
@@ -172,6 +251,11 @@ cryptographic proof that Pirate could never observe the sender.
 
 References:
 
+- [Google OpenID Connect and `hd`](https://developers.google.com/identity/openid-connect/openid-connect)
+- [Microsoft claims validation](https://learn.microsoft.com/en-us/entra/identity-platform/claims-validation)
+- [Microsoft Graph tenant `verifiedDomains`](https://learn.microsoft.com/en-us/graph/api/resources/verifieddomain?view=graph-rest-1.0)
+- [`zkemail/zk-jwt` research implementation](https://github.com/zkemail/zk-jwt)
+- [Sui zkLogin technical reference](https://docs.sui.io/sui-stack/zklogin-integration/zklogin)
 - [DKIM signed-header semantics (RFC 6376)](https://www.rfc-editor.org/info/rfc6376/)
 - [MTA-STS and its SMTP TLS threat model (RFC 8461)](https://www.rfc-editor.org/info/rfc8461/)
 - [DANE authentication for SMTP (RFC 7672)](https://www.rfc-editor.org/info/rfc7672/)
@@ -182,39 +266,42 @@ References:
 
 ## Strategic fit
 
-The local proof path produces a verifier-controlled cryptographic proof from
-pinned public artifacts. The dead-drop path makes a centralized hardware/cloud
-attestation chain part of community access and requires Pirate-operated online
-infrastructure. That conflicts with the project's broader preference for
-portable verification and minimizing centralized trust roots.
+The local email and OIDC proof paths produce verifier-controlled cryptographic
+proofs from pinned public artifacts. TEE paths make a centralized
+hardware/cloud attestation chain part of community access and require
+Pirate-operated confidential infrastructure. That conflicts with the project's
+broader preference for portable verification and minimizing centralized trust
+roots.
 
-This does not automatically reject the TEE path: the operator-blind HMAC is a
-privacy improvement and the ceremony is dramatically simpler. It means the
-vendor trust must be accepted as a deliberate product exception, documented in
-gate copy and operational policy rather than hidden as an implementation
-detail.
+This does not automatically reject a TEE path: operator isolation is a real
+privacy improvement and avoids browser proving. It means the vendor trust must
+be accepted as a deliberate product exception. ZK-OIDC may avoid that vendor
+root, but only after its unaudited implementation, proving cost, JWK binding and
+client-delivery boundary pass the dedicated spike.
 
 ## Architecture-independent work
 
-Strict DKIM alignment remains the same eligibility boundary in both designs.
-The recorded unconfigured Workspace sample fails both. Continue measuring real
-aligned custom-domain Workspace and M365 mail before selecting either
-architecture; otherwise the decision optimizes a ceremony whose addressable
-population is still unknown.
+Strict DKIM alignment remains the eligibility boundary for email-ZK and SMTP
+TEE, and the recorded unconfigured Workspace sample fails both. OIDC variants
+replace that constraint with provider/tenant coverage and administrator consent
+policy. Configured Workspace/M365 samples remain useful for the email branches;
+dedicated Google/Microsoft test clients are required for the OIDC branches.
 
 ## Decision record template
 
 Before implementation, record:
 
 - **Employer disclosure accepted:** yes/no, with the target-user threat model.
+- **OIDC provider/admin visibility accepted:** yes/no.
+- **Pirate operator access to provider identity accepted:** yes/no, including
+  the frontend-delivery assumption for local ZK-OIDC.
 - **Vendor attestation accepted:** yes/no, including named hardware/cloud roots
   and revocation/update policy.
 - **Portable public proof required:** yes/no.
-- **Online SMTP operational burden accepted:** yes/no, with availability and
-  incident ownership.
-- **Selected architecture:** local ZK / attested dead drop / do not ship.
-- **Why the rejected architecture is unacceptable:** concrete reason.
+- **Selected architecture:** email ZK / direct OIDC / ZK-OIDC / TEE OIDC /
+  SMTP TEE / do not ship.
+- **Why each rejected architecture is unacceptable:** concrete reason.
 
-Until this record is completed, the dead drop is a design candidate only. Do
-not provision production SMTP, confidential infrastructure, receipt keys, gate
-UI, or a hybrid fallback.
+Until this record is completed, every alternative is a research candidate only.
+Do not provision production OAuth, SMTP, confidential infrastructure, receipt
+keys, gate UI, or a hybrid fallback.
