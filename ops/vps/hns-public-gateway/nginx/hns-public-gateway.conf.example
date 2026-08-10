@@ -1,7 +1,7 @@
 # All HNS hostnames route through the Bun gateway (127.0.0.1:4049), which owns
 # routing (app/api/apex, usernames, reserved-host 404s, and the dynamic
 # arbitrary-root catchall via /public-namespaces/:root). The gateway injects
-# x-pirate-hns-host and the forwarder token itself.
+# x-pirate-hns-host and the timestamped forwarder signature itself.
 #
 # default_server makes this a true catchall: arbitrary verified community
 # roots (any hostname) reach the gateway instead of dying in proxy config.

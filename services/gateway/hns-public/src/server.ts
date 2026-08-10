@@ -5,6 +5,13 @@ import {
   handleCaddyAskRequest,
   type CaddyAskEnv,
 } from "./caddy-ask";
+import {
+  FORWARDER_SIGNATURE_HEADER,
+  FORWARDER_TIMESTAMP_HEADER,
+  isValidForwarderHmacKey,
+  signForwarderContext,
+  type HnsForwarderContext,
+} from "./forwarder-signature";
 import { extractImportedNamespaceHost, extractPublicProfileHost } from "./hostnames";
 
 export { extractImportedNamespaceHost, extractPublicProfileHost } from "./hostnames";
@@ -22,7 +29,7 @@ type PublicNamespaceResolution = {
 export type HnsPublicGatewayEnv = CaddyAskEnv & {
   HNS_PUBLIC_GATEWAY_EXTERNAL_SCHEME?: string;
   HNS_PUBLIC_APP_ORIGIN?: string;
-  HNS_PUBLIC_FORWARDER_AUTH_TOKEN?: string;
+  HNS_PUBLIC_FORWARDER_HMAC_KEY?: string;
 };
 
 export function buildCommunityPath(communityId: string, routeSlug: string | null): string {
@@ -311,12 +318,12 @@ const READ_ONLY_METHODS = new Set(["GET", "HEAD"]);
 
 /**
  * The gateway is the trust boundary: downstream (the app Worker) accepts
- * x-pirate-hns-* only from this gateway's IP + token. A public client can send
+ * x-pirate-hns-* only from this gateway's IP + timestamped HMAC. A public client can send
  * those headers too, so every inbound one must be DELETED before we set the
  * server-derived values — otherwise the gateway would launder attacker-supplied
- * routing context (community id/route) behind its own legitimate token.
+ * routing context (community id/route) behind its own legitimate signature.
  */
-function buildProxyHeaders(request: Request, url: URL, env: HnsPublicGatewayEnv): Headers {
+function buildProxyHeaders(request: Request, url: URL): Headers {
   const headers = new Headers(request.headers);
   headers.delete("host");
 
@@ -335,11 +342,40 @@ function buildProxyHeaders(request: Request, url: URL, env: HnsPublicGatewayEnv)
 
   headers.set("accept-encoding", "identity");
   headers.set("x-pirate-hns-host", url.hostname);
-  const forwarderToken = env.HNS_PUBLIC_FORWARDER_AUTH_TOKEN?.trim();
-  if (forwarderToken) {
-    headers.set("x-pirate-hns-forwarder-token", forwarderToken);
-  }
   return headers;
+}
+
+async function buildSignedProxyHeaders(input: {
+  request: Request;
+  url: URL;
+  env: HnsPublicGatewayEnv;
+  context?: Omit<HnsForwarderContext, "host" | "method" | "pathAndQuery" | "timestamp">;
+}): Promise<Headers | null> {
+  const secret = input.env.HNS_PUBLIC_FORWARDER_HMAC_KEY?.trim() ?? "";
+  if (!isValidForwarderHmacKey(secret)) {
+    return null;
+  }
+
+  const headers = buildProxyHeaders(input.request, input.url);
+  const timestamp = String(Math.floor(Date.now() / 1_000));
+  const context: HnsForwarderContext = {
+    ...input.context,
+    host: input.url.hostname,
+    method: input.request.method,
+    pathAndQuery: `${input.url.pathname}${input.url.search}`,
+    timestamp,
+  };
+  headers.set(FORWARDER_TIMESTAMP_HEADER, timestamp);
+  headers.set(FORWARDER_SIGNATURE_HEADER, await signForwarderContext(context, secret));
+  return headers;
+}
+
+function renderForwarderConfigurationError(): Response {
+  return renderErrorPage(
+    "HNS gateway configuration",
+    "This HNS gateway cannot authenticate requests to Pirate right now.",
+    503,
+  );
 }
 
 /**
@@ -393,8 +429,16 @@ async function proxyReservedHostRequest(input: {
   env: HnsPublicGatewayEnv;
   fetchImpl: typeof fetch;
 }): Promise<Response> {
+  const headers = await buildSignedProxyHeaders({
+    request: input.request,
+    url: input.url,
+    env: input.env,
+  });
+  if (!headers) {
+    return renderForwarderConfigurationError();
+  }
   return input.fetchImpl(rebaseUrlToOrigin(input.request.url, input.targetOrigin), {
-    headers: buildProxyHeaders(input.request, input.url, input.env),
+    headers,
     method: input.request.method,
     redirect: "manual",
     ...buildProxyBodyInit(input.request),
@@ -410,6 +454,10 @@ async function proxyImportedNamespaceRequest(input: {
   namespaceHost: { rootLabel: string; subdomain: string | null };
   fetchImpl: typeof fetch;
 }): Promise<Response | null> {
+  const secret = input.env.HNS_PUBLIC_FORWARDER_HMAC_KEY?.trim() ?? "";
+  if (!isValidForwarderHmacKey(secret)) {
+    return renderForwarderConfigurationError();
+  }
   const namespaceResponse = await input.fetchImpl(
     `${input.apiOrigin}/public-namespaces/${encodeURIComponent(input.namespaceHost.rootLabel)}`,
     {
@@ -431,7 +479,20 @@ async function proxyImportedNamespaceRequest(input: {
   }
 
   const resolution = await namespaceResponse.json() as PublicNamespaceResolution;
-  const headers = buildProxyHeaders(input.request, input.url, input.env);
+  const headers = await buildSignedProxyHeaders({
+    request: input.request,
+    url: input.url,
+    env: input.env,
+    context: {
+      root: resolution.root_label,
+      communityId: resolution.community.id,
+      communityRoute: resolution.community.route_slug,
+      subdomain: input.namespaceHost.subdomain,
+    },
+  });
+  if (!headers) {
+    return renderForwarderConfigurationError();
+  }
   headers.set("accept", input.request.headers.get("accept") ?? "text/html");
   headers.set("x-pirate-hns-root", resolution.root_label);
   headers.set("x-pirate-hns-community-id", resolution.community.id);

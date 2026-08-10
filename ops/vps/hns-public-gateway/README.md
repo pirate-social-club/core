@@ -14,8 +14,10 @@ routes those hosts to Pirate's VPS.
 is evaluated. The bare `pirate.` apex permanently redirects to the same path
 and query on `app.pirate`; sessions must not use the single-label apex.
 `api.pirate` is also reserved for API traffic and should route before wildcard profile routing.
-When these hosts proxy to the Cloudflare `.sc` runtime, forward `X-Pirate-HNS-Host` so SSR can
-derive app/API/canonical metadata from the HNS entrypoint after validating the forwarder IP.
+When these hosts proxy to the Cloudflare `.sc` runtime, the gateway injects
+`X-Pirate-HNS-Host` and a timestamped HMAC so SSR can derive app/API/canonical
+metadata from the HNS entrypoint after validating both the signature and the
+forwarder IP.
 
 It should:
 
@@ -71,6 +73,19 @@ release root and has an independent app pin and rollback lifecycle.
 - `nginx/hns-public-gateway.conf.example`
 
 The systemd template intentionally runs `bun` directly, not `rtk`.
+
+## Forwarder key rotation
+
+Use a random key of at least 32 bytes. Store it as
+`HNS_PUBLIC_FORWARDER_HMAC_KEY` on this service and `HNS_FORWARDER_HMAC_KEY` as
+a Worker secret. The Worker accepts `HNS_FORWARDER_HMAC_PREVIOUS_KEY` during a
+rotation; remove that previous-key secret after the maximum five-minute replay
+window has elapsed.
+
+For an initial migration from the legacy token, deploy the signing gateway
+first, then deploy the verifying Worker. For later rotations, configure the
+Worker with the new current key and old previous key, rotate the gateway, wait
+out the replay window, and remove the previous key.
 
 ## Public DNSSEC + DANE mode
 

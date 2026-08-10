@@ -5,8 +5,8 @@
 # (tested code) instead of proxy config means the catchall genuinely covers
 # arbitrary community roots.
 #
-# The gateway injects x-pirate-hns-host and the forwarder token itself
-# (HNS_PUBLIC_FORWARDER_AUTH_TOKEN in its env) — do not add header_up overrides
+# The gateway injects x-pirate-hns-host and the forwarder signature itself
+# (HNS_PUBLIC_FORWARDER_HMAC_KEY in its env) — do not add header_up overrides
 # for those here.
 #
 # This is the local/trusted-private-CA variant. Caddy creates a different key
