@@ -39,6 +39,7 @@ tags:
   - name: Feeds
   - name: Tracks
   - name: Song Study
+  - name: Dance
   - name: Moderation
   - name: MPP
   - name: Notifications
@@ -65,6 +66,16 @@ paths:
     $ref: ./paths/agent-discovery.yaml#/sitemap_xml
   /auth/session/exchange:
     $ref: ./paths/auth.yaml#/auth_session_exchange
+  /dance-sessions/{dance_session_id}:
+    $ref: ./paths/dance.yaml#/dance_sessions_by_dance_session_id
+  /dance-sessions/{dance_session_id}/cancel:
+    $ref: ./paths/dance.yaml#/dance_sessions_by_dance_session_id_cancel
+  /dance-attempts/{dance_attempt_id}:
+    $ref: ./paths/dance.yaml#/dance_attempts_by_dance_attempt_id
+  /dance-choreographies/{dance_choreography_id}:
+    $ref: ./paths/dance.yaml#/dance_choreographies_by_dance_choreography_id
+  /posts/{post_id}/dance-choreography:
+    $ref: ./paths/dance.yaml#/posts_by_post_id_dance_choreography
   /oauth/device_authorize:
     $ref: ./paths/auth.yaml#/oauth_device_authorize
   /oauth/device/verify:

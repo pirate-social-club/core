@@ -34,6 +34,7 @@ tags:
   - name: Livestreams
   - name: Bookings
   - name: Song Study
+  - name: Dance
   - name: Moderation
   - name: Notifications
   - name: Rewards
@@ -124,6 +125,123 @@ paths:
                 $ref: "#/components/schemas/SessionExchangeResponse"
         "401":
           $ref: "#/components/responses/AuthError"
+  /dance-sessions/{dance_session_id}:
+    parameters:
+      - in: path
+        name: dance_session_id
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: dance_session_retrieve
+      tags:
+        - Dance
+      summary: Get an owned dance session
+      responses:
+        "200":
+          description: Current session state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DanceSession"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /dance-sessions/{dance_session_id}/cancel:
+    parameters:
+      - in: path
+        name: dance_session_id
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: dance_session_cancel
+      tags:
+        - Dance
+      summary: Cancel an owned unsubmitted dance session
+      responses:
+        "200":
+          description: Cancelled or already-cancelled session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DanceSession"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /dance-attempts/{dance_attempt_id}:
+    parameters:
+      - in: path
+        name: dance_attempt_id
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: dance_attempt_retrieve
+      tags:
+        - Dance
+      summary: Get an owned dance attempt
+      responses:
+        "200":
+          description: Current attempt state and bounded grading outcome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DanceAttempt"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /dance-choreographies/{dance_choreography_id}:
+    parameters:
+      - in: path
+        name: dance_choreography_id
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: dance_choreography_retrieve
+      tags:
+        - Dance
+      summary: Get a ready dance choreography
+      responses:
+        "200":
+          description: Ready active choreography revision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DanceChoreography"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /posts/{post_id}/dance-choreography:
+    parameters:
+      - in: path
+        name: post_id
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: post_dance_choreography_retrieve
+      tags:
+        - Dance
+      summary: Get the ready dance choreography hosted by a post
+      responses:
+        "200":
+          description: Ready active choreography revision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DanceChoreography"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /oauth/device_authorize:
     post:
       tags:
