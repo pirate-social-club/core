@@ -172,14 +172,39 @@ requires proof verification plus a pinned-key match before policy evaluation.
 The module ignores the verifier's older derived `gate_usable` fields so they
 cannot become a second policy implementation.
 
-The six-sample private corpus conformance run currently produces three
+The private corpus harness no longer reads ignored cached result JSON. It
+regenerates Python evidence into a restricted temporary directory, runs the
+JavaScript adapter over the same raw message and observation time, asserts exact
+normalized-evidence equality, evaluates policy, and deletes the temporary
+evidence. All six samples currently agree across adapters and produce three
 compatible expired-signature cases, one strict-alignment incompatibility, one
 invalid-header-signature inconclusive case, and one no-signature inconclusive
-case. Synthetic tests additionally cover body-only rewriting, missing signed
-headers, unsupported algorithm/canonicalization, malformed domains,
-multi-signature selection, cross-context consistency, and post-proof fail
-closed behavior. The browser cryptographic/DoH evidence adapter remains A2b's
-next step; no production integration has started.
+case.
+
+A separate fully synthetic expired-signature conformance run generates its
+message and key evidence at runtime, compares both adapters, and is runnable
+from a clean checkout after installing pinned Python dependencies. Synthetic
+tests additionally cover body-only rewriting, missing signed headers,
+unsupported algorithm/canonicalization, malformed domains, multi-signature
+selection, cross-context consistency, and post-proof fail-closed behavior.
+
+The JavaScript adapter now requires resolver injection, performs header-only and
+full-body verification with a per-run DNS cache, extracts raw policy facts, and
+offers a single-endpoint HTTPS DoH resolver with sanitized errors. A fresh
+Chrome session verified a runtime-generated expired synthetic signature,
+returned `compatible` with `signer_expiration_ignored`, made zero unexpected
+network requests, and emitted no console errors.
+
+The released helper is not a drop-in browser module. Its Node `crypto` and
+`stream` imports require explicit `crypto-browserify` and `stream-browserify`
+build mappings, and its parser references a global `Buffer`. Its exported
+`writeToStream` helper and the browser writable-stream backpressure path stalled
+without completing; calling the same verifier's `writeAsync` and `finish`
+parser methods directly completed and preserved exact Python/JavaScript evidence
+parity. With those explicit compatibility choices the smoke bundle is
+3,043,449 bytes (approximately 3.04 MB) unminified. This records adapter bundle
+overhead only; it does not answer the still-blocked proving-time/memory Q3. No
+production integration has started.
 
 ## Proton same-mailbox From-presentation variation
 

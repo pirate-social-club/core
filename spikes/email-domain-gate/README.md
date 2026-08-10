@@ -138,13 +138,48 @@ Run the self-contained policy tests:
 rtk node --test compatibility-policy.test.mjs
 ```
 
-After regenerating the ignored `results/*.crypto.json` evidence with
-`verify-dkim.py --ignore-body-hash --signature-time-policy record-only`, run the
-private corpus conformance suite:
+Run the clean-checkout synthetic cross-adapter conformance after installing the
+pinned Python requirements:
 
 ```bash
-rtk node compatibility-policy.corpus.mjs
+rtk node compatibility-policy.synthetic.mjs --python .venv/bin/python
 ```
+
+The private corpus cannot exist in a clean checkout by design. When it is
+available locally, run the six-sample conformance suite with:
+
+```bash
+rtk node compatibility-policy.corpus.mjs --python .venv/bin/python
+```
+
+That command regenerates Python evidence in a new mode-0700 temporary directory,
+runs the JavaScript adapter against the same raw messages and observation time,
+asserts exact normalized-evidence equality, evaluates the shared policy, and
+deletes the temporary evidence. It never reads `results/*.crypto.json` caches.
+
+Run the browser-adapter unit/blueprint tests and the clean-checkout synthetic
+cross-adapter check:
+
+```bash
+rtk bun run --cwd blueprint test
+rtk node compatibility-policy.synthetic.mjs --python .venv/bin/python
+```
+
+Prepare the real-browser smoke artifact in a restricted temporary directory,
+then open the emitted `index.html` in a fresh browser session and require a
+`status: pass` result with zero console errors:
+
+```bash
+rtk bun blueprint/prepare-browser-runtime-smoke.mjs \
+  --python .venv/bin/python \
+  --out-dir /tmp/email-domain-browser-smoke
+```
+
+The smoke build deliberately aliases the helper's Node `crypto` and `stream`
+imports to pinned browser polyfills. The adapter bypasses the helper's
+browser-stalling writable-stream wrapper and calls the same verifier's async
+parser methods directly. The current unminified bundle is approximately 3.04
+MB; this is not the proving bundle or a Q3 memory measurement.
 
 This module is spike-only. It has no production UI, gate-builder integration,
 API provider plumbing, or deployment authorization.

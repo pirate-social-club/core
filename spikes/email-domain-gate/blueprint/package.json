@@ -3,10 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test draft-blueprint.test.mjs",
+    "test": "node --test draft-blueprint.test.mjs browser-evidence-adapter.test.mjs",
     "test:corpus": "node corpus-validation.mjs"
   },
   "dependencies": {
-    "@zk-email/sdk": "2.0.11"
+    "@zk-email/helpers": "6.4.2",
+    "@zk-email/sdk": "2.0.11",
+    "crypto-browserify": "3.12.1",
+    "stream-browserify": "3.0.0"
   }
 }
