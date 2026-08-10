@@ -85,13 +85,15 @@ Disabling `video_feed` should additionally reset the stored default to
 
 ## Decisions adopted
 
-**Feed corpus is viewer-neutral; auth is an overlay.** Everyone reads
+**Launch feed is viewer-neutral; the auth overlay is deferred.** Everyone reads
 `GET /public-communities/:id/feed/videos` (CDN-cached under the
 `/public-communities/*` auto-allowlist, `community:`/`post:` purge tags,
-no `Vary: Accept`, degraded-empty bodies never cached). Signed-in visitors add
-a separate `no-store` viewer overlay for votes, membership, and gate state.
-This sidesteps the non-member 404 membership mask (`requireMemberAccess`) and
-keeps the cache unfragmented by authentication.
+no `Vary: Accept`, degraded-empty bodies never cached). At launch, signed-in
+visitors receive the same corpus without vote, membership, or gate state. A
+post-launch ticket adds those fields through a true, separate `no-store`
+viewer-overlay endpoint rather than recomputing the feed. This sidesteps the
+non-member 404 membership mask (`requireMemberAccess`) and keeps the cache
+unfragmented by authentication.
 
 **Projection-backed feed source, new public entrypoint.** The control-plane
 projection queries (`listVideoHomeFeedProjectionRows` /
@@ -168,9 +170,10 @@ stats, but explicit engagement (0.10), downvote share (−0.35), and freshness
    everywhere (TanStack cache restore shows the wrong feed otherwise), SSR
    branding + bootstrap preload extended past the hardcoded
    `/feed/home/videos/public` + `route.kind === "home"` (`worker.tsx:124`,
-   `:443`; `document.tsx:41`), SEO canonicals, and the signed-in viewer
-   overlay. Empty sovereign feed shows a branded empty state with a Threads
-   link — never the global homepage.
+   `:443`; `document.tsx:41`) and SEO canonicals. Empty sovereign feed shows
+   a branded empty state with a Threads link — never the global homepage.
+   The signed-in viewer overlay is explicitly post-launch work and must be a
+   separate `no-store` overlay endpoint, not a duplicate feed computation.
 4. **Gateway resilience.** Namespace-resolution cache, timeout, request
    coalescing, stale-if-error, and downstream gzip/zstd (today: uncached
    timeout-less `/public-namespaces/:root` per imported-root web request,
