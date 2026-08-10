@@ -49,13 +49,30 @@ Two controls were collected:
 | Proton custom-domain self-send, exported from Proton | not applicable | not applicable | no DKIM header | not applicable | self-send ceremony fails for this provider |
 | Proton custom-domain → Gmail, exported from Gmail | relaxed | 72 hours | pass | **pass** | work→personal ceremony viable for this provider pair |
 | Gmail → Proton custom-domain, exported from Proton | relaxed | 7 days | pass | **fail** | Proton export is not byte-faithful enough for proving received mail |
+| Workspace custom-domain → Gmail, exported from Gmail | relaxed | 7 days | pass | signature **valid**, strict alignment **fails** | tenant uses a Google fallback signing domain; enable custom-domain DKIM and recollect |
 
 Header presence proves only that a DKIM-shaped header survived export; it does
 not establish message fidelity. The self-send artifact contains no signature at
 all, while Proton does preserve a DKIM header when one existed on an externally
 received message. Internal delivery bypass remains the leading explanation for
 the self-send result, but it is not direct wire-level proof. This Proton result
-does not resolve Workspace or M365 behavior.
+does not resolve M365 behavior or Workspace internal delivery.
+
+## Workspace fallback-signing control
+
+Observed 2026-08-10 from a Workspace custom-domain → Gmail message exported
+by Gmail. The artifact contains one RSA-SHA256 signature with relaxed/relaxed
+canonicalization and a seven-day signer validity window. The signature and body
+hash verify against live DNS, From and Subject are signed, and the draft relaxed
+header-regex assumption is met.
+
+The signature is not gate-usable because its `d=` is a Google-managed fallback
+signing domain rather than the custom From domain. This is evidence that the
+tenant has not enabled custom-domain DKIM, not a Workspace incompatibility.
+After the tenant administrator publishes the generated DKIM TXT record and
+starts authentication, recollect the work→personal sample. A passing Workspace
+provider result remains open until that replacement has strict `d=`/From
+alignment. No identifying domain or mailbox value is recorded here.
 
 ## Proton same-mailbox From-presentation variation
 
@@ -80,10 +97,12 @@ Proton interfaces, Workspace/M365 tenants, and arbitrary allowed domains remain
 untested, so A1c remains open for Proton and globally.
 
 Both presentation samples use relaxed header and body canonicalization. No
-simple-header provider sample has been measured. Workspace and M365 must report
-their observed `c=` modes and signer `t=`/`x=` windows before the draft regexes
-and provider matrix are treated as portable. Both presentation samples use the
-same 72-hour signer validity window as the primary Proton outbound sample.
+simple-header provider sample has been measured. The Workspace fallback control
+uses relaxed/relaxed canonicalization and a seven-day signer validity window;
+the custom-domain-aligned Workspace replacement and M365 sample must still be
+measured before the draft regexes and provider matrix are treated as portable.
+Both presentation samples use the same 72-hour signer validity window as the
+primary Proton outbound sample.
 
 ## Signed To decision
 
