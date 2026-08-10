@@ -54,7 +54,8 @@ DanceSession:
     - max_bytes
     - expires_at
     - created
-    - idempotent
+    - consent_policy_version
+    - consented_at
   properties:
     id:
       type: string
@@ -76,21 +77,143 @@ DanceSession:
       type: integer
       format: int64
       minimum: 1
+      maximum: 19000000
     expires_at:
       type: integer
       format: int64
     created:
       type: integer
       format: int64
-    idempotent:
-      type: boolean
+    consent_policy_version:
+      type: string
+      nullable: true
+    consented_at:
+      type: integer
+      format: int64
+      nullable: true
+DanceSessionMutationResponse:
+  allOf:
+    - $ref: ./dance.yaml#/DanceSession
+    - type: object
+      required:
+        - idempotent
+      properties:
+        idempotent:
+          type: boolean
 DanceSessionCreateRequest:
   type: object
   required:
     - post
+    - consent
   properties:
     post:
       type: string
+    consent:
+      $ref: ./dance.yaml#/DanceConsentAcceptance
+DanceConsentAcceptance:
+  type: object
+  required:
+    - policy_version
+    - accepted
+  properties:
+    policy_version:
+      type: string
+      enum:
+        - dance_recording_v1
+    accepted:
+      type: boolean
+      enum:
+        - true
+DanceSessionUploadIntentRequest:
+  type: object
+  required:
+    - mime_type
+    - content_sha256
+    - size_bytes
+  properties:
+    mime_type:
+      type: string
+      enum:
+        - video/mp4
+    content_sha256:
+      type: string
+      pattern: ^[0-9a-f]{64}$
+    size_bytes:
+      type: integer
+      minimum: 1
+      maximum: 19000000
+DanceSessionUploadIntent:
+  type: object
+  required:
+    - id
+    - object
+    - method
+    - url
+    - headers
+    - expires_at
+    - idempotent
+  properties:
+    id:
+      type: string
+    object:
+      type: string
+      enum:
+        - dance_session_upload_intent
+    method:
+      type: string
+      enum:
+        - PUT
+    url:
+      type: string
+      format: uri
+    headers:
+      type: object
+      additionalProperties:
+        type: string
+    expires_at:
+      type: integer
+      format: int64
+    idempotent:
+      type: boolean
+DanceSessionSubmitRequest:
+  type: object
+  required:
+    - capture_mode
+    - content_sha256
+    - size_bytes
+  properties:
+    capture_mode:
+      type: string
+      enum:
+        - in_app_camera
+    content_sha256:
+      type: string
+      pattern: ^[0-9a-f]{64}$
+    size_bytes:
+      type: integer
+      minimum: 1
+      maximum: 19000000
+DanceSessionSubmission:
+  type: object
+  required:
+    - id
+    - object
+    - attempt
+    - status
+    - idempotent
+  properties:
+    id:
+      type: string
+    object:
+      type: string
+      enum:
+        - dance_session_submission
+    attempt:
+      type: string
+    status:
+      $ref: ./dance.yaml#/DanceSessionStatus
+    idempotent:
+      type: boolean
 DanceAttempt:
   type: object
   required:
@@ -169,7 +292,7 @@ DanceChoreographyReference:
     duration_ms:
       type: integer
       minimum: 1000
-      maximum: 90000
+      maximum: 30000
     width:
       type: integer
       minimum: 1
