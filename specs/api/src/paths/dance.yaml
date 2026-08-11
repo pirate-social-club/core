@@ -37,6 +37,8 @@ dance_sessions:
         $ref: ../components/responses.yaml#/AuthError
       "409":
         $ref: ../components/responses.yaml#/Conflict
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
       "503":
         $ref: ../components/responses.yaml#/ServiceUnavailable
 dance_sessions_by_dance_session_id:
