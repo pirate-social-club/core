@@ -1,0 +1,10 @@
+pre_plan:
+  - action: npm_get
+plan:
+  - action: shell
+    shell: |
+      cd /ci/src
+      find /ci/deps/npm -name '*.tgz' -type f -exec npm cache add {} \;
+      npm ci --offline
+      node scripts/check-repo-hygiene.mjs
+      node scripts/check-migration-integrity.mjs

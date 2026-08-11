@@ -1,0 +1,8 @@
+[Unit]
+Description=Radicle seed and promotion authority resource boundary
+
+[Slice]
+CPUWeight=1000
+MemoryMax=1500M
+TasksMax=1024
+IOWeight=1000

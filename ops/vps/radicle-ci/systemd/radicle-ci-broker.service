@@ -1,0 +1,41 @@
+[Unit]
+Description=Pirate Radicle CI broker with Ambient isolation
+After=network-online.target radicle-node.service
+Wants=network-online.target
+Requires=radicle-node.service
+
+[Service]
+Type=simple
+User=radicle
+Group=radicle
+SupplementaryGroups=kvm
+Environment=HOME=/var/lib/radicle
+Environment=RAD_HOME=/var/lib/radicle
+Environment=XDG_CONFIG_HOME=/var/lib/radicle/.config
+WorkingDirectory=/var/lib/radicle/ci
+ExecStart=/var/lib/radicle/.cargo/bin/cib --config /var/lib/radicle/ci/ci-broker.yaml --log-level info process-events
+Restart=on-failure
+RestartSec=5s
+Slice=radicle-ci.slice
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+ReadWritePaths=/var/lib/radicle
+DevicePolicy=closed
+DeviceAllow=/dev/kvm rw
+LimitNOFILE=4096
+TasksMax=1536
+
+[Install]
+WantedBy=multi-user.target
