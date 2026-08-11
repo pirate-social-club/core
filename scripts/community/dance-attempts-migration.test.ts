@@ -5,6 +5,7 @@ const migrationPaths = [
   "../../db/community-template/migrations/1145_dance_attempts.sql",
   "../../db/community-template/migrations/1146_dance_attempt_reason_contract.sql",
   "../../db/community-template/migrations/1147_dance_attempt_upload_invalid_reason.sql",
+  "../../db/community-template/migrations/1153_dance_attempt_start_cue_evidence.sql",
 ].map((path) => new URL(path, import.meta.url))
 const hex = (character: string) => character.repeat(64)
 
@@ -99,6 +100,21 @@ describe("1145 dance attempts migration", () => {
         SET reason_code = 'upload_invalid'
         WHERE dance_attempt_id = 'dat_coaching'
       `)).not.toThrow()
+
+      db.exec(await Bun.file(migrationPaths[3]!).text())
+      expect(db.query(`
+        SELECT dance_attempt_id, score_bps, rank_eligible, scorer_version,
+          start_cue_policy_version, start_cue_outcome, scored_window_start_ms
+        FROM dance_attempt WHERE dance_attempt_id = 'dat_coaching'
+      `).get()).toEqual({
+        dance_attempt_id: "dat_coaching",
+        score_bps: 5112,
+        rank_eligible: 0,
+        scorer_version: "scorer_v1",
+        start_cue_policy_version: null,
+        start_cue_outcome: null,
+        scored_window_start_ms: null,
+      })
     } finally {
       db.close()
     }

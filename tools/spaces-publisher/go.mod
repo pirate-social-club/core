@@ -1,4 +1,4 @@
-module github.com/pirate-v2/tools/spaces-publisher
+module github.com/pirate-social-club/core/tools/spaces-publisher
 
 go 1.25.0
 

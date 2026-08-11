@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { migrationChecksumMatches } from "../lib/postgres-migrations";
+import { sanitizePostgresUrlForBunSql } from "../lib/postgres-url";
 
 type Options = {
   databaseUrlEnv: string;
@@ -116,7 +117,7 @@ const options = parseArgs(process.argv.slice(2));
 const databaseUrl = requireEnv(options.databaseUrlEnv);
 const expected = listExpected(options.migrationsDir);
 const expectedByName = new Map(expected.map((entry) => [entry.migrationName, entry.checksum] as const));
-const db = new Bun.SQL(databaseUrl);
+const db = new Bun.SQL(sanitizePostgresUrlForBunSql(databaseUrl));
 
 let rows: MigrationRow[];
 let databaseName = "";
