@@ -22,6 +22,8 @@ test "$(systemctl is-active radicle-ci-broker.service)" = active
 test "$(systemctl is-enabled radicle-ci-broker.service)" = enabled
 test "$(systemctl is-active promotion-controller.service)" = active
 test "$(systemctl is-enabled promotion-controller.service)" = enabled
+test "$(systemctl is-active promotion-proof-exporter.timer)" = active
+test "$(systemctl is-enabled promotion-proof-exporter.timer)" = enabled
 
 actual_node="$(run_rad rad node status --only nid)"
 test "$actual_node" = "$expected_node"
@@ -52,5 +54,7 @@ controller_status="$(
 )"
 grep -Fq '"mode":"advisory"' <<<"$controller_status"
 grep -Fq '"authority":false' <<<"$controller_status"
+test -d "$rad_home/ci/promotion-proofs"
+test "$(stat -c '%U:%G:%a' "$rad_home/ci/promotion-proofs")" = radicle:promotion:750
 
 echo "Radicle seed and isolated CI host verification passed."

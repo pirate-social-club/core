@@ -1,25 +1,21 @@
 [Unit]
-Description=Radicle promotion controller (advisory overlap)
+Description=Export minimal signed Radicle CI proofs for promotion controller
 After=radicle-node.service radicle-ci-broker.service
-Requires=radicle-node.service
 
 [Service]
-Type=simple
-User=promotion
+Type=oneshot
+User=radicle
 Group=promotion
-Slice=radicle-core.slice
 EnvironmentFile=/etc/pirate-radicle/promotion-controller.env
-ExecStart=/usr/local/libexec/pirate-radicle/promotion-controller run
-Restart=on-failure
-RestartSec=5s
-UMask=0077
+ExecStart=/usr/local/libexec/pirate-radicle/promotion-proof-exporter
+UMask=0027
 NoNewPrivileges=true
 PrivateTmp=true
 PrivateDevices=true
 ProtectSystem=strict
 ProtectHome=true
-ReadOnlyPaths=/var/lib/radicle/ci/promotion-proofs
-ReadWritePaths=/var/lib/promotion
+ReadOnlyPaths=/var/lib/radicle/storage
+ReadWritePaths=/var/lib/radicle/ci/promotion-proofs
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
@@ -27,7 +23,4 @@ RestrictSUIDSGID=true
 LockPersonality=true
 MemoryDenyWriteExecute=true
 RestrictAddressFamilies=AF_UNIX
-SystemCallArchitectures=native
 
-[Install]
-WantedBy=multi-user.target

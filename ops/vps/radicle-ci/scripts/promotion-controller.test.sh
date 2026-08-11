@@ -2,6 +2,7 @@
 set -euo pipefail
 
 controller=${1:-./ops/vps/radicle-ci/scripts/promotion-controller}
+exporter=${2:-./ops/vps/radicle-ci/scripts/promotion-proof-exporter}
 tmp=$(mktemp -d)
 trap 'rm -rf -- "$tmp"' EXIT
 
@@ -43,10 +44,13 @@ git --git-dir="$repo" update-ref "refs/namespaces/$nid/refs/rad/sigrefs" "$sig_c
 export PROMOTION_CONFIG=/dev/null
 export PROMOTION_MODE=advisory
 export PROMOTION_STATE_DIR="$tmp/state"
+export PROMOTION_PROOF_DIR="$tmp/proofs"
 export RAD_STORAGE="$tmp/storage"
 export CI_PRODUCER_NID="$nid"
 export PROMOTION_UNKNOWN_RETRIES=1
 export PROMOTION_UNKNOWN_DELAY_SECONDS=0
+mkdir -p "$PROMOTION_PROOF_DIR"
+$exporter
 
 request_id=$($controller enqueue "$rid" "$commit" "$job" 1)
 $controller process-one

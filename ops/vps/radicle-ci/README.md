@@ -100,6 +100,13 @@ hard error. The controller accepts proof only when:
 - the job requests the exact commit; and
 - matching run/finished actions report `Succeeded`.
 
+The controller cannot read Radicle storage. A root-owned exporter runs as the
+`radicle` account, validates the producer's signed job refs, and writes only
+minimal proof summaries to a `radicle:promotion` directory. This one-way
+boundary prevents the controller from reading the seed key or arbitrary
+repository storage while avoiding ACL breakage when Git creates mode-`0600`
+packfiles.
+
 Missing replicated state is `unknown` and receives a bounded retry. Invalid or
 still-unknown proof fails closed. In advisory mode, a valid proof writes an
 `advisory_validation` record with `authority:false`; it never advances a ref.
