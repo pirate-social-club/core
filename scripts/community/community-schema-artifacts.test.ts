@@ -356,4 +356,14 @@ describe("expectedArtifacts — real migration files", () => {
       db.close()
     }
   })
+
+  test("1155_listings_asset_unique_index: replaces the non-unique lookup index", () => {
+    const a = expectedArtifacts(readMigration("1155_listings_asset_unique_index.sql"))
+    expect(a.columns).toEqual([])
+    expect(a.tables).toEqual([])
+    expect(a.indexes).toEqual(["idx_listings_community_asset_unique"])
+    expect(a.absentIndexes).toEqual(["idx_listings_asset"])
+    expect(a.unrecognized).toEqual([])
+    expect(artifactCount(a)).toBe(2)
+  })
 })
