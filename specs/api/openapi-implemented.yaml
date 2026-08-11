@@ -3984,21 +3984,6 @@ paths:
                 $ref: "#/components/schemas/BookingSlotsResponse"
         "404":
           $ref: "#/components/responses/NotFound"
-  /bookings/booking-hosts/{host_user_id}/slots:
-    get:
-      tags:
-        - Bookings
-      security: []
-      summary: Resolve public bookable slots for a host
-      responses:
-        "200":
-          description: Resolved availability window
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BookingSlotsResponse"
-        "404":
-          $ref: "#/components/responses/NotFound"
   /bookings/hosts/{host_user_id}/holds:
     post:
       tags:
@@ -4024,53 +4009,7 @@ paths:
                     $ref: "#/components/schemas/BookingHold"
         "409":
           $ref: "#/components/responses/Conflict"
-  /bookings/booking-hosts/{host_user_id}/holds:
-    post:
-      tags:
-        - Bookings
-      summary: Create a booking hold for a host slot
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateBookingHoldRequest"
-      responses:
-        "201":
-          description: Created hold
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - hold
-                properties:
-                  hold:
-                    $ref: "#/components/schemas/BookingHold"
-        "409":
-          $ref: "#/components/responses/Conflict"
   /bookings/holds/{hold_id}/quote:
-    post:
-      tags:
-        - Bookings
-      summary: Quote a booking hold
-      responses:
-        "200":
-          description: Booking hold quote and payment instructions
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - quote
-                properties:
-                  quote:
-                    $ref: "#/components/schemas/BookingQuote"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "409":
-          $ref: "#/components/responses/Conflict"
-  /bookings/booking-holds/{hold_id}/quote:
     post:
       tags:
         - Bookings
@@ -4131,82 +4070,7 @@ paths:
                     $ref: "#/components/schemas/Booking"
                   already_confirmed:
                     type: boolean
-  /bookings/booking-holds/{hold_id}/confirm:
-    post:
-      tags:
-        - Bookings
-      summary: Confirm a paid booking hold
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ConfirmBookingHoldRequest"
-      responses:
-        "200":
-          description: Idempotently confirmed booking
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - booking
-                  - already_confirmed
-                properties:
-                  booking:
-                    $ref: "#/components/schemas/Booking"
-                  already_confirmed:
-                    type: boolean
-        "201":
-          description: Newly confirmed booking
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - booking
-                  - already_confirmed
-                properties:
-                  booking:
-                    $ref: "#/components/schemas/Booking"
-                  already_confirmed:
-                    type: boolean
   /bookings/holds/{hold_id}/payment-submitted:
-    post:
-      tags:
-        - Bookings
-      summary: Durably record a submitted booking payment for later confirmation
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/SubmitBookingPaymentRequest"
-      responses:
-        "200":
-          description: Payment submission recorded or idempotently replayed
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - payment_intent_id
-                  - status
-                  - claimed_tx_ref
-                properties:
-                  payment_intent_id:
-                    type: string
-                  status:
-                    type: string
-                    enum:
-                      - recorded
-                  claimed_tx_ref:
-                    type: string
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "409":
-          $ref: "#/components/responses/Conflict"
-  /bookings/booking-holds/{hold_id}/payment-submitted:
     post:
       tags:
         - Bookings
@@ -4412,7 +4276,7 @@ paths:
     post:
       tags:
         - Bookings
-      summary: Cancel a booking, checking previously confirmed financial terms when supplied
+      summary: Cancel a booking only if the previously previewed financial terms still match
       requestBody:
         required: true
         content:
@@ -13514,11 +13378,13 @@ components:
     CancelBookingRequest:
       type: object
       additionalProperties: false
+      required:
+        - expected_refund_cents
       properties:
         expected_refund_cents:
           type: integer
           minimum: 0
-          description: Transitional compatibility field; when provided, cancellation fails if the authoritative refund has changed.
+          description: Refund from the immediately preceding cancellation preview; cancellation fails if the authoritative terms changed.
     BookingSessionAttachResponse:
       type: object
       additionalProperties: true

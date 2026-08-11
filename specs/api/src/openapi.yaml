@@ -342,23 +342,13 @@ paths:
     $ref: ./paths/bookings.yaml#/bookings
   /bookings/hosts/{host_user_id}/slots:
     $ref: ./paths/bookings.yaml#/booking_host_slots
-  /bookings/booking-hosts/{host_user_id}/slots:
-    $ref: ./paths/bookings.yaml#/booking_host_slots
   /bookings/hosts/{host_user_id}/holds:
-    $ref: ./paths/bookings.yaml#/booking_host_holds
-  /bookings/booking-hosts/{host_user_id}/holds:
     $ref: ./paths/bookings.yaml#/booking_host_holds
   /bookings/holds/{hold_id}/quote:
     $ref: ./paths/bookings.yaml#/booking_hold_quote
-  /bookings/booking-holds/{hold_id}/quote:
-    $ref: ./paths/bookings.yaml#/booking_hold_quote
   /bookings/holds/{hold_id}/confirm:
     $ref: ./paths/bookings.yaml#/booking_hold_confirm
-  /bookings/booking-holds/{hold_id}/confirm:
-    $ref: ./paths/bookings.yaml#/booking_hold_confirm
   /bookings/holds/{hold_id}/payment-submitted:
-    $ref: ./paths/bookings.yaml#/booking_hold_payment_submitted
-  /bookings/booking-holds/{hold_id}/payment-submitted:
     $ref: ./paths/bookings.yaml#/booking_hold_payment_submitted
   /bookings/payment-intents/pending:
     $ref: ./paths/bookings.yaml#/booking_payment_intents_pending
