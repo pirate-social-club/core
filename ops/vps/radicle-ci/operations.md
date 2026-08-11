@@ -15,6 +15,8 @@ is not part of this phase.
 - CI jobs validate patches and canonical updates in ephemeral Ambient VMs.
   Deployment remains in the existing GitHub release workflow until workload
   identity and the promotion controller have been reviewed separately.
+- `promotion-controller.service` is currently advisory. Its records explicitly
+  carry `authority:false`; the workstation delegate can still bypass it.
 
 ## Workstation setup
 
@@ -107,6 +109,38 @@ workstation delegate can be retired.
 
 The pilot archive is historical test evidence, not production user data. Its
 loss does not block rebuilding the seed or CI host.
+
+## Controller restart and queue recovery
+
+Before enforcement, rehearse this procedure while the workstation remains a
+delegate:
+
+1. Stop `promotion-controller.service` and confirm no canonical ref moves.
+2. Leave one request in `queue/processing`, then restart the service.
+3. Confirm startup returns it to `queue/pending` and processes it once.
+4. Confirm duplicate `(RID, commit, attempt)` submission returns the original
+   request ID, while a different job for that tuple is rejected.
+5. Confirm missing, mismatched, unsuccessful, and unreplicated job proofs fail
+   closed.
+
+The queue policy is **resume**, not discard: startup atomically returns every
+in-flight file to pending. Per-RID locks serialize decisions. A successful
+request already present in the advisory log is not enqueued again.
+
+The controller private key is intentionally not exported from VPS #3. “Key
+restore” therefore means generating a replacement controller DID and using the
+offline recovery delegate to replace the lost DID in every identity document;
+it does not mean restoring the same online private key from backup.
+
+Enforcement cutover requires all of the following:
+
+- two separately secured copies of a restore-tested offline recovery delegate;
+- the recovery and controller DIDs added at threshold 1;
+- restart, queue recovery, proof rejection, and controller replacement drills;
+- a clean advisory comparison window through the recorded review date; and
+- removal of the workstation DID from every delegate set.
+
+Only the final removal creates enforcement. Before it, CI remains advisory.
 
 ## Emergency fallback
 

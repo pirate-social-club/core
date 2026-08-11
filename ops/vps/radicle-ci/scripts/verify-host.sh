@@ -20,6 +20,8 @@ test "$(systemctl is-active radicle-node.service)" = active
 test "$(systemctl is-enabled radicle-node.service)" = enabled
 test "$(systemctl is-active radicle-ci-broker.service)" = active
 test "$(systemctl is-enabled radicle-ci-broker.service)" = enabled
+test "$(systemctl is-active promotion-controller.service)" = active
+test "$(systemctl is-enabled promotion-controller.service)" = enabled
 
 actual_node="$(run_rad rad node status --only nid)"
 test "$actual_node" = "$expected_node"
@@ -33,16 +35,22 @@ test "$(grep -Fc ' allow ' <<<"$seed_output")" -eq "${#expected_rids[@]}"
 
 ss -lntH 'sport = :8776' | grep -Fq '0.0.0.0:8776'
 
-broker_config="$(
-  run_rad /var/lib/radicle/.cargo/bin/cib \
-    --config "$rad_home/ci/ci-broker.yaml" config
-)"
-grep -Fq '"concurrent_adapters": 1' <<<"$broker_config"
-grep -Fq '"max_run_time"' <<<"$broker_config"
+# Do not invoke `cib config` against the live report directory here. Version
+# 0.30.0 rewrites status.json as a side effect, destroying useful run status.
+grep -Eq '^concurrent_adapters:[[:space:]]*1$' "$rad_home/ci/ci-broker.yaml"
+grep -Eq '^max_run_time:[[:space:]]*30min$' "$rad_home/ci/ci-broker.yaml"
 
 test -r /dev/kvm
 test -w /dev/kvm
 test -s "$rad_home/ambient/ambient.qcow2"
 qemu-img check -q "$rad_home/ambient/ambient.qcow2"
+
+controller_status="$(
+  cd /
+  sudo -u promotion \
+    /usr/local/libexec/pirate-radicle/promotion-controller status
+)"
+grep -Fq '"mode":"advisory"' <<<"$controller_status"
+grep -Fq '"authority":false' <<<"$controller_status"
 
 echo "Radicle seed and isolated CI host verification passed."

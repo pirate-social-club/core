@@ -2,13 +2,16 @@
 
 This role turns VPS #3 into the selective Radicle seed and isolated CI host.
 The Radicle node and Ambient-backed CI broker are deployed independently.
-The promotion controller remains deferred until its recovery delegate and
-canonical-ref tests pass.
+The promotion controller is deployed in an explicitly non-authoritative
+advisory overlap. Its DID is
+`did:key:z6MkiHv3QB6tjLb3zK6wWzUBsZa51f3f1UhSVKnAGwczHnwg`; it is not yet a
+repository delegate and the controller binary contains no canonical-push
+path. Offline recovery and canonical-ref tests remain cutover prerequisites.
 
 ## Boundaries
 
 - `radicle` owns `/var/lib/radicle` and the seed identity.
-- `promotion` will own the delegate key and serialized promotion state.
+- `promotion` owns the future delegate key and serialized promotion state.
 - `radicle` also launches the broker and Ambient guests, but systemd confines
   them to the separately capped `radicle-ci.slice`.
 - The seed identity is a transport identity, not a repository delegate.
@@ -74,6 +77,37 @@ Do not install `radicle-httpd` or expose an HTTP API during this phase.
 Build code runs only in ephemeral Ambient VMs. The plan VM has no network;
 dependency download happens through Ambient's constrained pre-plan actions.
 
+## Advisory promotion controller
+
+Install the controller only after the seed and broker pass verification:
+
+```bash
+sudo ops/vps/radicle-ci/scripts/install-promotion-controller.sh \
+  ops/vps/radicle-ci
+```
+
+The installer creates the host-local controller identity if absent and prints
+only its public DID. Re-running it preserves the existing key. It never copies
+or exports the controller private key.
+
+Requests are keyed by `(RID, commit, attempt)`. Re-submitting the same tuple
+and CI job is idempotent; associating a different job with the same tuple is a
+hard error. The controller accepts proof only when:
+
+- the RID is allowlisted and the commit exists in local Radicle storage;
+- the CI job is under the configured producer namespace;
+- the producer's signed-refs document names the exact job tip;
+- the job requests the exact commit; and
+- matching run/finished actions report `Succeeded`.
+
+Missing replicated state is `unknown` and receives a bounded retry. Invalid or
+still-unknown proof fails closed. In advisory mode, a valid proof writes an
+`advisory_validation` record with `authority:false`; it never advances a ref.
+
+The advisory overlap expires for review on **2026-08-25**. Do not describe the
+pipeline as authoritative or remove the workstation delegate merely because
+the controller service is green.
+
 ## Verification
 
 ```bash
@@ -87,6 +121,8 @@ sudo -u radicle env HOME=/var/lib/radicle RAD_HOME=/var/lib/radicle \
   /var/lib/radicle/.cargo/bin/cib \
   --config /var/lib/radicle/ci/ci-broker.yaml config
 systemctl is-active radicle-ci-broker.service
+systemctl is-active promotion-controller.service
+sudo -u promotion /usr/local/libexec/pirate-radicle/promotion-controller status
 ```
 
 From another node, connect to the address printed by:
