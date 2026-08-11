@@ -15,12 +15,12 @@
     }
   },
   "scripts": {
-    "types": "tsc --noEmit -p tsconfig.json",
+    "types": "tsgo --noEmit -p tsconfig.json",
     "test": "bun test tests/",
     "lint:imports": "bun run scripts/check-forbidden-imports.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "typescript": "5.9.3"
+    "@typescript/native-preview": "7.0.0-dev.20260512.1"
   }
 }
