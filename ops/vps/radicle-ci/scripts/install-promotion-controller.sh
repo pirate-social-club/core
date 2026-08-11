@@ -32,6 +32,9 @@ install -o root -g root -m 0644 "$source_dir/systemd/promotion-proof-exporter.se
   /etc/systemd/system/promotion-proof-exporter.service
 install -o root -g root -m 0644 "$source_dir/systemd/promotion-proof-exporter.timer" \
   /etc/systemd/system/promotion-proof-exporter.timer
+install -o root -g root -m 0644 "$source_dir/tmpfiles/radicle-ci.conf" \
+  /etc/tmpfiles.d/radicle-ci.conf
+systemd-tmpfiles --create /etc/tmpfiles.d/radicle-ci.conf
 systemctl daemon-reload
 /usr/local/libexec/pirate-radicle/initialize-promotion-identity.sh
 systemctl enable --now promotion-proof-exporter.timer

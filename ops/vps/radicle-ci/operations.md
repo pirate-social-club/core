@@ -142,6 +142,43 @@ Enforcement cutover requires all of the following:
 
 Only the final removal creates enforcement. Before it, CI remains advisory.
 
+## Promotion-state backup boundary
+
+The broker's current job-COB announcement defect makes signed CI evidence
+single-homed on VPS #3. The proof summaries are not a substitute for their
+signed source objects. Before enforcement, the external encrypted backup set
+must therefore include:
+
+- the producer namespace's `xyz.radworks.job` refs and reachable Git objects
+  for every allowlisted RID;
+- the corresponding producer `refs/rad/sigrefs` commit and objects;
+- `/var/lib/promotion/advisory-events.ndjson`;
+- `/var/lib/promotion/controller-audit.ndjson`; and
+- `/var/lib/promotion/queue`.
+
+Do not include `/var/lib/promotion/keys/radicle`. The controller key is
+host-local and is replaced, not restored. Do not treat
+`/var/lib/radicle/ci/promotion-proofs` alone as evidence: it is a derived cache
+whose signed source must be available for independent verification.
+
+No local snapshot on VPS #3 satisfies this requirement. Completion requires
+an encrypted off-host copy plus a restore drill that reconstructs and verifies
+one signed CI job without access to the original host.
+
+## Workload identity posture
+
+- Ambient build/test guests receive no Infisical identity or production
+  secrets.
+- Only the trusted controller/deployment side may receive deploy-time access.
+- A temporary Infisical Universal Auth identity, if introduced, must be
+  narrowly scoped, stored only on the controller host, and have a recorded
+  removal deadline. Generic OIDC remains the target before GitHub release
+  orchestration is retired.
+- Infisical may hold only the public age recipient after rotation. The private
+  age identity belongs on separately secured offline media.
+- Infisical must never contain the offline recovery delegate or the online
+  controller delegate private key.
+
 ## Emergency fallback
 
 If the seed or broker is unavailable, leave Radicle canonical state unchanged

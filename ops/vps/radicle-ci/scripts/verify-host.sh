@@ -56,5 +56,10 @@ grep -Fq '"mode":"advisory"' <<<"$controller_status"
 grep -Fq '"authority":false' <<<"$controller_status"
 test -d "$rad_home/ci/promotion-proofs"
 test "$(stat -c '%U:%G:%a' "$rad_home/ci/promotion-proofs")" = radicle:promotion:750
+test "$(stat -c '%U:%G:%a' "$rad_home/storage")" = radicle:radicle:700
+if sudo -u promotion test -r "$rad_home/storage"; then
+  echo 'promotion user can read Radicle storage' >&2
+  exit 1
+fi
 
 echo "Radicle seed and isolated CI host verification passed."
