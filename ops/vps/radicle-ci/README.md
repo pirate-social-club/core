@@ -41,6 +41,16 @@ Core is added after it is initialized under the reviewed delegate model.
 
 ## Install sequence
 
+Reviewed bootstrap artifacts on 2026-08-11:
+
+```text
+radicle                 1.10.0-1
+radicle-ci-broker       0.30.0
+radicle-ci-ambient      0.21.1
+ambient-ci              0.16.0-1
+ambient.qcow2 sha256    e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d173840b293
+```
+
 1. Install the signed Radicle package at the version reviewed for this role.
 2. Create the system `radicle` user with `/var/lib/radicle` as its home.
 3. Generate a passphrase-free seed identity as that user. Seed identities do
