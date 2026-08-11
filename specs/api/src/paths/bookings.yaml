@@ -542,7 +542,7 @@ booking_cancel:
   post:
     tags: [Bookings]
     x-implemented: true
-    summary: Cancel a booking, checking previously confirmed financial terms when supplied
+    summary: Cancel a booking only if the previously previewed financial terms still match
     requestBody:
       required: true
       content:
