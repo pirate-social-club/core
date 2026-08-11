@@ -18,6 +18,7 @@ const MIGRATION_FILES = [
   "db/control-plane/migrations/0210_control_plane_dance_consent_contract_tightening.sql",
   "db/control-plane/migrations/0211_control_plane_dance_start_cues.sql",
   "db/control-plane/migrations/0212_control_plane_dance_start_cue_backfill.sql",
+  "db/control-plane/migrations/0213_control_plane_dance_one_active_session.sql",
 ]
 const OVERLONG_SEGMENT_FINGERPRINT_JSON = JSON.stringify(
   Array.from({ length: 33 }, () => "8".repeat(64)),
@@ -45,7 +46,7 @@ async function expectSqlState(
   expect(caught?.errno).toBe(expected)
 }
 
-describe.skipIf(!RUN)("dance migrations 0168-0171 and 0201-0212 (real Postgres)", () => {
+describe.skipIf(!RUN)("dance migrations 0168-0171 and 0201-0213 (real Postgres)", () => {
   beforeAll(async () => {
     const root = connect()
     await root.unsafe(`DROP DATABASE IF EXISTS ${TEST_DB} WITH (FORCE)`)
