@@ -132,10 +132,10 @@ export interface HostProfileFixture {
 }
 
 export const sampleHostProfile: HostProfileFixture = {
-  name: "Amira Hassan",
+  name: "sample_host",
   bio: "Certified TEFL tutor with 8 years of experience teaching conversational English. I specialize in helping professionals build confidence in spoken English for work and travel.",
   topics: ["Conversational English", "Business English", "IELTS Prep"],
-  photoSrc: "https://picsum.photos/seed/bookings-host-amira/160/160",
+  photoSrc: "https://picsum.photos/seed/bookings-host-sample/160/160",
   basePriceCents: 5000,
 };
 

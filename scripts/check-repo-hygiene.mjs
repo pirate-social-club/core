@@ -13,7 +13,7 @@ const jsonFiles = [
   "config/lit-families.schema.json",
 ];
 
-const scannedExtensions = new Set([".json", ".md", ".ts", ".tsx", ".yml", ".yaml"]);
+const scannedExtensions = new Set([".go", ".json", ".md", ".mod", ".ts", ".tsx", ".yml", ".yaml"]);
 const ignoredDirs = new Set([".git", "node_modules"]);
 const staleMarkers = [
   "pirate-v2",
