@@ -35,9 +35,8 @@ rad:z3qZx2qJDkjxfjBSPwRva4DutYJTh  pirate-web
 rad:z2g5M6jqfcwzJobizqRbNCakDsdpU  pirate-api
 rad:zWrB9TTk3sZ5SfSPv5Z8gbq5sbvb   pirate-contracts
 rad:z26RNpiPMzH8nyaca12meKeT2HMBy  freedom-browser
+rad:zK3mrwKm8bG7w9iiRuZAAX9eQyWw   pirate-core
 ```
-
-Core is added after it is initialized under the reviewed delegate model.
 
 ## Install sequence
 

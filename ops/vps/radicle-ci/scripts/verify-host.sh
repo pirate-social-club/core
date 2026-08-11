@@ -9,6 +9,7 @@ expected_rids=(
   rad:z2g5M6jqfcwzJobizqRbNCakDsdpU
   rad:zWrB9TTk3sZ5SfSPv5Z8gbq5sbvb
   rad:z26RNpiPMzH8nyaca12meKeT2HMBy
+  rad:zK3mrwKm8bG7w9iiRuZAAX9eQyWw
 )
 
 run_rad() {

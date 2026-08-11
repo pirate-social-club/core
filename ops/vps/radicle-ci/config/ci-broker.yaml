@@ -25,8 +25,8 @@ triggers:
           - !Repository "rad:z2g5M6jqfcwzJobizqRbNCakDsdpU"
           - !Repository "rad:zWrB9TTk3sZ5SfSPv5Z8gbq5sbvb"
           - !Repository "rad:z26RNpiPMzH8nyaca12meKeT2HMBy"
+          - !Repository "rad:zK3mrwKm8bG7w9iiRuZAAX9eQyWw"
         - !Or
           - !DefaultBranch
           - !PatchCreated
           - !PatchUpdated
-
