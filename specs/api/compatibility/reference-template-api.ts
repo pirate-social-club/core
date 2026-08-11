@@ -1072,6 +1072,8 @@ type CrosspostSource = {
   author_user?: string | null;
   author_label?: string | null;
   thumbnail_ref?: string | null;
+  content_safety_state?: "pending" | "safe" | "sensitive" | "adult" | null;
+  age_gate_policy?: "none" | "18_plus" | null;
 };
 
 type CrosspostSourceStatus = "available" | "deleted" | "removed" | "unavailable";
