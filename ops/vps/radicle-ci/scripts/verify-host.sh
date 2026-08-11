@@ -61,5 +61,8 @@ if sudo -u promotion test -r "$rad_home/storage"; then
   echo 'promotion user can read Radicle storage' >&2
   exit 1
 fi
+grep -Fq '"log": "WARN"' "$rad_home/config.json"
+test "$(systemd-analyze cat-config systemd/journald.conf \
+  | awk -F= '/^SystemMaxUse=/ { value=$2 } END { print value }')" = 256M
 
 echo "Radicle seed and isolated CI host verification passed."

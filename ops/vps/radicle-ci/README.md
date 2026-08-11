@@ -30,6 +30,9 @@ The host accepts only:
 
 The provider firewall and UFW must agree. The node keeps
 `seedingPolicy.default` set to `block`; repositories are allowed explicitly.
+The public seed keeps dynamic peers for replication, but logs only at `WARN`.
+Journald is capped at 256 MiB with fourteen-day maximum retention so connection
+churn cannot consume the host disk.
 
 ## Initial repository set
 
@@ -58,19 +61,22 @@ ambient.qcow2 sha256    e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d17
 3. Generate a passphrase-free seed identity as that user. Seed identities do
    not sign canonical repository state.
 4. Install `config/config.json` as `/var/lib/radicle/config.json`, mode `0600`.
-5. Install the two slices and `radicle-node.service` under
+5. Install `journald/60-radicle-ci.conf` under
+   `/etc/systemd/journald.conf.d`, restart journald, and verify the effective
+   256 MiB cap with `systemd-analyze cat-config systemd/journald.conf`.
+6. Install the two slices and `radicle-node.service` under
    `/etc/systemd/system`, then reload systemd.
-6. Open TCP 8776 in UFW and the provider firewall.
-7. Start the node and explicitly seed the reviewed RIDs.
-8. Verify direct connectivity and repository replication before installing CI.
-9. Install Ambient, `radicle-ci-broker`, and `radicle-ci-ambient`; add the
+7. Open TCP 8776 in UFW and the provider firewall.
+8. Start the node and explicitly seed the reviewed RIDs.
+9. Verify direct connectivity and repository replication before installing CI.
+10. Install Ambient, `radicle-ci-broker`, and `radicle-ci-ambient`; add the
    `radicle` account to the `kvm` group.
-10. Install `config/ambient.yaml` under
+11. Install `config/ambient.yaml` under
     `/var/lib/radicle/.config/ambient/config.yaml` and the two broker configs
     under `/var/lib/radicle/ci`.
-11. Download the reviewed Ambient VM image to
+12. Download the reviewed Ambient VM image to
     `/var/lib/radicle/ambient/ambient.qcow2` and record its SHA-256.
-12. Install and enable `radicle-ci-broker.service` only after `cib config`
+13. Install and enable `radicle-ci-broker.service` only after `cib config`
     accepts the broker configuration.
 
 Do not install `radicle-httpd` or expose an HTTP API during this phase.

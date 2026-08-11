@@ -29,6 +29,20 @@ rad node connect \
   z6MkeUhmbivWz5Uv87h9iT4tQk7xusZabMHCrjTKEGaCTUx4@94.103.168.209:8776
 ```
 
+The workstation node is intentionally a static, outbound-only client:
+
+- the VPS is its only preferred seed and `node.connect` peer;
+- `node.peers.type` is `static`;
+- `node.listen` is empty, inbound connections are zero, and outbound is two;
+- `node.workers` is two; and
+- `node.log` is `WARN`.
+
+Do not restore public bootstrap peers on the workstation. Dynamic peer churn
+against unreachable IPv6 and stale local-name peers previously produced about
+2.6 GiB of INFO logs and made the control socket unresponsive. The VPS remains
+dynamic because it is the public replicating seed; its worker and connection
+limits plus bounded journald protect that role.
+
 Every checkout must retain both remotes:
 
 ```text
