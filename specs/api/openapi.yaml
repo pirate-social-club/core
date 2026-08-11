@@ -5148,6 +5148,26 @@ paths:
         - Bookings
       x-implemented: true
       summary: List authenticated user's bookings
+      parameters:
+        - in: query
+          name: role
+          schema:
+            type: string
+            enum:
+              - booker
+              - host
+            default: booker
+        - in: query
+          name: status
+          description: Comma-separated booking statuses.
+          schema:
+            type: string
+        - in: query
+          name: source_community_id
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
         "200":
           description: Bookings
@@ -5159,6 +5179,7 @@ paths:
                   - object
                   - data
                   - has_more
+                  - next_cursor
                 properties:
                   object:
                     type: string
@@ -5170,6 +5191,10 @@ paths:
                       $ref: "#/components/schemas/Booking"
                   has_more:
                     type: boolean
+                  next_cursor:
+                    type:
+                      - string
+                      - "null"
   /bookings/hosts/{host_user_id}/slots:
     get:
       tags:
