@@ -190,6 +190,12 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version-file: tools/spaces-publisher/go.mod
+          cache-dependency-path: tools/spaces-publisher/go.sum
+
       - name: Check toolchain versions
         run: |
           go version
