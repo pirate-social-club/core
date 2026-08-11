@@ -1,0 +1,13 @@
+[Unit]
+Description=Retry signed Radicle CI proof announcements
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+RandomizedDelaySec=30s
+Persistent=true
+Unit=radicle-ci-proof-announcer.service
+
+[Install]
+WantedBy=timers.target
+

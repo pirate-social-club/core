@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Broker 0.30.0 announces a finished job COB once with a hard-coded five-second
+# timeout. Reconcile all allowlisted repositories so transient seed discovery
+# cannot leave signed CI refs single-homed on this node.
+rids=(
+  rad:z3qZx2qJDkjxfjBSPwRva4DutYJTh
+  rad:z2g5M6jqfcwzJobizqRbNCakDsdpU
+  rad:zWrB9TTk3sZ5SfSPv5Z8gbq5sbvb
+  rad:z26RNpiPMzH8nyaca12meKeT2HMBy
+  rad:zK3mrwKm8bG7w9iiRuZAAX9eQyWw
+)
+
+failed=0
+for rid in "${rids[@]}"; do
+  if ! rad sync --announce "$rid"; then
+    failed=1
+  fi
+done
+exit "$failed"

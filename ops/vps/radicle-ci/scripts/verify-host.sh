@@ -24,6 +24,8 @@ test "$(systemctl is-active promotion-controller.service)" = active
 test "$(systemctl is-enabled promotion-controller.service)" = enabled
 test "$(systemctl is-active promotion-proof-exporter.timer)" = active
 test "$(systemctl is-enabled promotion-proof-exporter.timer)" = enabled
+test "$(systemctl is-active radicle-ci-proof-announcer.timer)" = active
+test "$(systemctl is-enabled radicle-ci-proof-announcer.timer)" = enabled
 
 actual_node="$(run_rad rad node status --only nid)"
 test "$actual_node" = "$expected_node"

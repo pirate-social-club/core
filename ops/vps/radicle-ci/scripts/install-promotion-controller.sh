@@ -24,6 +24,8 @@ install -o root -g root -m 0755 "$source_dir/scripts/initialize-promotion-identi
   /usr/local/libexec/pirate-radicle/initialize-promotion-identity.sh
 install -o root -g root -m 0755 "$source_dir/scripts/promotion-proof-exporter" \
   /usr/local/libexec/pirate-radicle/promotion-proof-exporter
+install -o root -g root -m 0755 "$source_dir/scripts/announce-ci-proofs" \
+  /usr/local/libexec/pirate-radicle/announce-ci-proofs
 install -o root -g root -m 0644 "$source_dir/config/promotion-controller.env" \
   /etc/pirate-radicle/promotion-controller.env
 install -o root -g root -m 0644 "$source_dir/systemd/promotion-controller.service" \
@@ -32,6 +34,10 @@ install -o root -g root -m 0644 "$source_dir/systemd/promotion-proof-exporter.se
   /etc/systemd/system/promotion-proof-exporter.service
 install -o root -g root -m 0644 "$source_dir/systemd/promotion-proof-exporter.timer" \
   /etc/systemd/system/promotion-proof-exporter.timer
+install -o root -g root -m 0644 "$source_dir/systemd/radicle-ci-proof-announcer.service" \
+  /etc/systemd/system/radicle-ci-proof-announcer.service
+install -o root -g root -m 0644 "$source_dir/systemd/radicle-ci-proof-announcer.timer" \
+  /etc/systemd/system/radicle-ci-proof-announcer.timer
 install -o root -g root -m 0644 "$source_dir/tmpfiles/radicle-ci.conf" \
   /etc/tmpfiles.d/radicle-ci.conf
 systemd-tmpfiles --create /etc/tmpfiles.d/radicle-ci.conf
@@ -39,5 +45,7 @@ systemctl daemon-reload
 /usr/local/libexec/pirate-radicle/initialize-promotion-identity.sh
 systemctl enable --now promotion-proof-exporter.timer
 systemctl start promotion-proof-exporter.service
+systemctl enable --now radicle-ci-proof-announcer.timer
+systemctl start radicle-ci-proof-announcer.service
 systemctl enable promotion-controller.service
 systemctl restart promotion-controller.service

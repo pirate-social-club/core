@@ -152,16 +152,36 @@ Enforcement cutover requires all of the following:
 - the recovery and controller DIDs added at threshold 1;
 - restart, queue recovery, proof rejection, and controller replacement drills;
 - a clean advisory comparison window through the recorded review date; and
+- an automated, monitored Radicle-to-GitHub mirror that has successfully
+  mirrored exact canonical SHAs for every repository while the workstation is
+  still a delegate;
+- GitHub `main` configured as mirror-only, with ordinary direct pushes denied
+  and only the dedicated mirroring identity permitted to advance it;
+- release monitoring that treats a missing or delayed mirror of a canonical
+  Radicle SHA as a failed promotion, rather than silently leaving production
+  behind; and
 - removal of the workstation DID from every delegate set.
 
-Only the final removal creates enforcement. Before it, CI remains advisory.
+Apply and verify the mirror controls before removing the workstation DID. Only
+the final removal creates Radicle-side enforcement, and it is only end-to-end
+authoritative when the mirror-only GitHub boundary is also active. Before
+that, CI remains advisory and GitHub retains a production bypass.
+
+Do not bridge Radicle CI results into GitHub status contexts as the primary
+design. The release workflow may run after a mirrored canonical push, but the
+promotion decision belongs to Radicle. GitHub is a downstream deploy executor,
+not a second promotion authority.
 
 ## Promotion-state backup boundary
 
 The broker's current job-COB announcement defect makes signed CI evidence
-single-homed on VPS #3. The proof summaries are not a substitute for their
-signed source objects. Before enforcement, the external encrypted backup set
-must therefore include:
+vulnerable to transient single-homing on VPS #3. Broker 0.30.0 makes one
+announcement attempt with a hard-coded five-second timeout; a temporary lack
+of eligible seeds produces `no refs were announced` even though the signed COB
+was stored correctly. `radicle-ci-proof-announcer.timer` reconciles every
+allowlisted repository at five-minute intervals. The proof summaries are not a
+substitute for their signed source objects. Before enforcement, the external
+encrypted backup set must therefore include:
 
 - the producer namespace's `xyz.radworks.job` refs and reachable Git objects
   for every allowlisted RID;
