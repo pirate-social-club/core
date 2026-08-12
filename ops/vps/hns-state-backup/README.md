@@ -79,6 +79,22 @@ libraries relative to the versioned application checkout. Advance the
 never copy either backup script alone from a newer revision. A partial deploy
 fails the next backup before creating an archive.
 
+Deploy-time hard-stop checklist:
+
+- [ ] The versioned release contains `hns-state-backup.sh`,
+      `alert-on-failure.sh`, `immutable-backup.sh`, and `backup-alert.sh` from
+      the same reviewed commit.
+- [ ] The release symlink advances once, only after all four files and their
+      modes are verified.
+- [ ] `hns-state-backup.test.sh` passes against that complete release.
+- [ ] A manual encrypted backup uploads successfully and provider retention is
+      verified before the timer is considered healthy.
+- [ ] A disposable restore verifies the archive before the prior release is
+      retired.
+
+Any unchecked item stops deployment; never compensate by copying an individual
+script into the active release.
+
 ```bash
 install -d -o root -g root -m 0700 /var/lib/pirate-hns-backup
 install -d -o root -g root -m 0750 /srv/pirate-hns/config

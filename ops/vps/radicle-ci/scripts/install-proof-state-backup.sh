@@ -36,11 +36,9 @@ chown root:root /etc/pirate-radicle/proof-backup-signing-key{,.pub}
 chmod 0600 /etc/pirate-radicle/proof-backup-signing-key
 chmod 0644 /etc/pirate-radicle/proof-backup-signing-key.pub
 
-if [[ ! -f /etc/pirate-radicle/proof-state-backup.env ]]; then
-  install -o root -g root -m 0600 \
-    "$source_dir/config/proof-state-backup.env.example" \
-    /etc/pirate-radicle/proof-state-backup.env
-fi
+install -o root -g root -m 0600 \
+  "$source_dir/config/proof-state-backup.env.example" \
+  /etc/pirate-radicle/proof-state-backup.env.example
 for unit in radicle-proof-state-backup.service \
   radicle-proof-state-backup.timer \
   radicle-proof-state-backup-alert@.service; do
@@ -50,4 +48,4 @@ done
 systemctl daemon-reload
 
 echo "proof backup signer: $(ssh-keygen -lf /etc/pirate-radicle/proof-backup-signing-key.pub -E sha256 | awk '{ print $2 }')"
-echo 'configure /etc/pirate-radicle/proof-state-backup.env, run one manual backup and restore drill, then enable the timer'
+echo 'copy the example to proof-state-backup.env only after every required value exists; run one manual backup and restore drill, then enable the timer'

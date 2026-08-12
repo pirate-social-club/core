@@ -171,9 +171,12 @@ change GitHub's authority boundary.
 
 ## Cutover sequence
 
-1. Install and drill the encrypted proof-state backup pipeline.
-2. Create and verify the dedicated recovery organization.
-3. Complete the generation ceremony and commit the secret-free manifest.
+1. Create and verify the dedicated recovery organization.
+2. Complete the generation ceremony and commit the secret-free manifest. This
+   produces the public recipients required to configure either backup host.
+3. Install the encrypted proof-state backup pipeline without enabling its
+   timer, configure it with the public proof-backup recipient and immutable
+   bucket credential, then run one manual backup.
 4. Rotate NS1 and proof-state backups to their new public recipients; verify a
    fresh immutable upload and restore from each.
 5. Add the recovery DID to all five repositories at threshold 1 and verify it
@@ -186,6 +189,10 @@ change GitHub's authority boundary.
 8. Only then remove the workstation DID from all five delegate sets.
 9. Retire each previous age identity after the last old-recipient archive has
    exceeded provider retention.
+
+Do not create an empty production backup environment file merely to mark step
+3 started. Its presence is the host-verification signal that configuration is
+complete and a successful timer run must exist.
 
 Step 8 is the authority transition. Before it, the workstation can bypass CI.
 After it, recovery requires the escrowed recovery delegate if the controller

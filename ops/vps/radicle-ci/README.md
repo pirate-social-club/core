@@ -158,6 +158,9 @@ sudo ops/vps/radicle-ci/scripts/install-proof-state-backup.sh \
   ops/vps/radicle-ci
 sudo install -o root -g root -m 0600 <scoped-rclone-config> \
   /etc/pirate-radicle/proof-state-rclone.conf
+sudo install -o root -g root -m 0600 \
+  /etc/pirate-radicle/proof-state-backup.env.example \
+  /etc/pirate-radicle/proof-state-backup.env
 sudoedit /etc/pirate-radicle/proof-state-backup.env
 sudo systemctl start radicle-proof-state-backup.service
 sudo journalctl -u radicle-proof-state-backup.service --since today
@@ -165,6 +168,10 @@ sudo journalctl -u radicle-proof-state-backup.service --since today
 
 Do not enable the timer until the manual upload passes provider-retention
 verification and `proof-state-restore.md` succeeds without access to VPS #3.
+The installer deliberately creates only `proof-state-backup.env.example`.
+Presence of `proof-state-backup.env` means configuration is complete and makes
+the timer and its last successful run mandatory in `verify-host.sh`; never
+create the production file as an empty setup placeholder.
 Then enable the daily timer:
 
 ```bash
