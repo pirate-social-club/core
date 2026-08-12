@@ -44,6 +44,7 @@ type ParentGlueRecord = {
 };
 
 type HnsRootResourceObservation = {
+  rawRecords: Record<string, unknown>[];
   nameservers: string[];
   txtValues: string[];
   dsRecords: ParentDsRecord[];
@@ -579,14 +580,22 @@ function parseHnsRootResource(payload: unknown): HnsRootResourceObservation | nu
     return null;
   }
 
+  const rawRecords: Record<string, unknown>[] = [];
   const nameservers: string[] = [];
   const txtValues: string[] = [];
   const dsRecords: ParentDsRecord[] = [];
   const glue4: ParentGlueRecord[] = [];
   const glue6: ParentGlueRecord[] = [];
   for (const record of payload.records) {
-    if (typeof record !== "object" || record == null || !("type" in record)) continue;
+    if (typeof record !== "object" || record == null || !("type" in record)) return null;
     const typedRecord = record as Record<string, unknown>;
+    if (typeof typedRecord.type !== "string") return null;
+    // The Handshake resource covenant is a complete replacement, not a patch.
+    // Keep the chain response byte-for-byte equivalent at the JSON record level
+    // so a future publish bundle can preserve SYNTH records and record types this
+    // verifier does not yet understand. The normalized fields below are an
+    // evaluation projection only and must never be used for round-tripping.
+    rawRecords.push(structuredClone(typedRecord));
     if (typedRecord.type === "NS" && typeof typedRecord.ns === "string") {
       nameservers.push(normalizeNsRecord(typedRecord.ns));
     } else if (typedRecord.type === "TXT" && Array.isArray(typedRecord.txt)
@@ -626,6 +635,7 @@ function parseHnsRootResource(payload: unknown): HnsRootResourceObservation | nu
   }
 
   return {
+    rawRecords,
     nameservers: nameservers.filter(Boolean).sort(),
     txtValues: txtValues.filter(Boolean),
     dsRecords: dsRecords.sort((left, right) =>
@@ -689,6 +699,7 @@ async function observeRootParent(rootLabel: string) {
       median_time: expiryEvidence.expiry_anchor_median_time,
     },
     parent: {
+      raw_records: resource.rawRecords,
       nameservers: resource.nameservers,
       ds_records: resource.dsRecords,
       glue4: resource.glue4,

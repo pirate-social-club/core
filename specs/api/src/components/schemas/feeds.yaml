@@ -78,6 +78,15 @@ HomeFeedCommunitySummary:
     avatar_ref:
       type: string
       nullable: true
+    branding:
+      $ref: ./communities-core.yaml#/CommunityBranding
+    default_surface:
+      type: string
+      enum:
+        - threads
+        - videos
+    video_feed_enabled:
+      type: boolean
     member_count:
       type: integer
       nullable: true

@@ -1,13 +1,40 @@
 import { describe, expect, test } from "bun:test";
+import { createHmac } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CaddyNamespaceIssuanceStore, handleCaddyAskRequest } from "./caddy-ask";
 import {
+  canonicalizeForwarderContext,
+  FORWARDER_SIGNATURE_HEADER,
+  FORWARDER_TIMESTAMP_HEADER,
+  signForwarderContext,
+} from "./forwarder-signature";
+import {
   extractImportedNamespaceHost,
   extractPublicProfileHost,
   handleRequest,
+  resolveForwarderMode,
 } from "./server";
+
+test("forwarder signature interoperability vector remains stable", async () => {
+  const context = {
+    timestamp: "1770000000",
+    method: "GET",
+    host: "xn--pokmon-dva",
+    pathAndQuery: "/c/crew?sort=top",
+    root: "xn--pokmon-dva",
+    communityId: "com_cmt_public_namespace_test",
+    communityRoute: "xn--pokmon-dva",
+    subdomain: "",
+  };
+  expect(canonicalizeForwarderContext(context)).toBe(
+    '["pirate-hns-forwarder-v1","1770000000","GET","xn--pokmon-dva","/c/crew?sort=top","xn--pokmon-dva","com_cmt_public_namespace_test","xn--pokmon-dva",""]',
+  );
+  expect(await signForwarderContext(context, "test-forwarder-hmac-key-with-32-bytes")).toBe(
+    "v1=e42b921d8029a9067fcc230b039d8513727ca88ad2b0253a39263b220154b9a3",
+  );
+});
 
 describe("extractPublicProfileHost", () => {
   test("extracts a simple pirate hostname", () => {
@@ -19,6 +46,7 @@ describe("extractPublicProfileHost", () => {
 
   test("rejects reserved hosts", () => {
     expect(extractPublicProfileHost("api.pirate", "pirate")).toBeNull();
+    expect(extractPublicProfileHost("home.pirate", "pirate")).toBeNull();
   });
 
   test("rejects nested subdomains", () => {
@@ -319,17 +347,66 @@ describe("handleCaddyAskRequest", () => {
 });
 
 describe("handleRequest", () => {
+  const forwarderHmacKey = "test-forwarder-hmac-key-with-32-bytes";
   const env = {
     HNS_PUBLIC_GATEWAY_ROOT_SUFFIX: "pirate",
     HNS_PUBLIC_GATEWAY_EXTERNAL_SCHEME: "https",
     HNS_PUBLIC_API_ORIGIN: "https://api.pirate.sc",
     HNS_PUBLIC_APP_ORIGIN: "https://pirate.sc",
+    HNS_PUBLIC_FORWARDER_HMAC_KEY: forwarderHmacKey,
   };
+
+  function expectValidForwarderSignature(input: {
+    communityId?: string | null;
+    communityRoute?: string | null;
+    headers: Headers;
+    host: string;
+    method?: string;
+    pathAndQuery: string;
+    root?: string | null;
+    subdomain?: string | null;
+  }): void {
+    expect(input.headers.get("x-pirate-hns-forwarder-path")).toBe(input.pathAndQuery);
+    const timestamp = input.headers.get(FORWARDER_TIMESTAMP_HEADER);
+    expect(timestamp).toMatch(/^\d+$/u);
+    const expected = createHmac("sha256", forwarderHmacKey)
+      .update(canonicalizeForwarderContext({
+        communityId: input.communityId,
+        communityRoute: input.communityRoute,
+        host: input.host,
+        method: input.method ?? "GET",
+        pathAndQuery: input.pathAndQuery,
+        root: input.root,
+        subdomain: input.subdomain,
+        timestamp: timestamp!,
+      }))
+      .digest("hex");
+    expect(input.headers.get(FORWARDER_SIGNATURE_HEADER)).toBe(`v1=${expected}`);
+  }
 
   test("serves health", async () => {
     const response = await handleRequest(new Request("http://127.0.0.1/health"), env);
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true });
+    expect(await response.json()).toEqual({ ok: true, forwarder_mode: "hmac_required" });
+  });
+
+  test("reports the effective non-secret forwarder mode", () => {
+    expect(resolveForwarderMode({
+      HNS_PUBLIC_FORWARDER_HMAC_KEY: forwarderHmacKey,
+      HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "legacy-rollout-token",
+    })).toBe("dual");
+    expect(resolveForwarderMode({
+      HNS_PUBLIC_FORWARDER_HMAC_KEY: forwarderHmacKey,
+      HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "legacy-rollout-token",
+      HNS_PUBLIC_FORWARDER_REQUIRE_HMAC: "true",
+    })).toBe("hmac_required");
+    expect(resolveForwarderMode({
+      HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "legacy-rollout-token",
+    })).toBe("token_only");
+    expect(resolveForwarderMode({
+      HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "legacy-rollout-token",
+      HNS_PUBLIC_FORWARDER_REQUIRE_HMAC: "true",
+    })).toBe("unconfigured");
   });
 
   test("does not exempt health from the plain-HTTP read-only policy", async () => {
@@ -483,7 +560,7 @@ describe("handleRequest", () => {
         body: JSON.stringify({ title: "ahoy" }),
         headers: { "content-type": "application/json", "x-forwarded-proto": "https" },
       }),
-      { ...env, HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "shared-secret" },
+      env,
       async (url, init) => {
         calls.push({
           url: String(url),
@@ -501,6 +578,12 @@ describe("handleRequest", () => {
     expect(calls[0].method).toBe("POST");
     expect(calls[0].body).toBe(JSON.stringify({ title: "ahoy" }));
     expect(calls[0].headers.get("x-pirate-hns-host")).toBe("api.pirate");
+    expectValidForwarderSignature({
+      headers: calls[0].headers,
+      host: "api.pirate",
+      method: "POST",
+      pathAndQuery: "/communities/crew/posts?sort=top",
+    });
     expect(calls[0].headers.has("host")).toBe(false);
   });
 
@@ -577,16 +660,17 @@ describe("handleRequest", () => {
         headers: {
           "x-forwarded-proto": "https",
           // A public client trying to launder routing context through the
-          // gateway's legitimate token + trusted IP.
+          // gateway's legitimate signature + trusted IP.
           "x-pirate-hns-community-id": "com_victim",
           "x-pirate-hns-community-route": "victim",
           "x-pirate-hns-host": "evil.pirate",
           "x-pirate-hns-root": "evil",
           "x-pirate-hns-trusted-forwarder": "1",
-          "x-pirate-hns-forwarder-token": "guessed-secret",
+          "x-pirate-hns-forwarder-signature": "v1=forged",
+          "x-pirate-hns-forwarder-timestamp": "1770000000",
         },
       }),
-      { ...env, HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "real-secret" },
+      env,
       async (_url, init) => {
         calls.push(new Headers(init?.headers));
         return new Response("app page");
@@ -595,7 +679,7 @@ describe("handleRequest", () => {
 
     // Server-derived host wins; no attacker-supplied routing context survives.
     expect(calls[0].get("x-pirate-hns-host")).toBe("app.pirate");
-    expect(calls[0].get("x-pirate-hns-forwarder-token")).toBe("real-secret");
+    expectValidForwarderSignature({ headers: calls[0], host: "app.pirate", pathAndQuery: "/" });
     expect(calls[0].has("x-pirate-hns-community-id")).toBe(false);
     expect(calls[0].has("x-pirate-hns-community-route")).toBe(false);
     expect(calls[0].has("x-pirate-hns-root")).toBe(false);
@@ -633,11 +717,11 @@ describe("handleRequest", () => {
     expect(calls[1].headers.has("x-pirate-hns-subdomain")).toBe(false);
   });
 
-  test("proxies app.pirate to the app origin with forwarded host and token", async () => {
+  test("proxies app.pirate to the app origin with forwarded host and signature", async () => {
     const calls: Array<{ url: string; headers: Headers }> = [];
     const response = await handleRequest(
       new Request("https://app.pirate/c/crew?sort=top"),
-      { ...env, HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "shared-secret" },
+      env,
       async (url, init) => {
         calls.push({ url: String(url), headers: new Headers(init?.headers) });
         return new Response("app page");
@@ -648,7 +732,11 @@ describe("handleRequest", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].url).toBe("https://pirate.sc/c/crew?sort=top");
     expect(calls[0].headers.get("x-pirate-hns-host")).toBe("app.pirate");
-    expect(calls[0].headers.get("x-pirate-hns-forwarder-token")).toBe("shared-secret");
+    expectValidForwarderSignature({
+      headers: calls[0].headers,
+      host: "app.pirate",
+      pathAndQuery: "/c/crew?sort=top",
+    });
   });
 
   test("redirects the bare root apex to the app origin", async () => {
@@ -732,6 +820,7 @@ describe("handleRequest", () => {
           return Response.json({
             root_label: "xn--pokmon-dva",
             namespace_verification: "nv_namespace_public_test",
+            wallet_interactive: true,
             community: {
               id: "com_cmt_public_namespace_test",
               display_name: "Imported Root",
@@ -755,16 +844,163 @@ describe("handleRequest", () => {
     expect(calls[1].headers.get("x-pirate-hns-root")).toBe("xn--pokmon-dva");
     expect(calls[1].headers.get("x-pirate-hns-community-id")).toBe("com_cmt_public_namespace_test");
     expect(calls[1].headers.get("x-pirate-hns-community-route")).toBe("xn--pokmon-dva");
+    expectValidForwarderSignature({
+      communityId: "com_cmt_public_namespace_test",
+      communityRoute: "xn--pokmon-dva",
+      headers: calls[1].headers,
+      host: "xn--pokmon-dva",
+      pathAndQuery: "/",
+      root: "xn--pokmon-dva",
+    });
+    expect(calls[1].headers.get("x-pirate-hns-wallet-interactive")).toBe("1");
     expect(calls[1].headers.has("x-pirate-hns-forwarder-token")).toBe(false);
     expect(calls[1].headers.has("host")).toBe(false);
     expect(calls[1].headers.get("accept-encoding")).toBe("identity");
   });
 
-  test("signs imported HNS proxy requests when a forwarder token is configured", async () => {
+  test("does not forward stale compression headers after Bun inflates an upstream body", async () => {
+    const compressed = Bun.gzipSync(new TextEncoder().encode("inflated community page"));
+    const origin = Bun.serve({
+      port: 0,
+      fetch(request) {
+        const url = new URL(request.url);
+        if (url.pathname.startsWith("/public-namespaces/")) {
+          return Response.json({
+            root_label: "compressed-root",
+            namespace_verification: "nv_compressed",
+            community: { id: "com_compressed", display_name: "Compressed", route_slug: "compressed-root" },
+          });
+        }
+        expect(request.headers.get("accept-encoding")).toBe("identity");
+        return new Response(compressed, {
+          headers: {
+            "content-encoding": "gzip",
+            "content-length": String(compressed.byteLength),
+            "content-type": "text/plain",
+          },
+        });
+      },
+    });
+    try {
+      const response = await handleRequest(new Request("https://compressed-root/"), {
+        ...env,
+        HNS_PUBLIC_API_ORIGIN: origin.url.toString(),
+        HNS_PUBLIC_APP_ORIGIN: origin.url.toString(),
+      });
+      expect(await response.text()).toBe("inflated community page");
+      expect(response.headers.get("content-encoding")).toBeNull();
+      expect(response.headers.get("content-length")).toBeNull();
+    } finally {
+      origin.stop(true);
+    }
+  });
+
+  test("caches and coalesces imported namespace resolution", async () => {
+    let namespaceCalls = 0;
+    const fetchImpl: typeof fetch = async (url) => {
+      if (String(url).endsWith("/public-namespaces/coalesced-root")) {
+        namespaceCalls += 1;
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        return Response.json({
+          root_label: "coalesced-root",
+          namespace_verification: "nv_coalesced",
+          community: { id: "com_coalesced", display_name: "Coalesced", route_slug: "coalesced-root" },
+        });
+      }
+      return new Response("community page");
+    };
+
+    const responses = await Promise.all([
+      handleRequest(new Request("https://coalesced-root/"), env, fetchImpl),
+      handleRequest(new Request("https://app.coalesced-root/"), env, fetchImpl),
+    ]);
+    const cached = await handleRequest(new Request("https://coalesced-root/p/post-1"), env, fetchImpl);
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    expect(cached.status).toBe(200);
+    expect(namespaceCalls).toBe(1);
+  });
+
+  test("refreshes wallet authority on a new document navigation", async () => {
+    let namespaceCalls = 0;
+    let walletInteractive = true;
+    const forwardedWalletHeaders: string[] = [];
+    const fetchImpl: typeof fetch = async (url, init) => {
+      if (String(url).endsWith("/public-namespaces/revoked-root")) {
+        namespaceCalls += 1;
+        return Response.json({
+          root_label: "revoked-root",
+          namespace_verification: "nv_revoked",
+          wallet_interactive: walletInteractive,
+          community: { id: "com_revoked", display_name: "Revoked", route_slug: "revoked-root" },
+        });
+      }
+      forwardedWalletHeaders.push(
+        new Headers(init?.headers).get("x-pirate-hns-wallet-interactive") ?? "missing",
+      );
+      return new Response("community page");
+    };
+    const documentHeaders = {
+      accept: "text/html,application/xhtml+xml",
+      "sec-fetch-dest": "document",
+      "sec-fetch-mode": "navigate",
+    };
+
+    expect((await handleRequest(
+      new Request("https://app.revoked-root/", { headers: documentHeaders }),
+      env,
+      fetchImpl,
+    )).status).toBe(200);
+    expect((await handleRequest(
+      new Request("https://app.revoked-root/assets/app.js", { headers: { accept: "*/*" } }),
+      env,
+      fetchImpl,
+    )).status).toBe(200);
+
+    walletInteractive = false;
+    expect((await handleRequest(
+      new Request("https://app.revoked-root/settings", { headers: documentHeaders }),
+      env,
+      fetchImpl,
+    )).status).toBe(200);
+
+    expect(namespaceCalls).toBe(2);
+    expect(forwardedWalletHeaders).toEqual(["1", "1", "0"]);
+  });
+
+  test("serves stale namespace resolution when refresh fails", async () => {
+    let namespaceCalls = 0;
+    let failRefresh = false;
+    const fetchImpl: typeof fetch = async (url) => {
+      if (String(url).endsWith("/public-namespaces/stale-root")) {
+        namespaceCalls += 1;
+        if (failRefresh) return new Response("unavailable", { status: 503 });
+        return Response.json({
+          root_label: "stale-root",
+          namespace_verification: "nv_stale",
+          community: { id: "com_stale", display_name: "Stale", route_slug: "stale-root" },
+        });
+      }
+      return new Response("community page");
+    };
+    const cacheEnv = {
+      ...env,
+      HNS_PUBLIC_NAMESPACE_CACHE_STALE_MS: "10000",
+      HNS_PUBLIC_NAMESPACE_CACHE_TTL_MS: "1",
+    };
+
+    expect((await handleRequest(new Request("https://stale-root/"), cacheEnv, fetchImpl)).status).toBe(200);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    failRefresh = true;
+    expect((await handleRequest(new Request("https://stale-root/p/post-1"), cacheEnv, fetchImpl)).status).toBe(200);
+    expect(namespaceCalls).toBe(2);
+  });
+
+  test("signs imported HNS proxy requests with a timestamped HMAC", async () => {
     const calls: Array<{ url: string; headers: Headers }> = [];
     const response = await handleRequest(
       new Request("http://xn--pokmon-dva/"),
-      { ...env, HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "shared-secret" },
+      env,
       async (url, init) => {
         calls.push({ url: String(url), headers: new Headers(init?.headers) });
         if (String(url) === "https://api.pirate.sc/public-namespaces/xn--pokmon-dva") {
@@ -783,7 +1019,14 @@ describe("handleRequest", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(calls[1].headers.get("x-pirate-hns-forwarder-token")).toBe("shared-secret");
+    expectValidForwarderSignature({
+      communityId: "com_cmt_public_namespace_test",
+      communityRoute: "xn--pokmon-dva",
+      headers: calls[1].headers,
+      host: "xn--pokmon-dva",
+      pathAndQuery: "/",
+      root: "xn--pokmon-dva",
+    });
   });
 
   test("proxies verified imported HNS subdomains with the subdomain header", async () => {
@@ -813,5 +1056,76 @@ describe("handleRequest", () => {
     expect(calls[1].headers.get("x-pirate-hns-host")).toBe("v.xn--pokmon-dva");
     expect(calls[1].headers.get("x-pirate-hns-community-id")).toBe("com_cmt_public_namespace_test");
     expect(calls[1].headers.get("x-pirate-hns-subdomain")).toBe("v");
+    expectValidForwarderSignature({
+      communityId: "com_cmt_public_namespace_test",
+      communityRoute: "xn--pokmon-dva",
+      headers: calls[1].headers,
+      host: "v.xn--pokmon-dva",
+      pathAndQuery: "/",
+      root: "xn--pokmon-dva",
+      subdomain: "v",
+    });
+  });
+
+  test("dual-emits HMAC and the legacy token during the compatibility window", async () => {
+    const calls: Headers[] = [];
+    const response = await handleRequest(
+      new Request("https://APP.PIRATE./path?view=top", { headers: { "x-forwarded-proto": "https" } }),
+      { ...env, HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "legacy-rollout-token" },
+      async (_url, init) => {
+        calls.push(new Headers(init?.headers));
+        return new Response("app");
+      },
+    );
+    expect(response.status).toBe(200);
+    expect(calls[0].get("x-pirate-hns-host")).toBe("app.pirate");
+    expect(calls[0].get("x-pirate-hns-forwarder-token")).toBe("legacy-rollout-token");
+    expect(calls[0].get("x-pirate-hns-forwarder-path")).toBe("/path?view=top");
+    expect(calls[0].get(FORWARDER_SIGNATURE_HEADER)).toMatch(/^v1=[0-9a-f]{64}$/u);
+  });
+
+  test("accepts a legacy-only gateway configuration during the compatibility window", async () => {
+    const calls: Headers[] = [];
+    const response = await handleRequest(
+      new Request("https://app.pirate/", { headers: { "x-forwarded-proto": "https" } }),
+      { ...env, HNS_PUBLIC_FORWARDER_HMAC_KEY: undefined, HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "legacy-rollout-token" },
+      async (_url, init) => {
+        calls.push(new Headers(init?.headers));
+        return new Response("app");
+      },
+    );
+    expect(response.status).toBe(200);
+    expect(calls[0].get("x-pirate-hns-forwarder-token")).toBe("legacy-rollout-token");
+    expect(calls[0].has(FORWARDER_SIGNATURE_HEADER)).toBe(false);
+    expect(calls[0].has("x-pirate-hns-forwarder-path")).toBe(false);
+  });
+
+  test("rejects token-only configuration after HMAC enforcement is enabled", async () => {
+    const response = await handleRequest(
+      new Request("https://app.pirate/", { headers: { "x-forwarded-proto": "https" } }),
+      {
+        ...env,
+        HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "legacy-rollout-token",
+        HNS_PUBLIC_FORWARDER_HMAC_KEY: undefined,
+        HNS_PUBLIC_FORWARDER_REQUIRE_HMAC: "true",
+      },
+      async () => {
+        throw new Error("required HMAC configuration must fail before proxying");
+      },
+    );
+    expect(response.status).toBe(503);
+  });
+
+  test("fails closed before proxying when neither rollout credential is usable", async () => {
+    for (const hmacKey of [undefined, "too-short"]) {
+      const response = await handleRequest(
+        new Request("https://app.pirate/", { headers: { "x-forwarded-proto": "https" } }),
+        { ...env, HNS_PUBLIC_FORWARDER_HMAC_KEY: hmacKey, HNS_PUBLIC_FORWARDER_AUTH_TOKEN: undefined },
+        async () => {
+          throw new Error("misconfigured gateway must not reach an origin");
+        },
+      );
+      expect(response.status).toBe(503);
+    }
   });
 });

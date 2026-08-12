@@ -686,11 +686,12 @@ BookingCancellationPreview:
 CancelBookingRequest:
   type: object
   additionalProperties: false
+  required: [expected_refund_cents]
   properties:
     expected_refund_cents:
       type: integer
       minimum: 0
-      description: Transitional compatibility field; when provided, cancellation fails if the authoritative refund has changed.
+      description: Refund from the immediately preceding cancellation preview; cancellation fails if the authoritative terms changed.
 BookingSessionAttachResponse:
   type: object
   additionalProperties: true

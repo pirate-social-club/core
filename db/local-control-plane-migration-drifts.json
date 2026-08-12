@@ -93,6 +93,30 @@
         "oldChecksum": "9b4d59185fe793678c77e687b749634028c2c790ca74ac7e7d5b368b284bff25",
         "newChecksum": "7d5368f8994792df999879ccaa649806d6cc093f346d3a54e7372d413641d681",
         "reason": "pre-deployment repair follow-up: use portable tier-key validation and JSON extraction across PostgreSQL and SQLite"
+      },
+      {
+        "migrationName": "0195_control_plane_reward_funding_retirements.sql",
+        "oldChecksum": "95318a979c3ad81763742caf09caf9ab9ea527571755dae281a8b2ead6a10f98",
+        "newChecksum": "c50a7292f735a0fb9cb175234fbf2eb486eac9c92cd751edac0669a72a89b815",
+        "reason": "pre-deployment repair: seed the explicitly authorized workspace-owner attribution directly so no personal identity is written transiently"
+      },
+      {
+        "migrationName": "0195_control_plane_reward_funding_retirements.sql",
+        "oldChecksum": "8442aaff1b04c7ca0045b678a9d0a128fdcefe0773907ca033399103ab5656e3",
+        "newChecksum": "c50a7292f735a0fb9cb175234fbf2eb486eac9c92cd751edac0669a72a89b815",
+        "reason": "pre-deployment repair follow-up: replace the date-only placeholder with the earliest durable timestamp proving workspace-owner authorization"
+      },
+      {
+        "migrationName": "0196_control_plane_reward_funding_retirement_hardening.sql",
+        "oldChecksum": "de36104c5a8fd6335cc03e0e3b101bced54fd05502fca7d54ec7901c2d1b1797",
+        "newChecksum": "2951eb691aa419b0a6ab2d34838c81d36da0ff016e2f058e48554f423d27b519",
+        "reason": "pre-deployment repair: remove the now-unnecessary attribution correction and retain only immutable-audit triggers"
+      },
+      {
+        "migrationName": "0200_control_plane_user_account_merges.sql",
+        "oldChecksum": "75fe3586d561345ff7d3158b5b4ee7924cf1310d651659335c05074f117931a3",
+        "newChecksum": "17eb003263096a6c3abc0bd022d19666b749637dc9619142baf7aff443f8014d",
+        "reason": "pre-deployment repair: give the block-reason value and blocked-state checks distinct PostgreSQL constraint names"
       }
     ]
   }

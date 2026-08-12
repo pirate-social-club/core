@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "load:video-ranges": "bun scripts/load-video-ranges.ts",
     "start": "bun src/server.ts",
     "test": "bun test"
   },

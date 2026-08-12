@@ -148,3 +148,23 @@ Run the service from the repo root:
 ```bash
 rtk bun services/verifier/hns/src/server.ts
 ```
+
+## Legacy app-record audit
+
+Before enabling sovereign thread origins, audit zones created before explicit
+`app.<zone>` management. This is read-only and exits nonzero when an app A or
+matching TLSA record is absent or differs from the managed wildcard/apex set:
+
+```bash
+rtk bun run --cwd services/verifier/hns audit:app-records
+rtk bun run --cwd services/verifier/hns audit:app-records -- --zones pirate,example
+```
+
+An intentionally distinct app address must be named explicitly with
+`--allow-explicit-app-a-zones <zone,...>`. Do not use that exception for a
+normal gateway migration: exact A-record equality is what detects a stale app
+origin.
+
+Supply `PDNS_API_URL`, `PDNS_API_KEY`, and optionally `PDNS_SERVER_ID`. Repair
+reported zones through the normal `/ensure-zone` reconciliation path so app A
+and TLSA are applied together; do not add the TLSA owner by itself.

@@ -185,6 +185,8 @@ communities_by_community_id_posts_by_post_id_study_attempts:
         - `403 forbidden`   — caller is not entitled to study this post
           (mirrors a `locked` GET).
         - `404 not_found`   — community, post, or exercise not found.
+        - `409 study_session_revision_conflict` — a fresh idempotency key
+          supplied a stale optional session revision; no attempt was graded.
     parameters:
       - $ref: ../components/parameters.yaml#/CommunityId
       - $ref: ../components/parameters.yaml#/PostId
@@ -199,6 +201,8 @@ communities_by_community_id_posts_by_post_id_study_attempts:
               summary: Multiple-choice selection
               value:
                 idempotency_key: study_attempt_choice_001
+                session_id: sts_001
+                session_revision: 4
                 exercise_id: ex_choice_1
                 type: translation_choice
                 attempt_number: 1
@@ -207,6 +211,8 @@ communities_by_community_id_posts_by_post_id_study_attempts:
               summary: Spoken transcript
               value:
                 idempotency_key: study_attempt_say_001
+                session_id: sts_001
+                session_revision: 4
                 exercise_id: ex_say_1
                 type: say_it_back
                 attempt_number: 1
@@ -218,41 +224,53 @@ communities_by_community_id_posts_by_post_id_study_attempts:
           application/json:
             schema:
               $ref: ../components/schemas/song-study.yaml#/SongStudyAttemptResult
-            examples:
-              correct:
-                summary: Correct multiple-choice answer
-                value:
-                  object: song_study_attempt_result
-                  exercise_id: ex_choice_1
-                  outcome: correct
-                  attempts_remaining: 1
-                  correct_option_id: opt_a
-                  next_review_hint: good
-              incorrect_not_spent:
-                summary: Wrong first attempt, answer withheld
-                value:
-                  object: song_study_attempt_result
-                  exercise_id: ex_choice_1
-                  outcome: incorrect
-                  attempts_remaining: 1
-              say_it_back_partial:
-                summary: Spoken attempt with token feedback
-                value:
-                  object: song_study_attempt_result
-                  exercise_id: ex_say_1
-                  outcome: incorrect
-                  attempts_remaining: 1
-                  feedback:
-                    matched:
-                      - I
-                      - was
-                      - in
-                      - the
-                      - midnight
-                      - waves
-                    missing:
-                      - lost
-                    extra: []
+            example:
+              object: song_study_attempt_result
+              exercise_id: ex_choice_1
+              outcome: correct
+              attempts_remaining: 2
+              correct_option_id: opt_a
+              next_review_hint: good
+              session:
+                id: sts_001
+                status: active
+                due_count: 0
+                served_count: 10
+                total_units: 10
+                required_correct_count: 7
+                max_presentations: 20
+                presentation_count: 5
+                completed_exercise_count: 5
+                resolved_exercise_count: 1
+                first_pass_correct_count: 1
+                mastered_exercise_count: 1
+                qualified: false
+                session_revision: 5
+                completion_reason: null
+              lesson:
+                session_revision: 5
+                resolved_count: 1
+                total_count: 10
+                completion_reason: null
+                serving_index: 2
+                next:
+                  exercise_id: ex_say_2
+                  type: say_it_back
+                  is_reappearance: false
+                  presentation_number: 1
+                  attempts_this_appearance: 0
+                  retry_in_place: false
+                  prompt:
+                    id: ex_say_2
+                    type: say_it_back
+                    line_id: line_002
+                    line_index: 1
+                    prompt_text: I was lost in the midnight waves
+                    reference_text: I was lost in the midnight waves
+                    max_attempts: 3
+                    presentation_count: 0
+                    mastered: false
+                    first_outcome: null
       "400":
         $ref: ../components/responses.yaml#/BadRequest
       "401":
@@ -261,6 +279,12 @@ communities_by_community_id_posts_by_post_id_study_attempts:
         $ref: ../components/responses.yaml#/Forbidden
       "404":
         $ref: ../components/responses.yaml#/NotFound
+      "409":
+        description: The optional session revision is stale; no attempt was graded.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/song-study.yaml#/SongStudyRevisionConflict
 
 communities_by_community_id_posts_by_post_id_study_telegram_voice_intents:
   post:

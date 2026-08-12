@@ -11,6 +11,14 @@ const MIGRATION_FILES = [
   "db/control-plane/migrations/0169_control_plane_dance_reference_dispatch.sql",
   "db/control-plane/migrations/0170_control_plane_dance_attempt_sessions.sql",
   "db/control-plane/migrations/0171_control_plane_dance_attempt_reason_contract.sql",
+  "db/control-plane/migrations/0201_control_plane_dance_attempt_cancellation.sql",
+  "db/control-plane/migrations/0203_control_plane_dance_placeholder_expiry_cleanup.sql",
+  "db/control-plane/migrations/0204_control_plane_dance_placeholder_cleanup_backfill.sql",
+  "db/control-plane/migrations/0206_control_plane_dance_consent_receipts.sql",
+  "db/control-plane/migrations/0210_control_plane_dance_consent_contract_tightening.sql",
+  "db/control-plane/migrations/0211_control_plane_dance_start_cues.sql",
+  "db/control-plane/migrations/0212_control_plane_dance_start_cue_backfill.sql",
+  "db/control-plane/migrations/0215_control_plane_dance_one_active_session.sql",
 ]
 const OVERLONG_SEGMENT_FINGERPRINT_JSON = JSON.stringify(
   Array.from({ length: 33 }, () => "8".repeat(64)),
@@ -38,7 +46,7 @@ async function expectSqlState(
   expect(caught?.errno).toBe(expected)
 }
 
-describe.skipIf(!RUN)("dance migrations 0168-0171 (real Postgres)", () => {
+describe.skipIf(!RUN)("dance migrations 0168-0171 and 0201-0216 (real Postgres)", () => {
   beforeAll(async () => {
     const root = connect()
     await root.unsafe(`DROP DATABASE IF EXISTS ${TEST_DB} WITH (FORCE)`)
@@ -53,6 +61,7 @@ describe.skipIf(!RUN)("dance migrations 0168-0171 (real Postgres)", () => {
         song_artifact_bundle_id TEXT PRIMARY KEY
       );
       INSERT INTO users VALUES ('usr_creator');
+      INSERT INTO users VALUES ('usr_other');
       INSERT INTO communities VALUES ('cmty_test');
       INSERT INTO song_artifact_bundles VALUES ('sab_song');
     `)
@@ -264,7 +273,8 @@ describe.skipIf(!RUN)("dance migrations 0168-0171 (real Postgres)", () => {
         required_fingerprint_policy_version, required_integrity_policy_version,
         mirror_policy,
         status, activity_date, activity_timezone, creation_idempotency_key,
-        upload_object_key, expected_mime_type, maximum_bytes, expires_at
+        upload_object_key, expected_mime_type, maximum_bytes, expires_at,
+        consent_policy_version, consented_at, consent_source
       ) VALUES (
         'dse_attempt', 'dat_attempt', 'usr_creator', 'cmty_test',
         'post_attempt_dance', 'post_song', 'sab_song',
@@ -275,8 +285,9 @@ describe.skipIf(!RUN)("dance migrations 0168-0171 (real Postgres)", () => {
         'provisional_v1', '${"5".repeat(64)}', 'fingerprint_v1', 'integrity_v1',
         'allowed',
         'initialized', CURRENT_DATE, 'UTC', 'idem_attempt',
-        'dance-attempts/random/attempt.mp4', 'video/mp4', 67108864,
-        NOW() + INTERVAL '15 minutes'
+        'dance-attempts/random/attempt.mp4', 'video/mp4', 19000000,
+        NOW() + INTERVAL '15 minutes',
+        'dance_recording_v1', NOW(), 'api'
       );
     `)
 
@@ -374,6 +385,260 @@ describe.skipIf(!RUN)("dance migrations 0168-0171 (real Postgres)", () => {
         grader_result_digest = '${"9".repeat(64)}'
       WHERE dance_attempt_session_id = 'dse_attempt'
     `, "P0001")
+    await db.end()
+  })
+
+  test("user cancellation is terminal and distinct from expiry", async () => {
+    const db = connect(TEST_DB)
+    await db.unsafe(`
+      INSERT INTO dance_attempt_sessions (
+        dance_attempt_session_id, dance_attempt_id, subject_user_id, community_id,
+        host_post_id, referenced_song_post_id, song_artifact_bundle_id,
+        dance_choreography_id, dance_choreography_revision_id,
+        reference_content_sha256, reference_feature_ref, reference_feature_sha256,
+        reference_feature_size_bytes, pose_model_version, pose_model_sha256,
+        feature_schema_version, scorer_version, artifact_version,
+        required_calibration_version, required_calibration_checksum,
+        required_fingerprint_policy_version, required_integrity_policy_version,
+        mirror_policy, status, activity_date, activity_timezone,
+        creation_idempotency_key, upload_object_key, expected_mime_type,
+        maximum_bytes, expires_at
+      ) VALUES (
+        'dse_cancelled', 'dat_cancelled', 'usr_creator', 'cmty_test',
+        'post_attempt_dance', 'post_song', 'sab_song',
+        'dch_attempt', 'dcr_attempt',
+        '${"1".repeat(64)}', 'r2://features/attempt.json', '${"2".repeat(64)}',
+        2048, 'pose_v1', '${"3".repeat(64)}',
+        'features_v1', 'scorer_v1', 'artifact_v1',
+        'provisional_v1', '${"5".repeat(64)}', 'fingerprint_v1', 'integrity_v1',
+        'allowed', 'initialized', CURRENT_DATE, 'UTC',
+        'idem_cancelled', 'dance/attempt-media/dse_cancelled/pending.mp4',
+        'video/mp4', 19000000, NOW() + INTERVAL '15 minutes'
+      );
+      UPDATE dance_attempt_sessions SET
+        status = 'cancelled', terminal_reason = 'cancelled', finalized_at = NOW()
+      WHERE dance_attempt_session_id = 'dse_cancelled';
+    `)
+
+    const [row] = await db`
+      SELECT status, terminal_reason, cleanup_status
+      FROM dance_attempt_sessions
+      WHERE dance_attempt_session_id = 'dse_cancelled'
+    `
+    expect(row).toMatchObject({
+      status: "cancelled",
+      terminal_reason: "cancelled",
+      cleanup_status: "not_required",
+    })
+    await expectSqlState(db, `
+      UPDATE dance_attempt_sessions
+      SET status = 'expired', terminal_reason = 'session_expired'
+      WHERE dance_attempt_session_id = 'dse_cancelled'
+    `, "P0001")
+    await db.end()
+  })
+
+  test("recording consent receipts are complete, versioned, source-bounded, and immutable", async () => {
+    const db = connect(TEST_DB)
+    await expectSqlState(db, `
+      UPDATE dance_attempt_sessions
+      SET consent_policy_version = NULL,
+          consented_at = NULL,
+          consent_source = NULL
+      WHERE dance_attempt_session_id = 'dse_attempt'
+    `, "P0001")
+    await expectSqlState(db, `
+      UPDATE dance_attempt_sessions
+      SET consent_policy_version = 'dance_recording_v1',
+          consented_at = NOW(),
+          consent_source = 'telegram'
+      WHERE dance_attempt_session_id = 'dse_attempt'
+    `, "P0001")
+    const [row] = await db`
+      SELECT consent_policy_version, consented_at, consent_source
+      FROM dance_attempt_sessions
+      WHERE dance_attempt_session_id = 'dse_attempt'
+    `
+    expect(row).toMatchObject({
+      consent_policy_version: "dance_recording_v1",
+      consent_source: "api",
+    })
+    expect(row.consented_at).toBeInstanceOf(Date)
+    await db.end()
+  })
+
+  test("expired placeholder sessions do not require object cleanup", async () => {
+    const db = connect(TEST_DB)
+    await db.unsafe(`
+      INSERT INTO dance_attempt_sessions (
+        dance_attempt_session_id, dance_attempt_id, subject_user_id, community_id,
+        host_post_id, referenced_song_post_id, song_artifact_bundle_id,
+        dance_choreography_id, dance_choreography_revision_id,
+        reference_content_sha256, reference_feature_ref, reference_feature_sha256,
+        reference_feature_size_bytes, pose_model_version, pose_model_sha256,
+        feature_schema_version, scorer_version, artifact_version,
+        required_calibration_version, required_calibration_checksum,
+        required_fingerprint_policy_version, required_integrity_policy_version,
+        mirror_policy, status, activity_date, activity_timezone,
+        creation_idempotency_key, upload_object_key, expected_mime_type,
+        maximum_bytes, expires_at
+      ) VALUES (
+        'dse_expired_placeholder', 'dat_expired_placeholder', 'usr_creator', 'cmty_test',
+        'post_attempt_dance', 'post_song', 'sab_song',
+        'dch_attempt', 'dcr_attempt',
+        '${"1".repeat(64)}', 'r2://features/attempt.json', '${"2".repeat(64)}',
+        2048, 'pose_v1', '${"3".repeat(64)}',
+        'features_v1', 'scorer_v1', 'artifact_v1',
+        'provisional_v1', '${"5".repeat(64)}', 'fingerprint_v1', 'integrity_v1',
+        'allowed', 'initialized', CURRENT_DATE, 'UTC',
+        'idem_expired_placeholder',
+        'dance/attempt-media/dse_expired_placeholder/pending.mp4',
+        'video/mp4', 19000000, NOW() - INTERVAL '1 minute'
+      );
+      UPDATE dance_attempt_sessions SET
+        status = 'expired', terminal_reason = 'session_expired',
+        finalized_at = NOW(), cleanup_status = 'not_required'
+      WHERE dance_attempt_session_id = 'dse_expired_placeholder';
+    `)
+
+    const [row] = await db`
+      SELECT status, cleanup_status
+      FROM dance_attempt_sessions
+      WHERE dance_attempt_session_id = 'dse_expired_placeholder'
+    `
+    expect(row).toMatchObject({ status: "expired", cleanup_status: "not_required" })
+    await db.end()
+  })
+
+  test("backfills queued cleanup for expired placeholder sessions", async () => {
+    const db = connect(TEST_DB)
+    await db.unsafe(`
+      INSERT INTO dance_attempt_sessions (
+        dance_attempt_session_id, dance_attempt_id, subject_user_id, community_id,
+        host_post_id, referenced_song_post_id, song_artifact_bundle_id,
+        dance_choreography_id, dance_choreography_revision_id,
+        reference_content_sha256, reference_feature_ref, reference_feature_sha256,
+        reference_feature_size_bytes, pose_model_version, pose_model_sha256,
+        feature_schema_version, scorer_version, artifact_version,
+        required_calibration_version, required_calibration_checksum,
+        required_fingerprint_policy_version, required_integrity_policy_version,
+        mirror_policy, status, activity_date, activity_timezone,
+        creation_idempotency_key, upload_object_key, expected_mime_type,
+        maximum_bytes, expires_at, finalized_at, terminal_reason,
+        cleanup_status, cleanup_next_attempt_at
+      ) VALUES (
+        'dse_backfill_placeholder', 'dat_backfill_placeholder', 'usr_creator', 'cmty_test',
+        'post_attempt_dance', 'post_song', 'sab_song',
+        'dch_attempt', 'dcr_attempt',
+        '${"1".repeat(64)}', 'r2://features/attempt.json', '${"2".repeat(64)}',
+        2048, 'pose_v1', '${"3".repeat(64)}',
+        'features_v1', 'scorer_v1', 'artifact_v1',
+        'provisional_v1', '${"5".repeat(64)}', 'fingerprint_v1', 'integrity_v1',
+        'allowed', 'expired', CURRENT_DATE, 'UTC',
+        'idem_backfill_placeholder',
+        'dance/attempt-media/dse_backfill_placeholder/pending.mp4',
+        'video/mp4', 19000000, NOW() - INTERVAL '2 minutes', NOW(),
+        'session_expired', 'pending', NOW()
+      );
+    `)
+    await db.unsafe(await Bun.file(
+      "db/control-plane/migrations/0204_control_plane_dance_placeholder_cleanup_backfill.sql",
+    ).text())
+
+    const [row] = await db`
+      SELECT cleanup_status, cleanup_attempt_count, cleanup_next_attempt_at
+      FROM dance_attempt_sessions
+      WHERE dance_attempt_session_id = 'dse_backfill_placeholder'
+    `
+    expect(row).toMatchObject({
+      cleanup_status: "not_required",
+      cleanup_attempt_count: 0,
+      cleanup_next_attempt_at: null,
+    })
+    await db.end()
+  })
+
+  test("expires pre-cue sessions without retaining predictable assignments", async () => {
+    const db = connect(TEST_DB)
+    await db.unsafe(`
+      INSERT INTO dance_attempt_sessions (
+        dance_attempt_session_id, dance_attempt_id, subject_user_id, community_id,
+        host_post_id, referenced_song_post_id, song_artifact_bundle_id,
+        dance_choreography_id, dance_choreography_revision_id,
+        reference_content_sha256, reference_feature_ref, reference_feature_sha256,
+        reference_feature_size_bytes, pose_model_version, pose_model_sha256,
+        feature_schema_version, scorer_version, artifact_version,
+        required_calibration_version, required_calibration_checksum,
+        required_fingerprint_policy_version, required_integrity_policy_version,
+        mirror_policy, status, activity_date, activity_timezone,
+        creation_idempotency_key, upload_object_key, expected_mime_type,
+        maximum_bytes, expires_at, start_cue_policy_version, start_cue_kind,
+        start_cue_minimum_hold_ms, start_cue_observation_window_ms,
+        observed_size_bytes, observed_etag, observed_content_sha256,
+        capture_mode, submitted_at, cleanup_status, cleanup_next_attempt_at
+      ) VALUES
+      (
+        'dse_legacy_placeholder', 'dat_legacy_placeholder', 'usr_creator', 'cmty_test',
+        'post_attempt_dance', 'post_song', 'sab_song', 'dch_attempt', 'dcr_attempt',
+        '${"1".repeat(64)}', 'r2://features/attempt.json', '${"2".repeat(64)}',
+        2048, 'pose_v1', '${"3".repeat(64)}', 'features_v1', 'scorer_v1', 'artifact_v1',
+        'provisional_v1', '${"5".repeat(64)}', 'fingerprint_v1', 'integrity_v1',
+        'allowed', 'initialized', CURRENT_DATE, 'UTC', 'idem_legacy_placeholder',
+        'dance/attempt-media/dse_legacy_placeholder/pending.mp4', 'video/mp4',
+        19000000, NOW() + INTERVAL '15 minutes', 'dance_start_cue_gross_body_v1',
+        'arms_t', 500, 2500, NULL, NULL, NULL, NULL, NULL, 'not_required', NULL
+      ),
+      (
+        'dse_legacy_uploaded', 'dat_legacy_uploaded', 'usr_other', 'cmty_test',
+        'post_attempt_dance', 'post_song', 'sab_song', 'dch_attempt', 'dcr_attempt',
+        '${"1".repeat(64)}', 'r2://features/attempt.json', '${"2".repeat(64)}',
+        2048, 'pose_v1', '${"3".repeat(64)}', 'features_v1', 'scorer_v1', 'artifact_v1',
+        'provisional_v1', '${"5".repeat(64)}', 'fingerprint_v1', 'integrity_v1',
+        'allowed', 'submitted', CURRENT_DATE, 'UTC', 'idem_legacy_uploaded',
+        'dance-attempts/legacy/upload.mp4', 'video/mp4', 19000000,
+        NOW() + INTERVAL '15 minutes', 'dance_start_cue_gross_body_v1',
+        'hands_on_head', 500, 2500,
+        4096, 'etag', '${"4".repeat(64)}', 'in_app_camera', NOW(), 'pending', NOW()
+      )
+    `)
+    await db.unsafe(await Bun.file(
+      "db/control-plane/migrations/0216_control_plane_dance_expire_legacy_cue_sessions.sql",
+    ).text())
+
+    const rows = await db`
+      SELECT dance_attempt_session_id, status, terminal_reason, finalized_at,
+             grading_dispatch_claim_token, grading_dispatch_claim_expires_at,
+             grading_next_dispatch_at, cleanup_status, cleanup_attempt_count,
+             cleanup_next_attempt_at
+      FROM dance_attempt_sessions
+      WHERE dance_attempt_session_id IN ('dse_legacy_placeholder', 'dse_legacy_uploaded')
+      ORDER BY dance_attempt_session_id
+    `
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toMatchObject({
+      dance_attempt_session_id: "dse_legacy_placeholder",
+      status: "expired",
+      terminal_reason: "session_expired",
+      grading_dispatch_claim_token: null,
+      grading_dispatch_claim_expires_at: null,
+      grading_next_dispatch_at: null,
+      cleanup_status: "not_required",
+      cleanup_attempt_count: 0,
+      cleanup_next_attempt_at: null,
+    })
+    expect(rows[1]).toMatchObject({
+      dance_attempt_session_id: "dse_legacy_uploaded",
+      status: "expired",
+      terminal_reason: "session_expired",
+      grading_dispatch_claim_token: null,
+      grading_dispatch_claim_expires_at: null,
+      grading_next_dispatch_at: null,
+      cleanup_status: "pending",
+      cleanup_attempt_count: 0,
+    })
+    expect(rows[0].finalized_at).toBeInstanceOf(Date)
+    expect(rows[1].finalized_at).toBeInstanceOf(Date)
+    expect(rows[1].cleanup_next_attempt_at).toBeInstanceOf(Date)
     await db.end()
   })
 })

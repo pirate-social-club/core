@@ -1,0 +1,92 @@
+communities_by_community_id_content_blobs:
+  post:
+    tags:
+      - Posts
+    summary: Create a content-neutral upload intent
+    description: |
+      Creates a temporary content blob and one upload session. Declared metadata is untrusted.
+      A blob becomes ready only after authoritative byte verification and the validation profile's
+      required safety scan. This draft operation remains disabled until the generic content writer ships.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/content-blobs.yaml#/CreateContentBlobRequest
+    responses:
+      "201":
+        description: Content blob upload intent
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/content-blobs.yaml#/ContentBlob
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/Forbidden
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "429":
+        $ref: ../components/responses.yaml#/PostingQuotaExhausted
+communities_by_community_id_content_blobs_by_content_blob_id:
+  get:
+    tags:
+      - Posts
+    summary: Read owned content-blob verification state
+    description: |
+      Returns declared metadata, authoritative verification results, safety state, and upload-session
+      state to the uploader. Storage credentials and scanner result details are never returned.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/ContentBlobId
+    responses:
+      "200":
+        description: Content blob
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/content-blobs.yaml#/ContentBlob
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+communities_by_community_id_content_blobs_by_content_blob_id_content:
+  put:
+    tags:
+      - Posts
+    summary: Upload content-blob bytes through the proxy lane
+    description: |
+      Uploads bytes for a proxy-mode content blob. Completion moves the blob to verification;
+      it does not make the blob ready or claim it for an asset.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/ContentBlobId
+    requestBody:
+      required: true
+      content:
+        application/octet-stream:
+          schema:
+            type: string
+            format: binary
+        application/json:
+          schema:
+            $ref: ../components/schemas/content-blobs.yaml#/ContentBlobContentRequest
+    responses:
+      "200":
+        description: Content blob accepted for verification
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/content-blobs.yaml#/ContentBlob
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/Forbidden
+      "404":
+        $ref: ../components/responses.yaml#/NotFound

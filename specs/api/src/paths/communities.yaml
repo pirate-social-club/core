@@ -1,3 +1,38 @@
+communities_by_community_id_presentation:
+  post:
+    tags:
+      - Communities
+    x-implemented: true
+    summary: Update community presentation
+    description: |
+      Updates the deterministic default surface and constrained visual branding for a community.
+      Selecting the video surface requires the community video-feed surface to remain enabled.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/communities-core.yaml#/CommunityPresentationPatch
+    responses:
+      "200":
+        description: Community presentation
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/communities-core.yaml#/CommunityPresentation
+      "400":
+        $ref: ../components/responses.yaml#/BadRequest
+      "401":
+        $ref: ../components/responses.yaml#/AuthError
+      "403":
+        $ref: ../components/responses.yaml#/EligibilityFailed
+      "404":
+        $ref: ../components/responses.yaml#/NotFound
+      "429":
+        $ref: ../components/responses.yaml#/RateLimited
+
 communities:
   post:
     tags:

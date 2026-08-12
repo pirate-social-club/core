@@ -5,6 +5,14 @@ import {
   handleCaddyAskRequest,
   type CaddyAskEnv,
 } from "./caddy-ask";
+import {
+  FORWARDER_SIGNATURE_HEADER,
+  FORWARDER_TIMESTAMP_HEADER,
+  FORWARDER_PATH_HEADER,
+  isValidForwarderHmacKey,
+  signForwarderContext,
+  type HnsForwarderContext,
+} from "./forwarder-signature";
 import { extractImportedNamespaceHost, extractPublicProfileHost } from "./hostnames";
 
 export { extractImportedNamespaceHost, extractPublicProfileHost } from "./hostnames";
@@ -12,6 +20,7 @@ export { extractImportedNamespaceHost, extractPublicProfileHost } from "./hostna
 type PublicNamespaceResolution = {
   root_label: string;
   namespace_verification: string | null;
+  wallet_interactive?: boolean;
   community: {
     id: string;
     display_name: string | null;
@@ -22,8 +31,117 @@ type PublicNamespaceResolution = {
 export type HnsPublicGatewayEnv = CaddyAskEnv & {
   HNS_PUBLIC_GATEWAY_EXTERNAL_SCHEME?: string;
   HNS_PUBLIC_APP_ORIGIN?: string;
+  HNS_PUBLIC_FORWARDER_HMAC_KEY?: string;
   HNS_PUBLIC_FORWARDER_AUTH_TOKEN?: string;
+  HNS_PUBLIC_FORWARDER_REQUIRE_HMAC?: string;
+  HNS_PUBLIC_NAMESPACE_CACHE_TTL_MS?: string;
+  HNS_PUBLIC_NAMESPACE_CACHE_STALE_MS?: string;
+  HNS_PUBLIC_NAMESPACE_CACHE_MAX_ENTRIES?: string;
+  HNS_PUBLIC_NAMESPACE_RESOLVE_TIMEOUT_MS?: string;
 };
+
+export type HnsForwarderMode = "dual" | "hmac_required" | "token_only" | "unconfigured";
+
+type CachedNamespaceResolution = {
+  freshUntil: number;
+  resolution: PublicNamespaceResolution | null;
+  staleUntil: number;
+};
+
+type NamespaceResolutionCache = {
+  entries: Map<string, CachedNamespaceResolution>;
+  inflight: Map<string, Promise<PublicNamespaceResolution | null>>;
+};
+
+const namespaceCaches = new WeakMap<typeof fetch, NamespaceResolutionCache>();
+
+function positiveInteger(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
+function namespaceCacheFor(fetchImpl: typeof fetch): NamespaceResolutionCache {
+  const existing = namespaceCaches.get(fetchImpl);
+  if (existing) return existing;
+  const created = { entries: new Map(), inflight: new Map() };
+  namespaceCaches.set(fetchImpl, created);
+  return created;
+}
+
+async function resolveImportedNamespace(input: {
+  apiOrigin: string;
+  env: HnsPublicGatewayEnv;
+  fetchImpl: typeof fetch;
+  forceRefresh?: boolean;
+  rootLabel: string;
+}): Promise<PublicNamespaceResolution | null> {
+  const cache = namespaceCacheFor(input.fetchImpl);
+  const key = `${input.apiOrigin}\n${input.rootLabel}`;
+  const now = Date.now();
+  const cached = cache.entries.get(key);
+  if (!input.forceRefresh && cached && cached.freshUntil > now) return cached.resolution;
+
+  const pending = cache.inflight.get(key);
+  if (pending) return pending;
+
+  const request = (async () => {
+    try {
+      const response = await input.fetchImpl(
+        `${input.apiOrigin}/public-namespaces/${encodeURIComponent(input.rootLabel)}`,
+        {
+          headers: { accept: "application/json" },
+          redirect: "manual",
+          signal: AbortSignal.timeout(positiveInteger(
+            input.env.HNS_PUBLIC_NAMESPACE_RESOLVE_TIMEOUT_MS,
+            2_000,
+          )),
+        },
+      );
+      let resolution: PublicNamespaceResolution | null;
+      if (response.status === 404) {
+        resolution = null;
+      } else if (response.ok) {
+        resolution = await response.json() as PublicNamespaceResolution;
+      } else {
+        throw new Error(`Namespace resolution failed with ${response.status}`);
+      }
+      const storedAt = Date.now();
+      const ttl = positiveInteger(input.env.HNS_PUBLIC_NAMESPACE_CACHE_TTL_MS, 30_000);
+      const stale = positiveInteger(input.env.HNS_PUBLIC_NAMESPACE_CACHE_STALE_MS, 300_000);
+      cache.entries.delete(key);
+      cache.entries.set(key, {
+        freshUntil: storedAt + ttl,
+        resolution,
+        staleUntil: storedAt + ttl + stale,
+      });
+      const maxEntries = positiveInteger(input.env.HNS_PUBLIC_NAMESPACE_CACHE_MAX_ENTRIES, 2_048);
+      while (cache.entries.size > maxEntries) {
+        const oldestKey = cache.entries.keys().next().value;
+        if (typeof oldestKey !== "string") break;
+        cache.entries.delete(oldestKey);
+      }
+      return resolution;
+    } catch (error) {
+      if (cached && cached.staleUntil > Date.now()) return cached.resolution;
+      throw error;
+    } finally {
+      cache.inflight.delete(key);
+    }
+  })();
+  cache.inflight.set(key, request);
+  return request;
+}
+
+function isDocumentNavigation(request: Request): boolean {
+  const destination = request.headers.get("sec-fetch-dest")?.trim().toLowerCase();
+  if (destination === "document" || destination === "iframe") return true;
+
+  const mode = request.headers.get("sec-fetch-mode")?.trim().toLowerCase();
+  if (mode === "navigate") return true;
+
+  return request.method === "GET"
+    && (request.headers.get("accept") ?? "").toLowerCase().includes("text/html");
+}
 
 export function buildCommunityPath(communityId: string, routeSlug: string | null): string {
   return `/c/${encodeURIComponent(routeSlug || communityId)}`;
@@ -309,14 +427,33 @@ const INTERNAL_HEADER_PREFIX = "x-pirate-hns-";
 const CREDENTIAL_HEADERS = ["authorization", "cookie", "proxy-authorization"];
 const READ_ONLY_METHODS = new Set(["GET", "HEAD"]);
 
+function canonicalForwarderHost(url: URL): string {
+  return url.hostname.trim().toLowerCase().replace(/\.+$/u, "");
+}
+
+export function resolveForwarderMode(env: HnsPublicGatewayEnv): HnsForwarderMode {
+  const hmacValid = isValidForwarderHmacKey(env.HNS_PUBLIC_FORWARDER_HMAC_KEY?.trim() ?? "");
+  const tokenConfigured = Boolean(env.HNS_PUBLIC_FORWARDER_AUTH_TOKEN?.trim());
+  const requireHmac = env.HNS_PUBLIC_FORWARDER_REQUIRE_HMAC?.trim().toLowerCase() === "true";
+
+  if (hmacValid && (requireHmac || !tokenConfigured)) return "hmac_required";
+  if (hmacValid && tokenConfigured) return "dual";
+  if (tokenConfigured && !requireHmac) return "token_only";
+  return "unconfigured";
+}
+
+function hasUsableForwarderCredentials(env: HnsPublicGatewayEnv): boolean {
+  return resolveForwarderMode(env) !== "unconfigured";
+}
+
 /**
  * The gateway is the trust boundary: downstream (the app Worker) accepts
- * x-pirate-hns-* only from this gateway's IP + token. A public client can send
+ * x-pirate-hns-* only from this gateway's IP + timestamped HMAC. A public client can send
  * those headers too, so every inbound one must be DELETED before we set the
  * server-derived values — otherwise the gateway would launder attacker-supplied
- * routing context (community id/route) behind its own legitimate token.
+ * routing context (community id/route) behind its own legitimate signature.
  */
-function buildProxyHeaders(request: Request, url: URL, env: HnsPublicGatewayEnv): Headers {
+function buildProxyHeaders(request: Request, url: URL): Headers {
   const headers = new Headers(request.headers);
   headers.delete("host");
 
@@ -333,13 +470,62 @@ function buildProxyHeaders(request: Request, url: URL, env: HnsPublicGatewayEnv)
     }
   }
 
+  headers.set("x-pirate-hns-host", canonicalForwarderHost(url));
   headers.set("accept-encoding", "identity");
-  headers.set("x-pirate-hns-host", url.hostname);
-  const forwarderToken = env.HNS_PUBLIC_FORWARDER_AUTH_TOKEN?.trim();
-  if (forwarderToken) {
-    headers.set("x-pirate-hns-forwarder-token", forwarderToken);
-  }
   return headers;
+}
+
+function normalizeFetchedProxyResponse(response: Response): Response {
+  if (!response.headers.get("content-encoding")) return response;
+  const headers = new Headers(response.headers);
+  headers.delete("content-encoding");
+  headers.delete("content-length");
+  headers.delete("transfer-encoding");
+  return new Response(response.body, {
+    headers,
+    status: response.status,
+    statusText: response.statusText,
+  });
+}
+
+async function buildSignedProxyHeaders(input: {
+  request: Request;
+  url: URL;
+  env: HnsPublicGatewayEnv;
+  context?: Omit<HnsForwarderContext, "host" | "method" | "pathAndQuery" | "timestamp">;
+}): Promise<Headers | null> {
+  const secret = input.env.HNS_PUBLIC_FORWARDER_HMAC_KEY?.trim() ?? "";
+  const legacyToken = input.env.HNS_PUBLIC_FORWARDER_AUTH_TOKEN?.trim() ?? "";
+  if (!hasUsableForwarderCredentials(input.env)) {
+    return null;
+  }
+
+  const headers = buildProxyHeaders(input.request, input.url);
+  const timestamp = String(Math.floor(Date.now() / 1_000));
+  const pathAndQuery = `${input.url.pathname}${input.url.search}`;
+  const host = canonicalForwarderHost(input.url);
+  const context: HnsForwarderContext = {
+    ...input.context,
+    host,
+    method: input.request.method,
+    pathAndQuery,
+    timestamp,
+  };
+  if (isValidForwarderHmacKey(secret)) {
+    headers.set(FORWARDER_PATH_HEADER, pathAndQuery);
+    headers.set(FORWARDER_TIMESTAMP_HEADER, timestamp);
+    headers.set(FORWARDER_SIGNATURE_HEADER, await signForwarderContext(context, secret));
+  }
+  if (legacyToken) headers.set("x-pirate-hns-forwarder-token", legacyToken);
+  return headers;
+}
+
+function renderForwarderConfigurationError(): Response {
+  return renderErrorPage(
+    "HNS gateway configuration",
+    "This HNS gateway cannot authenticate requests to Pirate right now.",
+    503,
+  );
 }
 
 /**
@@ -393,12 +579,21 @@ async function proxyReservedHostRequest(input: {
   env: HnsPublicGatewayEnv;
   fetchImpl: typeof fetch;
 }): Promise<Response> {
-  return input.fetchImpl(rebaseUrlToOrigin(input.request.url, input.targetOrigin), {
-    headers: buildProxyHeaders(input.request, input.url, input.env),
+  const headers = await buildSignedProxyHeaders({
+    request: input.request,
+    url: input.url,
+    env: input.env,
+  });
+  if (!headers) {
+    return renderForwarderConfigurationError();
+  }
+  const response = await input.fetchImpl(rebaseUrlToOrigin(input.request.url, input.targetOrigin), {
+    headers,
     method: input.request.method,
     redirect: "manual",
     ...buildProxyBodyInit(input.request),
   });
+  return normalizeFetchedProxyResponse(response);
 }
 
 async function proxyImportedNamespaceRequest(input: {
@@ -410,42 +605,59 @@ async function proxyImportedNamespaceRequest(input: {
   namespaceHost: { rootLabel: string; subdomain: string | null };
   fetchImpl: typeof fetch;
 }): Promise<Response | null> {
-  const namespaceResponse = await input.fetchImpl(
-    `${input.apiOrigin}/public-namespaces/${encodeURIComponent(input.namespaceHost.rootLabel)}`,
-    {
-      headers: { accept: "application/json" },
-      redirect: "manual",
-    },
-  );
-
-  if (namespaceResponse.status === 404) {
-    return null;
+  if (!hasUsableForwarderCredentials(input.env)) {
+    return renderForwarderConfigurationError();
   }
-
-  if (!namespaceResponse.ok) {
+  let resolution: PublicNamespaceResolution | null;
+  try {
+    resolution = await resolveImportedNamespace({
+      apiOrigin: input.apiOrigin,
+      env: input.env,
+      fetchImpl: input.fetchImpl,
+      // Route/community metadata can be reused for subresource bursts, but a
+      // new page load must re-read wallet authority so a hard deny or operator
+      // revocation takes effect without waiting for the cache TTL.
+      forceRefresh: isDocumentNavigation(input.request),
+      rootLabel: input.namespaceHost.rootLabel,
+    });
+  } catch {
     return renderErrorPage(
       "Imported namespace",
       "This imported HNS namespace could not be loaded right now.",
       502,
     );
   }
-
-  const resolution = await namespaceResponse.json() as PublicNamespaceResolution;
-  const headers = buildProxyHeaders(input.request, input.url, input.env);
+  if (!resolution) return null;
+  const headers = await buildSignedProxyHeaders({
+    request: input.request,
+    url: input.url,
+    env: input.env,
+    context: {
+      root: resolution.root_label,
+      communityId: resolution.community.id,
+      communityRoute: resolution.community.route_slug,
+      subdomain: input.namespaceHost.subdomain,
+    },
+  });
+  if (!headers) {
+    return renderForwarderConfigurationError();
+  }
   headers.set("accept", input.request.headers.get("accept") ?? "text/html");
   headers.set("x-pirate-hns-root", resolution.root_label);
   headers.set("x-pirate-hns-community-id", resolution.community.id);
   headers.set("x-pirate-hns-community-route", resolution.community.route_slug);
+  headers.set("x-pirate-hns-wallet-interactive", resolution.wallet_interactive === true ? "1" : "0");
   if (input.namespaceHost.subdomain) {
     headers.set("x-pirate-hns-subdomain", input.namespaceHost.subdomain);
   }
 
-  return input.fetchImpl(rebaseUrlToOrigin(input.request.url, input.appOrigin), {
+  const response = await input.fetchImpl(rebaseUrlToOrigin(input.request.url, input.appOrigin), {
     headers,
     method: input.request.method,
     redirect: "manual",
     ...buildProxyBodyInit(input.request),
   });
+  return normalizeFetchedProxyResponse(response);
 }
 
 export async function handleRequest(
@@ -460,7 +672,10 @@ export async function handleRequest(
   }
 
   if (url.pathname === "/health") {
-    return Response.json({ ok: true });
+    return Response.json({
+      ok: true,
+      forwarder_mode: resolveForwarderMode(env),
+    });
   }
 
   const rootSuffix = env.HNS_PUBLIC_GATEWAY_ROOT_SUFFIX?.trim() || "pirate";

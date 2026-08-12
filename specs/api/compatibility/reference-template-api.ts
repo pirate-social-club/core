@@ -181,6 +181,9 @@ export type Community = {
   description?: string | null;
   avatar_ref?: string | null;
   banner_ref?: string | null;
+  branding?: CommunityBranding;
+  default_surface?: "threads" | "videos";
+  video_feed_enabled?: boolean;
   namespace_verification?: string | null;
   route_slug?: string | null;
   pending_namespace_verification_session?: string | null;
@@ -723,6 +726,13 @@ type CommunityAuthenticityDetectionProfileSummary = {
   status: CommunityAuthenticityDetectionProfileStatus;
 };
 
+type CommunityBranding = {
+  accent_color: string | null;
+  theme: "system" | "light" | "dark";
+  header_style: "standard" | "compact" | "immersive";
+  tagline: string | null;
+};
+
 type CommunityCaptureEditPolicy = {
   community: string;
   policy_origin: CommunityPolicyOrigin;
@@ -1062,6 +1072,8 @@ type CrosspostSource = {
   author_user?: string | null;
   author_label?: string | null;
   thumbnail_ref?: string | null;
+  content_safety_state?: "pending" | "safe" | "sensitive" | "adult" | null;
+  age_gate_policy?: "none" | "18_plus" | null;
 };
 
 type CrosspostSourceStatus = "available" | "deleted" | "removed" | "unavailable";

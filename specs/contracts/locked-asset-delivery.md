@@ -320,6 +320,22 @@ Recommended condition inputs:
 
 Current v1 implementation names: `TokenGateCondition` for legacy buyer-only reads and `CompositeReadConditionV1` for new locked deliveries that need buyer plus owner/moderator reads.
 
+Known enforcement limitation: the token-gate condition observes entitlement
+token ownership, not shard-local post status, moderation actions, rights holds,
+or asset-enforcement state. Existing song/video buyers who retain both the token
+and CDR coordinates may therefore continue to satisfy a direct token-gate read
+after Pirate hides discovery and denies its API access-resolution route. That
+is a pre-existing takedown gap; API denial must not be described as uniform CDR
+revocation.
+
+New generic file/deck assets do not use direct token-gate buyer reads. Their
+purchase entitlement is rechecked with shard-local enforcement before Pirate
+issues a short-lived signed proof through the composite condition, as specified
+in
+[downloadable-assets-and-learning-core.md](../domain/downloadable-assets-and-learning-core.md).
+Retrofitting existing song/video vaults and clients to that model is a separate
+compatibility migration, not part of the generic-goods launch.
+
 ### 5. Composite Read Condition
 
 Role:

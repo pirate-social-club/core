@@ -195,6 +195,10 @@ describe("schema attestation proof", () => {
     const failed = manifest("error")
     failed.shards[0].observation_proof = unavailableShardObservationProof("probe failed")
     expect(validateManifest(failed).shards[0].observation_proof?.kind).toBe("unavailable")
+
+    const unreachable = manifest("unreachable")
+    unreachable.shards[0].observation_proof = unavailableShardObservationProof("D1 overload")
+    expect(validateManifest(unreachable).shards[0].status).toBe("unreachable")
   })
 
   test("raw shard observations produce deterministic, independently sensitive proofs", () => {

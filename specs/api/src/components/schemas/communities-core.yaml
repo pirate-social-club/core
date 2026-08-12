@@ -889,6 +889,15 @@ Community:
     banner_ref:
       type: string
       nullable: true
+    branding:
+      $ref: ./communities-core.yaml#/CommunityBranding
+    default_surface:
+      type: string
+      enum:
+        - threads
+        - videos
+    video_feed_enabled:
+      type: boolean
     namespace_verification:
       type: string
       nullable: true
@@ -1654,6 +1663,103 @@ CommunityRoleSummary:
         - owner
         - admin
         - moderator
+CommunityBranding:
+  type: object
+  additionalProperties: false
+  required:
+    - accent_color
+    - theme
+    - header_style
+    - tagline
+  properties:
+    accent_color:
+      type: string
+      pattern: '^#[0-9A-F]{6}$'
+      nullable: true
+    theme:
+      type: string
+      enum:
+        - system
+        - light
+        - dark
+    header_style:
+      type: string
+      enum:
+        - standard
+        - compact
+        - immersive
+    tagline:
+      type: string
+      maxLength: 120
+      nullable: true
+CommunityBrandingPatch:
+  type: object
+  additionalProperties: false
+  properties:
+    accent_color:
+      type: string
+      pattern: '^#[0-9A-Fa-f]{6}$'
+      nullable: true
+    theme:
+      type: string
+      enum:
+        - system
+        - light
+        - dark
+    header_style:
+      type: string
+      enum:
+        - standard
+        - compact
+        - immersive
+    tagline:
+      type: string
+      maxLength: 120
+      nullable: true
+CommunityPresentationPatch:
+  type: object
+  additionalProperties: false
+  properties:
+    branding:
+      $ref: ./communities-core.yaml#/CommunityBrandingPatch
+    default_surface:
+      type: string
+      enum:
+        - threads
+        - videos
+    video_feed_enabled:
+      type: boolean
+CommunityPresentation:
+  type: object
+  additionalProperties: false
+  required:
+    - id
+    - object
+    - community
+    - branding
+    - default_surface
+    - video_feed_enabled
+  properties:
+    id:
+      type: string
+      readOnly: true
+    object:
+      type: string
+      readOnly: true
+      enum:
+        - community_presentation
+    community:
+      type: string
+      readOnly: true
+    branding:
+      $ref: ./communities-core.yaml#/CommunityBranding
+    default_surface:
+      type: string
+      enum:
+        - threads
+        - videos
+    video_feed_enabled:
+      type: boolean
 CommunityPreview:
   type: object
   required:
@@ -1695,6 +1801,15 @@ CommunityPreview:
     banner_ref:
       type: string
       nullable: true
+    branding:
+      $ref: ./communities-core.yaml#/CommunityBranding
+    default_surface:
+      type: string
+      enum:
+        - threads
+        - videos
+    video_feed_enabled:
+      type: boolean
     store_url:
       type: string
       nullable: true

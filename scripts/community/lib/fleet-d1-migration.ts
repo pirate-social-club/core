@@ -38,7 +38,9 @@
  *   never skippable — that is exactly how a stale config once hid live shards
  *   from a fleet migration.
  * - Anything not positively understood (partial objects, ledger present but
- *   objects absent, checksum mismatch) is reported and NOT written to.
+ *   objects absent, checksum mismatch) is reported and NOT written to. The one
+ *   exception is an exact-checksum ledger-without-objects state when BOTH the
+ *   reviewed migration spec and an explicit operator flag authorize repair.
  * - Schema + ledger move together in one file, so a shard is never left with the
  *   objects but no ledger row (or vice versa).
  * - A run that used `--resume-file` or `--only` is an execution record, NOT proof
@@ -60,6 +62,12 @@ export type ObjectSpec =
       kind: "schema_objects"
       columns: readonly { table: string; column: string }[]
       indexes: readonly string[]
+      tables?: readonly string[]
+      tableSqlContains?: readonly { table: string; fragments: readonly string[] }[]
+      /** Existing names that must be present once any new migration marker exists. */
+      finalIndexes?: readonly string[]
+      /** Intermediate rebuild tables that must never remain after the migration. */
+      forbiddenTables?: readonly string[]
     }
   | { kind: "tables"; tables: readonly string[] }
 
@@ -72,6 +80,8 @@ export type MigrationSpec = {
   requiredTables: readonly string[]
   /** What the migration creates. */
   creates: ObjectSpec
+  /** Optional pre-write row counts recorded in each shard's manifest entry. */
+  rowCountTables?: readonly string[]
   /**
    * Whether the DDL is safe to replay when its objects already exist.
    * Plain `ADD COLUMN` and plain `CREATE TABLE` are NOT: they fail with
@@ -85,6 +95,13 @@ export type MigrationSpec = {
    * overwrite non-null application data.
    */
   ledgerBackfillSql?: string
+  /**
+   * Permit an explicit repair when the exact migration checksum is already in
+   * the ledger but every migration-owned schema marker is absent. Partial
+   * states and checksum drift remain blocking. The repair replays the original
+   * migration bytes without touching the already-correct ledger row.
+   */
+  repairLedgerWithoutObjects?: boolean
   /** Short human description used in --help. */
   description: string
 }
@@ -93,6 +110,7 @@ export type Status =
   | "ok_recorded" // ledger + all objects, checksum matches -> nothing to do
   | "needs_migration" // no ledger, no objects -> apply DDL + ledger
   | "needs_ledger_backfill" // objects present, ledger missing -> ledger INSERT only
+  | "needs_ledger_repair" // exact ledger present, objects absent, explicit reviewed repair -> replay DDL only
   | "checksum_mismatch" // ledger records a DIFFERENT migration of this name -> refuse
   | "ledger_without_objects" // ledger says applied, objects absent -> refuse
   | "partial_objects" // some but not all objects -> refuse
@@ -118,7 +136,10 @@ export type ShardResult = {
   database_name: string
   database_id: string
   status: Status
-  action: "none" | "applied_migration" | "backfilled_ledger"
+  action: "none" | "applied_migration" | "backfilled_ledger" | "repaired_ledger_without_objects"
+  row_counts?: Record<string, number>
+  classification_duration_ms?: number
+  apply_duration_ms?: number
   detail?: string
 }
 
@@ -133,6 +154,7 @@ export type Options = {
   confirmTimeTravel: boolean
   allowNonMain: boolean
   repairQuarantinedOnly: boolean
+  repairLedgerWithoutObjects: boolean
   manifest: string
   resumeFile?: string
   only?: string
@@ -190,16 +212,45 @@ export function classificationSql(spec: MigrationSpec): string {
             ...spec.creates.indexes.map((index) =>
               `(SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='${index}') AS obj_index__${index}`
             ),
+            ...(spec.creates.finalIndexes ?? []).map((index) =>
+              `(SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='${index}') AS final_index__${index}`
+            ),
+            ...(spec.creates.forbiddenTables ?? []).map((table) =>
+              `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${table}') AS forbidden_table__${table}`
+            ),
+            ...(spec.creates.tables ?? []).map((table) =>
+              `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${table}') AS obj_table__${table}`
+            ),
+            ...(spec.creates.tableSqlContains ?? []).flatMap(({ table, fragments }) =>
+              fragments.map((fragment, index) =>
+                `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${table}' AND instr(lower(sql), lower('${fragment.replaceAll("'", "''")}')) > 0) AS obj_table_fragment__${table}__${index}`
+              )
+            ),
           ].join(",\n  ")
         : spec.creates.tables
           .map((t) => `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${t}') AS obj_${t}`)
           .join(",\n  ")
 
-  return `SELECT
-  (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='schema_migrations') AS has_ledger,
-  (SELECT COALESCE(GROUP_CONCAT(checksum), '') FROM schema_migrations WHERE migration_name='${spec.migration}') AS ledger_checksum,
-  ${required},
-  ${objects}`
+  const probes = [
+    "(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='schema_migrations') AS has_ledger",
+    `(SELECT COALESCE(GROUP_CONCAT(checksum), '') FROM schema_migrations WHERE migration_name='${spec.migration}') AS ledger_checksum`,
+    ...(required ? [required] : []),
+    ...(objects ? [objects] : []),
+  ]
+  return `SELECT\n  ${probes.join(",\n  ")}`
+}
+
+/** Kept separate so an absent required table is classified cleanly before it is counted. */
+export function rowCountSql(spec: MigrationSpec): string | null {
+  const tables = spec.rowCountTables ?? []
+  if (tables.length === 0) return null
+  const nonRequired = tables.filter((table) => !spec.requiredTables.includes(table))
+  if (nonRequired.length > 0) {
+    throw new Error(`rowCountTables must also be requiredTables: ${nonRequired.join(", ")}`)
+  }
+  return `SELECT\n  ${tables
+    .map((table) => `(SELECT COUNT(*) FROM '${table.replaceAll("'", "''")}') AS metric_rows__${table}`)
+    .join(",\n  ")}`
 }
 
 function objectNames(spec: MigrationSpec): readonly string[] {
@@ -214,6 +265,10 @@ function objectNames(spec: MigrationSpec): readonly string[] {
     return [
       ...spec.creates.columns.map(({ table, column }) => `${table}__${column}`),
       ...spec.creates.indexes.map((index) => `index__${index}`),
+      ...(spec.creates.tables ?? []).map((table) => `table__${table}`),
+      ...(spec.creates.tableSqlContains ?? []).flatMap(({ table, fragments }) =>
+        fragments.map((_, index) => `table_fragment__${table}__${index}`)
+      ),
     ]
   }
   return spec.creates.tables
@@ -221,6 +276,20 @@ function objectNames(spec: MigrationSpec): readonly string[] {
 
 function cell(r: Record<string, number | string>, key: string): number | string {
   return r[key] ?? 0
+}
+
+function missingFinalInvariants(spec: MigrationSpec, rows: Record<string, number | string>): readonly string[] {
+  if (spec.creates.kind !== "schema_objects") return []
+  return (spec.creates.finalIndexes ?? [])
+    .filter((index) => Number(cell(rows, `final_index__${index}`)) !== 1)
+    .map((index) => `index__${index}`)
+}
+
+function presentForbiddenObjects(spec: MigrationSpec, rows: Record<string, number | string>): readonly string[] {
+  if (spec.creates.kind !== "schema_objects") return []
+  return (spec.creates.forbiddenTables ?? [])
+    .filter((table) => Number(cell(rows, `forbidden_table__${table}`)) !== 0)
+    .map((table) => `table__${table}`)
 }
 
 /** Pure classification from an already-fetched row. Unit-testable. */
@@ -239,12 +308,21 @@ export function classifyRow(
 
   const names = objectNames(spec)
   const present = names.filter((n) => Number(cell(rows, `obj_${n}`)) === 1)
+  const missingFinal = missingFinalInvariants(spec, rows)
+  const forbiddenPresent = presentForbiddenObjects(spec, rows)
   const recorded = String(rows.ledger_checksum ?? "")
 
+  if (forbiddenPresent.length > 0) {
+    return { status: "partial_objects", detail: `forbidden intermediate object(s): ${forbiddenPresent.join(", ")}` }
+  }
   if (present.length > 0 && present.length < names.length) {
     return { status: "partial_objects", detail: `present: ${present.join(", ")}` }
   }
-  const allPresent = present.length === names.length
+  const allMarkersPresent = present.length === names.length
+  if (allMarkersPresent && missingFinal.length > 0) {
+    return { status: "partial_objects", detail: `missing final invariant(s): ${missingFinal.join(", ")}` }
+  }
+  const allPresent = allMarkersPresent && missingFinal.length === 0
 
   if (recorded) {
     if (recorded !== checksum) {
@@ -268,6 +346,21 @@ export function classifyRow(
       : { status: "needs_ledger_backfill" }
   }
   return { status: "needs_migration" }
+}
+
+/**
+ * Preserve ledger_without_objects as blocking unless two independent controls
+ * agree: the reviewed spec declares this migration repairable, and the operator
+ * explicitly requests that repair for this run.
+ */
+export function planLedgerWithoutObjectsRepair(
+  spec: MigrationSpec,
+  status: Status,
+  requested: boolean,
+): Status {
+  return requested && spec.repairLedgerWithoutObjects === true && status === "ledger_without_objects"
+    ? "needs_ledger_repair"
+    : status
 }
 
 export function usage(spec: MigrationSpec, scriptPath: string): never {
@@ -297,6 +390,10 @@ Options:
                            Permit --only to target that one explicitly
                            quarantined database for in-place remediation. Never
                            includes other quarantined shards.
+  --repair-ledger-without-objects
+                           Replay the original migration bytes when the exact
+                           ledger checksum exists but every owned object is
+                           absent. Requires opt-in from the migration spec.
 
 Read-only by default. Blank, never-loaded pool databases are never touched.
 `)
@@ -329,6 +426,7 @@ export function parseArgs(spec: MigrationSpec, scriptPath: string): Options {
     confirmTimeTravel: argv.includes("--confirm-time-travel"),
     allowNonMain: argv.includes("--allow-non-main"),
     repairQuarantinedOnly: argv.includes("--repair-quarantined-only"),
+    repairLedgerWithoutObjects: argv.includes("--repair-ledger-without-objects"),
     manifest: resolve(get("--manifest") ?? `tmp/${slug}-${prod ? "prod" : "staging"}-manifest.json`),
     resumeFile: get("--resume-file") ? resolve(get("--resume-file")!) : undefined,
     only: get("--only"),
@@ -343,6 +441,9 @@ export function parseArgs(spec: MigrationSpec, scriptPath: string): Options {
   }
   if (options.repairQuarantinedOnly && !options.only) {
     throw new Error("--repair-quarantined-only requires --only DB_NAME")
+  }
+  if (options.repairLedgerWithoutObjects && spec.repairLedgerWithoutObjects !== true) {
+    throw new Error(`--repair-ledger-without-objects is not authorized by ${spec.migration}`)
   }
   // A concurrency of 0 (or NaN, from a typo) would spawn no workers, do no work,
   // and still write a clean-looking manifest.
@@ -395,19 +496,73 @@ export async function wranglerJson(options: Pick<Options, "env" | "cwd">, db: st
     "--json",
     ...args,
   ]
-  const proc = Bun.spawn(cmd, { cwd: options.cwd, stdout: "pipe", stderr: "pipe" })
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ])
-  if (code !== 0) throw new Error(`wrangler exited ${code}: ${stderr.slice(0, 400)}`)
-  return extractWranglerJson(stdout) as any[]
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    const proc = Bun.spawn(cmd, { cwd: options.cwd, stdout: "pipe", stderr: "pipe" })
+    const [stdout, stderr, code] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ])
+    if (code === 0) return extractWranglerJson(stdout) as any[]
+    const fullDetail = `${stderr}\n${stdout}`.trim()
+    const detail = fullDetail.length > 800 ? fullDetail.slice(-800) : fullDetail
+    if (!isTransientWranglerFailure(fullDetail) || attempt === 4) {
+      throw new Error(`wrangler exited ${code}: ${detail}`)
+    }
+    await Bun.sleep(250 * 2 ** (attempt - 1))
+  }
+  throw new Error("wrangler retry loop exhausted")
+}
+
+export function isTransientWranglerFailure(detail: string): boolean {
+  return /fetch failed|rate.?limit|timeout|timed out|ECONNRESET|ETIMEDOUT|EAI_AGAIN|code[^0-9]*7429|authentication error.*code[^0-9]*10000|network/isu.test(detail)
+}
+
+const READ_ONLY_MAX_ATTEMPTS = 7
+const READ_ONLY_MAX_BACKOFF_MS = 8_000
+
+/**
+ * D1 occasionally returns 7500 while its query service is unhealthy. Retrying a
+ * migration file after an ambiguous internal error could replay non-idempotent
+ * DDL, so 7500 is intentionally handled only by this read-only wrapper.
+ */
+export function isTransientFleetReadFailure(detail: string): boolean {
+  return isTransientWranglerFailure(detail) || /code[^0-9]*7500/isu.test(detail)
+}
+
+export function fleetReadRetryDelayMs(attempt: number, jitter = Math.random()): number {
+  const exponential = Math.min(1_000 * 2 ** (attempt - 1), READ_ONLY_MAX_BACKOFF_MS)
+  return exponential + Math.floor(Math.max(0, Math.min(jitter, 1)) * 500)
+}
+
+export async function retryTransientFleetRead<T>(
+  operation: () => Promise<T>,
+  sleep: (delayMs: number) => Promise<unknown> = Bun.sleep,
+  jitter: () => number = Math.random,
+): Promise<T> {
+  for (let attempt = 1; attempt <= READ_ONLY_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await operation()
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      if (!isTransientFleetReadFailure(detail) || attempt === READ_ONLY_MAX_ATTEMPTS) throw error
+      await sleep(fleetReadRetryDelayMs(attempt, jitter()))
+    }
+  }
+  throw new Error("fleet read retry loop exhausted")
+}
+
+async function wranglerJsonReadOnly(
+  options: Pick<Options, "env" | "cwd">,
+  db: string,
+  args: string[],
+): Promise<any[]> {
+  return retryTransientFleetRead(() => wranglerJson(options, db, args))
 }
 
 export async function loadedBindings(options: Pick<Options, "env" | "cwd" | "poolDb">): Promise<string[]> {
   const rows = (
-    await wranglerJson(options, options.poolDb, [
+    await wranglerJsonReadOnly(options, options.poolDb, [
       "--command",
       "SELECT binding_name FROM d1_pool WHERE community_id IS NOT NULL AND last_loaded_at IS NOT NULL ORDER BY binding_name",
     ])
@@ -436,11 +591,30 @@ async function classify(
   spec: MigrationSpec,
   db: string,
   checksum: string,
-): Promise<{ status: Status; detail?: string }> {
+  includeRowCounts = true,
+): Promise<{ status: Status; detail?: string; row_counts?: Record<string, number> }> {
   const rows = (
-    await wranglerJson(options, db, ["--command", classificationSql(spec)])
+    await wranglerJsonReadOnly(options, db, ["--command", classificationSql(spec)])
   )[0].results[0] as Record<string, number | string>
-  return classifyRow(spec, rows, checksum)
+  const classification = classifyRow(spec, rows, checksum)
+  const countsSql = rowCountSql(spec)
+  let rowCounts: Record<string, number> | undefined
+  if (
+    includeRowCounts &&
+    countsSql &&
+    spec.requiredTables.every((table) => Number(rows[`req_${table}`] ?? 0) === 1)
+  ) {
+    const countRows = (
+      await wranglerJsonReadOnly(options, db, ["--command", countsSql])
+    )[0].results[0] as Record<string, number | string>
+    rowCounts = Object.fromEntries(
+      (spec.rowCountTables ?? []).map((table) => [table, Number(countRows[`metric_rows__${table}`] ?? 0)]),
+    )
+  }
+  return {
+    ...classification,
+    ...(rowCounts ? { row_counts: rowCounts } : {}),
+  }
 }
 
 export function ledgerStatement(spec: MigrationSpec, checksum: string): string {
@@ -472,6 +646,15 @@ export function executionBody(sql: string, spec: MigrationSpec, checksum: string
   return `${sql.trim()}\n${ledgerStatement(spec, checksum)}\n`
 }
 
+/**
+ * Repair bytes for an exact ledger-without-objects state. The classifier has
+ * already verified the recorded checksum, so the ledger is deliberately left
+ * untouched while the original migration bytes restore the missing schema.
+ */
+export function ledgerWithoutObjectsRepairBody(sql: string): string {
+  return `${sql.trim()}\n`
+}
+
 async function applyToShard(
   options: Options,
   spec: MigrationSpec,
@@ -479,7 +662,7 @@ async function applyToShard(
   status: Status,
   sql: string,
   checksum: string,
-): Promise<"applied_migration" | "backfilled_ledger"> {
+): Promise<"applied_migration" | "backfilled_ledger" | "repaired_ledger_without_objects"> {
   if (status === "needs_ledger_backfill") {
     // Objects already exist. DO NOT replay the DDL — it would fail. A spec may
     // include a repeat-safe data repair before the ledger is recorded; keep the
@@ -488,6 +671,13 @@ async function applyToShard(
     await writeFile(file, ledgerBackfillBody(spec, checksum))
     await wranglerJson(options, db, ["--file", file])
     return "backfilled_ledger"
+  }
+
+  if (status === "needs_ledger_repair") {
+    const file = `/tmp/${spec.migration.split("_")[0]}-${db}-ledger-without-objects-repair.sql`
+    await writeFile(file, ledgerWithoutObjectsRepairBody(sql))
+    await wranglerJson(options, db, ["--file", file])
+    return "repaired_ledger_without_objects"
   }
 
   const file = `/tmp/${spec.migration.split("_")[0]}-${db}.sql`
@@ -638,11 +828,36 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
       const t = pending[idx++]
       const base = { binding: t.binding, database_name: t.name, database_id: t.id }
       try {
-        const { status, detail } = await classify(options, spec, t.name, checksum)
+        const classificationStartedAt = performance.now()
+        const initial = await classify(options, spec, t.name, checksum)
+        let status = planLedgerWithoutObjectsRepair(
+          spec,
+          initial.status,
+          options.repairLedgerWithoutObjects,
+        )
+        let detail = initial.detail
+        const row_counts = initial.row_counts
+        const classificationDurationMs = Math.round(performance.now() - classificationStartedAt)
         let action: ShardResult["action"] = "none"
-        const writable = status === "needs_migration" || status === "needs_ledger_backfill"
+        let applyDurationMs: number | undefined
+        const writable =
+          status === "needs_migration" ||
+          status === "needs_ledger_backfill" ||
+          status === "needs_ledger_repair"
         if (options.execute && writable) {
+          const applyStartedAt = performance.now()
           action = await applyToShard(options, spec, t.name, status, sql, checksum)
+          applyDurationMs = Math.round(performance.now() - applyStartedAt)
+          if (action === "repaired_ledger_without_objects") {
+            const verified = await classify(options, spec, t.name, checksum, false)
+            if (verified.status !== "ok_recorded") {
+              throw new Error(
+                `post-repair verification failed: ${verified.status}${verified.detail ? ` — ${verified.detail}` : ""}`,
+              )
+            }
+            status = verified.status
+            detail = `repaired exact ledger-without-objects state for ${spec.migration}`
+          }
           // Append the instant it lands, so a transient failure on a LATER shard
           // can never lose the record of this one. Keyed by migration AND shard:
           // another spec's entries must never satisfy this run.
@@ -650,7 +865,15 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
             await writeFile(options.resumeFile, `${resumeEntryKey(spec.migration, t.name)}\n`, { flag: "a" })
           }
         }
-        results.push({ ...base, status, action, ...(detail ? { detail } : {}) })
+        results.push({
+          ...base,
+          status,
+          action,
+          ...(row_counts ? { row_counts } : {}),
+          classification_duration_ms: classificationDurationMs,
+          ...(applyDurationMs === undefined ? {} : { apply_duration_ms: applyDurationMs }),
+          ...(detail ? { detail } : {}),
+        })
         console.log(`  ${t.name.padEnd(34)} ${status}${action !== "none" ? ` -> ${action}` : ""}`)
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error)
@@ -701,6 +924,10 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
               database_name: options.only,
             }
           : null,
+        ledger_without_objects_repair: {
+          requested: options.repairLedgerWithoutObjects,
+          authorized_by_spec: spec.repairLedgerWithoutObjects === true,
+        },
         classified: results.length - skippedByResume,
         skipped_by_resume_file: skippedByResume,
         // A resume file skips shards WITHOUT reclassifying them, so a run that used
@@ -731,7 +958,12 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
         "obtain a full read-only verification of the fleet before declaring this done.",
     )
   } else {
-    const todo = results.filter((r) => r.status === "needs_migration" || r.status === "needs_ledger_backfill")
+    const todo = results.filter(
+      (r) =>
+        r.status === "needs_migration" ||
+        r.status === "needs_ledger_backfill" ||
+        r.status === "needs_ledger_repair",
+    )
     if (!options.resumeFile && !options.only && todo.length === 0) {
       console.log(`\nFULL VERIFICATION: all ${results.length} allocated+loaded shards are ok_recorded.`)
     } else {

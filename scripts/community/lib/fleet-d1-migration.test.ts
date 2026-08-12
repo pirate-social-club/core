@@ -13,7 +13,12 @@ import {
   classificationSql,
   classifyRow,
   executionBody,
+  fleetReadRetryDelayMs,
+  isTransientFleetReadFailure,
+  isTransientWranglerFailure,
   ledgerBackfillBody,
+  retryTransientFleetRead,
+  rowCountSql,
   resumeDoneShards,
   resumeEntryKey,
   selectMigrationBindings,
@@ -23,6 +28,52 @@ import {
 const CHECKSUM = "a".repeat(64)
 
 const MIGRATIONS_DIR = resolve(import.meta.dir, "../../../db/community-template/migrations")
+
+describe("wrangler transport retry classification", () => {
+  test("retries transient transport and overload failures", () => {
+    expect(isTransientWranglerFailure('{"error":{"text":"fetch failed"}}')).toBe(true)
+    expect(isTransientWranglerFailure(`${"warning ".repeat(200)}fetch failed`)).toBe(true)
+    expect(isTransientWranglerFailure("Cloudflare code 7429")).toBe(true)
+    expect(isTransientWranglerFailure("Authentication error [code: 10000]")).toBe(true)
+    expect(isTransientWranglerFailure("internal error [code: 7500]")).toBe(false)
+    expect(isTransientWranglerFailure("no such table: posts")).toBe(false)
+  })
+
+  test("retries D1 7500 only for read-only fleet probes", async () => {
+    expect(isTransientFleetReadFailure("internal error [code: 7500]")).toBe(true)
+    expect(isTransientFleetReadFailure("D1 DB is overloaded [code: 7429]")).toBe(true)
+    expect(isTransientFleetReadFailure("no such table: posts")).toBe(false)
+
+    let calls = 0
+    const delays: number[] = []
+    const result = await retryTransientFleetRead(
+      async () => {
+        calls += 1
+        if (calls < 4) throw new Error("internal error [code: 7500]")
+        return "ok"
+      },
+      async (delayMs) => { delays.push(delayMs) },
+      () => 0,
+    )
+
+    expect(result).toBe("ok")
+    expect(calls).toBe(4)
+    expect(delays).toEqual([1_000, 2_000, 4_000])
+    expect(fleetReadRetryDelayMs(7, 1)).toBe(8_500)
+  })
+
+  test("does not retry non-transient fleet read failures", async () => {
+    let calls = 0
+    await expect(retryTransientFleetRead(
+      async () => {
+        calls += 1
+        throw new Error("no such table: posts")
+      },
+      async () => {},
+    )).rejects.toThrow("no such table: posts")
+    expect(calls).toBe(1)
+  })
+})
 
 describe("quarantined single-shard remediation", () => {
   const input = {
@@ -372,6 +423,60 @@ describe("classifyRow — 1132 columns across tables", () => {
 })
 
 describe("classificationSql", () => {
+  test("combines tables, indexes, columns, and fragments across rebuilt tables", () => {
+    const spec: MigrationSpec = {
+      migration: "9999_composite.sql",
+      label: "community-template",
+      requiredTables: ["attempts", "review_state"],
+      creates: {
+        kind: "schema_objects",
+        columns: [{ table: "attempts", column: "placements_json" }],
+        indexes: ["idx_cloze_status"],
+        finalIndexes: ["idx_attempts_lookup"],
+        forbiddenTables: ["attempts_next"],
+        tables: ["cloze"],
+        tableSqlContains: [
+          { table: "attempts", fragments: ["'fill_blank'"] },
+          { table: "review_state", fragments: ["'fill_blank'"] },
+        ],
+      },
+      rowCountTables: ["attempts"],
+      replayableDdl: false,
+      description: "test",
+    }
+    const sql = classificationSql(spec)
+    expect(sql).toContain("obj_table_fragment__attempts__0")
+    expect(sql).toContain("obj_table_fragment__review_state__0")
+    expect(sql).not.toContain("metric_rows__attempts")
+    expect(sql).toContain("forbidden_table__attempts_next")
+    expect(rowCountSql(spec)).toContain("metric_rows__attempts")
+    expect(classifyRow(spec, {
+      has_ledger: 1,
+      ledger_checksum: CHECKSUM,
+      req_attempts: 1,
+      req_review_state: 1,
+      obj_attempts__placements_json: 1,
+      obj_index__idx_cloze_status: 1,
+      obj_table__cloze: 1,
+      obj_table_fragment__attempts__0: 1,
+      obj_table_fragment__review_state__0: 0,
+      final_index__idx_attempts_lookup: 1,
+    }, CHECKSUM).status).toBe("partial_objects")
+  })
+
+  test("rejects row-count probes that are not gated by required-table detection", () => {
+    const spec: MigrationSpec = {
+      migration: "9999_bad_counts.sql",
+      label: "community-template",
+      requiredTables: ["attempts"],
+      creates: { kind: "tables", tables: ["cloze"] },
+      rowCountTables: ["review_state"],
+      replayableDdl: false,
+      description: "test",
+    }
+    expect(() => rowCountSql(spec)).toThrow("rowCountTables must also be requiredTables: review_state")
+  })
+
   test("can attest a required fragment in canonical table SQL", () => {
     const spec: MigrationSpec = {
       migration: "1037_rebuild_comments_guest_authorship.sql",

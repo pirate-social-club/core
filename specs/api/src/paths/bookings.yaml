@@ -298,6 +298,24 @@ bookings:
     tags: [Bookings]
     x-implemented: true
     summary: List authenticated user's bookings
+    parameters:
+      - in: query
+        name: role
+        schema:
+          type: string
+          enum: [booker, host]
+          default: booker
+      - in: query
+        name: status
+        description: Comma-separated booking statuses.
+        schema:
+          type: string
+      - in: query
+        name: source_community_id
+        schema:
+          type: string
+      - $ref: ../components/parameters.yaml#/Cursor
+      - $ref: ../components/parameters.yaml#/Limit
     responses:
       "200":
         description: Bookings
@@ -305,7 +323,7 @@ bookings:
           application/json:
             schema:
               type: object
-              required: [object, data, has_more]
+              required: [object, data, has_more, next_cursor]
               properties:
                 object:
                   type: string
@@ -316,6 +334,8 @@ bookings:
                     $ref: ../components/schemas/bookings.yaml#/Booking
                 has_more:
                   type: boolean
+                next_cursor:
+                  type: [string, "null"]
 booking_host_slots:
   get:
     tags: [Bookings]
@@ -542,7 +562,7 @@ booking_cancel:
   post:
     tags: [Bookings]
     x-implemented: true
-    summary: Cancel a booking, checking previously confirmed financial terms when supplied
+    summary: Cancel a booking only if the previously previewed financial terms still match
     requestBody:
       required: true
       content:

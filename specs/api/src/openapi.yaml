@@ -39,6 +39,7 @@ tags:
   - name: Feeds
   - name: Tracks
   - name: Song Study
+  - name: Dance
   - name: Moderation
   - name: MPP
   - name: Notifications
@@ -65,6 +66,22 @@ paths:
     $ref: ./paths/agent-discovery.yaml#/sitemap_xml
   /auth/session/exchange:
     $ref: ./paths/auth.yaml#/auth_session_exchange
+  /dance-sessions:
+    $ref: ./paths/dance.yaml#/dance_sessions
+  /dance-sessions/{dance_session_id}:
+    $ref: ./paths/dance.yaml#/dance_sessions_by_dance_session_id
+  /dance-sessions/{dance_session_id}/cancel:
+    $ref: ./paths/dance.yaml#/dance_sessions_by_dance_session_id_cancel
+  /dance-sessions/{dance_session_id}/upload-intent:
+    $ref: ./paths/dance.yaml#/dance_sessions_by_dance_session_id_upload_intent
+  /dance-sessions/{dance_session_id}/submit:
+    $ref: ./paths/dance.yaml#/dance_sessions_by_dance_session_id_submit
+  /dance-attempts/{dance_attempt_id}:
+    $ref: ./paths/dance.yaml#/dance_attempts_by_dance_attempt_id
+  /dance-choreographies/{dance_choreography_id}:
+    $ref: ./paths/dance.yaml#/dance_choreographies_by_dance_choreography_id
+  /posts/{post_id}/dance-choreography:
+    $ref: ./paths/dance.yaml#/posts_by_post_id_dance_choreography
   /oauth/device_authorize:
     $ref: ./paths/auth.yaml#/oauth_device_authorize
   /oauth/device/verify:
@@ -215,6 +232,8 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_money_policy
   /communities/{community_id}/pricing-policy:
     $ref: ./paths/communities.yaml#/communities_by_community_id_pricing_policy
+  /communities/{community_id}/presentation:
+    $ref: ./paths/communities.yaml#/communities_by_community_id_presentation
   /communities/{community_id}/machine-access-policy:
     $ref: ./paths/community-machine-access.yaml#/communities_by_community_id_machine_access_policy
   /communities/{community_id}/listings:
@@ -311,6 +330,12 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_song_artifact_uploads
   /communities/{community_id}/song-artifact-uploads/{song_artifact_upload_id}/content:
     $ref: ./paths/communities.yaml#/communities_by_community_id_song_artifact_uploads_by_song_artifact_upload_id_content
+  /communities/{community_id}/content-blobs:
+    $ref: ./paths/content-blobs.yaml#/communities_by_community_id_content_blobs
+  /communities/{community_id}/content-blobs/{content_blob_id}:
+    $ref: ./paths/content-blobs.yaml#/communities_by_community_id_content_blobs_by_content_blob_id
+  /communities/{community_id}/content-blobs/{content_blob_id}/content:
+    $ref: ./paths/content-blobs.yaml#/communities_by_community_id_content_blobs_by_content_blob_id_content
   /communities/{community_id}/song-artifacts:
     $ref: ./paths/communities.yaml#/communities_by_community_id_song_artifacts
   /communities/{community_id}/song-artifacts/{song_artifact_bundle_id}:
@@ -323,23 +348,13 @@ paths:
     $ref: ./paths/bookings.yaml#/bookings
   /bookings/hosts/{host_user_id}/slots:
     $ref: ./paths/bookings.yaml#/booking_host_slots
-  /bookings/booking-hosts/{host_user_id}/slots:
-    $ref: ./paths/bookings.yaml#/booking_host_slots
   /bookings/hosts/{host_user_id}/holds:
-    $ref: ./paths/bookings.yaml#/booking_host_holds
-  /bookings/booking-hosts/{host_user_id}/holds:
     $ref: ./paths/bookings.yaml#/booking_host_holds
   /bookings/holds/{hold_id}/quote:
     $ref: ./paths/bookings.yaml#/booking_hold_quote
-  /bookings/booking-holds/{hold_id}/quote:
-    $ref: ./paths/bookings.yaml#/booking_hold_quote
   /bookings/holds/{hold_id}/confirm:
     $ref: ./paths/bookings.yaml#/booking_hold_confirm
-  /bookings/booking-holds/{hold_id}/confirm:
-    $ref: ./paths/bookings.yaml#/booking_hold_confirm
   /bookings/holds/{hold_id}/payment-submitted:
-    $ref: ./paths/bookings.yaml#/booking_hold_payment_submitted
-  /bookings/booking-holds/{hold_id}/payment-submitted:
     $ref: ./paths/bookings.yaml#/booking_hold_payment_submitted
   /bookings/payment-intents/pending:
     $ref: ./paths/bookings.yaml#/booking_payment_intents_pending
@@ -625,6 +640,8 @@ components:
       $ref: ./components/schemas/common.yaml#/Error
     SongStudyPayload:
       $ref: ./components/schemas/song-study.yaml#/SongStudyPayload
+    SongStudySessionSummary:
+      $ref: ./components/schemas/song-study.yaml#/SongStudySessionSummary
     SongStudyAccessState:
       $ref: ./components/schemas/song-study.yaml#/SongStudyAccessState
     SongStudyLockedReason:
@@ -633,6 +650,14 @@ components:
       $ref: ./components/schemas/song-study.yaml#/SongStudyUnavailableReason
     SongStudyExercise:
       $ref: ./components/schemas/song-study.yaml#/SongStudyExercise
+    SongStudyRenderSafeExercise:
+      $ref: ./components/schemas/song-study.yaml#/SongStudyRenderSafeExercise
+    SongStudyLessonNext:
+      $ref: ./components/schemas/song-study.yaml#/SongStudyLessonNext
+    SongStudyLessonState:
+      $ref: ./components/schemas/song-study.yaml#/SongStudyLessonState
+    SongStudyRevisionConflict:
+      $ref: ./components/schemas/song-study.yaml#/SongStudyRevisionConflict
     SongStudyAttemptRequest:
       $ref: ./components/schemas/song-study.yaml#/SongStudyAttemptRequest
     SongStudyAttemptResult:
@@ -1065,6 +1090,18 @@ components:
       $ref: ./components/schemas/song-artifacts.yaml#/SongArtifactBundle
     SongArtifactBundleListResponse:
       $ref: ./components/schemas/song-artifacts.yaml#/SongArtifactBundleListResponse
+    ContentBlobStatus:
+      $ref: ./components/schemas/content-blobs.yaml#/ContentBlobStatus
+    ContentBlobSecurityScanState:
+      $ref: ./components/schemas/content-blobs.yaml#/ContentBlobSecurityScanState
+    ContentUploadSession:
+      $ref: ./components/schemas/content-blobs.yaml#/ContentUploadSession
+    CreateContentBlobRequest:
+      $ref: ./components/schemas/content-blobs.yaml#/CreateContentBlobRequest
+    ContentBlobContentRequest:
+      $ref: ./components/schemas/content-blobs.yaml#/ContentBlobContentRequest
+    ContentBlob:
+      $ref: ./components/schemas/content-blobs.yaml#/ContentBlob
     CreatePostRequest:
       $ref: ./components/schemas/posts.yaml#/CreatePostRequest
     Post:

@@ -1,0 +1,386 @@
+DanceSessionStatus:
+  type: string
+  enum:
+    - initialized
+    - uploading
+    - submitted
+    - grading
+    - finalized
+    - rejected
+    - failed
+    - expired
+    - cancelled
+DanceAttemptStatus:
+  type: string
+  enum:
+    - initialized
+    - uploading
+    - submitted
+    - grading
+    - passed
+    - rejected
+    - failed
+    - expired
+    - cancelled
+DanceAttemptReason:
+  type: string
+  nullable: true
+  enum:
+    - video_invalid
+    - upload_invalid
+    - duration_out_of_range
+    - insufficient_coverage
+    - insufficient_pose_presence
+    - multiple_people
+    - reference_replay
+    - duplicate_attempt
+    - scoring_unavailable
+    - below_platform_floor
+    - version_mismatch
+    - insufficient_motion
+    - insufficient_alignment
+    - start_cue_mismatch
+    - session_expired
+    - cancelled
+DanceSession:
+  type: object
+  required:
+    - id
+    - object
+    - attempt
+    - post
+    - choreography
+    - choreography_revision
+    - status
+    - max_bytes
+    - expires_at
+    - created
+    - consent_policy_version
+    - consented_at
+    - start_cue
+  properties:
+    id:
+      type: string
+    object:
+      type: string
+      enum:
+        - dance_session
+    attempt:
+      type: string
+    post:
+      type: string
+    choreography:
+      type: string
+    choreography_revision:
+      type: string
+    status:
+      $ref: ./dance.yaml#/DanceSessionStatus
+    max_bytes:
+      type: integer
+      format: int64
+      minimum: 1
+      maximum: 19000000
+    expires_at:
+      type: integer
+      format: int64
+    created:
+      type: integer
+      format: int64
+    consent_policy_version:
+      type: string
+      nullable: true
+    consented_at:
+      type: integer
+      format: int64
+      nullable: true
+    start_cue:
+      allOf:
+        - $ref: ./dance.yaml#/DanceStartCue
+      nullable: true
+DanceStartCue:
+  type: object
+  required:
+    - policy_version
+    - kind
+    - minimum_hold_ms
+    - observation_window_ms
+  properties:
+    policy_version:
+      type: string
+      enum:
+        - dance_start_cue_gross_body_v1
+    kind:
+      type: string
+      enum:
+        - hands_on_head
+        - arms_t
+        - hands_on_hips
+    minimum_hold_ms:
+      type: integer
+      minimum: 250
+      maximum: 2000
+    observation_window_ms:
+      type: integer
+      minimum: 1000
+      maximum: 5000
+DanceSessionMutationResponse:
+  allOf:
+    - $ref: ./dance.yaml#/DanceSession
+    - type: object
+      required:
+        - idempotent
+      properties:
+        idempotent:
+          type: boolean
+DanceSessionCreateRequest:
+  type: object
+  required:
+    - post
+    - consent
+  properties:
+    post:
+      type: string
+    consent:
+      $ref: ./dance.yaml#/DanceConsentAcceptance
+DanceConsentAcceptance:
+  type: object
+  required:
+    - policy_version
+    - accepted
+  properties:
+    policy_version:
+      type: string
+      enum:
+        - dance_recording_v1
+    accepted:
+      type: boolean
+      enum:
+        - true
+DanceSessionUploadIntentRequest:
+  type: object
+  required:
+    - mime_type
+    - content_sha256
+    - size_bytes
+  properties:
+    mime_type:
+      type: string
+      enum:
+        - video/mp4
+    content_sha256:
+      type: string
+      pattern: ^[0-9a-f]{64}$
+    size_bytes:
+      type: integer
+      minimum: 1
+      maximum: 19000000
+DanceSessionUploadIntent:
+  type: object
+  required:
+    - id
+    - object
+    - method
+    - url
+    - headers
+    - expires_at
+    - idempotent
+  properties:
+    id:
+      type: string
+    object:
+      type: string
+      enum:
+        - dance_session_upload_intent
+    method:
+      type: string
+      enum:
+        - PUT
+    url:
+      type: string
+      format: uri
+    headers:
+      type: object
+      additionalProperties:
+        type: string
+    expires_at:
+      type: integer
+      format: int64
+    idempotent:
+      type: boolean
+DanceSessionSubmitRequest:
+  type: object
+  required:
+    - capture_mode
+    - content_sha256
+    - size_bytes
+  properties:
+    capture_mode:
+      type: string
+      enum:
+        - in_app_camera
+    content_sha256:
+      type: string
+      pattern: ^[0-9a-f]{64}$
+    size_bytes:
+      type: integer
+      minimum: 1
+      maximum: 19000000
+DanceSessionSubmission:
+  type: object
+  required:
+    - id
+    - object
+    - attempt
+    - status
+    - idempotent
+  properties:
+    id:
+      type: string
+    object:
+      type: string
+      enum:
+        - dance_session_submission
+    attempt:
+      type: string
+    status:
+      $ref: ./dance.yaml#/DanceSessionStatus
+    idempotent:
+      type: boolean
+DanceAttempt:
+  type: object
+  required:
+    - id
+    - object
+    - session
+    - post
+    - choreography_revision
+    - status
+    - score_bps
+    - rank_eligible
+    - reason
+    - completed_at
+  properties:
+    id:
+      type: string
+    object:
+      type: string
+      enum:
+        - dance_attempt
+    session:
+      type: string
+    post:
+      type: string
+    choreography_revision:
+      type: string
+    status:
+      $ref: ./dance.yaml#/DanceAttemptStatus
+    score_bps:
+      type: integer
+      nullable: true
+      minimum: 0
+      maximum: 10000
+    rank_eligible:
+      type: boolean
+      nullable: true
+    reason:
+      $ref: ./dance.yaml#/DanceAttemptReason
+    coverage_bps:
+      type: integer
+      nullable: true
+      minimum: 0
+      maximum: 10000
+    pose_detection_bps:
+      type: integer
+      nullable: true
+      minimum: 0
+      maximum: 10000
+    duration_ratio_bps:
+      type: integer
+      nullable: true
+      minimum: 0
+      maximum: 20000
+    start_cue_outcome:
+      type: string
+      nullable: true
+      enum:
+        - passed
+        - failed
+    scored_window_start_ms:
+      type: integer
+      nullable: true
+      minimum: 0
+      maximum: 5000
+    completed_at:
+      type: integer
+      format: int64
+      nullable: true
+DanceChoreographyReference:
+  type: object
+  required:
+    - url
+    - mime_type
+    - duration_ms
+    - width
+    - height
+  properties:
+    url:
+      type: string
+      format: uri
+    mime_type:
+      type: string
+      enum:
+        - video/mp4
+        - video/webm
+        - video/quicktime
+    duration_ms:
+      type: integer
+      minimum: 1000
+      maximum: 30000
+    width:
+      type: integer
+      minimum: 1
+    height:
+      type: integer
+      minimum: 1
+DanceChoreography:
+  type: object
+  required:
+    - id
+    - object
+    - community
+    - post
+    - song_post
+    - song_artifact_bundle
+    - creator
+    - official
+    - revision
+    - mirror_policy
+    - reference
+  properties:
+    id:
+      type: string
+    object:
+      type: string
+      enum:
+        - dance_choreography
+    community:
+      type: string
+    post:
+      type: string
+    song_post:
+      type: string
+    song_artifact_bundle:
+      type: string
+    creator:
+      type: string
+    official:
+      type: boolean
+    revision:
+      type: string
+    mirror_policy:
+      type: string
+      enum:
+        - strict
+        - allowed
+    reference:
+      $ref: ./dance.yaml#/DanceChoreographyReference

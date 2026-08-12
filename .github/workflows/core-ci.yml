@@ -18,6 +18,10 @@ on:
       - "scripts/control-plane/apply-postgres-migrations.ts"
       - "scripts/lib/postgres-migrations.ts"
       - "scripts/bookings/**"
+      - "scripts/check-repo-hygiene.mjs"
+      - "packages/bookings-domain/**"
+      - "services/verifier/spaces/**"
+      - "tools/spaces-publisher/**"
       - "packages/hns-delegation/**"
       - "services/verifier/hns/**"
       - "specs/api/**"
@@ -39,6 +43,10 @@ on:
       - "scripts/control-plane/apply-postgres-migrations.ts"
       - "scripts/lib/postgres-migrations.ts"
       - "scripts/bookings/**"
+      - "scripts/check-repo-hygiene.mjs"
+      - "packages/bookings-domain/**"
+      - "services/verifier/spaces/**"
+      - "tools/spaces-publisher/**"
       - "packages/hns-delegation/**"
       - "services/verifier/hns/**"
       - "specs/api/**"
@@ -173,6 +181,52 @@ jobs:
         uses: ironsh/iron-proxy-action/summary@fa1fd82ec32396d044deba7040a6db576bec927a
         if: always()
 
+  native-and-domain:
+    name: native-and-domain
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version-file: tools/spaces-publisher/go.mod
+          cache-dependency-path: tools/spaces-publisher/go.sum
+
+      - name: Check toolchain versions
+        run: |
+          go version
+          rustc --version
+          cargo --version
+
+      - name: Run Spaces publisher Go tests
+        working-directory: tools/spaces-publisher
+        run: go test ./...
+
+      - name: Run Spaces native Rust tests
+        run: cargo test --locked --manifest-path services/verifier/spaces/native/Cargo.toml
+
+      - name: Run vendored spacedb integration tests
+        run: cargo test --manifest-path services/verifier/spaces/vendor/spacedb/Cargo.toml --test integration_test
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: 1.3.10
+
+      - name: Install bookings-domain dependencies
+        working-directory: packages/bookings-domain
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck bookings-domain
+        run: bun run --cwd packages/bookings-domain types
+
+      - name: Check bookings-domain imports
+        run: bun run --cwd packages/bookings-domain lint:imports
+
   bookings-migration:
     # Real-Postgres integration test for the global bookings schema (b0001…): provisions PostgreSQL 17,
     # bootstraps the extension + roles as owner, runs the real runner as the non-superuser migrator, and
@@ -218,6 +272,12 @@ jobs:
           # Owner/superuser URL to the service; the test creates its own isolated db + roles.
           CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
         run: bun test scripts/control-plane/operator-credentials-migration.test.ts
+
+      - name: Run content security scan migration integration test
+        env:
+          # Proves scanner release/job/result/audit invariants and least-privilege grants.
+          CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
+        run: bun test scripts/control-plane/content-security-scans-migration.pg.test.ts
 
       - name: Run dance choreography migration integration test
         env:

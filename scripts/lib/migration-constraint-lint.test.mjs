@@ -49,6 +49,18 @@ describe("findExistingTableCheckSafetyGaps", () => {
     }]);
   });
 
+  test("detects a constraint after another ADD clause in the same ALTER TABLE", () => {
+    expect(findExistingTableCheckSafetyGaps(`
+      ALTER TABLE dance_attempt_sessions
+        ADD COLUMN start_cue_kind TEXT,
+        ADD CONSTRAINT dance_attempt_session_start_cue_check CHECK (start_cue_kind IS NOT NULL);
+    `)).toEqual([{
+      line: 2,
+      table: "dance_attempt_sessions",
+      constraint: "dance_attempt_session_start_cue_check",
+    }]);
+  });
+
   test("accepts the repaired migration shape after an existing-row backfill", () => {
     expect(findExistingTableCheckSafetyGaps(`
       ALTER TABLE reward_nationality_decisions ADD COLUMN resolved_amount_cents INTEGER;

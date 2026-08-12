@@ -816,6 +816,7 @@ StartNamespaceVerificationSessionRequest:
       description: Root label as entered by the creator before server normalization. Values starting with `@` are Spaces roots; bare labels are HNS roots. The prefix must match `family`.
 CompleteNamespaceVerificationSessionRequest:
   type: object
+  additionalProperties: false
   description: |
     Trigger a refresh of challenge observations and assertion derivation after the creator has completed the required proof step. The body is optional because many implementations can treat this as an idempotent recheck.
   properties:
@@ -824,6 +825,11 @@ CompleteNamespaceVerificationSessionRequest:
       nullable: true
       description: |
         Optional hint to invalidate the current challenge and issue a new one if the creator wants to restart the proof flow.
+    acknowledged_resource_replacement:
+      type: boolean
+      nullable: true
+      description: |
+        Explicit acknowledgement that a Handshake UPDATE replaces the complete on-chain resource. Required before an HNS import session begins observing the owner-published replacement bundle.
 NamespaceVerificationAssertions:
   type: object
   description: |
@@ -938,11 +944,13 @@ NamespaceVerificationSession:
       type: string
       enum:
         - dns_txt
+        - hns_import
         - fabric_txt_publish
       nullable: true
       description: |
         Family-specific challenge type for the current session.
         `dns_txt` is used by HNS-style TXT proof flows.
+        `hns_import` is used by complete-resource HNS import flows.
         `fabric_txt_publish` is used by Spaces Fabric publish proof flows.
     challenge_host:
       type: string

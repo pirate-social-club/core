@@ -137,7 +137,7 @@ export function findExistingTableCheckSafetyGaps(sql) {
   }
 
   const failures = [];
-  const addCheckPattern = /\bALTER\s+TABLE\s+(?:ONLY\s+)?([\w."]+)\s+ADD\s+CONSTRAINT\s+([\w"]+)\s+CHECK\s*\(/giu;
+  const addCheckPattern = /\bALTER\s+TABLE\s+(?:ONLY\s+)?([\w."]+)\s+[^;]*?\bADD\s+CONSTRAINT\s+([\w"]+)\s+CHECK\s*\(/giu;
   for (const match of masked.matchAll(addCheckPattern)) {
     const table = normalizedTableName(match[1]);
     if (createdTables.has(table)) continue;
