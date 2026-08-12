@@ -1,9 +1,12 @@
-# Sovereign TLD Video Feeds — Converged Plan (2026-08-10)
+# Sovereign TLD Community + Video Surfaces — Adopted Plan (amended 2026-08-12)
 
-Status: **converged and adopted.** Every community TLD gets a TikTok-style
-vertical video feed at its apex, with the thread app on `app.<root>`. Verified
-against `origin/main` across web, api, and core through a three-round
-adversarial audit; all disputed findings resolved by reading current code.
+Status: **adopted, with the post-launch surface correction below.** Every
+community TLD uses its apex as the public community identity and thread page;
+its TikTok-style vertical video application lives at `app.<root>`. The
+original launch shipped those two root surfaces in the opposite positions.
+The correction was adopted after reviewing the live product: a bare community
+domain should read as the community's front door, while `app.` is the
+interactive application.
 
 Verified baseline (exact `origin/main` SHAs at verification time; the audited
 files were re-checked unchanged through these refs):
@@ -23,23 +26,52 @@ fresh `origin/main`.
 | URL | Serves | Notes |
 | --- | --- | --- |
 | `pirate.sc/` | Global video feed | Already the primary Home surface |
-| `<root>/` | Sovereign community video feed | Video-first; never preference-dependent |
-| `app.<root>/` | Sovereign threads | Wallet-enabled application origin |
-| `<root>/p/:id` · `app.<root>/p/:id` | Sovereign-scoped post detail | Foreign post → 404; never a global fallback |
+| `<root>/` | Public community/profile page with threads | Human-facing community front door; noindex; canonical → `pirate.sc/c/<slug>` |
+| `app.<root>/` | Sovereign community video feed | TikTok-style application; wallet-enabled; never preference-dependent |
+| `<root>/p/:id` | Public sovereign-scoped post detail | Foreign post → 404; canonical → `pirate.sc/p/:id` |
+| `app.<root>/p/:id` | Interactive sovereign-scoped post mirror | Foreign post → 404; canonical → `pirate.sc/p/:id` |
 | `pirate.sc/c/<slug>` | Redirect only | HTTP 302 by community `default_surface`; exact bare route |
 | `pirate.sc/c/<slug>/videos` | Explicit community video surface | Self-canonicalizing |
 | `pirate.sc/c/<slug>/threads` | Explicit community thread surface | Self-canonicalizing |
 | `home.<root>` | Dropped | Reserve `home` in web + core (currently a squattable profile handle) |
 
-Both surfaces carry a persistent **Videos | Threads** switch — host change on
-the TLD, path change on the canonical site, implemented as ordinary deep links
-to the same `/p/:id`. SEO canonical is always `pirate.sc/p/:id`; sovereign
-hosts are presentations, not indexing targets (HNS roots may not resolve for
-crawlers, can be transferred or deactivated).
+Sovereign surfaces never carry a **Watch | Threads** toggle. The community
+page has one localized **Open app** CTA to `app.<root>/`; tapping community
+identity in the video application returns to `<root>/`. Creator identity
+continues to open canonical `pirate.sc/u/<handle>` with cross-origin
+signposting. Canonical `pirate.sc/c/<slug>/videos` and `/threads` remain two
+views of the canonical community and keep their normal in-page navigation.
+
+All HNS pages remain `noindex, nofollow`. Mainstream crawlers cannot resolve
+Handshake names or validate their DANE-only certificates, and roots may be
+transferred or deactivated. Community presentations canonicalize to
+`pirate.sc/c/<slug>`; every sovereign post presentation canonicalizes to
+`pirate.sc/p/:id`.
+
+Surface isolation is explicit. The apex permits its exact root community page
+and sovereign-scoped public post routes; wallet, settings, publishing,
+moderation, global feeds, and foreign community routes are real HTTP 404s.
+`app.<root>` owns the scoped video root plus wallet, settings, publishing,
+moderation, bookings, and same-community app routes; global and foreign
+community surfaces remain 404. Tests cover both permitted and rejected routes
+using the same route-slug form emitted by the UI.
+
+The routing swap and the production sovereign-context probe must ship in the
+same web release. The probe fetches both origins through the real HNS gateway,
+requires the scoped video bootstrap on `app.<root>` and its absence on the
+apex, checks the Pirate canonicals and community branding on both HNS legs,
+and contains a regression case that fails against the original apex-video
+mapping. Sovereign SSR HTML currently has no CDN caching directive, so there
+is no persisted page entry to purge; the production probe is the release-time
+proof. If HTML caching is introduced later, this swap class requires a tagged
+purge in the same release.
 
 ## `default_surface`: persistence, administration, invariant
 
 The read contract alone is not enough; the setting must be authoritative:
+
+`default_surface` governs only the canonical bare route
+`pirate.sc/c/<slug>`. It never changes what `<root>/` or `app.<root>/` serves.
 
 - Authoritative control-plane field, backfilled/defaulted to `threads` for
   all existing communities.
@@ -137,8 +169,9 @@ origins (`web#1046`), so this is safety, not polish.
 
 **Dedicated `video_feed` surface flag.** Does not inherit the `thread_cards`
 machine-access opt-out. When disabled: branded "video feed unavailable" state
-plus a Threads deep link — never a fallback to global video. TLD
-activation/configuration warns when the apex video surface is disabled.
+plus a link to the sovereign community root — never a fallback to global
+video. TLD activation/configuration warns when the `app.<root>` video surface
+is disabled.
 
 **Scorer accepted as-is for launch.** Behavioral features are constant on null
 stats, but explicit engagement (0.10), downvote share (−0.35), and freshness
@@ -170,8 +203,11 @@ stats, but explicit engagement (0.10), downvote share (−0.35), and freshness
    everywhere (TanStack cache restore shows the wrong feed otherwise), SSR
    branding + bootstrap preload extended past the hardcoded
    `/feed/home/videos/public` + `route.kind === "home"` (`worker.tsx:124`,
-   `:443`; `document.tsx:41`) and SEO canonicals. Empty sovereign feed shows
-   a branded empty state with a Threads link — never the global homepage.
+   `:443`; `document.tsx:41`) and SEO canonicals. The scoped preload belongs
+   to `app.<root>/`, never `<root>/`. Empty sovereign feed shows a branded
+   empty state with a community-root link — never the global homepage.
+   Community identity is rendered once in the sidebar/action rail rather than
+   duplicated in the mobile media header.
    The signed-in viewer overlay is explicitly post-launch work and must be a
    separate `no-store` overlay endpoint, not a duplicate feed computation.
 4. **Gateway resilience.** Namespace-resolution cache, timeout, request
