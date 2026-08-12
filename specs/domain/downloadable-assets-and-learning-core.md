@@ -145,12 +145,20 @@ mainnet launch remains subject to the existing mainnet-readiness contract.
 
 Those two gates mean Phase 3 initially has no publication path for an ordinary
 creator. An independent operator-only dogfood flag is therefore required. It is
-restricted to designated test communities and test wallets, creates no
-ordinary-user-visible listing, labels every transaction as testnet, and may use
-disposable locked assets to exercise upload, safety, Story registration, CDR
-encryption, entitlement, decryption, download, takedown, and reconciliation
-end to end. It may acknowledge the known registration defect for testing but
-cannot weaken either public launch gate.
+restricted to designated test communities whose membership admission is closed
+and whose only members are operator test principals using test wallets. It
+creates no ordinary-user-visible listing, labels every transaction as testnet,
+and may use disposable locked assets to exercise upload, safety, Story
+registration, CDR encryption, entitlement, decryption, download, takedown, and
+reconciliation end to end.
+
+For the known registration defect, dogfood permits exactly one
+operator-triggered manual retry of the conflicted durable registration request,
+using the original immutable request identity and fields, inside that designated
+test community.
+It does not permit request mutation, conflict suppression, automatic retry
+loops, sale of the conflicted asset, use in a community that has any real
+member, or weakening either public launch gate.
 
 After that gate, a paid `download_file` or `learning_deck` asset must meet the
 same publication, settlement, and locked-delivery readiness required by the
@@ -258,6 +266,15 @@ CREATE TABLE content_blobs (
   detected_mime_type       TEXT,
   verified_size_bytes      BIGINT,
   verified_content_hash    TEXT,
+  security_scan_state      TEXT NOT NULL DEFAULT 'pending' CHECK (
+                             security_scan_state IN (
+                               'pending','clean','suspicious','malicious',
+                               'error','not_required')),
+  security_scan_profile    TEXT,
+  scanner_engine_version   TEXT,
+  scanner_signature_version TEXT,
+  security_scan_result_ref TEXT,
+  security_scanned_at      TIMESTAMPTZ,
   storage_ref              TEXT NOT NULL UNIQUE,
   storage_provider         TEXT,
   storage_bucket           TEXT,
@@ -275,10 +292,22 @@ CREATE TABLE content_blobs (
   FOREIGN KEY (community_id) REFERENCES communities(community_id),
   FOREIGN KEY (uploader_user_id) REFERENCES users(user_id),
   CHECK ((claim_kind IS NULL) = (claim_ref IS NULL)),
+  CHECK (
+    security_scan_state = 'pending' OR (
+      security_scan_profile IS NOT NULL AND
+      security_scan_result_ref IS NOT NULL AND
+      security_scanned_at IS NOT NULL
+    )
+  ),
+  CHECK (security_scan_state <> 'clean' OR (
+    scanner_engine_version IS NOT NULL AND
+    scanner_signature_version IS NOT NULL
+  )),
   CHECK (status <> 'ready' OR (
     detected_mime_type IS NOT NULL AND
     verified_size_bytes IS NOT NULL AND
-    verified_content_hash IS NOT NULL
+    verified_content_hash IS NOT NULL AND
+    security_scan_state IN ('clean','not_required')
   ))
 );
 
@@ -302,6 +331,8 @@ for every product kind.
 The server treats declared metadata as untrusted. Only detected/verified
 metadata becomes authoritative. Hashes use one normalized algorithm and
 encoding defined by the API contract; v1 uses SHA-256 hex with a `0x` prefix.
+`not_required` exists only for a separately reviewed legacy validation profile;
+`download_file_v1`, deck import, and canonical deck packages require `clean`.
 
 ### Upload sessions
 
@@ -516,8 +547,9 @@ Rules:
 - keep the existing public multipart maximum separate from the paid locked-file
   limit.
 
-CSV formula-like cells are bytes in a sold file and are not executed by Pirate.
-The deck-import parser treats them as text and never evaluates formulas.
+Pirate never executes CSV formula-like cells. The v0 sold-file policy rejects
+formula candidates as defined below, while the deck-import parser treats cells
+as text and never evaluates them.
 
 ### Safety, inspection, and takedown
 
@@ -539,11 +571,70 @@ future opaque binary formats require malware scanning and a moderator-safe
 inspection strategy before their profile can be enabled.
 
 Moderator inspection is a separate, audited endpoint. It requires explicit
-moderation authority and a case/reason code, returns sanitized text or a
-quarantined download through a dedicated short-lived response, and never uses
-normal creator/buyer delivery authorization. Inspection access does not grant
-commerce entitlement and is logged without payload contents. Deck inspection
-renders the bounded parsed card model, not active HTML.
+moderation authority and a case/reason code and returns only sanitized text,
+bounded structural metadata, scanner findings, or a safe rendered deck model.
+It never uses normal creator/buyer delivery authorization. A suspicious or
+malicious raw object is never downloaded into a moderator's browser. Raw-byte
+analysis, when genuinely required, runs in an isolated malware-analysis
+environment available only to the platform security role, with no community,
+wallet, storage, or production credentials and no outbound network. Inspection
+access does not grant commerce entitlement and is logged without payload
+contents. Deck inspection renders the bounded parsed card model, not active
+HTML.
+
+### V0 file-malware and abuse policy
+
+File safety is a release requirement, not a later marketplace enhancement.
+Every upload remains non-deliverable quarantine material until all required
+checks complete against the verified bytes:
+
+1. storage HEAD, length, and SHA-256 verification;
+2. independent MIME/extension detection and strict UTF-8/format parsing;
+3. anti-malware scanning with recorded engine, signature, and policy versions;
+4. format-specific active-content checks; and
+5. content-policy analysis of the normalized text or deck fields.
+
+Parsers and scanners execute with fixed CPU, memory, input, nesting, row, and
+wall-time limits outside the request handler. They have no credentials and no
+outbound network. Timeout, crash, stale signatures, incomplete coverage, or
+provider unavailability yields `error`/`suspicious`, never `clean`. The object
+cannot become an asset while its decision is pending or non-clean.
+
+For v0 CSV/TSV, the parser rejects spreadsheet-formula candidates after leading
+Unicode whitespace/control normalization: fields beginning `=` or `@`, and
+fields beginning `+` or `-` unless the entire field is a strict finite numeric
+literal. The service does not silently prefix or rewrite a seller's bytes,
+because that would break the verified product hash. JSON additionally has
+bounded nesting, tokens, keys, and scalar lengths. TXT, CSV, TSV, and JSON are
+still scanned as raw bytes; a text extension is not a malware exemption.
+
+The verified content hash is checked against platform and scanner deny lists at
+upload, publication, every delivery-resolution request, and scheduled rescan.
+Signature/policy upgrades enqueue active generic payloads for risk-prioritized
+rescan without republishing them. A new high-confidence malicious result
+immediately quarantines delivery and opens a platform moderation case; a
+confirmed result blocks the asset, withdraws the listing/post, and triggers the
+existing takedown sequence. Ambiguous results stay quarantined for human
+review. Scanner overrides require an evidence-backed moderation action and do
+not erase the original finding.
+
+Buyers and community members can report a file/deck post for malware,
+credential theft, fraud, prohibited content, or rights infringement. A report
+opens or joins the post's moderation case, records the payload hash and scanner
+versions without copying the bytes into the report, and can trigger an
+out-of-band rescan. Rate limits and abuse controls prevent reports from becoming
+an automatic seller-denial tool; only policy thresholds or authoritative review
+change enforcement. Confirmed malicious distribution feeds seller risk
+controls, upload suspension, related-hash review, buyer notification, and the
+existing refund/commerce incident process. Appeal and reinstatement require a
+new evidence-backed action.
+
+An operator emergency control can fail closed by content hash, asset, uploader,
+community, validation profile, or all generic downloads. It blocks new intents,
+publication, quote/purchase, public delivery, signed CDR access proofs, and deck
+sessions as applicable. It cannot delete bytes or keys already recovered by a
+buyer. Product copy discloses that uploads are scanned before encryption and
+that purchased downloads should still be handled as untrusted files.
 
 Assets gain an enforcement projection with `active`, `quarantined`, and
 `blocked` states plus reason, authority reference, actor-role identifier,
@@ -594,17 +685,22 @@ quarantine transition. The successor adds:
 - nullable `asset_id` with an asset foreign key;
 - `quarantine_asset`, `block_asset`, and `restore_asset` action types;
 - `previous_asset_enforcement_state` and `next_asset_enforcement_state` fields;
-- a target constraint permitting either one comment, or a post, an asset, or a
-  linked post-and-asset pair; and
+- a target constraint permitting one comment, one ordinary post, or a linked
+  generic-asset post-and-asset pair; and
 - an audit constraint requiring both asset-state snapshots and evidence for an
   asset enforcement transition.
 
-When both IDs are present, the service verifies that the asset's
-`source_post_id` is the recorded post. Existing moderation rows and enum members
-are copied unchanged. Human moderation actions are the append-only authority;
-automated scanner decisions remain backed by their immutable analysis result
-and moderation signal. `asset_enforcement` projects the newest applicable
-authority for the delivery hot path and can be rebuilt from those records.
+`moderation_cases` remains post/comment scoped. Every generic asset has a
+non-null `source_post_id`, so asset enforcement always uses that post's case and
+records the linked post-and-asset pair; an asset-only action is invalid. The
+service verifies that the asset's `source_post_id` is the recorded case/action
+post. This avoids an unnecessary `moderation_cases` rebuild while preserving
+one case history for content, commerce, and payload enforcement. Existing
+moderation rows and enum members are copied unchanged. Human moderation actions
+are the append-only authority; automated scanner decisions remain backed by
+their immutable analysis result and moderation signal. `asset_enforcement`
+projects the newest applicable authority for the delivery hot path and can be
+rebuilt from those records.
 
 Projection is bidirectional and transactional:
 
@@ -671,12 +767,23 @@ server-side preparation path becomes content neutral:
 CDR is involved only for locked delivery. Publication encrypts the verified
 file or canonical deck package once, stores the ciphertext externally, and puts
 the storage reference, content key, and integrity/version metadata behind a CDR
-vault. The vault's read condition uses the existing purchase-entitlement token
-and composite signed-access contract. After settlement, the entitled caller
-uses the CDR read path to recover the material needed by the existing client
-decryption flow. Story IP registration records rights metadata and hashes; it
-is related orchestration but is not itself byte delivery. Public/free payloads
-use the enforcement-aware public gateway and do not use CDR by default.
+vault. Generic file/deck vaults use the deployed composite signed-access
+condition, with `purchaseEntitlementProofMode = signed`; the purchase
+entitlement establishes buyer eligibility, but it does not grant a direct
+token-gate read. After settlement, the API rechecks entitlement, post status,
+asset enforcement, emergency policy, and payload hash before issuing a scoped
+signed proof with at most a five-minute lifetime. The caller uses that proof on
+the CDR read path to recover the material needed by the existing client
+decryption flow.
+
+Direct token-gate CDR reads are not launch-compatible for generic goods because
+the current token condition cannot observe shard-local takedown state. A proof
+issued just before quarantine may remain usable until its short expiry; no new
+proof is issued afterward. Recovery material or plaintext already obtained by
+a buyer cannot be revoked. Story IP registration records rights metadata and
+hashes; it is related orchestration but is not itself byte delivery. Public/free
+payloads use the enforcement-aware public gateway and do not use CDR by
+default.
 
 ```ts
 interface StoredContentReader {
@@ -1372,6 +1479,26 @@ static named stories keep every terminal and error state independently
 reviewable. Focused Storybook discovery and story tests are required before the
 corresponding Web flag can enable.
 
+That last gate requires new CI wiring. Today required `web-ci` explicitly
+excludes Storybook projects, and the manual `storybook-artifact` workflow builds
+a static catalog but does not execute `play` tests. Phase 3 therefore adds a
+required focused digital-goods Storybook job that typechecks/builds only the
+owning subtrees, runs the supported interaction-test runner, and retains its
+static artifact and test report. Until that job exists, authored `play`
+functions are reviewable scenarios, not CI evidence.
+
+The job must also close the reported cold manager-cache OOM behavior rather
+than relying on restart luck. It records peak RSS and duration for cold and warm
+cache runs. One explicit bounded high-heap cache-seed step on the CI runner is
+permitted when the keyed cache is absent; it is not an auto-restart loop and
+does not make high-heap full-catalog builds the routine gate. The key includes
+the lockfile, Storybook/Vite configuration, runtime version, and relevant source
+dependency graph. The steady-state focused job must pass three consecutive cold
+and warm trials within its documented memory/time budget before becoming
+release-blocking. Existing watcher exclusions and per-icon import rules remain
+mandatory. Local verification stays focused, foreground-only, and
+single-instance under the Web repository safety rules.
+
 ## Feed, Search, And Client Compatibility
 
 New writers remain disabled until readers are deployed across API, Web,
@@ -1446,10 +1573,13 @@ Do not rename or drop legacy song tables in this phase.
   audit contract while preserving existing actions.
 - Only after the `posts_next` and `assets_next` copies have been dropped/renamed
   into their canonical names, create `asset_payloads`, `asset_enforcement`, and
-  all dormant learning deck/review/session tables and indexes. Tables with
-  foreign keys to posts/assets must not exist during those renames, preventing
-  SQLite foreign-key reference rewriting from pointing them at transitional
-  table names.
+  all newly introduced dormant learning deck/review/session tables and indexes.
+  Existing tables that reference posts/assets necessarily remain during the
+  established `PRAGMA foreign_keys = OFF`, drop-old, rename-next pattern; the
+  migration validates them after foreign keys are restored. This ordering is a
+  conservative rule that creates new FK holders only after the canonical table
+  names exist. It does not claim existing FK holders are absent or that the
+  established drop/rename pattern rewrites them to a transitional name.
 - In a separate central control-plane migration, expand
   `story_registered_asset_projections.asset_kind` and update its canonical
   snapshot. This is not a second community fleet sweep.
@@ -1485,10 +1615,14 @@ waived or trialed first on a live small shard.
 - Add server-side file policy, claim saga, asset creation, Story/CDR
   preparation, and listing creation.
 - Reuse the asynchronous post finalizer and add text safety, moderator
-  inspection, takedown, quotas, retention, and both reconciliation sweepers.
+  inspection, mandatory malware/active-content scanning, buyer reporting,
+  takedown/emergency controls, quotas, retention, and both reconciliation
+  sweepers.
 - Isolate publish-finalize/locked-delivery capacity from scheduled maintenance
   and pass the mixed-load start/terminal latency gate.
 - Add the browser download controller and response headers.
+- Add the focused required Storybook build/interaction-test job and pass its
+  cold/warm memory and cache-seed gate.
 - Deploy tolerant readers for every client/fan-out surface before enabling the
   writer.
 - Enable the operator-only dogfood flag for end-to-end locked/CDR exercises
@@ -1553,12 +1687,18 @@ At minimum, record:
 - content uploads created, completed, verified, rejected, expired, and orphaned
   by validation profile;
 - upload verification latency and provider errors;
+- malware scan latency/outcome by profile and engine/signature age, parser
+  sandbox timeout/crash, deny-list hit, rescan backlog/age, and formula-policy
+  rejection without filenames or cell contents;
 - blob-claim retries and conflicts;
 - payload-without-claim scans, restored claims, and restore conflicts;
 - quota denials, retained bytes, public egress, intent rate-limit denials, and
   retention deletions by policy version;
 - payload/deck safety outcomes, quarantine age, inspection counts by reason,
   takedowns, reinstatements, and failed provider suppression requests;
+- buyer malware reports, report-to-rescan latency, confirmed malicious assets,
+  emergency-control activation, blocked signed-CDR proof requests, and affected
+  buyer notification counts;
 - post/asset enforcement drift, projection repairs, and conflicting moderation
   histories;
 - publish priority-lane backlog age, start latency, per-stage duration, retry
@@ -1625,6 +1765,16 @@ CDR keys, signed URLs, or raw wallet proofs.
 - A quarantined or blocked asset cannot be delivered through creator,
   moderator, buyer, public, session, or export paths; only audited inspection
   can read it.
+- A generic blob cannot become ready or publish without a current clean malware
+  result, bounded format parsing, active-content checks, and content-policy
+  decision; scanner failure, timeout, or stale coverage fails closed.
+- Formula-candidate CSV/TSV fields are rejected without mutating bytes, and
+  JSON/parser resource limits hold under adversarial fixtures.
+- Hash/asset/uploader/community/profile/global emergency controls stop new
+  publication, commerce, public delivery, and signed CDR proof issuance.
+- Generic locked buyers use short-lived composite signed CDR proofs after a
+  fresh entitlement/enforcement check; no direct token-gate path bypasses
+  takedown.
 - Post hide/remove and asset quarantine/block transitions write one audited
   moderation action and update both projections atomically; the reconciler can
   rebuild `asset_enforcement` without treating it as a second authority.
@@ -1663,6 +1813,9 @@ CDR keys, signed URLs, or raw wallet proofs.
   revocation, and takedown transitions.
 - Storybook performs no live API, wallet, Story, CDR, or storage call and
   contains no usable secret, signed URL, or wallet proof.
+- The required focused Storybook CI job builds the owning subtrees and executes
+  `play` tests; cold/warm memory trials and the bounded cache-seed procedure pass
+  before this criterion is treated as enforced.
 
 ### Compatibility and launch posture
 
@@ -1689,7 +1842,8 @@ CDR keys, signed URLs, or raw wallet proofs.
   before generic writers deploy.
 - The exact consolidated migration passes the largest-shard production-D1 dry
   run with row/schema/FK parity and the required execution-limit headroom; new
-  foreign-key tables are created only after posts/assets rebuild renames.
+  foreign-key holders are created only after canonical posts/assets rebuild
+  names are restored.
 - Seeded-upgrade tests preserve existing song/video assets and Song Study rows.
 - Staging and production fleet migrations are attested before the new API
   writer is deployed.
