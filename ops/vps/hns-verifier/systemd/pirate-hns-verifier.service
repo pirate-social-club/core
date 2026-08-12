@@ -6,8 +6,8 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=pirate-hns
-WorkingDirectory=/srv/pirate-hns/app
-EnvironmentFile=/srv/pirate-hns/config/hns-verifier.env
+WorkingDirectory=/srv/pirate-hns-verifier/app
+EnvironmentFile=/srv/pirate-hns-verifier/config/hns-verifier.env
 ExecStartPre=/usr/bin/test -x /usr/bin/delv
 ExecStartPre=/usr/bin/test -x /usr/bin/dig
 ExecStart=/usr/bin/env bun services/verifier/hns/src/server.ts

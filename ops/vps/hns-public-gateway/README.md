@@ -137,6 +137,25 @@ Install the tracked systemd override before the first reload, then run
 binary that supplies `rate_limit`; the distribution `/usr/bin/caddy` does not
 contain that module.
 
+After installing the gateway unit, both Caddy overrides, and the generated JSON,
+record their live bytes under the gateway role. This is separate from
+`RUNTIME_SHA256SUMS`, which already covers the custom Caddy binary and Bun:
+
+```bash
+sudo /srv/pirate-hns-gateway/current/bin/record-installed-files.sh \
+  --deploy-root /srv/pirate-hns-gateway \
+  /etc/systemd/system/pirate-hns-public-gateway.service \
+  /etc/systemd/system/caddy.service.d/20-rate-limited.conf \
+  /etc/systemd/system/caddy.service.d/30-production-json.conf \
+  /etc/caddy/caddy.json
+```
+
+Create `/etc/pirate-deployment-verify/gateway.env` with
+`DEPLOY_ROOT=/srv/pirate-hns-gateway` and the shared alert settings. Run
+`pirate-deployment-verify@gateway.service` once, then enable
+`pirate-deployment-verify@gateway.timer`; application health monitoring does
+not replace deployment-drift verification.
+
 The builder fails closed unless the adapted input contains exactly the expected
 tagged catchall policy. The resulting first policy matches
 `verifier.pirate.sc` and performs normal SNI certificate selection; the second

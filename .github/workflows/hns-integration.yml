@@ -55,7 +55,7 @@ jobs:
           fi
 
           changed="$(git diff --name-only "$base_ref"...HEAD)"
-          if grep -Eq '^(.github/workflows/hns-integration.yml|services/verifier/hns/|ops/vps/hns-(authoritative-dns|secondary-dns|local-test)/)' <<< "$changed"; then
+          if grep -Eq '^(.github/workflows/hns-integration.yml|services/verifier/hns/|ops/vps/hns-(authoritative-dns|secondary-dns|local-test|verifier)/)' <<< "$changed"; then
             echo "dns=true" >> "$GITHUB_OUTPUT"
           else
             echo "dns=false" >> "$GITHUB_OUTPUT"
@@ -87,6 +87,7 @@ jobs:
 
       - name: Run primary, secondary, DNSSEC, TSIG, and TLSA integration
         run: |
+          bash ops/vps/hns-verifier/hns-verifier-role.test.sh
           bash ops/vps/hns-local-test/run.sh
           bash ops/vps/hns-authoritative-dns/rrsig-health.test.sh
           bash ops/vps/hns-authoritative-dns/dane-health.test.sh

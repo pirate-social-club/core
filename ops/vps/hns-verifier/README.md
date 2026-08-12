@@ -52,10 +52,69 @@ Expose the public API through a neutral verifier hostname, for example:
 
 - `https://verifier.pirate.sc/hns`
 
-Recommended deploy root:
+Dedicated deploy root:
 
-- `/srv/pirate-hns/app`
-- `/srv/pirate-hns/config`
+- `/srv/pirate-hns-verifier/current`
+- `/srv/pirate-hns-verifier/app`
+- `/srv/pirate-hns-verifier/config`
+
+Do not reuse `/srv/pirate-hns`. That root belongs to the state-backup role and
+has an independent app pin and rollback lifecycle. Sharing its `app` symlink
+causes either role's deployment to invalidate the other's declared app commit.
+
+## Release and atomic cutover
+
+Build both immutable releases from the same clean `origin/main` commit:
+
+```bash
+core_commit="$(git rev-parse HEAD)"
+bash ops/vps/deployment-tooling/make-app-release.sh /tmp/hns-verifier-release \
+  --commit "$core_commit"
+bash ops/vps/deployment-tooling/make-release.sh ops/vps/hns-verifier \
+  /tmp/hns-verifier-release --app-commit "$core_commit"
+```
+
+The release commands fail unless both commits are ancestors of the locally
+fetched `origin/main`. An approved disconnected emergency must use the explicit
+`--break-glass-non-main <incident-or-change-reference>` flag, which is recorded
+in release metadata.
+
+Prepare `/srv/pirate-hns-verifier`, copy both commit-named releases, render
+`config/hns-verifier.env` from the secret manager, and point `current` and
+`app` at those releases before changing the service unit. Pin the interpreter
+used by this role:
+
+```bash
+sudo sha256sum "$(readlink -f "$(command -v bun)")" \
+  | sudo tee /srv/pirate-hns-verifier/config/RUNTIME_SHA256SUMS >/dev/null
+```
+
+Only after the new root is complete, install the unit and switch the service in
+one operation window:
+
+```bash
+sudo install -m 0644 \
+  /srv/pirate-hns-verifier/current/systemd/pirate-hns-verifier.service \
+  /etc/systemd/system/pirate-hns-verifier.service
+sudo systemctl daemon-reload
+sudo systemctl restart pirate-hns-verifier.service
+sudo systemctl status --no-pager pirate-hns-verifier.service
+
+sudo /srv/pirate-hns-verifier/current/bin/record-installed-files.sh \
+  --deploy-root /srv/pirate-hns-verifier \
+  /etc/systemd/system/pirate-hns-verifier.service
+sudo /srv/pirate-hns-verifier/current/bin/deployment-status.sh \
+  --deploy-root /srv/pirate-hns-verifier --verify
+```
+
+Create `/etc/pirate-deployment-verify/verifier.env` for the dedicated root and
+enable `pirate-deployment-verify@verifier.timer` only after the one-shot
+verification succeeds. The state-backup role remains on `/srv/pirate-hns`; do
+not repoint its app symlink until the verifier is healthy on the dedicated
+root. Then follow the state-backup role's
+[shared-app realignment](../hns-state-backup/README.md#realign-the-app-after-the-verifier-cutover)
+and require a clean backup deployment verification before enabling its drift
+timer.
 
 Install the BIND client tools providing `/usr/bin/delv` and `/usr/bin/dig`
 before starting the unit. The tracked systemd service refuses to start without

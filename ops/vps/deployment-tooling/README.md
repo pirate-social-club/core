@@ -33,7 +33,8 @@ $DEPLOY_ROOT/
 └── shared/                               persistent state (databases, keys)
 ```
 
-Releases are immutable and built only from clean, exact git commits.
+Releases are immutable and built only from clean, exact git commits that are
+ancestors of the locally fetched `refs/remotes/origin/main`.
 Configuration and state never live inside a release.
 
 ## Building a release (operator machine, clean checkout)
@@ -48,6 +49,13 @@ extracts the pinned image digest and container name from the role's
 `compose.yaml`, and writes `DEPLOYMENT` + `SHA256SUMS`. Copy
 `releases/<commit>` to the host, flip the `current` symlink, then record the
 configuration hash once:
+
+Both release builders fail closed when the selected core or app commit is not
+an ancestor of the locally available `origin/main`. They do not perform network
+access. CI and the operator are responsible for fetching the current protected
+branch before building. An approved disconnected emergency must pass
+`--break-glass-non-main <incident-or-change-reference>`; the builders record
+that exception in `DEPLOYMENT` rather than silently warning.
 
 A role that needs a separately built runtime artifact may provide an
 executable, tracked `bin/stage-release-assets.sh`. `make-release.sh` runs it
@@ -87,9 +95,9 @@ sudo $DEPLOY_ROOT/current/bin/deployment-status.sh --deploy-root $DEPLOY_ROOT
 
 Reports host/role, desired role and optional app commits, image digest, running
 container state and start time, release and app checksum integrity,
-host-runtime executable integrity, config-hash status, and (when `DB_PATH` is
-declared) the database mtime and zone count. Ends with `drift: none` or one
-line per finding.
+host-runtime executable integrity, installed host-file integrity, config-hash
+status, and (when `DB_PATH` is declared) the database mtime and zone count.
+Ends with `drift: none` or one line per finding.
 
 For a role that deliberately executes a host-managed binary, create the
 root-owned `$DEPLOY_ROOT/config/RUNTIME_SHA256SUMS` using standard `sha256sum`
@@ -101,6 +109,30 @@ digest-pinned containers, which already have stronger native checks.
 
 `verify-deployment.sh` runs the same checks and exits nonzero on any drift —
 for timers and scripts.
+
+## Installed host files
+
+Files copied or generated outside the immutable release are not executables and
+must not be added to `RUNTIME_SHA256SUMS`. Examples are installed systemd
+fragments and generated `/etc/caddy/caddy.json`.
+
+After installing the complete set owned by one role, record it in one call:
+
+```bash
+sudo $DEPLOY_ROOT/current/bin/record-installed-files.sh \
+  --deploy-root "$DEPLOY_ROOT" \
+  /etc/systemd/system/pirate-example.service \
+  /etc/example/generated.json
+```
+
+The helper writes `config/INSTALLED_SHA256SUMS` atomically from absolute paths
+and refreshes `CONFIG_SHA256`, so the installed-file manifest is itself
+covered. It preserves each installed path instead of resolving symlinks, so a
+later repoint that changes the deployed bytes is detected. A repoint to
+byte-identical content intentionally passes because this is a content-integrity
+manifest, not a symlink-identity ledger. Each invocation replaces the manifest:
+pass the complete set of installed files owned by that role. Daily deployment
+verification checks their live bytes.
 
 ## Daily drift timer
 

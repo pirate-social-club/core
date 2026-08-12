@@ -23,6 +23,8 @@ Each production executable belongs to exactly one integrity class:
 | Spaces verifier | `spaces-verifier-native` | Release-contained | Built from the exact clean core commit and included in release checksums. |
 | Spaces verifier | `spaced` | Host-pinned executable | External chain reader and root-pubkey trust input; highest semantic severity. |
 | Spaces verifier | `bun` | Host-pinned executable | Interpreter for the entire verified app tree. |
+| HNS verifier | full app source tree | Release-contained | Dedicated app commit, complete file set, and checksums are verified independently of the backup role. |
+| HNS verifier | `bun` | Host-pinned executable | Interpreter for the dedicated verifier app tree. |
 | HNS gateway | full app source tree | Release-contained | App commit, complete file set, and checksums are verified. |
 | HNS gateway | `bun` | Host-pinned executable | Interpreter for gateway routing and authorization logic. |
 | Public TLS edge | custom `pirate-caddy` | Host-pinned executable | Terminates WebPKI/DANE TLS and supplies the rate-limit module. |
@@ -38,3 +40,8 @@ verification to fail even if every role and app file remains pristine.
 Whenever a unit gains a new interpreter, daemon, or helper outside its release,
 the reviewer must classify it here before deployment. Prefer moving it into the
 release; use a host pin only where release containment is impractical.
+
+Installed systemd fragments and generated Caddy JSON are not executables. Each
+owning role records those absolute paths in `config/INSTALLED_SHA256SUMS`; the
+manifest is covered by `CONFIG_SHA256`, and deployment verification checks the
+installed bytes separately from `RUNTIME_SHA256SUMS`.

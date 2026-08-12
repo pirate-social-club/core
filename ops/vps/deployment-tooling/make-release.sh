@@ -6,6 +6,7 @@ set -euo pipefail
 #   make-release.sh <role-dir> <output-root> [--expect-running true|false]
 #     [--db-path REL] [--app-commit COMMIT] [--app-link REL]
 #     [--monitored-container NAME]
+#     [--break-glass-non-main INCIDENT_OR_CHANGE_REFERENCE]
 #
 # Example:
 #   make-release.sh ops/vps/hns-secondary-dns /tmp/ns2-out --expect-running false \
@@ -17,7 +18,8 @@ set -euo pipefail
 # release directory to $DEPLOY_ROOT/releases/ on the host and flips the
 # `current` symlink. Configuration and persistent data live outside releases.
 #
-# Refuses to run from a dirty tree: deployments must map to exact commits.
+# Refuses dirty trees and commits outside locally fetched origin/main unless an
+# approved break-glass reference is recorded.
 
 role_dir="${1:?usage: make-release.sh <role-dir> <output-root> [flags]}"
 output_root="${2:?usage: make-release.sh <role-dir> <output-root> [flags]}"
@@ -28,6 +30,7 @@ db_path=""
 app_commit=""
 app_link="app"
 monitored_container=""
+break_glass_reason=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --expect-running) shift; expect_running="${1:?}" ;;
@@ -35,6 +38,7 @@ while [[ $# -gt 0 ]]; do
     --app-commit) shift; app_commit="${1:?}" ;;
     --app-link) shift; app_link="${1:?}" ;;
     --monitored-container) shift; monitored_container="${1:?}" ;;
+    --break-glass-non-main) shift; break_glass_reason="${1:?}" ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
   shift
@@ -63,6 +67,16 @@ if [[ -n "$(git status --porcelain)" ]]; then
 fi
 
 core_commit="$(git rev-parse HEAD)"
+source "$repo_root/ops/vps/deployment-tooling/git-provenance.sh"
+assert_release_provenance "$core_commit" "$break_glass_reason" "$repo_root"
+core_provenance="$RELEASE_PROVENANCE"
+app_provenance=""
+if [[ -n "$app_commit" ]]; then
+  git cat-file -e "$app_commit^{commit}" 2>/dev/null \
+    || { echo "app commit does not exist locally: $app_commit" >&2; exit 1; }
+  assert_release_provenance "$app_commit" "$break_glass_reason" "$repo_root"
+  app_provenance="$RELEASE_PROVENANCE"
+fi
 release_dir="$output_root/releases/$core_commit"
 if [[ -e "$release_dir" ]]; then
   echo "release already exists: $release_dir" >&2
@@ -78,7 +92,7 @@ git ls-files -z -- "$role_dir" | while IFS= read -r -d '' f; do
 done
 
 tooling_dir="ops/vps/deployment-tooling"
-for script in deployment-status.sh verify-deployment.sh alert-on-failure.sh heartbeat.sh; do
+for script in deployment-status.sh verify-deployment.sh alert-on-failure.sh heartbeat.sh record-installed-files.sh; do
   cp "$tooling_dir/$script" "$release_dir/bin/$script"
   chmod 0755 "$release_dir/bin/$script"
 done
@@ -150,9 +164,15 @@ fi
 {
   echo "ROLE=$(basename "$role_dir")"
   echo "CORE_COMMIT=$core_commit"
+  echo "CORE_PROVENANCE=$core_provenance"
+  echo "PROVENANCE_MAIN_REF=$DEPLOYMENT_MAIN_REF"
   if [[ -n "$app_commit" ]]; then
     echo "APP_COMMIT=$app_commit"
+    echo "APP_PROVENANCE=$app_provenance"
     echo "APP_LINK=$app_link"
+  fi
+  if [[ "$core_provenance" == "break-glass" || "$app_provenance" == "break-glass" ]]; then
+    echo "PROVENANCE_BREAK_GLASS_REFERENCE=$break_glass_reason"
   fi
   [[ -n "$image_digest" ]] && echo "IMAGE_DIGEST=$image_digest"
   [[ -n "$container_name" ]] && echo "CONTAINER_NAME=$container_name"

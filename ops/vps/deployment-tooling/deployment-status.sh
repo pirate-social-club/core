@@ -85,16 +85,21 @@ fi
 
 role="${dep[ROLE]:-unknown}"
 core_commit="${dep[CORE_COMMIT]:-}"
+core_provenance="${dep[CORE_PROVENANCE]:-legacy-unrecorded}"
 image_digest="${dep[IMAGE_DIGEST]:-}"
 container_name="${dep[CONTAINER_NAME]:-}"
 expect_running="${dep[EXPECT_RUNNING]:-true}"
 app_commit="${dep[APP_COMMIT]:-}"
+app_provenance="${dep[APP_PROVENANCE]:-legacy-unrecorded}"
 app_link="${dep[APP_LINK]:-app}"
 
 note "host:    $(hostname -s)  role: $role"
-note "desired: core ${core_commit:-unknown}  image ${image_digest:-unpinned}"
+note "desired: core ${core_commit:-unknown}  provenance $core_provenance  image ${image_digest:-unpinned}"
 if [[ -n "$app_commit" ]]; then
-  note "desired: app  $app_commit"
+  note "desired: app  $app_commit  provenance $app_provenance"
+fi
+if [[ "$core_provenance" == "break-glass" || "$app_provenance" == "break-glass" ]]; then
+  note "warning:  deployment provenance used recorded break-glass authority"
 fi
 
 if [[ -n "$release_dir" && -n "$core_commit" ]]; then
@@ -139,6 +144,11 @@ if [[ -n "$app_commit" ]]; then
       recorded_app_commit="$(sed -n 's/^APP_COMMIT=//p' "$app_metadata" | head -1)"
       if [[ "$recorded_app_commit" != "$app_commit" ]]; then
         mark_drift "app DEPLOYMENT says ${recorded_app_commit:-unknown} but role DEPLOYMENT says $app_commit"
+      fi
+      recorded_app_provenance="$(sed -n 's/^APP_PROVENANCE=//p' "$app_metadata" | head -1)"
+      if [[ "$app_provenance" != "legacy-unrecorded" \
+        && "$recorded_app_provenance" != "$app_provenance" ]]; then
+        mark_drift "app provenance says ${recorded_app_provenance:-unknown} but role DEPLOYMENT says $app_provenance"
       fi
     fi
 
@@ -213,6 +223,25 @@ if [[ -f "$runtime_sums" ]]; then
   fi
 else
   note "runtime: no host executable manifest declared"
+fi
+
+# --- installed host file integrity ------------------------------------------
+
+# Role-owned files copied or generated outside the release (for example a
+# systemd fragment or /etc/caddy/caddy.json) are distinct from executables in
+# RUNTIME_SHA256SUMS. The install step records their absolute paths here.
+installed_sums="$deploy_root/config/INSTALLED_SHA256SUMS"
+if [[ -f "$installed_sums" ]]; then
+  installed_count="$(grep -Ec '^[a-f0-9]{64}  /' "$installed_sums" || true)"
+  if [[ "$installed_count" -eq 0 ]]; then
+    mark_drift "installed file manifest is empty or malformed"
+  elif sha256sum --check --quiet "$installed_sums" >/dev/null 2>&1; then
+    note "installed: $installed_count host files checksums OK"
+  else
+    mark_drift "installed host file checksum mismatch"
+  fi
+else
+  note "installed: no host file manifest declared"
 fi
 
 # --- configuration hash ------------------------------------------------------
