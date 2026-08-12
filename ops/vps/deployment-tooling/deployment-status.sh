@@ -208,6 +208,28 @@ else
   note "running: no CONTAINER_NAME declared; container checks skipped"
 fi
 
+# Locally built images have no registry RepoDigest. Release construction can
+# instead bind one or more container names to Docker's content-addressed image
+# ID, joining the tracked recipe commit to the exact bytes launched on-host.
+for key in "${!dep[@]}"; do
+  [[ "$key" == LOCAL_IMAGE_ID_* ]] || continue
+  local_image_record="${dep[$key]}"
+  local_container="${local_image_record%%=*}"
+  expected_local_image_id="${local_image_record#*=}"
+  if [[ ! "$local_container" =~ ^[A-Za-z0-9_.-]+$ \
+    || ! "$expected_local_image_id" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+    mark_drift "$key is malformed"
+    continue
+  fi
+  if ! actual_local_image_id="$(docker inspect --format '{{.Image}}' "$local_container" 2>/dev/null)"; then
+    mark_drift "local-image container $local_container does not exist"
+  elif [[ "$actual_local_image_id" == "$expected_local_image_id" ]]; then
+    note "running: local image ID matches for $local_container"
+  else
+    mark_drift "local-image container $local_container uses $actual_local_image_id, expected $expected_local_image_id"
+  fi
+done
+
 # --- host runtime executable integrity --------------------------------------
 
 # Some semantically load-bearing executables are intentionally host-managed

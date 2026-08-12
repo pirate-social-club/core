@@ -6,6 +6,7 @@ set -euo pipefail
 #   make-release.sh <role-dir> <output-root> [--expect-running true|false]
 #     [--db-path REL] [--app-commit COMMIT] [--app-link REL]
 #     [--monitored-container NAME]
+#     [--local-image-id CONTAINER=sha256:IMAGE_ID]...
 #     [--break-glass-non-main INCIDENT_OR_CHANGE_REFERENCE]
 #
 # Example:
@@ -30,6 +31,7 @@ db_path=""
 app_commit=""
 app_link="app"
 monitored_container=""
+local_image_ids=()
 break_glass_reason=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -38,10 +40,18 @@ while [[ $# -gt 0 ]]; do
     --app-commit) shift; app_commit="${1:?}" ;;
     --app-link) shift; app_link="${1:?}" ;;
     --monitored-container) shift; monitored_container="${1:?}" ;;
+    --local-image-id) shift; local_image_ids+=("${1:?}") ;;
     --break-glass-non-main) shift; break_glass_reason="${1:?}" ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
   shift
+done
+
+for local_image in "${local_image_ids[@]}"; do
+  if [[ ! "$local_image" =~ ^[A-Za-z0-9_.-]+=sha256:[a-f0-9]{64}$ ]]; then
+    echo "--local-image-id must be CONTAINER=sha256:<64 lowercase hex characters>" >&2
+    exit 2
+  fi
 done
 
 if [[ -n "$app_commit" && ! "$app_commit" =~ ^[a-f0-9]{40}$ ]]; then
@@ -176,6 +186,11 @@ fi
   fi
   [[ -n "$image_digest" ]] && echo "IMAGE_DIGEST=$image_digest"
   [[ -n "$container_name" ]] && echo "CONTAINER_NAME=$container_name"
+  local_image_index=0
+  for local_image in "${local_image_ids[@]}"; do
+    local_image_index=$((local_image_index + 1))
+    echo "LOCAL_IMAGE_ID_${local_image_index}=$local_image"
+  done
   echo "EXPECT_RUNNING=$expect_running"
   [[ -n "$db_path" ]] && echo "DB_PATH=$db_path"
   echo "DEPLOYED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)"

@@ -79,6 +79,19 @@ docker compose up -d
 docker compose ps
 ```
 
+When constructing the immutable role release, bind the locally built image to
+its content-addressed Docker ID after the build above:
+
+```bash
+observer_image_id="$(docker inspect --format='{{.Image}}' pirate-hsd-observer)"
+bash ops/vps/deployment-tooling/make-release.sh ops/vps/hns-chain-observer /tmp/observer-out \
+  --expect-running true \
+  --local-image-id "pirate-hsd-observer=$observer_image_id"
+```
+
+The release commit identifies the tracked Dockerfile and pinned inputs; the
+recorded image ID identifies the exact local image bytes launched from them.
+
 Do not expose ports `12037`, `5349`, or `5350` in the host firewall. The compose
 file uses host networking only so the separately managed verifier can reach the
 RPC listener on loopback; the image disables hsd's DNS servers and binds RPC to
