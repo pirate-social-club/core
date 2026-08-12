@@ -38,7 +38,9 @@
  *   never skippable — that is exactly how a stale config once hid live shards
  *   from a fleet migration.
  * - Anything not positively understood (partial objects, ledger present but
- *   objects absent, checksum mismatch) is reported and NOT written to.
+ *   objects absent, checksum mismatch) is reported and NOT written to. The one
+ *   exception is an exact-checksum ledger-without-objects state when BOTH the
+ *   reviewed migration spec and an explicit operator flag authorize repair.
  * - Schema + ledger move together in one file, so a shard is never left with the
  *   objects but no ledger row (or vice versa).
  * - A run that used `--resume-file` or `--only` is an execution record, NOT proof
@@ -93,6 +95,13 @@ export type MigrationSpec = {
    * overwrite non-null application data.
    */
   ledgerBackfillSql?: string
+  /**
+   * Permit an explicit repair when the exact migration checksum is already in
+   * the ledger but every migration-owned schema marker is absent. Partial
+   * states and checksum drift remain blocking. The repair replays the original
+   * migration bytes without touching the already-correct ledger row.
+   */
+  repairLedgerWithoutObjects?: boolean
   /** Short human description used in --help. */
   description: string
 }
@@ -101,6 +110,7 @@ export type Status =
   | "ok_recorded" // ledger + all objects, checksum matches -> nothing to do
   | "needs_migration" // no ledger, no objects -> apply DDL + ledger
   | "needs_ledger_backfill" // objects present, ledger missing -> ledger INSERT only
+  | "needs_ledger_repair" // exact ledger present, objects absent, explicit reviewed repair -> replay DDL only
   | "checksum_mismatch" // ledger records a DIFFERENT migration of this name -> refuse
   | "ledger_without_objects" // ledger says applied, objects absent -> refuse
   | "partial_objects" // some but not all objects -> refuse
@@ -126,7 +136,7 @@ export type ShardResult = {
   database_name: string
   database_id: string
   status: Status
-  action: "none" | "applied_migration" | "backfilled_ledger"
+  action: "none" | "applied_migration" | "backfilled_ledger" | "repaired_ledger_without_objects"
   row_counts?: Record<string, number>
   classification_duration_ms?: number
   apply_duration_ms?: number
@@ -144,6 +154,7 @@ export type Options = {
   confirmTimeTravel: boolean
   allowNonMain: boolean
   repairQuarantinedOnly: boolean
+  repairLedgerWithoutObjects: boolean
   manifest: string
   resumeFile?: string
   only?: string
@@ -337,6 +348,21 @@ export function classifyRow(
   return { status: "needs_migration" }
 }
 
+/**
+ * Preserve ledger_without_objects as blocking unless two independent controls
+ * agree: the reviewed spec declares this migration repairable, and the operator
+ * explicitly requests that repair for this run.
+ */
+export function planLedgerWithoutObjectsRepair(
+  spec: MigrationSpec,
+  status: Status,
+  requested: boolean,
+): Status {
+  return requested && spec.repairLedgerWithoutObjects === true && status === "ledger_without_objects"
+    ? "needs_ledger_repair"
+    : status
+}
+
 export function usage(spec: MigrationSpec, scriptPath: string): never {
   console.error(`
 Apply community-template ${spec.migration} across allocated+loaded community shards.
@@ -364,6 +390,10 @@ Options:
                            Permit --only to target that one explicitly
                            quarantined database for in-place remediation. Never
                            includes other quarantined shards.
+  --repair-ledger-without-objects
+                           Replay the original migration bytes when the exact
+                           ledger checksum exists but every owned object is
+                           absent. Requires opt-in from the migration spec.
 
 Read-only by default. Blank, never-loaded pool databases are never touched.
 `)
@@ -396,6 +426,7 @@ export function parseArgs(spec: MigrationSpec, scriptPath: string): Options {
     confirmTimeTravel: argv.includes("--confirm-time-travel"),
     allowNonMain: argv.includes("--allow-non-main"),
     repairQuarantinedOnly: argv.includes("--repair-quarantined-only"),
+    repairLedgerWithoutObjects: argv.includes("--repair-ledger-without-objects"),
     manifest: resolve(get("--manifest") ?? `tmp/${slug}-${prod ? "prod" : "staging"}-manifest.json`),
     resumeFile: get("--resume-file") ? resolve(get("--resume-file")!) : undefined,
     only: get("--only"),
@@ -410,6 +441,9 @@ export function parseArgs(spec: MigrationSpec, scriptPath: string): Options {
   }
   if (options.repairQuarantinedOnly && !options.only) {
     throw new Error("--repair-quarantined-only requires --only DB_NAME")
+  }
+  if (options.repairLedgerWithoutObjects && spec.repairLedgerWithoutObjects !== true) {
+    throw new Error(`--repair-ledger-without-objects is not authorized by ${spec.migration}`)
   }
   // A concurrency of 0 (or NaN, from a typo) would spawn no workers, do no work,
   // and still write a clean-looking manifest.
@@ -557,6 +591,7 @@ async function classify(
   spec: MigrationSpec,
   db: string,
   checksum: string,
+  includeRowCounts = true,
 ): Promise<{ status: Status; detail?: string; row_counts?: Record<string, number> }> {
   const rows = (
     await wranglerJsonReadOnly(options, db, ["--command", classificationSql(spec)])
@@ -564,7 +599,11 @@ async function classify(
   const classification = classifyRow(spec, rows, checksum)
   const countsSql = rowCountSql(spec)
   let rowCounts: Record<string, number> | undefined
-  if (countsSql && spec.requiredTables.every((table) => Number(rows[`req_${table}`] ?? 0) === 1)) {
+  if (
+    includeRowCounts &&
+    countsSql &&
+    spec.requiredTables.every((table) => Number(rows[`req_${table}`] ?? 0) === 1)
+  ) {
     const countRows = (
       await wranglerJsonReadOnly(options, db, ["--command", countsSql])
     )[0].results[0] as Record<string, number | string>
@@ -607,6 +646,15 @@ export function executionBody(sql: string, spec: MigrationSpec, checksum: string
   return `${sql.trim()}\n${ledgerStatement(spec, checksum)}\n`
 }
 
+/**
+ * Repair bytes for an exact ledger-without-objects state. The classifier has
+ * already verified the recorded checksum, so the ledger is deliberately left
+ * untouched while the original migration bytes restore the missing schema.
+ */
+export function ledgerWithoutObjectsRepairBody(sql: string): string {
+  return `${sql.trim()}\n`
+}
+
 async function applyToShard(
   options: Options,
   spec: MigrationSpec,
@@ -614,7 +662,7 @@ async function applyToShard(
   status: Status,
   sql: string,
   checksum: string,
-): Promise<"applied_migration" | "backfilled_ledger"> {
+): Promise<"applied_migration" | "backfilled_ledger" | "repaired_ledger_without_objects"> {
   if (status === "needs_ledger_backfill") {
     // Objects already exist. DO NOT replay the DDL — it would fail. A spec may
     // include a repeat-safe data repair before the ledger is recorded; keep the
@@ -623,6 +671,13 @@ async function applyToShard(
     await writeFile(file, ledgerBackfillBody(spec, checksum))
     await wranglerJson(options, db, ["--file", file])
     return "backfilled_ledger"
+  }
+
+  if (status === "needs_ledger_repair") {
+    const file = `/tmp/${spec.migration.split("_")[0]}-${db}-ledger-without-objects-repair.sql`
+    await writeFile(file, ledgerWithoutObjectsRepairBody(sql))
+    await wranglerJson(options, db, ["--file", file])
+    return "repaired_ledger_without_objects"
   }
 
   const file = `/tmp/${spec.migration.split("_")[0]}-${db}.sql`
@@ -774,15 +829,35 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
       const base = { binding: t.binding, database_name: t.name, database_id: t.id }
       try {
         const classificationStartedAt = performance.now()
-        const { status, detail, row_counts } = await classify(options, spec, t.name, checksum)
+        const initial = await classify(options, spec, t.name, checksum)
+        let status = planLedgerWithoutObjectsRepair(
+          spec,
+          initial.status,
+          options.repairLedgerWithoutObjects,
+        )
+        let detail = initial.detail
+        const row_counts = initial.row_counts
         const classificationDurationMs = Math.round(performance.now() - classificationStartedAt)
         let action: ShardResult["action"] = "none"
         let applyDurationMs: number | undefined
-        const writable = status === "needs_migration" || status === "needs_ledger_backfill"
+        const writable =
+          status === "needs_migration" ||
+          status === "needs_ledger_backfill" ||
+          status === "needs_ledger_repair"
         if (options.execute && writable) {
           const applyStartedAt = performance.now()
           action = await applyToShard(options, spec, t.name, status, sql, checksum)
           applyDurationMs = Math.round(performance.now() - applyStartedAt)
+          if (action === "repaired_ledger_without_objects") {
+            const verified = await classify(options, spec, t.name, checksum, false)
+            if (verified.status !== "ok_recorded") {
+              throw new Error(
+                `post-repair verification failed: ${verified.status}${verified.detail ? ` — ${verified.detail}` : ""}`,
+              )
+            }
+            status = verified.status
+            detail = `repaired exact ledger-without-objects state for ${spec.migration}`
+          }
           // Append the instant it lands, so a transient failure on a LATER shard
           // can never lose the record of this one. Keyed by migration AND shard:
           // another spec's entries must never satisfy this run.
@@ -849,6 +924,10 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
               database_name: options.only,
             }
           : null,
+        ledger_without_objects_repair: {
+          requested: options.repairLedgerWithoutObjects,
+          authorized_by_spec: spec.repairLedgerWithoutObjects === true,
+        },
         classified: results.length - skippedByResume,
         skipped_by_resume_file: skippedByResume,
         // A resume file skips shards WITHOUT reclassifying them, so a run that used
@@ -879,7 +958,12 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
         "obtain a full read-only verification of the fleet before declaring this done.",
     )
   } else {
-    const todo = results.filter((r) => r.status === "needs_migration" || r.status === "needs_ledger_backfill")
+    const todo = results.filter(
+      (r) =>
+        r.status === "needs_migration" ||
+        r.status === "needs_ledger_backfill" ||
+        r.status === "needs_ledger_repair",
+    )
     if (!options.resumeFile && !options.only && todo.length === 0) {
       console.log(`\nFULL VERIFICATION: all ${results.length} allocated+loaded shards are ok_recorded.`)
     } else {

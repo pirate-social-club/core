@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test"
 import { SPEC } from "./apply-song-study-fill-blank-d1-migration"
-import { classificationSql, classifyRow, rowCountSql } from "./lib/fleet-d1-migration"
+import {
+  classificationSql,
+  classifyRow,
+  ledgerWithoutObjectsRepairBody,
+  planLedgerWithoutObjectsRepair,
+  rowCountSql,
+} from "./lib/fleet-d1-migration"
 
 const CHECKSUM = "a".repeat(64)
 
@@ -52,6 +58,39 @@ describe("song study fill-blank fleet migration", () => {
 
   test("classifies the untouched pre-migration schema as needing migration", () => {
     expect(classifyRow(SPEC, row(), CHECKSUM)).toEqual({ status: "needs_migration" })
+  })
+
+  test("repairs only the exact ledger-without-objects state behind both opt-ins", () => {
+    const ledgerOnly = classifyRow(SPEC, row({ ledger_checksum: CHECKSUM }), CHECKSUM)
+    expect(ledgerOnly.status).toBe("ledger_without_objects")
+    expect(planLedgerWithoutObjectsRepair(SPEC, ledgerOnly.status, false)).toBe("ledger_without_objects")
+    expect(planLedgerWithoutObjectsRepair(SPEC, ledgerOnly.status, true)).toBe("needs_ledger_repair")
+    expect(
+      planLedgerWithoutObjectsRepair(
+        { ...SPEC, repairLedgerWithoutObjects: false },
+        ledgerOnly.status,
+        true,
+      ),
+    ).toBe("ledger_without_objects")
+    expect(
+      planLedgerWithoutObjectsRepair(
+        SPEC,
+        classifyRow(SPEC, row({ ledger_checksum: "b".repeat(64) }), CHECKSUM).status,
+        true,
+      ),
+    ).toBe("checksum_mismatch")
+  })
+
+  test("repair replays the original migration without duplicating or rewriting its ledger row", async () => {
+    const sql = await Bun.file(
+      new URL("../../db/community-template/migrations/1156_song_study_fill_blank.sql", import.meta.url),
+    ).text()
+    const body = ledgerWithoutObjectsRepairBody(sql)
+    expect(body.startsWith(sql.trim())).toBe(true)
+    expect(body).toContain("CREATE TABLE song_study_unit_cloze")
+    expect(body).not.toContain("INSERT INTO schema_migrations")
+    expect(body).not.toContain("DELETE FROM schema_migrations")
+    expect(body).not.toContain("UPDATE schema_migrations")
   })
 
   test("blocks every partially rebuilt combination", () => {

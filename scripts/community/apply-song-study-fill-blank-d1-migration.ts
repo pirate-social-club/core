@@ -28,6 +28,10 @@ export const SPEC: MigrationSpec = {
   // Two populated tables are rebuilt. Any partial state must be investigated
   // and rolled forward rather than replayed automatically.
   replayableDdl: false,
+  // The first staging rollout recorded this checksum without applying any of
+  // its owned objects. The shared runner may repair only that exact, zero-marker
+  // state and only behind --repair-ledger-without-objects.
+  repairLedgerWithoutObjects: true,
   description: "Persisted cloze definitions and widened fill-blank attempt/review discriminators.",
 }
 
