@@ -15,6 +15,7 @@ export const SPEC: MigrationSpec = {
       "idx_song_study_attempt_session_presentation",
       "idx_song_study_review_due",
     ],
+    forbiddenTables: ["song_study_attempt_next", "song_study_review_state_next"],
     tables: ["song_study_unit_cloze"],
     tableSqlContains: [
       { table: "song_study_attempt", fragments: ["'fill_blank'"] },

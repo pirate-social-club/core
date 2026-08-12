@@ -15,6 +15,7 @@ import {
   executionBody,
   isTransientWranglerFailure,
   ledgerBackfillBody,
+  rowCountSql,
   resumeDoneShards,
   resumeEntryKey,
   selectMigrationBindings,
@@ -393,6 +394,7 @@ describe("classificationSql", () => {
         columns: [{ table: "attempts", column: "placements_json" }],
         indexes: ["idx_cloze_status"],
         finalIndexes: ["idx_attempts_lookup"],
+        forbiddenTables: ["attempts_next"],
         tables: ["cloze"],
         tableSqlContains: [
           { table: "attempts", fragments: ["'fill_blank'"] },
@@ -406,7 +408,9 @@ describe("classificationSql", () => {
     const sql = classificationSql(spec)
     expect(sql).toContain("obj_table_fragment__attempts__0")
     expect(sql).toContain("obj_table_fragment__review_state__0")
-    expect(sql).toContain("metric_rows__attempts")
+    expect(sql).not.toContain("metric_rows__attempts")
+    expect(sql).toContain("forbidden_table__attempts_next")
+    expect(rowCountSql(spec)).toContain("metric_rows__attempts")
     expect(classifyRow(spec, {
       has_ledger: 1,
       ledger_checksum: CHECKSUM,
@@ -419,6 +423,19 @@ describe("classificationSql", () => {
       obj_table_fragment__review_state__0: 0,
       final_index__idx_attempts_lookup: 1,
     }, CHECKSUM).status).toBe("partial_objects")
+  })
+
+  test("rejects row-count probes that are not gated by required-table detection", () => {
+    const spec: MigrationSpec = {
+      migration: "9999_bad_counts.sql",
+      label: "community-template",
+      requiredTables: ["attempts"],
+      creates: { kind: "tables", tables: ["cloze"] },
+      rowCountTables: ["review_state"],
+      replayableDdl: false,
+      description: "test",
+    }
+    expect(() => rowCountSql(spec)).toThrow("rowCountTables must also be requiredTables: review_state")
   })
 
   test("can attest a required fragment in canonical table SQL", () => {

@@ -64,6 +64,8 @@ export type ObjectSpec =
       tableSqlContains?: readonly { table: string; fragments: readonly string[] }[]
       /** Existing names that must be present once any new migration marker exists. */
       finalIndexes?: readonly string[]
+      /** Intermediate rebuild tables that must never remain after the migration. */
+      forbiddenTables?: readonly string[]
     }
   | { kind: "tables"; tables: readonly string[] }
 
@@ -202,6 +204,9 @@ export function classificationSql(spec: MigrationSpec): string {
             ...(spec.creates.finalIndexes ?? []).map((index) =>
               `(SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='${index}') AS final_index__${index}`
             ),
+            ...(spec.creates.forbiddenTables ?? []).map((table) =>
+              `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${table}') AS forbidden_table__${table}`
+            ),
             ...(spec.creates.tables ?? []).map((table) =>
               `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${table}') AS obj_table__${table}`
             ),
@@ -220,11 +225,21 @@ export function classificationSql(spec: MigrationSpec): string {
     `(SELECT COALESCE(GROUP_CONCAT(checksum), '') FROM schema_migrations WHERE migration_name='${spec.migration}') AS ledger_checksum`,
     ...(required ? [required] : []),
     ...(objects ? [objects] : []),
-    ...(spec.rowCountTables ?? []).map((table) =>
-      `(SELECT COUNT(*) FROM '${table.replaceAll("'", "''")}') AS metric_rows__${table}`
-    ),
   ]
   return `SELECT\n  ${probes.join(",\n  ")}`
+}
+
+/** Kept separate so an absent required table is classified cleanly before it is counted. */
+export function rowCountSql(spec: MigrationSpec): string | null {
+  const tables = spec.rowCountTables ?? []
+  if (tables.length === 0) return null
+  const nonRequired = tables.filter((table) => !spec.requiredTables.includes(table))
+  if (nonRequired.length > 0) {
+    throw new Error(`rowCountTables must also be requiredTables: ${nonRequired.join(", ")}`)
+  }
+  return `SELECT\n  ${tables
+    .map((table) => `(SELECT COUNT(*) FROM '${table.replaceAll("'", "''")}') AS metric_rows__${table}`)
+    .join(",\n  ")}`
 }
 
 function objectNames(spec: MigrationSpec): readonly string[] {
@@ -259,6 +274,13 @@ function missingFinalInvariants(spec: MigrationSpec, rows: Record<string, number
     .map((index) => `index__${index}`)
 }
 
+function presentForbiddenObjects(spec: MigrationSpec, rows: Record<string, number | string>): readonly string[] {
+  if (spec.creates.kind !== "schema_objects") return []
+  return (spec.creates.forbiddenTables ?? [])
+    .filter((table) => Number(cell(rows, `forbidden_table__${table}`)) !== 0)
+    .map((table) => `table__${table}`)
+}
+
 /** Pure classification from an already-fetched row. Unit-testable. */
 export function classifyRow(
   spec: MigrationSpec,
@@ -276,8 +298,12 @@ export function classifyRow(
   const names = objectNames(spec)
   const present = names.filter((n) => Number(cell(rows, `obj_${n}`)) === 1)
   const missingFinal = missingFinalInvariants(spec, rows)
+  const forbiddenPresent = presentForbiddenObjects(spec, rows)
   const recorded = String(rows.ledger_checksum ?? "")
 
+  if (forbiddenPresent.length > 0) {
+    return { status: "partial_objects", detail: `forbidden intermediate object(s): ${forbiddenPresent.join(", ")}` }
+  }
   if (present.length > 0 && present.length < names.length) {
     return { status: "partial_objects", detail: `present: ${present.join(", ")}` }
   }
@@ -494,12 +520,19 @@ async function classify(
     await wranglerJson(options, db, ["--command", classificationSql(spec)])
   )[0].results[0] as Record<string, number | string>
   const classification = classifyRow(spec, rows, checksum)
-  const rowCounts = Object.fromEntries(
-    (spec.rowCountTables ?? []).map((table) => [table, Number(rows[`metric_rows__${table}`] ?? 0)]),
-  )
+  const countsSql = rowCountSql(spec)
+  let rowCounts: Record<string, number> | undefined
+  if (countsSql && spec.requiredTables.every((table) => Number(rows[`req_${table}`] ?? 0) === 1)) {
+    const countRows = (
+      await wranglerJson(options, db, ["--command", countsSql])
+    )[0].results[0] as Record<string, number | string>
+    rowCounts = Object.fromEntries(
+      (spec.rowCountTables ?? []).map((table) => [table, Number(countRows[`metric_rows__${table}`] ?? 0)]),
+    )
+  }
   return {
     ...classification,
-    ...(spec.rowCountTables?.length ? { row_counts: rowCounts } : {}),
+    ...(rowCounts ? { row_counts: rowCounts } : {}),
   }
 }
 

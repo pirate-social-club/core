@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { SPEC } from "./apply-song-study-fill-blank-d1-migration"
-import { classificationSql, classifyRow } from "./lib/fleet-d1-migration"
+import { classificationSql, classifyRow, rowCountSql } from "./lib/fleet-d1-migration"
 
 const CHECKSUM = "a".repeat(64)
 
@@ -19,8 +19,8 @@ function row(overrides: Record<string, number | string> = {}) {
     final_index__idx_song_study_attempt_review_unit: 1,
     final_index__idx_song_study_attempt_session_presentation: 1,
     final_index__idx_song_study_review_due: 1,
-    metric_rows__song_study_attempt: 0,
-    metric_rows__song_study_review_state: 0,
+    forbidden_table__song_study_attempt_next: 0,
+    forbidden_table__song_study_review_state_next: 0,
     ...overrides,
   }
 }
@@ -35,14 +35,19 @@ describe("song study fill-blank fleet migration", () => {
     expect(sql).toContain("final_index__idx_song_study_attempt_review_unit")
     expect(sql).toContain("final_index__idx_song_study_attempt_session_presentation")
     expect(sql).toContain("final_index__idx_song_study_review_due")
+    expect(sql).toContain("forbidden_table__song_study_attempt_next")
+    expect(sql).toContain("forbidden_table__song_study_review_state_next")
     expect(sql).toContain("name='song_study_attempt' AND instr(lower(sql), lower('''fill_blank''')) > 0")
     expect(sql).toContain("name='song_study_review_state' AND instr(lower(sql), lower('''fill_blank''')) > 0")
   })
 
-  test("records attempt and review-state volume in the classification query", () => {
+  test("counts attempt and review-state volume only after schema classification", () => {
     const sql = classificationSql(SPEC)
-    expect(sql).toContain("COUNT(*) FROM 'song_study_attempt'")
-    expect(sql).toContain("COUNT(*) FROM 'song_study_review_state'")
+    expect(sql).not.toContain("COUNT(*) FROM 'song_study_attempt'")
+    expect(sql).not.toContain("COUNT(*) FROM 'song_study_review_state'")
+    const counts = rowCountSql(SPEC)
+    expect(counts).toContain("COUNT(*) FROM 'song_study_attempt'")
+    expect(counts).toContain("COUNT(*) FROM 'song_study_review_state'")
   })
 
   test("classifies the untouched pre-migration schema as needing migration", () => {
@@ -72,6 +77,13 @@ describe("song study fill-blank fleet migration", () => {
     expect(classifyRow(SPEC, missingIndex, CHECKSUM)).toEqual({
       status: "partial_objects",
       detail: "missing final invariant(s): index__idx_song_study_attempt_session_presentation",
+    })
+  })
+
+  test("names an orphaned rebuild table in the partial-state diagnostic", () => {
+    expect(classifyRow(SPEC, row({ forbidden_table__song_study_attempt_next: 1 }), CHECKSUM)).toEqual({
+      status: "partial_objects",
+      detail: "forbidden intermediate object(s): table__song_study_attempt_next",
     })
   })
 
