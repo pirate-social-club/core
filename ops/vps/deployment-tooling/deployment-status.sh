@@ -94,6 +94,9 @@ app_provenance="${dep[APP_PROVENANCE]:-legacy-unrecorded}"
 app_link="${dep[APP_LINK]:-app}"
 
 note "host:    $(hostname -s)  role: $role"
+if [[ -z "${OPS_ALERT_WEBHOOK_URL:-}" ]]; then
+  note "heartbeat: not configured (OPS_ALERT_WEBHOOK_URL is unset)"
+fi
 note "desired: core ${core_commit:-unknown}  provenance $core_provenance  image ${image_digest:-unpinned}"
 if [[ -n "$app_commit" ]]; then
   note "desired: app  $app_commit  provenance $app_provenance"

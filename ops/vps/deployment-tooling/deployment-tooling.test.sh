@@ -15,10 +15,11 @@ set -euo pipefail
 #  10. verify fails when the current symlink points at the wrong release
 #  11. verify passes for a running container whose image digest matches the pin
 #  12. alert delivery reads bearer auth from a token file and fails closed when unreadable
-#  13. successful verification sends an authenticated role heartbeat
-#  14. installed host files are recorded and checked independently of runtimes
-#  15. release construction rejects non-main commits unless break-glass is recorded
-#  16. relative app output roots and missing-main diagnostics remain unambiguous
+#  13. status reports when deployment heartbeats are not configured
+#  14. successful verification sends an authenticated role heartbeat
+#  15. installed host files are recorded and checked independently of runtimes
+#  16. release construction rejects non-main commits unless break-glass is recorded
+#  17. relative app output roots and missing-main diagnostics remain unambiguous
 
 tooling_dir="$(cd "$(dirname "$0")" && pwd)"
 work="$(mktemp -d)"
@@ -168,6 +169,8 @@ status --record-config >/dev/null
 status --verify >/dev/null || fail "clean pre-launch deployment reported drift"
 clean_status="$(status)"
 grep -q "drift:   none" <<< "$clean_status" || fail "status did not report drift: none"
+grep -q "heartbeat: not configured (OPS_ALERT_WEBHOOK_URL is unset)" <<< "$clean_status" \
+  || fail "status did not report missing heartbeat configuration: $clean_status"
 grep -q "desired: app  $commit" <<< "$clean_status" \
   || fail "status omitted desired app commit: $clean_status"
 grep -q "desired: core $commit  provenance origin-main" <<< "$clean_status" \
@@ -178,6 +181,7 @@ grep -q "app:     $commit checksums OK" <<< "$clean_status" \
   || fail "status omitted app integrity: $clean_status"
 grep -q "runtime: 1 host executables checksums OK" <<< "$clean_status" \
   || fail "status omitted host runtime integrity: $clean_status"
+pass "status reports when deployment heartbeats are not configured"
 grep -q "installed: 1 host files checksums OK" <<< "$clean_status" \
   || fail "status omitted installed host file integrity: $clean_status"
 pass "verify reports and passes clean role + app deployment"
@@ -282,7 +286,7 @@ if OPS_ALERT_WEBHOOK_URL=https://api.example/internal/hns-edge-alerts \
 fi
 pass "alert delivery reads scoped bearer token and fails closed"
 
-# 13. successful verification heartbeat
+# 14. successful verification heartbeat
 export DOCKER_SHIM_DIGEST="1111111111111111111111111111111111111111111111111111111111111111"
 DEPLOY_ROOT="$deploy_root" \
 OPS_ALERT_WEBHOOK_URL=https://api.example/internal/hns-edge-alerts \
