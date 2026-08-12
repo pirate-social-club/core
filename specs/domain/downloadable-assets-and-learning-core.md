@@ -140,6 +140,15 @@ Paid file and deck publication must remain disabled until that defect is fixed,
 the same-request replay fixture passes, recovery of already stranded state is
 verified, and the fixed API is deployed. The launch gate is tracked by
 [API issue 625](https://github.com/pirate-social-club/api/issues/625).
+
+The scanner runtime has an independent launch dependency:
+[API PR 583](https://github.com/pirate-social-club/api/pull/583) must be updated
+onto the current frozen-image construction, pass required CI, merge, deploy,
+and produce the successful idle-exit tail/billing evidence defined below. At
+spec approval the PR remains open at commit
+`61f35e29bd98b68f38cab09cdf91dc1e23b3b213`; its review or implementation
+blockers are therefore on the Phase 3 critical path beside issue 625.
+
 Public/free publication has separate
 safety, compatibility, and quota gates and does not bypass them. A future
 mainnet launch remains subject to the existing mainnet-readiness contract.
@@ -648,15 +657,16 @@ the stop signal and the platform repeatedly signals the same idle instance.
 After one request, such an instance remains allocated indefinitely and makes
 any scale-to-zero cost estimate invalid.
 
-Phase 3 therefore depends on porting the tested shutdown behavior from API
-branch `fix/container-sigterm-shutdown-2026-07-17` at commit `61f35e29b`:
+Phase 3 therefore depends on porting the tested shutdown behavior from
+[API PR 583](https://github.com/pirate-social-club/api/pull/583), currently at
+commit `61f35e29bd98b68f38cab09cdf91dc1e23b3b213`:
 `tini` is the image `ENTRYPOINT` and PID 1, and the service installs a bounded
 graceful `SIGTERM`/`SIGINT` handler that closes idle and active HTTP
 connections and exits. At spec approval that commit is not an ancestor of API
-`origin/main` and has not supplied production shutdown evidence. The branch
-also predates the current dedicated frozen runtime manifests and must not be
-merged wholesale in a way that restores lockfile deletion or an unfrozen
-install. The scanner applies both properties from its first image.
+`origin/main` and has not supplied production shutdown evidence. The PR also
+predates the current dedicated frozen runtime manifests and must not be merged
+wholesale in a way that restores lockfile deletion or an unfrozen install. The
+scanner applies both properties from its first image.
 
 Before scanner cost or capacity evidence is accepted, a deployed non-production
 instance must handle a real scan, become idle, receive the platform expiry
@@ -1799,10 +1809,10 @@ waived or trialed first on a live small shard.
   inspection, mandatory malware/active-content scanning, buyer reporting,
   takedown/emergency controls, quotas, retention, and both reconciliation
   sweepers.
-- Port the tested container shutdown behavior from API branch
-  `fix/container-sigterm-shutdown-2026-07-17` without regressing the current
-  dedicated frozen runtime manifests, and retain deployed tail/billing evidence
-  that an invoked instance actually exits to zero.
+- Land the tested container shutdown behavior through
+  [API PR 583](https://github.com/pirate-social-club/api/pull/583) without
+  regressing the current dedicated frozen runtime manifests, and retain deployed
+  tail/billing evidence that an invoked instance actually exits to zero.
 - Deploy the digest-pinned, reproducible scanner container, source-object
   broker, result/DLQ handling, clean/malicious corpus gate, rescan watermark,
   plaintext lifecycle audit, and fully loaded scan/storage cost controls.
