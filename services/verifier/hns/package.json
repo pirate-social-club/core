@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "audit:activated-public-dns": "bun scripts/audit-activated-public-dns.ts",
     "audit:app-records": "bun scripts/audit-app-records.ts",
     "start": "bun src/server.ts"
   }

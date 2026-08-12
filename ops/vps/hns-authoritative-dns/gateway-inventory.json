@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "hns_doh_endpoints": [
+    "https://dns.pirate.sc/dns-query"
+  ],
+  "gateway_ipv4": [
+    "94.103.168.161"
+  ]
+}
