@@ -6,6 +6,7 @@ role="$(cd "$here/.." && pwd)"
 patch_file="$role/patches/ambient-ci-0.16.0-npm-retry.patch"
 
 test -r "$patch_file"
+git apply --numstat "$patch_file" >/dev/null
 
 # Local and other non-HTTP lock entries must be ignored before URL parsing.
 # Reordering these statements would restore the parse failure seen on a

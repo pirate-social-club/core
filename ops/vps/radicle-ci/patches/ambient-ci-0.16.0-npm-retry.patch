@@ -33,7 +33,7 @@ index 3665d76..3ef3972 100644
              let filename = npm_dir.join(name);
              let dir = filename
                  .parent()
-@@ -51,7 +60,23 @@ impl NpmGet {
+@@ -51,7 +60,25 @@ impl NpmGet {
                  .map_err(|err| NpmError::UrlParse(p.resolved.clone(), err))?;
              let filename = npm_dir.join(format!("{}.tgz", name));
 -            http_get_to_file(url.as_str(), &filename)
