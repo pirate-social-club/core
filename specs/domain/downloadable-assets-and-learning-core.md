@@ -643,6 +643,18 @@ definition digest, resulting image digest, SBOM, and regression-corpus result.
 Every scan result records the resulting image/engine/definition identities, so
 an historical decision can be reproduced and audited after definitions change.
 
+The control plane persists this authority in four deliberately separate
+records. `content_security_scanner_releases` pins the promoted supply-chain
+identity and corpus evidence; `content_security_scan_jobs` is the mutable,
+retryable coordination record; `content_security_scan_results` is append-only
+per-attempt evidence; and `content_source_read_audits` is append-only evidence
+for the corresponding hash-bound plaintext read. Only one queued, running, or
+retryable job may exist for a blob at a time. Queue messages carry only the job
+ID. The consumer resolves the expected blob hash/size, policy, and promoted
+release from the ledger, and a result can update the blob projection only when
+all of them match. Neither result nor read-audit records contain an object key,
+filename, user-entered content, or unrestricted error text.
+
 This choice keeps customer bytes inside the platform boundary and adds no
 third-party file-scanning recipient or per-request vendor fee. It deliberately
 does not use an external malware API. Replacing it with one requires a new
