@@ -67,4 +67,12 @@ grep -Fq '"log": "WARN"' "$rad_home/config.json"
 test "$(systemd-analyze cat-config systemd/journald.conf \
   | awk -F= '/^SystemMaxUse=/ { value=$2 } END { print value }')" = 256M
 
+# The proof backup is installed only after its dedicated age recipient and
+# immutable remote exist. Once its root-only config exists, it becomes part of
+# every host verification; a successful timer is not a substitute for the
+# separate off-host restore drill.
+if [[ -f /etc/pirate-radicle/proof-state-backup.env ]]; then
+  /usr/local/libexec/pirate-radicle/verify-proof-state-backup
+fi
+
 echo "Radicle seed and isolated CI host verification passed."

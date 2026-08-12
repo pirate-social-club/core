@@ -1,0 +1,335 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+umask 077
+
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+# The installed unit points this at its installed copy. Tests use the tracked
+# shared helper directly.
+# shellcheck disable=SC1090
+source "${IMMUTABLE_BACKUP_LIBRARY:-$script_dir/immutable-backup.sh}"
+
+require_env() {
+  local name=$1
+  if [[ -z "${!name:-}" ]]; then
+    echo "missing required environment variable: $name" >&2
+    exit 1
+  fi
+}
+
+require_command() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "required command not found: $1" >&2
+    exit 1
+  fi
+}
+
+require_absolute_path() {
+  local name=$1 value=${!1:-}
+  if [[ "$value" != /* || "$value" == *$'\n'* ]]; then
+    echo "$name must be an absolute single-line path" >&2
+    exit 1
+  fi
+}
+
+: "${PROOF_BACKUP_STAGING_ROOT:=/var/lib/radicle-proof-backup}"
+: "${RAD_STORAGE:=/var/lib/radicle/storage}"
+: "${PROMOTION_STATE_DIR:=/var/lib/promotion}"
+: "${PROMOTION_CONTROLLER_UNIT:=promotion-controller.service}"
+: "${PROOF_BACKUP_SIGNING_KEY:=/etc/pirate-radicle/proof-backup-signing-key}"
+: "${PROOF_BACKUP_SIGNING_PUBLIC_KEY:=$PROOF_BACKUP_SIGNING_KEY.pub}"
+: "${PROOF_BACKUP_RIDS:=rad:z3qZx2qJDkjxfjBSPwRva4DutYJTh rad:z2g5M6jqfcwzJobizqRbNCakDsdpU rad:zWrB9TTk3sZ5SfSPv5Z8gbq5sbvb rad:z26RNpiPMzH8nyaca12meKeT2HMBy rad:zK3mrwKm8bG7w9iiRuZAAX9eQyWw}"
+
+for name in BACKUP_RCLONE_REMOTE BACKUP_AGE_RECIPIENT \
+  BACKUP_RETENTION_VERIFY CI_PRODUCER_NID; do
+  require_env "$name"
+done
+for name in PROOF_BACKUP_STAGING_ROOT RAD_STORAGE PROMOTION_STATE_DIR \
+  PROOF_BACKUP_SIGNING_KEY PROOF_BACKUP_SIGNING_PUBLIC_KEY; do
+  require_absolute_path "$name"
+done
+if ! [[ "$CI_PRODUCER_NID" =~ ^z[1-9A-HJ-NP-Za-km-z]+$ ]]; then
+  echo "CI_PRODUCER_NID is not a valid Radicle node identifier" >&2
+  exit 1
+fi
+
+case "$BACKUP_RETENTION_VERIFY" in
+  true)
+    backup_require_retention_config
+    require_command curl
+    require_command sed
+    ;;
+  false)
+    echo "WARNING: BACKUP_RETENTION_VERIFY=false — uploaded objects are NOT checked for provider-enforced retention" >&2
+    ;;
+  *)
+    echo "BACKUP_RETENTION_VERIFY must be exactly 'true' or 'false'" >&2
+    exit 1
+    ;;
+esac
+
+for command in age awk basename chmod cp date find flock git hostname id \
+  install jq mkdir mktemp rclone rm sha256sum sort ssh-keygen stat systemctl \
+  tar timeout tr wc xargs; do
+  require_command "$command"
+done
+
+if [[ ! -f "$PROOF_BACKUP_SIGNING_KEY" \
+  || ! -f "$PROOF_BACKUP_SIGNING_PUBLIC_KEY" ]]; then
+  echo "proof-backup manifest signing keypair is missing" >&2
+  exit 1
+fi
+if [[ "$(stat -c %a "$PROOF_BACKUP_SIGNING_KEY")" != 600 \
+  || "$(stat -c %u "$PROOF_BACKUP_SIGNING_KEY")" != "$(id -u)" ]]; then
+  echo "proof-backup manifest signing key must be mode 0600 and owned by the service user" >&2
+  exit 1
+fi
+actual_public=$(timeout 5 ssh-keygen -y -f "$PROOF_BACKUP_SIGNING_KEY" \
+  2>/dev/null | awk 'NR == 1 { print $1 " " $2 }') \
+  || { echo "proof-backup manifest signing key must be passphrase-free" >&2; exit 1; }
+expected_public=$(awk 'NR == 1 { print $1 " " $2 }' \
+  "$PROOF_BACKUP_SIGNING_PUBLIC_KEY")
+if [[ "$actual_public" != "$expected_public" ]]; then
+  echo "proof-backup signing public key does not match the private key" >&2
+  exit 1
+fi
+signer_fingerprint=$(ssh-keygen -lf "$PROOF_BACKUP_SIGNING_PUBLIC_KEY" \
+  -E sha256 | awk 'NR == 1 { print $2 }')
+
+read -r -a rids <<< "$PROOF_BACKUP_RIDS"
+if (( ${#rids[@]} == 0 )); then
+  echo "PROOF_BACKUP_RIDS must contain at least one RID" >&2
+  exit 1
+fi
+
+mkdir -p "$PROOF_BACKUP_STAGING_ROOT"
+chmod 0700 "$PROOF_BACKUP_STAGING_ROOT"
+exec 9>"$PROOF_BACKUP_STAGING_ROOT/backup.lock"
+if ! flock -n 9; then
+  echo "another proof-state backup is already running" >&2
+  exit 1
+fi
+
+run_dir=$(mktemp -d "$PROOF_BACKUP_STAGING_ROOT/run.XXXXXXXX")
+payload="$run_dir/payload"
+controller_was_active=false
+
+restart_controller() {
+  if [[ "$controller_was_active" == true ]]; then
+    if ! systemctl start "$PROMOTION_CONTROLLER_UNIT"; then
+      return 1
+    fi
+    controller_was_active=false
+  fi
+}
+
+cleanup() {
+  local status=$?
+  trap - EXIT INT TERM
+  if ! restart_controller; then
+    echo "failed to restart $PROMOTION_CONTROLLER_UNIT after backup" >&2
+    status=1
+  fi
+  rm -rf -- "$run_dir"
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 130' INT TERM
+
+if systemctl is-active --quiet "$PROMOTION_CONTROLLER_UNIT"; then
+  controller_was_active=true
+  systemctl stop "$PROMOTION_CONTROLLER_UNIT"
+fi
+
+install -d -m 0700 "$payload/repositories" "$payload/promotion/queue"
+for state_file in advisory-events.ndjson controller-audit.ndjson; do
+  source_file="$PROMOTION_STATE_DIR/$state_file"
+  if [[ ! -f "$source_file" || -L "$source_file" ]]; then
+    echo "required promotion state file is missing or unsafe: $source_file" >&2
+    exit 1
+  fi
+  cp --preserve=mode,timestamps "$source_file" "$payload/promotion/$state_file"
+done
+if [[ ! -d "$PROMOTION_STATE_DIR/queue" \
+  || -L "$PROMOTION_STATE_DIR/queue" ]]; then
+  echo "promotion queue is missing or unsafe" >&2
+  exit 1
+fi
+unsafe_queue_entry=$(find "$PROMOTION_STATE_DIR/queue" \
+  ! -type d ! -type f -print -quit)
+if [[ -n "$unsafe_queue_entry" ]]; then
+  echo "promotion queue contains a non-regular entry: $unsafe_queue_entry" >&2
+  exit 1
+fi
+cp --archive --no-preserve=ownership \
+  "$PROMOTION_STATE_DIR/queue/." "$payload/promotion/queue/"
+
+repository_metadata=()
+for rid in "${rids[@]}"; do
+  if ! [[ "$rid" =~ ^rad:z[1-9A-HJ-NP-Za-km-z]+$ ]]; then
+    echo "invalid repository RID: $rid" >&2
+    exit 1
+  fi
+  rid_path=${rid#rad:}
+  repo="$RAD_STORAGE/$rid_path"
+  if [[ ! -d "$repo" ]]; then
+    echo "allowlisted repository is absent from Radicle storage: $rid" >&2
+    exit 1
+  fi
+
+  namespace="refs/namespaces/$CI_PRODUCER_NID"
+  job_prefix="$namespace/refs/cobs/xyz.radworks.job/"
+  sigrefs_ref="$namespace/refs/rad/sigrefs"
+  identity_ref=refs/rad/id
+  sigrefs_oid=$(git --git-dir="$repo" rev-parse --verify "$sigrefs_ref^{commit}") \
+    || { echo "producer sigrefs is absent for $rid" >&2; exit 1; }
+  identity_oid=$(git --git-dir="$repo" rev-parse --verify "$identity_ref^{commit}") \
+    || { echo "canonical identity document is absent for $rid" >&2; exit 1; }
+  sigrefs_contents=$(git --git-dir="$repo" show "$sigrefs_ref:refs") \
+    || { echo "producer sigrefs payload is unreadable for $rid" >&2; exit 1; }
+
+  ref_names="$run_dir/$rid_path.refs"
+  job_metadata="$run_dir/$rid_path.jobs.ndjson"
+  : > "$ref_names"
+  : > "$job_metadata"
+  job_count=0
+  while read -r full_ref object_id; do
+    [[ -n "$full_ref" ]] || continue
+    logical_ref=${full_ref#"$namespace/"}
+    signed_oid=$(awk -v wanted="$logical_ref" \
+      '$2 == wanted { print $1 }' <<< "$sigrefs_contents")
+    if [[ ! "$object_id" =~ ^[0-9a-f]{40}$ \
+      || "$signed_oid" != "$object_id" ]]; then
+      echo "producer job ref is not signed at its local tip: $rid $logical_ref" >&2
+      exit 1
+    fi
+    job_id=${logical_ref##*/}
+    if [[ ! "$job_id" =~ ^[0-9a-f]{40}$ ]]; then
+      echo "producer job ref has an invalid COB identifier: $logical_ref" >&2
+      exit 1
+    fi
+    printf '%s\n' "$full_ref" >> "$ref_names"
+    jq -cn --arg job_id "$job_id" --arg ref "$full_ref" \
+      --arg oid "$object_id" \
+      '{job_id:$job_id,ref:$ref,oid:$oid}' >> "$job_metadata"
+    job_count=$((job_count + 1))
+  done < <(git --git-dir="$repo" for-each-ref \
+    --format='%(refname) %(objectname)' "$job_prefix")
+  if (( job_count == 0 )); then
+    echo "producer has no signed CI job refs for $rid" >&2
+    exit 1
+  fi
+  printf '%s\n' "$sigrefs_ref" "$identity_ref" >> "$ref_names"
+
+  bundle_rel="repositories/$rid_path.bundle"
+  bundle="$payload/$bundle_rel"
+  git --git-dir="$repo" bundle create "$bundle" --stdin < "$ref_names"
+  git --git-dir="$repo" bundle verify "$bundle" >/dev/null 2>&1
+  bundled_ref_count=$(git bundle list-heads "$bundle" | wc -l)
+  if (( bundled_ref_count != job_count + 2 )); then
+    echo "proof bundle has an unexpected ref count for $rid" >&2
+    exit 1
+  fi
+  bundle_sha256=$(sha256sum "$bundle" | awk '{ print $1 }')
+  metadata="$payload/repositories/$rid_path.json"
+  jq -s --arg rid "$rid" --arg bundle "$bundle_rel" \
+    --arg bundle_sha256 "$bundle_sha256" \
+    --arg sigrefs_ref "$sigrefs_ref" --arg sigrefs_oid "$sigrefs_oid" \
+    --arg identity_ref "$identity_ref" --arg identity_oid "$identity_oid" \
+    --argjson job_ref_count "$job_count" \
+    '{rid:$rid,bundle:$bundle,bundle_sha256:$bundle_sha256,
+      sigrefs_ref:$sigrefs_ref,sigrefs_oid:$sigrefs_oid,
+      identity_ref:$identity_ref,identity_oid:$identity_oid,
+      job_ref_count:$job_ref_count,job_refs:.}' \
+    "$job_metadata" > "$metadata"
+  repository_metadata+=("$metadata")
+done
+
+jq -s '.' "${repository_metadata[@]}" > "$payload/repositories.json"
+(
+  cd "$payload"
+  find promotion -type f -print0 | sort -z | xargs -0 sha256sum \
+    > promotion-files.sha256
+)
+pending_count=$(find "$payload/promotion/queue/pending" -maxdepth 1 \
+  -type f -name '*.json' 2>/dev/null | wc -l)
+processing_count=$(find "$payload/promotion/queue/processing" -maxdepth 1 \
+  -type f -name '*.json' 2>/dev/null | wc -l)
+done_count=$(find "$payload/promotion/queue/done" -maxdepth 1 \
+  -type f -name '*.json' 2>/dev/null | wc -l)
+failed_count=$(find "$payload/promotion/queue/failed" -maxdepth 1 \
+  -type f -name '*.json' 2>/dev/null | wc -l)
+
+created_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+jq -n --slurpfile repositories "$payload/repositories.json" \
+  --arg created_at "$created_at" --arg producer_nid "$CI_PRODUCER_NID" \
+  --argjson pending "$pending_count" --argjson processing "$processing_count" \
+  --argjson done "$done_count" --argjson failed "$failed_count" \
+  '{schema_version:1,created_at:$created_at,producer_nid:$producer_nid,
+    repositories:$repositories[0],promotion_state:{
+      event_log:"promotion/advisory-events.ndjson",
+      audit_log:"promotion/controller-audit.ndjson",queue:"promotion/queue",
+      file_checksums:"promotion-files.sha256",
+      counts:{pending:$pending,processing:$processing,done:$done,failed:$failed}},
+    excluded:["controller_private_key","seed_private_key","derived_proof_cache"]}' \
+  > "$payload/payload-manifest.json"
+payload_manifest_sha256=$(sha256sum "$payload/payload-manifest.json" \
+  | awk '{ print $1 }')
+
+# State is now copied consistently. Resume promotion before compression,
+# encryption, and network upload.
+restart_controller
+
+timestamp=$(date -u +%Y%m%dT%H%M%SZ)
+host=$(hostname -s | tr -cd 'A-Za-z0-9._-')
+archive_name="radicle-proof-state-${host:-unknown}-${timestamp}.tar.zst.age"
+archive="$run_dir/$archive_name"
+tar --create --zstd --file - -C "$payload" . \
+  | age --recipient "$BACKUP_AGE_RECIPIENT" --output "$archive"
+if [[ ! -s "$archive" ]]; then
+  echo "encrypted proof-state archive is empty" >&2
+  exit 1
+fi
+archive_sha256=$(sha256sum "$archive" | awk '{ print $1 }')
+archive_bytes=$(stat -c %s "$archive")
+
+manifest="$run_dir/$archive_name.manifest.json"
+jq -n --arg created_at "$created_at" --arg archive "$archive_name" \
+  --arg archive_sha256 "$archive_sha256" --argjson archive_bytes "$archive_bytes" \
+  --arg age_recipient "$BACKUP_AGE_RECIPIENT" \
+  --arg payload_manifest_sha256 "$payload_manifest_sha256" \
+  --arg producer_nid "$CI_PRODUCER_NID" \
+  --arg signer_fingerprint "$signer_fingerprint" \
+  --arg signer_namespace "pirate-radicle-proof-backup" \
+  --slurpfile repositories "$payload/repositories.json" \
+  '{schema_version:1,created_at:$created_at,archive:$archive,
+    archive_sha256:$archive_sha256,archive_bytes:$archive_bytes,
+    age_recipient:$age_recipient,payload_manifest_sha256:$payload_manifest_sha256,
+    producer_nid:$producer_nid,manifest_signature:{format:"sshsig",
+      namespace:$signer_namespace,public_key_fingerprint:$signer_fingerprint},
+    repositories:[$repositories[0][] | {rid,sigrefs_oid,job_ref_count}]}' \
+  > "$manifest"
+ssh-keygen -Y sign -f "$PROOF_BACKUP_SIGNING_KEY" \
+  -n pirate-radicle-proof-backup "$manifest" >/dev/null
+signature="$manifest.sig"
+public_key="$run_dir/$archive_name.manifest.pub"
+cp "$PROOF_BACKUP_SIGNING_PUBLIC_KEY" "$public_key"
+checksum="$run_dir/$archive_name.sha256"
+(
+  cd "$run_dir"
+  sha256sum "$archive_name" > "$archive_name.sha256"
+)
+
+remote_base=${BACKUP_RCLONE_REMOTE%/}
+artifacts=("$archive" "$checksum" "$manifest" "$signature" "$public_key")
+for artifact in "${artifacts[@]}"; do
+  object_name=$(basename "$artifact")
+  rclone copyto "$artifact" "$remote_base/$object_name" --immutable
+done
+if [[ "$BACKUP_RETENTION_VERIFY" == true ]]; then
+  for artifact in "${artifacts[@]}"; do
+    verify_object_retention "$(basename "$artifact")"
+  done
+fi
+
+echo "uploaded encrypted Radicle proof-state snapshot: $archive_name ($archive_bytes bytes)"

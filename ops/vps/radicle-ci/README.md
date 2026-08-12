@@ -6,8 +6,9 @@ The promotion controller is deployed in an explicitly non-authoritative
 advisory overlap. Its DID is
 `did:key:z6MkiHv3QB6tjLb3zK6wWzUBsZa51f3f1UhSVKnAGwczHnwg`; it is not yet a
 repository delegate and the controller binary contains no canonical-push
-path. Offline recovery and canonical-ref tests remain cutover prerequisites.
-Use `proof-state-restore.md` for the mandatory two-copy restore drill before
+path. Human-only recovery escrow and canonical-ref tests remain cutover
+prerequisites. `recovery-escrow.md` defines the split-control Infisical model;
+`proof-state-restore.md` defines the mandatory off-host restore drill before
 enforcement.
 
 ## Boundaries
@@ -119,9 +120,48 @@ Missing replicated state is `unknown` and receives a bounded retry. Invalid or
 still-unknown proof fails closed. In advisory mode, a valid proof writes an
 `advisory_validation` record with `authority:false`; it never advances a ref.
 
-The advisory overlap expires for review on **2026-08-25**. Do not describe the
+The advisory overlap expires for review on **2026-09-15**. The former
+2026-08-25 review was extended because recovery escrow, immutable proof backup,
+and their restore drills must land before the comparison window can close. Do
+not describe the
 pipeline as authoritative or remove the workstation delegate merely because
 the controller service is green.
+
+## Proof-state backup
+
+`scripts/backup-proof-state` creates a complete Git bundle for each allowlisted
+RID containing the CI producer's signed job refs, producer `sigrefs`, and the
+canonical identity document. It briefly stops the controller while copying
+advisory events, audit records, and queue state, then resumes it before archive
+compression or upload. Seed, controller, recovery, and age private keys are
+excluded; the systemd unit also makes the seed and controller key paths
+inaccessible.
+
+The archive is encrypted to a public age recipient, signed by a dedicated
+backup-attestation key, uploaded immutably, and checked for provider COMPLIANCE
+retention. The backup signer is not a Radicle delegate. Record its public-key
+fingerprint in the secret-free recovery manifest.
+
+After the dedicated recovery organization, age recipient, scoped immutable
+bucket credential, and alert endpoint exist:
+
+```bash
+sudo ops/vps/radicle-ci/scripts/install-proof-state-backup.sh \
+  ops/vps/radicle-ci
+sudo install -o root -g root -m 0600 <scoped-rclone-config> \
+  /etc/pirate-radicle/proof-state-rclone.conf
+sudoedit /etc/pirate-radicle/proof-state-backup.env
+sudo systemctl start radicle-proof-state-backup.service
+sudo journalctl -u radicle-proof-state-backup.service --since today
+```
+
+Do not enable the timer until the manual upload passes provider-retention
+verification and `proof-state-restore.md` succeeds without access to VPS #3.
+Then enable the daily timer:
+
+```bash
+sudo systemctl enable --now radicle-proof-state-backup.timer
+```
 
 ## Verification
 

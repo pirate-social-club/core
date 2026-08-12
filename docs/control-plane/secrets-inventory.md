@@ -181,6 +181,31 @@ Hosted environments use `/services` only.
 - Lit/PKP secret paths are out of the current hosted mainline
 - `REGISTRY_PUBLISHER_AUTH_TOKEN` is out of the hosted mainline until `REGISTRY_PUBLISHER_URL` is configured deliberately
 
+## Human-only recovery organization
+
+`pirate-recovery` is a separate Infisical organization, not a path or project
+inside the application organization. It is deliberately outside the normal
+environment doctor, sync scripts, GitHub OIDC identities, runtime secret
+contracts, and AI operator escape hatch.
+
+Its only confidential values are passphrase-encrypted recovery blobs:
+
+| Path/name | Type | Purpose |
+| --- | --- | --- |
+| `recovery:/radicle/RADICLE_RECOVERY_PRIVATE_KEY` | encrypted private-key blob | Human-only emergency Radicle identity updates |
+| `recovery:/backup-age/NS1_BACKUP_AGE_IDENTITY_CURRENT_WRAPPED` | passphrase-wrapped age identity | Current HNS/Spaces archive decryption |
+| `recovery:/backup-age/NS1_BACKUP_AGE_IDENTITY_PREVIOUS_WRAPPED` | passphrase-wrapped age identity | Retention-bounded decrypt-only rotation fallback |
+| `recovery:/backup-age/RADICLE_PROOF_BACKUP_AGE_IDENTITY_CURRENT_WRAPPED` | passphrase-wrapped age identity | Current Radicle proof-state archive decryption |
+| `recovery:/backup-age/RADICLE_PROOF_BACKUP_AGE_IDENTITY_PREVIOUS_WRAPPED` | passphrase-wrapped age identity | Retention-bounded decrypt-only rotation fallback |
+
+The dedicated recovery organization has one human recovery account, hardware
+MFA, required audit logs, no machine identities, and no integrations, syncs,
+tokens, or webhooks. The private blobs are single-provider replicated escrow;
+their key/wrapping passphrases live only in the separate human password
+manager. Public DIDs, age recipients, hashes, and signer fingerprints live in
+the tracked secret-free recovery manifest. See
+`ops/vps/radicle-ci/recovery-escrow.md`.
+
 ## CI/CD Secret Delivery
 
 Infisical is the canonical source for service runtime secrets. GitHub Actions
@@ -191,7 +216,7 @@ migration plan exists.
 
 The target CI/CD model is runtime Infisical delivery through GitHub OIDC machine
 identities. See
-[GitHub Actions Infisical OIDC Delivery](../runbooks/github-actions-infisical-oidc.md).
+[GitHub Actions Infisical OIDC Delivery](../archive/legacy/github-actions-infisical-oidc.md).
 
 Public build configuration must use GitHub Actions variables, not GitHub Actions
 secrets and not Infisical. In particular, browser-exposed `VITE_*` identifiers

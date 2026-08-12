@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config=/etc/pirate-radicle/proof-state-backup.env
+signing_key=/etc/pirate-radicle/proof-backup-signing-key
+signing_public_key=$signing_key.pub
+rclone_config=/etc/pirate-radicle/proof-state-rclone.conf
+staging=/var/lib/radicle-proof-backup
+
+[[ $(id -u) -eq 0 ]] || { echo 'run as root' >&2; exit 1; }
+test "$(stat -c '%U:%G:%a' "$config")" = root:root:600
+test "$(stat -c '%U:%G:%a' "$signing_key")" = root:root:600
+test "$(stat -c '%U:%G:%a' "$signing_public_key")" = root:root:644
+test "$(stat -c '%U:%G:%a' "$rclone_config")" = root:root:600
+test "$(stat -c '%U:%G:%a' "$staging")" = root:root:700
+
+actual_public=$(timeout 5 ssh-keygen -y -f "$signing_key" 2>/dev/null \
+  | awk 'NR == 1 { print $1 " " $2 }')
+expected_public=$(awk 'NR == 1 { print $1 " " $2 }' "$signing_public_key")
+test "$actual_public" = "$expected_public"
+
+test "$(systemctl is-enabled radicle-proof-state-backup.timer)" = enabled
+test "$(systemctl is-active radicle-proof-state-backup.timer)" = active
+test "$(systemctl show radicle-proof-state-backup.service -p Result --value)" = success
+systemctl list-timers --all --no-legend radicle-proof-state-backup.timer \
+  | grep -Fq radicle-proof-state-backup.timer
+
+unit=$(systemctl cat radicle-proof-state-backup.service)
+grep -Fq 'InaccessiblePaths=/var/lib/radicle/keys /var/lib/radicle/ci /var/lib/promotion/keys' \
+  <<< "$unit"
+grep -Fq 'ReadOnlyPaths=/var/lib/radicle/storage /var/lib/promotion /etc/pirate-radicle' \
+  <<< "$unit"
+
+echo "proof-state backup timer and last successful run verified; restore-drill status remains a separate gate"

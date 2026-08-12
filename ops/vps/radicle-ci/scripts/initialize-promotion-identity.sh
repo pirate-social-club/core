@@ -30,11 +30,10 @@ done
 [[ -S "$socket" ]] || { echo 'temporary signing agent did not start' >&2; exit 1; }
 
 # An online controller key is intentionally passphrase-free so systemd can
-# restart unattended. Filesystem isolation and the offline recovery delegate
-# are its controls. The key never leaves this host.
+# restart unattended. Filesystem isolation and the human-only escrowed recovery
+# delegate are its controls. The key never leaves this host or enters escrow.
 printf '\n' | runuser -u promotion -- env \
   HOME="$home" RAD_HOME="$home" SSH_AUTH_SOCK="$socket" \
   rad auth --stdin --alias promotion-controller
 chmod 0600 "$key"
 runuser -u promotion -- env HOME="$home" RAD_HOME="$home" rad self --did
-

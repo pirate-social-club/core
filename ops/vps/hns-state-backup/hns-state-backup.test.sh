@@ -2,6 +2,7 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
+export IMMUTABLE_BACKUP_LIBRARY="$here/../lib/immutable-backup.sh"
 test_root="$(mktemp -d)"
 trap 'rm -rf -- "$test_root"' EXIT
 
@@ -83,7 +84,7 @@ export BACKUP_RETENTION_VERIFY=false
 # Backblaze's SigV4 canonicalization requires the empty GetObjectRetention
 # parameter to be explicit. `?retention&...` signs differently and fails with
 # SignatureDoesNotMatch even when the uploader has readFileRetentions.
-grep -Fq '"$url?retention=&versionId=$version_id"' "$here/hns-state-backup.sh"
+grep -Fq '"$url?retention=&versionId=$version_id"' "$IMMUTABLE_BACKUP_LIBRARY"
 grep -Fq 'ExecStartPost=/srv/pirate-hns/current/bin/heartbeat.sh' \
   "$here/systemd/pirate-hns-state-backup.service"
 

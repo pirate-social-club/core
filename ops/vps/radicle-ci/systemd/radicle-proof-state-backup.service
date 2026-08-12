@@ -1,0 +1,35 @@
+[Unit]
+Description=Encrypted off-host backup of Radicle CI proof and promotion state
+After=network-online.target radicle-node.service promotion-controller.service
+Wants=network-online.target
+OnFailure=radicle-proof-state-backup-alert@%n.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+Slice=radicle-core.slice
+EnvironmentFile=/etc/pirate-radicle/proof-state-backup.env
+Environment=IMMUTABLE_BACKUP_LIBRARY=/usr/local/libexec/pirate-radicle/immutable-backup.sh
+ExecStart=/usr/local/libexec/pirate-radicle/backup-proof-state
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/var/lib/radicle/storage /var/lib/promotion /etc/pirate-radicle
+ReadWritePaths=/var/lib/radicle-proof-backup
+InaccessiblePaths=/var/lib/radicle/keys /var/lib/radicle/ci /var/lib/promotion/keys
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectKernelLogs=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native

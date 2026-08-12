@@ -118,8 +118,9 @@ The seed transport key is not a repository delegate. If VPS #3 is lost:
 
 GitHub contains Git objects and is useful as a checkout fallback, but it does
 not recover Radicle identity documents, collaborative objects, or delegate
-keys. The offline recovery delegate therefore remains mandatory before the
-workstation delegate can be retired.
+keys. The restore-tested human-only recovery delegate in the separate recovery
+organization therefore remains mandatory before the workstation delegate can
+be retired. See `recovery-escrow.md`.
 
 The pilot archive is historical test evidence, not production user data. Its
 loss does not block rebuilding the seed or CI host.
@@ -143,12 +144,17 @@ request already present in the advisory log is not enqueued again.
 
 The controller private key is intentionally not exported from VPS #3. “Key
 restore” therefore means generating a replacement controller DID and using the
-offline recovery delegate to replace the lost DID in every identity document;
-it does not mean restoring the same online private key from backup.
+human-retrieved recovery delegate to replace the lost DID in every identity
+document; it does not mean restoring the same online private key from backup.
 
 Enforcement cutover requires all of the following:
 
-- two separately secured copies of a restore-tested offline recovery delegate;
+- a dedicated recovery organization with audit logs, hardware MFA, verified
+  secret versioning, no machine identities, and negative access tests;
+- a restore-tested, passphrase-encrypted recovery delegate blob in Infisical,
+  with its passphrase held only in the separate human password manager;
+- successful Radicle-delegate, NS1 archive, and proof-state recovery drills
+  from disposable environments, with the expected audit events;
 - the recovery and controller DIDs added at threshold 1;
 - restart, queue recovery, proof rejection, and controller replacement drills;
 - a clean advisory comparison window through the recorded review date; and
@@ -188,6 +194,8 @@ encrypted backup set must therefore include:
 - the producer namespace's `xyz.radworks.job` refs and reachable Git objects
   for every allowlisted RID;
 - the corresponding producer `refs/rad/sigrefs` commit and objects;
+- the canonical `refs/rad/id` commit required to validate each restored
+  repository and producer signed-ref signature;
 - `/var/lib/promotion/advisory-events.ndjson`;
 - `/var/lib/promotion/controller-audit.ndjson`; and
 - `/var/lib/promotion/queue`.
@@ -197,12 +205,20 @@ host-local and is replaced, not restored. Do not treat
 `/var/lib/radicle/ci/promotion-proofs` alone as evidence: it is a derived cache
 whose signed source must be available for independent verification.
 
-No local snapshot on VPS #3 satisfies this requirement. Completion requires
-an encrypted off-host copy plus a restore drill that reconstructs and verifies
-one signed CI job without access to the original host. Follow
+The tracked `backup-proof-state` pipeline builds one complete Git bundle per
+RID, snapshots only the named promotion state, encrypts the payload to the
+proof-backup age recipient, signs its envelope with a dedicated host-only
+attestation key, uploads through an immutable bucket credential, and verifies
+provider retention. The systemd sandbox makes both Radicle and controller key
+paths inaccessible.
+
+No local snapshot on VPS #3 satisfies this requirement. Completion requires a
+successful encrypted off-host upload plus a restore drill that reconstructs
+and verifies one signed CI job without access to the original host. Follow
 `proof-state-restore.md`; a failed restore is a hard stop. Do not add delegates,
 remove the workstation delegate, or enable authoritative promotion until the
-failure is resolved and the drill passes from both recovery copies.
+failure is resolved and the drill passes through the human-only recovery
+escrow.
 
 ### Announcement reconciliation verification
 
@@ -233,14 +249,19 @@ off-host backup and restore drill required before enforcement.
   narrowly scoped, stored only on the controller host, and have a recorded
   removal deadline. Generic OIDC remains the target before GitHub release
   orchestration is retired.
-- Infisical may hold only the public age recipient after rotation. The private
-  age identity belongs on separately secured offline media.
+- The application Infisical organization may hold only public backup
+  recipients. Passphrase-wrapped private recovery blobs live only in the
+  separate recovery organization; wrapping/key passphrases live only in the
+  human password manager.
+- The recovery organization has no machine identity, integration, sync,
+  webhook, or daily-operator membership. Its account is used only in a
+  disposable human-controlled environment and every retrieval is audit-logged.
 - Record the age-recipient rotation timestamp and
   `old_identity_retire_after = rotation_timestamp + 30 days` in the recovery
   manifest. Keep the old identity, marked compromised and decrypt-only, until
   that timestamp has passed and no retained archive still names its recipient.
-- Infisical must never contain the offline recovery delegate or the online
-  controller delegate private key.
+- Infisical must never contain an unencrypted recovery private key or the
+  online controller private key. The controller is replaced, never restored.
 
 ## Emergency fallback
 

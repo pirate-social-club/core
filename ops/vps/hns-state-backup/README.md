@@ -26,8 +26,8 @@ The script:
    is captured consistently
 3. creates a compressed archive as root, preserving numeric ownership, ACLs,
    and extended attributes
-4. encrypts it to an `age` public recipient whose private identity is kept
-   offline
+4. encrypts it to an `age` public recipient whose private identity exists only
+   as a passphrase-wrapped blob in human-only recovery escrow
 5. uploads the uniquely named ciphertext and its SHA-256 sidecar through
    `rclone --immutable`
 6. restarts every unit it stopped, including after failure
@@ -48,18 +48,27 @@ operation.
 - an rclone application credential scoped to this one bucket, with only the
   list/read/write capabilities needed for upload verification; exclude object
   deletion and bucket-retention mutation
-- an offline `age` recovery identity, with at least two separately secured
-  copies
+- a dedicated human-only recovery organization with audit logs, hardware MFA,
+  verified versioning, no machine identities, and no daily-operator membership
+- a passphrase-wrapped age identity blob in that organization, with its
+  wrapping passphrase held only in the separate human password manager
 
-Create the age identity on an offline operator machine, not on the VPS:
+Generate and wrap the age identity in a disposable human-controlled environment,
+not on the VPS or normal workstation:
 
 ```bash
 age-keygen -o pirate-hns-recovery.agekey
 age-keygen -y pirate-hns-recovery.agekey
+age --passphrase --output pirate-hns-recovery.agekey.wrapped.age \
+  pirate-hns-recovery.agekey
 ```
 
-Only the printed public recipient belongs in the VPS environment file. Never
-copy `pirate-hns-recovery.agekey` to the edge.
+Upload only the wrapped ciphertext to
+`recovery:/backup-age/NS1_BACKUP_AGE_IDENTITY_CURRENT_WRAPPED`; store its
+wrapping passphrase only in the human password manager. Only the printed public
+recipient belongs in the VPS environment file. Never copy either private form
+to the edge. The full account, audit, rotation, and hard-stop policy is in
+`../radicle-ci/recovery-escrow.md`.
 
 ## Install
 
@@ -182,9 +191,17 @@ layout change:
 
 1. download one archive and its SHA-256 sidecar
 2. verify `sha256sum --check`
-3. decrypt with the offline identity:
+3. from a disposable isolated environment, have the human recovery operator
+   retrieve only `NS1_BACKUP_AGE_IDENTITY_CURRENT_WRAPPED` into a mode-`0600`
+   file, obtain the wrapping passphrase from the separate password manager,
+   unwrap the identity, and decrypt:
 
    ```bash
+   infisical secrets get NS1_BACKUP_AGE_IDENTITY_CURRENT_WRAPPED \
+     --env recovery --path /backup-age --plain --expand=false \
+     --include-imports=false > pirate-hns-recovery.agekey.wrapped.age
+   age --decrypt --output pirate-hns-recovery.agekey \
+     pirate-hns-recovery.agekey.wrapped.age
    age --decrypt --identity pirate-hns-recovery.agekey \
      --output hns-edge.tar.zst hns-edge-<host>-<timestamp>.tar.zst.age
    ```
@@ -196,6 +213,9 @@ layout change:
    prove DNSKEY, RRSIG, zone metadata, and expected DS output
 7. start disposable Spaces services against copied data and prove wallet/state
    discovery without publishing or issuing anything
-8. record the snapshot name, elapsed restore time, and verification results
+8. reset the Infisical session, remove the unwrapped identity, destroy the
+   disposable environment, and verify the recovery audit log contains exactly
+   the expected retrieval
+9. record the snapshot name, elapsed restore time, and verification results
 
 An uploaded object is not considered a backup until this drill succeeds.

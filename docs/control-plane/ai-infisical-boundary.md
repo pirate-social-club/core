@@ -8,15 +8,33 @@ AI environments must not have standing Infisical auth.
 
 Repo-level policy:
 
-- repo root `.infisical.json` is non-prod only (`pirate-dev-staging`)
-- production must use a separate human-only project config directory such as `ops/prod`
-- AI shells must not use `--project-config-dir=ops/prod`
+- the repo-root `.infisical.json` selects the application project for dev,
+  staging, and prod; environment and path flags provide command scope
+- production access remains human-approved and command-scoped under the
+  operator escape hatch below
+- the separate `pirate-recovery` organization is never selected, initialized,
+  or authenticated from an AI shell
 
 This includes:
 
 - no Infisical service token in AI runtime env
 - no account-scoped Infisical credentials on agent machines by default
 - no automatic secret pulls from AI workflows
+- no recovery-account CLI profile, session, token, project configuration, or
+  organization membership on an AI-reachable machine
+
+## Recovery organization
+
+Recovery escrow is a stricter boundary than application production access.
+The dedicated recovery account may authenticate only in a disposable
+human-controlled environment with hardware MFA. It must never be added to the
+workstation's Infisical profiles, any VPS, CI, or an AI runtime.
+
+The daily application account and every application machine identity must fail
+to enumerate or read the recovery organization. There is no operator escape
+hatch for recovery secrets in an AI shell. Public recovery metadata—DIDs,
+public keys, age recipients, signer fingerprints, and a secret-free recovery
+manifest—remains safe for AI-assisted verification.
 
 ## Operator Escape Hatch
 
@@ -57,6 +75,8 @@ AI workflows may operate on:
 AI workflows must not:
 
 - fetch secrets directly from Infisical
+- authenticate the recovery account or initialize the recovery project
+- enumerate, retrieve, set, rotate, or delete recovery-organization secrets
 - persist raw secrets into repo files
 - write secret values into machine-readable config inventories
 - expand access from one approved secret to broader secret inventory access
