@@ -2882,7 +2882,7 @@ paths:
         "401":
           $ref: "#/components/responses/AuthError"
         "403":
-          $ref: "#/components/responses/VerificationRequired"
+          $ref: "#/components/responses/CommentCreateForbidden"
         "404":
           $ref: "#/components/responses/NotFound"
   /communities/{community_id}/posts/{post_id}/remove:
@@ -4931,7 +4931,7 @@ paths:
         "401":
           $ref: "#/components/responses/AuthError"
         "403":
-          $ref: "#/components/responses/VerificationRequired"
+          $ref: "#/components/responses/CommentCreateForbidden"
         "404":
           $ref: "#/components/responses/NotFound"
   /comments/{comment_id}/replies-lock:
@@ -6167,6 +6167,9 @@ components:
             - payment_required
             - verification_required
             - membership_required
+            - gate_unsatisfied
+            - banned
+            - comments_locked
             - eligibility_failed
             - gate_failed
             - posting_trust_tier_too_low

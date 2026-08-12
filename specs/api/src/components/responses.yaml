@@ -90,6 +90,12 @@ VerificationRequired:
     application/json:
       schema:
         $ref: ./schemas/common.yaml#/Error
+CommentCreateForbidden:
+  description: Comment creation is forbidden by community access, gate, ban, or thread-lock policy
+  content:
+    application/json:
+      schema:
+        $ref: ./schemas/common.yaml#/Error
 MppExportForbidden:
   description: Export blocked by a community gate or export-eligibility rule
   content:

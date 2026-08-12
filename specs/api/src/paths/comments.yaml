@@ -104,7 +104,7 @@ comments_by_comment_id_replies:
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "403":
-        $ref: ../components/responses.yaml#/VerificationRequired
+        $ref: ../components/responses.yaml#/CommentCreateForbidden
       "404":
         $ref: ../components/responses.yaml#/NotFound
 comments_by_comment_id_replies_lock:
