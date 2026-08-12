@@ -1,5 +1,7 @@
 # Song Study
 
+Related architecture: [downloadable-assets-and-learning-core.md](./downloadable-assets-and-learning-core.md)
+
 Song Study is a learning activity attached to a song post: a learner practices
 the song's lyrics through turn-based exercises (say-it-back, multiple-choice
 translation) with spaced-repetition scheduling. It is a **sibling activity to

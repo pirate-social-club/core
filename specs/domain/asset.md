@@ -15,6 +15,7 @@ Related docs:
 - [replay.md](./replay.md)
 - [karaoke.md](./karaoke.md)
 - [rights-review.md](./rights-review.md)
+- [downloadable-assets-and-learning-core.md](./downloadable-assets-and-learning-core.md)
 
 ## Purpose
 

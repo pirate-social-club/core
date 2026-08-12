@@ -49,6 +49,8 @@ Product and system design docs grouped by domain surface.
   Donation-specific product behavior.
 - `marketplace.md`
   Commerce, purchase, pricing, and settlement behavior.
+- `downloadable-assets-and-learning-core.md`
+  Architecture for generic file sales, learning decks, and reusable scheduling.
 - `publish-matrix.md`
   Canonical matrix for what each post, asset, live, and replay surface may publish, sell, and deliver.
 - `follow.md`
