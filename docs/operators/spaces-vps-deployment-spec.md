@@ -191,6 +191,12 @@ The role release stages the locked native verifier and publisher binaries from
 their pinned sources. Both are covered by the role `SHA256SUMS`; do not build
 or download runtime binaries in the app tree after staging.
 
+Fetch the protected branch immediately before staging, then build both the app
+and role release from the current `origin/main` commit. The Spaces provenance
+remediation landed through pull request #502. Do not reuse that pull request's
+pre-squash branch commit and do not use `--break-glass-non-main` merely to work
+around a stale local `origin/main` reference.
+
 ```bash
 bash ops/vps/deployment-tooling/make-app-release.sh /tmp/spaces-out --commit <app-commit>
 bash ops/vps/deployment-tooling/make-release.sh ops/vps/spaces-verifier \

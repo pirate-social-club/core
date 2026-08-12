@@ -24,6 +24,10 @@ No secret values were read and no host state was changed.
    existed on `origin/fix/spaces-verifier-anchor-freshness`, but had no pull
    request or CI run. Remote branch storage prevented immediate loss; it did
    not provide protected-branch review or durable mainline provenance.
+   The lineage later entered `main` through pull request #502 as squash commit
+   `511e914e2c5992d28500495cdf673b2f452a2f78`. This historical commit records
+   the first compliant release source; future releases use the then-current
+   `origin/main`, not this dated value.
 2. The HNS verifier unit used `/srv/pirate-hns/app`, while the state-backup role
    owned `/srv/pirate-hns` and independently pinned that same app symlink. The
    collision was structural: deploying either app could invalidate the other
