@@ -13,8 +13,11 @@ import {
   classificationSql,
   classifyRow,
   executionBody,
+  fleetReadRetryDelayMs,
+  isTransientFleetReadFailure,
   isTransientWranglerFailure,
   ledgerBackfillBody,
+  retryTransientFleetRead,
   rowCountSql,
   resumeDoneShards,
   resumeEntryKey,
@@ -32,7 +35,43 @@ describe("wrangler transport retry classification", () => {
     expect(isTransientWranglerFailure(`${"warning ".repeat(200)}fetch failed`)).toBe(true)
     expect(isTransientWranglerFailure("Cloudflare code 7429")).toBe(true)
     expect(isTransientWranglerFailure("Authentication error [code: 10000]")).toBe(true)
+    expect(isTransientWranglerFailure("internal error [code: 7500]")).toBe(false)
     expect(isTransientWranglerFailure("no such table: posts")).toBe(false)
+  })
+
+  test("retries D1 7500 only for read-only fleet probes", async () => {
+    expect(isTransientFleetReadFailure("internal error [code: 7500]")).toBe(true)
+    expect(isTransientFleetReadFailure("D1 DB is overloaded [code: 7429]")).toBe(true)
+    expect(isTransientFleetReadFailure("no such table: posts")).toBe(false)
+
+    let calls = 0
+    const delays: number[] = []
+    const result = await retryTransientFleetRead(
+      async () => {
+        calls += 1
+        if (calls < 4) throw new Error("internal error [code: 7500]")
+        return "ok"
+      },
+      async (delayMs) => { delays.push(delayMs) },
+      () => 0,
+    )
+
+    expect(result).toBe("ok")
+    expect(calls).toBe(4)
+    expect(delays).toEqual([1_000, 2_000, 4_000])
+    expect(fleetReadRetryDelayMs(7, 1)).toBe(8_500)
+  })
+
+  test("does not retry non-transient fleet read failures", async () => {
+    let calls = 0
+    await expect(retryTransientFleetRead(
+      async () => {
+        calls += 1
+        throw new Error("no such table: posts")
+      },
+      async () => {},
+    )).rejects.toThrow("no such table: posts")
+    expect(calls).toBe(1)
   })
 })
 
