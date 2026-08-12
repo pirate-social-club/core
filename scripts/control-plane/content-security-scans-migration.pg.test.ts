@@ -97,6 +97,10 @@ describe.skipIf(!RUN)("content security scan migration 0219 (real Postgres)", ()
       migrator,
       "db/control-plane/migrations/0219_control_plane_content_security_scans.sql",
     );
+    await applyMigration(
+      migrator,
+      "db/control-plane/migrations/0222_control_plane_content_security_release_revocation.sql",
+    );
     await migrator.unsafe("INSERT INTO communities (community_id) VALUES ('community')");
     await migrator.unsafe("INSERT INTO users (user_id) VALUES ('user')");
     await migrator.unsafe(`
@@ -150,7 +154,7 @@ describe.skipIf(!RUN)("content security scan migration 0219 (real Postgres)", ()
     await root.end();
   });
 
-  test("allows forward release lifecycle but rejects rollback and identity drift", async () => {
+  test("allows terminal revocation without fabricating activation and rejects rollback", async () => {
     const migrator = connect({
       db: TEST_DB,
       user: "control_plane_migrator",
@@ -161,6 +165,16 @@ describe.skipIf(!RUN)("content security scan migration 0219 (real Postgres)", ()
       SET status = 'active', activated_at = '2026-08-12T00:02:00Z'
       WHERE scanner_release_id = 'csr_release'
     `);
+    await migrator.unsafe(`
+      UPDATE content_security_scanner_releases
+      SET status = 'retired', retired_at = '2026-08-12T00:03:00Z'
+      WHERE scanner_release_id = 'csr_release'
+    `);
+    await migrator.unsafe(`
+      UPDATE content_security_scanner_releases
+      SET status = 'revoked'
+      WHERE scanner_release_id = 'csr_release'
+    `);
     await expectSqlState(
       migrator,
       `UPDATE content_security_scanner_releases
@@ -168,6 +182,35 @@ describe.skipIf(!RUN)("content security scan migration 0219 (real Postgres)", ()
        WHERE scanner_release_id = 'csr_release'`,
       "23514",
     );
+    await migrator.unsafe(`
+      INSERT INTO content_security_scanner_releases (
+        scanner_release_id, security_scan_profile, status, source_revision,
+        runtime_lock_sha256, base_image_digest, engine_image_digest,
+        engine_version, signature_version, signature_date, definition_digest,
+        deployed_image_digest, sbom_ref, corpus_evidence_ref, created_at
+      )
+      SELECT
+        'csr_rejected_staged', security_scan_profile, 'staged', source_revision,
+        runtime_lock_sha256, base_image_digest, engine_image_digest,
+        engine_version, signature_version, signature_date, definition_digest,
+        deployed_image_digest, sbom_ref, corpus_evidence_ref,
+        '2026-08-12T00:04:00Z'
+      FROM content_security_scanner_releases
+      WHERE scanner_release_id = 'csr_release'
+    `);
+    await migrator.unsafe(`
+      UPDATE content_security_scanner_releases
+      SET status = 'revoked', retired_at = '2026-08-12T00:05:00Z'
+      WHERE scanner_release_id = 'csr_rejected_staged'
+    `);
+    const stagedRevocation = await migrator.unsafe(`
+      SELECT status, activated_at, retired_at
+      FROM content_security_scanner_releases
+      WHERE scanner_release_id = 'csr_rejected_staged'
+    `);
+    expect(stagedRevocation[0]?.status).toBe("revoked");
+    expect(stagedRevocation[0]?.activated_at).toBeNull();
+    expect(stagedRevocation[0]?.retired_at).not.toBeNull();
     await expectSqlState(
       migrator,
       `UPDATE content_security_scanner_releases

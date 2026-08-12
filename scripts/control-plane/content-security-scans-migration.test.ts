@@ -6,6 +6,10 @@ const migration = readFileSync(
   "db/control-plane/migrations/0219_control_plane_content_security_scans.sql",
   "utf8",
 );
+const revocationMigration = readFileSync(
+  "db/control-plane/migrations/0222_control_plane_content_security_release_revocation.sql",
+  "utf8",
+);
 
 describe("content security scans control-plane migration", () => {
   test("pins promoted scanner identity independently from jobs", () => {
@@ -14,6 +18,19 @@ describe("content security scans control-plane migration", () => {
     expect(migration).toContain("content_security_scanner_release_identity_immutable");
     expect(migration).toContain("deployed_image_digest TEXT NOT NULL");
     expect(migration).toContain("corpus_evidence_ref TEXT NOT NULL");
+  });
+
+  test("keeps revocation terminal without fabricating staged activation", () => {
+    expect(revocationMigration).toContain("status = 'revoked' AND retired_at IS NOT NULL");
+    expect(revocationMigration).toContain(
+      "OLD.status = 'retired' AND NEW.status IN ('retired', 'revoked')",
+    );
+    expect(revocationMigration).toContain(
+      "OLD.status = 'revoked' AND NEW.status = 'revoked'",
+    );
+    expect(revocationMigration).not.toContain(
+      "status = 'revoked' AND activated_at IS NOT NULL",
+    );
   });
 
   test("keeps one active hash-bound job per blob", () => {
