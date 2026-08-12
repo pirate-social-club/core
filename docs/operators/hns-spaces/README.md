@@ -8,6 +8,10 @@ Current checkpoint:
 
 - [2026-07-18 bring-up handoff](./2026-07-18-handoff.md)
 
+Operational audits:
+
+- [2026-08-12 VPS Git provenance audit](./2026-08-12-vps-git-provenance-audit.md)
+
 Canonical product specifications:
 
 - [Handles](../../../specs/domain/handles.md)
@@ -24,6 +28,7 @@ Canonical operator material:
 - [Spaces publish contract](../spaces-operator-publish-contract.md)
 - [HNS authoritative DNS role](../../../ops/vps/hns-authoritative-dns/README.md)
 - [HNS observer role](../../../ops/vps/hns-chain-observer/README.md)
+- [HNS verifier role](../../../ops/vps/hns-verifier/README.md)
 - [HNS backup role](../../../ops/vps/hns-state-backup/README.md)
 - [Spaces verifier role](../../../ops/vps/spaces-verifier/README.md)
 

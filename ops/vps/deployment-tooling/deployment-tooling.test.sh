@@ -16,6 +16,9 @@ set -euo pipefail
 #  11. verify passes for a running container whose image digest matches the pin
 #  12. alert delivery reads bearer auth from a token file and fails closed when unreadable
 #  13. successful verification sends an authenticated role heartbeat
+#  14. installed host files are recorded and checked independently of runtimes
+#  15. release construction rejects non-main commits unless break-glass is recorded
+#  16. relative app output roots and missing-main diagnostics remain unambiguous
 
 tooling_dir="$(cd "$(dirname "$0")" && pwd)"
 work="$(mktemp -d)"
@@ -51,6 +54,7 @@ git -C "$repo" init -q
 git -C "$repo" -c user.email=t@t -c user.name=t add -A
 git -C "$repo" -c user.email=t@t -c user.name=t commit -qm "fixture"
 commit="$(git -C "$repo" rev-parse HEAD)"
+git -C "$repo" update-ref refs/remotes/origin/main "$commit"
 
 make_release() {
   (cd "$repo" && bash ops/vps/deployment-tooling/make-release.sh \
@@ -68,12 +72,17 @@ pass "make-release refuses dirty tree"
 # 2. staged release shape
 make_release "$work/deploy" --expect-running false >/dev/null
 release="$work/deploy/releases/$commit"
-[[ -f "$release/DEPLOYMENT" && -f "$release/SHA256SUMS" && -x "$release/bin/deployment-status.sh" ]] \
+[[ -f "$release/DEPLOYMENT" && -f "$release/SHA256SUMS" \
+  && -x "$release/bin/deployment-status.sh" && -x "$release/bin/record-installed-files.sh" ]] \
   || fail "release layout incomplete"
 [[ -x "$release/bin/demo-helper" ]] || fail "role-provided runtime asset was not staged"
 grep -q 'bin/demo-helper$' "$release/SHA256SUMS" || fail "runtime asset omitted from SHA256SUMS"
 grep -q "^CORE_COMMIT=$commit$" "$release/DEPLOYMENT" || fail "DEPLOYMENT missing commit"
+grep -q '^CORE_PROVENANCE=origin-main$' "$release/DEPLOYMENT" \
+  || fail "DEPLOYMENT missing core provenance"
 grep -q "^APP_COMMIT=$commit$" "$release/DEPLOYMENT" || fail "DEPLOYMENT missing app commit"
+grep -q '^APP_PROVENANCE=origin-main$' "$release/DEPLOYMENT" \
+  || fail "DEPLOYMENT missing app provenance"
 grep -q "^IMAGE_DIGEST=example/demo@sha256:1111" "$release/DEPLOYMENT" || fail "DEPLOYMENT missing digest"
 grep -q "^CONTAINER_NAME=pirate-demo-role$" "$release/DEPLOYMENT" || fail "DEPLOYMENT missing container"
 pass "make-release stages role assets and records app commit"
@@ -87,9 +96,19 @@ app_release="$work/deploy/app-releases/$commit"
   || fail "app release metadata incomplete"
 grep -q "^APP_COMMIT=$commit$" "$app_release/.pirate-deployment/DEPLOYMENT" \
   || fail "app release metadata missing commit"
+grep -q '^APP_PROVENANCE=origin-main$' "$app_release/.pirate-deployment/DEPLOYMENT" \
+  || fail "app release metadata missing provenance"
 (cd "$app_release" && sha256sum --check --quiet .pirate-deployment/SHA256SUMS) \
   || fail "staged app release checksums do not verify"
 pass "make-app-release archives and checksums exact commit"
+
+# A relative output root is relative to the caller, not silently rebased to the
+# repository root while provenance is checked.
+(cd "$repo/ops/vps" && bash deployment-tooling/make-app-release.sh \
+  ../../../relative-app-output --commit "$commit") >/dev/null
+[[ -f "$work/relative-app-output/app-releases/$commit/.pirate-deployment/DEPLOYMENT" ]] \
+  || fail "make-app-release changed the base of a relative output root"
+pass "make-app-release preserves caller-relative output roots"
 
 # 4. roles without a compose image still complete successfully
 (cd "$repo" && bash ops/vps/deployment-tooling/make-release.sh \
@@ -135,6 +154,12 @@ echo "PRIMARY_DNS_IP=203.0.113.7" > "$deploy_root/config/demo.env"
 runtime_tool="$work/runtime-tool"
 echo "trusted runtime" > "$runtime_tool"
 sha256sum "$runtime_tool" > "$deploy_root/config/RUNTIME_SHA256SUMS"
+installed_target="$work/installed-unit-v1.service"
+installed_file="$work/installed-unit.service"
+echo "tracked installed unit" > "$installed_target"
+ln -s "$installed_target" "$installed_file"
+bash "$deploy_root/current/bin/record-installed-files.sh" \
+  --deploy-root "$deploy_root" "$installed_file" >/dev/null
 
 status() { bash "$deploy_root/current/bin/deployment-status.sh" --deploy-root "$deploy_root" "$@"; }
 
@@ -145,10 +170,16 @@ clean_status="$(status)"
 grep -q "drift:   none" <<< "$clean_status" || fail "status did not report drift: none"
 grep -q "desired: app  $commit" <<< "$clean_status" \
   || fail "status omitted desired app commit: $clean_status"
+grep -q "desired: core $commit  provenance origin-main" <<< "$clean_status" \
+  || fail "status omitted desired core provenance: $clean_status"
+grep -q "desired: app  $commit  provenance origin-main" <<< "$clean_status" \
+  || fail "status omitted desired app provenance: $clean_status"
 grep -q "app:     $commit checksums OK" <<< "$clean_status" \
   || fail "status omitted app integrity: $clean_status"
 grep -q "runtime: 1 host executables checksums OK" <<< "$clean_status" \
   || fail "status omitted host runtime integrity: $clean_status"
+grep -q "installed: 1 host files checksums OK" <<< "$clean_status" \
+  || fail "status omitted installed host file integrity: $clean_status"
 pass "verify reports and passes clean role + app deployment"
 
 echo tampered >> "$runtime_tool"
@@ -156,6 +187,19 @@ status --verify >/dev/null 2>&1 && fail "host runtime executable tamper not dete
 echo "trusted runtime" > "$runtime_tool"
 status --verify >/dev/null || fail "restored host runtime executable still drifting"
 pass "verify detects host runtime executable tamper"
+
+echo tampered >> "$installed_file"
+status --verify >/dev/null 2>&1 && fail "installed host file tamper not detected"
+echo "tracked installed unit" > "$installed_target"
+status --verify >/dev/null || fail "restored installed host file still drifting"
+
+installed_target_v2="$work/installed-unit-v2.service"
+echo "different installed unit" > "$installed_target_v2"
+ln -sfn "$installed_target_v2" "$installed_file"
+status --verify >/dev/null 2>&1 && fail "installed host file symlink repoint not detected"
+ln -sfn "$installed_target" "$installed_file"
+status --verify >/dev/null || fail "restored installed host file symlink still drifting"
+pass "verify detects installed host file tamper and symlink repoint"
 
 # 6. tracked role-file tamper
 echo tampered >> "$release/compose.yaml"
@@ -279,6 +323,7 @@ EOF
 git -C "$repo" -c user.email=t@t -c user.name=t add -A
 git -C "$repo" -c user.email=t@t -c user.name=t commit -qm "multi-service fixtures"
 multi_commit="$(git -C "$repo" rev-parse HEAD)"
+git -C "$repo" update-ref refs/remotes/origin/main "$multi_commit"
 
 if (cd "$repo" && bash ops/vps/deployment-tooling/make-release.sh \
     ops/vps/multi-role "$work/multi-out" --expect-running false >/dev/null 2>&1); then
@@ -310,5 +355,54 @@ pass "make-release rejects an undeclared monitored container"
 grep -Fxq "CONTAINER_NAME=pirate-only" "$work/commented-out/releases/$multi_commit/DEPLOYMENT" \
   || fail "a comment mentioning the key shadowed the real container_name"
 pass "make-release ignores key names appearing in comments"
+
+# N. Commits outside the locally fetched protected branch fail closed. The
+# emergency path is explicit and leaves durable metadata in both release kinds.
+echo "branch-only" > "$repo/branch-only.txt"
+git -C "$repo" -c user.email=t@t -c user.name=t add branch-only.txt
+git -C "$repo" -c user.email=t@t -c user.name=t commit -qm "branch-only fixture"
+branch_commit="$(git -C "$repo" rev-parse HEAD)"
+
+if (cd "$repo" && bash ops/vps/deployment-tooling/make-release.sh \
+    ops/vps/no-image-role "$work/non-main-role" --expect-running false >/dev/null 2>&1); then
+  fail "make-release accepted a non-main commit without break-glass metadata"
+fi
+if (cd "$repo" && bash ops/vps/deployment-tooling/make-app-release.sh \
+    "$work/non-main-app" --commit "$branch_commit" >/dev/null 2>&1); then
+  fail "make-app-release accepted a non-main commit without break-glass metadata"
+fi
+
+break_glass_reference="change-vps-provenance-test"
+(cd "$repo" && bash ops/vps/deployment-tooling/make-app-release.sh \
+  "$work/break-glass-app" --commit "$branch_commit" \
+  --break-glass-non-main "$break_glass_reference") >/dev/null
+(cd "$repo" && bash ops/vps/deployment-tooling/make-release.sh \
+  ops/vps/no-image-role "$work/break-glass-role" --expect-running false \
+  --app-commit "$branch_commit" \
+  --break-glass-non-main "$break_glass_reference") >/dev/null
+
+break_glass_app_meta="$work/break-glass-app/app-releases/$branch_commit/.pirate-deployment/DEPLOYMENT"
+break_glass_role_meta="$work/break-glass-role/releases/$branch_commit/DEPLOYMENT"
+grep -Fxq 'APP_PROVENANCE=break-glass' "$break_glass_app_meta" \
+  || fail "app break-glass provenance was not recorded"
+grep -Fxq 'CORE_PROVENANCE=break-glass' "$break_glass_role_meta" \
+  || fail "role break-glass core provenance was not recorded"
+grep -Fxq 'APP_PROVENANCE=break-glass' "$break_glass_role_meta" \
+  || fail "role break-glass app provenance was not recorded"
+grep -Fxq "PROVENANCE_BREAK_GLASS_REFERENCE=$break_glass_reference" "$break_glass_role_meta" \
+  || fail "break-glass reference was not recorded"
+pass "release construction enforces main ancestry and records break-glass use"
+
+git -C "$repo" update-ref -d refs/remotes/origin/main
+missing_ref_error="$work/missing-main-ref-error"
+if (cd "$repo" && bash ops/vps/deployment-tooling/make-release.sh \
+    ops/vps/no-image-role "$work/missing-main-role" --expect-running false \
+    > /dev/null 2> "$missing_ref_error"); then
+  fail "make-release accepted a commit without the required origin/main ref"
+fi
+grep -Fq 'required remote-tracking ref refs/remotes/origin/main is not available locally' \
+  "$missing_ref_error" || fail "missing origin/main diagnostic was ambiguous"
+git -C "$repo" update-ref refs/remotes/origin/main "$multi_commit"
+pass "release provenance distinguishes a missing origin/main ref"
 
 echo "all deployment-tooling checks passed"

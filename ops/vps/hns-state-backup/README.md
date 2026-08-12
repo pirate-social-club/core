@@ -13,6 +13,10 @@ resynchronizing a chain node:
 The keyless `hsd` chain database and the secondary PowerDNS database are not
 canonical backup inputs; both are reconstructible.
 
+`/srv/pirate-hns` belongs exclusively to this backup role. Its `app` symlink
+must not be reused by the HNS verifier, which deploys independently under
+`/srv/pirate-hns-verifier`.
+
 ## Design
 
 The script:
@@ -75,6 +79,12 @@ install -o root -g root -m 0644 \
   ops/vps/hns-state-backup/systemd/pirate-hns-state-backup-alert@.service \
   /etc/systemd/system/pirate-hns-state-backup-alert@.service
 systemctl daemon-reload
+
+/srv/pirate-hns/current/bin/record-installed-files.sh \
+  --deploy-root /srv/pirate-hns \
+  /etc/systemd/system/pirate-hns-state-backup.service \
+  /etc/systemd/system/pirate-hns-state-backup.timer \
+  /etc/systemd/system/pirate-hns-state-backup-alert@.service
 ```
 
 Configure rclone and the environment file, then perform a manual run before
@@ -86,6 +96,66 @@ systemctl status pirate-hns-state-backup.service
 journalctl -u pirate-hns-state-backup.service --since today
 systemctl enable --now pirate-hns-state-backup.timer
 ```
+
+## Realign the app after the verifier cutover
+
+The dedicated HNS verifier cutover does not modify this role's app symlink. If
+the verifier previously repointed the shared `/srv/pirate-hns/app`, repair that
+known drift before enabling the backup deployment-drift timer. Run this only
+after the verifier is healthy under `/srv/pirate-hns-verifier` and while the
+backup service is inactive:
+
+```bash
+(
+set -euo pipefail
+
+backup_root=/srv/pirate-hns
+if sudo systemctl is-active --quiet pirate-hns-state-backup.service; then
+  echo "backup service is active; wait for it to finish" >&2
+  exit 1
+fi
+
+backup_app_commit="$(sudo sed -n 's/^APP_COMMIT=//p' \
+  "$backup_root/current/DEPLOYMENT" | head -1)"
+if [[ ! "$backup_app_commit" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "backup role does not declare a valid APP_COMMIT" >&2
+  exit 1
+fi
+
+backup_app_release="$backup_root/app-releases/$backup_app_commit"
+sudo grep -Fxq "APP_COMMIT=$backup_app_commit" \
+  "$backup_app_release/.pirate-deployment/DEPLOYMENT" || {
+  echo "declared backup app metadata does not match" >&2
+  exit 1
+}
+sudo bash -c 'cd "$1" && sha256sum --check --quiet .pirate-deployment/SHA256SUMS' \
+  _ "$backup_app_release" || {
+  echo "declared backup app checksums failed" >&2
+  exit 1
+}
+
+if sudo test -e "$backup_root/app.next" || sudo test -L "$backup_root/app.next"; then
+  echo "$backup_root/app.next already exists; inspect it before continuing" >&2
+  exit 1
+fi
+sudo ln -s "app-releases/$backup_app_commit" "$backup_root/app.next"
+sudo mv -T "$backup_root/app.next" "$backup_root/app"
+
+sudo "$backup_root/current/bin/deployment-status.sh" \
+  --deploy-root "$backup_root" --verify
+)
+```
+
+If the declared app is no longer the intended backup implementation, stop and
+build a new matched role/app release instead of repointing ad hoc. Do not enable
+`pirate-deployment-verify@backup.timer` until the final `--verify` reports no
+drift.
+
+Backup execution monitoring and deployment-drift monitoring are separate.
+Also create `/etc/pirate-deployment-verify/backup.env` with
+`DEPLOY_ROOT=/srv/pirate-hns` and the shared alert settings, run
+`pirate-deployment-verify@backup.service` once, then enable
+`pirate-deployment-verify@backup.timer`.
 
 With `BACKUP_RETENTION_VERIFY=true` every run proves the provider applied
 COMPLIANCE retention at least `BACKUP_MIN_RETENTION_DAYS` long to the objects
