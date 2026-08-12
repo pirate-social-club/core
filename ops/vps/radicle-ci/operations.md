@@ -271,15 +271,16 @@ escrow.
 
 ## Dependency-fetch failures
 
-Ambient 0.16.0's `npm_get` pre-plan action downloads every package-lock URL
-once and aborts before the isolated plan VM if any request fails. This is an
-infrastructure failure: no repository check ran, so it must never be treated as
-evidence that the commit is bad. The tracked Ambient source patch retries each
-download at most three times with 2-second and 4-second backoff, removing any
-partial file before retry. It skips non-HTTP lockfile entries so a repository
-can separately provision pinned local `file:` dependencies; the offline install
-still fails closed if such an input is absent. After the third HTTP failure the
-run remains failed and produces no successful proof.
+Ambient 0.16.0's `npm_get` and generic `http_get` pre-plan actions download
+each dependency once and abort before the isolated plan VM if any request
+fails. This is an infrastructure failure: no repository check ran, so it must
+never be treated as evidence that the commit is bad. The tracked Ambient source
+patch retries each download at most three times with 2-second and 4-second
+backoff, removing any partial file before retry. It skips non-HTTP lockfile
+entries so a repository can separately provision pinned local `file:`
+dependencies; the offline install still fails closed if such an input is
+absent. After the third HTTP failure the run remains failed and produces no
+successful proof.
 
 Install the exact-version patch with `scripts/install-ambient-npm-retry`. The
 installer verifies the upstream source hash, builds offline from the cached
@@ -290,9 +291,11 @@ executor; patching the `ambient` coordinator alone has no effect on `npm_get`.
 A later Ambient version is a hard stop
 until this mitigation is re-reviewed or confirmed upstream.
 
-Do not retry failed tests automatically. A retry is permitted only when the
-run report shows failure in pre-plan `npm_get` before the repository shell
-action began. Record the original failed job and the retry job separately.
+Do not retry failed tests automatically. An operator retry is permitted only
+when the report shows a pre-plan `npm_get` or `http_get` failure before the
+repository shell action began. Use `cibtool trigger` for the exact repository
+and commit; it enqueues a synthetic event but does not update a Radicle ref.
+Record the original failed job and the retry job separately.
 
 ### Announcement reconciliation verification
 

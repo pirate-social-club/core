@@ -7,6 +7,7 @@ patch_file="$role/patches/ambient-ci-0.16.0-npm-retry.patch"
 
 test -r "$patch_file"
 git apply --numstat "$patch_file" >/dev/null
+grep -Fq 'diff --git a/src/action_impl/http_get.rs' "$patch_file"
 
 # Local and other non-HTTP lock entries must be ignored before URL parsing.
 # Reordering these statements would restore the parse failure seen on a
@@ -25,10 +26,14 @@ grep -Fq 'return Err(NpmError::HttpGet(url, filename, err));' "$patch_file"
 grep -Fq '.checked_pow(attempt - 1)' "$patch_file"
 grep -Fq '.unwrap_or(u32::MAX);' "$patch_file"
 grep -Fq 'DOWNLOAD_RETRY_BASE_DELAY.saturating_mul(multiplier)' "$patch_file"
+grep -Fq 'HTTP_DOWNLOAD_RETRY_BASE_DELAY.saturating_mul(multiplier)' "$patch_file"
+grep -Fq 'http_get download attempt {attempt}/{HTTP_DOWNLOAD_ATTEMPTS}' "$patch_file"
 
 # Installation remains pinned to the reviewed Ambient source and records the
 # patched artifact hashes used by host drift verification.
 grep -Eq '^expected_source_sha256=[0-9a-f]{64}$' \
+  "$here/install-ambient-npm-retry"
+grep -Eq '^expected_http_source_sha256=[0-9a-f]{64}$' \
   "$here/install-ambient-npm-retry"
 grep -Fq 'patch_sha256=' "$here/install-ambient-npm-retry"
 grep -Fq 'binary_sha256=' "$here/install-ambient-npm-retry"

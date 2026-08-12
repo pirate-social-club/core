@@ -160,10 +160,10 @@ during the human-only ceremony; never infer or fill it from this workstation.
 
 ## Ambient dependency retry
 
-Ambient 0.16.0 does not retry `npm_get` downloads. Install the tracked,
-exact-source-hash executor patch before promotion becomes authoritative. The
-installer replaces the guest-plan executor selected by `config/ambient.yaml`,
-not merely the host coordinator:
+Ambient 0.16.0 does not retry `npm_get` or generic `http_get` downloads.
+Install the tracked, exact-source-hash executor patch before promotion becomes
+authoritative. The installer replaces the guest-plan executor selected by
+`config/ambient.yaml`, not merely the host coordinator:
 
 ```bash
 sudo ops/vps/radicle-ci/scripts/install-ambient-npm-retry \
@@ -175,10 +175,10 @@ The installer builds a candidate before replacing the PATH-preferred binary
 and records the source, patch, and resulting binary hashes under
 `/usr/local/share/pirate-radicle`. Host verification rejects a missing or
 changed binary, patch, or manifest. The patch retries individual pre-plan
-package downloads and ignores non-HTTP lockfile entries such as prepared local
-`file:` dependencies. Repositories must provision those inputs separately and
-pin/checksum them before `npm ci --offline`. Repository test failures are never
-retried automatically.
+package and generic HTTP downloads and ignores non-HTTP lockfile entries such
+as prepared local `file:` dependencies. Repositories must provision those
+inputs separately and pin/checksum them before `npm ci --offline`.
+Repository test failures are never retried automatically.
 
 After the dedicated recovery organization, age recipient, scoped immutable
 bucket credential, and alert endpoint exist:

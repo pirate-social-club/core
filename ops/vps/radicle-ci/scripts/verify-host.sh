@@ -70,6 +70,9 @@ grep -Fxq 'ambient_version=0.16.0' "$ambient_manifest"
 grep -Fxq \
   'upstream_source_sha256=ca138d2325790fba012f668e0d114346a955c574ec288fef41097df98fcdfd4c' \
   "$ambient_manifest"
+grep -Fxq \
+  'upstream_http_source_sha256=5c30341d9ddbc37ab7161597e340d02deaae14dfa9e033d3fc670e08a80a2bfb' \
+  "$ambient_manifest"
 test "$(awk -F= '$1 == "patch_sha256" { print $2 }' "$ambient_manifest")" = \
   "$(sha256sum "$ambient_patch" | awk '{ print $1 }')"
 test "$(awk -F= '$1 == "binary_sha256" { print $2 }' "$ambient_manifest")" = \

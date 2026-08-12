@@ -61,3 +61,42 @@ index 3665d76..3ef3972 100644
          }
  
          Ok(())
+diff --git a/src/action_impl/http_get.rs b/src/action_impl/http_get.rs
+index a3a848b..3044246 100644
+--- a/src/action_impl/http_get.rs
++++ b/src/action_impl/http_get.rs
+@@ -3,2 +3,6 @@
++use std::{fs, thread, time::Duration};
++
+ use reqwest::StatusCode;
+ use serde::{Deserialize, Serialize};
++const HTTP_DOWNLOAD_ATTEMPTS: u32 = 3;
++const HTTP_DOWNLOAD_RETRY_BASE_DELAY: Duration = Duration::from_secs(2);
+@@ -33,7 +38,26 @@ impl ActionImpl for HttpGet {
+         let deps = context.deps_dir();
+         for pair in self.items.iter() {
+             let filename = deps.join(pair.filename());
+-            http_get_to_file(pair.url(), &filename).map_err(HttpGetError::Util)?;
++            for attempt in 1..=HTTP_DOWNLOAD_ATTEMPTS {
++                match http_get_to_file(pair.url(), &filename) {
++                    Ok(_) => break,
++                    Err(err) => {
++                        let _ = fs::remove_file(&filename);
++                        if attempt == HTTP_DOWNLOAD_ATTEMPTS {
++                            return Err(HttpGetError::Util(err).into());
++                        }
++                        let multiplier = 2_u32
++                            .checked_pow(attempt - 1)
++                            .unwrap_or(u32::MAX);
++                        let delay = HTTP_DOWNLOAD_RETRY_BASE_DELAY.saturating_mul(multiplier);
++                        eprintln!(
++                            "http_get download attempt {attempt}/{HTTP_DOWNLOAD_ATTEMPTS} failed; retrying in {}s",
++                            delay.as_secs()
++                        );
++                        thread::sleep(delay);
++                    }
++                }
++            }
+         }
+         Ok(())
+     }
