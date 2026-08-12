@@ -158,6 +158,14 @@ export type RoutingWithheldReason =
 export interface DelegationEvaluation {
   readonly delegationSecurity: DelegationSecurity;
   readonly rolloverState: RolloverState;
+  /**
+   * The latest successful parent observation says the owner must publish a
+   * corrected DS. This is derived from the observation, never persisted as a
+   * second authority. An owner acknowledgement or mempool evidence changes
+   * the security reading to `pending`, which deliberately suppresses this
+   * action signal until the parent is observed again.
+   */
+  readonly dsUpdateRequired: boolean;
   readonly observationFresh: boolean;
   /** Age of the last successful observation in ms, or `null` if never observed. */
   readonly observationAgeMs: number | null;
@@ -202,6 +210,7 @@ export function evaluateDelegation(
     return {
       delegationSecurity: "unknown",
       rolloverState: "none",
+      dsUpdateRequired: false,
       observationFresh: false,
       observationAgeMs: null,
       secureDelegationVerified: false,
@@ -257,6 +266,13 @@ export function evaluateDelegation(
   const componentsSecure =
     state.parentDsMatchesLiveDnskey === true && state.authoritativeDnssecValid === true;
   const summarySecure = state.delegationSecurity === "secure";
+  // `unsecured` and `drifted` are the owner-action findings. `pending` is
+  // intentionally excluded: the owner has already acknowledged/submitted an
+  // update, and asking them to publish again would risk superseding it. A
+  // successful observation is required before this signal can clear.
+  const dsUpdateRequired =
+    state.parentDsMatchesLiveDnskey === false
+    && (state.delegationSecurity === "unsecured" || state.delegationSecurity === "drifted");
 
   let securityWithheldReason: RoutingWithheldReason | null = null;
   if (!summarySecure) {
@@ -311,6 +327,7 @@ export function evaluateDelegation(
   return {
     delegationSecurity: state.delegationSecurity,
     rolloverState: state.rolloverState,
+    dsUpdateRequired,
     observationFresh,
     observationAgeMs,
     secureDelegationVerified,
