@@ -1,0 +1,72 @@
+schema_version: 1
+status: preparation
+generated_at: 2026-08-12T10:06:05Z
+generated_by: workspace_owner
+tool_versions:
+  rad: 1.10.0
+  infisical_cli: 0.43.121
+  age: null
+
+# Human-only ceremony fields remain null until they are verified from a
+# disposable environment. Null is a hard stop for delegate or backup cutover.
+escrow:
+  provider: infisical-cloud-us
+  organization_id: null
+  project_id: null
+  project_slug: pirate-recovery
+  environment: recovery
+  plan_tier: null
+  audit_logs: null
+  audit_retention: null
+  point_in_time_recovery: null
+  secret_versioning_verified_at: null
+  storage_model: single-provider-replicated-encrypted-blob
+  duplicate_private_key_copy: false
+
+radicle_recovery_delegate:
+  did: null
+  public_key_openssh: null
+  secret_path: /radicle/RADICLE_RECOVERY_PRIVATE_KEY
+  encrypted_key_file_sha256: null
+  passphrase_storage: separate-password-manager
+  added_to_repositories: []
+  last_drill_at: null
+  drill_result: pending
+
+backup_age_identities:
+  ns1:
+    current:
+      recipient: null
+      secret_path: /backup-age/NS1_BACKUP_AGE_IDENTITY_CURRENT_WRAPPED
+      wrapped_blob_sha256: null
+      wrapping_passphrase_storage: separate-password-manager
+      rotated_at: null
+      last_drill_at: null
+    previous: null
+  radicle_proof_state:
+    current:
+      recipient: null
+      secret_path: /backup-age/RADICLE_PROOF_BACKUP_AGE_IDENTITY_CURRENT_WRAPPED
+      wrapped_blob_sha256: null
+      wrapping_passphrase_storage: separate-password-manager
+      rotated_at: null
+      last_drill_at: null
+    previous: null
+
+proof_backup_attestation:
+  public_key_openssh: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHrA7mVB0p+CVk/ccYoF8TwdADXfxGVdPcHkzPWicf78 radicle-proof-backup
+  public_key_fingerprint: SHA256:pLt/6CiFWxtl4hHHALLd6QEacDUIG9iIVaokmngnGUE
+  signature_namespace: pirate-radicle-proof-backup
+
+retention_days: 30
+account_recovery:
+  hardware_mfa: null
+  recovery_method_documented: null
+  tested_at: null
+
+never_includes:
+  - private_keys
+  - passphrases
+  - tokens
+  - account_identifiers
+  - decrypted_content

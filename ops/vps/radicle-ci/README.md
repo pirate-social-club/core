@@ -150,6 +150,11 @@ backup-attestation key, uploaded immutably, and checked for provider COMPLIANCE
 retention. The backup signer is not a Radicle delegate. Record its public-key
 fingerprint in the secret-free recovery manifest.
 
+`recovery-manifest.yaml` is the live, secret-free rollout record. Its
+`status: preparation` and null ceremony fields are hard stops, not optional
+values. Replace them only with evidence verified during the human-only
+ceremony; never infer or fill them from this workstation.
+
 After the dedicated recovery organization, age recipient, scoped immutable
 bucket credential, and alert endpoint exist:
 
