@@ -450,7 +450,14 @@ export function selectMigrationBindings(input: {
  * query and binding resolution as a fleet migration — a second implementation
  * would eventually disagree about which shards are live.
  */
-export async function wranglerJson(options: Pick<Options, "env" | "cwd">, db: string, args: string[]): Promise<any[]> {
+export type WranglerOperation = "read" | "write"
+
+export async function wranglerJson(
+  options: Pick<Options, "env" | "cwd">,
+  db: string,
+  args: string[],
+  operation: WranglerOperation,
+): Promise<any[]> {
   const cmd = [
     "bunx",
     "wrangler@4.100.0",
@@ -462,7 +469,12 @@ export async function wranglerJson(options: Pick<Options, "env" | "cwd">, db: st
     "--json",
     ...args,
   ]
-  for (let attempt = 1; attempt <= 4; attempt += 1) {
+  // Fleet reads touch every shard, so even rare D1 internal errors become a
+  // routine full-scan failure. Give read-only probes a wider retry window.
+  // Writes retain the existing limit because a generic internal error can be
+  // ambiguous after a non-replayable DDL upload.
+  const maxAttempts = operation === "read" ? 6 : 4
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const proc = Bun.spawn(cmd, { cwd: options.cwd, stdout: "pipe", stderr: "pipe" })
     const [stdout, stderr, code] = await Promise.all([
       new Response(proc.stdout).text(),
@@ -472,16 +484,18 @@ export async function wranglerJson(options: Pick<Options, "env" | "cwd">, db: st
     if (code === 0) return extractWranglerJson(stdout) as any[]
     const fullDetail = `${stderr}\n${stdout}`.trim()
     const detail = fullDetail.length > 800 ? fullDetail.slice(-800) : fullDetail
-    if (!isTransientWranglerFailure(fullDetail) || attempt === 4) {
+    if (!isTransientWranglerFailure(fullDetail, operation) || attempt === maxAttempts) {
       throw new Error(`wrangler exited ${code}: ${detail}`)
     }
-    await Bun.sleep(250 * 2 ** (attempt - 1))
+    await Bun.sleep(Math.min(4_000, 250 * 2 ** (attempt - 1)))
   }
   throw new Error("wrangler retry loop exhausted")
 }
 
-export function isTransientWranglerFailure(detail: string): boolean {
-  return /fetch failed|rate.?limit|timeout|timed out|ECONNRESET|ETIMEDOUT|EAI_AGAIN|code[^0-9]*7429|authentication error.*code[^0-9]*10000|network/isu.test(detail)
+export function isTransientWranglerFailure(detail: string, operation: WranglerOperation): boolean {
+  const retryableTransport = /fetch failed|rate.?limit|timeout|timed out|ECONNRESET|ETIMEDOUT|EAI_AGAIN|code[^0-9]*7429|authentication error.*code[^0-9]*10000|network/isu.test(detail)
+  const retryableReadInternalError = operation === "read" && /code[^0-9]*7500/isu.test(detail)
+  return retryableTransport || retryableReadInternalError
 }
 
 export async function loadedBindings(options: Pick<Options, "env" | "cwd" | "poolDb">): Promise<string[]> {
@@ -489,7 +503,7 @@ export async function loadedBindings(options: Pick<Options, "env" | "cwd" | "poo
     await wranglerJson(options, options.poolDb, [
       "--command",
       "SELECT binding_name FROM d1_pool WHERE community_id IS NOT NULL AND last_loaded_at IS NOT NULL ORDER BY binding_name",
-    ])
+    ], "read")
   )[0].results as Array<{ binding_name: string }>
   return rows.map((r) => r.binding_name)
 }
@@ -517,14 +531,14 @@ async function classify(
   checksum: string,
 ): Promise<{ status: Status; detail?: string; row_counts?: Record<string, number> }> {
   const rows = (
-    await wranglerJson(options, db, ["--command", classificationSql(spec)])
+    await wranglerJson(options, db, ["--command", classificationSql(spec)], "read")
   )[0].results[0] as Record<string, number | string>
   const classification = classifyRow(spec, rows, checksum)
   const countsSql = rowCountSql(spec)
   let rowCounts: Record<string, number> | undefined
   if (countsSql && spec.requiredTables.every((table) => Number(rows[`req_${table}`] ?? 0) === 1)) {
     const countRows = (
-      await wranglerJson(options, db, ["--command", countsSql])
+      await wranglerJson(options, db, ["--command", countsSql], "read")
     )[0].results[0] as Record<string, number | string>
     rowCounts = Object.fromEntries(
       (spec.rowCountTables ?? []).map((table) => [table, Number(countRows[`metric_rows__${table}`] ?? 0)]),
@@ -579,13 +593,13 @@ async function applyToShard(
     // repair and ledger write in the same uploaded file.
     const file = `/tmp/${spec.migration.split("_")[0]}-${db}-ledger-backfill.sql`
     await writeFile(file, ledgerBackfillBody(spec, checksum))
-    await wranglerJson(options, db, ["--file", file])
+    await wranglerJson(options, db, ["--file", file], "write")
     return "backfilled_ledger"
   }
 
   const file = `/tmp/${spec.migration.split("_")[0]}-${db}.sql`
   await writeFile(file, executionBody(sql, spec, checksum))
-  await wranglerJson(options, db, ["--file", file])
+  await wranglerJson(options, db, ["--file", file], "write")
   return "applied_migration"
 }
 

@@ -149,7 +149,7 @@ async function main(scriptPath: string): Promise<void> {
   }
 
   const probe = async () => {
-    const rows = await wranglerJson(options, options.only, ["--command", probeSql()])
+    const rows = await wranglerJson(options, options.only, ["--command", probeSql()], "read")
     return probeFromRow(rows[0].results[0] as Record<string, unknown>)
   }
   const before = await probe()
@@ -192,7 +192,7 @@ async function main(scriptPath: string): Promise<void> {
 
   const file = `/tmp/1122-audience-gate-repair-${options.only}.sql`
   await writeFile(file, `${plan.statement}\n`)
-  await wranglerJson(options, options.only, ["--file", file])
+  await wranglerJson(options, options.only, ["--file", file], "write")
   const after = await probe()
   record.probe_after = after
   if (!after.hasLiveRooms || !after.hasColumn || after.ledgerChecksum !== checksum) {

@@ -28,11 +28,17 @@ const MIGRATIONS_DIR = resolve(import.meta.dir, "../../../db/community-template/
 
 describe("wrangler transport retry classification", () => {
   test("retries transient transport and overload failures", () => {
-    expect(isTransientWranglerFailure('{"error":{"text":"fetch failed"}}')).toBe(true)
-    expect(isTransientWranglerFailure(`${"warning ".repeat(200)}fetch failed`)).toBe(true)
-    expect(isTransientWranglerFailure("Cloudflare code 7429")).toBe(true)
-    expect(isTransientWranglerFailure("Authentication error [code: 10000]")).toBe(true)
-    expect(isTransientWranglerFailure("no such table: posts")).toBe(false)
+    expect(isTransientWranglerFailure('{"error":{"text":"fetch failed"}}', "read")).toBe(true)
+    expect(isTransientWranglerFailure(`${"warning ".repeat(200)}fetch failed`, "read")).toBe(true)
+    expect(isTransientWranglerFailure("Cloudflare code 7429", "read")).toBe(true)
+    expect(isTransientWranglerFailure("Authentication error [code: 10000]", "read")).toBe(true)
+    expect(isTransientWranglerFailure("no such table: posts", "read")).toBe(false)
+  })
+
+  test("retries generic D1 internal errors only for explicit read operations", () => {
+    const detail = "internal error; reference = opaque [code: 7500]"
+    expect(isTransientWranglerFailure(detail, "read")).toBe(true)
+    expect(isTransientWranglerFailure(detail, "write")).toBe(false)
   })
 })
 

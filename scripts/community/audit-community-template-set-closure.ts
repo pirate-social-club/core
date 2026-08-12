@@ -706,13 +706,13 @@ async function fetchShardSnapshot(
   tables: readonly string[],
 ): Promise<ShardSchemaSnapshot> {
   const ledgerRows = (
-    await wranglerJson(options, db, ["--command", LEDGER_DUMP_SQL])
+    await wranglerJson(options, db, ["--command", LEDGER_DUMP_SQL], "read")
   )[0].results as Array<Record<string, unknown>>
   const objectRows = (
-    await wranglerJson(options, db, ["--command", SCHEMA_OBJECTS_SQL])
+    await wranglerJson(options, db, ["--command", SCHEMA_OBJECTS_SQL], "read")
   )[0].results as Array<Record<string, unknown>>
   const columnRow = tables.length > 0
-    ? ((await wranglerJson(options, db, ["--command", columnProbeSql(tables)]))[0]
+    ? ((await wranglerJson(options, db, ["--command", columnProbeSql(tables)], "read"))[0]
         .results[0] as Record<string, unknown>)
     : {}
   return snapshotFromRows({ ledgerRows, objectRows, columnRow, probedTables: tables })

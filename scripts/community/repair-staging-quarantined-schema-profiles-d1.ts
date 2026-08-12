@@ -307,7 +307,7 @@ async function main(): Promise<void> {
     throw new Error(`target ${options.only} is absent from the staging shard config`)
   }
   const readProbe = async () => {
-    const response = await wranglerJson({ cwd: options.cwd }, options.only, ["--command", probeSql(profile)])
+    const response = await wranglerJson({ cwd: options.cwd }, options.only, ["--command", probeSql(profile)], "read")
     const row = response[0]?.results?.[0]
     if (!row || typeof row !== "object") throw new Error("probe returned no well-shaped row")
     return row as Probe
@@ -331,7 +331,7 @@ async function main(): Promise<void> {
   if (decision === "repair" && options.execute) {
     const file = `/tmp/repair-${options.only}.sql`
     await writeFile(file, sql)
-    await wranglerJson({ cwd: options.cwd }, options.only, ["--file", file])
+    await wranglerJson({ cwd: options.cwd }, options.only, ["--file", file], "write")
     const after = await readProbe()
     record.after = after
     const failures = convergenceFailures(profile, after)

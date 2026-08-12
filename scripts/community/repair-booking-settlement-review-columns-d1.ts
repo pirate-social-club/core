@@ -261,7 +261,7 @@ async function main(scriptPath: string): Promise<void> {
 
   async function probe(): Promise<RepairProbe> {
     const rows = (
-      await wranglerJson(options, options.only, ["--command", settlementReviewProbeSql(indexName)])
+      await wranglerJson(options, options.only, ["--command", settlementReviewProbeSql(indexName)], "read")
     )[0].results[0] as Record<string, unknown>
     return probeFromRow(rows)
   }
@@ -317,7 +317,7 @@ async function main(scriptPath: string): Promise<void> {
 
   const file = `/tmp/1108-settlement-review-repair-${options.only}.sql`
   await writeFile(file, `${plan.statements.join("\n")}\n`)
-  await wranglerJson(options, options.only, ["--file", file])
+  await wranglerJson(options, options.only, ["--file", file], "write")
   console.log(`\napplied ${plan.statements.length} statement(s); re-probing…`)
 
   const after = await probe()
