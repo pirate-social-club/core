@@ -181,14 +181,20 @@ stats, but explicit engagement (0.10), downvote share (−0.35), and freshness
 
 1. **Isolation and trust.** Thread namespace context through every route;
    enforce `post.community == forwarded community` with 404 on mismatch,
-   tested. Forwarder trust today: web accepts context given a valid shared
-   token **or** a trusted source IP (either alone suffices) after
-   internal-header sanitization at the gateway. Target: production requires a
+   tested. Historical forwarder trust accepted context given a valid shared
+   token **or** a trusted source IP (either alone sufficed) after
+   internal-header sanitization at the gateway. Production now requires a
    valid timestamped HMAC (over host, path, method, root, community) **and**
    a trusted forwarder source — neither mechanism independently authorizes
    context; fail closed when the key is absent. Ship with key rotation,
    defined clock-skew tolerance, canonical input encoding, and replay-window
    tests. Reserve `home` in web and core.
+
+   **Legacy-token retirement completed 2026-08-13.** The gateway legacy token
+   and Web Worker acceptance secret were removed while retaining
+   `HNS_PUBLIC_FORWARDER_REQUIRE_HMAC=true` and the HMAC rotation path. After
+   each removal, sovereign apex and app requests remained community-scoped;
+   a token-only request from the trusted gateway source returned HTTP 403.
 2. **Community video endpoint + `default_surface` administration.**
    Projection-backed `/public-communities/:id/feed/videos` with working v1/v2
    cursors and scope-aware selection. Community summary, branding tokens, and
