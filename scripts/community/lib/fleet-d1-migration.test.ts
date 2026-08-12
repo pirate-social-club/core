@@ -383,6 +383,44 @@ describe("classifyRow — 1132 columns across tables", () => {
 })
 
 describe("classificationSql", () => {
+  test("combines tables, indexes, columns, and fragments across rebuilt tables", () => {
+    const spec: MigrationSpec = {
+      migration: "9999_composite.sql",
+      label: "community-template",
+      requiredTables: ["attempts", "review_state"],
+      creates: {
+        kind: "schema_objects",
+        columns: [{ table: "attempts", column: "placements_json" }],
+        indexes: ["idx_cloze_status"],
+        finalIndexes: ["idx_attempts_lookup"],
+        tables: ["cloze"],
+        tableSqlContains: [
+          { table: "attempts", fragments: ["'fill_blank'"] },
+          { table: "review_state", fragments: ["'fill_blank'"] },
+        ],
+      },
+      rowCountTables: ["attempts"],
+      replayableDdl: false,
+      description: "test",
+    }
+    const sql = classificationSql(spec)
+    expect(sql).toContain("obj_table_fragment__attempts__0")
+    expect(sql).toContain("obj_table_fragment__review_state__0")
+    expect(sql).toContain("metric_rows__attempts")
+    expect(classifyRow(spec, {
+      has_ledger: 1,
+      ledger_checksum: CHECKSUM,
+      req_attempts: 1,
+      req_review_state: 1,
+      obj_attempts__placements_json: 1,
+      obj_index__idx_cloze_status: 1,
+      obj_table__cloze: 1,
+      obj_table_fragment__attempts__0: 1,
+      obj_table_fragment__review_state__0: 0,
+      final_index__idx_attempts_lookup: 1,
+    }, CHECKSUM).status).toBe("partial_objects")
+  })
+
   test("can attest a required fragment in canonical table SQL", () => {
     const spec: MigrationSpec = {
       migration: "1037_rebuild_comments_guest_authorship.sql",

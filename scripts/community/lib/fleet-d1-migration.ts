@@ -61,6 +61,9 @@ export type ObjectSpec =
       columns: readonly { table: string; column: string }[]
       indexes: readonly string[]
       tables?: readonly string[]
+      tableSqlContains?: readonly { table: string; fragments: readonly string[] }[]
+      /** Existing names that must be present once any new migration marker exists. */
+      finalIndexes?: readonly string[]
     }
   | { kind: "tables"; tables: readonly string[] }
 
@@ -73,6 +76,8 @@ export type MigrationSpec = {
   requiredTables: readonly string[]
   /** What the migration creates. */
   creates: ObjectSpec
+  /** Optional pre-write row counts recorded in each shard's manifest entry. */
+  rowCountTables?: readonly string[]
   /**
    * Whether the DDL is safe to replay when its objects already exist.
    * Plain `ADD COLUMN` and plain `CREATE TABLE` are NOT: they fail with
@@ -120,6 +125,9 @@ export type ShardResult = {
   database_id: string
   status: Status
   action: "none" | "applied_migration" | "backfilled_ledger"
+  row_counts?: Record<string, number>
+  classification_duration_ms?: number
+  apply_duration_ms?: number
   detail?: string
 }
 
@@ -191,8 +199,16 @@ export function classificationSql(spec: MigrationSpec): string {
             ...spec.creates.indexes.map((index) =>
               `(SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='${index}') AS obj_index__${index}`
             ),
+            ...(spec.creates.finalIndexes ?? []).map((index) =>
+              `(SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='${index}') AS final_index__${index}`
+            ),
             ...(spec.creates.tables ?? []).map((table) =>
               `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${table}') AS obj_table__${table}`
+            ),
+            ...(spec.creates.tableSqlContains ?? []).flatMap(({ table, fragments }) =>
+              fragments.map((fragment, index) =>
+                `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${table}' AND instr(lower(sql), lower('${fragment.replaceAll("'", "''")}')) > 0) AS obj_table_fragment__${table}__${index}`
+              )
             ),
           ].join(",\n  ")
         : spec.creates.tables
@@ -204,6 +220,9 @@ export function classificationSql(spec: MigrationSpec): string {
     `(SELECT COALESCE(GROUP_CONCAT(checksum), '') FROM schema_migrations WHERE migration_name='${spec.migration}') AS ledger_checksum`,
     ...(required ? [required] : []),
     ...(objects ? [objects] : []),
+    ...(spec.rowCountTables ?? []).map((table) =>
+      `(SELECT COUNT(*) FROM '${table.replaceAll("'", "''")}') AS metric_rows__${table}`
+    ),
   ]
   return `SELECT\n  ${probes.join(",\n  ")}`
 }
@@ -221,6 +240,9 @@ function objectNames(spec: MigrationSpec): readonly string[] {
       ...spec.creates.columns.map(({ table, column }) => `${table}__${column}`),
       ...spec.creates.indexes.map((index) => `index__${index}`),
       ...(spec.creates.tables ?? []).map((table) => `table__${table}`),
+      ...(spec.creates.tableSqlContains ?? []).flatMap(({ table, fragments }) =>
+        fragments.map((_, index) => `table_fragment__${table}__${index}`)
+      ),
     ]
   }
   return spec.creates.tables
@@ -228,6 +250,13 @@ function objectNames(spec: MigrationSpec): readonly string[] {
 
 function cell(r: Record<string, number | string>, key: string): number | string {
   return r[key] ?? 0
+}
+
+function missingFinalInvariants(spec: MigrationSpec, rows: Record<string, number | string>): readonly string[] {
+  if (spec.creates.kind !== "schema_objects") return []
+  return (spec.creates.finalIndexes ?? [])
+    .filter((index) => Number(cell(rows, `final_index__${index}`)) !== 1)
+    .map((index) => `index__${index}`)
 }
 
 /** Pure classification from an already-fetched row. Unit-testable. */
@@ -246,12 +275,17 @@ export function classifyRow(
 
   const names = objectNames(spec)
   const present = names.filter((n) => Number(cell(rows, `obj_${n}`)) === 1)
+  const missingFinal = missingFinalInvariants(spec, rows)
   const recorded = String(rows.ledger_checksum ?? "")
 
   if (present.length > 0 && present.length < names.length) {
     return { status: "partial_objects", detail: `present: ${present.join(", ")}` }
   }
-  const allPresent = present.length === names.length
+  const allMarkersPresent = present.length === names.length
+  if (allMarkersPresent && missingFinal.length > 0) {
+    return { status: "partial_objects", detail: `missing final invariant(s): ${missingFinal.join(", ")}` }
+  }
+  const allPresent = allMarkersPresent && missingFinal.length === 0
 
   if (recorded) {
     if (recorded !== checksum) {
@@ -455,11 +489,18 @@ async function classify(
   spec: MigrationSpec,
   db: string,
   checksum: string,
-): Promise<{ status: Status; detail?: string }> {
+): Promise<{ status: Status; detail?: string; row_counts?: Record<string, number> }> {
   const rows = (
     await wranglerJson(options, db, ["--command", classificationSql(spec)])
   )[0].results[0] as Record<string, number | string>
-  return classifyRow(spec, rows, checksum)
+  const classification = classifyRow(spec, rows, checksum)
+  const rowCounts = Object.fromEntries(
+    (spec.rowCountTables ?? []).map((table) => [table, Number(rows[`metric_rows__${table}`] ?? 0)]),
+  )
+  return {
+    ...classification,
+    ...(spec.rowCountTables?.length ? { row_counts: rowCounts } : {}),
+  }
 }
 
 export function ledgerStatement(spec: MigrationSpec, checksum: string): string {
@@ -657,11 +698,16 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
       const t = pending[idx++]
       const base = { binding: t.binding, database_name: t.name, database_id: t.id }
       try {
-        const { status, detail } = await classify(options, spec, t.name, checksum)
+        const classificationStartedAt = performance.now()
+        const { status, detail, row_counts } = await classify(options, spec, t.name, checksum)
+        const classificationDurationMs = Math.round(performance.now() - classificationStartedAt)
         let action: ShardResult["action"] = "none"
+        let applyDurationMs: number | undefined
         const writable = status === "needs_migration" || status === "needs_ledger_backfill"
         if (options.execute && writable) {
+          const applyStartedAt = performance.now()
           action = await applyToShard(options, spec, t.name, status, sql, checksum)
+          applyDurationMs = Math.round(performance.now() - applyStartedAt)
           // Append the instant it lands, so a transient failure on a LATER shard
           // can never lose the record of this one. Keyed by migration AND shard:
           // another spec's entries must never satisfy this run.
@@ -669,7 +715,15 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
             await writeFile(options.resumeFile, `${resumeEntryKey(spec.migration, t.name)}\n`, { flag: "a" })
           }
         }
-        results.push({ ...base, status, action, ...(detail ? { detail } : {}) })
+        results.push({
+          ...base,
+          status,
+          action,
+          ...(row_counts ? { row_counts } : {}),
+          classification_duration_ms: classificationDurationMs,
+          ...(applyDurationMs === undefined ? {} : { apply_duration_ms: applyDurationMs }),
+          ...(detail ? { detail } : {}),
+        })
         console.log(`  ${t.name.padEnd(34)} ${status}${action !== "none" ? ` -> ${action}` : ""}`)
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error)
