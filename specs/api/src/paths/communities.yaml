@@ -1906,7 +1906,7 @@ communities_by_community_id_posts_by_post_id_comments:
       "401":
         $ref: ../components/responses.yaml#/AuthError
       "403":
-        $ref: ../components/responses.yaml#/VerificationRequired
+        $ref: ../components/responses.yaml#/CommentCreateForbidden
       "404":
         $ref: ../components/responses.yaml#/NotFound
 communities_by_community_id_posts_by_post_id_remove:
