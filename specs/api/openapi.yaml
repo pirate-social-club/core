@@ -19960,11 +19960,7 @@ components:
         song_owner:
           type: string
         reward_identity_provider:
-          type: string
-          enum:
-            - self
-            - zkpassport
-            - very
+          $ref: "#/components/schemas/RewardCampaignIdentityProvider"
           description: Immutable unique-human provider selected for the permanent song pool.
         status:
           $ref: "#/components/schemas/RewardCampaignStatus"
@@ -20073,11 +20069,7 @@ components:
         post:
           type: string
         reward_identity_provider:
-          type: string
-          enum:
-            - self
-            - zkpassport
-            - very
+          $ref: "#/components/schemas/RewardCampaignIdentityProvider"
           description: Permanent provider for this song pool. Nationality-tiered pools cannot select very.
         eligible_activity:
           $ref: "#/components/schemas/RewardCampaignEligibleActivity"
@@ -20204,11 +20196,7 @@ components:
         idempotency_key:
           type: string
         reward_identity_provider:
-          type: string
-          enum:
-            - self
-            - zkpassport
-            - very
+          $ref: "#/components/schemas/RewardCampaignIdentityProvider"
           description: Optional assertion for a top-up; when supplied it must equal the pool's immutable provider.
     RewardCampaignFundingConfirmRequest:
       type: object

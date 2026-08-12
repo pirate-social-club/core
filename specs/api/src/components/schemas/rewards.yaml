@@ -419,6 +419,12 @@ RewardIdentityBindingSelectRequest:
     identity_nullifier_id:
       type: string
       minLength: 1
+RewardCampaignIdentityProvider:
+  type: string
+  enum:
+    - self
+    - zkpassport
+    - very
 RewardCampaignCapabilities:
   type: object
   additionalProperties: false
@@ -441,6 +447,8 @@ RewardCampaignCapabilities:
     - default_duration_seconds
     - eligible_activities
     - nationality_payout_tiers
+    - flat_identity_providers
+    - nationality_tier_identity_providers
     - chain_id
     - token_address
   properties:
@@ -488,6 +496,16 @@ RewardCampaignCapabilities:
         while tiered funding and claim-time payout differences remain blocked.
         enabled permits funding and claim-time tier resolution under the pool's
         immutable identity provider.
+    flat_identity_providers:
+      type: array
+      items:
+        $ref: ./rewards.yaml#/RewardCampaignIdentityProvider
+      description: Providers accepted for campaigns with one payout amount.
+    nationality_tier_identity_providers:
+      type: array
+      items:
+        $ref: ./rewards.yaml#/RewardCampaignIdentityProvider
+      description: Providers accepted for campaigns with nationality-conditioned payout amounts.
     chain_id:
       type: integer
       minimum: 1
@@ -603,11 +621,7 @@ RewardCampaign:
     song_owner:
       type: string
     reward_identity_provider:
-      type: string
-      enum:
-        - self
-        - zkpassport
-        - very
+      $ref: ./rewards.yaml#/RewardCampaignIdentityProvider
       description: Immutable unique-human provider selected for the permanent song pool.
     status:
       $ref: ./rewards.yaml#/RewardCampaignStatus
@@ -716,11 +730,7 @@ RewardCampaignCreateRequest:
     post:
       type: string
     reward_identity_provider:
-      type: string
-      enum:
-        - self
-        - zkpassport
-        - very
+      $ref: ./rewards.yaml#/RewardCampaignIdentityProvider
       description: Permanent provider for this song pool. Nationality-tiered pools cannot select very.
     eligible_activity:
       $ref: ./rewards.yaml#/RewardCampaignEligibleActivity
@@ -864,11 +874,7 @@ RewardCampaignFundingQuoteRequest:
     idempotency_key:
       type: string
     reward_identity_provider:
-      type: string
-      enum:
-        - self
-        - zkpassport
-        - very
+      $ref: ./rewards.yaml#/RewardCampaignIdentityProvider
       description: Optional assertion for a top-up; when supplied it must equal the pool's immutable provider.
 RewardCampaignFundingConfirmRequest:
   type: object
