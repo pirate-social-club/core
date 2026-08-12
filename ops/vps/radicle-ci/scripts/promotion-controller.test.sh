@@ -73,4 +73,16 @@ if $controller process-one; then
 fi
 test -f "$PROMOTION_STATE_DIR/queue/failed/$bad_id.json"
 
+# Status is a health/read path. It must work with state mounted read-only and
+# must not lazily create or modify controller files.
+before=$(find "$PROMOTION_STATE_DIR" -printf '%P %s %T@\n' | sort)
+chmod -R a-w "$PROMOTION_STATE_DIR"
+status=$($controller status)
+jq -e \
+  'select(.mode == "advisory" and .authority == false and .done == 1 and .failed == 1)' \
+  <<<"$status" >/dev/null
+after=$(find "$PROMOTION_STATE_DIR" -printf '%P %s %T@\n' | sort)
+test "$before" = "$after"
+chmod -R u+w "$PROMOTION_STATE_DIR"
+
 echo 'promotion controller tests passed'

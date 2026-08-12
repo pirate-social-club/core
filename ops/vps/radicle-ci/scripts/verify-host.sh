@@ -51,8 +51,8 @@ RADICLE_CI_REPOSITORIES_FILE=/etc/pirate-radicle/repositories \
 cmp -s "$expected_broker" "$rad_home/ci/ci-broker.yaml" \
   || { echo 'live broker repository filters differ from the canonical allowlist' >&2; exit 1; }
 
-test -r /dev/kvm
-test -w /dev/kvm
+sudo -u radicle test -r /dev/kvm
+sudo -u radicle test -w /dev/kvm
 test -s "$rad_home/ambient/ambient.qcow2"
 qemu-img check -q "$rad_home/ambient/ambient.qcow2"
 

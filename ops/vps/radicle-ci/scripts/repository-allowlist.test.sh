@@ -64,5 +64,9 @@ grep -Fq \
   "$role/systemd/radicle-ci-host-verification.service"
 grep -Fq 'OnUnitActiveSec=1h' \
   "$role/systemd/radicle-ci-host-verification.timer"
+grep -Fq 'DeviceAllow=/dev/kvm rw' \
+  "$role/systemd/radicle-ci-host-verification.service"
+grep -Fq 'sudo -u radicle test -r /dev/kvm' "$here/verify-host.sh"
+grep -Fq 'sudo -u radicle test -w /dev/kvm' "$here/verify-host.sh"
 
 echo 'repository allowlist tests passed'

@@ -194,12 +194,11 @@ status() {
     '{mode:$mode,authority:false,pending:$pending,processing:$processing,done:$done,failed:$failed}'
 }
 
-init_state
 case "${1:-}" in
-  enqueue) shift; enqueue "$@" ;;
-  process-one) process_one ;;
-  run) recover; run_loop ;;
-  recover) recover ;;
+  enqueue) init_state; shift; enqueue "$@" ;;
+  process-one) init_state; process_one ;;
+  run) init_state; recover; run_loop ;;
+  recover) init_state; recover ;;
   status) status ;;
   *) die 'usage: promotion-controller {enqueue|process-one|run|recover|status}' ;;
 esac

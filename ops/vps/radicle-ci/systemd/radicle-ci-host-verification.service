@@ -20,4 +20,6 @@ ProtectClock=true
 ProtectHostname=true
 RestrictRealtime=true
 LockPersonality=true
+DevicePolicy=closed
+DeviceAllow=/dev/kvm rw
 UMask=0077
