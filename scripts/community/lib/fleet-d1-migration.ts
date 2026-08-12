@@ -450,7 +450,32 @@ export function selectMigrationBindings(input: {
  * query and binding resolution as a fleet migration — a second implementation
  * would eventually disagree about which shards are live.
  */
-export async function wranglerJson(options: Pick<Options, "env" | "cwd">, db: string, args: string[]): Promise<any[]> {
+type WranglerRetryProfile = "standard" | "fleet_read"
+
+const STANDARD_WRANGLER_ATTEMPTS = 4
+const FLEET_READ_WRANGLER_ATTEMPTS = 6
+
+/**
+ * Full-fleet probes routinely span hundreds of D1 databases. Treat provider
+ * internal error 7500 as retryable only for those read-only queries: broadening
+ * the standard profile would also replay non-idempotent migration files after
+ * an ambiguous response.
+ */
+export function isTransientWranglerReadFailure(detail: string): boolean {
+  return isTransientWranglerFailure(detail) || /code[^0-9]*7500/isu.test(detail)
+}
+
+export function wranglerRetryDelayMs(profile: WranglerRetryProfile, failedAttempt: number): number {
+  const baseDelayMs = profile === "fleet_read" ? 1_000 : 250
+  return baseDelayMs * 2 ** (failedAttempt - 1)
+}
+
+export async function wranglerJson(
+  options: Pick<Options, "env" | "cwd">,
+  db: string,
+  args: string[],
+  retryProfile: WranglerRetryProfile = "standard",
+): Promise<any[]> {
   const cmd = [
     "bunx",
     "wrangler@4.100.0",
@@ -462,7 +487,13 @@ export async function wranglerJson(options: Pick<Options, "env" | "cwd">, db: st
     "--json",
     ...args,
   ]
-  for (let attempt = 1; attempt <= 4; attempt += 1) {
+  const maxAttempts = retryProfile === "fleet_read"
+    ? FLEET_READ_WRANGLER_ATTEMPTS
+    : STANDARD_WRANGLER_ATTEMPTS
+  const isTransient = retryProfile === "fleet_read"
+    ? isTransientWranglerReadFailure
+    : isTransientWranglerFailure
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const proc = Bun.spawn(cmd, { cwd: options.cwd, stdout: "pipe", stderr: "pipe" })
     const [stdout, stderr, code] = await Promise.all([
       new Response(proc.stdout).text(),
@@ -472,10 +503,14 @@ export async function wranglerJson(options: Pick<Options, "env" | "cwd">, db: st
     if (code === 0) return extractWranglerJson(stdout) as any[]
     const fullDetail = `${stderr}\n${stdout}`.trim()
     const detail = fullDetail.length > 800 ? fullDetail.slice(-800) : fullDetail
-    if (!isTransientWranglerFailure(fullDetail) || attempt === 4) {
+    if (!isTransient(fullDetail) || attempt === maxAttempts) {
       throw new Error(`wrangler exited ${code}: ${detail}`)
     }
-    await Bun.sleep(250 * 2 ** (attempt - 1))
+    const delayMs = wranglerRetryDelayMs(retryProfile, attempt)
+    console.error(
+      `wrangler transient failure for ${db}; retrying attempt ${attempt + 1}/${maxAttempts} in ${delayMs}ms`,
+    )
+    await Bun.sleep(delayMs)
   }
   throw new Error("wrangler retry loop exhausted")
 }
@@ -489,7 +524,7 @@ export async function loadedBindings(options: Pick<Options, "env" | "cwd" | "poo
     await wranglerJson(options, options.poolDb, [
       "--command",
       "SELECT binding_name FROM d1_pool WHERE community_id IS NOT NULL AND last_loaded_at IS NOT NULL ORDER BY binding_name",
-    ])
+    ], "fleet_read")
   )[0].results as Array<{ binding_name: string }>
   return rows.map((r) => r.binding_name)
 }
@@ -517,14 +552,14 @@ async function classify(
   checksum: string,
 ): Promise<{ status: Status; detail?: string; row_counts?: Record<string, number> }> {
   const rows = (
-    await wranglerJson(options, db, ["--command", classificationSql(spec)])
+    await wranglerJson(options, db, ["--command", classificationSql(spec)], "fleet_read")
   )[0].results[0] as Record<string, number | string>
   const classification = classifyRow(spec, rows, checksum)
   const countsSql = rowCountSql(spec)
   let rowCounts: Record<string, number> | undefined
   if (countsSql && spec.requiredTables.every((table) => Number(rows[`req_${table}`] ?? 0) === 1)) {
     const countRows = (
-      await wranglerJson(options, db, ["--command", countsSql])
+      await wranglerJson(options, db, ["--command", countsSql], "fleet_read")
     )[0].results[0] as Record<string, number | string>
     rowCounts = Object.fromEntries(
       (spec.rowCountTables ?? []).map((table) => [table, Number(countRows[`metric_rows__${table}`] ?? 0)]),

@@ -13,12 +13,14 @@ import {
   classificationSql,
   classifyRow,
   executionBody,
+  isTransientWranglerReadFailure,
   isTransientWranglerFailure,
   ledgerBackfillBody,
   rowCountSql,
   resumeDoneShards,
   resumeEntryKey,
   selectMigrationBindings,
+  wranglerRetryDelayMs,
   type MigrationSpec,
 } from "./fleet-d1-migration"
 
@@ -33,6 +35,19 @@ describe("wrangler transport retry classification", () => {
     expect(isTransientWranglerFailure("Cloudflare code 7429")).toBe(true)
     expect(isTransientWranglerFailure("Authentication error [code: 10000]")).toBe(true)
     expect(isTransientWranglerFailure("no such table: posts")).toBe(false)
+  })
+
+  test("retries D1 internal errors only for fleet read probes", () => {
+    const internalError = "internal error; reference = e_example [code: 7500]"
+    expect(isTransientWranglerFailure(internalError)).toBe(false)
+    expect(isTransientWranglerReadFailure(internalError)).toBe(true)
+  })
+
+  test("backs fleet reads off longer without changing the standard write profile", () => {
+    expect([1, 2, 3, 4, 5].map((attempt) => wranglerRetryDelayMs("fleet_read", attempt)))
+      .toEqual([1_000, 2_000, 4_000, 8_000, 16_000])
+    expect([1, 2, 3].map((attempt) => wranglerRetryDelayMs("standard", attempt)))
+      .toEqual([250, 500, 1_000])
   })
 })
 
