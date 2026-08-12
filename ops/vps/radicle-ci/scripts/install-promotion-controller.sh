@@ -18,6 +18,14 @@ setfacl -R -x u:promotion /var/lib/radicle/storage 2>/dev/null || true
 find /var/lib/radicle/storage -type d -exec setfacl -x d:u:promotion {} + \
   2>/dev/null || true
 install -d -o root -g root -m 0755 /etc/pirate-radicle /usr/local/libexec/pirate-radicle
+install -o root -g root -m 0644 "$source_dir/config/repositories" \
+  /etc/pirate-radicle/repositories
+install -o root -g root -m 0755 "$source_dir/scripts/repository-allowlist.sh" \
+  /usr/local/libexec/pirate-radicle/repository-allowlist.sh
+install -o root -g root -m 0755 "$source_dir/scripts/render-ci-broker-config" \
+  /usr/local/libexec/pirate-radicle/render-ci-broker-config
+install -o radicle -g radicle -m 0600 "$source_dir/config/ci-broker.yaml.template" \
+  /var/lib/radicle/ci/ci-broker.yaml.template
 install -o root -g root -m 0755 "$source_dir/scripts/promotion-controller" \
   /usr/local/libexec/pirate-radicle/promotion-controller
 install -o root -g root -m 0755 "$source_dir/scripts/initialize-promotion-identity.sh" \
@@ -40,6 +48,12 @@ install -o root -g root -m 0644 "$source_dir/systemd/radicle-ci-proof-announcer.
   /etc/systemd/system/radicle-ci-proof-announcer.timer
 install -o root -g root -m 0644 "$source_dir/tmpfiles/radicle-ci.conf" \
   /etc/tmpfiles.d/radicle-ci.conf
+RADICLE_CI_REPOSITORIES_FILE=/etc/pirate-radicle/repositories \
+  RADICLE_CI_ALLOWLIST_LIBRARY=/usr/local/libexec/pirate-radicle/repository-allowlist.sh \
+  /usr/local/libexec/pirate-radicle/render-ci-broker-config \
+  /var/lib/radicle/ci/ci-broker.yaml.template \
+  /var/lib/radicle/ci/ci-broker.yaml
+chown radicle:radicle /var/lib/radicle/ci/ci-broker.yaml
 systemd-tmpfiles --create /etc/tmpfiles.d/radicle-ci.conf
 systemctl daemon-reload
 /usr/local/libexec/pirate-radicle/initialize-promotion-identity.sh
@@ -47,5 +61,6 @@ systemctl enable --now promotion-proof-exporter.timer
 systemctl start promotion-proof-exporter.service
 systemctl enable --now radicle-ci-proof-announcer.timer
 systemctl start radicle-ci-proof-announcer.service
+systemctl restart radicle-ci-broker.service
 systemctl enable promotion-controller.service
 systemctl restart promotion-controller.service

@@ -4,13 +4,10 @@ set -euo pipefail
 
 rad_home=/var/lib/radicle
 expected_node=z6MkeUhmbivWz5Uv87h9iT4tQk7xusZabMHCrjTKEGaCTUx4
-expected_rids=(
-  rad:z3qZx2qJDkjxfjBSPwRva4DutYJTh
-  rad:z2g5M6jqfcwzJobizqRbNCakDsdpU
-  rad:zWrB9TTk3sZ5SfSPv5Z8gbq5sbvb
-  rad:z26RNpiPMzH8nyaca12meKeT2HMBy
-  rad:zK3mrwKm8bG7w9iiRuZAAX9eQyWw
-)
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC1090
+source "${RADICLE_CI_ALLOWLIST_LIBRARY:-$script_dir/repository-allowlist.sh}"
+load_repository_allowlist
 
 run_rad() {
   sudo -u radicle env HOME="$rad_home" RAD_HOME="$rad_home" "$@"
@@ -31,11 +28,11 @@ actual_node="$(run_rad rad node status --only nid)"
 test "$actual_node" = "$expected_node"
 
 seed_output="$(run_rad rad seed)"
-for rid in "${expected_rids[@]}"; do
+for rid in "${RADICLE_CI_RIDS[@]}"; do
   grep -Fq "$rid" <<<"$seed_output"
 done
 
-test "$(grep -Fc ' allow ' <<<"$seed_output")" -eq "${#expected_rids[@]}"
+test "$(grep -Fc ' allow ' <<<"$seed_output")" -eq "${#RADICLE_CI_RIDS[@]}"
 
 ss -lntH 'sport = :8776' | grep -Fq '0.0.0.0:8776'
 
@@ -43,6 +40,14 @@ ss -lntH 'sport = :8776' | grep -Fq '0.0.0.0:8776'
 # 0.30.0 rewrites status.json as a side effect, destroying useful run status.
 grep -Eq '^concurrent_adapters:[[:space:]]*1$' "$rad_home/ci/ci-broker.yaml"
 grep -Eq '^max_run_time:[[:space:]]*30min$' "$rad_home/ci/ci-broker.yaml"
+expected_broker=$(mktemp)
+trap 'rm -f -- "$expected_broker"' EXIT
+RADICLE_CI_REPOSITORIES_FILE=/etc/pirate-radicle/repositories \
+  RADICLE_CI_ALLOWLIST_LIBRARY=/usr/local/libexec/pirate-radicle/repository-allowlist.sh \
+  /usr/local/libexec/pirate-radicle/render-ci-broker-config \
+  /var/lib/radicle/ci/ci-broker.yaml.template "$expected_broker"
+cmp -s "$expected_broker" "$rad_home/ci/ci-broker.yaml" \
+  || { echo 'live broker repository filters differ from the canonical allowlist' >&2; exit 1; }
 
 test -r /dev/kvm
 test -w /dev/kvm

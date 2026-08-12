@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-controller=${1:-./ops/vps/radicle-ci/scripts/promotion-controller}
-exporter=${2:-./ops/vps/radicle-ci/scripts/promotion-proof-exporter}
+here="$(cd "$(dirname "$0")" && pwd)"
+controller=${1:-$here/promotion-controller}
+exporter=${2:-$here/promotion-proof-exporter}
 tmp=$(mktemp -d)
 trap 'rm -rf -- "$tmp"' EXIT
 
@@ -49,6 +50,9 @@ export RAD_STORAGE="$tmp/storage"
 export CI_PRODUCER_NID="$nid"
 export PROMOTION_UNKNOWN_RETRIES=1
 export PROMOTION_UNKNOWN_DELAY_SECONDS=0
+export RADICLE_CI_ALLOWLIST_LIBRARY="$here/repository-allowlist.sh"
+export RADICLE_CI_REPOSITORIES_FILE="$tmp/repositories"
+printf '%s pirate-core\n' "$rid" > "$RADICLE_CI_REPOSITORIES_FILE"
 mkdir -p "$PROMOTION_PROOF_DIR"
 $exporter
 

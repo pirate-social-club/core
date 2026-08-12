@@ -13,6 +13,10 @@ done
 install -d -o root -g root -m 0700 /var/lib/radicle-proof-backup
 install -d -o root -g root -m 0755 \
   /etc/pirate-radicle /usr/local/libexec/pirate-radicle
+install -o root -g root -m 0644 "$source_dir/config/repositories" \
+  /etc/pirate-radicle/repositories
+install -o root -g root -m 0755 "$source_dir/scripts/repository-allowlist.sh" \
+  /usr/local/libexec/pirate-radicle/repository-allowlist.sh
 install -o root -g root -m 0755 "$source_dir/scripts/backup-proof-state" \
   /usr/local/libexec/pirate-radicle/backup-proof-state
 install -o root -g root -m 0755 "$source_dir/scripts/proof-state-backup-alert" \

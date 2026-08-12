@@ -109,11 +109,13 @@ export PATH="$fake_bin:$PATH"
 export TEST_EVENT_LOG="$test_root/events"
 export TEST_REMOTE_DIR="$remote_dir"
 export IMMUTABLE_BACKUP_LIBRARY="$here/../../lib/immutable-backup.sh"
+export RADICLE_CI_ALLOWLIST_LIBRARY="$here/repository-allowlist.sh"
+export RADICLE_CI_REPOSITORIES_FILE="$test_root/repositories"
+printf '%s pirate-core\n' "$rid" > "$RADICLE_CI_REPOSITORIES_FILE"
 export BACKUP_RCLONE_REMOTE=test:proof-state
 export BACKUP_AGE_RECIPIENT=age1testrecipient
 export BACKUP_RETENTION_VERIFY=false
 export CI_PRODUCER_NID="$producer"
-export PROOF_BACKUP_RIDS="$rid"
 export PROOF_BACKUP_STAGING_ROOT="$staging"
 export RAD_STORAGE="$rad_storage"
 export PROMOTION_STATE_DIR="$promotion_state"

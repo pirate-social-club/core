@@ -54,6 +54,17 @@ Do not change `origin` to point at Radicle. Keeping distinct names makes the
 authority boundary reviewable and prevents an ordinary `git push origin` from
 silently becoming a canonical Radicle promotion.
 
+### Bootstrap reconciliation record
+
+On 2026-08-12, before authoritative promotion existed, Core's Radicle `main`
+was fast-forwarded from `a9d878122c0906101abdb189159d4964cfa22097` to the
+exact then-current GitHub `main` SHA
+`b9e3cdfcd5ee2183064003cd73f0302b249be585`. The old Radicle tip was the direct
+parent, so this was a one-commit fast-forward with no force or history loss.
+The bootstrap CI patch was then rebased onto that reconciled tip. This is a
+one-time authority bootstrap record, not permission to promote GitHub-first
+commits after cutover.
+
 ## Parallel-agent push path
 
 Agents publish work as Radicle patches, not competing writes to `main`:

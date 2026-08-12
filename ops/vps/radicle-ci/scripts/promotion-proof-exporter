@@ -4,16 +4,13 @@ set -euo pipefail
 rad_storage=${RAD_STORAGE:-/var/lib/radicle/storage}
 proof_dir=${PROMOTION_PROOF_DIR:-/var/lib/radicle/ci/promotion-proofs}
 producer=${CI_PRODUCER_NID:?CI_PRODUCER_NID is required}
-rids=(
-  rad:z3qZx2qJDkjxfjBSPwRva4DutYJTh
-  rad:z2g5M6jqfcwzJobizqRbNCakDsdpU
-  rad:zWrB9TTk3sZ5SfSPv5Z8gbq5sbvb
-  rad:z26RNpiPMzH8nyaca12meKeT2HMBy
-  rad:zK3mrwKm8bG7w9iiRuZAAX9eQyWw
-)
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC1090
+source "${RADICLE_CI_ALLOWLIST_LIBRARY:-$script_dir/repository-allowlist.sh}"
+load_repository_allowlist
 
 umask 0027
-for rid in "${rids[@]}"; do
+for rid in "${RADICLE_CI_RIDS[@]}"; do
   repo="$rad_storage/${rid#rad:}"
   [[ -d "$repo" ]] || continue
   destination="$proof_dir/${rid#rad:}"
@@ -57,4 +54,3 @@ for rid in "${rids[@]}"; do
     "refs/namespaces/$producer/refs/cobs/xyz.radworks.job/")
 done
 sync -d "$proof_dir"
-

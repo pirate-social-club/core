@@ -8,3 +8,7 @@ plan:
       npm ci --offline
       node scripts/check-repo-hygiene.mjs
       node scripts/check-migration-integrity.mjs
+      bash ops/vps/radicle-ci/scripts/repository-allowlist.test.sh
+      bash ops/vps/radicle-ci/scripts/promotion-controller.test.sh
+      bash ops/vps/radicle-ci/scripts/backup-proof-state.test.sh
+      bash ops/vps/hns-state-backup/hns-state-backup.test.sh

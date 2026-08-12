@@ -2,6 +2,12 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"
+tracked_library="$script_dir/../../lib/backup-alert.sh"
+if [[ -f "$tracked_library" ]]; then
+  default_library=$tracked_library
+else
+  default_library="$script_dir/backup-alert.sh"
+fi
 # shellcheck disable=SC1090
-source "${BACKUP_ALERT_LIBRARY:-$script_dir/backup-alert.sh}"
+source "${BACKUP_ALERT_LIBRARY:-$default_library}"
 send_backup_failure_alert radicle-proof-state "${1:-unknown-unit}"

@@ -8,6 +8,8 @@ script_dir="$(cd "$(dirname "$0")" && pwd)"
 # shared helper directly.
 # shellcheck disable=SC1090
 source "${IMMUTABLE_BACKUP_LIBRARY:-$script_dir/immutable-backup.sh}"
+# shellcheck disable=SC1090
+source "${RADICLE_CI_ALLOWLIST_LIBRARY:-$script_dir/repository-allowlist.sh}"
 
 require_env() {
   local name=$1
@@ -38,7 +40,6 @@ require_absolute_path() {
 : "${PROMOTION_CONTROLLER_UNIT:=promotion-controller.service}"
 : "${PROOF_BACKUP_SIGNING_KEY:=/etc/pirate-radicle/proof-backup-signing-key}"
 : "${PROOF_BACKUP_SIGNING_PUBLIC_KEY:=$PROOF_BACKUP_SIGNING_KEY.pub}"
-: "${PROOF_BACKUP_RIDS:=rad:z3qZx2qJDkjxfjBSPwRva4DutYJTh rad:z2g5M6jqfcwzJobizqRbNCakDsdpU rad:zWrB9TTk3sZ5SfSPv5Z8gbq5sbvb rad:z26RNpiPMzH8nyaca12meKeT2HMBy rad:zK3mrwKm8bG7w9iiRuZAAX9eQyWw}"
 
 for name in BACKUP_RCLONE_REMOTE BACKUP_AGE_RECIPIENT \
   BACKUP_RETENTION_VERIFY CI_PRODUCER_NID; do
@@ -96,11 +97,7 @@ fi
 signer_fingerprint=$(ssh-keygen -lf "$PROOF_BACKUP_SIGNING_PUBLIC_KEY" \
   -E sha256 | awk 'NR == 1 { print $2 }')
 
-read -r -a rids <<< "$PROOF_BACKUP_RIDS"
-if (( ${#rids[@]} == 0 )); then
-  echo "PROOF_BACKUP_RIDS must contain at least one RID" >&2
-  exit 1
-fi
+load_repository_allowlist
 
 mkdir -p "$PROOF_BACKUP_STAGING_ROOT"
 chmod 0700 "$PROOF_BACKUP_STAGING_ROOT"
@@ -165,7 +162,7 @@ cp --archive --no-preserve=ownership \
   "$PROMOTION_STATE_DIR/queue/." "$payload/promotion/queue/"
 
 repository_metadata=()
-for rid in "${rids[@]}"; do
+for rid in "${RADICLE_CI_RIDS[@]}"; do
   if ! [[ "$rid" =~ ^rad:z[1-9A-HJ-NP-Za-km-z]+$ ]]; then
     echo "invalid repository RID: $rid" >&2
     exit 1

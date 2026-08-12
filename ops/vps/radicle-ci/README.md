@@ -39,13 +39,11 @@ churn cannot consume the host disk.
 
 ## Initial repository set
 
-```text
-rad:z3qZx2qJDkjxfjBSPwRva4DutYJTh  pirate-web
-rad:z2g5M6jqfcwzJobizqRbNCakDsdpU  pirate-api
-rad:zWrB9TTk3sZ5SfSPv5Z8gbq5sbvb   pirate-contracts
-rad:z26RNpiPMzH8nyaca12meKeT2HMBy  freedom-browser
-rad:zK3mrwKm8bG7w9iiRuZAAX9eQyWw   pirate-core
-```
+`config/repositories` is the single tracked allowlist for the broker,
+announcement reconciler, proof exporter, promotion controller, proof backup,
+and host verifier. Change repository membership there, render the broker
+configuration, and deploy every consumer together. README examples and test
+fixtures are not authority lists.
 
 ## Install sequence
 
@@ -76,7 +74,17 @@ ambient.qcow2 sha256    e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d17
    `radicle` account to the `kvm` group.
 11. Install `config/ambient.yaml` under
     `/var/lib/radicle/.config/ambient/config.yaml` and the two broker configs
-    under `/var/lib/radicle/ci`.
+    under `/var/lib/radicle/ci`. Generate `ci-broker.yaml` from the canonical
+    `config/repositories` allowlist; do not hand-edit repository filters:
+
+    ```bash
+    install -o root -g root -m 0644 config/repositories \
+      /etc/pirate-radicle/repositories
+    RADICLE_CI_REPOSITORIES_FILE=/etc/pirate-radicle/repositories \
+      scripts/render-ci-broker-config config/ci-broker.yaml.template \
+      /var/lib/radicle/ci/ci-broker.yaml
+    chown radicle:radicle /var/lib/radicle/ci/ci-broker.yaml
+    ```
 12. Download the reviewed Ambient VM image to
     `/var/lib/radicle/ambient/ambient.qcow2` and record its SHA-256.
 13. Install and enable `radicle-ci-broker.service` only after `cib config`

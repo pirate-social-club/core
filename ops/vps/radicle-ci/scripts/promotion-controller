@@ -8,6 +8,11 @@ if [[ -r "$config" ]]; then
   source "$config"
 fi
 
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC1090
+source "${RADICLE_CI_ALLOWLIST_LIBRARY:-$script_dir/repository-allowlist.sh}"
+load_repository_allowlist
+
 : "${PROMOTION_MODE:=advisory}"
 : "${PROMOTION_STATE_DIR:=/var/lib/promotion}"
 : "${PROMOTION_PROOF_DIR:=/var/lib/radicle/ci/promotion-proofs}"
@@ -31,14 +36,7 @@ is_oid() { [[ "$1" =~ ^[0-9a-f]{40}$ ]]; }
 is_attempt() { [[ "$1" =~ ^[1-9][0-9]*$ ]]; }
 
 repo_name() {
-  case "$1" in
-    rad:z3qZx2qJDkjxfjBSPwRva4DutYJTh) printf '%s\n' pirate-web ;;
-    rad:z2g5M6jqfcwzJobizqRbNCakDsdpU) printf '%s\n' pirate-api ;;
-    rad:zWrB9TTk3sZ5SfSPv5Z8gbq5sbvb) printf '%s\n' pirate-contracts ;;
-    rad:z26RNpiPMzH8nyaca12meKeT2HMBy) printf '%s\n' freedom-browser ;;
-    rad:zK3mrwKm8bG7w9iiRuZAAX9eQyWw) printf '%s\n' pirate-core ;;
-    *) return 1 ;;
-  esac
+  repository_name "$1"
 }
 
 append_json() {

@@ -72,6 +72,13 @@ to the edge. The full account, audit, rotation, and hard-stop policy is in
 
 ## Install
 
+`hns-state-backup.sh`, `alert-on-failure.sh`, and both files under
+`ops/vps/lib/` are one deployment unit. The backup scripts source those shared
+libraries relative to the versioned application checkout. Advance the
+`/srv/pirate-hns/app` release/symlink only after the complete commit is present;
+never copy either backup script alone from a newer revision. A partial deploy
+fails the next backup before creating an archive.
+
 ```bash
 install -d -o root -g root -m 0700 /var/lib/pirate-hns-backup
 install -d -o root -g root -m 0750 /srv/pirate-hns/config
