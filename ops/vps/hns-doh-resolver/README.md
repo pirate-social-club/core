@@ -88,7 +88,9 @@ ACME issuance.
 # --- on your workstation, from the repo root, on a CLEAN checkout ---
 # make-release.sh refuses a dirty tree; deployments must map to exact commits.
 bash ops/vps/deployment-tooling/make-release.sh ops/vps/hns-doh-resolver /tmp/doh-out \
-  --expect-running true --monitored-container pirate-dnsdist-doh
+  --expect-running true --monitored-container pirate-dnsdist-doh \
+  --local-image-id "pirate-hnsd-resolver=$(ssh ubuntu@94.103.168.161 \
+    'docker inspect --format={{.Image}} pirate-hnsd-resolver')"
 # prints: release staged: /tmp/doh-out/releases/<core-sha>
 CORE_SHA="$(basename /tmp/doh-out/releases/*)"
 
@@ -229,11 +231,12 @@ reason.
 Drift verification needs `/etc/pirate-deployment-verify/doh.env` with
 `DEPLOY_ROOT=/srv/pirate-hns-doh` plus the shared alert webhook settings.
 
-Note: `DEPLOYMENT` metadata tracks a single container, named explicitly via
-`--monitored-container pirate-dnsdist-doh` (digest-pinned and public-facing).
-`make-release.sh` refuses to guess for a multi-service role. hnsd is built locally
-and has no digest to verify; it is covered by its own container healthcheck and by
-the end-to-end probe.
+`DEPLOYMENT` tracks dnsdist's registry digest via
+`--monitored-container pirate-dnsdist-doh` and hnsd's content-addressed Docker
+image ID via `--local-image-id`. Capture that ID only after building the image
+from the same core commit used to construct the release. The healthcheck and
+end-to-end probe remain behavioral coverage; the recorded ID proves which local
+image bytes are running.
 
 ## Operational notes
 

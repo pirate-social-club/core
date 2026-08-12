@@ -20,6 +20,7 @@ set -euo pipefail
 #  15. installed host files are recorded and checked independently of runtimes
 #  16. release construction rejects non-main commits unless break-glass is recorded
 #  17. relative app output roots and missing-main diagnostics remain unambiguous
+#  18. locally built container IDs are recorded and verified
 
 tooling_dir="$(cd "$(dirname "$0")" && pwd)"
 work="$(mktemp -d)"
@@ -113,8 +114,12 @@ pass "make-app-release preserves caller-relative output roots"
 
 # 4. roles without a compose image still complete successfully
 (cd "$repo" && bash ops/vps/deployment-tooling/make-release.sh \
-  ops/vps/no-image-role "$work/no-image-deploy" --expect-running true) >/dev/null \
+  ops/vps/no-image-role "$work/no-image-deploy" --expect-running true \
+  --local-image-id pirate-local=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa) >/dev/null \
   || fail "make-release returned failure after staging a no-image role"
+grep -Fxq 'LOCAL_IMAGE_ID_1=pirate-local=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' \
+  "$work/no-image-deploy/releases/$commit/DEPLOYMENT" \
+  || fail "make-release omitted the local container image ID"
 pass "make-release succeeds for roles without a container image"
 
 # --- docker shim -------------------------------------------------------------
@@ -128,7 +133,9 @@ state="$(cat "$state_file")"
 case "$1 $2" in
   "inspect --format")
     if [[ "$state" == "absent" ]]; then exit 1; fi
-    if [[ "$4" == img-1 ]]; then
+    if [[ "$3" == "{{.Image}}" ]]; then
+      echo "${DOCKER_SHIM_IMAGE_ID:-sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}"
+    elif [[ "$4" == img-1 ]]; then
       # image inspect for RepoDigests
       echo "example/demo@sha256:${DOCKER_SHIM_DIGEST:?}"
     else
@@ -264,6 +271,17 @@ status --verify >/dev/null || fail "matching running deployment reported drift"
 export DOCKER_SHIM_DIGEST="2222222222222222222222222222222222222222222222222222222222222222"
 status --verify >/dev/null 2>&1 && fail "digest mismatch not detected"
 pass "verify checks running image digest against the pin"
+
+# Exact IDs cover locally built images that cannot have a registry RepoDigest.
+export DOCKER_SHIM_DIGEST="1111111111111111111111111111111111111111111111111111111111111111"
+sed -i '/^EXPECT_RUNNING=/a LOCAL_IMAGE_ID_1=pirate-demo-role=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' "$release/DEPLOYMENT"
+(cd "$release" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+export DOCKER_SHIM_IMAGE_ID="sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+status --verify >/dev/null || fail "matching local image ID reported drift"
+export DOCKER_SHIM_IMAGE_ID="sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+status --verify >/dev/null 2>&1 && fail "local image ID mismatch not detected"
+export DOCKER_SHIM_IMAGE_ID="sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+pass "verify checks locally built container image IDs"
 
 # 12. scoped alert bearer token
 cat > "$shim/curl" <<'EOF'
