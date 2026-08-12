@@ -64,8 +64,8 @@ proof_backup_attestation:
 retention_days: 30
 account_recovery:
   account_model: existing-operator-account
-  mfa_method: totp
-  hardware_mfa: false
+  mfa_method: webauthn-hardware-key
+  hardware_mfa: true
   recovery_method_documented: null
   tested_at: null
 
