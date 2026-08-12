@@ -8430,7 +8430,9 @@ components:
         For `translation_choice` the `options` array is server-shuffled and the
         correct option is NOT identified here — the client renders options in array
         order and submits a choice to `POST .../study/attempts` for server-side
-        validation. For `say_it_back`, `reference_text` is the visible target line
+        validation. For `fill_blank`, render segments and word-bank tokens are
+        server-ordered while the correct placements remain withheld. For
+        `say_it_back`, `reference_text` is the visible target line
         (legitimately visible to an entitled learner); grading of the spoken
         transcript is performed server-side by the attempts endpoint, which owns
         normalization and the set of accepted variants.
@@ -8485,6 +8487,101 @@ components:
               type: integer
               description: |
                 Maximum presentations of this card within the server-issued session.
+            presentation_count:
+              type: integer
+              description: Number of accepted presentations already recorded in this session.
+            mastered:
+              type: boolean
+              description: Whether the learner has answered this card correctly in this session.
+            first_outcome:
+              type: string
+              nullable: true
+              enum:
+                - correct
+                - incorrect
+                - revealed
+          additionalProperties: false
+        - type: object
+          title: SongStudyFillBlankExercise
+          required:
+            - id
+            - type
+            - line_id
+            - line_index
+            - prompt_text
+            - segments
+            - tokens
+            - max_attempts
+            - presentation_count
+            - mastered
+            - first_outcome
+          properties:
+            id:
+              type: string
+              description: Opaque, stable exercise identifier.
+            type:
+              type: string
+              enum:
+                - fill_blank
+            line_id:
+              type: string
+              description: Stable lyric-line identifier; the FSRS review-unit key.
+            line_index:
+              type: integer
+              description: Presentation order only.
+            prompt_text:
+              type: string
+              description: Instruction shown above the cloze lyric.
+            segments:
+              type: array
+              description: |
+                Ordered render segments for the lyric. A blank segment identifies a
+                placement slot but never identifies its correct token.
+              items:
+                oneOf:
+                  - type: object
+                    required:
+                      - kind
+                      - text
+                    properties:
+                      kind:
+                        type: string
+                        enum:
+                          - text
+                      text:
+                        type: string
+                    additionalProperties: false
+                  - type: object
+                    required:
+                      - kind
+                      - id
+                    properties:
+                      kind:
+                        type: string
+                        enum:
+                          - blank
+                      id:
+                        type: string
+                    additionalProperties: false
+            tokens:
+              type: array
+              description: |
+                Server-shuffled word bank. The client renders this exact order and
+                submits token-to-blank placements without deriving correctness.
+              items:
+                type: object
+                required:
+                  - id
+                  - text
+                properties:
+                  id:
+                    type: string
+                  text:
+                    type: string
+                additionalProperties: false
+            max_attempts:
+              type: integer
+              description: Maximum presentations of this card within the server-issued session.
             presentation_count:
               type: integer
               description: Number of accepted presentations already recorded in this session.
@@ -8593,6 +8690,7 @@ components:
           enum:
             - say_it_back
             - translation_choice
+            - fill_blank
         is_reappearance:
           type: boolean
         presentation_number:
@@ -8679,8 +8777,9 @@ components:
       type: object
       description: |
         A single attempt at one exercise. Exactly one of `selected_option_id`
-        (translation_choice) or `transcript` (say_it_back) must be present, matching
-        `type`. The server validates the answer, records the attempt EVENT (not just
+        (translation_choice), `transcript` (say_it_back), or `placements`
+        (fill_blank) must be present, matching `type`. The server validates the
+        answer, records the attempt EVENT (not just
         final state), advances the FSRS schedule, and returns the verdict.
 
         Attempt writes are idempotent. Reusing the same `idempotency_key` for the
@@ -8709,6 +8808,7 @@ components:
           enum:
             - say_it_back
             - translation_choice
+            - fill_blank
         attempt_number:
           type: integer
           description: |
@@ -8731,6 +8831,23 @@ components:
           description: |
             Final STT transcript for `say_it_back`; omitted otherwise. The server
             owns normalization and the accepted-variant policy.
+        placements:
+          type: array
+          description: |
+            Required for `fill_blank`; omitted otherwise. Contains exactly one
+            token assignment for every blank. Order is not significant because
+            blank identifiers are explicit.
+          items:
+            type: object
+            required:
+              - blank_id
+              - token_id
+            properties:
+              blank_id:
+                type: string
+              token_id:
+                type: string
+            additionalProperties: false
         transcription_language_code:
           type: string
           description: |
@@ -8757,8 +8874,9 @@ components:
       type: object
       description: |
         Server verdict for one submitted attempt. The correct answer is disclosed
-        only once the attempt is spent (a correct answer, or an incorrect final
-        attempt) so the answer is never resident in the client before then.
+        only once the presentation is spent (a correct answer, or a final incorrect
+        answer reported as `revealed`) so the answer is never resident in the client
+        beforehand.
       required:
         - object
         - exercise_id
@@ -8790,6 +8908,23 @@ components:
             For `translation_choice`, the correct option. Returned after every
             accepted presentation so an incorrect answer can show its correction
             before the card is requeued.
+        correct_placements:
+          type: array
+          description: |
+            For `fill_blank`, the correct token assignment for each blank. Returned
+            only after a correct or revealed presentation, never after a retryable
+            miss and never in a render-safe prompt.
+          items:
+            type: object
+            required:
+              - blank_id
+              - token_id
+            properties:
+              blank_id:
+                type: string
+              token_id:
+                type: string
+            additionalProperties: false
         feedback:
           type: object
           description: |
