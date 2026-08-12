@@ -654,6 +654,8 @@ ID. The consumer resolves the expected blob hash/size, policy, and promoted
 release from the ledger, and a result can update the blob projection only when
 all of them match. Neither result nor read-audit records contain an object key,
 filename, user-entered content, or unrestricted error text.
+Source object keys remain internal transport coordinates and are not serialized
+in creator-facing content-blob or upload-session responses.
 
 This choice keeps customer bytes inside the platform boundary and adds no
 third-party file-scanning recipient or per-request vendor fee. It deliberately

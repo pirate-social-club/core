@@ -14896,7 +14896,6 @@ components:
         - id
         - status
         - upload_mode
-        - object_key
         - expires_at
       properties:
         id:
@@ -14917,8 +14916,6 @@ components:
           enum:
             - proxy
             - direct_multipart
-        object_key:
-          type: string
         provider_upload_id:
           type: string
           nullable: true
