@@ -46,8 +46,10 @@ index 3665d76..3ef3972 100644
 +                        if attempt == DOWNLOAD_ATTEMPTS {
 +                            return Err(NpmError::HttpGet(url, filename, err));
 +                        }
-+                        let delay = DOWNLOAD_RETRY_BASE_DELAY
-+                            .saturating_mul(2_u32.pow(attempt - 1));
++                        let multiplier = 2_u32
++                            .checked_pow(attempt - 1)
++                            .unwrap_or(u32::MAX);
++                        let delay = DOWNLOAD_RETRY_BASE_DELAY.saturating_mul(multiplier);
 +                        eprintln!(
 +                            "npm_get download attempt {attempt}/{DOWNLOAD_ATTEMPTS} failed; retrying in {}s",
 +                            delay.as_secs()

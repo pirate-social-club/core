@@ -21,7 +21,9 @@ grep -Fq 'npm_get skipping non-HTTP package {name}' "$patch_file"
 grep -Fq 'let _ = fs::remove_file(&filename);' "$patch_file"
 grep -Fq 'if attempt == DOWNLOAD_ATTEMPTS' "$patch_file"
 grep -Fq 'return Err(NpmError::HttpGet(url, filename, err));' "$patch_file"
-grep -Fq '.saturating_mul(2_u32.pow(attempt - 1));' "$patch_file"
+grep -Fq '.checked_pow(attempt - 1)' "$patch_file"
+grep -Fq '.unwrap_or(u32::MAX);' "$patch_file"
+grep -Fq 'DOWNLOAD_RETRY_BASE_DELAY.saturating_mul(multiplier)' "$patch_file"
 
 # Installation remains pinned to the reviewed Ambient source and records the
 # patched artifact hashes used by host drift verification.
