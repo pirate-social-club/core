@@ -273,6 +273,12 @@ jobs:
           CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
         run: bun test scripts/control-plane/operator-credentials-migration.test.ts
 
+      - name: Run content security scan migration integration test
+        env:
+          # Proves scanner release/job/result/audit invariants and least-privilege grants.
+          CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
+        run: bun test scripts/control-plane/content-security-scans-migration.pg.test.ts
+
       - name: Run dance choreography migration integration test
         env:
           # Proves choreography and attempt coordination invariants in PostgreSQL.
