@@ -741,6 +741,20 @@ because that would break the verified product hash. JSON additionally has
 bounded nesting, tokens, keys, and scalar lengths. TXT, CSV, TSV, and JSON are
 still scanned as raw bytes; a text extension is not a malware exemption.
 
+`text-download-formats-v1` pins those structural bounds: 50 MiB input, 1,000,000
+logical CSV/TSV rows, 16,384 fields per row, and 1 Mi code units per delimited
+field; JSON permits 64 container levels, 1,000,000 value tokens, 250,000 object
+keys, and 1 Mi code units per string or numeric scalar. The isolated scanner
+enforces a separate request deadline. Changing a bound or parsing rule creates
+a new format-policy version rather than silently changing historical evidence.
+
+Each scan attempt records malware and format decisions as separate fields in
+the same append-only evidence row. Format evidence includes its policy version,
+`allow`/`reject`/`error` outcome, authoritative detected MIME when allowed, and
+a bounded finding or error code. A clean malware result is necessary but cannot
+stand in for format validation, active-content checks, or content-policy
+analysis and cannot by itself move a blob to `ready`.
+
 The verified content hash is checked against platform and scanner deny lists at
 upload, publication, every delivery-resolution request, and scheduled rescan.
 Signature/policy upgrades enqueue active generic payloads for risk-prioritized
