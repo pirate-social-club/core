@@ -119,6 +119,11 @@ No fetched exercise carries the correct answer.
   is not identified in the payload. The client renders options in array order
   and MUST NOT re-sort, shuffle, or generate answers. Validation happens at the
   attempts endpoint.
+- **fill_blank** — `segments` identifies text and blank slots and `tokens` is a
+  **server-shuffled** word bank. Neither collection identifies the correct
+  placements. The client submits explicit `(blank_id, token_id)` assignments;
+  validation is server-owned, and correct placements are disclosed only after
+  a correct or final revealed presentation, never after a retryable miss.
 - **say_it_back** — `reference_text` is the visible target line. It is **not** a
   grading secret: for an entitled learner the lyric line is already visible. The
   authoritative grade is produced by the attempts endpoint from the submitted
@@ -141,6 +146,10 @@ attempt as an **event** (not merely the final state, so the schedule can be
 recomputed if the algorithm or parameters change), advances the FSRS schedule
 for the review unit when the result is gradable, and returns the verdict plus
 the authoritative lesson transition.
+
+The fill-blank rollout flag gates both reads and writes. Disabling it rejects
+fill-blank submissions from in-flight clients as well as stopping new cards
+from being served; the kill switch is not serve-only.
 
 - Attempt writes MUST be idempotent. The client supplies an `idempotency_key`;
   the durable deduplication guarantees rest on `(user_id, idempotency_key)` and
@@ -222,8 +231,9 @@ neither presentation number nor serving index. `attempts_this_appearance`
 counts graded submissions only.
 
 `RenderSafeExercise` contains everything needed to draw the next prompt. A
-translation choice may contain its shuffled options, but neither
-`correct_option_id` nor `explanation_text` may appear. Grading secrets and
+translation choice may contain its shuffled options and a fill-blank prompt may
+contain its ordered segments and shuffled word bank, but `correct_option_id`,
+`correct_placements`, and `explanation_text` may not appear. Grading secrets and
 post-grade feedback are never serialized in the next-exercise projection.
 `feedback.explanation` is reserved for an optional, graded translation-result
 field in a later slice; it is not part of the next-exercise projection.
@@ -330,6 +340,10 @@ MUST NOT be conflated.
   are derived only from qualifying cards. A future exercise type can therefore
   enter lessons without silently changing reward difficulty for existing
   sessions.
+- `fill_blank` initially enters only as non-qualifying enrichment and cannot be
+  the sole exercise type in a session. If neither pronunciation nor translation
+  is available, the song retains its pre-feature unavailable state rather than
+  presenting an unwinnable enrichment-only lesson.
 - The first-pass correctness target is `ceil(0.70 * qualifying_exercise_count)`.
 - A missed card becomes eligible after at least three graded attempts on any
   cards have been recorded in the session since that card's last presentation,
@@ -551,6 +565,14 @@ Shared content tables:
 
 - `song_study_unit` — canonical source-line review units.
 - `song_study_unit_localization` — target-language translation-choice payloads.
+- `song_study_unit_cloze` — source-language fill-blank segments, shuffled token
+  metadata, and server-only correct placements. There is one versioned cloze
+  payload per source unit; multiple variants require a separate identity before
+  they can share review history safely.
+
+The cloze row fingerprints the complete persisted source-unit set. Changing any
+source line regenerates every line's distractor context, so output cannot depend
+on which read path first requested a partial in-memory unit slice.
 
 Per-user tables:
 
@@ -682,7 +704,9 @@ attempt events rather than mutating history or resetting learners.
 
 For `say_it_back`, the `target_language` key slot is the source language because
 the learner is practicing the source lyric pronunciation. For
-`translation_choice`, the same key slot is the requested target language.
+`fill_blank`, it is also the source language because the learner reconstructs
+the source lyric. For `translation_choice`, the same key slot is the requested
+target language.
 
 `exercise_id` is a stable opaque identifier synthesized from
 `song_study_unit + exercise_type + language`. Attempts remain idempotent by
@@ -695,7 +719,7 @@ is assembled from a unit plus localization row.
 identifies target-language generation revisions. Historical
 `song_study_attempt.study_pack_version` stores the relevant version for audit
 and replay (`unit_version` for `say_it_back`, `localization_version` for
-`translation_choice`).
+`translation_choice`, and `cloze_version` for `fill_blank`).
 
 No version is part of the `song_study_review_state` primary key. Regenerating a
 unit or one target-language localization must not silently reset a learner's
