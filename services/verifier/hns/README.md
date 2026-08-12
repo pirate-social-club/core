@@ -168,3 +168,17 @@ origin.
 Supply `PDNS_API_URL`, `PDNS_API_KEY`, and optionally `PDNS_SERVER_ID`. Repair
 reported zones through the normal `/ensure-zone` reconciliation path so app A
 and TLSA are applied together; do not add the TLSA owner by itself.
+
+## Scheduled activated-root audit
+
+The `hns-activated-dns-audit` workflow performs the production-facing check
+daily and on demand. It obtains activated communities from the public namespace
+authority, queries the supported public HNS DoH path, and compares apex and
+`app` A records with the independent address inventory in
+`ops/vps/hns-authoritative-dns/gateway-inventory.json`. It also requires apex
+and `app` TLSA sets to be present and identical.
+
+The workflow is read-only. Drift opens an operator issue and fails the run;
+the next clean run closes that issue. Update the address inventory in the same
+reviewed change that moves gateway or authoritative DNS infrastructure. Audit
+records use opaque community identifiers rather than root labels.
