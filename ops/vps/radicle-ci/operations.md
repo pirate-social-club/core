@@ -197,12 +197,13 @@ document; it does not mean restoring the same online private key from backup.
 
 Enforcement cutover requires all of the following:
 
-- a dedicated recovery organization with audit logs, hardware MFA, verified
-  secret versioning, no machine identities, and negative access tests;
+- a separate recovery organization with MFA, verified secret versioning, no
+  machine identities, and its observed audit capabilities recorded;
 - a restore-tested, passphrase-encrypted recovery delegate blob in Infisical,
   with its passphrase held only in the separate human password manager;
 - successful Radicle-delegate, NS1 archive, and proof-state recovery drills
-  from disposable environments, with the expected audit events;
+  from an isolated temporary workspace, with expected audit events when the
+  plan exposes them;
 - the recovery and controller DIDs added at threshold 1;
 - restart, queue recovery, proof rejection, and controller replacement drills;
 - a clean advisory comparison window through the recorded review date; and

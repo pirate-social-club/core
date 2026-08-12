@@ -16,9 +16,9 @@ from a separate password manager.
   and backup-attestation public key.
 - The secret-free tracked recovery manifest, including the expected proof
   backup signer fingerprint and age recipient.
-- Human access to the recovery account, hardware MFA, and the separate
+- Human access to the recovery organization with MFA, and the separate
   password-manager entry for the proof-backup age wrapping passphrase.
-- A disposable isolated Linux environment with compatible `age`, `git`,
+- An isolated temporary Linux workspace with compatible `age`, `git`,
   `rad`, `jq`, OpenSSH, and the tracked `promotion-proof-exporter`.
 - The expected RID, producer NID, job COB ID, commit SHA, terminal result, and
   run identifier for one known signed job.
@@ -36,9 +36,8 @@ The archive must contain:
 
 ## Envelope verification
 
-1. Isolate the disposable environment from VPS #3. Disable swap, set
-   `umask 077`, use a RAM-backed scratch directory, and record the environment
-   identifier and UTC start time.
+1. Keep the drill disconnected from VPS #3. Set `umask 077`, use a temporary
+   scratch directory, and record the environment identifier and UTC start time.
 2. Download the five artifacts. Verify the SHA-256 sidecar and confirm the
    envelope manifest's `archive_sha256`, byte count, archive filename, age
    recipient, and producer NID all match the downloaded artifact and tracked
@@ -64,8 +63,7 @@ ssh-keygen -Y verify -f allowed-signers -I proof-backup@pirate \
 
 ## Human-only key retrieval
 
-5. Authenticate the recovery account interactively in the disposable
-   environment and select `pirate-recovery`/`recovery` through a scratch
+5. Authenticate interactively and select `pirate-recovery`/`recovery` through a scratch
    `.infisical.json`. No machine identity may perform this step.
 6. Retrieve only
    `RADICLE_PROOF_BACKUP_AGE_IDENTITY_CURRENT_WRAPPED` with `--plain

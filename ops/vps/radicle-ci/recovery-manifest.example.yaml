@@ -1,4 +1,5 @@
 schema_version: 1
+status: <pre-cutover-or-active>
 generated_at: <utc>
 generated_by: workspace_owner
 tool_versions:
@@ -19,6 +20,9 @@ escrow:
   secret_versioning_verified_at: <utc>
   storage_model: single-provider-replicated-encrypted-blob
   duplicate_private_key_copy: false
+  human_members: 1
+  machine_identities: 0
+  placeholder_value: PENDING_NOT_USABLE
 
 radicle_recovery_delegate:
   did: did:key:<public-did>
@@ -67,8 +71,10 @@ proof_backup_attestation:
 
 retention_days: 30
 account_recovery:
-  hardware_mfa: true
-  recovery_method_documented: true
+  account_model: <existing-operator-account-or-dedicated-account>
+  mfa_method: <totp-or-hardware>
+  hardware_mfa: <true-or-false>
+  recovery_method_documented: <true-or-false>
   tested_at: <utc>
 
 never_includes:

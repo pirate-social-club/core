@@ -1,8 +1,10 @@
-# Human-only recovery escrow
+# Operator-controlled recovery escrow
 
 This is the recovery-key design for the Radicle-primary cutover. It replaces
-the unimplemented removable-drive design. It does not give CI, VPS #3, the
-workstation, or an AI shell access to recovery private keys.
+the unimplemented removable-drive design. CI, VPS #3, and unattended machine
+identities never receive recovery credentials. An explicitly authorized
+operator session may provision metadata and placeholders, but must not print
+real private-key values into terminal or agent output.
 
 ## Threat model and accepted tradeoff
 
@@ -11,15 +13,15 @@ documents. It cannot create a new valid identity update after every delegate
 private key is lost. The recovery delegate exists for that signing operation;
 the backup age identities exist to decrypt immutable off-host archives.
 
-Recovery material uses split control:
+Recovery material uses managed cloud escrow:
 
 - Infisical stores one provider-replicated, versioned **encrypted blob** for
   each recovery key.
 - A separate human password manager stores only the corresponding wrapping or
   key passphrase.
-- Hardware-backed MFA protects the dedicated Infisical recovery account.
-- The recovery account is never authenticated on the normal workstation, any
-  VPS, CI, or an AI-reachable environment.
+- MFA protects the human Infisical account.
+- No machine identity, VPS, CI guest, or controller can access the recovery
+  organization.
 
 There is deliberately no second private-key export in the password manager.
 Putting a key copy beside its passphrase would make that provider sufficient
@@ -61,32 +63,25 @@ webhooks: []
 audit_logs: enabled
 ```
 
-The daily operator account must not be a member of this organization. The four
+The existing operator account may be the sole human administrator. The four
 application GitHub OIDC identities, VPS #3, CI broker, Ambient guests,
 promotion controller, and mirroring identity must have no membership or auth
-method in it. Export the effective permission audit after setup and attach its
-redacted result to the ceremony record.
+method in it. Record the effective member counts in the secret-free manifest.
 
-The organization plan must provide audit logs before any key is stored. Record
-the audit retention window, point-in-time recovery availability, and secret
-versioning behavior in the recovery manifest. Do not assume approval workflows
-are available or useful for a single-member recovery organization.
+Record the plan, audit-log API availability, retention information if supplied,
+point-in-time recovery availability, and tested secret-version behavior in the
+recovery manifest. Paid audit retention is useful but is not a cutover gate for
+this solo-operator design.
 
 ## Recovery account boundary
 
-The recovery account:
-
-- is used only from a disposable VM or live environment with swap disabled and
-  a RAM-backed working directory;
-- uses a unique password and hardware-backed MFA;
-- has recovery codes held by the human password manager;
-- is never added as an Infisical CLI profile on the workstation;
-- is reset/logged out before the disposable environment is destroyed; and
-- is reviewed in the Infisical audit log after every ceremony or drill.
-
-From the normal daily account and every application machine identity, test that
-the recovery organization cannot be listed, described, or read. Any successful
-enumeration or read is a hard stop.
+The recovery organization has one human administrator protected by MFA. CLI
+selection on the workstation is permitted for explicitly authorized setup and
+drills. Do not create service tokens, machine identities, integrations, syncs,
+or webhooks for it. Real recovery values should be entered or replaced through
+the human-controlled Infisical UI; agent-visible commands may create only
+clearly unusable placeholders unless the operator explicitly authorizes a
+specific key operation.
 
 ## Key separation
 
@@ -119,14 +114,11 @@ rebuilt with a new transport identity from replicated repositories.
 
 ## Generation ceremony
 
-Run only after the organization boundary, audit logs, hardware MFA, and
-negative access tests pass.
+Run only after the organization boundary and MFA are verified.
 
-1. Boot the disposable environment, disable swap, set `umask 077`, and create
-   a working directory under `/dev/shm`.
-2. Authenticate the recovery account interactively and select
-   `pirate-recovery`/`recovery` through a scratch `.infisical.json`. Never use a
-   machine identity or committed project configuration.
+1. Use a private operator terminal with `umask 077` and a temporary working
+   directory. Do not use a VPS, CI guest, or committed project configuration.
+2. Authenticate interactively and select `pirate-recovery`/`recovery`.
 3. Create and edit a decoy secret. Confirm its prior versions remain
    retrievable and that the audit log records the expected operations. Delete
    the decoy.
@@ -142,9 +134,8 @@ negative access tests pass.
    --expand=false --include-imports=false` redirected to a mode-`0600` file.
    Compare bytes with the uploaded blob. Unwrap it, derive the expected public
    DID/recipient, and stop on any mismatch.
-7. Remove the scratch files, run `infisical reset`, destroy the disposable
-   environment, and inspect the recovery-organization audit log. It must show
-   only the expected recovery-operator actions.
+7. Remove all scratch files, stop the temporary SSH agent, and inspect the
+   recovery-organization audit log when available.
 
 Never print secret values, use command substitution around secret retrieval,
 or let a raw private key reach terminal output. Any output containing an

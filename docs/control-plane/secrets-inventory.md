@@ -198,9 +198,9 @@ Its only confidential values are passphrase-encrypted recovery blobs:
 | `recovery:/backup-age/RADICLE_PROOF_BACKUP_AGE_IDENTITY_CURRENT_WRAPPED` | passphrase-wrapped age identity | Current Radicle proof-state archive decryption |
 | `recovery:/backup-age/RADICLE_PROOF_BACKUP_AGE_IDENTITY_PREVIOUS_WRAPPED` | passphrase-wrapped age identity | Retention-bounded decrypt-only rotation fallback |
 
-The dedicated recovery organization has one human recovery account, hardware
-MFA, required audit logs, no machine identities, and no integrations, syncs,
-tokens, or webhooks. The private blobs are single-provider replicated escrow;
+The dedicated recovery organization has one MFA-protected human administrator,
+no machine identities, and no integrations, syncs, tokens, or webhooks. Audit
+availability and retention are recorded rather than assumed. The private blobs are single-provider replicated escrow;
 their key/wrapping passphrases live only in the separate human password
 manager. Public DIDs, age recipients, hashes, and signer fingerprints live in
 the tracked secret-free recovery manifest. See

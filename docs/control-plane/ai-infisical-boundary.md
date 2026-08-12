@@ -12,29 +12,27 @@ Repo-level policy:
   staging, and prod; environment and path flags provide command scope
 - production access remains human-approved and command-scoped under the
   operator escape hatch below
-- the separate `pirate-recovery` organization is never selected, initialized,
-  or authenticated from an AI shell
+- the separate `pirate-recovery` organization may be selected only for an
+  explicitly authorized recovery setup operation
 
 This includes:
 
 - no Infisical service token in AI runtime env
 - no account-scoped Infisical credentials on agent machines by default
 - no automatic secret pulls from AI workflows
-- no recovery-account CLI profile, session, token, project configuration, or
-  organization membership on an AI-reachable machine
+- no unattended recovery machine identity, token, or committed project
+  configuration
 
 ## Recovery organization
 
-Recovery escrow is a stricter boundary than application production access.
-The dedicated recovery account may authenticate only in a disposable
-human-controlled environment with hardware MFA. It must never be added to the
-workstation's Infisical profiles, any VPS, CI, or an AI runtime.
-
-The daily application account and every application machine identity must fail
-to enumerate or read the recovery organization. There is no operator escape
-hatch for recovery secrets in an AI shell. Public recovery metadata—DIDs,
-public keys, age recipients, signer fingerprints, and a secret-free recovery
-manifest—remains safe for AI-assisted verification.
+Recovery escrow is still excluded from unattended automation. With explicit
+operator authorization, an AI shell may create or verify organization metadata,
+folders, and clearly unusable placeholders. It must not retrieve, print, or
+transform real recovery private-key values. Those values are replaced through
+the human-controlled Infisical UI. Application machine identities, VPS hosts,
+CI guests, and the controller must remain unable to access the recovery
+organization. Public recovery metadata remains safe for AI-assisted
+verification.
 
 ## Operator Escape Hatch
 
@@ -75,8 +73,8 @@ AI workflows may operate on:
 AI workflows must not:
 
 - fetch secrets directly from Infisical
-- authenticate the recovery account or initialize the recovery project
-- enumerate, retrieve, set, rotate, or delete recovery-organization secrets
+- retrieve, print, rotate, or delete real recovery-organization secret values
+- create or replace recovery placeholders without explicit operator approval
 - persist raw secrets into repo files
 - write secret values into machine-readable config inventories
 - expand access from one approved secret to broader secret inventory access

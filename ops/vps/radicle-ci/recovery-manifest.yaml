@@ -1,5 +1,5 @@
 schema_version: 1
-status: preparation
+status: escrow_placeholders_created
 generated_at: 2026-08-12T10:06:05Z
 generated_by: workspace_owner
 tool_versions:
@@ -7,21 +7,24 @@ tool_versions:
   infisical_cli: 0.43.121
   age: null
 
-# Human-only ceremony fields remain null until they are verified from a
-# disposable environment. Null is a hard stop for delegate or backup cutover.
+# Private-key fields remain null until the placeholders are replaced and a
+# restore drill passes. Null or PENDING_NOT_USABLE is a hard stop for cutover.
 escrow:
   provider: infisical-cloud-us
-  organization_id: null
-  project_id: null
+  organization_id: 49e9a202-9bf0-4038-a21b-0828d74a4b44
+  project_id: d1c43f81-2df4-4a4e-8cc0-7118116ae286
   project_slug: pirate-recovery
   environment: recovery
-  plan_tier: null
-  audit_logs: null
+  plan_tier: free
+  audit_logs: true
   audit_retention: null
-  point_in_time_recovery: null
-  secret_versioning_verified_at: null
+  point_in_time_recovery: false
+  secret_versioning_verified_at: 2026-08-12T16:13:54Z
   storage_model: single-provider-replicated-encrypted-blob
   duplicate_private_key_copy: false
+  human_members: 1
+  machine_identities: 0
+  placeholder_value: PENDING_NOT_USABLE
 
 radicle_recovery_delegate:
   did: null
@@ -60,7 +63,9 @@ proof_backup_attestation:
 
 retention_days: 30
 account_recovery:
-  hardware_mfa: null
+  account_model: existing-operator-account
+  mfa_method: totp
+  hardware_mfa: false
   recovery_method_documented: null
   tested_at: null
 
