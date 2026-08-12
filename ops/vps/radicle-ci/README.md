@@ -57,6 +57,13 @@ ambient-ci              0.16.0-1
 ambient.qcow2 sha256    e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d173840b293
 ```
 
+`rebuild-artifacts.yaml` records exact public download metadata, hashes,
+sizes, and dual-system bootstrap refs. The Ambient image URL is mutable:
+verify the decompressed image, not merely the URL or compressed filename.
+Archive the reviewed image and executor crate immutably before enforcement.
+See `vps-replacement.md` for a clean-host recovery sequence and the explicit
+state that does not yet survive loss of VPS #3.
+
 1. Install the signed Radicle package at the version reviewed for this role.
 2. Create the system `radicle` user with `/var/lib/radicle` as its home.
 3. Generate a passphrase-free seed identity as that user. Seed identities do
@@ -86,7 +93,8 @@ ambient.qcow2 sha256    e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d17
     chown radicle:radicle /var/lib/radicle/ci/ci-broker.yaml
     ```
 12. Download the reviewed Ambient VM image to
-    `/var/lib/radicle/ambient/ambient.qcow2` and record its SHA-256.
+    `/var/lib/radicle/ambient/ambient.qcow2`; verify its decompressed byte size
+    and SHA-256 against `rebuild-artifacts.yaml` before installation.
 13. Install and enable `radicle-ci-broker.service` only after `cib config`
     accepts the broker configuration.
 14. Install and enable `radicle-ci-host-verification.timer`. It runs the

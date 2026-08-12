@@ -4,8 +4,10 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 role="$(cd "$here/.." && pwd)"
 patch_file="$role/patches/ambient-ci-0.16.0-npm-retry.patch"
+artifacts="$role/rebuild-artifacts.yaml"
 
 test -r "$patch_file"
+test -r "$artifacts"
 git apply --numstat "$patch_file" >/dev/null
 grep -Fq 'diff --git a/src/action_impl/http_get.rs' "$patch_file"
 
@@ -37,5 +39,12 @@ grep -Eq '^expected_http_source_sha256=[0-9a-f]{64}$' \
   "$here/install-ambient-npm-retry"
 grep -Fq 'patch_sha256=' "$here/install-ambient-npm-retry"
 grep -Fq 'binary_sha256=' "$here/install-ambient-npm-retry"
+
+# Rebuild provenance must stay explicit and must not claim an immutable copy
+# exists before one has actually been uploaded and verified.
+grep -Fq 'source_url: https://files.liw.fi/ambient/ambient.qcow2.xz' "$artifacts"
+grep -Fq 'decompressed_sha256: e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d173840b293' "$artifacts"
+grep -Fq 'crate_sha256: 051d8698eac84847b56b8f39577ef186b2816ecf0fca073434ea62d67913f80a' "$artifacts"
+[[ $(grep -c 'status: pending_before_enforcement' "$artifacts") -eq 2 ]]
 
 echo 'Ambient executor patch tests passed'

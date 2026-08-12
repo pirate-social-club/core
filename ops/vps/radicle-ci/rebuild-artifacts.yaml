@@ -1,0 +1,46 @@
+schema_version: 1
+reviewed_at: 2026-08-12T21:57:18Z
+
+# Public provenance only. Never add credentials, private keys, passphrases, or
+# decrypted state to this file.
+ambient_vm:
+  source_url: https://files.liw.fi/ambient/ambient.qcow2.xz
+  source_last_modified: Wed, 22 Jul 2026 12:04:57 GMT
+  source_etag: '"6fb9a560-65731f2be3cec"'
+  compressed_size_bytes: 1874437472
+  compression: xz
+  decompressed_size_bytes: 10042277888
+  decompressed_sha256: e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d173840b293
+  immutable_archive:
+    status: pending_before_enforcement
+    uri: null
+    sha256: null
+
+ambient_executor:
+  package_version: 0.16.0-1
+  crate_version: 0.16.0
+  crate_source_url: https://crates.io/api/v1/crates/ambient-ci/0.16.0/download
+  crate_size_bytes: 142378
+  crate_sha256: 051d8698eac84847b56b8f39577ef186b2816ecf0fca073434ea62d67913f80a
+  package_deb_sha256: ebe2db704e7d6c93f2b12415866d436cb0e89085096f0954594d7b4f1683036e
+  immutable_archive:
+    status: pending_before_enforcement
+    uri: null
+    sha256: null
+
+# These refs are recovery entry points for the advisory bootstrap. Branch tips
+# may advance; verify the selected tip and its signed CI proof instead of
+# assuming the anchors below are current.
+tracked_sources:
+  core_role:
+    github_repository: pirate-social-club/core
+    github_branch: feat/radicle-ci-bootstrap-20260811
+    radicle_rid: rad:zK3mrwKm8bG7w9iiRuZAAX9eQyWw
+    radicle_patch: 22cfb3f83c6cac74537885e16ce08fcf9698e614
+    reviewed_anchor_commit: cc7789f3a427425ab17e1c7db127f831c3308ee1
+  freedom_browser_plan:
+    github_repository: pirate-social-club/freedom-browser
+    github_branch: test/radicle-proof-browser-20260812
+    radicle_rid: rad:z26RNpiPMzH8nyaca12meKeT2HMBy
+    radicle_patch: ffeaa383a953c036e61e4532c98a93d292d631e1
+    reviewed_anchor_commit: f0111fdeff204f9e1ae9b0341fdfb143fd773d2e

@@ -173,6 +173,10 @@ be retired. See `recovery-escrow.md`.
 The pilot archive is historical test evidence, not production user data. Its
 loss does not block rebuilding the seed or CI host.
 
+The full clean-host sequence, dual-system bootstrap refs, artifact provenance,
+and current advisory-state loss boundary are recorded in `vps-replacement.md`
+and `rebuild-artifacts.yaml`.
+
 ## Controller restart and queue recovery
 
 Before enforcement, rehearse this procedure while the workstation remains a
