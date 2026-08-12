@@ -41,7 +41,7 @@ ss -lntH 'sport = :8776' | grep -Fq '0.0.0.0:8776'
 # Do not invoke `cib config` against the live report directory here. Version
 # 0.30.0 rewrites status.json as a side effect, destroying useful run status.
 grep -Eq '^concurrent_adapters:[[:space:]]*1$' "$rad_home/ci/ci-broker.yaml"
-grep -Eq '^max_run_time:[[:space:]]*30min$' "$rad_home/ci/ci-broker.yaml"
+grep -Eq '^max_run_time:[[:space:]]*60min$' "$rad_home/ci/ci-broker.yaml"
 expected_broker=$(mktemp)
 trap 'rm -f -- "$expected_broker"' EXIT
 RADICLE_CI_REPOSITORIES_FILE=/etc/pirate-radicle/repositories \

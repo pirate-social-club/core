@@ -1,7 +1,7 @@
 db: /var/lib/radicle/ci/broker.db
 report_dir: /var/lib/radicle/ci/reports
 queue_len_interval: 1min
-max_run_time: 30min
+max_run_time: 60min
 concurrent_adapters: 1
 update_job_cobs: true
 adapters:
