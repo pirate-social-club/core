@@ -484,9 +484,51 @@ export function isTransientWranglerFailure(detail: string): boolean {
   return /fetch failed|rate.?limit|timeout|timed out|ECONNRESET|ETIMEDOUT|EAI_AGAIN|code[^0-9]*7429|authentication error.*code[^0-9]*10000|network/isu.test(detail)
 }
 
+const READ_ONLY_MAX_ATTEMPTS = 7
+const READ_ONLY_MAX_BACKOFF_MS = 8_000
+
+/**
+ * D1 occasionally returns 7500 while its query service is unhealthy. Retrying a
+ * migration file after an ambiguous internal error could replay non-idempotent
+ * DDL, so 7500 is intentionally handled only by this read-only wrapper.
+ */
+export function isTransientFleetReadFailure(detail: string): boolean {
+  return isTransientWranglerFailure(detail) || /code[^0-9]*7500/isu.test(detail)
+}
+
+export function fleetReadRetryDelayMs(attempt: number, jitter = Math.random()): number {
+  const exponential = Math.min(1_000 * 2 ** (attempt - 1), READ_ONLY_MAX_BACKOFF_MS)
+  return exponential + Math.floor(Math.max(0, Math.min(jitter, 1)) * 500)
+}
+
+export async function retryTransientFleetRead<T>(
+  operation: () => Promise<T>,
+  sleep: (delayMs: number) => Promise<unknown> = Bun.sleep,
+  jitter: () => number = Math.random,
+): Promise<T> {
+  for (let attempt = 1; attempt <= READ_ONLY_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await operation()
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      if (!isTransientFleetReadFailure(detail) || attempt === READ_ONLY_MAX_ATTEMPTS) throw error
+      await sleep(fleetReadRetryDelayMs(attempt, jitter()))
+    }
+  }
+  throw new Error("fleet read retry loop exhausted")
+}
+
+async function wranglerJsonReadOnly(
+  options: Pick<Options, "env" | "cwd">,
+  db: string,
+  args: string[],
+): Promise<any[]> {
+  return retryTransientFleetRead(() => wranglerJson(options, db, args))
+}
+
 export async function loadedBindings(options: Pick<Options, "env" | "cwd" | "poolDb">): Promise<string[]> {
   const rows = (
-    await wranglerJson(options, options.poolDb, [
+    await wranglerJsonReadOnly(options, options.poolDb, [
       "--command",
       "SELECT binding_name FROM d1_pool WHERE community_id IS NOT NULL AND last_loaded_at IS NOT NULL ORDER BY binding_name",
     ])
@@ -517,14 +559,14 @@ async function classify(
   checksum: string,
 ): Promise<{ status: Status; detail?: string; row_counts?: Record<string, number> }> {
   const rows = (
-    await wranglerJson(options, db, ["--command", classificationSql(spec)])
+    await wranglerJsonReadOnly(options, db, ["--command", classificationSql(spec)])
   )[0].results[0] as Record<string, number | string>
   const classification = classifyRow(spec, rows, checksum)
   const countsSql = rowCountSql(spec)
   let rowCounts: Record<string, number> | undefined
   if (countsSql && spec.requiredTables.every((table) => Number(rows[`req_${table}`] ?? 0) === 1)) {
     const countRows = (
-      await wranglerJson(options, db, ["--command", countsSql])
+      await wranglerJsonReadOnly(options, db, ["--command", countsSql])
     )[0].results[0] as Record<string, number | string>
     rowCounts = Object.fromEntries(
       (spec.rowCountTables ?? []).map((table) => [table, Number(countRows[`metric_rows__${table}`] ?? 0)]),
