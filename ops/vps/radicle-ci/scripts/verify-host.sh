@@ -54,6 +54,24 @@ test -w /dev/kvm
 test -s "$rad_home/ambient/ambient.qcow2"
 qemu-img check -q "$rad_home/ambient/ambient.qcow2"
 
+ambient_manifest=/usr/local/share/pirate-radicle/ambient-npm-retry.manifest
+ambient_patch=/usr/local/share/pirate-radicle/ambient-ci-npm-retry.patch
+test "$(stat -c '%U:%G:%a' "$rad_home/.config/ambient/config.yaml")" = radicle:radicle:600
+cmp -s "$script_dir/../config/ambient.yaml" "$rad_home/.config/ambient/config.yaml" \
+  || { echo 'live Ambient configuration differs from the tracked role' >&2; exit 1; }
+test -x /usr/local/bin/ambient-execute-plan
+test "$(stat -c '%U:%G:%a' /usr/local/bin/ambient-execute-plan)" = root:root:755
+test "$(stat -c '%U:%G:%a' "$ambient_manifest")" = root:root:644
+test "$(stat -c '%U:%G:%a' "$ambient_patch")" = root:root:644
+grep -Fxq 'ambient_version=0.16.0' "$ambient_manifest"
+grep -Fxq \
+  'upstream_source_sha256=ca138d2325790fba012f668e0d114346a955c574ec288fef41097df98fcdfd4c' \
+  "$ambient_manifest"
+test "$(awk -F= '$1 == "patch_sha256" { print $2 }' "$ambient_manifest")" = \
+  "$(sha256sum "$ambient_patch" | awk '{ print $1 }')"
+test "$(awk -F= '$1 == "binary_sha256" { print $2 }' "$ambient_manifest")" = \
+  "$(sha256sum /usr/local/bin/ambient-execute-plan | awk '{ print $1 }')"
+
 controller_status="$(
   cd /
   sudo -u promotion \

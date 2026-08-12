@@ -24,6 +24,12 @@ install -o root -g root -m 0755 "$source_dir/scripts/repository-allowlist.sh" \
   /usr/local/libexec/pirate-radicle/repository-allowlist.sh
 install -o root -g root -m 0755 "$source_dir/scripts/render-ci-broker-config" \
   /usr/local/libexec/pirate-radicle/render-ci-broker-config
+install -o root -g root -m 0755 "$source_dir/scripts/install-ambient-npm-retry" \
+  /usr/local/libexec/pirate-radicle/install-ambient-npm-retry
+/usr/local/libexec/pirate-radicle/install-ambient-npm-retry "$source_dir"
+install -d -o radicle -g radicle -m 0700 /var/lib/radicle/.config/ambient
+install -o radicle -g radicle -m 0600 "$source_dir/config/ambient.yaml" \
+  /var/lib/radicle/.config/ambient/config.yaml
 install -o radicle -g radicle -m 0600 "$source_dir/config/ci-broker.yaml.template" \
   /var/lib/radicle/ci/ci-broker.yaml.template
 install -o root -g root -m 0755 "$source_dir/scripts/promotion-controller" \

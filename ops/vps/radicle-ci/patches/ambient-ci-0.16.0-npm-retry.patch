@@ -1,0 +1,49 @@
+diff --git a/src/action_impl/npm.rs b/src/action_impl/npm.rs
+index 3665d76..3ef3972 100644
+--- a/src/action_impl/npm.rs
++++ b/src/action_impl/npm.rs
+@@ -1,7 +1,9 @@
+ use std::{
+     collections::HashMap,
+     error::Error,
++    fs,
+     path::{Path, PathBuf},
++    thread, time::Duration,
+ };
+ 
+ use serde::{Deserialize, Serialize};
+@@ -13,6 +15,8 @@ use crate::{
+ // From <https://docs.npmjs.com/cli/v10/configuring-npm/package-lock-json?v=true>.
+ const LOCK_FILES: &[&str] = &["npm-shrinkwrap.json", "package-lock.json"];
+ 
++const DOWNLOAD_ATTEMPTS: u32 = 3;
++const DOWNLOAD_RETRY_BASE_DELAY: Duration = Duration::from_secs(2);
+ const SUBDIR: &str = "npm";
+ 
+ /// Download npm packages based on lock file.
+@@ -51,7 +55,23 @@ impl NpmGet {
+                 .map_err(|err| NpmError::UrlParse(p.resolved.clone(), err))?;
+             let filename = npm_dir.join(format!("{}.tgz", name));
+-            http_get_to_file(url.as_str(), &filename)
+-                .map_err(|err| NpmError::HttpGet(url, filename.clone(), err))?;
++            for attempt in 1..=DOWNLOAD_ATTEMPTS {
++                match http_get_to_file(url.as_str(), &filename) {
++                    Ok(_) => break,
++                    Err(err) => {
++                        let _ = fs::remove_file(&filename);
++                        if attempt == DOWNLOAD_ATTEMPTS {
++                            return Err(NpmError::HttpGet(url, filename, err));
++                        }
++                        let delay = DOWNLOAD_RETRY_BASE_DELAY
++                            .saturating_mul(2_u32.pow(attempt - 1));
++                        eprintln!(
++                            "npm_get download attempt {attempt}/{DOWNLOAD_ATTEMPTS} failed; retrying in {}s",
++                            delay.as_secs()
++                        );
++                        thread::sleep(delay);
++                    }
++                }
++            }
+         }
+ 
+         Ok(())

@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+[[ $(id -u) -eq 0 ]] || { echo 'run as root' >&2; exit 1; }
+role_dir=${1:?usage: install-ambient-npm-retry <tracked-role-directory>}
+version=0.16.0
+expected_source_sha256=ca138d2325790fba012f668e0d114346a955c574ec288fef41097df98fcdfd4c
+patch_file="$role_dir/patches/ambient-ci-$version-npm-retry.patch"
+registry_root=/var/lib/radicle/.cargo/registry/src
+cargo_home=/var/lib/radicle/.cargo
+rustup_home=/var/lib/radicle/.rustup
+toolchain_bin="$rustup_home/toolchains/stable-x86_64-unknown-linux-gnu/bin"
+cargo_bin="$toolchain_bin/cargo"
+build_root=/var/lib/radicle/ci/tmp/ambient-ci-npm-retry
+install_destination=${AMBIENT_EXECUTOR_INSTALL_DESTINATION:-/usr/local/bin/ambient-execute-plan}
+
+for command in patch sha256sum sudo; do
+  command -v "$command" >/dev/null 2>&1 \
+    || { echo "required command not found: $command" >&2; exit 1; }
+done
+test -r "$patch_file"
+test -x "$cargo_bin"
+[[ "$install_destination" == /* && "$install_destination" != *$'\n'* ]] \
+  || { echo 'AMBIENT_EXECUTOR_INSTALL_DESTINATION must be an absolute single-line path' >&2; exit 1; }
+patch_sha256=$(sha256sum "$patch_file" | awk '{ print $1 }')
+
+if [[ "$install_destination" == /usr/local/bin/ambient-execute-plan ]]; then
+  installed_manifest=/usr/local/share/pirate-radicle/ambient-npm-retry.manifest
+  installed_patch=/usr/local/share/pirate-radicle/ambient-ci-npm-retry.patch
+  if [[ -x "$install_destination" && -f "$installed_manifest" \
+    && -f "$installed_patch" ]] \
+    && grep -Fxq "ambient_version=$version" "$installed_manifest" \
+    && grep -Fxq "upstream_source_sha256=$expected_source_sha256" \
+      "$installed_manifest" \
+    && grep -Fxq "patch_sha256=$patch_sha256" "$installed_manifest" \
+    && grep -Fxq \
+      "binary_sha256=$(sha256sum "$install_destination" | awk '{ print $1 }')" \
+      "$installed_manifest" \
+    && test "$(sha256sum "$installed_patch" | awk '{ print $1 }')" = \
+      "$patch_sha256"; then
+    echo 'reviewed Ambient npm retry build is already installed'
+    exit 0
+  fi
+fi
+
+mapfile -t sources < <(find "$registry_root" -mindepth 2 -maxdepth 2 \
+  -type d -name "ambient-ci-$version" -print)
+if (( ${#sources[@]} != 1 )); then
+  echo "expected exactly one cached ambient-ci-$version source tree" >&2
+  exit 1
+fi
+source_tree=${sources[0]}
+source_file="$source_tree/src/action_impl/npm.rs"
+test "$(sha256sum "$source_file" | awk '{ print $1 }')" = \
+  "$expected_source_sha256" \
+  || { echo 'cached Ambient npm source differs from the reviewed input' >&2; exit 1; }
+
+rm -rf -- "$build_root"
+install -d -o radicle -g radicle -m 0700 "$build_root"
+cp -a "$source_tree/." "$build_root/"
+chown -R radicle:radicle "$build_root"
+sudo -u radicle patch --batch --forward -d "$build_root" -p1 < "$patch_file"
+build_env=(env HOME=/var/lib/radicle CARGO_HOME="$cargo_home"
+  RUSTUP_HOME="$rustup_home" PATH="$toolchain_bin:/usr/local/bin:/usr/bin:/bin"
+  CARGO_NET_RETRY=3)
+fetched=false
+for attempt in 1 2 3; do
+  if sudo -u radicle "${build_env[@]}" "$cargo_bin" fetch --locked \
+    --manifest-path "$build_root/Cargo.toml"; then
+    fetched=true
+    break
+  fi
+  (( attempt < 3 )) && sleep $((attempt * 2))
+done
+[[ "$fetched" == true ]] \
+  || { echo 'failed to fetch the locked Ambient build dependencies' >&2; exit 1; }
+sudo -u radicle "${build_env[@]}" "$cargo_bin" build --release --locked --offline \
+  --manifest-path "$build_root/Cargo.toml" --bin ambient-execute-plan
+
+candidate="$build_root/target/release/ambient-execute-plan"
+test -x "$candidate"
+install -o root -g root -m 0755 "$candidate" "$install_destination"
+
+if [[ "$install_destination" == /usr/local/bin/ambient-execute-plan ]]; then
+  install -d -o root -g root -m 0755 /usr/local/share/pirate-radicle
+  install -o root -g root -m 0644 "$patch_file" \
+    /usr/local/share/pirate-radicle/ambient-ci-npm-retry.patch
+  binary_sha256=$(sha256sum "$install_destination" | awk '{ print $1 }')
+  manifest="$build_root/ambient-npm-retry.manifest"
+  printf '%s\n' \
+    "ambient_version=$version" \
+    "upstream_source_sha256=$expected_source_sha256" \
+    "patch_sha256=$patch_sha256" \
+    "binary_sha256=$binary_sha256" > "$manifest"
+  install -o root -g root -m 0644 "$manifest" \
+    /usr/local/share/pirate-radicle/ambient-npm-retry.manifest
+fi
+
+rm -rf -- "$build_root"
+echo "installed Ambient 0.16.0 executor with bounded npm_get download retries at $install_destination"

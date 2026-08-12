@@ -231,6 +231,29 @@ remove the workstation delegate, or enable authoritative promotion until the
 failure is resolved and the drill passes through the human-only recovery
 escrow.
 
+## Dependency-fetch failures
+
+Ambient 0.16.0's `npm_get` pre-plan action downloads every package-lock URL
+once and aborts before the isolated plan VM if any request fails. This is an
+infrastructure failure: no repository check ran, so it must never be treated as
+evidence that the commit is bad. The tracked Ambient source patch retries each
+download at most three times with 2-second and 4-second backoff, removing any
+partial file before retry. After the third failure the run remains failed and
+produces no successful proof.
+
+Install the exact-version patch with `scripts/install-ambient-npm-retry`. The
+installer verifies the upstream source hash, builds offline from the cached
+crate after fetching its exact locked dependency graph with bounded retry, and
+places the patched guest-plan executor at
+`/usr/local/bin/ambient-execute-plan`. `config/ambient.yaml` selects that exact
+executor; patching the `ambient` coordinator alone has no effect on `npm_get`.
+A later Ambient version is a hard stop
+until this mitigation is re-reviewed or confirmed upstream.
+
+Do not retry failed tests automatically. A retry is permitted only when the
+run report shows failure in pre-plan `npm_get` before the repository shell
+action began. Record the original failed job and the retry job separately.
+
 ### Announcement reconciliation verification
 
 On 2026-08-12, disposable secret-free Ambient patches exercised the first job
