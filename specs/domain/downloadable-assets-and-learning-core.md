@@ -1078,8 +1078,9 @@ The finalizer performs these idempotent steps:
 The post-create idempotency record stores the IDs allocated for every step so a
 retry resumes rather than duplicates the post, asset, payload, or listing.
 
-The same Phase 2 `posts` rebuild that adds `file` and `deck` also adds constrained
-failure codes for `payload_verification_failed`, `payload_safety_blocked`,
+The same Phase 2 rebuild updates both constrained failure-code authorities:
+`posts.publish_failure_code` and `post_publish_requests.failure_code`. Both add
+`payload_verification_failed`, `payload_safety_blocked`,
 `payload_safety_review_required`, `payload_claim_failed`,
 `deck_package_generation_failed`, and `deck_package_hash_mismatch`. Provider,
 Story, locked-delivery, listing, catalog, and internal failures continue using
@@ -1791,11 +1792,12 @@ Do not rename or drop legacy song tables in this phase.
 
 ### Phase 2: one community schema foundation and Story projection
 
-- Rebuild constrained asset/post tables to add `download_file`,
-  `learning_deck`, `file`, `deck`, nullable kind-bound `primary_content_ref`,
-  and the new publication failure codes where required. The posts rebuild is a
-  reviewed successor to `1117_async_post_publish.sql`, preserving every current
-  column, index, trigger, and existing enum member.
+- Rebuild constrained asset/post tables and `post_publish_requests` to add
+  `download_file`, `learning_deck`, `file`, `deck`, nullable kind-bound
+  `primary_content_ref`, and both copies of the new publication failure codes.
+  The posts/publish-request rebuild is a reviewed successor to
+  `1117_async_post_publish.sql`, preserving every current column, index,
+  trigger, and existing enum member.
 - Rebuild `moderation_actions` to add paired asset targets, enforcement-state
   snapshots, quarantine/block/restore actions, and the bidirectional projection
   audit contract while preserving existing actions.
