@@ -4956,6 +4956,98 @@ paths:
           $ref: "#/components/responses/VerificationRequired"
         "404":
           $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/content-blobs:
+    post:
+      tags:
+        - Posts
+      summary: Create a content-neutral upload intent
+      description: |
+        Creates a temporary content blob and one upload session. Declared metadata is untrusted.
+        A blob becomes ready only after authoritative byte verification and the validation profile's
+        required safety scan. This draft operation remains disabled until the generic content writer ships.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateContentBlobRequest"
+      responses:
+        "201":
+          description: Content blob upload intent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentBlob"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/PostingQuotaExhausted"
+  /communities/{community_id}/content-blobs/{content_blob_id}:
+    get:
+      tags:
+        - Posts
+      summary: Read owned content-blob verification state
+      description: |
+        Returns declared metadata, authoritative verification results, safety state, and upload-session
+        state to the uploader. Storage credentials and scanner result details are never returned.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/ContentBlobId"
+      responses:
+        "200":
+          description: Content blob
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentBlob"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/content-blobs/{content_blob_id}/content:
+    put:
+      tags:
+        - Posts
+      summary: Upload content-blob bytes through the proxy lane
+      description: |
+        Uploads bytes for a proxy-mode content blob. Completion moves the blob to verification;
+        it does not make the blob ready or claim it for an asset.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/ContentBlobId"
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContentBlobContentRequest"
+      responses:
+        "200":
+          description: Content blob accepted for verification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentBlob"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /communities/{community_id}/song-artifacts:
     get:
       tags:
@@ -16910,6 +17002,204 @@ components:
         next_cursor:
           type: string
           nullable: true
+    ContentBlobStatus:
+      type: string
+      enum:
+        - pending_upload
+        - uploaded
+        - verifying
+        - ready
+        - rejected
+        - failed
+        - cancelled
+    ContentBlobSecurityScanState:
+      type: string
+      enum:
+        - pending
+        - clean
+        - suspicious
+        - malicious
+        - error
+        - not_required
+    ContentUploadSession:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - status
+        - upload_mode
+        - object_key
+        - expires_at
+      properties:
+        id:
+          type: string
+          readOnly: true
+        status:
+          type: string
+          enum:
+            - created
+            - parts_uploading
+            - completing
+            - head_verifying
+            - uploaded
+            - aborting
+            - aborted
+        upload_mode:
+          type: string
+          enum:
+            - proxy
+            - direct_multipart
+        object_key:
+          type: string
+        provider_upload_id:
+          type: string
+          nullable: true
+        part_size_bytes:
+          type: integer
+          format: int64
+          minimum: 1
+          nullable: true
+        total_parts:
+          type: integer
+          minimum: 1
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+        sign_part_url:
+          type: string
+          nullable: true
+        complete_url:
+          type: string
+          nullable: true
+        abort_url:
+          type: string
+          nullable: true
+    CreateContentBlobRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - validation_profile
+        - declared_mime_type
+        - upload_mode
+      properties:
+        validation_profile:
+          type: string
+          description: Versioned server-recognized policy such as `download_file_v1` or `deck_import_csv_v1`.
+        declared_filename:
+          type: string
+          nullable: true
+        declared_mime_type:
+          type: string
+          description: Untrusted client declaration; detected MIME becomes authoritative.
+        declared_size_bytes:
+          type: integer
+          format: int64
+          minimum: 1
+          nullable: true
+          description: Required for direct multipart; proxy uploads may omit it.
+        declared_content_hash:
+          type: string
+          pattern: ^0x[0-9a-f]{64}$
+          nullable: true
+          description: Optional client-declared SHA-256 hash; verified server hash remains authoritative.
+        upload_mode:
+          type: string
+          enum:
+            - proxy
+            - direct_multipart
+    ContentBlobContentRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - content_base64
+      properties:
+        content_base64:
+          type: string
+    ContentBlob:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - object
+        - community
+        - uploader_user
+        - status
+        - validation_profile
+        - declared_mime_type
+        - security_scan_state
+        - plaintext_retention_state
+        - upload_session
+        - created
+        - updated
+      properties:
+        id:
+          type: string
+          readOnly: true
+        object:
+          type: string
+          readOnly: true
+          enum:
+            - content_blob
+        community:
+          type: string
+        uploader_user:
+          type: string
+        status:
+          $ref: "#/components/schemas/ContentBlobStatus"
+        validation_profile:
+          type: string
+        declared_filename:
+          type: string
+          nullable: true
+        declared_mime_type:
+          type: string
+        declared_size_bytes:
+          type: integer
+          format: int64
+          minimum: 1
+          nullable: true
+        declared_content_hash:
+          type: string
+          pattern: ^0x[0-9a-f]{64}$
+          nullable: true
+        detected_mime_type:
+          type: string
+          nullable: true
+        verified_size_bytes:
+          type: integer
+          format: int64
+          minimum: 1
+          nullable: true
+        verified_content_hash:
+          type: string
+          pattern: ^0x[0-9a-f]{64}$
+          nullable: true
+        security_scan_state:
+          $ref: "#/components/schemas/ContentBlobSecurityScanState"
+        rejection_code:
+          type: string
+          nullable: true
+        plaintext_retention_state:
+          type: string
+          enum:
+            - active
+            - purge_pending
+            - purged
+            - legal_hold
+        upload_url:
+          type: string
+          nullable: true
+        upload_session:
+          allOf:
+            - $ref: "#/components/schemas/ContentUploadSession"
+          nullable: true
+        created:
+          type: integer
+          format: int64
+        updated:
+          type: integer
+          format: int64
     CreatePostRequest:
       type: object
       description: |

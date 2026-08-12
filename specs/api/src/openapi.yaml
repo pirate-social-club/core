@@ -330,6 +330,12 @@ paths:
     $ref: ./paths/communities.yaml#/communities_by_community_id_song_artifact_uploads
   /communities/{community_id}/song-artifact-uploads/{song_artifact_upload_id}/content:
     $ref: ./paths/communities.yaml#/communities_by_community_id_song_artifact_uploads_by_song_artifact_upload_id_content
+  /communities/{community_id}/content-blobs:
+    $ref: ./paths/content-blobs.yaml#/communities_by_community_id_content_blobs
+  /communities/{community_id}/content-blobs/{content_blob_id}:
+    $ref: ./paths/content-blobs.yaml#/communities_by_community_id_content_blobs_by_content_blob_id
+  /communities/{community_id}/content-blobs/{content_blob_id}/content:
+    $ref: ./paths/content-blobs.yaml#/communities_by_community_id_content_blobs_by_content_blob_id_content
   /communities/{community_id}/song-artifacts:
     $ref: ./paths/communities.yaml#/communities_by_community_id_song_artifacts
   /communities/{community_id}/song-artifacts/{song_artifact_bundle_id}:
@@ -1084,6 +1090,18 @@ components:
       $ref: ./components/schemas/song-artifacts.yaml#/SongArtifactBundle
     SongArtifactBundleListResponse:
       $ref: ./components/schemas/song-artifacts.yaml#/SongArtifactBundleListResponse
+    ContentBlobStatus:
+      $ref: ./components/schemas/content-blobs.yaml#/ContentBlobStatus
+    ContentBlobSecurityScanState:
+      $ref: ./components/schemas/content-blobs.yaml#/ContentBlobSecurityScanState
+    ContentUploadSession:
+      $ref: ./components/schemas/content-blobs.yaml#/ContentUploadSession
+    CreateContentBlobRequest:
+      $ref: ./components/schemas/content-blobs.yaml#/CreateContentBlobRequest
+    ContentBlobContentRequest:
+      $ref: ./components/schemas/content-blobs.yaml#/ContentBlobContentRequest
+    ContentBlob:
+      $ref: ./components/schemas/content-blobs.yaml#/ContentBlob
     CreatePostRequest:
       $ref: ./components/schemas/posts.yaml#/CreatePostRequest
     Post:

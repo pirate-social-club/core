@@ -76,6 +76,12 @@ RightsReviewCaseId:
   required: true
   schema:
     type: string
+ContentBlobId:
+  in: path
+  name: content_blob_id
+  required: true
+  schema:
+    type: string
 VerificationSessionId:
   in: path
   name: verification_session_id
