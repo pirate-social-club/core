@@ -56,10 +56,20 @@ This VPS slice may share a machine with the HNS DNS stack, but it remains operat
   stages both binaries plus the publisher AGPL notice into the role release.
   `make-release.sh` covers the staged bytes in the role SHA256SUMS.
 - `bin/check-verifier-health.sh` and the verifier-health systemd timer
-  Check the specific `fabric_record_reader_ready` signal and the absence of
-  native/fallback target disagreements every five minutes. A degraded,
-  missing, or divergent signal fails the oneshot and invokes the existing
+  Check Fabric readiness, the absence of native/fallback disagreements, and
+  independent Bitcoin index/anchor freshness every five minutes. Chain health
+  compares `spaced` against the separately configured
+  `SPACES_BITCOIN_TIP_URL`; production uses mempool.space so the freshness
+  oracle does not share PublicNode with `spaced`. It exposes `tip_lag_blocks`,
+  `anchor_lag_blocks`, and `last_index_progress_at`. A degraded, missing,
+  divergent, or stale signal fails the oneshot and invokes the existing
   authenticated ops-alert delivery path through `alert-on-failure.sh`.
+- Root inspection prefers a current proof when it matches a retained anchor,
+  then falls back to `spaced`'s historical proof selector. Historical UTXO
+  proofs are bound to the expected live outpoint and root label by the native
+  verifier. `SPACES_VERIFIER_MAX_ANCHOR_AGE_BLOCKS` must cover the production
+  pin's 120-anchor, 36-block trust window; chain freshness is enforced
+  separately by `SPACES_CHAIN_MAX_ANCHOR_LAG_BLOCKS`.
 - Public resolution caches Fabric relay results for 30 seconds, coalesces
   identical in-flight reads, and bounds the cache to 2,048 handles. Root proof
   inspection and the live-key fallback gate still run on every request.

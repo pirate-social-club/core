@@ -208,7 +208,11 @@ bash ops/vps/deployment-tooling/make-release.sh ops/vps/spaces-verifier \
    dependencies change; never mutate the app release in place.
 6. Start `pirate-spaced.service`, then `pirate-spaces-verifier.service`.
 7. Confirm `GET https://verifier.pirate.sc/spaces/health`.
-8. Confirm `GET https://verifier.pirate.sc/spaces/inspect?root_label=@pirate`.
+8. Confirm an authenticated
+   `GET https://verifier.pirate.sc/spaces/inspect?root_label=@pirate` using the
+   canonical production token. Require a verified root proof, a live root key,
+   and an accepted Bitcoin anchor; a public resolve is not a substitute for
+   this API-to-verifier contract check.
 9. Confirm `POST https://verifier.pirate.sc/spaces/verify-publish` with a known session challenge when available.
 
 This sequence brings up verification only. It does not enable community protocol issuance.

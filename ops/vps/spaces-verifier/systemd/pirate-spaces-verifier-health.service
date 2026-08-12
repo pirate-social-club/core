@@ -9,6 +9,7 @@ Type=oneshot
 User=root
 Group=root
 EnvironmentFile=/etc/pirate-deployment-verify/spaces.env
+EnvironmentFile=/srv/pirate-spaces/config/verifier.env
 ExecStart=/bin/bash -c 'exec "$DEPLOY_ROOT/current/bin/check-verifier-health.sh"'
 NoNewPrivileges=true
 PrivateTmp=true
