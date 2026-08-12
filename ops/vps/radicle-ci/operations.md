@@ -276,8 +276,10 @@ once and aborts before the isolated plan VM if any request fails. This is an
 infrastructure failure: no repository check ran, so it must never be treated as
 evidence that the commit is bad. The tracked Ambient source patch retries each
 download at most three times with 2-second and 4-second backoff, removing any
-partial file before retry. After the third failure the run remains failed and
-produces no successful proof.
+partial file before retry. It skips non-HTTP lockfile entries so a repository
+can separately provision pinned local `file:` dependencies; the offline install
+still fails closed if such an input is absent. After the third HTTP failure the
+run remains failed and produces no successful proof.
 
 Install the exact-version patch with `scripts/install-ambient-npm-retry`. The
 installer verifies the upstream source hash, builds offline from the cached

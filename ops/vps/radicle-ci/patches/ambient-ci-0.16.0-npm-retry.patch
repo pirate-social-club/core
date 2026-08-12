@@ -21,7 +21,19 @@ index 3665d76..3ef3972 100644
  const SUBDIR: &str = "npm";
  
  /// Download npm packages based on lock file.
-@@ -51,7 +55,23 @@ impl NpmGet {
+@@ -46,6 +50,11 @@ impl NpmGet {
+         mkdir(&npm_dir).map_err(|err| NpmError::Mkdir2(npm_dir.to_path_buf(), err))?;
+ 
+         for (name, p) in lockfile.packages.iter().filter(|(n, _)| !n.is_empty()) {
++            if !p.resolved.starts_with("https://") && !p.resolved.starts_with("http://") {
++                eprintln!("npm_get skipping non-HTTP package {name}");
++                continue;
++            }
++
+             let filename = npm_dir.join(name);
+             let dir = filename
+                 .parent()
+@@ -51,7 +60,23 @@ impl NpmGet {
                  .map_err(|err| NpmError::UrlParse(p.resolved.clone(), err))?;
              let filename = npm_dir.join(format!("{}.tgz", name));
 -            http_get_to_file(url.as_str(), &filename)

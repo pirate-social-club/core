@@ -154,9 +154,9 @@ retention. The backup signer is not a Radicle delegate. Record its public-key
 fingerprint in the secret-free recovery manifest.
 
 `recovery-manifest.yaml` is the live, secret-free rollout record. Any
-pre-cutover status, null ceremony field, or `PENDING_NOT_USABLE` placeholder is a hard stop, not optional
-values. Replace them only with evidence verified during the human-only
-ceremony; never infer or fill them from this workstation.
+pre-cutover status, null ceremony field, or `PENDING_NOT_USABLE` placeholder is
+a hard stop, not an optional value. Replace it only with evidence verified
+during the human-only ceremony; never infer or fill it from this workstation.
 
 ## Ambient dependency retry
 
@@ -174,8 +174,11 @@ sudo ops/vps/radicle-ci/scripts/verify-host.sh
 The installer builds a candidate before replacing the PATH-preferred binary
 and records the source, patch, and resulting binary hashes under
 `/usr/local/share/pirate-radicle`. Host verification rejects a missing or
-changed binary, patch, or manifest. The retry covers only individual pre-plan
-package downloads; repository test failures are never retried automatically.
+changed binary, patch, or manifest. The patch retries individual pre-plan
+package downloads and ignores non-HTTP lockfile entries such as prepared local
+`file:` dependencies. Repositories must provision those inputs separately and
+pin/checksum them before `npm ci --offline`. Repository test failures are never
+retried automatically.
 
 After the dedicated recovery organization, age recipient, scoped immutable
 bucket credential, and alert endpoint exist:
