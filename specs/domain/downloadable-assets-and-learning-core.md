@@ -11,6 +11,7 @@ Related docs:
 - [publish-matrix.md](./publish-matrix.md)
 - [song-study.md](./song-study.md)
 - [story-royalty-commerce.md](./story-royalty-commerce.md)
+- [locked-asset-delivery.md](../contracts/locked-asset-delivery.md)
 
 ## Purpose
 
@@ -275,6 +276,10 @@ CREATE TABLE content_blobs (
   scanner_signature_version TEXT,
   security_scan_result_ref TEXT,
   security_scanned_at      TIMESTAMPTZ,
+  plaintext_retention_state TEXT NOT NULL DEFAULT 'active' CHECK (
+                             plaintext_retention_state IN (
+                               'active','purge_pending','purged','legal_hold')),
+  plaintext_purged_at      TIMESTAMPTZ,
   storage_ref              TEXT NOT NULL UNIQUE,
   storage_provider         TEXT,
   storage_bucket           TEXT,
@@ -303,6 +308,10 @@ CREATE TABLE content_blobs (
     scanner_engine_version IS NOT NULL AND
     scanner_signature_version IS NOT NULL
   )),
+  CHECK (
+    (plaintext_retention_state = 'purged') =
+    (plaintext_purged_at IS NOT NULL)
+  ),
   CHECK (status <> 'ready' OR (
     detected_mime_type IS NOT NULL AND
     verified_size_bytes IS NOT NULL AND
@@ -594,6 +603,59 @@ checks complete against the verified bytes:
 4. format-specific active-content checks; and
 5. content-policy analysis of the normalized text or deck fields.
 
+#### Scanner implementation and cost
+
+The v0 byte scanner is an API-owned, self-hosted service named
+`content-malware-scanner`, implemented in the API repository as a Cloudflare
+Container running a pinned ClamAV engine and signed definition database. The
+Worker/API orchestration lives under the content-security module; the container
+image, health contract, and fixtures live under a dedicated malware-scanner
+service directory. An R2 event/verification transition enqueues a small job
+reference, and the consumer invokes a bounded pool of scanner containers. Queue
+messages never contain file bytes.
+
+The container has no wallet, database, CDR, community, or broad R2 credential.
+A source-object broker grants one job-scoped streaming read for the exact blob
+ID/hash and records bytes read; the result writer accepts only the matching job,
+engine, definition, and content hash. Runtime outbound network is denied.
+Definitions are fetched and signature-verified during the image supply-chain
+build, pinned in the image, and promoted through a clean/malicious regression
+corpus before deployment. A definition refresh creates a new scanner version
+and rescan watermark; it is not an in-place mutable runtime download.
+
+This choice keeps customer bytes inside the platform boundary and adds no
+third-party file-scanning recipient or per-request vendor fee. It deliberately
+does not use an external malware API. Replacing it with one requires a new
+architecture review, explicit customer-data disclosure/retention terms, data
+residency and deletion review, an `egress-rules.yaml` allowlist entry, provider
+failure semantics, and a priced per-scan budget before any byte leaves Pirate.
+
+Cloudflare Containers can sleep after an idle timeout and container charges
+stop while asleep, so v0 uses `standard-1` as the initial provisioned instance
+type and a 30-second idle sleep rather than a permanently warm service. A larger
+instance requires a new measured cost approval. This platform is still isolated
+from the request path: cold start affects asynchronous
+verification latency, not upload response correctness. The pricing model and
+source of truth are the current
+[Cloudflare Containers pricing contract](https://developers.cloudflare.com/containers/pricing/).
+The measured marginal compute estimate is:
+
+```text
+active vCPU-seconds × current vCPU rate
++ provisioned GiB-seconds × current memory rate
++ provisioned disk-GB-seconds × current disk rate
++ Worker, Durable Object, Queue, R2, and log usage
+```
+
+The Phase 3 business gate records cold/warm p50/p95 scan time, scans per
+container start, peak memory, definition-update overhead, retained-source
+storage, and projected monthly spend at 1,000, 10,000, and 100,000 scans. The
+initial variable-cost budget is at most USD 0.01 per completed scan at the
+expected file-size mix after included usage, excluding separately reported
+retained-source storage. A monthly budget alert and hard admission cap protect
+against surprise spend. Failure to meet the latency, detection, or cost gate
+blocks file publication; it does not select an external scanner implicitly.
+
 Parsers and scanners execute with fixed CPU, memory, input, nesting, row, and
 wall-time limits outside the request handler. They have no credentials and no
 outbound network. Timeout, crash, stale signatures, incomplete coverage, or
@@ -617,6 +679,44 @@ confirmed result blocks the asset, withdraws the listing/post, and triggers the
 existing takedown sequence. Ambiguous results stay quarantined for human
 review. Scanner overrides require an evidence-backed moderation action and do
 not erase the original finding.
+
+#### Plaintext retention and rescanning
+
+V0 retains one authoritative plaintext source object for a locked generic asset
+while Pirate promises any future creator, moderation, or buyer delivery. This
+is the explicit rescan source; v0 does not recover a CDR key and decrypt the
+published ciphertext on the server for routine rescans. The claimed source
+object is therefore not eligible for the orphan/draft reaper merely because CDR
+publication succeeded.
+
+This retention is an acknowledged exfiltration surface and is isolated
+accordingly. Source objects live in a dedicated private storage namespace with
+no public domain, gateway URL, cache route, general listing operation, or
+client-facing signed URL. The normal API carries metadata and job orchestration
+but has no direct source-byte read binding. Only the source-object broker can
+stream one hash-bound object to the scanner or isolated platform-security
+inspection environment; every read has a purpose, subject, actor-role/job,
+expected byte count, and audit record. Scanner disk is ephemeral and the job
+must erase temporary material and stop on completion/error. Plaintext does not
+enter logs, queues, D1, Postgres, crash dumps, or ordinary backups.
+
+`plaintext_retention_state = active` is required while a public route or future
+signed CDR proof may be issued. When all platform delivery promises terminate,
+the object moves to `purge_pending` and is deleted within 7 days after the final
+audit/rescan window. A confirmed malicious or illegal takedown purges it within
+24 hours unless an explicit legal hold requires isolated evidence retention;
+the immutable hash, scan results, and commerce/audit records remain. A legal
+hold is separately authorized, access-audited, and expiry-reviewed. Successful
+deletion sets `purged` only after storage HEAD confirms absence. A missing
+active source object fails closed and stops new signed proof issuance because
+future rescanning can no longer be guaranteed.
+
+This means Pirate is not end-to-end encrypted against the platform for locked
+generic goods. Seller and buyer disclosure must say that Pirate retains and may
+rescan the source plaintext for safety while delivery remains supported. A
+future design that purges plaintext immediately after publication must specify
+a separately reviewed CDR recovery/decryption scanner path and its keys,
+authorization, audit, and failure behavior before changing this rule.
 
 Buyers and community members can report a file/deck post for malware,
 credential theft, fraud, prohibited content, or rights infringement. A report
@@ -784,6 +884,16 @@ a buyer cannot be revoked. Story IP registration records rights metadata and
 hashes; it is related orchestration but is not itself byte delivery. Public/free
 payloads use the enforcement-aware public gateway and do not use CDR by
 default.
+
+This is intentionally stricter than the pre-existing song/video path. Existing
+locked song and video assets default to direct token-gate buyer reads, so a
+buyer who retained their token and vault coordinates may still satisfy the CDR
+condition after a shard-local post/asset takedown. Pirate can block its own
+access-resolution endpoint and discovery, but that does not make the onchain
+condition observe the moderation projection. Generic launch does not claim to
+repair that legacy gap. Converting song/video buyer access to short-lived signed
+proofs requires a separate compatibility migration and is recorded in
+[locked-asset-delivery.md](../contracts/locked-asset-delivery.md).
 
 ```ts
 interface StoredContentReader {
@@ -1479,13 +1589,26 @@ static named stories keep every terminal and error state independently
 reviewable. Focused Storybook discovery and story tests are required before the
 corresponding Web flag can enable.
 
-That last gate requires new CI wiring. Today required `web-ci` explicitly
-excludes Storybook projects, and the manual `storybook-artifact` workflow builds
-a static catalog but does not execute `play` tests. Phase 3 therefore adds a
-required focused digital-goods Storybook job that typechecks/builds only the
-owning subtrees, runs the supported interaction-test runner, and retains its
-static artifact and test report. Until that job exists, authored `play`
-functions are reviewable scenarios, not CI evidence.
+That last gate requires a selected runner and new CI wiring. Today required
+`web-ci` explicitly excludes Storybook projects, and the manual
+`storybook-artifact` workflow builds a static catalog but does not execute
+`play` tests. Web already depends on `@playwright/test`; it does not have Vitest,
+the Storybook Vitest addon, or a Storybook interaction runner.
+
+V1 selects the Playwright-backed `@storybook/test-runner`, pinned to an exact
+`0.24.x` release compatible with Storybook 10.5.x. It does not introduce Vitest
+or make the runner's internal Jest implementation a general Web test stack. The
+lockfile, browser version, Storybook version, and runner version move together.
+The job builds a static catalog, serves it only on CI localhost, runs
+`test-storybook` with bounded Playwright worker count and timeouts, and retains
+the catalog, JUnit result, and failure artifacts.
+
+Phase 3 adds that job as a required focused digital-goods gate. The existing
+safe `STORYBOOK_ONLY` selector in `.storybook/main.ts` is the discovery lever;
+a CI matrix invokes it once per owning story subtree instead of discovering the
+full catalog. Stories also carry a `digital-goods` test tag so the runner fails
+if an unexpected story enters the selected catalog. Until this dependency and
+job exist, authored `play` functions are reviewable scenarios, not CI evidence.
 
 The job must also close the reported cold manager-cache OOM behavior rather
 than relying on restart luck. It records peak RSS and duration for cold and warm
@@ -1618,6 +1741,9 @@ waived or trialed first on a live small shard.
   inspection, mandatory malware/active-content scanning, buyer reporting,
   takedown/emergency controls, quotas, retention, and both reconciliation
   sweepers.
+- Deploy the pinned scale-to-zero scanner container, source-object broker,
+  result/DLQ handling, clean/malicious corpus gate, rescan watermark, plaintext
+  lifecycle audit, and measured scan/storage cost controls.
 - Isolate publish-finalize/locked-delivery capacity from scheduled maintenance
   and pass the mixed-load start/terminal latency gate.
 - Add the browser download controller and response headers.
@@ -1690,6 +1816,10 @@ At minimum, record:
 - malware scan latency/outcome by profile and engine/signature age, parser
   sandbox timeout/crash, deny-list hit, rescan backlog/age, and formula-policy
   rejection without filenames or cell contents;
+- scanner-container cold/warm starts, active time, peak memory, jobs per start,
+  source-broker byte/read mismatches, marginal cost, and monthly budget use;
+- retained plaintext bytes/age, audited read reasons, purge-pending age,
+  confirmed source deletion, and legal-hold expiry without object keys;
 - blob-claim retries and conflicts;
 - payload-without-claim scans, restored claims, and restore conflicts;
 - quota denials, retained bytes, public egress, intent rate-limit denials, and
@@ -1768,6 +1898,12 @@ CDR keys, signed URLs, or raw wallet proofs.
 - A generic blob cannot become ready or publish without a current clean malware
   result, bounded format parsing, active-content checks, and content-policy
   decision; scanner failure, timeout, or stale coverage fails closed.
+- The self-hosted scanner container passes clean/malicious fixtures, has no
+  runtime network or broad storage credential, scales idle compute to zero,
+  and meets the measured latency/cost/budget gate without external byte egress.
+- Active deliverable plaintext has exactly one isolated source object for
+  rescans; every read is hash-bound and audited, missing source fails closed,
+  and purge/legal-hold transitions meet their deadlines.
 - Formula-candidate CSV/TSV fields are rejected without mutating bytes, and
   JSON/parser resource limits hold under adversarial fixtures.
 - Hash/asset/uploader/community/profile/global emergency controls stop new
@@ -1775,6 +1911,8 @@ CDR keys, signed URLs, or raw wallet proofs.
 - Generic locked buyers use short-lived composite signed CDR proofs after a
   fresh entitlement/enforcement check; no direct token-gate path bypasses
   takedown.
+- Release documentation distinguishes that generic guarantee from the known
+  pre-existing song/video direct-token-gate takedown gap.
 - Post hide/remove and asset quarantine/block transitions write one audited
   moderation action and update both projections atomically; the reconciler can
   rebuild `asset_enforcement` without treating it as a second authority.
@@ -1814,8 +1952,9 @@ CDR keys, signed URLs, or raw wallet proofs.
 - Storybook performs no live API, wallet, Story, CDR, or storage call and
   contains no usable secret, signed URL, or wallet proof.
 - The required focused Storybook CI job builds the owning subtrees and executes
-  `play` tests; cold/warm memory trials and the bounded cache-seed procedure pass
-  before this criterion is treated as enforced.
+  `play` tests with the pinned Playwright-backed `@storybook/test-runner`; the
+  `STORYBOOK_ONLY` matrix, cold/warm memory trials, and bounded cache-seed
+  procedure pass before this criterion is treated as enforced.
 
 ### Compatibility and launch posture
 
@@ -1863,6 +2002,9 @@ Core owns:
 API owns:
 
 - content-neutral storage/upload/delivery services;
+- the `content-malware-scanner` container, source-object broker, scan queue and
+  result verification, signature-image promotion, rescan/purge orchestration,
+  and cost/health controls;
 - asset policy adapters;
 - post/publish orchestration;
 - deck authoring/import/study services;
@@ -1893,3 +2035,7 @@ kind must not deploy before every target shard accepts it.
 - Learner exports and portable review-history import.
 - Privacy-preserving creator analytics.
 - Client-version/capability negotiation and per-response post-type filtering.
+- Migrating existing song/video buyers from direct token-gate CDR reads to
+  short-lived enforcement-aware signed proofs.
+- Immediate post-publication plaintext purge with server-authorized CDR
+  recovery/decryption for later malware rescans.
