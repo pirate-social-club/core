@@ -10,6 +10,10 @@ const revocationMigration = readFileSync(
   "db/control-plane/migrations/0222_control_plane_content_security_release_revocation.sql",
   "utf8",
 );
+const formatEvidenceMigration = readFileSync(
+  "db/control-plane/migrations/0223_control_plane_content_format_scan_evidence.sql",
+  "utf8",
+);
 
 describe("content security scans control-plane migration", () => {
   test("pins promoted scanner identity independently from jobs", () => {
@@ -53,6 +57,18 @@ describe("content security scans control-plane migration", () => {
     expect(migration).toContain("content_source_read_audits_immutable");
     expect(migration).toContain("content security scanner release records cannot be deleted");
     expect(migration).not.toContain("storage_object_key TEXT");
+  });
+
+  test("adds complete format evidence without rewriting legacy results", () => {
+    expect(formatEvidenceMigration).toContain("ADD COLUMN content_format_policy_version TEXT");
+    expect(formatEvidenceMigration).toContain("content_format_outcome IN ('allow', 'reject', 'error')");
+    expect(formatEvidenceMigration).toContain("content_security_scan_results_format_evidence_check");
+    expect(formatEvidenceMigration).toContain("content_format_outcome = 'allow'");
+    expect(formatEvidenceMigration).toContain("detected_mime_type IS NOT NULL");
+    expect(formatEvidenceMigration).toContain("content_format_outcome = 'reject'");
+    expect(formatEvidenceMigration).toContain("content_format_finding_code IS NOT NULL");
+    expect(formatEvidenceMigration).toContain("content_format_outcome = 'error'");
+    expect(formatEvidenceMigration).toContain("content_format_error_code IS NOT NULL");
   });
 
   test("grants only intended runtime and read roles", () => {

@@ -101,6 +101,10 @@ describe.skipIf(!RUN)("content security scan migration 0219 (real Postgres)", ()
       migrator,
       "db/control-plane/migrations/0222_control_plane_content_security_release_revocation.sql",
     );
+    await applyMigration(
+      migrator,
+      "db/control-plane/migrations/0223_control_plane_content_format_scan_evidence.sql",
+    );
     await migrator.unsafe("INSERT INTO communities (community_id) VALUES ('community')");
     await migrator.unsafe("INSERT INTO users (user_id) VALUES ('user')");
     await migrator.unsafe(`
@@ -271,15 +275,37 @@ describe.skipIf(!RUN)("content security scan migration 0219 (real Postgres)", ()
         attempt_number, content_hash, size_bytes, outcome, security_scan_profile,
         scanner_policy_version, engine_version, signature_version, signature_date,
         engine_image_digest, definition_digest, finding_code, error_code,
+        content_format_policy_version, content_format_outcome, detected_mime_type,
+        content_format_finding_code, content_format_error_code,
         duration_ms, recorded_at
       ) VALUES (
         'csr_initial', 'csj_initial', 'cbl_source', 'csr_release',
         1, '0x${"f".repeat(64)}', 5, 'clean', 'download_file_v1',
         'clamav-text-v1', '1.5.4', '28085', '2026-08-07T00:00:00Z',
         'sha256:${"c".repeat(64)}', '${"d".repeat(64)}', NULL, NULL,
+        'text-download-formats-v1', 'allow', 'text/plain', NULL, NULL,
         100, '2026-08-12T00:02:01Z'
       )
     `);
+    await expectSqlState(
+      rw,
+      `INSERT INTO content_security_scan_results (
+         scan_result_id, scan_job_id, content_blob_id, scanner_release_id,
+         attempt_number, content_hash, size_bytes, outcome, security_scan_profile,
+         scanner_policy_version, engine_version, signature_version, signature_date,
+         engine_image_digest, definition_digest, finding_code, error_code,
+         content_format_policy_version, content_format_outcome,
+         content_format_finding_code, duration_ms, recorded_at
+       ) VALUES (
+         'csr_invalid_format', 'csj_initial', 'cbl_source', 'csr_release',
+         2, '0x${"f".repeat(64)}', 5, 'clean', 'download_file_v1',
+         'clamav-text-v1', '1.5.4', '28085', '2026-08-07T00:00:00Z',
+         'sha256:${"c".repeat(64)}', '${"d".repeat(64)}', NULL, NULL,
+         'text-download-formats-v1', 'allow', 'unexpected_finding',
+         100, '2026-08-12T00:02:01Z'
+       )`,
+      "23514",
+    );
     await expectSqlState(
       rw,
       "UPDATE content_security_scan_results SET duration_ms = 101 WHERE scan_result_id = 'csr_initial'",
