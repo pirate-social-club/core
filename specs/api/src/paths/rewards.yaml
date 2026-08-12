@@ -116,6 +116,36 @@ reward_campaign_capabilities:
             schema:
               $ref: ../components/schemas/rewards.yaml#/RewardCampaignCapabilities
 reward_campaigns:
+  get:
+    x-implemented: true
+    operationId: reward_campaigns_resolve
+    tags:
+      - Rewards
+    summary: Resolve the permanent reward pool for a song post
+    description: >-
+      Returns the non-terminal campaign currently occupying the song pool so an
+      authenticated user can contribute without relying on browser-local campaign
+      history. Ended and canceled campaigns have released the pool and are not returned.
+    parameters:
+      - name: community_id
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: post_id
+        in: query
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Current permanent song-pool campaign
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/rewards.yaml#/RewardCampaign
+      "404":
+        description: No non-terminal song pool was found
   post:
     x-implemented: true
     operationId: reward_campaigns_create
