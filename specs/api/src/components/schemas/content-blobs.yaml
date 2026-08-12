@@ -60,8 +60,8 @@ ContentUploadSession:
       minimum: 1
       nullable: true
     expires_at:
-      type: string
-      format: date-time
+      type: integer
+      format: int64
     sign_part_url:
       type: string
       nullable: true
@@ -127,7 +127,6 @@ ContentBlob:
     - plaintext_retention_state
     - upload_session
     - created
-    - updated
   properties:
     id:
       type: string
@@ -191,8 +190,5 @@ ContentBlob:
         - $ref: ./content-blobs.yaml#/ContentUploadSession
       nullable: true
     created:
-      type: integer
-      format: int64
-    updated:
       type: integer
       format: int64
