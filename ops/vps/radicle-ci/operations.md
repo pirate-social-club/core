@@ -157,6 +157,8 @@ Enforcement cutover requires all of the following:
   still a delegate;
 - GitHub `main` configured as mirror-only, with ordinary direct pushes denied
   and only the dedicated mirroring identity permitted to advance it;
+- a negative push test, using an authenticated non-mirror identity, that is
+  rejected for GitHub `main` in every mirrored repository;
 - release monitoring that treats a missing or delayed mirror of a canonical
   Radicle SHA as a failed promotion, rather than silently leaving production
   behind; and
@@ -197,7 +199,10 @@ whose signed source must be available for independent verification.
 
 No local snapshot on VPS #3 satisfies this requirement. Completion requires
 an encrypted off-host copy plus a restore drill that reconstructs and verifies
-one signed CI job without access to the original host.
+one signed CI job without access to the original host. Follow
+`proof-state-restore.md`; a failed restore is a hard stop. Do not add delegates,
+remove the workstation delegate, or enable authoritative promotion until the
+failure is resolved and the drill passes from both recovery copies.
 
 ### Announcement reconciliation verification
 
@@ -212,7 +217,7 @@ reconciled to multiple public seeds:
 | api | `358392fd969d9668df238f984a00776e42391598` |
 | contracts | `5f62618cee13a4be9d03ad1733889b1a81d21c50` |
 | freedom-browser | `e55275750c4a785a486f3dfa67bb6bd460494de9` |
-| core | `00ccdfdb8243d25150240e097ae77c90dc22d11c` |
+| core | `c309294f4b1475f726f14592d530d61e8aadefcc` |
 
 For each repository, `rad sync status` showed the VPS producer `sigrefs`
 commit matched by multiple off-host nodes. This verifies both first-fork
@@ -230,6 +235,10 @@ off-host backup and restore drill required before enforcement.
   orchestration is retired.
 - Infisical may hold only the public age recipient after rotation. The private
   age identity belongs on separately secured offline media.
+- Record the age-recipient rotation timestamp and
+  `old_identity_retire_after = rotation_timestamp + 30 days` in the recovery
+  manifest. Keep the old identity, marked compromised and decrypt-only, until
+  that timestamp has passed and no retained archive still names its recipient.
 - Infisical must never contain the offline recovery delegate or the online
   controller delegate private key.
 

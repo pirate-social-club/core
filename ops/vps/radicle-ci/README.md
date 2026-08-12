@@ -7,6 +7,8 @@ advisory overlap. Its DID is
 `did:key:z6MkiHv3QB6tjLb3zK6wWzUBsZa51f3f1UhSVKnAGwczHnwg`; it is not yet a
 repository delegate and the controller binary contains no canonical-push
 path. Offline recovery and canonical-ref tests remain cutover prerequisites.
+Use `proof-state-restore.md` for the mandatory two-copy restore drill before
+enforcement.
 
 ## Boundaries
 
