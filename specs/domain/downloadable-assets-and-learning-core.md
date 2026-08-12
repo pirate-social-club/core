@@ -623,6 +623,16 @@ build, pinned in the image, and promoted through a clean/malicious regression
 corpus before deployment. A definition refresh creates a new scanner version
 and rescan watermark; it is not an in-place mutable runtime download.
 
+The scanner has a purpose-built runtime manifest, committed `bun.lock` and
+`bunfig.toml`, and a `bun install --frozen-lockfile --production` install; its
+build must not delete or regenerate the lockfile.
+The base image, scanner engine, and definition bundle are pinned by immutable
+digest rather than a floating image or package tag. The release record binds
+the source revision, runtime lock hash, base-image digest, engine digest,
+definition digest, resulting image digest, SBOM, and regression-corpus result.
+Every scan result records the resulting image/engine/definition identities, so
+an historical decision can be reproduced and audited after definitions change.
+
 This choice keeps customer bytes inside the platform boundary and adds no
 third-party file-scanning recipient or per-request vendor fee. It deliberately
 does not use an external malware API. Replacing it with one requires a new
@@ -630,11 +640,35 @@ architecture review, explicit customer-data disclosure/retention terms, data
 residency and deletion review, an `egress-rules.yaml` allowlist entry, provider
 failure semantics, and a priced per-scan budget before any byte leaves Pirate.
 
-Cloudflare Containers can sleep after an idle timeout and container charges
-stop while asleep, so v0 uses `standard-1` as the initial provisioned instance
-type and a 30-second idle sleep rather than a permanently warm service. A larger
-instance requires a new measured cost approval. This platform is still isolated
-from the request path: cold start affects asynchronous
+Cloudflare Containers can stop billing allocated container resources after an
+idle instance actually exits, but that platform capability is not assumed to
+work merely because `sleepAfter` expires. The two existing API container
+services have exhibited a PID-1 shutdown defect in which the runtime survives
+the stop signal and the platform repeatedly signals the same idle instance.
+After one request, such an instance remains allocated indefinitely and makes
+any scale-to-zero cost estimate invalid.
+
+Phase 3 therefore depends on porting the tested shutdown behavior from API
+branch `fix/container-sigterm-shutdown-2026-07-17` at commit `61f35e29b`:
+`tini` is the image `ENTRYPOINT` and PID 1, and the service installs a bounded
+graceful `SIGTERM`/`SIGINT` handler that closes idle and active HTTP
+connections and exits. At spec approval that commit is not an ancestor of API
+`origin/main` and has not supplied production shutdown evidence. The branch
+also predates the current dedicated frozen runtime manifests and must not be
+merged wholesale in a way that restores lockfile deletion or an unfrozen
+install. The scanner applies both properties from its first image.
+
+Before scanner cost or capacity evidence is accepted, a deployed non-production
+instance must handle a real scan, become idle, receive the platform expiry
+signal, log graceful service exit, disappear rather than enter a repeated-stop
+loop, and cold-start a replacement on the next request. Tail evidence and the
+corresponding absence of idle allocated-resource billing are retained with the
+release gate. Until that happens, every requested pool slot is modeled as
+continuously allocated and ordinary file publication stays disabled.
+
+After this prerequisite passes, v0 uses `standard-1` as the initial provisioned
+instance type and a 30-second idle timeout. A larger instance or warm minimum
+requires a new measured cost approval. Cold start affects asynchronous
 verification latency, not upload response correctness. The pricing model and
 source of truth are the current
 [Cloudflare Containers pricing contract](https://developers.cloudflare.com/containers/pricing/).
@@ -648,13 +682,17 @@ active vCPU-seconds × current vCPU rate
 ```
 
 The Phase 3 business gate records cold/warm p50/p95 scan time, scans per
-container start, peak memory, definition-update overhead, retained-source
-storage, and projected monthly spend at 1,000, 10,000, and 100,000 scans. The
-initial variable-cost budget is at most USD 0.01 per completed scan at the
-expected file-size mix after included usage, excluding separately reported
-retained-source storage. A monthly budget alert and hard admission cap protect
-against surprise spend. Failure to meet the latency, detection, or cost gate
-blocks file publication; it does not select an external scanner implicitly.
+container start, peak memory, definition-update overhead, and projected monthly
+spend at 1,000, 10,000, and 100,000 new scans. Each projection also models the
+cumulative active inventory at 1, 6, 12, and 36 months and includes scanner
+compute, rescans, the retained plaintext source, published ciphertext, provider
+operations, Worker/Durable Object/Queue usage, and logs. There is no storage
+carve-out and no pre-approved USD 0.01 claim: Phase 3 must produce an explicit
+fully loaded per-asset reserve and monthly spend envelope that the paid price or
+approved free-public subsidy can support. A monthly budget alert and hard
+admission cap protect against surprise spend. Failure to meet the shutdown,
+latency, detection, or fully loaded cost gate blocks file publication; it does
+not select an external scanner implicitly.
 
 Parsers and scanners execute with fixed CPU, memory, input, nesting, row, and
 wall-time limits outside the request handler. They have no credentials and no
@@ -710,6 +748,15 @@ hold is separately authorized, access-audited, and expiry-reviewed. Successful
 deletion sets `purged` only after storage HEAD confirms absence. A missing
 active source object fails closed and stops new signed proof issuance because
 future rescanning can no longer be guaranteed.
+
+For a sold locked asset, an outstanding entitlement is a continuing delivery
+promise. In the ordinary case the plaintext source is therefore retained for
+the full supported life of the asset, potentially indefinitely; sale does not
+start a purge clock. `purge_pending` is normally reachable only after every
+entitlement/delivery obligation is terminated, full withdrawal/takedown, or an
+equivalent policy transition. Capacity, seller disclosure, and lifetime unit
+economics must treat this as durable retention rather than temporary upload
+staging.
 
 This means Pirate is not end-to-end encrypted against the platform for locked
 generic goods. Seller and buyer disclosure must say that Pirate retains and may
@@ -841,7 +888,8 @@ provider work and again at finalization:
 
 - 10 upload intents per user per rolling hour;
 - 250 MiB of completed uploads per user per rolling 24 hours;
-- 2 GiB retained per user per community and 20 GiB per community;
+- 2 GiB of accounted retained bytes per user per community and 20 GiB per
+  community;
 - at most 20 unclaimed blobs per user;
 - 10 MiB, 10,000 rows, 32 columns, and 16 KiB per cell for a CSV deck import;
 - 10,000 cards per deck, 16 KiB per prompt or answer, and a 50 MiB canonical
@@ -852,6 +900,16 @@ deck-import blob expires after 7 days. Unpublished draft payloads expire after
 30 days after a visible warning, unless the creator renews the draft. Active
 published assets and legally retained records follow the takedown and account
 retention policies rather than orphan retention.
+
+`accounted retained bytes` is physical retained payload storage, not seller
+logical upload size. It sums the isolated plaintext source, published
+ciphertext including encryption overhead, canonical deck package, and any other
+active duplicate charged to Pirate. Provider-reported object sizes are
+authoritative. A typical locked file therefore consumes roughly twice its
+source size and reaches the 2 GiB quota at roughly 1 GiB of logical files,
+subject to measured ciphertext overhead. Reservations estimate every planned
+copy before upload; finalization reconciles them to actual sizes and fails
+closed if the physical-byte ceiling would be exceeded.
 
 Quota accounting includes free/public bytes. Free public file publication is
 disabled at initial rollout and gets its own feature flag after bandwidth
@@ -1595,8 +1653,8 @@ That last gate requires a selected runner and new CI wiring. Today required
 `play` tests. Web already depends on `@playwright/test`; it does not have Vitest,
 the Storybook Vitest addon, or a Storybook interaction runner.
 
-V1 selects the Playwright-backed `@storybook/test-runner`, pinned to an exact
-`0.24.x` release compatible with Storybook 10.5.x. It does not introduce Vitest
+V1 selects the Playwright-backed `@storybook/test-runner`, pinned exactly to
+`0.24.4`, compatible with Storybook 10.5.3. It does not introduce Vitest
 or make the runner's internal Jest implementation a general Web test stack. The
 lockfile, browser version, Storybook version, and runner version move together.
 The job builds a static catalog, serves it only on CI localhost, runs
@@ -1741,9 +1799,13 @@ waived or trialed first on a live small shard.
   inspection, mandatory malware/active-content scanning, buyer reporting,
   takedown/emergency controls, quotas, retention, and both reconciliation
   sweepers.
-- Deploy the pinned scale-to-zero scanner container, source-object broker,
-  result/DLQ handling, clean/malicious corpus gate, rescan watermark, plaintext
-  lifecycle audit, and measured scan/storage cost controls.
+- Port the tested container shutdown behavior from API branch
+  `fix/container-sigterm-shutdown-2026-07-17` without regressing the current
+  dedicated frozen runtime manifests, and retain deployed tail/billing evidence
+  that an invoked instance actually exits to zero.
+- Deploy the digest-pinned, reproducible scanner container, source-object
+  broker, result/DLQ handling, clean/malicious corpus gate, rescan watermark,
+  plaintext lifecycle audit, and fully loaded scan/storage cost controls.
 - Isolate publish-finalize/locked-delivery capacity from scheduled maintenance
   and pass the mixed-load start/terminal latency gate.
 - Add the browser download controller and response headers.
@@ -1817,9 +1879,11 @@ At minimum, record:
   sandbox timeout/crash, deny-list hit, rescan backlog/age, and formula-policy
   rejection without filenames or cell contents;
 - scanner-container cold/warm starts, active time, peak memory, jobs per start,
-  source-broker byte/read mismatches, marginal cost, and monthly budget use;
-- retained plaintext bytes/age, audited read reasons, purge-pending age,
-  confirmed source deletion, and legal-hold expiry without object keys;
+  idle-expiry signals, graceful exits, repeated-stop loops, source-broker
+  byte/read mismatches, marginal cost, and monthly budget use;
+- retained plaintext/ciphertext accounted bytes and age, storage cost, audited
+  read reasons, purge-pending age, confirmed source deletion, and legal-hold
+  expiry without object keys;
 - blob-claim retries and conflicts;
 - payload-without-claim scans, restored claims, and restore conflicts;
 - quota denials, retained bytes, public egress, intent rate-limit denials, and
@@ -1889,7 +1953,9 @@ CDR keys, signed URLs, or raw wallet proofs.
   quarantine the asset, and legacy/generic object namespaces cannot collide for
   new writes.
 - Quota, rate, and retention limits prevent unlimited free hosting and fail
-  closed for new production allocations.
+  closed for new production allocations; quota fixtures reserve and reconcile
+  the physical plaintext, ciphertext, and canonical-package bytes rather than
+  counting only the seller's logical upload size.
 - File publication cannot leave `processing` until safety, claim, Story/CDR,
   listing, and catalog stages reach their recorded terminal decisions.
 - A quarantined or blocked asset cannot be delivered through creator,
@@ -1898,12 +1964,17 @@ CDR keys, signed URLs, or raw wallet proofs.
 - A generic blob cannot become ready or publish without a current clean malware
   result, bounded format parsing, active-content checks, and content-policy
   decision; scanner failure, timeout, or stale coverage fails closed.
-- The self-hosted scanner container passes clean/malicious fixtures, has no
-  runtime network or broad storage credential, scales idle compute to zero,
-  and meets the measured latency/cost/budget gate without external byte egress.
+- The self-hosted scanner image uses a dedicated frozen lockfile and immutable
+  base/engine/definition digests, passes clean/malicious fixtures, and records
+  reproducible image/SBOM/corpus evidence with every promoted scanner version.
+- The scanner has no runtime network or broad storage credential. A real
+  deployed scan is followed by an observed graceful idle exit with no repeated
+  stop loop or idle allocated-resource billing; only then may scale-to-zero
+  latency/cost evidence satisfy the fully loaded budget gate.
 - Active deliverable plaintext has exactly one isolated source object for
   rescans; every read is hash-bound and audited, missing source fails closed,
-  and purge/legal-hold transitions meet their deadlines.
+  sold assets retain it for the full supported entitlement lifetime, and
+  purge/legal-hold transitions meet their deadlines.
 - Formula-candidate CSV/TSV fields are rejected without mutating bytes, and
   JSON/parser resource limits hold under adversarial fixtures.
 - Hash/asset/uploader/community/profile/global emergency controls stop new
