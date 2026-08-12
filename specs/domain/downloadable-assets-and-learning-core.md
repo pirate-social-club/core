@@ -143,6 +143,15 @@ Public/free publication has separate
 safety, compatibility, and quota gates and does not bypass them. A future
 mainnet launch remains subject to the existing mainnet-readiness contract.
 
+Those two gates mean Phase 3 initially has no publication path for an ordinary
+creator. An independent operator-only dogfood flag is therefore required. It is
+restricted to designated test communities and test wallets, creates no
+ordinary-user-visible listing, labels every transaction as testnet, and may use
+disposable locked assets to exercise upload, safety, Story registration, CDR
+encryption, entitlement, decryption, download, takedown, and reconciliation
+end to end. It may acknowledge the known registration defect for testing but
+cannot weaken either public launch gate.
+
 After that gate, a paid `download_file` or `learning_deck` asset must meet the
 same publication, settlement, and locked-delivery readiness required by the
 active marketplace.
@@ -537,10 +546,11 @@ commerce entitlement and is logged without payload contents. Deck inspection
 renders the bounded parsed card model, not active HTML.
 
 Assets gain an enforcement projection with `active`, `quarantined`, and
-`blocked` states plus reason, source, actor-role identifier, evidence reference,
-and timestamps. `quarantined` and `blocked` deny public and buyer delivery before
-creator/moderator entitlement shortcuts are considered; only the audited
-inspection endpoint can read quarantined bytes. The projection schema is:
+`blocked` states plus reason, authority reference, actor-role identifier,
+evidence reference, and timestamps. `quarantined` and `blocked` deny public and
+buyer delivery before creator/moderator entitlement shortcuts are considered;
+only the audited inspection endpoint can read quarantined bytes. The projection
+schema is:
 
 ```sql
 CREATE TABLE asset_enforcement (
@@ -548,20 +558,69 @@ CREATE TABLE asset_enforcement (
   enforcement_state     TEXT NOT NULL CHECK (enforcement_state IN
                            ('active','quarantined','blocked')),
   reason_code           TEXT,
-  source                TEXT NOT NULL,
+  authority_kind        TEXT NOT NULL CHECK (authority_kind IN
+                           ('asset_create','analysis_result',
+                            'moderation_action','legal_hold')),
+  authority_ref         TEXT NOT NULL,
+  moderation_action_id  TEXT,
   actor_role            TEXT,
   evidence_ref          TEXT,
   decided_at            TEXT NOT NULL,
   updated_at            TEXT NOT NULL,
   FOREIGN KEY (asset_id) REFERENCES assets(asset_id) ON DELETE CASCADE,
-  CHECK (enforcement_state = 'active' OR reason_code IS NOT NULL)
+  FOREIGN KEY (moderation_action_id)
+    REFERENCES moderation_actions(moderation_action_id),
+  CHECK (enforcement_state = 'active' OR reason_code IS NOT NULL),
+  CHECK (
+    (authority_kind = 'moderation_action') =
+    (moderation_action_id IS NOT NULL)
+  )
 );
 ```
 
-The row is created with the asset. Missing enforcement state fails closed for
-generic kinds. Moderator identities remain in the existing restricted audit
-system; this community projection stores a role identifier, not personal data.
-A confirmed takedown also:
+The row is created with the asset. It is a delivery-optimized projection, not a
+second moderation authority. Missing enforcement state fails closed for generic
+kinds. Moderator identities remain in the existing restricted audit system;
+this community projection stores a role identifier, not personal data.
+
+For a human decision, both `authority_ref` and `moderation_action_id` identify
+the authoritative audit row. Scanner and policy projections carry their own
+immutable result/evidence reference instead.
+
+The same Phase 2 fleet migration rebuilds `moderation_actions`, whose current
+target and action CHECK constraints permit only post/comment actions and have no
+quarantine transition. The successor adds:
+
+- nullable `asset_id` with an asset foreign key;
+- `quarantine_asset`, `block_asset`, and `restore_asset` action types;
+- `previous_asset_enforcement_state` and `next_asset_enforcement_state` fields;
+- a target constraint permitting either one comment, or a post, an asset, or a
+  linked post-and-asset pair; and
+- an audit constraint requiring both asset-state snapshots and evidence for an
+  asset enforcement transition.
+
+When both IDs are present, the service verifies that the asset's
+`source_post_id` is the recorded post. Existing moderation rows and enum members
+are copied unchanged. Human moderation actions are the append-only authority;
+automated scanner decisions remain backed by their immutable analysis result
+and moderation signal. `asset_enforcement` projects the newest applicable
+authority for the delivery hot path and can be rebuilt from those records.
+
+Projection is bidirectional and transactional:
+
+- hiding a generic-asset post records the linked asset transition to
+  `quarantined`; removing it records `blocked`;
+- quarantining an asset hides its linked post, and blocking an asset removes
+  that post, in the same moderation transaction and action row;
+- restore returns an asset to `active` only when the action explicitly records
+  that transition and no scanner, rights, or legal hold remains; and
+- an enforcement reconciler repairs post/asset drift from the authoritative
+  action and emits a conflict instead of guessing when histories disagree.
+
+Asset access checks both the linked post's deliverable status and the
+`asset_enforcement` projection. This defense in depth prevents a removed post
+from retaining buyer delivery during any projection lag. A confirmed takedown
+also:
 
 - moves the post to `removed`, withdraws the active payload and listing, and
   prevents new quotes, purchases, sessions, exports, and CDR key releases;
@@ -608,6 +667,16 @@ it does not turn the product into unmetered file hosting.
 
 The existing CDR authorization contract remains the entitlement primitive. The
 server-side preparation path becomes content neutral:
+
+CDR is involved only for locked delivery. Publication encrypts the verified
+file or canonical deck package once, stores the ciphertext externally, and puts
+the storage reference, content key, and integrity/version metadata behind a CDR
+vault. The vault's read condition uses the existing purchase-entitlement token
+and composite signed-access contract. After settlement, the entitled caller
+uses the CDR read path to recover the material needed by the existing client
+decryption flow. Story IP registration records rights metadata and hashes; it
+is related orchestration but is not itself byte delivery. Public/free payloads
+use the enforcement-aware public gateway and do not use CDR by default.
 
 ```ts
 interface StoredContentReader {
@@ -695,6 +764,28 @@ Story, locked-delivery, listing, catalog, and internal failures continue using
 the existing generic codes where their semantics match. Retryability is
 declared per failure code; safety blocks and hash mismatches never retry without
 new input or a reviewed moderation transition.
+
+### Publish-lane isolation and latency
+
+Reusing `post_publish_finalize` means reusing its durable job and handler
+contract, not accepting starvation behind rotating maintenance work. Before the
+Phase 3 writer is enabled, scheduled processing reserves an isolated priority
+budget and lease/concurrency lane for publish-finalize and its
+`locked_asset_delivery_prepare` dependency. It may dispatch from the same
+`community_jobs` table, but maintenance rotation cannot consume that reserved
+capacity. The finalizer coordinates idempotent stages; the 50 MiB encryption
+work runs in the locked-delivery stage rather than monopolizing a generic
+maintenance invocation.
+
+The production readiness target is p95 job start within 2 minutes, p99 within
+5 minutes, and p95 first-attempt terminal publication within 10 minutes for the
+50 MiB boundary fixture. Provider or Story retries may extend visible
+`processing` to 30 minutes, but the API must return the current stage, retry
+status, and next-attempt time. Twenty minutes with no recorded retry or stage
+advance is an alertable starvation defect, not normal creator experience.
+Backlog age, start latency, stage duration, and terminal time are release-gate
+metrics. The priority lane must pass a mixed-load fixture containing slow
+maintenance jobs before file/deck publication is enabled.
 
 ## File Access And Browser Delivery
 
@@ -1019,6 +1110,7 @@ CREATE TABLE learning_review_state (
   last_reviewed_at         TEXT,
   reps                     INTEGER NOT NULL,
   lapses                   INTEGER NOT NULL,
+  revision                 INTEGER NOT NULL CHECK (revision > 0),
   last_review_event_id     TEXT NOT NULL,
   updated_at               TEXT NOT NULL,
   PRIMARY KEY (user_id, review_item_id),
@@ -1035,9 +1127,13 @@ An accepted rating inserts the event and updates the projection in one
 transaction. `resulting_state_json` makes idempotent replay return the original
 result even if a later event has advanced the item.
 
-`item_event_sequence` is allocated under the same per-user/item revision CAS as
-the state update, so concurrent ratings cannot commit the same ordinal or leave
-ambiguous event order.
+`learning_review_state.revision` is the CAS anchor. The first committed review
+creates revision 1; every later transition updates with
+`WHERE revision = <expected>` and increments it. `item_event_sequence` equals
+the resulting revision, while its UNIQUE index is a secondary concurrency
+guard. The event insert and state CAS share one transaction, so concurrent
+ratings cannot commit the same ordinal or leave ambiguous event order. A
+projection rebuild restores `revision` from the last event sequence.
 
 Projection rebuild is historical restoration, not scheduler recomputation. It
 orders accepted events by `item_event_sequence` and writes the last event's
@@ -1103,9 +1199,13 @@ from new sessions; an active session rechecks access before serving each item.
 Community-due candidate selection performs one set-based access query joining
 review state through cards, published decks, assets, posts, membership, and
 active entitlements. It must not call the scalar access-decision service once
-per card or deck. The selected session snapshots the authorized deck/asset IDs;
-each transition rechecks the current item's one asset in the same transaction,
-so revocation remains effective without an N-item decision loop.
+per card or deck. Because `learning_review_items.subject_ref` is polymorphic,
+the card join must include `item_kind = 'deck_card'`; this makes the
+`UNIQUE(item_kind, subject_ref)` index usable and prevents a song subject with
+the same text ID from joining. The selected session snapshots the authorized
+deck/asset IDs; each transition rechecks the current item's one asset in the
+same transaction, so revocation remains effective without an N-item decision
+loop.
 
 For a 20-item session over the reference fixture of 100 accessible decks and
 10,000 review items, creation has a constant budget of at most four community
@@ -1229,6 +1329,49 @@ adapter renders metadata, price/access state, and a download action. The deck
 adapter renders card count, access state, and a study action. Neither adapter
 imports the song playback controller.
 
+### Required Storybook flow files
+
+Storybook coverage ships with each Web vertical, using the real production
+components and injected deterministic service adapters. The planned owning
+files are:
+
+```text
+src/components/compositions/posts/post-composer/stories/file/flow.stories.tsx
+src/components/compositions/posts/post-composer/stories/deck/flow.stories.tsx
+src/components/compositions/digital-goods/stories/file-access-flow.stories.tsx
+src/components/compositions/learning-decks/stories/deck-study-flow.stories.tsx
+```
+
+If implementation ownership moves a composition, the story moves beside it;
+the four flow responsibilities and separate `.stories.tsx` files remain
+required. They extend the existing composer submit-progress and Song Study
+story patterns rather than building a story-only UI.
+
+The file composer flow covers selection, upload progress, authoritative
+metadata replacement, verification, safety pending/review/blocked, queued
+publication, Story retry, CDR preparation, published navigation, and resumable
+failure. The deck composer flow covers manual cards, bounded CSV mapping and
+row errors, canonical preview/hash, publication processing, and immutable
+published state.
+
+The file access flow covers public metadata, locked/not-entitled, quote and
+settlement states, entitled-but-CDR-preparing, download ready, decrypting,
+verified save, hash mismatch, expired access, quarantine, and takedown. It also
+shows a retrying 20–30 minute processing state with stage and next-attempt copy,
+so expected provider delay is visually distinct from starvation. The deck study
+flow covers locked access, no cards due, prompt, reveal, all four ratings, next
+item, next-due completion, stale revision, access revocation, quarantine, and
+takedown.
+
+Storybook never calls a wallet, Story chain, CDR service, storage provider, or
+live API. Its mock boundary returns synthetic transaction references, CDR
+coordinates, ciphertext progress, entitlement decisions, and failures; it
+never embeds usable keys, signed URLs, or wallet proofs. Interaction `play`
+tests drive the happy path and the principal retry/revocation paths, while
+static named stories keep every terminal and error state independently
+reviewable. Focused Storybook discovery and story tests are required before the
+corresponding Web flag can enable.
+
 ## Feed, Search, And Client Compatibility
 
 New writers remain disabled until readers are deployed across API, Web,
@@ -1240,9 +1383,13 @@ At every collection boundary, an unknown or unsupported `post_type` is skipped
 with a compatibility metric; it is never coerced to text and never crashes the
 whole feed, search page, notification batch, crosspost, or publisher job. A
 direct detail request may return a typed `unsupported_post` shell containing
-only safe common metadata and a web fallback URL. The API filters `file` and
-`deck` from clients that have not advertised the corresponding read
-capability until their compatible release is established.
+only safe common metadata and a web fallback URL.
+
+V1 does not introduce client-version middleware, a capability header, or
+per-response capability filtering. Tolerant decoding, collection-level skip,
+and the unsupported detail shell are the complete compatibility mechanism.
+Capability negotiation remains a deferred escape hatch if measured client
+behavior proves those mechanisms insufficient.
 
 Surface rules are explicit:
 
@@ -1289,13 +1436,20 @@ Do not rename or drop legacy song tables in this phase.
 
 ### Phase 2: one community schema foundation and Story projection
 
-- In one community fleet migration, add `asset_payloads`, `asset_enforcement`,
-  and all dormant learning deck/review/session tables and indexes.
 - Rebuild constrained asset/post tables to add `download_file`,
   `learning_deck`, `file`, `deck`, nullable kind-bound `primary_content_ref`,
   and the new publication failure codes where required. The posts rebuild is a
   reviewed successor to `1117_async_post_publish.sql`, preserving every current
   column, index, trigger, and existing enum member.
+- Rebuild `moderation_actions` to add paired asset targets, enforcement-state
+  snapshots, quarantine/block/restore actions, and the bidirectional projection
+  audit contract while preserving existing actions.
+- Only after the `posts_next` and `assets_next` copies have been dropped/renamed
+  into their canonical names, create `asset_payloads`, `asset_enforcement`, and
+  all dormant learning deck/review/session tables and indexes. Tables with
+  foreign keys to posts/assets must not exist during those renames, preventing
+  SQLite foreign-key reference rewriting from pointing them at transitional
+  table names.
 - In a separate central control-plane migration, expand
   `story_registered_asset_projections.asset_kind` and update its canonical
   snapshot. This is not a second community fleet sweep.
@@ -1314,6 +1468,17 @@ staging and production attestations are independent from the central
 control-plane migration. Both must complete and be verified before an API
 writer can emit a new kind.
 
+Before review approval, the exact migration runs against a privacy-safe copy of
+the largest current production shard using the production D1 migration
+transport and limits. The gate records table-copy statement duration, total
+elapsed time, database-size growth, and D1 retries/errors; verifies old/new row
+counts, indexes, schema hash, and `PRAGMA foreign_key_check`; and requires at
+least 50 percent headroom below the applicable statement and execution limits.
+The copy must preserve production row counts and size distribution even when
+content fields are sanitized. If this gate fails, the single-sweep design is
+re-reviewed and split safely before fleet scheduling; the migration is not
+waived or trialed first on a live small shard.
+
 ### Phase 3: downloadable file vertical
 
 - Add the generic upload UI and `file` composer adapter.
@@ -1321,9 +1486,13 @@ writer can emit a new kind.
   preparation, and listing creation.
 - Reuse the asynchronous post finalizer and add text safety, moderator
   inspection, takedown, quotas, retention, and both reconciliation sweepers.
+- Isolate publish-finalize/locked-delivery capacity from scheduled maintenance
+  and pass the mixed-load start/terminal latency gate.
 - Add the browser download controller and response headers.
 - Deploy tolerant readers for every client/fan-out surface before enabling the
   writer.
+- Enable the operator-only dogfood flag for end-to-end locked/CDR exercises
+  while ordinary paid and public/free publication gates remain closed.
 - Launch allowlisted locked formats behind a community/server flag only after
   the Story registration recovery gate passes; keep public/free publication
   separately disabled until egress controls pass.
@@ -1390,6 +1559,10 @@ At minimum, record:
   retention deletions by policy version;
 - payload/deck safety outcomes, quarantine age, inspection counts by reason,
   takedowns, reinstatements, and failed provider suppression requests;
+- post/asset enforcement drift, projection repairs, and conflicting moderation
+  histories;
+- publish priority-lane backlog age, start latency, per-stage duration, retry
+  age, and terminal time;
 - locked-delivery bytes processed, peak chunk/buffer size, and preparation
   failures by payload format;
 - file access grants/denials by decision reason without logging filenames or
@@ -1400,8 +1573,8 @@ At minimum, record:
 - idempotent review replays and stale session revisions;
 - due-query latency, candidate counts, and inaccessible-item exclusions;
 - due-session database statement count and candidate-to-session ratio;
-- unsupported post types skipped by client/surface and capability-filtered
-  responses;
+- unsupported post types skipped by client/surface and unsupported detail
+  shells returned;
 - legacy fallback reads during migration.
 
 Logs must not contain file contents, CSV cells, card answers, learner responses,
@@ -1452,6 +1625,11 @@ CDR keys, signed URLs, or raw wallet proofs.
 - A quarantined or blocked asset cannot be delivered through creator,
   moderator, buyer, public, session, or export paths; only audited inspection
   can read it.
+- Post hide/remove and asset quarantine/block transitions write one audited
+  moderation action and update both projections atomically; the reconciler can
+  rebuild `asset_enforcement` without treating it as a second authority.
+- Publish-finalize and locked-delivery work meet the isolated-lane latency SLO
+  under mixed maintenance load, and unexplained 20-minute stalls alert.
 
 ### Decks and learning
 
@@ -1475,6 +1653,17 @@ CDR keys, signed URLs, or raw wallet proofs.
   the reference p95 target, and never makes N scalar access decisions.
 - No deck API exposes another learner's events or state.
 
+### Storybook
+
+- The four required `.stories.tsx` flow files ship with the production
+  components for file composition, deck composition, file access/CDR delivery,
+  and deck study.
+- Named stories cover every processing, failure, entitlement, enforcement, and
+  terminal state listed above; interaction tests cover happy, retry, stale,
+  revocation, and takedown transitions.
+- Storybook performs no live API, wallet, Story, CDR, or storage call and
+  contains no usable secret, signed URL, or wallet proof.
+
 ### Compatibility and launch posture
 
 - Every feed/search/crosspost/outbound/client consumer survives an injected
@@ -1482,10 +1671,12 @@ CDR keys, signed URLs, or raw wallet proofs.
   shell without crashing its enclosing job or collection.
 - Search and outbound publication never index or attach file bytes, deck
   answers, private packages, signed URLs, or CDR material.
-- Readers and moderation tooling deploy before writers; unsupported clients are
-  capability-filtered until compatible.
+- Readers and moderation tooling deploy before writers; v1 adds no undeclared
+  capability-negotiation dependency.
 - Paid file/deck flags cannot enable while the Story registration replay and
   stranded-state recovery gate is failing.
+- The isolated dogfood flag exercises the entire locked/CDR vertical without
+  creating ordinary-user-visible products or weakening launch gates.
 - Product copy and release notes identify the initial paid lane as
   Base-Sepolia/Story-Aeneid simulated-money beta, not real-money availability.
 
@@ -1496,6 +1687,9 @@ CDR keys, signed URLs, or raw wallet proofs.
   not schedule a second learning-table sweep.
 - The central Story projection migration has its own attestation and completes
   before generic writers deploy.
+- The exact consolidated migration passes the largest-shard production-D1 dry
+  run with row/schema/FK parity and the required execution-limit headroom; new
+  foreign-key tables are created only after posts/assets rebuild renames.
 - Seeded-upgrade tests preserve existing song/video assets and Song Study rows.
 - Staging and production fleet migrations are attested before the new API
   writer is deployed.
@@ -1526,6 +1720,8 @@ Web owns:
 - upload and download controllers;
 - file/deck post presentation;
 - deck editor/import preview and study UI.
+- adjacent Storybook flow files and deterministic Story/CDR/storage mocks for
+  every creator, buyer, delivery, enforcement, and study state.
 
 Delivery order is Core contract and schema first, then API readers, fleet
 migrations, API writers, and Web surfaces. A writer that emits a new constrained
@@ -1542,3 +1738,4 @@ kind must not deploy before every target shard accepts it.
 - Cross-community due-session orchestration.
 - Learner exports and portable review-history import.
 - Privacy-preserving creator analytics.
+- Client-version/capability negotiation and per-response post-type filtering.
