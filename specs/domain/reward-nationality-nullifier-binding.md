@@ -1,5 +1,7 @@
 # Reward nationality nullifier binding
 
+Related design: [provider-keyed-identity-evidence.md](./provider-keyed-identity-evidence.md)
+
 ## Invariant
 
 Nationality evidence used by rewards must reference the exact active identity

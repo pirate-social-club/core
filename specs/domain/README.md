@@ -108,6 +108,9 @@ Product and system design docs grouped by domain surface.
 - `hns-authoritative-dns.md`
   HNS-native routing, authoritative DNS, and deployment posture for resolvable roots and subdomains.
 - `identity-presentation.md`
+  User-selectable public and anonymous identity presentation.
+- `provider-keyed-identity-evidence.md`
+  Durable provider-keyed evidence invariants and shared authorization semantics.
   Public presentation of identity claims.
 - `attestations.md`
   Verification and attestation model.
