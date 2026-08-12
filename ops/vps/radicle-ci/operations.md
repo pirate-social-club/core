@@ -199,6 +199,26 @@ No local snapshot on VPS #3 satisfies this requirement. Completion requires
 an encrypted off-host copy plus a restore drill that reconstructs and verifies
 one signed CI job without access to the original host.
 
+### Announcement reconciliation verification
+
+On 2026-08-12, disposable secret-free Ambient patches exercised the first job
+producer fork in every allowlisted repository. Each run succeeded, reproduced
+the broker's immediate `no refs were announced` result, and was subsequently
+reconciled to multiple public seeds:
+
+| Repository | Terminal job COB |
+| --- | --- |
+| web | `f788f2091955e0e77c94a7844ca5cf01b4afc06c` |
+| api | `358392fd969d9668df238f984a00776e42391598` |
+| contracts | `5f62618cee13a4be9d03ad1733889b1a81d21c50` |
+| freedom-browser | `e55275750c4a785a486f3dfa67bb6bd460494de9` |
+| core | `00ccdfdb8243d25150240e097ae77c90dc22d11c` |
+
+For each repository, `rad sync status` showed the VPS producer `sigrefs`
+commit matched by multiple off-host nodes. This verifies both first-fork
+creation and terminal-result reconciliation; it does not replace the encrypted
+off-host backup and restore drill required before enforcement.
+
 ## Workload identity posture
 
 - Ambient build/test guests receive no Infisical identity or production
