@@ -23,6 +23,8 @@ test "$(systemctl is-active promotion-proof-exporter.timer)" = active
 test "$(systemctl is-enabled promotion-proof-exporter.timer)" = enabled
 test "$(systemctl is-active radicle-ci-proof-announcer.timer)" = active
 test "$(systemctl is-enabled radicle-ci-proof-announcer.timer)" = enabled
+test "$(systemctl is-active radicle-ci-host-verification.timer)" = active
+test "$(systemctl is-enabled radicle-ci-host-verification.timer)" = enabled
 
 actual_node="$(run_rad rad node status --only nid)"
 test "$actual_node" = "$expected_node"
@@ -56,8 +58,9 @@ qemu-img check -q "$rad_home/ambient/ambient.qcow2"
 
 ambient_manifest=/usr/local/share/pirate-radicle/ambient-npm-retry.manifest
 ambient_patch=/usr/local/share/pirate-radicle/ambient-ci-npm-retry.patch
+expected_ambient_config=${RADICLE_CI_EXPECTED_AMBIENT_CONFIG:-$script_dir/../config/ambient.yaml}
 test "$(stat -c '%U:%G:%a' "$rad_home/.config/ambient/config.yaml")" = radicle:radicle:600
-cmp -s "$script_dir/../config/ambient.yaml" "$rad_home/.config/ambient/config.yaml" \
+cmp -s "$expected_ambient_config" "$rad_home/.config/ambient/config.yaml" \
   || { echo 'live Ambient configuration differs from the tracked role' >&2; exit 1; }
 test -x /usr/local/bin/ambient-execute-plan
 test "$(stat -c '%U:%G:%a' /usr/local/bin/ambient-execute-plan)" = root:root:755

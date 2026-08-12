@@ -17,9 +17,13 @@ install -d -o radicle -g promotion -m 0750 /var/lib/radicle/ci/promotion-proofs
 setfacl -R -x u:promotion /var/lib/radicle/storage 2>/dev/null || true
 find /var/lib/radicle/storage -type d -exec setfacl -x d:u:promotion {} + \
   2>/dev/null || true
-install -d -o root -g root -m 0755 /etc/pirate-radicle /usr/local/libexec/pirate-radicle
+install -d -o root -g root -m 0755 \
+  /etc/pirate-radicle /usr/local/libexec/pirate-radicle \
+  /usr/local/share/pirate-radicle
 install -o root -g root -m 0644 "$source_dir/config/repositories" \
   /etc/pirate-radicle/repositories
+install -o root -g root -m 0644 "$source_dir/config/ambient.yaml" \
+  /usr/local/share/pirate-radicle/ambient.yaml
 install -o root -g root -m 0755 "$source_dir/scripts/repository-allowlist.sh" \
   /usr/local/libexec/pirate-radicle/repository-allowlist.sh
 install -o root -g root -m 0755 "$source_dir/scripts/render-ci-broker-config" \
@@ -40,6 +44,8 @@ install -o root -g root -m 0755 "$source_dir/scripts/promotion-proof-exporter" \
   /usr/local/libexec/pirate-radicle/promotion-proof-exporter
 install -o root -g root -m 0755 "$source_dir/scripts/announce-ci-proofs" \
   /usr/local/libexec/pirate-radicle/announce-ci-proofs
+install -o root -g root -m 0755 "$source_dir/scripts/verify-host.sh" \
+  /usr/local/libexec/pirate-radicle/verify-host
 install -o root -g root -m 0644 "$source_dir/config/promotion-controller.env" \
   /etc/pirate-radicle/promotion-controller.env
 install -o root -g root -m 0644 "$source_dir/systemd/promotion-controller.service" \
@@ -52,6 +58,10 @@ install -o root -g root -m 0644 "$source_dir/systemd/radicle-ci-proof-announcer.
   /etc/systemd/system/radicle-ci-proof-announcer.service
 install -o root -g root -m 0644 "$source_dir/systemd/radicle-ci-proof-announcer.timer" \
   /etc/systemd/system/radicle-ci-proof-announcer.timer
+install -o root -g root -m 0644 "$source_dir/systemd/radicle-ci-host-verification.service" \
+  /etc/systemd/system/radicle-ci-host-verification.service
+install -o root -g root -m 0644 "$source_dir/systemd/radicle-ci-host-verification.timer" \
+  /etc/systemd/system/radicle-ci-host-verification.timer
 install -o root -g root -m 0644 "$source_dir/tmpfiles/radicle-ci.conf" \
   /etc/tmpfiles.d/radicle-ci.conf
 RADICLE_CI_REPOSITORIES_FILE=/etc/pirate-radicle/repositories \
@@ -67,6 +77,8 @@ systemctl enable --now promotion-proof-exporter.timer
 systemctl start promotion-proof-exporter.service
 systemctl enable --now radicle-ci-proof-announcer.timer
 systemctl start radicle-ci-proof-announcer.service
+systemctl enable --now radicle-ci-host-verification.timer
 systemctl restart radicle-ci-broker.service
 systemctl enable promotion-controller.service
 systemctl restart promotion-controller.service
+systemctl start radicle-ci-host-verification.service

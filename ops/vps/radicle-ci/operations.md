@@ -105,10 +105,47 @@ the fallback mirror diverged and reconcile it from the Radicle canonical state.
 
 ## Host verification
 
+Administer VPS #3 through the provider-created `ubuntu` principal:
+
+```bash
+ssh ubuntu@94.103.168.209
+```
+
+The currently authorized operator key is loaded from the workstation's
+`~/.ssh/id_ed25519`; its public fingerprint is
+`SHA256:EL/kXFJdrPSK/VOa8tBvR6SpF7JSBb//7FRcCPlXxLo`. The private key is
+operator-managed and must never be committed, copied into this role, placed on
+the VPS, or exposed to CI. The public fingerprint is the authority record; the
+path is only the current client convention.
+
+Rotate access without creating a lockout:
+
+1. Generate or designate the replacement operator key outside the repository.
+2. Add its public key to the provider account and
+   `/home/ubuntu/.ssh/authorized_keys` without removing the current key.
+3. Open a separate session using `IdentitiesOnly=yes` and the replacement key;
+   verify `sudo -n true` and run the host verifier.
+4. Remove the old public key from both locations, test the replacement again,
+   and update the fingerprint above in the same reviewed patch.
+
+Never rotate the SSH key and seed/controller identities together. SSH access,
+the seed transport identity, and the promotion delegate are independent
+authorities.
+
 Run the tracked verifier on VPS #3 after upgrades or restarts:
 
 ```bash
 sudo ops/vps/radicle-ci/scripts/verify-host.sh
+```
+
+`radicle-ci-host-verification.timer` also runs the installed verifier hourly
+with up to five minutes of jitter. A failed run leaves the service failed and
+records the violated invariant in journald. Check both timer and last service
+result during operational review:
+
+```bash
+systemctl status radicle-ci-host-verification.timer --no-pager
+systemctl status radicle-ci-host-verification.service --no-pager
 ```
 
 CI reports are private operator artifacts under

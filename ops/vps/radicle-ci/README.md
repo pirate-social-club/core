@@ -89,6 +89,9 @@ ambient.qcow2 sha256    e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d17
     `/var/lib/radicle/ambient/ambient.qcow2` and record its SHA-256.
 13. Install and enable `radicle-ci-broker.service` only after `cib config`
     accepts the broker configuration.
+14. Install and enable `radicle-ci-host-verification.timer`. It runs the
+    installed verifier hourly against the installed reviewed configuration;
+    inspect any failed unit before accepting new CI evidence.
 
 Do not install `radicle-httpd` or expose an HTTP API during this phase.
 Build code runs only in ephemeral Ambient VMs. The plan VM has no network;

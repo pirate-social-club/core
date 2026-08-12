@@ -1,0 +1,23 @@
+[Unit]
+Description=Verify tracked Radicle seed and CI host invariants
+After=radicle-node.service radicle-ci-broker.service promotion-controller.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+Slice=radicle-core.slice
+Environment=RADICLE_CI_EXPECTED_AMBIENT_CONFIG=/usr/local/share/pirate-radicle/ambient.yaml
+ExecStart=/usr/local/libexec/pirate-radicle/verify-host
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictRealtime=true
+LockPersonality=true
+UMask=0077

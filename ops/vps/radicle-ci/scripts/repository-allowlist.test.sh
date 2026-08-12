@@ -55,4 +55,14 @@ if "$here/proof-state-backup-alert" test.service \
 fi
 grep -Fq 'OPS_ALERT_WEBHOOK_URL is not configured' "$tmp/alert.stderr"
 
+# Scheduled verification must use only installed, reviewed artifacts. Referencing
+# a temporary deployment tree would silently break after staging cleanup.
+grep -Fq 'ExecStart=/usr/local/libexec/pirate-radicle/verify-host' \
+  "$role/systemd/radicle-ci-host-verification.service"
+grep -Fq \
+  'RADICLE_CI_EXPECTED_AMBIENT_CONFIG=/usr/local/share/pirate-radicle/ambient.yaml' \
+  "$role/systemd/radicle-ci-host-verification.service"
+grep -Fq 'OnUnitActiveSec=1h' \
+  "$role/systemd/radicle-ci-host-verification.timer"
+
 echo 'repository allowlist tests passed'
