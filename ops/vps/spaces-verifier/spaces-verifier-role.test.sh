@@ -49,14 +49,26 @@ grep -Fq 'SPACES_VERIFIER_NATIVE_BIN=/srv/pirate-spaces/current/bin/spaces-verif
   "$role_dir/env/verifier.env.example"
 grep -Fq 'SPACES_FABRIC_SEEDS=https://relay-cosmos.spacesprotocol.org,https://relay-atlas.spacesprotocol.org' \
   "$role_dir/env/verifier.env.example"
+grep -Fq 'SPACES_BITCOIN_TIP_URL=https://mempool.space/api/blocks/tip/height' \
+  "$role_dir/env/verifier.env.example"
+grep -Fq 'SPACES_CHAIN_MAX_TIP_LAG_BLOCKS=6' "$role_dir/env/verifier.env.example"
+grep -Fq 'SPACES_CHAIN_MAX_ANCHOR_LAG_BLOCKS=108' "$role_dir/env/verifier.env.example"
+grep -Fq 'SPACES_VERIFIER_MAX_ANCHOR_AGE_BLOCKS=4032' "$role_dir/env/verifier.env.example"
 
 cat > "$work/curl" <<'EOF'
 #!/usr/bin/env bash
-printf '%s\n' "${SPACES_HEALTH_TEST_JSON:?}"
+args="$*"
+if [[ "$args" == *"/inspect?root_label="* ]]; then
+  [[ "$args" == *"Authorization: Bearer test-token"* ]] || exit 22
+  printf '%s\n' "${SPACES_INSPECT_TEST_JSON:-{\"root_key_proof_verified\":true,\"root_pubkey\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"accepted_anchor_height\":961308}}"
+else
+  printf '%s\n' "${SPACES_HEALTH_TEST_JSON:?}"
+fi
 EOF
 chmod +x "$work/curl"
+export SPACES_VERIFIER_AUTH_TOKEN="test-token"
 
-PATH="$work:$PATH" SPACES_HEALTH_TEST_JSON='{"ok":true,"fabric_record_reader_ready":true,"fallback_target_disagreements":0,"fabric_relay_disagreements":0}' \
+PATH="$work:$PATH" SPACES_HEALTH_TEST_JSON='{"ok":true,"fabric_record_reader_ready":true,"fallback_target_disagreements":0,"fabric_relay_disagreements":0,"chain_state_ready":true}' \
   bash "$role_dir/bin/check-verifier-health.sh" >/dev/null
 if PATH="$work:$PATH" SPACES_HEALTH_TEST_JSON='{"ok":false,"fabric_record_reader_ready":false,"fabric_relay_disagreements":0}' \
   bash "$role_dir/bin/check-verifier-health.sh" >/dev/null 2>&1; then
@@ -78,8 +90,26 @@ if PATH="$work:$PATH" SPACES_HEALTH_TEST_JSON='{"ok":true,"fabric_record_reader_
   echo "health check accepted a Fabric relay disagreement" >&2
   exit 1
 fi
+if PATH="$work:$PATH" SPACES_HEALTH_TEST_JSON='{"ok":false,"fabric_record_reader_ready":true,"fallback_target_disagreements":0,"fabric_relay_disagreements":0,"chain_state_ready":false}' \
+  bash "$role_dir/bin/check-verifier-health.sh" >/dev/null 2>&1; then
+  echo "health check accepted stale chain or anchor state" >&2
+  exit 1
+fi
+if PATH="$work:$PATH" SPACES_HEALTH_TEST_JSON='{"ok":true,"fabric_record_reader_ready":true,"fallback_target_disagreements":0,"fabric_relay_disagreements":0,"chain_state_ready":true}' \
+  SPACES_INSPECT_TEST_JSON='{"root_key_proof_verified":false,"root_pubkey":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","accepted_anchor_height":961308}' \
+  bash "$role_dir/bin/check-verifier-health.sh" >/dev/null 2>&1; then
+  echo "health check accepted an unverified authenticated inspection" >&2
+  exit 1
+fi
+if PATH="$work:$PATH" SPACES_HEALTH_TEST_JSON='{"ok":true,"fabric_record_reader_ready":true,"fallback_target_disagreements":0,"fabric_relay_disagreements":0,"chain_state_ready":true}' \
+  SPACES_VERIFIER_AUTH_TOKEN='' bash "$role_dir/bin/check-verifier-health.sh" >/dev/null 2>&1; then
+  echo "health check accepted a missing verifier auth token" >&2
+  exit 1
+fi
 
 grep -Fq 'OnFailure=pirate-spaces-verifier-health-alert.service' \
+  "$role_dir/systemd/pirate-spaces-verifier-health.service"
+grep -Fq 'EnvironmentFile=/srv/pirate-spaces/config/verifier.env' \
   "$role_dir/systemd/pirate-spaces-verifier-health.service"
 grep -Fq 'OnUnitActiveSec=5m' "$role_dir/systemd/pirate-spaces-verifier-health.timer"
 grep -Fq 'alert-on-failure.sh' "$role_dir/systemd/pirate-spaces-verifier-health-alert.service"
