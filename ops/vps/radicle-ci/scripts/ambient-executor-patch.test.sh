@@ -12,7 +12,7 @@ test -r "$patch_file"
 # package-lock entry such as `file:../../dependency`.
 skip_line=$(grep -nF 'if !p.resolved.starts_with("https://")' "$patch_file" \
   | cut -d: -f1)
-parse_line=$(grep -nF 'Url::parse(&p.resolved)' "$patch_file" | cut -d: -f1)
+parse_line=$(grep -nF 'NpmError::UrlParse' "$patch_file" | cut -d: -f1)
 [[ -n "$skip_line" && -n "$parse_line" && "$skip_line" -lt "$parse_line" ]]
 grep -Fq 'npm_get skipping non-HTTP package {name}' "$patch_file"
 
