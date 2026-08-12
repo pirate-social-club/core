@@ -9,6 +9,7 @@ Related docs:
 - [community-gate-catalog-authoring-plan.md](./community-gate-catalog-authoring-plan.md)
 - [community-tiers-entitlements.md](./community-tiers-entitlements.md)
 - [identity-presentation.md](./identity-presentation.md)
+- [provider-keyed-identity-evidence.md](./provider-keyed-identity-evidence.md)
 - [handles.md](./handles.md)
 
 ## Purpose
@@ -68,7 +69,10 @@ its advanced-policy preserve banner remain the production path.
   nested groups tinted by depth. The root group is not removable.
 - The check column is fixed per field (backend defines one predicate per
   atom). Render it as a static token, not a fake dropdown.
-- Repeated field types are allowed anywhere (two NFT rows in one OR).
+- Repeated field types are allowed anywhere (two NFT rows in one OR). Until the
+  provider-keyed identity-evidence reader ships, strict writes temporarily
+  reject policies that necessarily require the same provider-backed identity
+  capability more than once through an AND path; OR alternatives remain legal.
 - Values are always edited inline (numeric score/age inputs, country
   combobox with popover results, provider chips).
 - Empty root shows example chips ("Humans only", "Stop spam", "NFT club",
