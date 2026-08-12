@@ -222,6 +222,7 @@ export interface DelegationResponseProjection {
   readonly pirate_subdomain_issuance_allowed: boolean;
   readonly delegation_security: DelegationEvaluation["delegationSecurity"];
   readonly rollover_state: DelegationEvaluation["rolloverState"];
+  readonly ds_update_required: boolean;
   readonly observation_fresh: boolean;
   readonly observation_age_seconds: number | null;
   readonly routing_withheld_reason: DelegationEvaluation["routingWithheldReason"];
@@ -253,6 +254,7 @@ export function projectDelegationResponse(
     pirate_subdomain_issuance_allowed: evaluation.authenticatedRoutingAllowed,
     delegation_security: evaluation.delegationSecurity,
     rollover_state: evaluation.rolloverState,
+    ds_update_required: evaluation.dsUpdateRequired,
     observation_fresh: evaluation.observationFresh,
     observation_age_seconds:
       evaluation.observationAgeMs === null

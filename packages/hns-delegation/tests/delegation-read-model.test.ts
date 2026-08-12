@@ -75,6 +75,34 @@ describe("evaluateJoinedRoot", () => {
     const result = evaluateJoinedRoot(joined(), NOW);
     expect(result.authenticatedRoutingAllowed).toBe(true);
     expect(result.delegationSecurity).toBe("secure");
+    expect(result.dsUpdateRequired).toBe(false);
+  });
+
+  test("an observed DS mismatch is an explicit owner action", () => {
+    const result = evaluateJoinedRoot(
+      joined({
+        delegation_security: "drifted",
+        delegation_parent_ds_matches_live_dnskey: 0,
+        delegation_authoritative_dnssec_valid: 0,
+      }),
+      NOW,
+    );
+    expect(result.dsUpdateRequired).toBe(true);
+    expect(result.authenticatedRoutingAllowed).toBe(false);
+  });
+
+  test("pending evidence suppresses a duplicate publish instruction", () => {
+    const result = evaluateJoinedRoot(
+      joined({
+        delegation_security: "unsecured",
+        delegation_pending_evidence_kind: "user_acknowledgement",
+        delegation_parent_ds_matches_live_dnskey: 0,
+        delegation_authoritative_dnssec_valid: 0,
+      }),
+      NOW,
+    );
+    expect(result.delegationSecurity).toBe("pending");
+    expect(result.dsUpdateRequired).toBe(false);
   });
 
   test("no row at all fails closed", () => {
@@ -158,6 +186,21 @@ describe("projectDelegationResponse", () => {
     // "not verified" and "not observed lately" are different claims.
     expect(projected.routing_withheld_reason).toBe("observation_stale");
     expect(projected.delegation_security).toBe("secure");
+  });
+
+  test("projects the DS action without persisting a new security authority", () => {
+    const projected = projectDelegationResponse(
+      evaluateJoinedRoot(
+        joined({
+          delegation_security: "drifted",
+          delegation_parent_ds_matches_live_dnskey: 0,
+          delegation_authoritative_dnssec_valid: 0,
+        }),
+        NOW,
+      ),
+    );
+    expect(projected.ds_update_required).toBe(true);
+    expect(projected.delegation_security).toBe("drifted");
   });
 
   test("does not project attachment", () => {

@@ -183,6 +183,24 @@ terms.
 `delegation_security` drives what the product *claims about the name*. They must
 never be read from the same field.
 
+### `ds_update_required`
+
+This is a read-time action signal, not a stored security finding. It is true
+only when the latest successful parent observation has
+`parent_ds_matches_live_dnskey = false` and its security finding is
+`unsecured` or `drifted`. It is false for `unknown`, `bogus`, and `pending`:
+
+- `unknown` means there is no successful parent evidence yet.
+- `bogus` means the parent anchor is intact and Pirate must repair the zone,
+  not ask the owner to publish a DS.
+- `pending` means the owner has already acknowledged or submitted the update;
+  repeating the instruction could supersede that transaction.
+
+The signal is derived from the successful observation on every read. A failed
+poll never creates or clears it, so a verifier outage cannot manufacture an
+owner action or erase a known repair requirement. A subsequent successful
+observation is the only thing that changes the signal.
+
 ## Authenticated Resolution
 
 `delegation_security = secure` requires more than a DS that matches a DNSKEY.
