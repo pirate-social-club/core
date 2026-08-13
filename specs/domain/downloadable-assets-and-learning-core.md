@@ -1071,12 +1071,21 @@ The finalizer performs these idempotent steps:
 3. create the social post;
 4. create the `download_file` asset and primary payload snapshot;
 5. claim the control-plane blob;
-6. prepare locked delivery and required Story state;
+6. re-read enforcement, then prepare locked delivery and required Story state;
 7. create the listing from `listing_draft` only after sellability passes;
 8. publish the post or record the existing retryable publication state.
 
 The post-create idempotency record stores the IDs allocated for every step so a
 retry resumes rather than duplicates the post, asset, payload, or listing.
+
+CDR preparation is enforcement-aware on the write side as well as the access
+side. The finalizer re-reads `asset_enforcement` immediately before preparation
+and again before persisting `locked_delivery_status = 'ready'` or creating a
+listing. Missing or non-active state aborts publication. If quarantine or block
+wins while an external preparation call is in flight, the result is not attached
+to the asset or made recoverable through access; any newly prepared material is
+recorded for bounded cleanup. Access-time enforcement checks do not replace
+these publication-time checks.
 
 The same Phase 2 rebuild updates both constrained failure-code authorities:
 `posts.publish_failure_code` and `post_publish_requests.failure_code`. Both add
@@ -1127,7 +1136,18 @@ type AssetPayloadDescriptor = {
 
 The descriptor may be exposed as listing-safe metadata before purchase, but a
 delivery reference or CDR package is returned only after the existing access
-decision grants access.
+decision grants access. Exposing `content_hash` before purchase is deliberate:
+it lets clients bind listings and later downloads to the immutable payload and
+lets a party that already possesses the bytes confirm the match. The API never
+returns malware deny-list membership or a scanner verdict for an arbitrary
+hash, so the descriptor is not a deny-list query endpoint. Changing this trade
+requires a versioned listing-integrity design rather than silently redacting the
+hash from one response branch.
+
+Missing payload and non-active enforcement use the route's ordinary not-found
+response message and shape. Public callers cannot distinguish a nonexistent
+asset from a quarantined, blocked, or incomplete generic asset; internal logs
+and bounded metrics retain the operational reason without exposing it.
 
 For `delivery_behavior = download`, the web client uses one shared download
 controller. It resolves access, fetches or decrypts the payload, verifies the
