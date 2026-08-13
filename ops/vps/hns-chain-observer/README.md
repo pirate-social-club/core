@@ -76,10 +76,18 @@ sudo install -m 0600 /dev/null "$HSD_API_KEY_FILE"
 cp env/hsd-observer.env.example .env
 sed -i "s/^HSD_UID=.*/HSD_UID=$(id -u)/; s/^HSD_GID=.*/HSD_GID=$(id -g)/" .env
 sudo chown -R "$(id -u):$(id -g)" "$HSD_DATA_DIR"
+# Build-time prerequisite: the Dockerfile uses BuildKit-only COPY --chmod.
+# Confirm the host plugin before building; install the distribution's Docker
+# Buildx plugin if this command is unavailable.
+docker buildx version
 docker compose -p pirate-hns-observer build --pull
 docker compose -p pirate-hns-observer up -d
 docker compose -p pirate-hns-observer ps
 ```
+
+Docker Buildx is a build-time host dependency only. It is not part of the
+observer runtime contract; the release records and verifies the exact local
+image ID that the build launched.
 
 When constructing the immutable role release, bind the locally built image to
 its content-addressed Docker ID after the build above:
