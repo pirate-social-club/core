@@ -6,6 +6,7 @@ export const SPEC: MigrationSpec = {
   migration: "1158_generic_assets_learning_foundation.sql",
   label: "community-template",
   requiredTables: ["posts", "assets", "post_publish_requests", "moderation_actions"],
+  requiredColumns: [{ table: "posts", column: "idempotency_body_hash" }],
   creates: {
     kind: "schema_objects",
     columns: [
