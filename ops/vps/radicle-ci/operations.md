@@ -199,6 +199,31 @@ restore” therefore means generating a replacement controller DID and using the
 human-retrieved recovery delegate to replace the lost DID in every identity
 document; it does not mean restoring the same online private key from backup.
 
+## Commit-keyed proof semantics
+
+The promotion evidence key is `(RID, commit)`. A broker job ID, run UUID, or
+job COB is provenance for that observation; none of them is the identity of the
+commit being considered. A job COB may receive additional `Run` and `Finished`
+operations when the same commit is tested again, including when a ref moves
+from a branch to `main` without changing the commit.
+
+The exporter resolves the latest signed `Finished` observation for that tuple.
+`Succeeded` is current eligibility evidence; `Failed`, missing, malformed, or
+not-yet-replicated state is not. The controller must re-read the exported proof
+immediately before each promotion decision. It must not reuse a cached green
+result after a later run, an unknown replication state, or a proof refresh.
+
+A later failed rerun therefore retracts eligibility for any request that has
+not yet been granted. A promotion that has already been granted is immutable:
+its signed canonical-ref change and audit event remain valid, while a later
+failure is recorded as a new observation for the next request. This keeps
+retry behavior fail-closed without pretending that a commit has only one run.
+
+The controller treats missing replicated state as `unknown` and retries only
+within the configured bounded window. If the proof is still unknown or invalid
+after that window, the request fails closed. This rule applies equally to a
+successful-looking branch run and a later run observed from `main`.
+
 Enforcement cutover requires all of the following:
 
 - a separate recovery organization with MFA, verified secret versioning, no
@@ -292,6 +317,12 @@ crate after fetching its exact locked dependency graph with bounded retry, and
 places the patched guest-plan executor at
 `/usr/local/bin/ambient-execute-plan`. `config/ambient.yaml` selects that exact
 executor; patching the `ambient` coordinator alone has no effect on `npm_get`.
+A `bun_get` action is included in the same reviewed executor. It reads a
+package's `bun.lock`, downloads only registry packages into a manifest-backed
+dependency directory, skips explicit `file:`, `workspace:`, and `link:` entries,
+and fails closed on an unsupported lock entry. The plan must import those
+tarballs into Bun's versioned cache directory and run `bun install` with an
+offline preference; a missing cache entry remains a failed pre-plan action.
 A later Ambient version is a hard stop
 until this mitigation is re-reviewed or confirmed upstream.
 

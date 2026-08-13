@@ -6,6 +6,8 @@ role_dir=${1:?usage: install-ambient-npm-retry <tracked-role-directory>}
 version=0.16.0
 expected_source_sha256=ca138d2325790fba012f668e0d114346a955c574ec288fef41097df98fcdfd4c
 expected_http_source_sha256=5c30341d9ddbc37ab7161597e340d02deaae14dfa9e033d3fc670e08a80a2bfb
+expected_action_source_sha256=6a4d2ac388afaad318edae4e9bd61fba6c2d54e08c5e36c9003e476108581ebc
+expected_action_impl_source_sha256=5ff1b4cf2ac181c552bf70a2e8bc7afa2f818655d0e48a0d3795a3d5176b1933
 patch_file="$role_dir/patches/ambient-ci-$version-npm-retry.patch"
 registry_root=/var/lib/radicle/.cargo/registry/src
 cargo_home=/var/lib/radicle/.cargo
@@ -35,6 +37,11 @@ if [[ "$install_destination" == /usr/local/bin/ambient-execute-plan ]]; then
       "$installed_manifest" \
     && grep -Fxq "upstream_http_source_sha256=$expected_http_source_sha256" \
       "$installed_manifest" \
+    && grep -Fxq "upstream_action_source_sha256=$expected_action_source_sha256" \
+      "$installed_manifest" \
+    && grep -Fxq \
+      "upstream_action_impl_source_sha256=$expected_action_impl_source_sha256" \
+      "$installed_manifest" \
     && grep -Fxq "patch_sha256=$patch_sha256" "$installed_manifest" \
     && grep -Fxq \
       "binary_sha256=$(sha256sum "$install_destination" | awk '{ print $1 }')" \
@@ -55,12 +62,20 @@ fi
 source_tree=${sources[0]}
 source_file="$source_tree/src/action_impl/npm.rs"
 http_source_file="$source_tree/src/action_impl/http_get.rs"
+action_source_file="$source_tree/src/action.rs"
+action_impl_source_file="$source_tree/src/action_impl/mod.rs"
 test "$(sha256sum "$source_file" | awk '{ print $1 }')" = \
   "$expected_source_sha256" \
   || { echo 'cached Ambient npm source differs from the reviewed input' >&2; exit 1; }
 test "$(sha256sum "$http_source_file" | awk '{ print $1 }')" = \
   "$expected_http_source_sha256" \
   || { echo 'cached Ambient HTTP source differs from the reviewed input' >&2; exit 1; }
+test "$(sha256sum "$action_source_file" | awk '{ print $1 }')" = \
+  "$expected_action_source_sha256" \
+  || { echo 'cached Ambient action source differs from the reviewed input' >&2; exit 1; }
+test "$(sha256sum "$action_impl_source_file" | awk '{ print $1 }')" = \
+  "$expected_action_impl_source_sha256" \
+  || { echo 'cached Ambient action module source differs from the reviewed input' >&2; exit 1; }
 
 rm -rf -- "$build_root"
 install -d -o radicle -g radicle -m 0700 "$build_root"
@@ -98,6 +113,8 @@ if [[ "$install_destination" == /usr/local/bin/ambient-execute-plan ]]; then
     "ambient_version=$version" \
     "upstream_source_sha256=$expected_source_sha256" \
     "upstream_http_source_sha256=$expected_http_source_sha256" \
+    "upstream_action_source_sha256=$expected_action_source_sha256" \
+    "upstream_action_impl_source_sha256=$expected_action_impl_source_sha256" \
     "patch_sha256=$patch_sha256" \
     "binary_sha256=$binary_sha256" > "$manifest"
   install -o root -g root -m 0644 "$manifest" \

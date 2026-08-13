@@ -73,6 +73,12 @@ grep -Fxq \
 grep -Fxq \
   'upstream_http_source_sha256=5c30341d9ddbc37ab7161597e340d02deaae14dfa9e033d3fc670e08a80a2bfb' \
   "$ambient_manifest"
+grep -Fxq \
+  'upstream_action_source_sha256=6a4d2ac388afaad318edae4e9bd61fba6c2d54e08c5e36c9003e476108581ebc' \
+  "$ambient_manifest"
+grep -Fxq \
+  'upstream_action_impl_source_sha256=5ff1b4cf2ac181c552bf70a2e8bc7afa2f818655d0e48a0d3795a3d5176b1933' \
+  "$ambient_manifest"
 test "$(awk -F= '$1 == "patch_sha256" { print $2 }' "$ambient_manifest")" = \
   "$(sha256sum "$ambient_patch" | awk '{ print $1 }')"
 test "$(awk -F= '$1 == "binary_sha256" { print $2 }' "$ambient_manifest")" = \

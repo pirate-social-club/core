@@ -9,7 +9,9 @@ repository delegate and the controller binary contains no canonical-push
 path. Human-only recovery escrow and canonical-ref tests remain cutover
 prerequisites. `recovery-escrow.md` defines the split-control Infisical model;
 `proof-state-restore.md` defines the mandatory off-host restore drill before
-enforcement.
+enforcement. `authoritative-gates.md` records the initial self-contained Web
+and API checks; those plans remain advisory until the recovery and mirror
+cutover gates pass.
 
 ## Boundaries
 
