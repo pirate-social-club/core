@@ -201,6 +201,134 @@ ALTER TABLE reward_ticket_custody_solvency_observations
             chain_id, token_address, custody_address
         );
 
+-- Protocol referral revenue is platform income, never beneficiary proceeds.
+-- It has a separate append-only atomic ledger and cannot affect user balances.
+CREATE TABLE reward_ticket_platform_revenue_ledger_entries (
+    reward_ticket_platform_revenue_ledger_entry_id TEXT NOT NULL,
+    chain_id INTEGER NOT NULL,
+    token_address TEXT NOT NULL,
+    platform_revenue_address TEXT NOT NULL,
+    entry_kind TEXT NOT NULL,
+    amount_atomic NUMERIC(78, 0) NOT NULL,
+    reward_ticket_purchase_effect_id TEXT,
+    reward_ticket_claim_effect_id TEXT,
+    tx_hash TEXT NOT NULL,
+    log_index INTEGER NOT NULL,
+    observed_block_number BIGINT NOT NULL,
+    observed_block_hash TEXT NOT NULL,
+    observed_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT reward_ticket_platform_revenue_ledger_entries_pk
+        PRIMARY KEY (reward_ticket_platform_revenue_ledger_entry_id),
+    CONSTRAINT reward_ticket_platform_revenue_chain_check CHECK (chain_id > 0),
+    CONSTRAINT reward_ticket_platform_revenue_token_check
+        CHECK (token_address ~ '^0x[0-9a-fA-F]{40}$'),
+    CONSTRAINT reward_ticket_platform_revenue_address_check
+        CHECK (platform_revenue_address ~ '^0x[0-9a-fA-F]{40}$'),
+    CONSTRAINT reward_ticket_platform_revenue_kind_check CHECK (entry_kind IN (
+        'purchase_referral_accrual',
+        'winnings_referral_accrual',
+        'referral_withdrawal'
+    )),
+    CONSTRAINT reward_ticket_platform_revenue_amount_check CHECK (amount_atomic > 0),
+    CONSTRAINT reward_ticket_platform_revenue_purchase_fk
+        FOREIGN KEY (reward_ticket_purchase_effect_id)
+        REFERENCES reward_ticket_purchase_effects(reward_ticket_purchase_effect_id),
+    CONSTRAINT reward_ticket_platform_revenue_claim_fk
+        FOREIGN KEY (reward_ticket_claim_effect_id)
+        REFERENCES reward_ticket_claim_effects(reward_ticket_claim_effect_id),
+    CONSTRAINT reward_ticket_platform_revenue_source_shape_check CHECK (
+        (entry_kind = 'purchase_referral_accrual'
+            AND reward_ticket_purchase_effect_id IS NOT NULL
+            AND reward_ticket_claim_effect_id IS NULL)
+        OR (entry_kind = 'winnings_referral_accrual'
+            AND reward_ticket_purchase_effect_id IS NULL
+            AND reward_ticket_claim_effect_id IS NOT NULL)
+        OR (entry_kind = 'referral_withdrawal'
+            AND reward_ticket_purchase_effect_id IS NULL
+            AND reward_ticket_claim_effect_id IS NULL)
+    ),
+    CONSTRAINT reward_ticket_platform_revenue_tx_hash_check
+        CHECK (tx_hash ~ '^0x[0-9a-fA-F]{64}$'),
+    CONSTRAINT reward_ticket_platform_revenue_log_index_check CHECK (log_index >= 0),
+    CONSTRAINT reward_ticket_platform_revenue_block_number_check
+        CHECK (observed_block_number >= 0),
+    CONSTRAINT reward_ticket_platform_revenue_block_hash_check
+        CHECK (observed_block_hash ~ '^0x[0-9a-fA-F]{64}$'),
+    CONSTRAINT reward_ticket_platform_revenue_tx_log_unique
+        UNIQUE (chain_id, tx_hash, log_index)
+);
+
+CREATE INDEX reward_ticket_platform_revenue_accounting_idx
+    ON reward_ticket_platform_revenue_ledger_entries (
+        chain_id, token_address, platform_revenue_address, observed_at,
+        reward_ticket_platform_revenue_ledger_entry_id
+    );
+
+CREATE OR REPLACE FUNCTION enforce_reward_ticket_platform_revenue_entry()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    source_chain_id INTEGER;
+    source_token_address TEXT;
+    source_tx_hash TEXT;
+    source_status TEXT;
+    source_finalized_at TIMESTAMPTZ;
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM reward_ticket_custody_backing_domains AS domain
+        WHERE domain.chain_id = NEW.chain_id
+          AND LOWER(domain.token_address) = LOWER(NEW.token_address)
+          AND LOWER(domain.custody_address) = LOWER(NEW.platform_revenue_address)
+    ) THEN
+        RAISE EXCEPTION 'platform referral revenue address must be outside beneficiary custody'
+            USING ERRCODE = '23514';
+    END IF;
+
+    IF NEW.entry_kind = 'purchase_referral_accrual' THEN
+        SELECT pool.chain_id, pool.usdc_token_address, effect.tx_hash,
+               effect.status, effect.finalized_at
+        INTO source_chain_id, source_token_address, source_tx_hash,
+             source_status, source_finalized_at
+        FROM reward_ticket_purchase_effects AS effect
+        JOIN reward_ticket_pool_drawings AS drawing
+          ON drawing.reward_ticket_pool_drawing_id = effect.reward_ticket_pool_drawing_id
+        JOIN reward_ticket_pools AS pool
+          ON pool.reward_ticket_pool_id = drawing.reward_ticket_pool_id
+        WHERE effect.reward_ticket_purchase_effect_id = NEW.reward_ticket_purchase_effect_id;
+    ELSIF NEW.entry_kind = 'winnings_referral_accrual' THEN
+        SELECT pool.chain_id, pool.usdc_token_address, effect.tx_hash,
+               effect.status, effect.finalized_at
+        INTO source_chain_id, source_token_address, source_tx_hash,
+             source_status, source_finalized_at
+        FROM reward_ticket_claim_effects AS effect
+        JOIN reward_ticket_pool_drawings AS drawing
+          ON drawing.reward_ticket_pool_drawing_id = effect.reward_ticket_pool_drawing_id
+        JOIN reward_ticket_pools AS pool
+          ON pool.reward_ticket_pool_id = drawing.reward_ticket_pool_id
+        WHERE effect.reward_ticket_claim_effect_id = NEW.reward_ticket_claim_effect_id;
+    ELSE
+        RETURN NEW;
+    END IF;
+
+    IF source_status IS DISTINCT FROM 'confirmed'
+       OR source_finalized_at IS NULL
+       OR source_chain_id IS DISTINCT FROM NEW.chain_id
+       OR LOWER(source_token_address) IS DISTINCT FROM LOWER(NEW.token_address)
+       OR LOWER(source_tx_hash) IS DISTINCT FROM LOWER(NEW.tx_hash) THEN
+        RAISE EXCEPTION 'platform referral accrual does not match a finalized source receipt'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER reward_ticket_platform_revenue_source_guard
+BEFORE INSERT ON reward_ticket_platform_revenue_ledger_entries
+FOR EACH ROW EXECUTE FUNCTION enforce_reward_ticket_platform_revenue_entry();
+
 -- A cashout is an external money effect, not merely a pair of mutable ledger
 -- rows. It receives the same ambiguity/reconciliation shape as purchases and
 -- claims, and confirmation records a canonical finalized receipt.
@@ -690,6 +818,10 @@ CREATE TRIGGER reward_ticket_custody_solvency_observations_immutable
 BEFORE UPDATE OR DELETE ON reward_ticket_custody_solvency_observations
 FOR EACH ROW EXECUTE FUNCTION reject_reward_ticket_append_only_mutation();
 
+CREATE TRIGGER reward_ticket_platform_revenue_ledger_entries_immutable
+BEFORE UPDATE OR DELETE ON reward_ticket_platform_revenue_ledger_entries
+FOR EACH ROW EXECUTE FUNCTION reject_reward_ticket_append_only_mutation();
+
 CREATE OR REPLACE FUNCTION enforce_reward_ticket_allocation_batch_immutability()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -974,7 +1106,8 @@ REVOKE DELETE ON TABLE
     reward_ticket_custody_solvency_observations,
     reward_ticket_pool_monitor_state,
     reward_ticket_pool_incidents,
-    reward_ticket_custody_backing_domains
+    reward_ticket_custody_backing_domains,
+    reward_ticket_platform_revenue_ledger_entries
 FROM control_plane_api_rw;
 
 REVOKE INSERT, UPDATE, DELETE ON TABLE reward_ticket_usdc_balances
@@ -984,7 +1117,8 @@ REVOKE UPDATE ON TABLE
     reward_ticket_allocation_batch_claims,
     reward_ticket_allocations,
     reward_ticket_usdc_ledger_entries,
-    reward_ticket_custody_solvency_observations
+    reward_ticket_custody_solvency_observations,
+    reward_ticket_platform_revenue_ledger_entries
 FROM control_plane_api_rw;
 
 REVOKE ALL ON TABLE reward_ticket_cashout_effects FROM PUBLIC;
@@ -994,5 +1128,11 @@ GRANT SELECT ON TABLE reward_ticket_cashout_effects TO control_plane_api_ro, con
 REVOKE ALL ON TABLE reward_ticket_custody_backing_domains FROM PUBLIC;
 GRANT SELECT ON TABLE reward_ticket_custody_backing_domains
 TO control_plane_api_rw, control_plane_api_ro, control_plane_ops_ro;
+
+REVOKE ALL ON TABLE reward_ticket_platform_revenue_ledger_entries FROM PUBLIC;
+GRANT SELECT, INSERT ON TABLE reward_ticket_platform_revenue_ledger_entries
+TO control_plane_api_rw;
+GRANT SELECT ON TABLE reward_ticket_platform_revenue_ledger_entries
+TO control_plane_api_ro, control_plane_ops_ro;
 
 REVOKE ALL ON FUNCTION apply_reward_ticket_usdc_ledger_entry() FROM PUBLIC;

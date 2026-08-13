@@ -28,6 +28,9 @@ describe("reward ticket pool hardening migration", () => {
     expect(migration).toContain("cashout payment requires a finalized confirmed effect");
     expect(migration).toContain("pool.usdc_token_address = NEW.token_address");
     expect(migration).toContain("REVOKE INSERT, UPDATE, DELETE ON TABLE reward_ticket_usdc_balances");
+    expect(migration).toContain("CREATE TABLE reward_ticket_platform_revenue_ledger_entries");
+    expect(migration).toContain("platform referral revenue address must be outside beneficiary custody");
+    expect(migration).toContain("reward_ticket_platform_revenue_ledger_entries_immutable");
   });
 
   test("requires complete sweep claim and deterministic equal allocation before credit", () => {

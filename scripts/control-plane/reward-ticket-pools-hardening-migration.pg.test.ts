@@ -298,6 +298,24 @@ describe.skipIf(!RUN)("reward ticket pool migration 0227 (real Postgres)", () =>
       "UPDATE reward_ticket_claim_effects SET received_amount_atomic = 3 WHERE reward_ticket_claim_effect_id = 'claim'",
       "23514",
     );
+    await db.unsafe(`
+      INSERT INTO reward_ticket_platform_revenue_ledger_entries (
+        reward_ticket_platform_revenue_ledger_entry_id, chain_id, token_address,
+        platform_revenue_address, entry_kind, amount_atomic,
+        reward_ticket_purchase_effect_id, tx_hash, log_index,
+        observed_block_number, observed_block_hash, observed_at
+      ) VALUES (
+        'platform-revenue', 84532, '0x4444444444444444444444444444444444444444',
+        '0x7777777777777777777777777777777777777777',
+        'purchase_referral_accrual', 1, 'purchase', '0x${"1".repeat(64)}', 4,
+        10, '0x${"2".repeat(64)}', NOW()
+      )
+    `);
+    await expectSqlState(
+      db,
+      "UPDATE reward_ticket_platform_revenue_ledger_entries SET amount_atomic = 2 WHERE reward_ticket_platform_revenue_ledger_entry_id = 'platform-revenue'",
+      "23514",
+    );
     await db.end();
   });
 
