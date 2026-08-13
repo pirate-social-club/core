@@ -21,8 +21,8 @@ Initial gate: `packages/karaoke-runtime` only.
 The package has no runtime dependencies and does not require the root Web
 checkout, the API checkout, a Core checkout, a database, credentials, or a
 networked service. The plan provisions only the pinned Bun runtime, then runs
-the package's deterministic codec, export, reducer, scoring, serialization, and
-transport tests directly from source, followed by import lint.
+the package's small binary-codec, public-export, and transport contract tests
+directly from source, followed by import lint.
 Typechecking remains on hosted CI because the package's native-preview `tsgo`
 toolchain is a frequently changing development dependency and is not needed
 to validate this runtime-only gate.
@@ -30,9 +30,9 @@ to validate this runtime-only gate.
 Build-provenance generation and its packaging contract test remain hosted-only;
 the isolated gate does not invoke Git from the source archive.
 
-Session-host, WebSocket lifecycle, and commit-scheduler tests remain hosted-only
-for now: they use timer/event-loop behavior and are not part of the first
-bounded, source-only promotion gate.
+Reducer, scoring, serialization, session-host, WebSocket lifecycle, and
+commit-scheduler tests remain hosted-only for now: they are too expensive or
+depend on timer/event-loop behavior for the first bounded, source-only gate.
 
 The root Web test/type surface is intentionally excluded from the first gate:
 its package graph includes `file:` dependencies on API contracts and local Web
