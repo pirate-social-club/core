@@ -428,6 +428,7 @@ describe("classificationSql", () => {
       migration: "9999_composite.sql",
       label: "community-template",
       requiredTables: ["attempts", "review_state"],
+      requiredColumns: [{ table: "attempts", column: "idempotency_body_hash" }],
       creates: {
         kind: "schema_objects",
         columns: [{ table: "attempts", column: "placements_json" }],
@@ -449,12 +450,14 @@ describe("classificationSql", () => {
     expect(sql).toContain("obj_table_fragment__review_state__0")
     expect(sql).not.toContain("metric_rows__attempts")
     expect(sql).toContain("forbidden_table__attempts_next")
+    expect(sql).toContain("req_column__attempts__idempotency_body_hash")
     expect(rowCountSql(spec)).toContain("metric_rows__attempts")
     expect(classifyRow(spec, {
       has_ledger: 1,
       ledger_checksum: CHECKSUM,
       req_attempts: 1,
       req_review_state: 1,
+      req_column__attempts__idempotency_body_hash: 1,
       obj_attempts__placements_json: 1,
       obj_index__idx_cloze_status: 1,
       obj_table__cloze: 1,
@@ -462,6 +465,16 @@ describe("classificationSql", () => {
       obj_table_fragment__review_state__0: 0,
       final_index__idx_attempts_lookup: 1,
     }, CHECKSUM).status).toBe("partial_objects")
+    expect(classifyRow(spec, {
+      has_ledger: 1,
+      ledger_checksum: "",
+      req_attempts: 1,
+      req_review_state: 1,
+      req_column__attempts__idempotency_body_hash: 0,
+    }, CHECKSUM)).toEqual({
+      status: "schema_not_ready",
+      detail: "required source column(s) absent: attempts.idempotency_body_hash",
+    })
   })
 
   test("rejects row-count probes that are not gated by required-table detection", () => {

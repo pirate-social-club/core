@@ -80,6 +80,8 @@ export type MigrationSpec = {
   label: string
   /** Tables that must already exist for this migration to be applicable at all. */
   requiredTables: readonly string[]
+  /** Existing source columns that a rebuild must be able to copy. */
+  requiredColumns?: readonly { table: string; column: string }[]
   /** What the migration creates. */
   creates: ObjectSpec
   /** Optional pre-write row counts recorded in each shard's manifest entry. */
@@ -194,6 +196,11 @@ export function classificationSql(spec: MigrationSpec): string {
   const required = spec.requiredTables
     .map((t) => `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${t}') AS req_${t}`)
     .join(",\n  ")
+  const requiredColumns = (spec.requiredColumns ?? [])
+    .map(({ table, column }) =>
+      `(SELECT COUNT(*) FROM pragma_table_info('${table}') WHERE name='${column}') AS req_column__${table}__${column}`
+    )
+    .join(",\n  ")
   const objects = spec.creates.kind === "columns"
     ? spec.creates.columns
       .map((c) => `(SELECT COUNT(*) FROM pragma_table_info('${spec.creates.table}') WHERE name='${c}') AS obj_${c}`)
@@ -237,6 +244,7 @@ export function classificationSql(spec: MigrationSpec): string {
     "(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='schema_migrations') AS has_ledger",
     `(SELECT COALESCE(GROUP_CONCAT(checksum), '') FROM schema_migrations WHERE migration_name='${spec.migration}') AS ledger_checksum`,
     ...(required ? [required] : []),
+    ...(requiredColumns ? [requiredColumns] : []),
     ...(objects ? [objects] : []),
   ]
   return `SELECT\n  ${probes.join(",\n  ")}`
@@ -306,6 +314,15 @@ export function classifyRow(
   const missingRequired = spec.requiredTables.filter((t) => Number(cell(rows, `req_${t}`)) !== 1)
   if (missingRequired.length > 0) {
     return { status: "schema_not_ready", detail: `required table(s) absent: ${missingRequired.join(", ")}` }
+  }
+  const missingRequiredColumns = (spec.requiredColumns ?? []).filter(
+    ({ table, column }) => Number(cell(rows, `req_column__${table}__${column}`)) !== 1,
+  )
+  if (missingRequiredColumns.length > 0) {
+    return {
+      status: "schema_not_ready",
+      detail: `required source column(s) absent: ${missingRequiredColumns.map(({ table, column }) => `${table}.${column}`).join(", ")}`,
+    }
   }
 
   const names = objectNames(spec)
