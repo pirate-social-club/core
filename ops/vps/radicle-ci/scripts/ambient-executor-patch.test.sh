@@ -40,11 +40,16 @@ grep -Eq '^expected_http_source_sha256=[0-9a-f]{64}$' \
 grep -Fq 'patch_sha256=' "$here/install-ambient-npm-retry"
 grep -Fq 'binary_sha256=' "$here/install-ambient-npm-retry"
 
-# Rebuild provenance must stay explicit and must not claim an immutable copy
-# exists before one has actually been uploaded and verified.
+# Rebuild provenance must stay explicit and bind the immutable archives to the
+# reviewed public artifacts.
 grep -Fq 'source_url: https://files.liw.fi/ambient/ambient.qcow2.xz' "$artifacts"
 grep -Fq 'decompressed_sha256: e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d173840b293' "$artifacts"
 grep -Fq 'crate_sha256: 051d8698eac84847b56b8f39577ef186b2816ecf0fca073434ea62d67913f80a' "$artifacts"
-[[ $(grep -c 'status: pending_before_enforcement' "$artifacts") -eq 2 ]]
+[[ $(grep -c 'status: verified' "$artifacts") -eq 2 ]]
+grep -Fq 'bucket: pirate-radicle-ci-artifacts' "$artifacts"
+grep -Fq 'compressed_sha256: 25b457df9d389559170cf79e955ec68d0306b320fff8f4c36d8d4225bcc2855a' "$artifacts"
+grep -Fq 'reassembly_order: ascending_part_number' "$artifacts"
+[[ $(grep -c '^      - number:' "$artifacts") -eq 8 ]]
+grep -Fq 'key: artifacts/ambient-ci/0.16.0/ambient-ci-0.16.0.crate' "$artifacts"
 
 echo 'Ambient executor patch tests passed'
