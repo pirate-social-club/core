@@ -323,6 +323,43 @@ describe("1157 generic assets and learning foundation migration", () => {
         asset_id: "asset_file",
         next_asset_enforcement_state: "blocked",
       })
+
+      expect(() => db.exec(`
+        INSERT INTO moderation_actions (
+          moderation_action_id, moderation_case_id, community_id, post_id, asset_id,
+          actor_user_id, action_type, created_at, previous_post_status, next_post_status,
+          previous_asset_enforcement_state, next_asset_enforcement_state, evidence_ref
+        ) VALUES (
+          'action_stale', 'case', 'community', 'post_file', 'asset_file',
+          'moderator', 'restore_asset', 'now', 'removed', 'published',
+          'blocked', 'active', 'evidence://stale'
+        )
+      `)).toThrow()
+
+      db.exec("DELETE FROM asset_enforcement WHERE asset_id = 'asset_file'")
+
+      db.exec(`
+        INSERT INTO moderation_actions (
+          moderation_action_id, moderation_case_id, community_id, post_id, asset_id,
+          actor_user_id, action_type, created_at, previous_post_status, next_post_status,
+          previous_asset_enforcement_state, next_asset_enforcement_state, evidence_ref
+        ) VALUES (
+          'action_repair_missing', 'case', 'community', 'post_file', 'asset_file',
+          'moderator', 'quarantine_asset', 'now', 'published', 'hidden',
+          NULL, 'quarantined', 'evidence://repair'
+        )
+      `)
+      expect(() => db.exec(`
+        INSERT INTO moderation_actions (
+          moderation_action_id, moderation_case_id, community_id, post_id, asset_id,
+          actor_user_id, action_type, created_at, previous_post_status, next_post_status,
+          previous_asset_enforcement_state, next_asset_enforcement_state, evidence_ref
+        ) VALUES (
+          'action_restore_missing', 'case', 'community', 'post_file', 'asset_file',
+          'moderator', 'restore_asset', 'now', 'hidden', 'published',
+          NULL, 'active', 'evidence://restore'
+        )
+      `)).toThrow()
     } finally {
       db.close()
     }

@@ -881,8 +881,10 @@ quarantine transition. The successor adds:
 - `previous_asset_enforcement_state` and `next_asset_enforcement_state` fields;
 - a target constraint permitting one comment, one ordinary post, or a linked
   generic-asset post-and-asset pair; and
-- an audit constraint requiring both asset-state snapshots and evidence for an
-  asset enforcement transition.
+- an audit constraint requiring evidence and both asset-state snapshots for an
+  asset enforcement transition, except that a restrictive hide/remove/
+  quarantine/block repair may record a null previous enforcement state when
+  the projection row was missing; restore never invents a prior state.
 
 `moderation_cases` remains post/comment scoped. Every generic asset has a
 non-null `source_post_id`, so asset enforcement always uses that post's case and
@@ -904,6 +906,9 @@ Projection is bidirectional and transactional:
   that post, in the same moderation transaction and action row;
 - restore returns an asset to `active` only when the action explicitly records
   that transition and no scanner, rights, or legal hold remains; and
+- existing enforcement rows update only when their current state matches the
+  action's planned previous state; restrictive actions may insert a missing
+  projection row, while restore fails closed when the row is absent; and
 - an enforcement reconciler repairs post/asset drift from the authoritative
   action and emits a conflict instead of guessing when histories disagree.
 
