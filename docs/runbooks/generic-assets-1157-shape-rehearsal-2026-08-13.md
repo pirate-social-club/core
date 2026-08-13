@@ -40,6 +40,8 @@ four hot-table rebuilds. A regression test rejects future positional rebuilds.
 - Required indexes: 8 of 8
 - Forbidden transitional tables: 0
 - Foreign-key violations: 0
+- Expected/remote normalized schema SHA-256 (exact match):
+  `9846b68631d7d13614757dbf98ebf712e6707265eb5d057666fa343534c1941b`
 - Sanitized byte-length distribution SHA-256:
   `34a9c3d7e6323164f4681c489c63b3fc3a57f46a1ff2fc89305876eda6b44fbd`
 - Preserved `schema_migrations` projection SHA-256:
