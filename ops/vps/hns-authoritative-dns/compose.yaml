@@ -21,4 +21,8 @@ services:
       # /etc/powerdns, NOT /etc/pdns — this image reads the former, so the old
       # path meant pdns.conf was silently never loaded at all.
       - ./config/pdns.conf:/etc/powerdns/pdns.conf:ro
-      - ./data:/var/lib/powerdns
+      # Stable host path, deliberately NOT ./data: the PowerDNS SQLite
+      # database and DNSSEC keys must survive checkout replacement and release
+      # cleanup. Losing it destroys the authoritative state and its matching
+      # parent DS lifecycle.
+      - ${PDNS_DATA_DIR:-/srv/pirate-hns-authdns/shared/data}:/var/lib/powerdns

@@ -31,7 +31,11 @@ services:
     secrets:
       - hsd_api_key
     volumes:
-      - ./data:/var/lib/hsd
+      # Stable host path, deliberately NOT ./data: the chain database is
+      # roughly 59 GB and must survive checkout replacement and release
+      # cleanup. Losing it forces a full resync and takes the observer out of
+      # the namespace-verification path.
+      - ${HSD_DATA_DIR:-/srv/pirate-hns-observer/shared/data}:/var/lib/hsd
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=64m
     cap_drop:
@@ -49,4 +53,6 @@ services:
 
 secrets:
   hsd_api_key:
-    file: ${HSD_API_KEY_FILE:-./secrets/hsd_api_key}
+    # Stable host path, deliberately NOT ./secrets: the secret must not move
+    # with an immutable release directory.
+    file: ${HSD_API_KEY_FILE:-/srv/pirate-hns-observer/config/hsd_api_key}
