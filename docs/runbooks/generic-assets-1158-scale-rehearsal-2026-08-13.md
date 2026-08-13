@@ -1,8 +1,8 @@
-# Generic-assets 1157 synthetic scale rehearsal — 2026-08-13
+# Generic-assets 1158 synthetic scale rehearsal — 2026-08-13
 
 ## Fixture contract
 
-The canonical pre-1157 migration history generated deterministic,
+The canonical pre-1158 migration history generated deterministic,
 production-free fixtures from the measured largest-shard rebuilt-table counts:
 posts 29, assets 28, publish requests 22, and moderation actions 3. Every
 referenced parent row was generated and `PRAGMA foreign_key_check` was empty

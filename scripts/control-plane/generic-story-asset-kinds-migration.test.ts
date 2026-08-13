@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs"
 import { postgresMigrationStatements } from "../lib/postgres-migrations"
 
 const migration = readFileSync(
-  "db/control-plane/migrations/0225_control_plane_generic_story_asset_kinds.sql",
+  "db/control-plane/migrations/0226_control_plane_generic_story_asset_kinds.sql",
   "utf8",
 )
 

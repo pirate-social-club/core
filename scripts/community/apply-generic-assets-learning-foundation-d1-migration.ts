@@ -3,7 +3,7 @@
 import { runFleetMigration, type MigrationSpec } from "./lib/fleet-d1-migration"
 
 export const SPEC: MigrationSpec = {
-  migration: "1157_generic_assets_learning_foundation.sql",
+  migration: "1158_generic_assets_learning_foundation.sql",
   label: "community-template",
   requiredTables: ["posts", "assets", "post_publish_requests", "moderation_actions"],
   creates: {

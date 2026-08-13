@@ -1,4 +1,4 @@
-/** Generate a production-free canonical pre-1157 fixture at a row multiplier. */
+/** Generate a production-free canonical pre-1158 fixture at a row multiplier. */
 
 import { Database } from "bun:sqlite"
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises"
@@ -26,8 +26,8 @@ function positiveInteger(name: string, fallback?: number): number {
 
 async function applyPreMigrationSchema(db: Database, migrationsDir: string): Promise<void> {
   const files = (await readdir(migrationsDir)).filter((file) => file.endsWith(".sql")).sort()
-  const target = files.indexOf("1157_generic_assets_learning_foundation.sql")
-  if (target < 1) throw new Error("1157 migration not found after a pre-migration history")
+  const target = files.indexOf("1158_generic_assets_learning_foundation.sql")
+  if (target < 1) throw new Error("1158 migration not found after a pre-migration history")
   for (const file of files.slice(0, target)) db.exec(await readFile(join(migrationsDir, file), "utf8"))
 }
 

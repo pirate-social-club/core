@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
 const MIGRATIONS_DIR = join(import.meta.dir, "../../db/community-template/migrations")
-const MIGRATION = "1157_generic_assets_learning_foundation.sql"
+const MIGRATION = "1158_generic_assets_learning_foundation.sql"
 
 function migrationFiles(): string[] {
   return readdirSync(MIGRATIONS_DIR)
@@ -60,7 +60,7 @@ function insertAsset(
   `).run(input.assetId, input.postId, input.kind, input.primaryContentRef)
 }
 
-describe("1157 generic assets and learning foundation migration", () => {
+describe("1158 generic assets and learning foundation migration", () => {
   test("never relies on physical column order while rebuilding hot tables", () => {
     const sql = readFileSync(join(MIGRATIONS_DIR, MIGRATION), "utf8")
     expect(sql).not.toMatch(/INSERT\s+INTO\s+(?:posts|assets|post_publish_requests|moderation_actions)_next\s+SELECT\s+\*/iu)

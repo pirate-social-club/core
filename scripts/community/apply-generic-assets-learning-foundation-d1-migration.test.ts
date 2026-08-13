@@ -4,7 +4,7 @@ import { classificationSql } from "./lib/fleet-d1-migration"
 
 describe("generic assets and learning foundation fleet migration", () => {
   test("classifies rebuilt contracts, new tables, retained indexes, and partial rebuilds", () => {
-    expect(SPEC.migration).toBe("1157_generic_assets_learning_foundation.sql")
+    expect(SPEC.migration).toBe("1158_generic_assets_learning_foundation.sql")
     expect(SPEC.requiredTables).toEqual([
       "posts",
       "assets",
