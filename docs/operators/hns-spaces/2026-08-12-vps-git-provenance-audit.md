@@ -33,11 +33,12 @@ No secret values were read and no host state was changed.
    collision was structural: deploying either app could invalidate the other
    role's declared commit.
 3. Release verification covered role and app manifests, deploy-root config,
-   and host-managed executables. It did not cover installed systemd fragments
-   or generated `/etc/caddy/caddy.json`.
+   and host-managed executables. The installed-file manifest did not enumerate
+   additions and did not capture systemd's effective unit plus drop-ins.
 4. The third-party DNS proxy image was digest-pinned. The locally built HNS
-   observer and recursive chain-reader images used bare local tags; their build
-   recipes were tracked, but the running image bytes had no declared digest.
+   observer and recursive chain-reader images initially used bare local tags;
+   Core #514 later bound their running bytes to Docker content-addressed image
+   IDs in `DEPLOYMENT` and checks them during drift verification.
 5. The superseded `infra/hns-edge` prototype was outside any Git repository and
    was marked `do not deploy`; the canonical implementation lived under
    `core/ops/vps` and `core/services`.
@@ -82,12 +83,16 @@ health route required authentication as designed.
 | Role and app-release files | Release `SHA256SUMS` |
 | `$DEPLOY_ROOT/config/**` | `CONFIG_SHA256` |
 | Bun and the custom Caddy binary | `RUNTIME_SHA256SUMS` |
-| Installed systemd fragments and generated Caddy JSON | `INSTALLED_SHA256SUMS` |
+| Installed file bytes and generated Caddy JSON | `INSTALLED_SHA256SUMS` |
+| Effective systemd units plus drop-ins | `SYSTEMD_UNIT_SHA256SUMS` (normalized `systemctl cat`) |
+| Locally built container image bytes | `LOCAL_IMAGE_ID_*` in `DEPLOYMENT` |
 
 The installed-file manifest belongs to the role that performs the installation
 and is itself covered by that role's config hash. It detects a symlink repoint
 when the bytes at the installed path change; byte-identical replacement is
-outside this content-integrity boundary.
+outside this content-integrity boundary. The effective-unit manifest is also
+protected by `CONFIG_SHA256`; it covers the unit assembled by systemd, including
+drop-ins, rather than only the individual files recorded at install time.
 
 ## Remediation order
 
@@ -102,9 +107,12 @@ outside this content-integrity boundary.
 3. Merge the Spaces production lineage through protected `main`, run CI, and
    redeploy both its role and app from mainline commits.
 4. Enable deployment-drift verification for backup, gateway, and verifier.
-5. Record installed systemd fragments and generated Caddy JSON at install time.
-6. Build local container images into a digest-addressed registry artifact or
-   record and verify an equivalent immutable image identifier.
+5. Record installed systemd fragments and generated Caddy JSON at install time;
+   Core #532 now also records and verifies the normalized effective unit,
+   including drop-ins. The gateway is the sole tracked owner of `caddy.service`.
+6. Core #514 records and verifies immutable Docker image IDs for the locally
+   built observer and recursive chain-reader images; future releases must
+   capture those IDs after building from the same protected Core commit.
 7. Reconcile the three secondary-only zones through the reviewed zone-lifecycle
    process.
 8. Archive or remove the superseded unversioned prototype after confirming it
