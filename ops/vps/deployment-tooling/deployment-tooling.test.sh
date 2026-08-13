@@ -213,8 +213,11 @@ installed_target="$work/installed-unit-v1.service"
 installed_file="$work/installed-unit.service"
 echo "tracked installed unit" > "$installed_target"
 ln -s "$installed_target" "$installed_file"
+dropin_file="$work/etc/systemd/system/pirate-demo.service.d/override.conf"
+mkdir -p "$(dirname "$dropin_file")"
+echo "[Service]" > "$dropin_file"
 bash "$deploy_root/current/bin/record-installed-files.sh" \
-  --deploy-root "$deploy_root" --systemd-unit pirate-demo.service "$installed_file" >/dev/null
+  --deploy-root "$deploy_root" --systemd-unit pirate-demo.service "$installed_file" "$dropin_file" >/dev/null
 
 status() { bash "$deploy_root/current/bin/deployment-status.sh" --deploy-root "$deploy_root" "$@"; }
 
@@ -238,7 +241,7 @@ grep -q "runtime: 1 host executables checksums OK" <<< "$clean_status" \
 grep -q "systemd: 1 effective units checksums OK" <<< "$clean_status" \
   || fail "status omitted effective systemd integrity: $clean_status"
 pass "status reports when deployment heartbeats are not configured"
-grep -q "installed: 1 host files checksums OK" <<< "$clean_status" \
+grep -q "installed: 2 host files checksums OK" <<< "$clean_status" \
   || fail "status omitted installed host file integrity: $clean_status"
 pass "verify reports and passes clean role + app deployment"
 
