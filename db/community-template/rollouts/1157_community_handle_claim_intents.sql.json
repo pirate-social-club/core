@@ -1,0 +1,8 @@
+{
+  "migration": "1157_community_handle_claim_intents.sql",
+  "rollout_workflow": "pirate-social-club/web/.github/workflows/community-handle-claim-intents-fleet-migration.yml",
+  "operator_spec": "scripts/community/apply-community-handle-claim-intents-d1-migration.ts",
+  "targets": ["staging", "production"],
+  "audit_before_apply": true,
+  "production_confirmation": "APPLY 1157 TO PRODUCTION"
+}
