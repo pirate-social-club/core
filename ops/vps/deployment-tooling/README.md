@@ -37,6 +37,18 @@ Releases are immutable and built only from clean, exact git commits that are
 ancestors of the locally fetched `refs/remotes/origin/main`.
 Configuration and state never live inside a release.
 
+### Runtime mount boundary
+
+Release checksums prove that the tracked compose file is authentic; they do
+not prove that a running container uses the paths declared in that file.
+Compose resolves relative bind mounts from the release directory, so a
+`./data` or `./secrets` mount can silently create fresh state after a release
+switch while the release and config manifests still verify cleanly. Stateful
+roles must use explicit stable host paths (normally under `$DEPLOY_ROOT/shared`
+or `$DEPLOY_ROOT/config`) and deployment should inspect the live container
+mounts during cutover. The deployment harness rejects release-relative
+`./data` and `./secrets` mounts across every `ops/vps/*/compose.yaml`.
+
 ## Building a release (operator machine, clean checkout)
 
 ```

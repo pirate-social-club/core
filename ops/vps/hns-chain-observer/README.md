@@ -67,13 +67,15 @@ Use the Pirate Infisical profile before reading or rendering secrets. From this
 directory on the VPS:
 
 ```bash
-mkdir -p data secrets
-sudo install -m 0600 /dev/null secrets/hsd_api_key
-# Render a random >=32-character HNS_CHAIN_RPC_API_KEY into secrets/hsd_api_key.
+export HSD_DATA_DIR=/srv/pirate-hns-observer/shared/data
+export HSD_API_KEY_FILE=/srv/pirate-hns-observer/config/hsd_api_key
+sudo mkdir -p "$HSD_DATA_DIR" "$(dirname "$HSD_API_KEY_FILE")"
+sudo install -m 0600 /dev/null "$HSD_API_KEY_FILE"
+# Render a random >=32-character HNS_CHAIN_RPC_API_KEY into HSD_API_KEY_FILE.
 
 cp env/hsd-observer.env.example .env
 sed -i "s/^HSD_UID=.*/HSD_UID=$(id -u)/; s/^HSD_GID=.*/HSD_GID=$(id -g)/" .env
-sudo chown -R "$(id -u):$(id -g)" data
+sudo chown -R "$(id -u):$(id -g)" "$HSD_DATA_DIR"
 docker compose build --pull
 docker compose up -d
 docker compose ps

@@ -21,6 +21,7 @@ set -euo pipefail
 #  16. release construction rejects non-main commits unless break-glass is recorded
 #  17. relative app output roots and missing-main diagnostics remain unambiguous
 #  18. locally built container IDs are recorded and verified
+#  19. stateful VPS compose roles use stable host paths, not release-relative mounts
 
 tooling_dir="$(cd "$(dirname "$0")" && pwd)"
 work="$(mktemp -d)"
@@ -28,6 +29,30 @@ trap 'rm -rf "$work"' EXIT
 
 fail() { echo "FAIL: $1" >&2; exit 1; }
 pass() { echo "ok: $1"; }
+
+# Stateful data and secret mounts must survive immutable release replacement.
+# A release-relative path silently creates a new empty state directory on the
+# next checkout and lets deployment verification bless the wrong bytes. This
+# sweep is intentionally fleet-wide: a new stateful role must inherit the
+# stable-path rule without requiring another role-specific test update.
+observer_compose="$tooling_dir/../hns-chain-observer/compose.yaml"
+authdns_compose="$tooling_dir/../hns-authoritative-dns/compose.yaml"
+grep -Fq '${HSD_DATA_DIR:-/srv/pirate-hns-observer/shared/data}' "$observer_compose" \
+  || fail "chain observer data mount is not release-independent"
+grep -Fq '${HSD_API_KEY_FILE:-/srv/pirate-hns-observer/config/hsd_api_key}' "$observer_compose" \
+  || fail "chain observer secret mount is not release-independent"
+grep -Fq '${PDNS_DATA_DIR:-/srv/pirate-hns-authdns/shared/data}' "$authdns_compose" \
+  || fail "authoritative DNS data mount is not release-independent"
+secondary_compose="$tooling_dir/../hns-secondary-dns/compose.yaml"
+grep -Fq '${PDNS_DATA_DIR:-/srv/pirate-hns-secondary/shared/data}' "$secondary_compose" \
+  || fail "secondary DNS data mount is not release-independent"
+while IFS= read -r compose_file; do
+  if sed 's/#.*$//' "$compose_file" \
+    | grep -Eq '(^|[[:space:]:-])(\./(data|secrets)|\$\{[^}]*:-\./(data|secrets))'; then
+    fail "VPS compose role retains a release-relative data or secret mount: $compose_file"
+  fi
+done < <(find "$tooling_dir/.." -mindepth 2 -maxdepth 2 -type f -name compose.yaml -print | sort)
+pass "stateful VPS compose roles use stable host paths"
 
 # --- fixture repo with a minimal role ---------------------------------------
 

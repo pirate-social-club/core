@@ -68,8 +68,9 @@ printf '%s\n' 'net.ipv4.ip_unprivileged_port_start=53' \
 sudo sysctl --system
 test "$(sysctl -n net.ipv4.ip_unprivileged_port_start)" -eq 53
 
-mkdir -p data && sudo chown -R 953:953 data
-docker run --rm --user 953:953 -v "$PWD/data:/var/lib/powerdns" \
+export PDNS_DATA_DIR=/srv/pirate-hns-authdns/shared/data
+sudo mkdir -p "$PDNS_DATA_DIR" && sudo chown -R 953:953 "$PDNS_DATA_DIR"
+docker run --rm --user 953:953 -v "$PDNS_DATA_DIR:/var/lib/powerdns" \
   --entrypoint /bin/sh \
   powerdns/pdns-auth-51@sha256:f976e753a1de8ec62636203ecb12ae5fa3d1055601be167de53f1f673e0abe59 \
   -c 'sqlite3 /var/lib/powerdns/pdns.sqlite3 < /usr/local/share/doc/pdns/schema.sqlite3.sql'
