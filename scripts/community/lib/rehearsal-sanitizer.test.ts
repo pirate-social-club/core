@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test"
 import {
   assertCompleteSanitizationRules,
   profileRehearsalDatabase,
+  sanitizationInventory,
   sanitizeRehearsalDatabase,
   type SanitizationRule,
 } from "./rehearsal-sanitizer"
@@ -42,6 +43,25 @@ describe("rehearsal sanitizer", () => {
   test("requires an explicit decision for every TEXT/BLOB column", () => {
     const db = fixture()
     expect(() => assertCompleteSanitizationRules(db, RULES.slice(1))).toThrow("missing:posts.post_id")
+    db.close()
+  })
+
+  test("inventories aggregate shape without exposing values", () => {
+    const db = fixture()
+    const inventory = sanitizationInventory(db)
+    expect(inventory.find(({ table, column }) => table === "posts" && column === "body")).toEqual({
+      table: "posts",
+      column: "body",
+      declaredType: "TEXT",
+      rowCount: 3,
+      nullCount: 1,
+      distinctCount: 2,
+      minimumByteLength: 12,
+      maximumByteLength: 19,
+      mode: "unresolved",
+    })
+    expect(inventory.filter(({ table }) => table === "schema_migrations").every(({ mode }) => mode === "preserve"))
+      .toBe(true)
     db.close()
   })
 

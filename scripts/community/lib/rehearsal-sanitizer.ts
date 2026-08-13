@@ -21,6 +21,15 @@ type TextOrBlobColumn = {
   declaredType: string
 }
 
+export type SanitizationInventoryEntry = TextOrBlobColumn & {
+  rowCount: number
+  nullCount: number
+  distinctCount: number
+  minimumByteLength: number | null
+  maximumByteLength: number | null
+  mode: SanitizationMode | "unresolved"
+}
+
 function quoteIdentifier(value: string): string {
   return `"${value.replaceAll('"', '""')}"`
 }
@@ -34,6 +43,38 @@ function textOrBlobColumns(db: Database): TextOrBlobColumn[] {
       .filter(({ type }) => /(?:^|\W)(?:TEXT|CHAR|CLOB|BLOB)(?:\W|$)/iu.test(type))
       .map(({ name: column, type: declaredType }) => ({ table, column, declaredType })),
   )
+}
+
+export function sanitizationInventory(db: Database): SanitizationInventoryEntry[] {
+  return textOrBlobColumns(db).map(({ table, column, declaredType }) => {
+    const identifier = quoteIdentifier(column)
+    const row = db.query<{
+      row_count: number
+      null_count: number
+      distinct_count: number
+      minimum_byte_length: number | null
+      maximum_byte_length: number | null
+    }, []>(`
+      SELECT
+        COUNT(*) AS row_count,
+        SUM(CASE WHEN ${identifier} IS NULL THEN 1 ELSE 0 END) AS null_count,
+        COUNT(DISTINCT ${identifier}) AS distinct_count,
+        MIN(length(CAST(${identifier} AS BLOB))) AS minimum_byte_length,
+        MAX(length(CAST(${identifier} AS BLOB))) AS maximum_byte_length
+      FROM ${quoteIdentifier(table)}
+    `).get()
+    return {
+      table,
+      column,
+      declaredType,
+      rowCount: Number(row?.row_count ?? 0),
+      nullCount: Number(row?.null_count ?? 0),
+      distinctCount: Number(row?.distinct_count ?? 0),
+      minimumByteLength: row?.minimum_byte_length ?? null,
+      maximumByteLength: row?.maximum_byte_length ?? null,
+      mode: table === "schema_migrations" ? "preserve" : "unresolved",
+    }
+  })
 }
 
 export function assertCompleteSanitizationRules(
