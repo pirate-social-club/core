@@ -200,22 +200,24 @@ try {
     const sessionDuplicates = await tx`
     WITH grouped AS (
       SELECT source_verification_session_id,
+             status,
              provider,
              capability_key,
              COUNT(*)::integer AS row_count
       FROM user_attestations
       WHERE source_verification_session_id IS NOT NULL
         AND capability_key IS NOT NULL
-      GROUP BY source_verification_session_id, provider, capability_key
+      GROUP BY source_verification_session_id, status, provider, capability_key
       HAVING COUNT(*) > 1
     )
-    SELECT provider,
+    SELECT status,
+           provider,
            capability_key,
            COUNT(*)::integer AS duplicate_session_groups,
            SUM(row_count)::integer AS duplicate_rows
     FROM grouped
-    GROUP BY provider, capability_key
-    ORDER BY provider, capability_key
+    GROUP BY status, provider, capability_key
+    ORDER BY status, provider, capability_key
   `;
 
     const lifecycleAnomalies = await tx`

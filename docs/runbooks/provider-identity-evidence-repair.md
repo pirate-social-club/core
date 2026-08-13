@@ -57,14 +57,27 @@ rtk bun scripts/control-plane/provider-identity-evidence-repair.ts \
   --confirm-repair provider-identity-evidence
 ```
 
-Production execution must use the reviewed migration/operator workflow and the
-existing Core production migration identity. Never substitute a raw runtime
-connection or a direct `psql`/D1 write. The checked-in
-`.github/workflows/provider-identity-evidence-repair.yml` is the supported
-workflow: dispatch it from Core `main`, use the established Core production
-OIDC identity authorized for `prod:/services/api`, run `dry-run`, review the
-uploaded snapshot, and dispatch `execute` with the same decision reference.
-The workflow is main-only and deliberately uses the same OIDC subject shape as
-the existing Core migration workflows; adding a GitHub environment would alter
-that subject and cause Infisical to reject the identity. It always runs a
-post-state audit and uploads the before, after, and full-row snapshot artifacts.
+Production execution must use the reviewed Web production OIDC workflow and
+never a raw runtime connection or direct `psql`/D1 write. The checked-in
+`web/.github/workflows/provider-identity-evidence-repair.yml` is the supported
+workflow: dispatch it from Web `main`, use the existing Web production identity
+authorized for `prod:/services/api`, run `dry-run`, review the uploaded snapshot,
+and dispatch `execute` with the same decision reference. It always runs a
+post-state audit, asserts the accepted-row constraint counts are clean, and
+uploads the before, after, and full-row snapshot artifacts.
+
+## Production reconciliation outcome
+
+Decision reference `provider-identity-reconciliation-20260813` executed through
+the Web production OIDC workflow on 2026-08-13. The transaction superseded two
+unbound Self `unique_human` attestations and expired eight accepted-but-stale
+rows. The two superseded rows were the duplicate group for one user, so the
+active durable-evidence population changed from three rows across two users to
+one linked row for one user. The derived user projection was intentionally left
+untouched; the affected user will need to re-verify when authorization moves to
+durable evidence.
+
+The post-audit retains the two superseded historical rows as a duplicate
+verification-session group. That audit is status-aware, and the session
+idempotency constraint is therefore a partial unique index on
+`status = 'accepted'`, matching the canonical evidence index.

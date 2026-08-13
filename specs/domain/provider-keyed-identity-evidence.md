@@ -1,6 +1,6 @@
 # Provider-keyed identity evidence
 
-Status: design contract; reconciliation tooling pending production execution
+Status: design contract; production reconciliation completed; constraint migration pending
 
 Related docs:
 
@@ -39,6 +39,18 @@ new provider.
 The remaining database gaps are narrower: canonical active
 `user_attestations` per provider/capability and compare-and-set verification
 session finalization. Nullifier uniqueness must be preserved, not rebuilt.
+
+The uniqueness shapes are explicit and share the same definition of current:
+
+- canonical evidence uses a unique index on
+  `(user_id, capability_key, provider) WHERE status = 'accepted'`;
+- verification-session idempotency uses a unique index on
+  `(source_verification_session_id, capability_key, provider) WHERE status = 'accepted' AND source_verification_session_id IS NOT NULL`.
+
+Historical expired, revoked, and superseded rows remain queryable for audit and
+are intentionally outside both uniqueness constraints. The session-duplicate
+audit reports those non-current rows with their status; only accepted-session
+duplicates block the idempotency constraint.
 
 ## Authoritative evidence record
 
@@ -130,13 +142,14 @@ adds ZKPassport is a separate reviewed product operation.
 
 The migration should follow the `reward_identity_bindings` idiom:
 
-- add an explicit `superseded_at` timestamp if supersession remains a distinct
-  status;
-- add a CHECK that couples `accepted`, `expired`, `revoked`, and `superseded`
-  statuses to their required timestamps;
+- keep supersession reason and decision reference in `value_json`; there is no
+  `superseded_at` column on `user_attestations` and `revoked_at` must not be
+  populated for a supersession;
+- retain the existing status CHECK, which already permits `accepted`, `expired`,
+  `revoked`, and `superseded`;
 - allow at most one canonical `accepted` row for
   `(user_id, capability_key, provider)` with a partial unique index;
-- allow at most one row for
+- allow at most one `accepted` row for
   `(source_verification_session_id, capability_key, provider)` when the source
   session is present, making finalization idempotent at the database boundary;
 - supersede the prior accepted row before inserting its replacement in the
@@ -163,8 +176,9 @@ single point at which those users stop being authorized by the old projection.
 Before adding constraints, a read-only production audit must classify duplicate
 active groups by `(user_id, capability_key, provider)`, distinguish equal from
 conflicting values, and report missing, inactive, or provider-incompatible
-nullifier links. No row may be deleted or arbitrarily selected by the schema
-migration.
+nullifier links. It must also report duplicate verification-session groups with
+their lifecycle status; only accepted rows are constraint blockers. No row may
+be deleted or arbitrarily selected by the schema migration.
 
 ## Verification-session compare-and-set
 
@@ -239,7 +253,10 @@ differences rather than candidates for a single generalized resolver.
    to `expired`. The command fails closed on conflicting values or invalid
    links and leaves the derived user projection untouched.
 3. Re-run the audit and require zero duplicate active groups, unbound active
-   rows, stale accepted rows, and invalid links before adding constraints.
+   rows, stale accepted rows, invalid links, and duplicate accepted
+   verification-session groups before adding constraints. Non-current session
+   duplicates remain retained audit history and are excluded by the partial
+   `accepted` index.
 4. Add lifecycle constraints and verification-session compare-and-set.
 5. Introduce the shared reader and evaluator behind shadow comparisons.
 6. Convert community gates, reward eligibility, reward identity selection, and
