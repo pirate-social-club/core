@@ -236,7 +236,7 @@ type ShardStatus =
   | "schema_not_ready"
   | "missing_from_config"
   | "unreachable" // the shard could not be inspected; this is not schema drift
-  | "binding_unavailable" // D1 7403: binding target is absent or inaccessible; repair fleet config
+  | "binding_unavailable" // D1 7403: target is unavailable from the configured account; repair routing/config
   | "error"
 
 /** Anything other than `satisfied` fails the gate. Silence is not success. */
@@ -249,8 +249,9 @@ export function unavailableShardStatus(error: unknown): ShardStatus {
   // remediation truthful so an operator can retry the measurement.
   if (/\bcode(?:=|:\s*)7429\b/i.test(detail)) return "unreachable"
   // Cloudflare 7403 is not a transient overload. The configured database is
-  // absent or inaccessible to this account, so retries and temporary shard
-  // quarantine would only hide stale or incorrect fleet configuration.
+  // absent or inaccessible to the selected account, so retries and temporary
+  // shard quarantine would only hide stale configuration or wrong-account
+  // routing.
   if (/\bcode(?:=|:\s*)7403\b/i.test(detail)) return "binding_unavailable"
   return "error"
 }
@@ -1314,8 +1315,8 @@ async function main() {
     }
     if (unavailableBindings.length > 0) {
       console.error(
-        `\n${unavailableBindings.length} shard binding(s) point to a D1 database that is absent or inaccessible ` +
-          "(Cloudflare 7403). Do not quarantine or blindly retry them; remove or repoint the stale fleet binding.",
+        `\n${unavailableBindings.length} shard binding(s) target a D1 database unavailable from the configured account ` +
+          "(Cloudflare 7403). Do not quarantine or blindly retry them; verify account routing, then remove or repoint only if the target is stale.",
       )
     }
     console.error("Do NOT weaken this gate to go green — it exists because 1124 and 1127 each broke production.")
