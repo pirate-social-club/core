@@ -784,6 +784,47 @@ describe("handleRequest", () => {
     }
   });
 
+  test("renders a typed namespace outage as a trust/routing failure", async () => {
+    const calls: string[] = [];
+    const response = await handleRequest(
+      new Request("https://dankmeme/"),
+      env,
+      async (url) => {
+        calls.push(String(url));
+        return Response.json(
+          {
+            code: "namespace_unavailable",
+            message: "Namespace routing is temporarily unavailable",
+            retryable: true,
+          },
+          { status: 503 },
+        );
+      },
+    );
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const body = await response.text();
+    expect(body).toContain("Sovereign routing unavailable");
+    expect(body).toContain("trust or routing state could not be verified");
+    expect(body).not.toContain("does not map to a public Pirate profile");
+    expect(calls).toEqual(["https://api.pirate.sc/public-namespaces/dankmeme"]);
+  });
+
+  test("keeps a genuinely unknown imported root as a 404", async () => {
+    const response = await handleRequest(
+      new Request("https://unknown-root/"),
+      env,
+      async () => new Response(JSON.stringify({ code: "not_found" }), {
+        status: 404,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.text()).toContain("does not map to a public Pirate profile");
+  });
+
   test("routes a verified underscore HNS root through the dynamic gateway", async () => {
     const calls: string[] = [];
     const response = await handleRequest(
