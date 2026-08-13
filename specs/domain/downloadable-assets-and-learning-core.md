@@ -881,8 +881,10 @@ quarantine transition. The successor adds:
 - `previous_asset_enforcement_state` and `next_asset_enforcement_state` fields;
 - a target constraint permitting one comment, one ordinary post, or a linked
   generic-asset post-and-asset pair; and
-- an audit constraint requiring both asset-state snapshots and evidence for an
-  asset enforcement transition.
+- an audit constraint requiring evidence and both asset-state snapshots for an
+  asset enforcement transition, except that a restrictive hide/remove/
+  quarantine/block repair may record a null previous enforcement state when
+  the projection row was missing; restore never invents a prior state.
 
 `moderation_cases` remains post/comment scoped. Every generic asset has a
 non-null `source_post_id`, so asset enforcement always uses that post's case and
@@ -904,6 +906,9 @@ Projection is bidirectional and transactional:
   that post, in the same moderation transaction and action row;
 - restore returns an asset to `active` only when the action explicitly records
   that transition and no scanner, rights, or legal hold remains; and
+- existing enforcement rows update only when their current state matches the
+  action's planned previous state; restrictive actions may insert a missing
+  projection row, while restore fails closed when the row is absent; and
 - an enforcement reconciler repairs post/asset drift from the authoritative
   action and emits a conflict instead of guessing when histories disagree.
 
@@ -1071,15 +1076,25 @@ The finalizer performs these idempotent steps:
 3. create the social post;
 4. create the `download_file` asset and primary payload snapshot;
 5. claim the control-plane blob;
-6. prepare locked delivery and required Story state;
+6. re-read enforcement, then prepare locked delivery and required Story state;
 7. create the listing from `listing_draft` only after sellability passes;
 8. publish the post or record the existing retryable publication state.
 
 The post-create idempotency record stores the IDs allocated for every step so a
 retry resumes rather than duplicates the post, asset, payload, or listing.
 
-The same Phase 2 `posts` rebuild that adds `file` and `deck` also adds constrained
-failure codes for `payload_verification_failed`, `payload_safety_blocked`,
+CDR preparation is enforcement-aware on the write side as well as the access
+side. The finalizer re-reads `asset_enforcement` immediately before preparation
+and again before persisting `locked_delivery_status = 'ready'` or creating a
+listing. Missing or non-active state aborts publication. If quarantine or block
+wins while an external preparation call is in flight, the result is not attached
+to the asset or made recoverable through access; any newly prepared material is
+recorded for bounded cleanup. Access-time enforcement checks do not replace
+these publication-time checks.
+
+The same Phase 2 rebuild updates both constrained failure-code authorities:
+`posts.publish_failure_code` and `post_publish_requests.failure_code`. Both add
+`payload_verification_failed`, `payload_safety_blocked`,
 `payload_safety_review_required`, `payload_claim_failed`,
 `deck_package_generation_failed`, and `deck_package_hash_mismatch`. Provider,
 Story, locked-delivery, listing, catalog, and internal failures continue using
@@ -1126,7 +1141,18 @@ type AssetPayloadDescriptor = {
 
 The descriptor may be exposed as listing-safe metadata before purchase, but a
 delivery reference or CDR package is returned only after the existing access
-decision grants access.
+decision grants access. Exposing `content_hash` before purchase is deliberate:
+it lets clients bind listings and later downloads to the immutable payload and
+lets a party that already possesses the bytes confirm the match. The API never
+returns malware deny-list membership or a scanner verdict for an arbitrary
+hash, so the descriptor is not a deny-list query endpoint. Changing this trade
+requires a versioned listing-integrity design rather than silently redacting the
+hash from one response branch.
+
+Missing payload and non-active enforcement use the route's ordinary not-found
+response message and shape. Public callers cannot distinguish a nonexistent
+asset from a quarantined, blocked, or incomplete generic asset; internal logs
+and bounded metrics retain the operational reason without exposing it.
 
 For `delivery_behavior = download`, the web client uses one shared download
 controller. It resolves access, fetches or decrypts the payload, verifies the
@@ -1791,11 +1817,12 @@ Do not rename or drop legacy song tables in this phase.
 
 ### Phase 2: one community schema foundation and Story projection
 
-- Rebuild constrained asset/post tables to add `download_file`,
-  `learning_deck`, `file`, `deck`, nullable kind-bound `primary_content_ref`,
-  and the new publication failure codes where required. The posts rebuild is a
-  reviewed successor to `1117_async_post_publish.sql`, preserving every current
-  column, index, trigger, and existing enum member.
+- Rebuild constrained asset/post tables and `post_publish_requests` to add
+  `download_file`, `learning_deck`, `file`, `deck`, nullable kind-bound
+  `primary_content_ref`, and both copies of the new publication failure codes.
+  The posts/publish-request rebuild is a reviewed successor to
+  `1117_async_post_publish.sql`, preserving every current column, index,
+  trigger, and existing enum member.
 - Rebuild `moderation_actions` to add paired asset targets, enforcement-state
   snapshots, quarantine/block/restore actions, and the bidirectional projection
   audit contract while preserving existing actions.
@@ -1826,16 +1853,43 @@ staging and production attestations are independent from the central
 control-plane migration. Both must complete and be verified before an API
 writer can emit a new kind.
 
-Before review approval, the exact migration runs against a privacy-safe copy of
-the largest current production shard using the production D1 migration
-transport and limits. The gate records table-copy statement duration, total
-elapsed time, database-size growth, and D1 retries/errors; verifies old/new row
-counts, indexes, schema hash, and `PRAGMA foreign_key_check`; and requires at
-least 50 percent headroom below the applicable statement and execution limits.
-The copy must preserve production row counts and size distribution even when
-content fields are sanitized. If this gate fails, the single-sweep design is
-re-reviewed and split safely before fleet scheduling; the migration is not
-waived or trialed first on a live small shard.
+The community migration number used by an in-flight branch is provisional.
+While the migration is awaiting the largest-shard rehearsal, the branch is
+rebased regularly and the next free number is allocated only in the final
+pre-merge update. If main claims that number first, the Core migration, the
+API's byte-identical migration fixture, and the API schema-requirement manifest
+entry are renamed together before either PR merges. A new duplicate-prefix
+exception is not an acceptable way to preserve the stale number; historical
+duplicate prefixes remain frozen compatibility exceptions only.
+
+Before review approval, the exact migration runs through the production D1
+transport in two complementary rehearsals. A restricted, privacy-reduced copy
+of the largest allocated-and-loaded production shard proves real schema,
+ledger-drift, row-shape, index, and foreign-key fidelity. Sanitization is
+mechanical and length-preserving: `schema_migrations` remains byte-for-byte
+unchanged; PK, FK, UNIQUE, and CHECK-participating columns are preserved
+schema-wide (CHECKs still execute while non-rebuilt tables are sanitized); and
+unconstrained text/blob content is replaced without changing its byte-length
+distribution. The resulting copy remains restricted operational evidence
+because preserved keys and constrained values are not promised anonymous.
+
+Separate synthetic shards built from the canonical pre-migration schema at
+100× and 1000× the largest shard's four rebuilt-table row/byte shape provide
+the scale evidence the currently small production fleet cannot. Fixtures must
+remain below D1's current per-database and import limits; if the literal 1000×
+fixture would cross a platform limit, its construction uses bounded remote
+batches or records that limit as the earlier hard ceiling rather than silently
+shrinking the factor. Both runs record table-copy statement duration, total
+elapsed time, database-size growth, and D1 retries/errors; verify old/new row
+counts, indexes, schema hash, and `PRAGMA foreign_key_check`; and require at
+least 50 percent headroom below applicable statement and execution limits.
+
+The real-shard shape rehearsal re-runs when the migration bytes change or the
+largest allocated-and-loaded production shard first crosses 100 MiB and each
+subsequent 100 MiB boundary. Synthetic scale evidence re-runs when migration
+bytes, applicable D1 limits, or the canonical fixture generator change. If a
+gate fails, the single-sweep design is re-reviewed and split safely before
+fleet scheduling; the migration is not waived or trialed first on a live shard.
 
 ### Phase 3: downloadable file vertical
 
@@ -2095,6 +2149,12 @@ CDR keys, signed URLs, or raw wallet proofs.
 - The consolidated community schema foundation, generated schema snapshot, and
   schema requirement manifest change together in one fleet sweep; Phase 4 does
   not schedule a second learning-table sweep.
+- Treat the canonical baseline as an exception map, not a fleet inventory.
+  Immediately before apply, a fresh manifest from the exact pinned Core/API
+  revisions must classify every allocated-and-loaded shard. After 1158 is fully
+  applied and attested, regenerate and land the post-1158 production canonical
+  baseline before the next release gate; a manifest from older canonical
+  migrations is not valid baseline input.
 - The central Story projection migration has its own attestation and completes
   before generic writers deploy.
 - The exact consolidated migration passes the largest-shard production-D1 dry

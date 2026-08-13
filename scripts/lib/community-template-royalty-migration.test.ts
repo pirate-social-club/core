@@ -129,8 +129,15 @@ describe("community-template royalty-allocation migrations", () => {
     expect(royalty.length).toBe(2);
 
     const fresh = applyMigrations(all);
-    // Existing-deployment upgrade: everything else first, then the royalty migrations.
-    const upgradeOrder = [...all.filter((file) => !royalty.includes(file)), ...royalty];
+    // Existing-deployment upgrade: the historical royalty migrations may land
+    // after their additive peers, but must precede a later canonical assets
+    // rebuild that deliberately copies their columns into the successor table.
+    const successorRebuilds = all.filter((file) => /^1158_/.test(file));
+    const upgradeOrder = [
+      ...all.filter((file) => !royalty.includes(file) && !successorRebuilds.includes(file)),
+      ...royalty,
+      ...successorRebuilds,
+    ];
     const upgrade = applyMigrations(upgradeOrder);
 
     expect(schemaFingerprint(upgrade)).toBe(schemaFingerprint(fresh));

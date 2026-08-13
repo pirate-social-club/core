@@ -607,6 +607,10 @@ export type ModerationSignal = {
   provider: string;
   provider_label: string;
   evidence_ref?: string | null;
+  previous_post_status?: "draft" | "published" | "hidden" | "removed" | "deleted" | null;
+  next_post_status?: "draft" | "published" | "hidden" | "removed" | "deleted" | null;
+  previous_asset_enforcement_state?: "active" | "quarantined" | "blocked" | null;
+  next_asset_enforcement_state?: "active" | "quarantined" | "blocked" | null;
   created: number;
 };
 
@@ -616,6 +620,7 @@ export type UserReport = {
   community: string;
   post: string | null;
   comment: string | null;
+  asset: string | null;
   reporter_user: string;
   reason_code: UserReportReasonCode;
   note?: string | null;
@@ -1065,7 +1070,7 @@ type CrosspostSource = {
   post: string;
   community: string;
   captured_at?: string | null;
-  post_type?: "text" | "image" | "video" | "link" | "song" | null;
+  post_type?: "text" | "image" | "video" | "link" | "song" | "crosspost" | "file" | "deck" | null;
   title?: string | null;
   community_label?: string | null;
   community_route_slug?: string | null;
@@ -1223,7 +1228,7 @@ type MediaDescriptor = {
   preview_video?: SongVideoArtifactDescriptor | null;
 };
 
-type ModerationActionType = "dismiss" | "hide" | "remove" | "restore" | "age_gate" | "set_content_rating";
+type ModerationActionType = "dismiss" | "hide" | "remove" | "restore" | "age_gate" | "set_content_rating" | "quarantine_asset" | "block_asset" | "restore_asset";
 
 type ModerationCaseListItem = (ModerationCase & {
   post: ModerationCasePostPreview | null;
@@ -1301,7 +1306,7 @@ type Post = {
   agent_ownership_provider_snapshot?: string | null;
   disclosed_qualifiers_json?: Array<DisclosedQualifierSnapshot> | null;
   label?: string | null;
-  post_type: "text" | "image" | "video" | "link" | "song" | "crosspost";
+  post_type: "text" | "image" | "video" | "link" | "song" | "crosspost" | "file" | "deck";
   status: "draft" | "processing" | "published" | "failed" | "hidden" | "removed" | "deleted";
   comments_locked?: boolean;
   comments_locked_at?: number | null;
@@ -1359,7 +1364,7 @@ type PostCreatorRelation = "captured" | "created" | "subject" | "authorized_repo
 
 type PostEmbed = (XPostEmbed | YouTubeVideoEmbed | KalshiMarketEmbed | PolymarketMarketEmbed);
 
-type PostPublishFailureCode = "song_analysis_blocked" | "song_analysis_review_required" | "song_rights_reference_required" | "song_preview_generation_failed" | "text_moderation_blocked" | "story_royalty_registration_failed" | "story_locked_delivery_failed" | "listing_creation_failed" | "catalog_sync_failed" | "provider_unavailable" | "internal_error";
+type PostPublishFailureCode = "song_analysis_blocked" | "song_analysis_review_required" | "song_rights_reference_required" | "song_preview_generation_failed" | "text_moderation_blocked" | "story_royalty_registration_failed" | "story_locked_delivery_failed" | "listing_creation_failed" | "catalog_sync_failed" | "provider_unavailable" | "internal_error" | "payload_verification_failed" | "payload_safety_blocked" | "payload_safety_review_required" | "payload_claim_failed" | "deck_package_generation_failed" | "deck_package_hash_mismatch";
 
 type PredictionMarketChartPoint = {
   ts: number;

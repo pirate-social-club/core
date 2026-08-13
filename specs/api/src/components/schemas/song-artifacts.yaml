@@ -560,6 +560,8 @@ Asset:
       enum:
         - song_audio
         - video_file
+        - download_file
+        - learning_deck
     rights_basis:
       type: string
       enum:
@@ -586,6 +588,7 @@ Asset:
       nullable: true
     primary_content_ref:
       type: string
+      nullable: true
     primary_content_hash:
       type: string
       nullable: true
@@ -698,6 +701,37 @@ Asset:
     created:
       type: integer
       format: int64
+AssetPayloadDescriptor:
+  type: object
+  additionalProperties: false
+  required:
+    - delivery_behavior
+    - display_filename
+    - mime_type
+    - size_bytes
+    - content_hash
+    - payload_format
+  properties:
+    delivery_behavior:
+      type: string
+      enum:
+        - download
+        - app_native
+        - audio
+        - video
+    display_filename:
+      type: string
+      nullable: true
+    mime_type:
+      type: string
+    size_bytes:
+      type: integer
+      format: int64
+      minimum: 1
+    content_hash:
+      type: string
+    payload_format:
+      type: string
 AssetAccessResponse:
   type: object
   required:
@@ -712,6 +746,7 @@ AssetAccessResponse:
     - decision_reason
     - delivery_kind
     - delivery_ref
+    - payload
   properties:
     asset:
       type: string
@@ -773,6 +808,9 @@ AssetAccessResponse:
         - story_cdr_ref
     delivery_ref:
       type: string
+      nullable: true
+    payload:
+      $ref: ./song-artifacts.yaml#/AssetPayloadDescriptor
       nullable: true
     story_cdr_access:
       type: object
