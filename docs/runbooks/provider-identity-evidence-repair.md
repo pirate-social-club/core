@@ -64,5 +64,7 @@ connection or a direct `psql`/D1 write. The checked-in
 workflow: dispatch it from Core `main`, use the established Core production
 OIDC identity authorized for `prod:/services/api`, run `dry-run`, review the
 uploaded snapshot, and dispatch `execute` with the same decision reference.
-The workflow always runs a post-state audit and uploads the before, after, and
-full-row snapshot artifacts.
+The workflow is main-only and deliberately uses the same OIDC subject shape as
+the existing Core migration workflows; adding a GitHub environment would alter
+that subject and cause Infisical to reject the identity. It always runs a
+post-state audit and uploads the before, after, and full-row snapshot artifacts.

@@ -25,7 +25,6 @@ jobs:
     name: Reconcile provider identity evidence (read-only or approved write)
     runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 15
-    environment: production
     permissions:
       contents: read
       id-token: write
