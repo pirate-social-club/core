@@ -146,6 +146,26 @@ manifest, not a symlink-identity ledger. Each invocation replaces the manifest:
 pass the complete set of installed files owned by that role. Daily deployment
 verification checks their live bytes.
 
+When an installed path belongs to systemd, the helper also records the effective
+unit assembled by `systemctl cat`, including every drop-in, in
+`config/SYSTEMD_UNIT_SHA256SUMS`. Source-path comments emitted by systemd,
+line-ending differences, and trailing whitespace are normalized; directive
+internal whitespace is preserved. A unit can be recorded explicitly when no
+unit file path is among the installed files:
+
+```bash
+sudo $DEPLOY_ROOT/current/bin/record-installed-files.sh \
+  --deploy-root "$DEPLOY_ROOT" \
+  --systemd-unit caddy.service \
+  /etc/caddy/caddy.json
+```
+
+The effective-unit manifest is protected by `CONFIG_SHA256`, and verification
+fails if a unit or any of its drop-ins is unavailable or changes. Every shared
+host unit has exactly one owning role; for example, the gateway owns
+`caddy.service`, so other roles must not record or install competing Caddy
+drop-ins.
+
 ## Daily drift timer
 
 For a host with exactly one Pirate role, the original single-role unit remains

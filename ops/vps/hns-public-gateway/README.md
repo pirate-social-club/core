@@ -137,18 +137,34 @@ Install the tracked systemd override before the first reload, then run
 binary that supplies `rate_limit`; the distribution `/usr/bin/caddy` does not
 contain that module.
 
-After installing the gateway unit, both Caddy overrides, and the generated JSON,
+After installing the gateway unit, its Caddy override, and the generated JSON,
 record their live bytes under the gateway role. This is separate from
 `RUNTIME_SHA256SUMS`, which already covers the custom Caddy binary and Bun:
 
 ```bash
 sudo /srv/pirate-hns-gateway/current/bin/record-installed-files.sh \
   --deploy-root /srv/pirate-hns-gateway \
+  --systemd-unit caddy.service \
   /etc/systemd/system/pirate-hns-public-gateway.service \
-  /etc/systemd/system/caddy.service.d/20-rate-limited.conf \
   /etc/systemd/system/caddy.service.d/30-production-json.conf \
   /etc/caddy/caddy.json
 ```
+
+The gateway is the sole owner of `caddy.service`. During the first gateway
+cutover, confirm that the running Caddy admin configuration is byte-equivalent
+to the generated `/etc/caddy/caddy.json`, then remove the superseded verifier
+drop-in before recording the manifest:
+
+```bash
+sudo rm -f /etc/systemd/system/caddy.service.d/20-rate-limited.conf
+sudo systemctl daemon-reload
+```
+
+The production Caddyfile already carries the `/spaces/resolve` rate limit, so
+removing the duplicate drop-in does not remove that protection. If an old
+`/etc/caddy/Caddyfile` remains after the JSON cutover, remove it once
+`systemctl cat caddy.service` confirms that only `caddy.json` is loaded; do not
+leave an unowned alternate config on disk.
 
 Create `/etc/pirate-deployment-verify/gateway.env` with
 `DEPLOY_ROOT=/srv/pirate-hns-gateway` and the shared alert settings. Run
