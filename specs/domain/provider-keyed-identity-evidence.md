@@ -40,16 +40,22 @@ The remaining database gaps are narrower: canonical active
 `user_attestations` per provider/capability and compare-and-set verification
 session finalization. Nullifier uniqueness must be preserved, not rebuilt.
 
-The uniqueness shapes are explicit and share the same definition of current:
+The uniqueness shapes are explicit and share the same definition of current,
+but they differ by capability class:
 
-- canonical evidence uses a unique index on
+- personhood (`unique_human`) uses a unique index on
   `(user_id, capability_key, provider) WHERE status = 'accepted'`;
+- document evidence (`nationality`, `minimum_age`, `age_over_18`, and `gender`)
+  uses a unique index on
+  `(user_id, capability_key, provider, source_identity_nullifier_id) WHERE status = 'accepted' AND source_identity_nullifier_id IS NOT NULL`;
 - verification-session idempotency uses a unique index on
   `(source_verification_session_id, capability_key, provider) WHERE status = 'accepted' AND source_verification_session_id IS NOT NULL`.
 
 Historical expired, revoked, and superseded rows remain queryable for audit and
-are intentionally outside both uniqueness constraints. The session-duplicate
-audit reports those non-current rows with their status; only accepted-session
+are intentionally outside all uniqueness constraints. Unbound document rows are
+not eligible evidence and are intentionally outside the document index until a
+separately reviewed provenance classification is complete. The session-duplicate
+audit reports non-current rows with their status; only accepted-session
 duplicates block the idempotency constraint.
 
 ## Authoritative evidence record
@@ -124,8 +130,9 @@ The rule is **single-record any-match per atom**:
 This deliberately preserves the meaning of accepted providers as alternatives.
 A community that does not want provider choice can pin the atom to one
 provider. A user with two genuinely valid nationalities may satisfy positive
-allowlist atoms with either document; the evaluator does not invent one global
-"true nationality."
+allowlist atoms with either document, including two documents from the same
+provider, because document evidence is retained per source nullifier; the
+evaluator does not invent one global "true nationality."
 
 Nationality exclusion is not proof that a person lacks another nationality.
 Under any-match semantics, an excluded value cannot witness the atom, while a
@@ -147,14 +154,26 @@ The migration should follow the `reward_identity_bindings` idiom:
   populated for a supersession;
 - retain the existing status CHECK, which already permits `accepted`, `expired`,
   `revoked`, and `superseded`;
-- allow at most one canonical `accepted` row for
+- allow at most one canonical `accepted` personhood row for
   `(user_id, capability_key, provider)` with a partial unique index;
+- allow one canonical `accepted` document row per
+  `(user_id, capability_key, provider, source_identity_nullifier_id)` with a
+  partial unique index. A second verification of the same document supersedes
+  that document's prior row before inserting its replacement; a different
+  document remains independently accepted;
 - allow at most one `accepted` row for
   `(source_verification_session_id, capability_key, provider)` when the source
   session is present, making finalization idempotent at the database boundary;
 - supersede the prior accepted row before inserting its replacement in the
   same transaction;
 - update `verification_capabilities` last as a derived projection.
+
+The source-nullifier key is required for document capabilities because rewards
+bind to a selected document. Superseding a different document's nationality
+row merely because it is newer would make the reward query for the selected
+nullifier return no evidence and would silently change payout eligibility. The
+database therefore preserves multiple accepted document records for one user
+and provider when their source nullifiers differ.
 
 Expiry cannot be expressed as `expires_at > now()` in a partial unique index.
 The lifecycle must transition an expired accepted row to `expired` before a
