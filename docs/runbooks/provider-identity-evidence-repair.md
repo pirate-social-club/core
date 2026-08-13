@@ -57,12 +57,12 @@ rtk bun scripts/control-plane/provider-identity-evidence-repair.ts \
   --confirm-repair provider-identity-evidence
 ```
 
-Production execution must use the reviewed migration/operator workflow and its
-dedicated migrator credential. Never substitute a raw runtime connection or a
-direct `psql`/D1 write. The checked-in
+Production execution must use the reviewed migration/operator workflow and the
+existing Core production migration identity. Never substitute a raw runtime
+connection or a direct `psql`/D1 write. The checked-in
 `.github/workflows/provider-identity-evidence-repair.yml` is the supported
-workflow: dispatch it from Core `main`, use a dedicated Core production OIDC
-identity authorized only for `prod:/services/control-plane`, run `dry-run`,
-review the uploaded snapshot, and dispatch `execute` with the same decision
-reference. The workflow always runs a post-state audit and uploads the before,
-after, and full-row snapshot artifacts.
+workflow: dispatch it from Core `main`, use the established Core production
+OIDC identity authorized for `prod:/services/api`, run `dry-run`, review the
+uploaded snapshot, and dispatch `execute` with the same decision reference.
+The workflow always runs a post-state audit and uploads the before, after, and
+full-row snapshot artifacts.
