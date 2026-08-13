@@ -236,6 +236,7 @@ type ShardStatus =
   | "schema_not_ready"
   | "missing_from_config"
   | "unreachable" // the shard could not be inspected; this is not schema drift
+  | "binding_unavailable" // D1 7403: binding target is absent or inaccessible; repair fleet config
   | "error"
 
 /** Anything other than `satisfied` fails the gate. Silence is not success. */
@@ -247,6 +248,10 @@ export function unavailableShardStatus(error: unknown): ShardStatus {
   // migration is missing. Keep the gate fail-closed, but make the verdict and
   // remediation truthful so an operator can retry the measurement.
   if (/\bcode(?:=|:\s*)7429\b/i.test(detail)) return "unreachable"
+  // Cloudflare 7403 is not a transient overload. The configured database is
+  // absent or inaccessible to this account, so retries and temporary shard
+  // quarantine would only hide stale or incorrect fleet configuration.
+  if (/\bcode(?:=|:\s*)7403\b/i.test(detail)) return "binding_unavailable"
   return "error"
 }
 
@@ -1294,7 +1299,10 @@ async function main() {
     }
     if (failures.length > 20) console.error(`  ... and ${failures.length - 20} more (see manifest)`)
     const unreachable = failures.filter((report) => report.status === "unreachable")
-    const schemaFailures = failures.filter((report) => report.status !== "unreachable")
+    const unavailableBindings = failures.filter((report) => report.status === "binding_unavailable")
+    const schemaFailures = failures.filter(
+      (report) => report.status !== "unreachable" && report.status !== "binding_unavailable",
+    )
     if (schemaFailures.length > 0) {
       console.error("\nApply the missing community-template migrations to the fleet before this API can deploy.")
     }
@@ -1302,6 +1310,12 @@ async function main() {
       console.error(
         `\n${unreachable.length} shard(s) could not be inspected after retries; this is not schema-drift evidence. ` +
           "Retry the unchanged gate, and investigate the fleet if the same shard remains unreachable.",
+      )
+    }
+    if (unavailableBindings.length > 0) {
+      console.error(
+        `\n${unavailableBindings.length} shard binding(s) point to a D1 database that is absent or inaccessible ` +
+          "(Cloudflare 7403). Do not quarantine or blindly retry them; remove or repoint the stale fleet binding.",
       )
     }
     console.error("Do NOT weaken this gate to go green — it exists because 1124 and 1127 each broke production.")
