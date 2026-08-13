@@ -8325,6 +8325,9 @@ components:
         - restore
         - age_gate
         - set_content_rating
+        - quarantine_asset
+        - block_asset
+        - restore_asset
     ModerationSignal:
       type: object
       required:
@@ -8375,6 +8378,38 @@ components:
         evidence_ref:
           type: string
           nullable: true
+        previous_post_status:
+          type: string
+          nullable: true
+          enum:
+            - draft
+            - published
+            - hidden
+            - removed
+            - deleted
+        next_post_status:
+          type: string
+          nullable: true
+          enum:
+            - draft
+            - published
+            - hidden
+            - removed
+            - deleted
+        previous_asset_enforcement_state:
+          type: string
+          nullable: true
+          enum:
+            - active
+            - quarantined
+            - blocked
+        next_asset_enforcement_state:
+          type: string
+          nullable: true
+          enum:
+            - active
+            - quarantined
+            - blocked
         created:
           type: integer
           format: int64
@@ -8386,6 +8421,7 @@ components:
         - community
         - post
         - comment
+        - asset
         - reporter_user
         - reason_code
         - created
@@ -8404,6 +8440,9 @@ components:
           type: string
           nullable: true
         comment:
+          type: string
+          nullable: true
+        asset:
           type: string
           nullable: true
         reporter_user:

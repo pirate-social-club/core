@@ -607,6 +607,10 @@ export type ModerationSignal = {
   provider: string;
   provider_label: string;
   evidence_ref?: string | null;
+  previous_post_status?: "draft" | "published" | "hidden" | "removed" | "deleted" | null;
+  next_post_status?: "draft" | "published" | "hidden" | "removed" | "deleted" | null;
+  previous_asset_enforcement_state?: "active" | "quarantined" | "blocked" | null;
+  next_asset_enforcement_state?: "active" | "quarantined" | "blocked" | null;
   created: number;
 };
 
@@ -616,6 +620,7 @@ export type UserReport = {
   community: string;
   post: string | null;
   comment: string | null;
+  asset: string | null;
   reporter_user: string;
   reason_code: UserReportReasonCode;
   note?: string | null;
@@ -1223,7 +1228,7 @@ type MediaDescriptor = {
   preview_video?: SongVideoArtifactDescriptor | null;
 };
 
-type ModerationActionType = "dismiss" | "hide" | "remove" | "restore" | "age_gate" | "set_content_rating";
+type ModerationActionType = "dismiss" | "hide" | "remove" | "restore" | "age_gate" | "set_content_rating" | "quarantine_asset" | "block_asset" | "restore_asset";
 
 type ModerationCaseListItem = (ModerationCase & {
   post: ModerationCasePostPreview | null;
