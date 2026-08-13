@@ -28,6 +28,11 @@ type PublicNamespaceResolution = {
   };
 };
 
+type NamespaceResolutionResult =
+  | { kind: "resolved"; resolution: PublicNamespaceResolution }
+  | { kind: "not_found" }
+  | { kind: "unavailable" };
+
 export type HnsPublicGatewayEnv = CaddyAskEnv & {
   HNS_PUBLIC_GATEWAY_EXTERNAL_SCHEME?: string;
   HNS_PUBLIC_APP_ORIGIN?: string;
@@ -44,13 +49,13 @@ export type HnsForwarderMode = "dual" | "hmac_required" | "token_only" | "unconf
 
 type CachedNamespaceResolution = {
   freshUntil: number;
-  resolution: PublicNamespaceResolution | null;
+  result: NamespaceResolutionResult;
   staleUntil: number;
 };
 
 type NamespaceResolutionCache = {
   entries: Map<string, CachedNamespaceResolution>;
-  inflight: Map<string, Promise<PublicNamespaceResolution | null>>;
+  inflight: Map<string, Promise<NamespaceResolutionResult>>;
 };
 
 const namespaceCaches = new WeakMap<typeof fetch, NamespaceResolutionCache>();
@@ -74,12 +79,12 @@ async function resolveImportedNamespace(input: {
   fetchImpl: typeof fetch;
   forceRefresh?: boolean;
   rootLabel: string;
-}): Promise<PublicNamespaceResolution | null> {
+}): Promise<NamespaceResolutionResult> {
   const cache = namespaceCacheFor(input.fetchImpl);
   const key = `${input.apiOrigin}\n${input.rootLabel}`;
   const now = Date.now();
   const cached = cache.entries.get(key);
-  if (!input.forceRefresh && cached && cached.freshUntil > now) return cached.resolution;
+  if (!input.forceRefresh && cached && cached.freshUntil > now) return cached.result;
 
   const pending = cache.inflight.get(key);
   if (pending) return pending;
@@ -97,11 +102,17 @@ async function resolveImportedNamespace(input: {
           )),
         },
       );
-      let resolution: PublicNamespaceResolution | null;
+      let result: NamespaceResolutionResult;
       if (response.status === 404) {
-        resolution = null;
+        result = { kind: "not_found" };
+      } else if (response.status === 503) {
+        const body = await response.json().catch(() => null) as { code?: unknown } | null;
+        if (body?.code !== "namespace_unavailable") {
+          throw new Error("Namespace resolution returned an untyped 503");
+        }
+        result = { kind: "unavailable" };
       } else if (response.ok) {
-        resolution = await response.json() as PublicNamespaceResolution;
+        result = { kind: "resolved", resolution: await response.json() as PublicNamespaceResolution };
       } else {
         throw new Error(`Namespace resolution failed with ${response.status}`);
       }
@@ -111,7 +122,7 @@ async function resolveImportedNamespace(input: {
       cache.entries.delete(key);
       cache.entries.set(key, {
         freshUntil: storedAt + ttl,
-        resolution,
+        result,
         staleUntil: storedAt + ttl + stale,
       });
       const maxEntries = positiveInteger(input.env.HNS_PUBLIC_NAMESPACE_CACHE_MAX_ENTRIES, 2_048);
@@ -120,9 +131,15 @@ async function resolveImportedNamespace(input: {
         if (typeof oldestKey !== "string") break;
         cache.entries.delete(oldestKey);
       }
-      return resolution;
+      return result;
     } catch (error) {
-      if (cached && cached.staleUntil > Date.now()) return cached.resolution;
+      // Retain the last typed result for bounded stale reads, including an
+      // unavailable result. Document navigations force a fresh lookup, while
+      // subresources may use this fallback for at most ttl + stale (~330 s by
+      // default) when the refresh itself fails. This avoids origin amplification
+      // during a blackout without allowing a successful document refresh to be
+      // masked by the cache.
+      if (cached && cached.staleUntil > Date.now()) return cached.result;
       throw error;
     } finally {
       cache.inflight.delete(key);
@@ -528,6 +545,16 @@ function renderForwarderConfigurationError(): Response {
   );
 }
 
+function renderImportedNamespaceUnavailable(): Response {
+  const response = renderErrorPage(
+    "Sovereign routing unavailable",
+    "This imported HNS namespace is temporarily unavailable because its trust or routing state could not be verified. Try again later.",
+    503,
+  );
+  response.headers.set("cache-control", "no-store");
+  return response;
+}
+
 /**
  * Scheme of the ORIGINAL client request. The fronting proxy owns
  * x-forwarded-proto (both shipped examples overwrite it, and the gateway binds
@@ -608,9 +635,9 @@ async function proxyImportedNamespaceRequest(input: {
   if (!hasUsableForwarderCredentials(input.env)) {
     return renderForwarderConfigurationError();
   }
-  let resolution: PublicNamespaceResolution | null;
+  let resolutionResult: NamespaceResolutionResult;
   try {
-    resolution = await resolveImportedNamespace({
+    resolutionResult = await resolveImportedNamespace({
       apiOrigin: input.apiOrigin,
       env: input.env,
       fetchImpl: input.fetchImpl,
@@ -627,7 +654,11 @@ async function proxyImportedNamespaceRequest(input: {
       502,
     );
   }
-  if (!resolution) return null;
+  if (resolutionResult.kind === "unavailable") {
+    return renderImportedNamespaceUnavailable();
+  }
+  if (resolutionResult.kind === "not_found") return null;
+  const resolution = resolutionResult.resolution;
   const headers = await buildSignedProxyHeaders({
     request: input.request,
     url: input.url,
