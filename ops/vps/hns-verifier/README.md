@@ -2,13 +2,9 @@
 
 This directory contains tracked deployment assets for the VPS-hosted HNS verifier/provisioner.
 
-The shared public Caddy ingress uses the pinned `caddy-ratelimit` module for
-`GET /spaces/resolve`. Build it with
-`bin/build-rate-limited-caddy.sh /usr/local/bin/pirate-caddy`, install
-`systemd/caddy-rate-limited.override.conf` as the Caddy service override, and
-validate the Caddyfile with the custom binary before restarting Caddy. The
-tracked ingress policy permits 30 resolve requests per IPv4 address or IPv6
-`/64` in a sliding one-minute window. Other verifier routes are unaffected.
+The shared public Caddy ingress is owned by `hns-public-gateway`. This role does
+not install or record `caddy.service` units or drop-ins; its release owns only
+the verifier service.
 
 Use it together with:
 

@@ -102,7 +102,7 @@ git ls-files -z -- "$role_dir" | while IFS= read -r -d '' f; do
 done
 
 tooling_dir="ops/vps/deployment-tooling"
-for script in deployment-status.sh verify-deployment.sh alert-on-failure.sh heartbeat.sh record-installed-files.sh; do
+for script in deployment-status.sh verify-deployment.sh alert-on-failure.sh heartbeat.sh record-installed-files.sh systemd-unit-hash.sh; do
   cp "$tooling_dir/$script" "$release_dir/bin/$script"
   chmod 0755 "$release_dir/bin/$script"
 done

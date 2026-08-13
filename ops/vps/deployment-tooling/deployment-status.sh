@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+tooling_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$tooling_dir/systemd-unit-hash.sh"
+
 # Reports desired-vs-running deployment state for a VPS role deployed with the
 # immutable-release layout produced by make-release.sh:
 #
@@ -267,6 +270,37 @@ if [[ -f "$installed_sums" ]]; then
   fi
 else
   note "installed: no host file manifest declared"
+fi
+
+# The installed-file manifest covers bytes at declared paths. This separate
+# manifest covers what systemd actually assembles from a unit plus all of its
+# drop-ins, so an added override cannot hide behind a clean file checksum.
+systemd_sums="$deploy_root/config/SYSTEMD_UNIT_SHA256SUMS"
+if [[ -f "$systemd_sums" ]]; then
+  systemd_count=0
+  systemd_drift=false
+  while read -r expected_hash unit extra; do
+    if [[ -n "$extra" || ! "$expected_hash" =~ ^[a-f0-9]{64}$ ]] || ! systemd_unit_is_valid "$unit"; then
+      mark_drift "systemd unit manifest is malformed"
+      systemd_drift=true
+      continue
+    fi
+    systemd_count=$((systemd_count + 1))
+    if ! actual_hash="$(systemd_unit_hash "$unit" 2>/dev/null)"; then
+      mark_drift "effective systemd unit unavailable: $unit"
+      systemd_drift=true
+    elif [[ "$actual_hash" != "$expected_hash" ]]; then
+      mark_drift "effective systemd unit changed: $unit"
+      systemd_drift=true
+    fi
+  done < "$systemd_sums"
+  if (( systemd_count == 0 )); then
+    mark_drift "systemd unit manifest is empty or malformed"
+  elif [[ "$systemd_drift" == false ]]; then
+    note "systemd: $systemd_count effective units checksums OK"
+  fi
+else
+  note "systemd: no effective unit manifest declared"
 fi
 
 # --- configuration hash ------------------------------------------------------

@@ -22,6 +22,7 @@ set -euo pipefail
 #  17. relative app output roots and missing-main diagnostics remain unambiguous
 #  18. locally built container IDs are recorded and verified
 #  19. stateful VPS compose roles use stable host paths, not release-relative mounts
+#  20. effective systemd units include drop-in content in drift verification
 
 tooling_dir="$(cd "$(dirname "$0")" && pwd)"
 work="$(mktemp -d)"
@@ -53,6 +54,14 @@ while IFS= read -r compose_file; do
   fi
 done < <(find "$tooling_dir/.." -mindepth 2 -maxdepth 2 -type f -name compose.yaml -print | sort)
 pass "stateful VPS compose roles use stable host paths"
+
+gateway_caddy_override="$tooling_dir/../hns-public-gateway/systemd/caddy-production-json.override.conf"
+[[ -f "$gateway_caddy_override" ]] \
+  || fail "gateway does not ship the caddy.service owner override"
+if find "$tooling_dir/../hns-verifier/systemd" -maxdepth 1 -type f -name '*caddy*' -print -quit | grep -q .; then
+  fail "verifier still ships a competing caddy.service artifact"
+fi
+pass "exactly one VPS role owns caddy.service artifacts"
 
 # --- fixture repo with a minimal role ---------------------------------------
 
@@ -174,6 +183,19 @@ case "$1 $2" in
 esac
 EOF
 chmod +x "$shim/docker"
+cat > "$shim/systemctl" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "${1:-}" == cat && -n "${2:-}" ]] || exit 1
+printf '%s\n' \
+  '# /etc/systemd/system/pirate-demo.service' \
+  '[Unit]' \
+  'Description=demo' \
+  '[Service]' \
+  "ExecStart=${SYSTEMCTL_EXEC_START:-/bin/true}" \
+  "${SYSTEMCTL_DROPIN:-}"
+EOF
+chmod +x "$shim/systemctl"
 export PATH="$shim:$PATH"
 export DOCKER_SHIM_STATE="$work/docker-state"
 export DOCKER_SHIM_DIGEST="1111111111111111111111111111111111111111111111111111111111111111"
@@ -192,7 +214,7 @@ installed_file="$work/installed-unit.service"
 echo "tracked installed unit" > "$installed_target"
 ln -s "$installed_target" "$installed_file"
 bash "$deploy_root/current/bin/record-installed-files.sh" \
-  --deploy-root "$deploy_root" "$installed_file" >/dev/null
+  --deploy-root "$deploy_root" --systemd-unit pirate-demo.service "$installed_file" >/dev/null
 
 status() { bash "$deploy_root/current/bin/deployment-status.sh" --deploy-root "$deploy_root" "$@"; }
 
@@ -213,10 +235,17 @@ grep -q "app:     $commit checksums OK" <<< "$clean_status" \
   || fail "status omitted app integrity: $clean_status"
 grep -q "runtime: 1 host executables checksums OK" <<< "$clean_status" \
   || fail "status omitted host runtime integrity: $clean_status"
+grep -q "systemd: 1 effective units checksums OK" <<< "$clean_status" \
+  || fail "status omitted effective systemd integrity: $clean_status"
 pass "status reports when deployment heartbeats are not configured"
 grep -q "installed: 1 host files checksums OK" <<< "$clean_status" \
   || fail "status omitted installed host file integrity: $clean_status"
 pass "verify reports and passes clean role + app deployment"
+
+if SYSTEMCTL_EXEC_START=/bin/false status --verify >/dev/null 2>&1; then
+  fail "effective systemd unit change was not detected"
+fi
+pass "verify detects effective systemd unit and drop-in drift"
 
 echo tampered >> "$runtime_tool"
 status --verify >/dev/null 2>&1 && fail "host runtime executable tamper not detected"
