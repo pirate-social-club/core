@@ -50,7 +50,9 @@
 import { createHash } from "node:crypto"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { dirname, resolve } from "node:path"
+import { d1QueryBatch } from "../verify-community-schema-requirements"
 import { partitionQuarantinedBindings } from "./community-shard-quarantine"
+import type { D1RestClient } from "./d1-rest-types"
 import { decideFleetProvenance, probeConfigRepoProvenance, probeRolloutProvenance } from "./rollout-provenance"
 
 /** The schema objects a migration creates. Presence is how a shard is classified. */
@@ -589,24 +591,41 @@ async function migrationSql(options: Options, spec: MigrationSpec): Promise<{ sq
 async function classify(
   options: Options,
   spec: MigrationSpec,
-  db: string,
+  target: { name: string; id: string },
   checksum: string,
   includeRowCounts = true,
 ): Promise<{ status: Status; detail?: string; row_counts?: Record<string, number> }> {
-  const rows = (
-    await wranglerJsonReadOnly(options, db, ["--command", classificationSql(spec)])
-  )[0].results[0] as Record<string, number | string>
-  const classification = classifyRow(spec, rows, checksum)
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim()
+  const apiToken = process.env.CLOUDFLARE_API_TOKEN?.trim()
   const countsSql = rowCountSql(spec)
+  let rows: Record<string, number | string>
+  let countRows: Record<string, number | string> | undefined
+  let restClient: D1RestClient | undefined
+  if (accountId && apiToken) {
+    restClient = {
+      accountId,
+      apiToken,
+      fetch,
+      sleep: (milliseconds) => Bun.sleep(milliseconds),
+    }
+    const results = await d1QueryBatch(restClient, target, [classificationSql(spec)])
+    rows = results[0]?.results?.[0] as Record<string, number | string>
+    if (!rows) throw new Error("D1 REST classification returned no rows")
+  } else {
+    rows = (
+      await wranglerJsonReadOnly(options, target.name, ["--command", classificationSql(spec)])
+    )[0].results[0] as Record<string, number | string>
+  }
+  const classification = classifyRow(spec, rows, checksum)
   let rowCounts: Record<string, number> | undefined
   if (
     includeRowCounts &&
     countsSql &&
     spec.requiredTables.every((table) => Number(rows[`req_${table}`] ?? 0) === 1)
   ) {
-    const countRows = (
-      await wranglerJsonReadOnly(options, db, ["--command", countsSql])
-    )[0].results[0] as Record<string, number | string>
+    countRows = restClient
+      ? (await d1QueryBatch(restClient, target, [countsSql]))[0]?.results?.[0] as Record<string, number | string>
+      : (await wranglerJsonReadOnly(options, target.name, ["--command", countsSql]))[0].results[0] as Record<string, number | string>
     rowCounts = Object.fromEntries(
       (spec.rowCountTables ?? []).map((table) => [table, Number(countRows[`metric_rows__${table}`] ?? 0)]),
     )
@@ -829,7 +848,7 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
       const base = { binding: t.binding, database_name: t.name, database_id: t.id }
       try {
         const classificationStartedAt = performance.now()
-        const initial = await classify(options, spec, t.name, checksum)
+        const initial = await classify(options, spec, t, checksum)
         let status = planLedgerWithoutObjectsRepair(
           spec,
           initial.status,
@@ -849,7 +868,7 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
           action = await applyToShard(options, spec, t.name, status, sql, checksum)
           applyDurationMs = Math.round(performance.now() - applyStartedAt)
           if (action === "repaired_ledger_without_objects") {
-            const verified = await classify(options, spec, t.name, checksum, false)
+            const verified = await classify(options, spec, t, checksum, false)
             if (verified.status !== "ok_recorded") {
               throw new Error(
                 `post-repair verification failed: ${verified.status}${verified.detail ? ` — ${verified.detail}` : ""}`,
