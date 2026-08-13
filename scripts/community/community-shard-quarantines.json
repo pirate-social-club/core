@@ -1,13 +1,5 @@
 {
   "version": 1,
   "production": [],
-  "staging": [
-    {
-      "binding": "DB_CMTY_0780",
-      "reason_code": "provider_overload_7429",
-      "approved_at": "2026-08-06T08:34:27Z",
-      "review_after": "2026-08-13T08:34:27Z",
-      "expires_at": "2026-08-20T08:34:27Z"
-    }
-  ]
+  "staging": []
 }
