@@ -16225,6 +16225,12 @@ components:
       properties:
         quote:
           type: string
+        claim_intent:
+          type: string
+          nullable: true
+        action_authorization:
+          type: string
+          nullable: true
         settlement_wallet_attachment:
           type: string
           nullable: true
@@ -16451,6 +16457,14 @@ components:
           $ref: "#/components/schemas/CommunityHandleQuoteClaimGate"
           nullable: true
           description: Present when a claim gate applies to the quoted label. Optional for compatibility.
+        claim_intent:
+          type: string
+          nullable: true
+          description: Control-plane claim intent associated with this quote, when enabled.
+        action_authorization:
+          type: string
+          nullable: true
+          description: Single-use authorization associated with this quote, when enabled.
         price_cents:
           type: integer
           minimum: 0
@@ -16498,6 +16512,14 @@ components:
           type: string
           nullable: true
           description: Optional verified namespace selector. Omit to quote against the community primary namespace.
+        claim_intent:
+          type: string
+          nullable: true
+          description: Optional funded-claim intent to resume or authorize a quote.
+        altcha:
+          type: string
+          nullable: true
+          description: Optional ALTCHA proof payload for the claim intent.
     CommunityHandleReserveRequest:
       type: object
       required:
