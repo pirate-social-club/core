@@ -18,10 +18,13 @@ Repository: `pirate-web` (`rad:z3qZx2qJDkjxfjBSPwRva4DutYJTh`)
 
 Initial gate: `packages/karaoke-runtime` only.
 
-The package has its own `bun.lock` and does not require the root Web checkout,
-the API checkout, a Core checkout, a database, credentials, or a networked
-service. The plan will run the package's build-provenance step, TypeScript
-check, import lint, and unit tests after a `bun_get` for that package path.
+The package has no runtime dependencies and does not require the root Web
+checkout, the API checkout, a Core checkout, a database, credentials, or a
+networked service. The plan provisions only the pinned Bun runtime, then runs
+the package's build-provenance/unit tests and import lint directly from source.
+Typechecking remains on hosted CI because the package's native-preview `tsgo`
+toolchain is a frequently changing development dependency and is not needed
+to validate this runtime-only gate.
 
 The root Web test/type surface is intentionally excluded from the first gate:
 its package graph includes `file:` dependencies on API contracts and local Web
