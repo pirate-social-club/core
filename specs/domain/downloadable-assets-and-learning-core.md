@@ -1848,6 +1848,15 @@ staging and production attestations are independent from the central
 control-plane migration. Both must complete and be verified before an API
 writer can emit a new kind.
 
+The community migration number used by an in-flight branch is provisional.
+While the migration is awaiting the largest-shard rehearsal, the branch is
+rebased regularly and the next free number is allocated only in the final
+pre-merge update. If main claims that number first, the Core migration, the
+API's byte-identical migration fixture, and the API schema-requirement manifest
+entry are renamed together before either PR merges. A new duplicate-prefix
+exception is not an acceptable way to preserve the stale number; historical
+duplicate prefixes remain frozen compatibility exceptions only.
+
 Before review approval, the exact migration runs against a privacy-safe copy of
 the largest current production shard using the production D1 migration
 transport and limits. The gate records table-copy statement duration, total
