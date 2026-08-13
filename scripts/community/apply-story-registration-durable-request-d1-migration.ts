@@ -1,6 +1,11 @@
 /**
  * Operator spec for applying community-template migration
  * 1139_story_registration_durable_request.sql across the allocated+loaded D1 fleet.
+ *
+ * This migration may be applied after later-numbered migrations only because it
+ * is one additive nullable column with no dependent DDL or data-order contract.
+ * Do not treat that exception as permission to apply other migrations out of
+ * order; each gap requires an explicit dependency and replay-safety review.
  */
 
 import { runFleetMigration, type MigrationSpec } from "./lib/fleet-d1-migration"
