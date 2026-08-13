@@ -1,6 +1,6 @@
 # Provider-keyed identity evidence
 
-Status: design contract; implementation pending
+Status: design contract; reconciliation tooling pending production execution
 
 Related docs:
 
@@ -145,7 +145,20 @@ The migration should follow the `reward_identity_bindings` idiom:
 
 Expiry cannot be expressed as `expires_at > now()` in a partial unique index.
 The lifecycle must transition an expired accepted row to `expired` before a
-replacement becomes canonical.
+replacement becomes canonical. The writer performs that transition in the same
+transaction as the replacement insert (expire-then-insert); a background
+sweeper is janitorial only and is never required for a user to re-verify. Reads
+continue to require the `expires_at` predicate because status can remain
+`accepted` between expiry and the writer's transition.
+
+The existing status CHECK already permits `expired`; no new lifecycle status is
+required. The reviewed reconciliation command
+`scripts/control-plane/provider-identity-evidence-repair.ts` uses
+`superseded` for provenance-unbound rows, recording
+`{state: "superseded", reason: "provenance_unbound", ref: ...}` in
+`value_json`. It does not set `revoked_at` and does not update
+`users.verification_capabilities_json`; the durable-evidence cutover is the
+single point at which those users stop being authorized by the old projection.
 
 Before adding constraints, a read-only production audit must classify duplicate
 active groups by `(user_id, capability_key, provider)`, distinguish equal from
@@ -184,34 +197,53 @@ The evaluator owns:
 - minimum-age thresholds;
 - witness selection and redacted mismatch reasons.
 
+Its value normalizers are authoritative: country alpha-2/alpha-3 aliases,
+minimum-age threshold comparison, and gender-marker matching are implemented
+once in the evaluator. Reward code receives evidence records and must not
+reimplement these comparisons.
+
 The `verification_capabilities` projection may still power account summaries,
 provider suggestions, and non-authoritative UI. Authorization callers may use
 it only as a cache when the result is proven equivalent to the evidence read;
 the durable records remain authoritative.
 
-## Interim authoring guard
+## Duplicate-capability AND policy
 
-Until this reader ships, strict gate-policy writes reject a policy that
-necessarily requires the same provider-backed identity capability more than
-once through an AND path. OR alternatives remain legal, including
-`unique_human` from Self OR ZKPassport.
+Strict gate-policy writes reject a policy that necessarily requires the same
+provider-backed identity capability more than once through an AND path. This
+is a permanent product rule, not an interim limitation: the shape reads as a
+policy-authoring mistake even though provider-keyed evidence could make it
+satisfiable. OR alternatives remain legal, including `unique_human` from Self
+OR ZKPassport.
 
-Stored policies remain readable so adding the guard does not turn an existing
-bad policy into a community-read outage. The guard is temporary and should be
-removed when provider-keyed evidence makes multi-provider conjunctions
-satisfiable and diagnosable.
+Stored policies remain readable so the guard does not turn an existing bad
+policy into a community-read outage.
+
+## Provider semantics by authorization surface
+
+Community gates use single-record any-match per atom. Rewards intentionally do
+not: a provider-pinned campaign requires exact provider matching, while cashout
+retains its fixed-order cross-provider resolver. Provider-local nullifiers
+cannot be correlated safely across providers, so these are deliberate semantic
+differences rather than candidates for a single generalized resolver.
 
 ## Data and rollout sequence
 
 1. Run and review the production control-plane audit. Gate policies are
    sharded per community and are not part of this control-plane query.
-2. Reconcile duplicate or unbound evidence through an independently reviewed
-   job or require re-verification; never guess ambiguous provenance.
-3. Add lifecycle constraints and verification-session compare-and-set.
-4. Introduce the shared reader and evaluator behind shadow comparisons.
-5. Convert community gates, reward eligibility, reward identity selection, and
+2. Snapshot the aggregate audit and complete affected rows. Reconcile duplicate
+   or unbound evidence through the reviewed, idempotent, transactional command
+   `scripts/control-plane/provider-identity-evidence-repair.ts`: keep a linked
+   duplicate (otherwise earliest verified row), supersede provenance-unbound
+   rows without inventing nullifier links, and transition stale accepted rows
+   to `expired`. The command fails closed on conflicting values or invalid
+   links and leaves the derived user projection untouched.
+3. Re-run the audit and require zero duplicate active groups, unbound active
+   rows, stale accepted rows, and invalid links before adding constraints.
+4. Add lifecycle constraints and verification-session compare-and-set.
+5. Introduce the shared reader and evaluator behind shadow comparisons.
+6. Convert community gates, reward eligibility, reward identity selection, and
    cashout as one authorization-semantic change.
-6. Remove the temporary duplicate-capability authoring guard.
 7. Stop authorization reads from the one-slot capability projection.
 8. Add the provider registry before the next provider ships, replacing CHECK
    swaps and hardcoded validation vocabularies without moving proof adapters
