@@ -199,6 +199,7 @@ const TYPE_EXPORTS = [
   { name: "CreatePostRequest", ref: "#/components/schemas/CreatePostRequest" },
   { name: "CreateCommentRequest", ref: "#/components/schemas/CreateCommentRequest" },
   { name: "Asset", ref: "#/components/schemas/Asset" },
+  { name: "AssetPayloadDescriptor", ref: "#/components/schemas/AssetPayloadDescriptor" },
   { name: "AssetAccessResponse", ref: "#/components/schemas/AssetAccessResponse" },
   { name: "SongArtifactUpload", ref: "#/components/schemas/SongArtifactUpload" },
   { name: "SongArtifactBundle", ref: "#/components/schemas/SongArtifactBundle" },

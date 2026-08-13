@@ -1065,7 +1065,7 @@ type CrosspostSource = {
   post: string;
   community: string;
   captured_at?: string | null;
-  post_type?: "text" | "image" | "video" | "link" | "song" | null;
+  post_type?: "text" | "image" | "video" | "link" | "song" | "crosspost" | "file" | "deck" | null;
   title?: string | null;
   community_label?: string | null;
   community_route_slug?: string | null;
@@ -1301,7 +1301,7 @@ type Post = {
   agent_ownership_provider_snapshot?: string | null;
   disclosed_qualifiers_json?: Array<DisclosedQualifierSnapshot> | null;
   label?: string | null;
-  post_type: "text" | "image" | "video" | "link" | "song" | "crosspost";
+  post_type: "text" | "image" | "video" | "link" | "song" | "crosspost" | "file" | "deck";
   status: "draft" | "processing" | "published" | "failed" | "hidden" | "removed" | "deleted";
   comments_locked?: boolean;
   comments_locked_at?: number | null;
@@ -1359,7 +1359,7 @@ type PostCreatorRelation = "captured" | "created" | "subject" | "authorized_repo
 
 type PostEmbed = (XPostEmbed | YouTubeVideoEmbed | KalshiMarketEmbed | PolymarketMarketEmbed);
 
-type PostPublishFailureCode = "song_analysis_blocked" | "song_analysis_review_required" | "song_rights_reference_required" | "song_preview_generation_failed" | "text_moderation_blocked" | "story_royalty_registration_failed" | "story_locked_delivery_failed" | "listing_creation_failed" | "catalog_sync_failed" | "provider_unavailable" | "internal_error";
+type PostPublishFailureCode = "song_analysis_blocked" | "song_analysis_review_required" | "song_rights_reference_required" | "song_preview_generation_failed" | "text_moderation_blocked" | "story_royalty_registration_failed" | "story_locked_delivery_failed" | "listing_creation_failed" | "catalog_sync_failed" | "provider_unavailable" | "internal_error" | "payload_verification_failed" | "payload_safety_blocked" | "payload_safety_review_required" | "payload_claim_failed" | "deck_package_generation_failed" | "deck_package_hash_mismatch";
 
 type PredictionMarketChartPoint = {
   ts: number;

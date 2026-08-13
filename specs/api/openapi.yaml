@@ -17258,8 +17258,10 @@ components:
         - video: requires at least one item in `media_refs` (at least one item must be `video/*`); commerce videos may send `access_mode`; locked videos require `license_preset`; must not send `link_url`, `song_artifact_bundle_id`, or `lyrics`
         - link: requires `link_url`; may send `title` and `body`; must not send `media_refs`, `song_artifact_bundle_id`, or `lyrics`
         - song: requires either `song_artifact_bundle_id` or both `media_refs` (at least one `audio/*`) and `lyrics`; must not send `link_url`; original songs require `license_preset`
+        - file: requires `file_upload`, `title`, and `access_mode`; locked files require `license_preset`; payload metadata is always server-derived
+        - deck: requires `learning_deck`, `title`, and `access_mode`; locked decks require `license_preset`
         - crosspost: requires `title`, `source_post`, and `source_community`.
-        `publish_mode = async` is currently supported for song posts only. It is an opt-in
+        `publish_mode = async` is supported for song, file, and deck publication. It is an opt-in
         compatibility boundary for clients that can render processing/failed posts and provide
         any server-side finalize inputs, including listing drafts.
       oneOf:
@@ -17477,6 +17479,80 @@ components:
               type: string
             source_community:
               type: string
+        - description: Publish one verified content blob as a downloadable asset.
+          required:
+            - post_type
+            - title
+            - file_upload
+            - access_mode
+          properties:
+            post_type:
+              type: string
+              enum:
+                - file
+            title:
+              type: string
+            file_upload:
+              type: string
+            access_mode:
+              type: string
+              enum:
+                - public
+                - locked
+            license_preset:
+              type: string
+              enum:
+                - non-commercial
+                - commercial-use
+                - commercial-remix
+              nullable: true
+          not:
+            anyOf:
+              - required:
+                  - link_url
+              - required:
+                  - media_refs
+              - required:
+                  - song_artifact_bundle
+              - required:
+                  - lyrics
+        - description: Publish one ready learning-deck draft as app-native structured content.
+          required:
+            - post_type
+            - title
+            - learning_deck
+            - access_mode
+          properties:
+            post_type:
+              type: string
+              enum:
+                - deck
+            title:
+              type: string
+            learning_deck:
+              type: string
+            access_mode:
+              type: string
+              enum:
+                - public
+                - locked
+            license_preset:
+              type: string
+              enum:
+                - non-commercial
+                - commercial-use
+                - commercial-remix
+              nullable: true
+          not:
+            anyOf:
+              - required:
+                  - link_url
+              - required:
+                  - media_refs
+              - required:
+                  - song_artifact_bundle
+              - required:
+                  - lyrics
       required:
         - idempotency_key
         - post_type
@@ -17495,13 +17571,13 @@ components:
           default: sync
           description: |
             Optional publish execution mode. Omit or send `sync` for legacy behavior. Send `async`
-            only for song posts when the client can render `processing`/`failed` post states and
+            only for song, file, or deck posts when the client can render `processing`/`failed` post states and
             poll pending posts.
         listing_draft:
           $ref: "#/components/schemas/CreatePostListingDraft"
           nullable: true
           description: |
-            Draft listing inputs to create a server-side song asset listing. In sync mode the
+            Draft listing inputs to create a server-side asset listing. In sync mode the
             listing is created after asset creation in the post-create request path. In async mode
             the draft is persisted and consumed by finalize. The server supplies the created asset;
             clients must omit `asset`, `live_room`, and `replay_asset` in post-create requests.
@@ -17563,6 +17639,8 @@ components:
             - link
             - song
             - crosspost
+            - file
+            - deck
         body:
           type: string
           nullable: true
@@ -17620,7 +17698,7 @@ components:
         access_mode:
           type: string
           description: |
-            Asset access mode for commerce-backed song and video posts. `public` keeps the source payload public.
+            Asset access mode for commerce-backed song, video, file, and deck posts. `public` keeps the source payload public.
             `locked` creates a locked asset and gates the full payload through the asset access flow.
           enum:
             - public
@@ -17635,6 +17713,16 @@ components:
           description: |
             Canonical song artifact bundle reference for bundle-backed song posts. When provided for `post_type = song`,
             clients must not also send `lyrics` or `media_refs`; the server derives those from the bundle.
+        file_upload:
+          type: string
+          nullable: true
+          description: |
+            Content blob reference for `post_type = file`. The server derives filename, MIME type,
+            byte size, checksum, and storage coordinates from the ready same-community blob.
+        learning_deck:
+          type: string
+          nullable: true
+          description: Draft learning-deck reference for `post_type = deck`.
         song_mode:
           type: string
           enum:
@@ -17793,6 +17881,8 @@ components:
             - link
             - song
             - crosspost
+            - file
+            - deck
         status:
           type: string
           enum:
