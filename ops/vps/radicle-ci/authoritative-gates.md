@@ -18,22 +18,23 @@ Repository: `pirate-web` (`rad:z3qZx2qJDkjxfjBSPwRva4DutYJTh`)
 
 Initial gate: `packages/karaoke-runtime` only.
 
-The package has no runtime dependencies and does not require the root Web
-checkout, the API checkout, a Core checkout, a database, credentials, or a
-networked service. The plan provisions only the pinned Bun runtime, then runs
-the package's binary-codec contract test directly from source, followed by
-import lint.
-Typechecking remains on hosted CI because the package's native-preview `tsgo`
-toolchain is a frequently changing development dependency and is not needed
-to validate this runtime-only gate.
+The promotion gate is shell-only. It checks the package identity and source
+layout, confirms that the package declares no runtime dependencies and that no
+`node_modules` tree is present, verifies the binary-codec contract fixtures,
+and scans runtime sources for forbidden imports and nondeterministic/browser-
+only constructs. It does not start Bun, install packages, or fetch a runtime.
+
+Hosted CI remains responsible for Bun tests, typechecking, build provenance,
+packaging, and the wider product matrix. This split is deliberate: the VPS is
+the hermetic promotion gate, while hosted CI is the release-validation gate.
 
 Build-provenance generation and its packaging contract test remain hosted-only;
 the isolated gate does not invoke Git from the source archive.
 
-Public-export, transport, reducer, scoring, serialization, session-host,
-WebSocket lifecycle, and commit-scheduler tests remain hosted-only for now:
-they are too expensive or depend on timer/event-loop behavior for the first
-bounded, source-only gate.
+Binary-codec, public-export, transport, reducer, scoring, serialization,
+session-host, WebSocket lifecycle, and commit-scheduler tests remain
+hosted-only for now. They either require a JavaScript runtime or depend on
+timer/event-loop behavior that is not suitable for this nested VPS gate.
 
 The root Web test/type surface is intentionally excluded from the first gate:
 its package graph includes `file:` dependencies on API contracts and local Web
@@ -44,12 +45,9 @@ the first gate must not silently depend on files outside the Radicle checkout.
 
 Repository: `pirate-api` (`rad:z2g5M6jqfcwzJobizqRbNCakDsdpU`)
 
-Initial gates: `services/shared` and `services/contracts`.
-
-Both packages have their own `bun.lock`, use only same-repository source, and
-can run deterministic type checks without Core, Web, databases, credentials,
-or network access. The Ambient plan will use one `bun_get` action per package,
-then run each package's `check` script.
+Initial gate: repository/source assertions only. The VPS gate must not start
+Bun or install packages. Hosted CI remains responsible for the shared and
+contracts type checks, plus the API service test and integration matrix.
 
 The API service's full check remains outside the first gate because it has
 `file:` dependencies on contracts/shared plus Core and Web packages. It needs
