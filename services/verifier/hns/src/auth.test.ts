@@ -7,6 +7,7 @@ import {
 
 const configuredAuth: HnsVerifierAuth = {
   primaryToken: "primary-secret",
+  secondaryToken: "secondary-secret",
   observerToken: "observer-secret",
 };
 
@@ -62,6 +63,23 @@ describe("HNS verifier scoped authentication", () => {
     }
   });
 
+  test("secondary primary token retains access to every route", () => {
+    for (const [method, path] of [
+      ["GET", "/health"],
+      ["GET", "/inspect?root_label=pirate"],
+      ["GET", "/inspect-public?root_label=pirate"],
+      ["GET", "/authority-health?root_label=pirate"],
+      ["GET", "/observe-root-parent?root_label=pirate"],
+      ["GET", "/observe-root-authority?root_label=pirate"],
+      ["POST", "/publish-txt"],
+      ["POST", "/ensure-zone"],
+      ["POST", "/verify-txt"],
+      ["GET", "/unknown"],
+    ]) {
+      expect(requireHnsVerifierAuth(request(path, "secondary-secret", method), configuredAuth)).toBeNull();
+    }
+  });
+
   test("observation routes still require primary token when observer token is unset", () => {
     const primaryOnly = resolveHnsVerifierAuth("primary-secret", undefined);
     for (const path of ["/observe-root-parent", "/observe-root-authority"]) {
@@ -84,6 +102,21 @@ describe("HNS verifier scoped authentication", () => {
   test("rejects identical primary and observer tokens", () => {
     expect(() => resolveHnsVerifierAuth("same-secret", "same-secret")).toThrow(
       "HNS verifier primary and observer auth tokens must be distinct",
+    );
+  });
+
+  test("rejects a secondary token without a primary token", () => {
+    expect(() => resolveHnsVerifierAuth(undefined, undefined, "secondary-secret")).toThrow(
+      "HNS_VERIFIER_AUTH_TOKEN_SECONDARY requires HNS_VERIFIER_AUTH_TOKEN",
+    );
+  });
+
+  test("rejects secondary token collisions", () => {
+    expect(() => resolveHnsVerifierAuth("same-secret", undefined, "same-secret")).toThrow(
+      "HNS verifier primary and secondary auth tokens must be distinct",
+    );
+    expect(() => resolveHnsVerifierAuth("primary-secret", "observer-secret", "observer-secret")).toThrow(
+      "HNS verifier secondary and observer auth tokens must be distinct",
     );
   });
 });

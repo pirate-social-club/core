@@ -2,6 +2,7 @@ import { json } from "../../shared/http";
 
 export type HnsVerifierAuth = {
   primaryToken: string | null;
+  secondaryToken: string | null;
   observerToken: string | null;
 };
 
@@ -12,18 +13,29 @@ function normalizeToken(value: string | undefined): string | null {
 export function resolveHnsVerifierAuth(
   primaryValue: string | undefined,
   observerValue: string | undefined,
+  secondaryValue?: string,
 ): HnsVerifierAuth {
   const primaryToken = normalizeToken(primaryValue);
   const observerToken = normalizeToken(observerValue);
+  const secondaryToken = normalizeToken(secondaryValue);
 
   if (observerToken && !primaryToken) {
     throw new Error("HNS_VERIFIER_OBSERVER_AUTH_TOKEN requires HNS_VERIFIER_AUTH_TOKEN");
   }
+  if (secondaryToken && !primaryToken) {
+    throw new Error("HNS_VERIFIER_AUTH_TOKEN_SECONDARY requires HNS_VERIFIER_AUTH_TOKEN");
+  }
   if (observerToken && observerToken === primaryToken) {
     throw new Error("HNS verifier primary and observer auth tokens must be distinct");
   }
+  if (secondaryToken && secondaryToken === primaryToken) {
+    throw new Error("HNS verifier primary and secondary auth tokens must be distinct");
+  }
+  if (secondaryToken && observerToken && secondaryToken === observerToken) {
+    throw new Error("HNS verifier secondary and observer auth tokens must be distinct");
+  }
 
-  return { primaryToken, observerToken };
+  return { primaryToken, secondaryToken, observerToken };
 }
 
 function isObserverRead(request: Request): boolean {
@@ -43,6 +55,9 @@ export function requireHnsVerifierAuth(request: Request, auth: HnsVerifierAuth):
 
   const authorization = request.headers.get("authorization");
   if (authorization === `Bearer ${auth.primaryToken}`) {
+    return null;
+  }
+  if (auth.secondaryToken && authorization === `Bearer ${auth.secondaryToken}`) {
     return null;
   }
   if (
