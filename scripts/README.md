@@ -43,6 +43,12 @@ It is intentionally narrow:
   Read-only inventory for control-plane state and likely fixture contamination.
 - `scripts/control-plane/inspect-control-plane-migration-ledger.ts`
   Read-only comparison of a control-plane `schema_migrations` ledger against the checked Postgres migration root.
+- `scripts/control-plane/audit-provider-identity-evidence.ts` and
+  `scripts/control-plane/provider-identity-evidence-repair.ts`
+  Read-only audit and reviewed, transactional reconciliation for the
+  pre-constraint provider-keyed identity evidence cleanup. The repair command
+  is dry-run by default and must be invoked through its production workflow for
+  writes.
 - `scripts/control-plane/reset-control-plane-app-data.ts`
   Truncate control-plane app data while preserving `schema_migrations`; dry-run by default and requires explicit confirmation to execute.
 ### Community
