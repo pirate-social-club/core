@@ -48,7 +48,7 @@ async function readRules(path: string): Promise<SanitizationRule[]> {
   return parseSanitizationRules(JSON.parse(await readFile(path, "utf8")))
 }
 
-async function dumpSql(database: string, output: string): Promise<void> {
+export async function dumpD1CompatibleSql(database: string, output: string): Promise<void> {
   const sqliteDump = `${output}.sqlite-dump.tmp`
   const outputFile = Bun.file(sqliteDump)
   const process = Bun.spawn(["sqlite3", database, ".dump"], {
@@ -106,7 +106,7 @@ async function main(): Promise<void> {
   } finally {
     db.close()
   }
-  await dumpSql(sanitized, outputSql)
+  await dumpD1CompatibleSql(sanitized, outputSql)
   console.log(JSON.stringify({
     sanitized_database: sanitized,
     output_sql: outputSql,
