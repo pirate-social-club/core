@@ -74,11 +74,11 @@ describe.skipIf(!RUN)("reward ticket pool migration 0227 (real Postgres)", () =>
     await db.unsafe("INSERT INTO reward_qualification_events VALUES ('q0'), ('q1'), ('q2')");
     await db.unsafe(`
       INSERT INTO reward_ticket_custody_backing_domains (
-        chain_id, token_address, custody_address, status, terms_hash, activated_at
+        chain_id, token_address, custody_address, status, backing_policy_version, activated_at
       ) VALUES (
         84532, '0x4444444444444444444444444444444444444444',
         '0x5555555555555555555555555555555555555555', 'active',
-        '${"9".repeat(64)}', '2026-08-13T00:00:00Z'
+        'single_custody_per_asset_v1', '2026-08-13T00:00:00Z'
       )
     `);
     await db.end();
@@ -178,11 +178,12 @@ describe.skipIf(!RUN)("reward ticket pool migration 0227 (real Postgres)", () =>
           reward_ticket_purchase_effect_id, reward_ticket_pool_drawing_id,
           idempotency_key, status, expected_ticket_count, reserved_cents,
           actual_cost_cents, actual_cost_atomic, recipient_address, tx_hash,
-          confirmed_block_number, confirmed_block_hash, confirmed_at
+          confirmed_block_number, confirmed_block_hash, confirmed_at, finalized_at
         ) VALUES (
           'purchase', 'drawing', 'purchase-key', 'confirmed', 1, 100, 1, 10000,
           '0x5555555555555555555555555555555555555555', '0x${"1".repeat(64)}',
-          10, '0x${"2".repeat(64)}', '2026-08-13T00:10:00Z'
+          10, '0x${"2".repeat(64)}', '2026-08-13T00:10:00Z',
+          '2026-08-13T00:11:00Z'
         )
       `);
       await tx.unsafe(`
@@ -257,6 +258,46 @@ describe.skipIf(!RUN)("reward ticket pool migration 0227 (real Postgres)", () =>
       { user_id: "u0", credited_atomic: "1" },
       { user_id: "u1", credited_atomic: "1" },
     ]);
+
+    await expectSqlState(
+      db,
+      `INSERT INTO reward_ticket_inventory (
+         reward_ticket_inventory_id, reward_ticket_pool_drawing_id,
+         reward_ticket_purchase_effect_id, chain_id, ticket_nft_address,
+         ticket_id, owner_address, status, protocol_drawing_id
+       ) VALUES (
+         'mismatch-held', 'drawing', 'purchase', 84532,
+         '0x3333333333333333333333333333333333333333', 100,
+         '0x5555555555555555555555555555555555555555', 'held', 8
+       )`,
+      "23514",
+    );
+
+    let mismatchCommitError: { errno?: string } | undefined;
+    try {
+      await db.begin(async (tx) => {
+        await tx.unsafe(`
+          INSERT INTO reward_ticket_inventory (
+            reward_ticket_inventory_id, reward_ticket_pool_drawing_id,
+            reward_ticket_purchase_effect_id, chain_id, ticket_nft_address,
+            ticket_id, owner_address, status, protocol_drawing_id
+          ) VALUES (
+            'mismatch-review', 'drawing', 'purchase', 84532,
+            '0x3333333333333333333333333333333333333333', 101,
+            '0x5555555555555555555555555555555555555555', 'needs_review', 8
+          )
+        `);
+      });
+    } catch (error) {
+      mismatchCommitError = error as { errno?: string };
+    }
+    expect(mismatchCommitError?.errno).toBe("23514");
+
+    await expectSqlState(
+      db,
+      "UPDATE reward_ticket_claim_effects SET received_amount_atomic = 3 WHERE reward_ticket_claim_effect_id = 'claim'",
+      "23514",
+    );
     await db.end();
   });
 
@@ -288,7 +329,13 @@ describe.skipIf(!RUN)("reward ticket pool migration 0227 (real Postgres)", () =>
     `);
     await rw.unsafe(`
       UPDATE reward_ticket_cashout_effects
-      SET status = 'confirmed', tx_hash = '0x${"5".repeat(64)}',
+      SET status = 'submitted', tx_hash = '0x${"5".repeat(64)}',
+          submitted_block_number = 29, submitted_at = NOW()
+      WHERE reward_ticket_cashout_effect_id = 'cashout'
+    `);
+    await rw.unsafe(`
+      UPDATE reward_ticket_cashout_effects
+      SET status = 'confirmed',
           confirmed_block_number = 30, confirmed_block_hash = '0x${"6".repeat(64)}',
           confirmed_at = NOW(), finalized_at = NOW()
       WHERE reward_ticket_cashout_effect_id = 'cashout'

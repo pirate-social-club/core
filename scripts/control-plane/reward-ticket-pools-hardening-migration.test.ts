@@ -6,15 +6,20 @@ const migrationPath =
 const migration = readFileSync(migrationPath, "utf8");
 
 describe("reward ticket pool hardening migration", () => {
-  test("binds published commitments and inventory to the intended drawing", () => {
+  test("binds published commitments and quarantines protocol drawing mismatches", () => {
     expect(migration).toContain("reward_ticket_commitment_batches_published_evidence_check");
     expect(migration).toContain("reward_ticket_pool_drawings_commitment_identity_fk");
     expect(migration).toContain("protocol_drawing_id NUMERIC(78, 0)");
-    expect(migration).toContain("reward_ticket_inventory_expected_drawing_fk");
+    expect(migration).toContain("reward_ticket_inventory_drawing_mismatch");
+    expect(migration).toContain("mismatched protocol drawing inventory must remain in needs_review");
+    expect(migration).not.toContain("reward_ticket_inventory_expected_drawing_fk");
+    expect(migration).toContain("ALTER COLUMN canonical_position SET NOT NULL");
   });
 
   test("models finalized cashout effects and derives balance projections from the ledger", () => {
     expect(migration).toContain("CREATE TABLE reward_ticket_custody_backing_domains");
+    expect(migration).toContain("single_custody_per_asset_v1");
+    expect(migration).toContain("SELECT DISTINCT ON (chain_id, usdc_token_address)");
     expect(migration).toContain("reward_ticket_pools_custody_backing_domain_fk");
     expect(migration).toContain("reward_ticket_custody_solvency_backing_domain_fk");
     expect(migration).toContain("CREATE TABLE reward_ticket_cashout_effects");
@@ -42,5 +47,8 @@ describe("reward ticket pool hardening migration", () => {
     expect(migration).toContain("published reward ticket commitment evidence is immutable");
     expect(migration).toContain("REVOKE DELETE ON TABLE");
     expect(migration).toContain("FROM control_plane_api_rw");
+    expect(migration).toContain("reward_ticket_purchase_effects_transition");
+    expect(migration).toContain("reward_ticket_claim_effects_transition");
+    expect(migration).toContain("finalized reward ticket claim receipt is immutable");
   });
 });

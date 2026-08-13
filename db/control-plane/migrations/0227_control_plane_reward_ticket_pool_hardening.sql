@@ -56,14 +56,64 @@ WHERE drawing.reward_ticket_pool_drawing_id = inventory.reward_ticket_pool_drawi
 ALTER TABLE reward_ticket_inventory
     ALTER COLUMN protocol_drawing_id SET NOT NULL,
     ADD CONSTRAINT reward_ticket_inventory_protocol_drawing_check
-        CHECK (protocol_drawing_id >= 0),
-    ADD CONSTRAINT reward_ticket_inventory_expected_drawing_fk
-        FOREIGN KEY (reward_ticket_pool_drawing_id, chain_id, protocol_drawing_id)
-        REFERENCES reward_ticket_pool_drawings (
-            reward_ticket_pool_drawing_id,
-            chain_id,
-            drawing_id
-        );
+        CHECK (protocol_drawing_id >= 0);
+
+CREATE OR REPLACE FUNCTION enforce_reward_ticket_inventory_drawing_mismatch()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    intended_drawing_id NUMERIC(78, 0);
+    intended_chain_id INTEGER;
+BEGIN
+    SELECT drawing_id, chain_id
+    INTO STRICT intended_drawing_id, intended_chain_id
+    FROM reward_ticket_pool_drawings
+    WHERE reward_ticket_pool_drawing_id = NEW.reward_ticket_pool_drawing_id;
+
+    IF (NEW.protocol_drawing_id <> intended_drawing_id OR NEW.chain_id <> intended_chain_id)
+       AND NEW.status <> 'needs_review' THEN
+        RAISE EXCEPTION 'mismatched protocol drawing inventory must remain in needs_review'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER reward_ticket_inventory_drawing_mismatch
+BEFORE INSERT OR UPDATE ON reward_ticket_inventory
+FOR EACH ROW EXECUTE FUNCTION enforce_reward_ticket_inventory_drawing_mismatch();
+
+-- Frozen snapshots need a total canonical order. The ticket runtime has not
+-- been built, so no beneficiary rows should require repair.
+ALTER TABLE reward_ticket_pool_beneficiaries
+    ALTER COLUMN canonical_position SET NOT NULL;
+
+ALTER TABLE reward_ticket_pool_funding_effects
+    ADD COLUMN finalized_at TIMESTAMPTZ;
+
+UPDATE reward_ticket_pool_funding_effects
+SET finalized_at = confirmed_at
+WHERE status IN ('confirmed', 'refunded') AND finalized_at IS NULL;
+
+ALTER TABLE reward_ticket_pool_funding_effects
+    ADD CONSTRAINT reward_ticket_pool_funding_effects_finalized_shape_check CHECK (
+        (status IN ('confirmed', 'refunded') AND confirmed_at IS NOT NULL AND finalized_at IS NOT NULL)
+        OR (status NOT IN ('confirmed', 'refunded') AND finalized_at IS NULL)
+    );
+
+ALTER TABLE reward_ticket_purchase_effects
+    ADD COLUMN finalized_at TIMESTAMPTZ;
+
+UPDATE reward_ticket_purchase_effects
+SET finalized_at = confirmed_at
+WHERE status = 'confirmed' AND finalized_at IS NULL;
+
+ALTER TABLE reward_ticket_purchase_effects
+    ADD CONSTRAINT reward_ticket_purchase_effects_finalized_shape_check CHECK (
+        (status = 'confirmed' AND finalized_at IS NOT NULL)
+        OR (status <> 'confirmed' AND finalized_at IS NULL)
+    );
 
 ALTER TABLE reward_ticket_claim_effects
     ADD COLUMN finalized_at TIMESTAMPTZ;
@@ -74,7 +124,8 @@ WHERE status = 'confirmed' AND finalized_at IS NULL;
 
 ALTER TABLE reward_ticket_claim_effects
     ADD CONSTRAINT reward_ticket_claim_effects_finalized_shape_check CHECK (
-        status <> 'confirmed' OR finalized_at IS NOT NULL
+        (status = 'confirmed' AND finalized_at IS NOT NULL)
+        OR (status <> 'confirmed' AND finalized_at IS NULL)
     );
 
 -- v1 deliberately has one custody backing domain for each exact USDC asset.
@@ -85,7 +136,9 @@ CREATE TABLE reward_ticket_custody_backing_domains (
     token_address TEXT NOT NULL CHECK (token_address ~ '^0x[0-9a-fA-F]{40}$'),
     custody_address TEXT NOT NULL CHECK (custody_address ~ '^0x[0-9a-fA-F]{40}$'),
     status TEXT NOT NULL CHECK (status IN ('active', 'operational_hold', 'retired')),
-    terms_hash TEXT NOT NULL CHECK (terms_hash ~ '^[0-9a-f]{64}$'),
+    backing_policy_version TEXT NOT NULL CHECK (
+        backing_policy_version = 'single_custody_per_asset_v1'
+    ),
     activated_at TIMESTAMPTZ,
     operational_held_at TIMESTAMPTZ,
     retired_at TIMESTAMPTZ,
@@ -102,12 +155,37 @@ CREATE TABLE reward_ticket_custody_backing_domains (
 -- The runtime is not built and there should be no pool rows. This backfill is
 -- intentionally fail-closed if an environment nevertheless contains two
 -- custody addresses for the same asset.
+DO $$
+DECLARE
+    conflict RECORD;
+BEGIN
+    SELECT chain_id, usdc_token_address, COUNT(DISTINCT LOWER(custody_address)) AS custody_count
+    INTO conflict
+    FROM reward_ticket_pools
+    GROUP BY chain_id, usdc_token_address
+    HAVING COUNT(DISTINCT LOWER(custody_address)) > 1
+    LIMIT 1;
+
+    IF FOUND THEN
+        RAISE EXCEPTION 'multiple reward ticket custody addresses for backing domain chain=% token=%',
+            conflict.chain_id, conflict.usdc_token_address
+            USING ERRCODE = '23514';
+    END IF;
+END;
+$$;
+
 INSERT INTO reward_ticket_custody_backing_domains (
-    chain_id, token_address, custody_address, status, terms_hash, activated_at
+    chain_id, token_address, custody_address, status, backing_policy_version, activated_at
 )
-SELECT DISTINCT
-    chain_id, usdc_token_address, custody_address, 'active', terms_hash, created_at
-FROM reward_ticket_pools;
+SELECT DISTINCT ON (chain_id, usdc_token_address)
+    chain_id,
+    usdc_token_address,
+    custody_address,
+    'active',
+    'single_custody_per_asset_v1',
+    created_at
+FROM reward_ticket_pools
+ORDER BY chain_id, usdc_token_address, created_at, reward_ticket_pool_id;
 
 ALTER TABLE reward_ticket_pools
     ADD CONSTRAINT reward_ticket_pools_custody_backing_domain_fk
@@ -181,6 +259,10 @@ CREATE TABLE reward_ticket_cashout_effects (
             AND confirmed_at IS NOT NULL
             AND finalized_at IS NOT NULL
         )
+    ),
+    CONSTRAINT reward_ticket_cashout_effects_finality_exclusive_check CHECK (
+        (status = 'confirmed' AND finalized_at IS NOT NULL)
+        OR (status <> 'confirmed' AND finalized_at IS NULL)
     ),
     CONSTRAINT reward_ticket_cashout_effects_released_shape_check
         CHECK (status <> 'released' OR released_at IS NOT NULL),
@@ -362,12 +444,42 @@ DECLARE
     quotient NUMERIC(78, 0);
     remainder NUMERIC(78, 0);
 BEGIN
-    IF TG_TABLE_NAME = 'reward_ticket_allocation_batches' THEN
-        batch_id := COALESCE(NEW.reward_ticket_allocation_batch_id, OLD.reward_ticket_allocation_batch_id);
-    ELSIF TG_TABLE_NAME = 'reward_ticket_allocations' THEN
-        batch_id := COALESCE(NEW.reward_ticket_allocation_batch_id, OLD.reward_ticket_allocation_batch_id);
-    ELSE
-        batch_id := COALESCE(NEW.reward_ticket_allocation_batch_id, OLD.reward_ticket_allocation_batch_id);
+    IF TG_TABLE_NAME IN (
+        'reward_ticket_allocation_batches',
+        'reward_ticket_allocations',
+        'reward_ticket_allocation_batch_claims'
+    ) THEN
+        batch_id := CASE WHEN TG_OP = 'DELETE'
+            THEN OLD.reward_ticket_allocation_batch_id
+            ELSE NEW.reward_ticket_allocation_batch_id
+        END;
+    ELSIF TG_TABLE_NAME = 'reward_ticket_inventory' THEN
+        SELECT reward_ticket_allocation_batch_id INTO batch_id
+        FROM reward_ticket_allocation_batches
+        WHERE reward_ticket_pool_drawing_id = CASE WHEN TG_OP = 'DELETE'
+            THEN OLD.reward_ticket_pool_drawing_id
+            ELSE NEW.reward_ticket_pool_drawing_id
+        END;
+    ELSIF TG_TABLE_NAME = 'reward_ticket_claim_effects' THEN
+        SELECT reward_ticket_allocation_batch_id INTO batch_id
+        FROM reward_ticket_allocation_batches
+        WHERE reward_ticket_pool_drawing_id = CASE WHEN TG_OP = 'DELETE'
+            THEN OLD.reward_ticket_pool_drawing_id
+            ELSE NEW.reward_ticket_pool_drawing_id
+        END;
+    ELSIF TG_TABLE_NAME = 'reward_ticket_claim_tickets' THEN
+        SELECT batch.reward_ticket_allocation_batch_id INTO batch_id
+        FROM reward_ticket_inventory AS inventory
+        JOIN reward_ticket_allocation_batches AS batch
+          ON batch.reward_ticket_pool_drawing_id = inventory.reward_ticket_pool_drawing_id
+        WHERE inventory.reward_ticket_inventory_id = CASE WHEN TG_OP = 'DELETE'
+            THEN OLD.reward_ticket_inventory_id
+            ELSE NEW.reward_ticket_inventory_id
+        END;
+    END IF;
+
+    IF batch_id IS NULL THEN
+        RETURN NULL;
     END IF;
 
     SELECT * INTO batch_row
@@ -514,6 +626,21 @@ AFTER INSERT OR UPDATE OR DELETE ON reward_ticket_allocation_batch_claims
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW EXECUTE FUNCTION enforce_reward_ticket_allocation_batch_complete();
 
+CREATE CONSTRAINT TRIGGER reward_ticket_inventory_allocation_complete
+AFTER INSERT OR UPDATE OR DELETE ON reward_ticket_inventory
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION enforce_reward_ticket_allocation_batch_complete();
+
+CREATE CONSTRAINT TRIGGER reward_ticket_claim_effects_allocation_complete
+AFTER INSERT OR UPDATE OR DELETE ON reward_ticket_claim_effects
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION enforce_reward_ticket_allocation_batch_complete();
+
+CREATE CONSTRAINT TRIGGER reward_ticket_claim_tickets_allocation_complete
+AFTER INSERT OR UPDATE OR DELETE ON reward_ticket_claim_tickets
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION enforce_reward_ticket_allocation_batch_complete();
+
 CREATE OR REPLACE FUNCTION enforce_reward_ticket_credited_drawing_complete()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -600,6 +727,232 @@ $$;
 CREATE TRIGGER reward_ticket_commitment_batches_published_immutable
 BEFORE UPDATE ON reward_ticket_beneficiary_commitment_batches
 FOR EACH ROW EXECUTE FUNCTION enforce_reward_ticket_committed_evidence_immutability();
+
+CREATE OR REPLACE FUNCTION enforce_reward_ticket_funding_effect_transition()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF NEW.status <> OLD.status AND NOT (
+        (OLD.status = 'quoted' AND NEW.status IN ('confirming', 'failed'))
+        OR (OLD.status = 'confirming' AND NEW.status IN ('confirmed', 'failed'))
+        OR (OLD.status = 'confirmed' AND NEW.status = 'refunded')
+    ) THEN
+        RAISE EXCEPTION 'invalid reward ticket funding effect transition: % -> %',
+            OLD.status, NEW.status USING ERRCODE = '23514';
+    END IF;
+
+    IF OLD.finalized_at IS NOT NULL AND ROW(
+        NEW.reward_ticket_pool_id,
+        NEW.funder_user_id,
+        NEW.idempotency_key,
+        NEW.chain_id,
+        NEW.token_address,
+        NEW.expected_amount_cents,
+        NEW.expected_amount_atomic,
+        NEW.received_amount_atomic,
+        NEW.sender_address,
+        NEW.treasury_address,
+        NEW.tx_hash,
+        NEW.log_index,
+        NEW.confirmed_block_number,
+        NEW.confirmed_block_hash,
+        NEW.confirmed_at,
+        NEW.finalized_at
+    ) IS DISTINCT FROM ROW(
+        OLD.reward_ticket_pool_id,
+        OLD.funder_user_id,
+        OLD.idempotency_key,
+        OLD.chain_id,
+        OLD.token_address,
+        OLD.expected_amount_cents,
+        OLD.expected_amount_atomic,
+        OLD.received_amount_atomic,
+        OLD.sender_address,
+        OLD.treasury_address,
+        OLD.tx_hash,
+        OLD.log_index,
+        OLD.confirmed_block_number,
+        OLD.confirmed_block_hash,
+        OLD.confirmed_at,
+        OLD.finalized_at
+    ) THEN
+        RAISE EXCEPTION 'finalized reward ticket funding receipt is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER reward_ticket_pool_funding_effects_transition
+BEFORE UPDATE ON reward_ticket_pool_funding_effects
+FOR EACH ROW EXECUTE FUNCTION enforce_reward_ticket_funding_effect_transition();
+
+CREATE OR REPLACE FUNCTION enforce_reward_ticket_purchase_effect_transition()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF NEW.status <> OLD.status AND NOT (
+        (OLD.status = 'reserved' AND NEW.status IN (
+            'submitted', 'failed', 'reservation_expired', 'needs_review'
+        ))
+        OR (OLD.status = 'submitted' AND NEW.status IN ('confirmed', 'failed', 'needs_review'))
+        OR (OLD.status = 'needs_review' AND NEW.status IN (
+            'confirmed', 'failed', 'reservation_expired'
+        ))
+    ) THEN
+        RAISE EXCEPTION 'invalid reward ticket purchase effect transition: % -> %',
+            OLD.status, NEW.status USING ERRCODE = '23514';
+    END IF;
+
+    IF OLD.finalized_at IS NOT NULL AND ROW(
+        NEW.reward_ticket_pool_drawing_id,
+        NEW.idempotency_key,
+        NEW.expected_ticket_count,
+        NEW.reserved_cents,
+        NEW.actual_cost_cents,
+        NEW.actual_cost_atomic,
+        NEW.recipient_address,
+        NEW.tx_hash,
+        NEW.submitted_block_number,
+        NEW.confirmed_block_number,
+        NEW.confirmed_block_hash,
+        NEW.submitted_at,
+        NEW.confirmed_at,
+        NEW.finalized_at
+    ) IS DISTINCT FROM ROW(
+        OLD.reward_ticket_pool_drawing_id,
+        OLD.idempotency_key,
+        OLD.expected_ticket_count,
+        OLD.reserved_cents,
+        OLD.actual_cost_cents,
+        OLD.actual_cost_atomic,
+        OLD.recipient_address,
+        OLD.tx_hash,
+        OLD.submitted_block_number,
+        OLD.confirmed_block_number,
+        OLD.confirmed_block_hash,
+        OLD.submitted_at,
+        OLD.confirmed_at,
+        OLD.finalized_at
+    ) THEN
+        RAISE EXCEPTION 'finalized reward ticket purchase receipt is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER reward_ticket_purchase_effects_transition
+BEFORE UPDATE ON reward_ticket_purchase_effects
+FOR EACH ROW EXECUTE FUNCTION enforce_reward_ticket_purchase_effect_transition();
+
+CREATE OR REPLACE FUNCTION enforce_reward_ticket_claim_effect_transition()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF NEW.status <> OLD.status AND NOT (
+        (OLD.status = 'detected' AND NEW.status IN ('submitted', 'failed', 'needs_review'))
+        OR (OLD.status = 'submitted' AND NEW.status IN ('confirmed', 'failed', 'needs_review'))
+        OR (OLD.status = 'needs_review' AND NEW.status IN ('confirmed', 'failed'))
+    ) THEN
+        RAISE EXCEPTION 'invalid reward ticket claim effect transition: % -> %',
+            OLD.status, NEW.status USING ERRCODE = '23514';
+    END IF;
+
+    IF OLD.finalized_at IS NOT NULL AND ROW(
+        NEW.reward_ticket_pool_drawing_id,
+        NEW.idempotency_key,
+        NEW.tx_hash,
+        NEW.protocol_reported_winnings_atomic,
+        NEW.received_amount_atomic,
+        NEW.confirmed_block_number,
+        NEW.confirmed_block_hash,
+        NEW.submitted_at,
+        NEW.confirmed_at,
+        NEW.finalized_at
+    ) IS DISTINCT FROM ROW(
+        OLD.reward_ticket_pool_drawing_id,
+        OLD.idempotency_key,
+        OLD.tx_hash,
+        OLD.protocol_reported_winnings_atomic,
+        OLD.received_amount_atomic,
+        OLD.confirmed_block_number,
+        OLD.confirmed_block_hash,
+        OLD.submitted_at,
+        OLD.confirmed_at,
+        OLD.finalized_at
+    ) THEN
+        RAISE EXCEPTION 'finalized reward ticket claim receipt is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER reward_ticket_claim_effects_transition
+BEFORE UPDATE ON reward_ticket_claim_effects
+FOR EACH ROW EXECUTE FUNCTION enforce_reward_ticket_claim_effect_transition();
+
+CREATE OR REPLACE FUNCTION enforce_reward_ticket_cashout_effect_transition()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF NEW.status <> OLD.status AND NOT (
+        (OLD.status = 'reserved' AND NEW.status IN (
+            'submitted', 'released', 'failed', 'needs_review'
+        ))
+        OR (OLD.status = 'submitted' AND NEW.status IN ('confirmed', 'failed', 'needs_review'))
+        OR (OLD.status = 'needs_review' AND NEW.status IN ('confirmed', 'released', 'failed'))
+    ) THEN
+        RAISE EXCEPTION 'invalid reward ticket cashout effect transition: % -> %',
+            OLD.status, NEW.status USING ERRCODE = '23514';
+    END IF;
+
+    IF OLD.finalized_at IS NOT NULL AND ROW(
+        NEW.user_id,
+        NEW.chain_id,
+        NEW.token_address,
+        NEW.custody_address,
+        NEW.destination_address,
+        NEW.idempotency_key,
+        NEW.amount_atomic,
+        NEW.tx_hash,
+        NEW.submitted_block_number,
+        NEW.confirmed_block_number,
+        NEW.confirmed_block_hash,
+        NEW.submitted_at,
+        NEW.confirmed_at,
+        NEW.finalized_at
+    ) IS DISTINCT FROM ROW(
+        OLD.user_id,
+        OLD.chain_id,
+        OLD.token_address,
+        OLD.custody_address,
+        OLD.destination_address,
+        OLD.idempotency_key,
+        OLD.amount_atomic,
+        OLD.tx_hash,
+        OLD.submitted_block_number,
+        OLD.confirmed_block_number,
+        OLD.confirmed_block_hash,
+        OLD.submitted_at,
+        OLD.confirmed_at,
+        OLD.finalized_at
+    ) THEN
+        RAISE EXCEPTION 'finalized reward ticket cashout receipt is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER reward_ticket_cashout_effects_transition
+BEFORE UPDATE ON reward_ticket_cashout_effects
+FOR EACH ROW EXECUTE FUNCTION enforce_reward_ticket_cashout_effect_transition();
 
 -- No ordinary runtime path may erase ticket-pool money or audit records.
 REVOKE DELETE ON TABLE
