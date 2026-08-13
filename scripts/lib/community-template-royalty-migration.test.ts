@@ -132,7 +132,7 @@ describe("community-template royalty-allocation migrations", () => {
     // Existing-deployment upgrade: the historical royalty migrations may land
     // after their additive peers, but must precede a later canonical assets
     // rebuild that deliberately copies their columns into the successor table.
-    const successorRebuilds = all.filter((file) => /^1157_/.test(file));
+    const successorRebuilds = all.filter((file) => /^1158_/.test(file));
     const upgradeOrder = [
       ...all.filter((file) => !royalty.includes(file) && !successorRebuilds.includes(file)),
       ...royalty,
