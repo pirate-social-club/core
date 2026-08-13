@@ -127,6 +127,12 @@ describe("unavailable shard classification", () => {
       .toBe("unreachable")
   })
 
+  test("reports D1 7403 as a binding configuration failure", () => {
+    expect(unavailableShardStatus(new Error(
+      "The given account is not valid or is not authorized to access this service [code: 7403]",
+    ))).toBe("binding_unavailable")
+  })
+
   test("keeps other probe failures fail-closed as errors", () => {
     expect(unavailableShardStatus(new Error("combined migration probe returned no rows"))).toBe("error")
   })
