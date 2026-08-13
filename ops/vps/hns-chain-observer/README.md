@@ -76,9 +76,9 @@ sudo install -m 0600 /dev/null "$HSD_API_KEY_FILE"
 cp env/hsd-observer.env.example .env
 sed -i "s/^HSD_UID=.*/HSD_UID=$(id -u)/; s/^HSD_GID=.*/HSD_GID=$(id -g)/" .env
 sudo chown -R "$(id -u):$(id -g)" "$HSD_DATA_DIR"
-docker compose build --pull
-docker compose up -d
-docker compose ps
+docker compose -p pirate-hns-observer build --pull
+docker compose -p pirate-hns-observer up -d
+docker compose -p pirate-hns-observer ps
 ```
 
 When constructing the immutable role release, bind the locally built image to

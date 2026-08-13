@@ -1,3 +1,5 @@
+name: pirate-hns-observer
+
 services:
   hsd-observer:
     build:
