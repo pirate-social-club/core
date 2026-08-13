@@ -104,6 +104,18 @@ function isPositiveInteger(value: string): string | null {
   return null;
 }
 
+function isBooleanFlag(value: string): string | null {
+  return value === "true" || value === "false"
+    ? null
+    : "expected true or false";
+}
+
+function isBytes32SourceLabel(value: string): string | null {
+  return new TextEncoder().encode(value).length <= 32
+    ? null
+    : "expected a UTF-8 source label of at most 32 bytes";
+}
+
 function isEvmAddress(value: string): string | null {
   if (!/^0x[0-9a-fA-F]{40}$/.test(value)) {
     return "expected 0x-prefixed EVM address";
@@ -625,6 +637,112 @@ export const ENV_CONTRACT: EnvContract = {
     },
     {
       path: "/services/api",
+      key: "REWARD_TICKET_POOLS_ENABLED",
+      requiredness: "required_for_staging",
+      validate: isBooleanFlag,
+    },
+    {
+      path: "/services/api",
+      key: "MEGAPOT_CHAIN_ID",
+      requiredness: "required_for_staging",
+      validate: isRewardCampaignChainId,
+    },
+    {
+      path: "/services/api",
+      key: "MEGAPOT_RPC_URL",
+      requiredness: "required_for_staging",
+      validate: isHttpsUrl,
+    },
+    {
+      path: "/services/api",
+      key: "MEGAPOT_JACKPOT_ADDRESS",
+      requiredness: "required_for_staging",
+      validate: isEvmAddress,
+    },
+    {
+      path: "/services/api",
+      key: "MEGAPOT_RANDOM_TICKET_BUYER_ADDRESS",
+      requiredness: "required_for_staging",
+      validate: isEvmAddress,
+    },
+    {
+      path: "/services/api",
+      key: "MEGAPOT_TICKET_NFT_ADDRESS",
+      requiredness: "required_for_staging",
+      validate: isEvmAddress,
+    },
+    {
+      path: "/services/api",
+      key: "MEGAPOT_USDC_TOKEN_ADDRESS",
+      requiredness: "required_for_staging",
+      validate: isEvmAddress,
+    },
+    {
+      path: "/services/api",
+      key: "MEGAPOT_CUSTODY_ADDRESS",
+      requiredness: "required_for_staging",
+      validate: isEvmAddress,
+    },
+    {
+      path: "/services/api",
+      key: "MEGAPOT_REFERRER_ADDRESS",
+      requiredness: "required_for_staging",
+      validate: isEvmAddress,
+    },
+    {
+      path: "/services/api",
+      key: "MEGAPOT_SOURCE_TAG",
+      requiredness: "required_for_staging",
+      validate: isBytes32SourceLabel,
+    },
+    {
+      path: "/services/api",
+      key: "MEGAPOT_PURCHASE_OPERATOR_PRIVATE_KEY",
+      requiredness: "required_for_staging",
+      validate: isEvmPrivateKey,
+    },
+    {
+      path: "/services/api",
+      key: "MEGAPOT_STAGING_CUSTODY_PRIVATE_KEY",
+      requiredness: "required_for_staging",
+      validate: isEvmPrivateKey,
+    },
+    {
+      path: "/services/api",
+      key: "MEGAPOT_PRICE_QUOTE_TTL_SECONDS",
+      requiredness: "required_for_staging",
+      validate: isPositiveInteger,
+    },
+    {
+      path: "/services/api",
+      key: "MEGAPOT_ENTRY_CUTOFF_SECONDS",
+      requiredness: "required_for_staging",
+      validate: isPositiveInteger,
+    },
+    {
+      path: "/services/api",
+      key: "MEGAPOT_PURCHASE_REVIEW_TTL_SECONDS",
+      requiredness: "required_for_staging",
+      validate: isPositiveInteger,
+    },
+    {
+      path: "/services/api",
+      key: "MEGAPOT_SWEEP_STALE_SECONDS",
+      requiredness: "required_for_staging",
+      validate: isPositiveInteger,
+    },
+    {
+      path: "/services/api",
+      key: "MEGAPOT_ALERT_OWNER",
+      requiredness: "required_for_staging",
+    },
+    {
+      path: "/services/api",
+      key: "MEGAPOT_ALERT_DESTINATION",
+      requiredness: "required_for_staging",
+    },
+    {
+      path: "/services/api",
       key: "BASE_MAINNET_RPC_URL",
       requiredness: "deferred",
       validate: isHttpUrl,
@@ -726,6 +844,33 @@ export const ENV_CONTRACT: EnvContract = {
         if (quoteTtl! > 86_400) return { status: "fail", message: "quote TTL exceeds 86400 seconds" };
         if (minBudget! > maxBudget!) return { status: "fail", message: "minimum budget exceeds maximum" };
         if (minDuration! > maxDuration!) return { status: "fail", message: "minimum duration exceeds maximum" };
+        return { status: "ok" };
+      },
+    },
+    {
+      description: "Megapot staging custody and timing guardrails must be safe",
+      check: (secrets) => {
+        const get = (key: string): string | null =>
+          secrets.get(`${key}__/services/api`)?.value ?? null;
+        const chainId = get("MEGAPOT_CHAIN_ID");
+        const stagingCustodyKey = get("MEGAPOT_STAGING_CUSTODY_PRIVATE_KEY");
+        if (stagingCustodyKey && chainId === "8453") {
+          return {
+            status: "fail",
+            message: "staging custody private key must never be configured for Base mainnet",
+          };
+        }
+        const quoteTtl = get("MEGAPOT_PRICE_QUOTE_TTL_SECONDS");
+        const cutoff = get("MEGAPOT_ENTRY_CUTOFF_SECONDS");
+        if (!quoteTtl || !cutoff || !/^[1-9][0-9]*$/.test(quoteTtl) || !/^[1-9][0-9]*$/.test(cutoff)) {
+          return { status: "skip", message: "Megapot timing guardrails missing or invalid" };
+        }
+        if (Number(quoteTtl) >= Number(cutoff)) {
+          return {
+            status: "fail",
+            message: "Megapot quote TTL must be shorter than the entry cutoff lead time",
+          };
+        }
         return { status: "ok" };
       },
     },
@@ -904,6 +1049,24 @@ export const COMMERCE_SECRET_IDS = [
   "REWARDS_CAMPAIGN_MIN_DURATION_SECONDS__/services/api",
   "REWARDS_CAMPAIGN_MAX_DURATION_SECONDS__/services/api",
   "PIRATE_REWARD_CAMPAIGN_OPERATOR_CREDENTIAL__/services/api",
+  "REWARD_TICKET_POOLS_ENABLED__/services/api",
+  "MEGAPOT_CHAIN_ID__/services/api",
+  "MEGAPOT_RPC_URL__/services/api",
+  "MEGAPOT_JACKPOT_ADDRESS__/services/api",
+  "MEGAPOT_RANDOM_TICKET_BUYER_ADDRESS__/services/api",
+  "MEGAPOT_TICKET_NFT_ADDRESS__/services/api",
+  "MEGAPOT_USDC_TOKEN_ADDRESS__/services/api",
+  "MEGAPOT_CUSTODY_ADDRESS__/services/api",
+  "MEGAPOT_REFERRER_ADDRESS__/services/api",
+  "MEGAPOT_SOURCE_TAG__/services/api",
+  "MEGAPOT_PURCHASE_OPERATOR_PRIVATE_KEY__/services/api",
+  "MEGAPOT_STAGING_CUSTODY_PRIVATE_KEY__/services/api",
+  "MEGAPOT_PRICE_QUOTE_TTL_SECONDS__/services/api",
+  "MEGAPOT_ENTRY_CUTOFF_SECONDS__/services/api",
+  "MEGAPOT_PURCHASE_REVIEW_TTL_SECONDS__/services/api",
+  "MEGAPOT_SWEEP_STALE_SECONDS__/services/api",
+  "MEGAPOT_ALERT_OWNER__/services/api",
+  "MEGAPOT_ALERT_DESTINATION__/services/api",
 ] as const;
 
 const NON_WRANGLER_API_SECRET_NAMES = new Set([

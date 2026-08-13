@@ -62,6 +62,80 @@ describe("reward campaign Infisical contract", () => {
   });
 });
 
+describe("Megapot ticket-pool Infisical contract", () => {
+  const required = [
+    "REWARD_TICKET_POOLS_ENABLED",
+    "MEGAPOT_CHAIN_ID",
+    "MEGAPOT_RPC_URL",
+    "MEGAPOT_JACKPOT_ADDRESS",
+    "MEGAPOT_RANDOM_TICKET_BUYER_ADDRESS",
+    "MEGAPOT_TICKET_NFT_ADDRESS",
+    "MEGAPOT_USDC_TOKEN_ADDRESS",
+    "MEGAPOT_CUSTODY_ADDRESS",
+    "MEGAPOT_REFERRER_ADDRESS",
+    "MEGAPOT_SOURCE_TAG",
+    "MEGAPOT_PURCHASE_OPERATOR_PRIVATE_KEY",
+    "MEGAPOT_STAGING_CUSTODY_PRIVATE_KEY",
+    "MEGAPOT_PRICE_QUOTE_TTL_SECONDS",
+    "MEGAPOT_ENTRY_CUTOFF_SECONDS",
+    "MEGAPOT_PURCHASE_REVIEW_TTL_SECONDS",
+    "MEGAPOT_SWEEP_STALE_SECONDS",
+    "MEGAPOT_ALERT_OWNER",
+    "MEGAPOT_ALERT_DESTINATION",
+  ] as const;
+
+  test("declares every Base Sepolia staging input in the commerce profile", () => {
+    for (const key of required) {
+      const spec = ENV_CONTRACT.secrets.find((candidate) =>
+        candidate.path === "/services/api" && candidate.key === key
+      );
+      expect(spec?.requiredness).toBe("required_for_staging");
+      expect(COMMERCE_SECRET_IDS).toContain(secretId("/services/api", key));
+    }
+  });
+
+  test("validates public protocol config without reading secret values", () => {
+    const spec = (key: string) =>
+      ENV_CONTRACT.secrets.find((candidate) => candidate.key === key)?.validate;
+    expect(spec("REWARD_TICKET_POOLS_ENABLED")?.("true")).toBeNull();
+    expect(spec("REWARD_TICKET_POOLS_ENABLED")?.("1")).toContain("true or false");
+    expect(spec("MEGAPOT_CHAIN_ID")?.("84532")).toBeNull();
+    expect(spec("MEGAPOT_RPC_URL")?.("https://sepolia.base.org")).toBeNull();
+    expect(spec("MEGAPOT_SOURCE_TAG")?.("pirate-song-pools")).toBeNull();
+    expect(spec("MEGAPOT_SOURCE_TAG")?.("x".repeat(33))).toContain("32 bytes");
+  });
+
+  test("prevents staging custody keys on mainnet and enforces fresh quotes", () => {
+    const check = ENV_CONTRACT.crossPathChecks.find((candidate) =>
+      candidate.description.includes("Megapot staging custody")
+    );
+    const values = new Map([
+      [secretId("/services/api", "MEGAPOT_CHAIN_ID"), { path: "/services/api", value: "84532" }],
+      [secretId("/services/api", "MEGAPOT_STAGING_CUSTODY_PRIVATE_KEY"), {
+        path: "/services/api",
+        value: `0x${"a".repeat(64)}`,
+      }],
+      [secretId("/services/api", "MEGAPOT_PRICE_QUOTE_TTL_SECONDS"), {
+        path: "/services/api",
+        value: "60",
+      }],
+      [secretId("/services/api", "MEGAPOT_ENTRY_CUTOFF_SECONDS"), {
+        path: "/services/api",
+        value: "300",
+      }],
+    ]);
+    expect(check?.check(values)).toEqual({ status: "ok" });
+    values.set(secretId("/services/api", "MEGAPOT_CHAIN_ID"), {
+      path: "/services/api",
+      value: "8453",
+    });
+    expect(check?.check(values)).toEqual({
+      status: "fail",
+      message: "staging custody private key must never be configured for Base mainnet",
+    });
+  });
+});
+
 describe("Story signer Infisical contract", () => {
   test("requires isolated role keys and address guards without a catch-all fallback", () => {
     const required = [
