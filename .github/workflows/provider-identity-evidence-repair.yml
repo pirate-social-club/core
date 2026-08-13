@@ -7,10 +7,6 @@ on:
         description: Reviewed decision/reference for this one-shot repair
         required: true
         type: string
-      infisical_identity_id:
-        description: Dedicated Core production OIDC identity authorized for prod:/services/control-plane
-        required: true
-        type: string
       mode:
         description: Dry-run first; execute only after reviewing the uploaded snapshot
         required: true
@@ -52,32 +48,29 @@ jobs:
         shell: bash
         env:
           DECISION_REF: ${{ inputs.decision_ref }}
-          INFISICAL_IDENTITY_ID: ${{ inputs.infisical_identity_id }}
         run: |
           set -euo pipefail
           [[ "$DECISION_REF" =~ ^[A-Za-z0-9][A-Za-z0-9._:/-]{2,159}$ ]] || {
             echo "::error::decision_ref has an invalid format"
             exit 1
           }
-          [[ "$INFISICAL_IDENTITY_ID" =~ ^[0-9a-fA-F-]{36}$ ]] || {
-            echo "::error::infisical_identity_id must be a UUID"
-            exit 1
-          }
 
-      - name: Fetch production migrator credential through OIDC
+      - name: Fetch production control-plane credential through OIDC
         env:
-          INFISICAL_IDENTITY_ID: ${{ inputs.infisical_identity_id }}
+          # Existing Core production migration identity, shared by the
+          # read-only doctor and reviewed repair workflows.
+          INFISICAL_IDENTITY_ID: ec0ad659-af1c-4009-a845-9e6092cc062b
           INFISICAL_PROJECT_ID: 5acea78e-7813-4d8a-b29c-9b862a0b1c71
           INFISICAL_ENV: prod
-          INFISICAL_SECRET_PATH: /services/control-plane
-          SECRET_NAMES: CONTROL_PLANE_MIGRATOR_DATABASE_URL
+          INFISICAL_SECRET_PATH: /services/api
+          SECRET_NAMES: CONTROL_PLANE_DATABASE_URL
         run: scripts/ci/fetch-infisical-secrets.sh
 
       - name: Run read-only before audit
         run: |
           set -euo pipefail
           bun scripts/control-plane/audit-provider-identity-evidence.ts \
-            --database-url-env CONTROL_PLANE_MIGRATOR_DATABASE_URL \
+            --database-url-env CONTROL_PLANE_DATABASE_URL \
             > provider-identity-evidence-before.json
 
       - name: Run reviewed reconciliation
@@ -88,7 +81,7 @@ jobs:
           set -euo pipefail
           args=(
             scripts/control-plane/provider-identity-evidence-repair.ts
-            --database-url-env CONTROL_PLANE_MIGRATOR_DATABASE_URL
+            --database-url-env CONTROL_PLANE_DATABASE_URL
             --audit-before-file provider-identity-evidence-before.json
             --snapshot-file provider-identity-evidence-repair-snapshot.json
             --decision-ref "$DECISION_REF"
@@ -103,7 +96,7 @@ jobs:
         run: |
           set -euo pipefail
           bun scripts/control-plane/audit-provider-identity-evidence.ts \
-            --database-url-env CONTROL_PLANE_MIGRATOR_DATABASE_URL \
+            --database-url-env CONTROL_PLANE_DATABASE_URL \
             > provider-identity-evidence-after.json
 
       - name: Upload repair evidence
