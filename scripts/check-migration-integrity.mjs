@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findAnonymousTableChecks, findExistingTableCheckSafetyGaps } from "./lib/migration-constraint-lint.mjs";
+import { runCommunityMigrationRolloutCheck } from "./check-community-migration-rollout.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(__filename), "..");
@@ -574,6 +575,13 @@ async function main() {
   failures.push(...checkExistingTableCheckSafety(baseRef));
   failures.push(...await checkCommunityDriftPolicy());
   failures.push(...await checkLocalControlPlaneDriftPolicy());
+
+  const rolloutCheck = runCommunityMigrationRolloutCheck(baseRef);
+  if (rolloutCheck.skipped) {
+    warnings.push("could not resolve a base ref; skipped community migration rollout contracts");
+  } else {
+    failures.push(...rolloutCheck.failures);
+  }
 
   for (const warning of warnings) {
     console.warn(`warning: ${warning}`);
