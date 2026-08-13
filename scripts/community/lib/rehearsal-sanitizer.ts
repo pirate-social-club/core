@@ -7,6 +7,7 @@ export type SanitizationRule = {
   table: string
   column: string
   mode: SanitizationMode
+  reason?: string
 }
 
 export type RehearsalProfile = {
@@ -28,7 +29,15 @@ export type SanitizationInventoryEntry = TextOrBlobColumn & {
   minimumByteLength: number | null
   maximumByteLength: number | null
   mode: SanitizationMode | "unresolved"
+  reason?: string
 }
+
+export const REBUILT_TABLES = new Set([
+  "posts",
+  "assets",
+  "post_publish_requests",
+  "moderation_actions",
+])
 
 function quoteIdentifier(value: string): string {
   return `"${value.replaceAll('"', '""')}"`
@@ -45,7 +54,94 @@ function textOrBlobColumns(db: Database): TextOrBlobColumn[] {
   )
 }
 
+function checkExpressions(sql: string): string[] {
+  const expressions: string[] = []
+  const pattern = /\bCHECK\s*\(/giu
+  for (let match = pattern.exec(sql); match; match = pattern.exec(sql)) {
+    const start = pattern.lastIndex
+    let depth = 1
+    let quote: "'" | '"' | "`" | null = null
+    for (let index = start; index < sql.length; index += 1) {
+      const character = sql[index]!
+      if (quote) {
+        if (character === quote && sql[index + 1] === quote) {
+          index += 1
+        } else if (character === quote) {
+          quote = null
+        }
+        continue
+      }
+      if (character === "'" || character === '"' || character === "`") {
+        quote = character
+      } else if (character === "(") {
+        depth += 1
+      } else if (character === ")") {
+        depth -= 1
+        if (depth === 0) {
+          expressions.push(sql.slice(start, index))
+          pattern.lastIndex = index + 1
+          break
+        }
+      }
+    }
+  }
+  return expressions
+}
+
+function constrainedColumns(db: Database): Map<string, Set<string>> {
+  const constrained = new Map<string, Set<string>>()
+  const mark = (table: string, column: string | null | undefined) => {
+    if (!column) return
+    const columns = constrained.get(table) ?? new Set<string>()
+    columns.add(column)
+    constrained.set(table, columns)
+  }
+  const tables = db.query<{ name: string; sql: string | null }, []>(
+    "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+  ).all()
+  for (const { name: table, sql } of tables) {
+    const columns = db.query<{ name: string; pk: number }, []>(`PRAGMA table_info(${quoteIdentifier(table)})`).all()
+    for (const column of columns) if (column.pk > 0) mark(table, column.name)
+    for (const foreignKey of db.query<{ from: string }, []>(`PRAGMA foreign_key_list(${quoteIdentifier(table)})`).all()) {
+      mark(table, foreignKey.from)
+    }
+    for (const index of db.query<{ name: string; unique: number }, []>(`PRAGMA index_list(${quoteIdentifier(table)})`).all()) {
+      if (index.unique !== 1) continue
+      for (const column of db.query<{ name: string | null; key: number }, []>(`PRAGMA index_xinfo(${quoteIdentifier(index.name)})`).all()) {
+        if (column.key === 1) mark(table, column.name)
+      }
+    }
+    if (REBUILT_TABLES.has(table) && sql) {
+      const expressions = checkExpressions(sql)
+      for (const column of columns) {
+        const identifier = column.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+        if (expressions.some((expression) => new RegExp(`(?:^|[^A-Za-z0-9_])(?:[\"\`]?)${identifier}(?:[\"\`]?)(?:$|[^A-Za-z0-9_])`, "iu").test(expression))) {
+          mark(table, column.name)
+        }
+      }
+    }
+  }
+  return constrained
+}
+
+export function deriveSanitizationRules(db: Database): SanitizationRule[] {
+  const constrained = constrainedColumns(db)
+  return textOrBlobColumns(db).map(({ table, column, declaredType }) => {
+    if (table === "schema_migrations") {
+      return { table, column, mode: "preserve", reason: "migration_ledger_verbatim" }
+    }
+    if (constrained.get(table)?.has(column)) {
+      return { table, column, mode: "preserve", reason: "pk_fk_unique_or_rebuilt_check" }
+    }
+    if (/BLOB/iu.test(declaredType)) {
+      return { table, column, mode: "stable_blob", reason: "length_preserving_payload" }
+    }
+    return { table, column, mode: "mask_text", reason: "length_preserving_content" }
+  })
+}
+
 export function sanitizationInventory(db: Database): SanitizationInventoryEntry[] {
+  const derived = new Map(deriveSanitizationRules(db).map((rule) => [`${rule.table}\0${rule.column}`, rule]))
   return textOrBlobColumns(db).map(({ table, column, declaredType }) => {
     const identifier = quoteIdentifier(column)
     const row = db.query<{
@@ -72,7 +168,8 @@ export function sanitizationInventory(db: Database): SanitizationInventoryEntry[
       distinctCount: Number(row?.distinct_count ?? 0),
       minimumByteLength: row?.minimum_byte_length ?? null,
       maximumByteLength: row?.maximum_byte_length ?? null,
-      mode: table === "schema_migrations" ? "preserve" : "unresolved",
+      mode: derived.get(`${table}\0${column}`)?.mode ?? "unresolved",
+      reason: derived.get(`${table}\0${column}`)?.reason,
     }
   })
 }

@@ -1862,16 +1862,33 @@ entry are renamed together before either PR merges. A new duplicate-prefix
 exception is not an acceptable way to preserve the stale number; historical
 duplicate prefixes remain frozen compatibility exceptions only.
 
-Before review approval, the exact migration runs against a privacy-safe copy of
-the largest current production shard using the production D1 migration
-transport and limits. The gate records table-copy statement duration, total
-elapsed time, database-size growth, and D1 retries/errors; verifies old/new row
-counts, indexes, schema hash, and `PRAGMA foreign_key_check`; and requires at
-least 50 percent headroom below the applicable statement and execution limits.
-The copy must preserve production row counts and size distribution even when
-content fields are sanitized. If this gate fails, the single-sweep design is
-re-reviewed and split safely before fleet scheduling; the migration is not
-waived or trialed first on a live small shard.
+Before review approval, the exact migration runs through the production D1
+transport in two complementary rehearsals. A restricted, privacy-reduced copy
+of the largest allocated-and-loaded production shard proves real schema,
+ledger-drift, row-shape, index, and foreign-key fidelity. Sanitization is
+mechanical and length-preserving: `schema_migrations` remains byte-for-byte
+unchanged; PK, FK, UNIQUE, and CHECK-participating columns are preserved; and
+unconstrained text/blob content is replaced without changing its byte-length
+distribution. The resulting copy remains restricted operational evidence
+because preserved keys and constrained values are not promised anonymous.
+
+Separate synthetic shards built from the canonical pre-migration schema at
+100× and 1000× the largest shard's four rebuilt-table row/byte shape provide
+the scale evidence the currently small production fleet cannot. Fixtures must
+remain below D1's current per-database and import limits; if the literal 1000×
+fixture would cross a platform limit, its construction uses bounded remote
+batches or records that limit as the earlier hard ceiling rather than silently
+shrinking the factor. Both runs record table-copy statement duration, total
+elapsed time, database-size growth, and D1 retries/errors; verify old/new row
+counts, indexes, schema hash, and `PRAGMA foreign_key_check`; and require at
+least 50 percent headroom below applicable statement and execution limits.
+
+The real-shard shape rehearsal re-runs when the migration bytes change or the
+largest allocated-and-loaded production shard first crosses 100 MiB and each
+subsequent 100 MiB boundary. Synthetic scale evidence re-runs when migration
+bytes, applicable D1 limits, or the canonical fixture generator change. If a
+gate fails, the single-sweep design is re-reviewed and split safely before
+fleet scheduling; the migration is not waived or trialed first on a live shard.
 
 ### Phase 3: downloadable file vertical
 
