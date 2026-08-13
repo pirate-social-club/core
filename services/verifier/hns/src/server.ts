@@ -85,6 +85,7 @@ const verifierPort = Number(Bun.env.HNS_VERIFIER_PORT || "4048");
 const verifierAuth = resolveHnsVerifierAuth(
   Bun.env.HNS_VERIFIER_AUTH_TOKEN,
   Bun.env.HNS_VERIFIER_OBSERVER_AUTH_TOKEN,
+  Bun.env.HNS_VERIFIER_AUTH_TOKEN_SECONDARY,
 );
 
 const pdnsApiUrl = Bun.env.PDNS_API_URL?.trim() || "http://127.0.0.1:8081";

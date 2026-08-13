@@ -39,6 +39,7 @@ Current platform-managed roots:
 - `HNS_VERIFIER_HOST`
 - `HNS_VERIFIER_PORT`
 - `HNS_VERIFIER_AUTH_TOKEN`
+- `HNS_VERIFIER_AUTH_TOKEN_SECONDARY`
 - `HNS_VERIFIER_OBSERVER_AUTH_TOKEN`
 - `HNS_CHAIN_RPC_URL`
 - `HNS_CHAIN_RPC_API_KEY`
@@ -64,10 +65,14 @@ Current platform-managed roots:
 - `HNS_AUTHORITATIVE_TLSA_TTL`
 
 `HNS_VERIFIER_AUTH_TOKEN` authorizes every verifier route, including
-PowerDNS-mutating operations. `HNS_VERIFIER_OBSERVER_AUTH_TOKEN` is optional
+PowerDNS-mutating operations. `HNS_VERIFIER_AUTH_TOKEN_SECONDARY` is an
+optional second full-access token for zero-downtime credential rotation; set it
+before moving callers to a new value, then remove the old primary after callers
+are confirmed migrated. `HNS_VERIFIER_OBSERVER_AUTH_TOKEN` is optional
 and authorizes only `GET /observe-root-parent` and
-`GET /observe-root-authority`. The service refuses to start if the observer
-token is configured without a primary token or if both values are identical.
+`GET /observe-root-authority`. The service refuses to start if a secondary or
+observer token is configured without a primary token, or if any two token
+values are identical.
 
 `PDNS_SECURE_NEW_ZONES=true` asks PowerDNS to generate signing keys as part of
 new-zone creation. It never signs an existing unsigned zone. `/ensure-zone` and
