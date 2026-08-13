@@ -109,7 +109,7 @@ try {
         AND verified_at IS NOT NULL
         AND verified_at <= CURRENT_TIMESTAMP
         AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
-        AND capability_key IN ('minimum_age', 'nationality', 'gender')
+        AND capability_key IN ('minimum_age', 'age_over_18', 'nationality', 'gender')
         AND provider IN ('self', 'zkpassport')
     ), grouped AS (
       SELECT user_id,
@@ -137,7 +137,7 @@ try {
         AND verified_at <= CURRENT_TIMESTAMP
         AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
         AND provider IN ('self', 'zkpassport')
-        AND capability_key IN ('minimum_age', 'nationality', 'gender')
+        AND capability_key IN ('minimum_age', 'age_over_18', 'nationality', 'gender')
     )
     SELECT a.provider,
            a.capability_key,

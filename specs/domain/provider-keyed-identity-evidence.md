@@ -45,18 +45,20 @@ but they differ by capability class:
 
 - personhood (`unique_human`) uses a unique index on
   `(user_id, capability_key, provider) WHERE status = 'accepted'`;
-- document evidence (`nationality`, `minimum_age`, `age_over_18`, and `gender`)
-  uses a unique index on
+- nationality evidence uses a unique index on
   `(user_id, capability_key, provider, source_identity_nullifier_id) WHERE status = 'accepted' AND source_identity_nullifier_id IS NOT NULL`;
+- age (`minimum_age`, `age_over_18`) and gender evidence use a unique index on
+  `(user_id, capability_key, provider) WHERE status = 'accepted'`;
 - verification-session idempotency uses a unique index on
   `(source_verification_session_id, capability_key, provider) WHERE status = 'accepted' AND source_verification_session_id IS NOT NULL`.
 
 Historical expired, revoked, and superseded rows remain queryable for audit and
-are intentionally outside all uniqueness constraints. Unbound document rows are
-not eligible evidence and are intentionally outside the document index until a
-separately reviewed provenance classification is complete. The session-duplicate
-audit reports non-current rows with their status; only accepted-session
-duplicates block the idempotency constraint.
+are intentionally outside all uniqueness constraints. Accepted nationality rows
+must carry a provider-compatible source nullifier; unbound historical rows remain
+outside the nationality index until a separately reviewed provenance
+classification is complete. The session-duplicate audit reports non-current
+rows with their status; only accepted-session duplicates block the idempotency
+constraint.
 
 ## Authoritative evidence record
 
@@ -103,8 +105,8 @@ An evidence row is eligible only when all applicable conditions hold:
 3. `expires_at` is null or later than the evaluation time;
 4. the row is not revoked or superseded;
 5. its provider and mechanism are registered for the capability;
-6. personhood and document evidence that requires a nullifier is bound to an
-   active, provider-compatible nullifier owned by the same user.
+6. personhood evidence and nationality evidence are bound to an active,
+   provider-compatible nullifier owned by the same user.
 
 The evaluator receives one authoritative evaluation timestamp so every atom
 in a policy observes the same expiry boundary.
@@ -131,7 +133,7 @@ This deliberately preserves the meaning of accepted providers as alternatives.
 A community that does not want provider choice can pin the atom to one
 provider. A user with two genuinely valid nationalities may satisfy positive
 allowlist atoms with either document, including two documents from the same
-provider, because document evidence is retained per source nullifier; the
+provider, because nationality evidence is retained per source nullifier; the
 evaluator does not invent one global "true nationality."
 
 Nationality exclusion is not proof that a person lacks another nationality.
@@ -156,11 +158,15 @@ The migration should follow the `reward_identity_bindings` idiom:
   `revoked`, and `superseded`;
 - allow at most one canonical `accepted` personhood row for
   `(user_id, capability_key, provider)` with a partial unique index;
-- allow one canonical `accepted` document row per
+- allow one canonical `accepted` nationality row per
   `(user_id, capability_key, provider, source_identity_nullifier_id)` with a
   partial unique index. A second verification of the same document supersedes
   that document's prior row before inserting its replacement; a different
   document remains independently accepted;
+- allow at most one canonical `accepted` row for age and gender capabilities
+  `(user_id, capability_key, provider)` with a partial unique index. These
+  capabilities follow the existing writer semantics and are not selected by a
+  reward document binding;
 - allow at most one `accepted` row for
   `(source_verification_session_id, capability_key, provider)` when the source
   session is present, making finalization idempotent at the database boundary;
@@ -168,12 +174,12 @@ The migration should follow the `reward_identity_bindings` idiom:
   same transaction;
 - update `verification_capabilities` last as a derived projection.
 
-The source-nullifier key is required for document capabilities because rewards
-bind to a selected document. Superseding a different document's nationality
-row merely because it is newer would make the reward query for the selected
-nullifier return no evidence and would silently change payout eligibility. The
-database therefore preserves multiple accepted document records for one user
-and provider when their source nullifiers differ.
+The source-nullifier key is required for nationality because rewards bind to a
+selected document. Superseding a different document's nationality row merely
+because it is newer would make the reward query for the selected nullifier
+return no evidence and would silently change payout eligibility. Age and gender
+remain single-slot because no current authorization consumer binds those values
+to a selected document.
 
 Expiry cannot be expressed as `expires_at > now()` in a partial unique index.
 The lifecycle must transition an expired accepted row to `expired` before a
