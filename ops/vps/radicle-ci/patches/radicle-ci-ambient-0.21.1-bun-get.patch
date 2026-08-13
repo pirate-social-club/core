@@ -1,0 +1,24 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 6e1ed9d..4b5bc1a 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -87,8 +87,6 @@ dependencies = [
+ [[package]]
+ name = "ambient-ci"
+ version = "0.16.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "051d8698eac84847b56b8f39577ef186b2816ecf0fca073434ea62d67913f80a"
+ dependencies = [
+  "anyhow",
+  "byte-unit",
+diff --git a/Cargo.toml b/Cargo.toml
+index 9fd54c4..438d7ab 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -84,3 +84,6 @@ features = ["v4"]
+ 
+ [dependencies.walkdir]
+ version = "2.5.0"
++
++[patch.crates-io]
++ambient-ci = { path = "../ambient-ci" }

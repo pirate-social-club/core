@@ -4,9 +4,11 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 role="$(cd "$here/.." && pwd)"
 patch_file="$role/patches/ambient-ci-0.16.0-npm-retry.patch"
+adapter_patch_file="$role/patches/radicle-ci-ambient-0.21.1-bun-get.patch"
 artifacts="$role/rebuild-artifacts.yaml"
 
 test -r "$patch_file"
+test -r "$adapter_patch_file"
 test -r "$artifacts"
 git apply --numstat "$patch_file" >/dev/null
 grep -Fq 'diff --git a/src/action_impl/http_get.rs' "$patch_file"
@@ -35,6 +37,19 @@ grep -Fq 'HTTP_DOWNLOAD_RETRY_BASE_DELAY.saturating_mul(multiplier)' "$patch_fil
 grep -Fq 'http_get download attempt {attempt}/{HTTP_DOWNLOAD_ATTEMPTS}' "$patch_file"
 grep -Fq 'manifest.tsv' "$patch_file"
 grep -Fq '"file:", "workspace:", "link:"' "$patch_file"
+grep -Fq 'bun_get download attempt {attempt}/{DOWNLOAD_ATTEMPTS}' "$patch_file"
+grep -Fq 'package_url(&name, &version)' "$patch_file"
+grep -Fq 'cache_version' "$patch_file"
+grep -Fq 'd301056781780760' "$patch_file"
+
+# The adapter must be built against the same patched Ambient crate; otherwise
+# it rejects bun_get before the isolated guest starts.
+grep -Fq 'diff --git a/Cargo.toml b/Cargo.toml' "$adapter_patch_file"
+grep -Fq '[patch.crates-io]' "$adapter_patch_file"
+grep -Fq 'ambient-ci = { path = "../ambient-ci" }' "$adapter_patch_file"
+grep -Fq 'name = "ambient-ci"' "$adapter_patch_file"
+grep -Fq 'source = "registry+https://github.com/rust-lang/crates.io-index"' \
+  "$adapter_patch_file"
 
 # Installation remains pinned to the reviewed Ambient source and records the
 # patched artifact hashes used by host drift verification.
@@ -48,6 +63,14 @@ grep -Eq '^expected_action_impl_source_sha256=[0-9a-f]{64}$' \
   "$here/install-ambient-npm-retry"
 grep -Fq 'patch_sha256=' "$here/install-ambient-npm-retry"
 grep -Fq 'binary_sha256=' "$here/install-ambient-npm-retry"
+grep -Eq '^expected_adapter_cargo_toml_sha256=[0-9a-f]{64}$' \
+  "$here/install-ambient-npm-retry"
+grep -Eq '^expected_adapter_cargo_lock_sha256=[0-9a-f]{64}$' \
+  "$here/install-ambient-npm-retry"
+grep -Fq 'adapter_patch_sha256=' "$here/install-ambient-npm-retry"
+grep -Fq 'adapter_binary_sha256=' "$here/install-ambient-npm-retry"
+grep -Fq 'ambient_cli_binary_sha256=' "$here/install-ambient-npm-retry"
+grep -Fq -- '--bin ambient' "$here/install-ambient-npm-retry"
 
 # Rebuild provenance must stay explicit and bind the immutable archives to the
 # reviewed public artifacts.

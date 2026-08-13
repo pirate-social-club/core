@@ -58,14 +58,20 @@ qemu-img check -q "$rad_home/ambient/ambient.qcow2"
 
 ambient_manifest=/usr/local/share/pirate-radicle/ambient-npm-retry.manifest
 ambient_patch=/usr/local/share/pirate-radicle/ambient-ci-npm-retry.patch
+ambient_adapter_patch=/usr/local/share/pirate-radicle/radicle-ci-ambient-0.21.1-bun-get.patch
 expected_ambient_config=${RADICLE_CI_EXPECTED_AMBIENT_CONFIG:-$script_dir/../config/ambient.yaml}
 test "$(stat -c '%U:%G:%a' "$rad_home/.config/ambient/config.yaml")" = radicle:radicle:600
 cmp -s "$expected_ambient_config" "$rad_home/.config/ambient/config.yaml" \
   || { echo 'live Ambient configuration differs from the tracked role' >&2; exit 1; }
 test -x /usr/local/bin/ambient-execute-plan
 test "$(stat -c '%U:%G:%a' /usr/local/bin/ambient-execute-plan)" = root:root:755
+test -x /usr/local/bin/ambient
+test "$(stat -c '%U:%G:%a' /usr/local/bin/ambient)" = root:root:755
+test -x /var/lib/radicle/.cargo/bin/radicle-ci-ambient
+test "$(stat -c '%U:%G:%a' /var/lib/radicle/.cargo/bin/radicle-ci-ambient)" = radicle:radicle:755
 test "$(stat -c '%U:%G:%a' "$ambient_manifest")" = root:root:644
 test "$(stat -c '%U:%G:%a' "$ambient_patch")" = root:root:644
+test "$(stat -c '%U:%G:%a' "$ambient_adapter_patch")" = root:root:644
 grep -Fxq 'ambient_version=0.16.0' "$ambient_manifest"
 grep -Fxq \
   'upstream_source_sha256=ca138d2325790fba012f668e0d114346a955c574ec288fef41097df98fcdfd4c' \
@@ -79,10 +85,22 @@ grep -Fxq \
 grep -Fxq \
   'upstream_action_impl_source_sha256=5ff1b4cf2ac181c552bf70a2e8bc7afa2f818655d0e48a0d3795a3d5176b1933' \
   "$ambient_manifest"
+grep -Fxq \
+  'upstream_adapter_cargo_toml_sha256=dd5640e80f21ff460225241393986029d77a820c3391f5f1407654c5c38fcca6' \
+  "$ambient_manifest"
+grep -Fxq \
+  'upstream_adapter_cargo_lock_sha256=c619e432c99157528649b017d6c3f4273d682a4c2520ca3f6971267e547199ce' \
+  "$ambient_manifest"
 test "$(awk -F= '$1 == "patch_sha256" { print $2 }' "$ambient_manifest")" = \
   "$(sha256sum "$ambient_patch" | awk '{ print $1 }')"
+test "$(awk -F= '$1 == "adapter_patch_sha256" { print $2 }' "$ambient_manifest")" = \
+  "$(sha256sum "$ambient_adapter_patch" | awk '{ print $1 }')"
 test "$(awk -F= '$1 == "binary_sha256" { print $2 }' "$ambient_manifest")" = \
   "$(sha256sum /usr/local/bin/ambient-execute-plan | awk '{ print $1 }')"
+test "$(awk -F= '$1 == "ambient_cli_binary_sha256" { print $2 }' "$ambient_manifest")" = \
+  "$(sha256sum /usr/local/bin/ambient | awk '{ print $1 }')"
+test "$(awk -F= '$1 == "adapter_binary_sha256" { print $2 }' "$ambient_manifest")" = \
+  "$(sha256sum /var/lib/radicle/.cargo/bin/radicle-ci-ambient | awk '{ print $1 }')"
 
 controller_status="$(
   cd /

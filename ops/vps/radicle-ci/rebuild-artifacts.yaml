@@ -78,6 +78,23 @@ ambient_executor:
     sha256: 051d8698eac84847b56b8f39577ef186b2816ecf0fca073434ea62d67913f80a
     verified_at: 2026-08-13T03:00:00Z
 
+# The adapter parses `.radicle/ambient.yaml` before invoking the executor. It
+# is rebuilt against the patched executor crate so `bun_get` is accepted at the
+# adapter boundary rather than rejected before the guest starts.
+ambient_adapter:
+  package_version: 0.21.1
+  crate_source_url: https://crates.io/api/v1/crates/radicle-ci-ambient/0.21.1/download
+  crate_size_bytes: 55572
+  crate_sha256: 99ad56ae407d25885bce98ab9c179a10d21efee0a736cf2f374cd9d777998b46
+  immutable_archive:
+    status: pending_before_enforcement
+    bucket: pirate-radicle-ci-artifacts
+    key: artifacts/radicle-ci-ambient/0.21.1/radicle-ci-ambient-0.21.1.crate
+    lock_retention: indefinite
+    note: >-
+      Upload and round-trip verify this public crate before enforcement; the
+      tracked source hashes and adapter patch remain the immediate build gate.
+
 # These refs are recovery entry points for the advisory bootstrap. Branch tips
 # may advance; verify the selected tip and its signed CI proof instead of
 # assuming the anchors below are current.

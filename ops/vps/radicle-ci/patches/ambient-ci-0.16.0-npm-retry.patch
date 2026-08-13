@@ -87,13 +87,15 @@ new file mode 100644
 index 0000000..c8f9674
 --- /dev/null
 +++ b/src/action_impl/bun.rs
-@@ -0,0 +1,259 @@
+@@ -0,0 +1,394 @@
 +use std::{
 +    collections::{BTreeMap, BTreeSet},
 +    error::Error,
 +    fs::{self, File},
 +    io::{self, Write},
 +    path::{Component, Path, PathBuf},
++    thread,
++    time::Duration,
 +};
 +
 +use serde::{Deserialize, Serialize};
@@ -108,6 +110,8 @@ index 0000000..c8f9674
 +
 +const LOCK_FILE: &str = "bun.lock";
 +const SUBDIR: &str = "bun";
++const DOWNLOAD_ATTEMPTS: u32 = 3;
++const DOWNLOAD_RETRY_BASE_DELAY: Duration = Duration::from_secs(2);
 +
 +/// Download registry packages from a Bun lock file into the pre-plan
 +/// dependency directory. Local `file:`, `workspace:`, and `link:` entries are
@@ -156,7 +160,7 @@ index 0000000..c8f9674
 +        let manifest_path = bun_dir.join("manifest.tsv");
 +        let mut manifest = File::create(&manifest_path)
 +            .map_err(|err| BunError::CreateManifest(manifest_path.clone(), err))?;
-+        writeln!(manifest, "name\tversion\tfilename\tintegrity")
++        writeln!(manifest, "name\tversion\tcache_version\tfilename\tintegrity")
 +            .map_err(|err| BunError::WriteManifest(manifest_path.clone(), err))?;
 +
 +        let mut seen = BTreeSet::new();
@@ -174,6 +178,8 @@ index 0000000..c8f9674
 +
 +            let (name, version) = parse_registry_spec(spec)
 +                .ok_or_else(|| BunError::InvalidPackage(key.clone(), spec.into()))?;
++            let cache_version = bun_cache_version(&version)
++                .map_err(|err| BunError::InvalidVersion(version.clone(), err))?;
 +            if !seen.insert((name.clone(), version.clone())) {
 +                continue;
 +            }
@@ -182,10 +188,26 @@ index 0000000..c8f9674
 +                .map_err(|err| BunError::UrlParse(name.clone(), err))?;
 +            let filename = format!("{ordinal}.tgz");
 +            let destination = bun_dir.join(&filename);
-+            http_get_to_file(url.as_str(), &destination)
-+                .map_err(|err| BunError::HttpGet(url.clone(), destination.clone(), err))?;
++            for attempt in 1..=DOWNLOAD_ATTEMPTS {
++                match http_get_to_file(url.as_str(), &destination) {
++                    Ok(_) => break,
++                    Err(err) => {
++                        let _ = fs::remove_file(&destination);
++                        if attempt == DOWNLOAD_ATTEMPTS {
++                            return Err(BunError::HttpGet(url.clone(), destination.clone(), err));
++                        }
++                        let multiplier = 2_u32.checked_pow(attempt - 1).unwrap_or(u32::MAX);
++                        let delay = DOWNLOAD_RETRY_BASE_DELAY.saturating_mul(multiplier);
++                        eprintln!(
++                            "bun_get download attempt {attempt}/{DOWNLOAD_ATTEMPTS} failed; retrying in {}s",
++                            delay.as_secs()
++                        );
++                        thread::sleep(delay);
++                    }
++                }
++            }
 +            let integrity = entry.get(3).and_then(Value::as_str).unwrap_or("-");
-+            writeln!(manifest, "{name}\t{version}\t{filename}\t{integrity}")
++            writeln!(manifest, "{name}\t{version}\t{cache_version}\t{filename}\t{integrity}")
 +                .map_err(|err| BunError::WriteManifest(manifest_path.clone(), err))?;
 +            ordinal += 1;
 +        }
@@ -237,6 +259,103 @@ index 0000000..c8f9674
 +    ))
 +}
 +
++fn bun_cache_version(version: &str) -> Result<String, &'static str> {
++    let (without_build, build) = version.split_once('+').unwrap_or((version, ""));
++    let (core, pre) = without_build.split_once('-').unwrap_or((without_build, ""));
++    let mut numbers = core.split('.');
++    let major = numbers.next().ok_or("missing major")?.parse::<u64>().map_err(|_| "invalid major")?;
++    let minor = numbers.next().ok_or("missing minor")?.parse::<u64>().map_err(|_| "invalid minor")?;
++    let patch = numbers.next().ok_or("missing patch")?.parse::<u64>().map_err(|_| "invalid patch")?;
++    if numbers.next().is_some() || core.is_empty() {
++        return Err("invalid core version");
++    }
++    let mut cached = format!("{major}.{minor}.{patch}");
++    if !pre.is_empty() {
++        cached.push('-');
++        cached.push_str(&format!("{:016x}", wyhash11_hash(pre.as_bytes())));
++    }
++    if !build.is_empty() {
++        cached.push('+');
++        cached.push_str(&format!("{:016x}", wyhash11_hash(build.as_bytes())));
++    }
++    Ok(cached)
++}
++
++const WYHASH_PRIMES: [u64; 5] = [
++    0xa0761d6478bd642f,
++    0xe7037ed1a0b428db,
++    0x8ebc6af09c88c6e3,
++    0x589965cc75374cc3,
++    0x1d8e4e27c47d124f,
++];
++
++fn wyhash_mum(a: u64, b: u64) -> u64 {
++    let product = (a as u128) * (b as u128);
++    ((product >> 64) ^ product) as u64
++}
++
++fn wyhash_read(data: &[u8], count: usize) -> u64 {
++    data.iter()
++        .take(count)
++        .enumerate()
++        .fold(0, |value, (index, byte)| value | ((*byte as u64) << (index * 8)))
++}
++
++fn wyhash_swapped(data: &[u8]) -> u64 {
++    (wyhash_read(data, 4) << 32) | wyhash_read(&data[4..], 4)
++}
++
++fn wyhash_mix0(a: u64, b: u64, seed: u64) -> u64 {
++    wyhash_mum(
++        a ^ seed ^ WYHASH_PRIMES[0],
++        b ^ seed ^ WYHASH_PRIMES[1],
++    )
++}
++
++fn wyhash_mix1(a: u64, b: u64, seed: u64) -> u64 {
++    wyhash_mum(
++        a ^ seed ^ WYHASH_PRIMES[2],
++        b ^ seed ^ WYHASH_PRIMES[3],
++    )
++}
++
++fn wyhash11_hash(input: &[u8]) -> u64 {
++    let mut seed = 0u64;
++    let mut offset = 0usize;
++    while input.len() - offset >= 32 {
++        let block = &input[offset..offset + 32];
++        seed = wyhash_mix0(wyhash_read(block, 8), wyhash_read(&block[8..], 8), seed)
++            ^ wyhash_mix1(wyhash_read(&block[16..], 8), wyhash_read(&block[24..], 8), seed);
++        offset += 32;
++    }
++    let rem = &input[offset..];
++    let seed = match rem.len() {
++        0 => seed,
++        1 => wyhash_mix0(wyhash_read(rem, 1), WYHASH_PRIMES[4], seed),
++        2 => wyhash_mix0(wyhash_read(rem, 2), WYHASH_PRIMES[4], seed),
++        3 => wyhash_mix0((wyhash_read(rem, 2) << 8) | wyhash_read(&rem[2..], 1), WYHASH_PRIMES[4], seed),
++        4 => wyhash_mix0(wyhash_read(rem, 4), WYHASH_PRIMES[4], seed),
++        5 => wyhash_mix0((wyhash_read(rem, 4) << 8) | wyhash_read(&rem[4..], 1), WYHASH_PRIMES[4], seed),
++        6 => wyhash_mix0((wyhash_read(rem, 4) << 16) | wyhash_read(&rem[4..], 2), WYHASH_PRIMES[4], seed),
++        7 => wyhash_mix0((wyhash_read(rem, 4) << 24) | (wyhash_read(&rem[4..], 2) << 8) | wyhash_read(&rem[6..], 1), WYHASH_PRIMES[4], seed),
++        8 => wyhash_mix0(wyhash_swapped(rem), WYHASH_PRIMES[4], seed),
++        9 => wyhash_mix0(wyhash_swapped(rem), wyhash_read(&rem[8..], 1), seed),
++        10 => wyhash_mix0(wyhash_swapped(rem), wyhash_read(&rem[8..], 2), seed),
++        11 => wyhash_mix0(wyhash_swapped(rem), (wyhash_read(&rem[8..], 2) << 8) | wyhash_read(&rem[10..], 1), seed),
++        12 => wyhash_mix0(wyhash_swapped(rem), wyhash_read(&rem[8..], 4), seed),
++        13 => wyhash_mix0(wyhash_swapped(rem), (wyhash_read(&rem[8..], 4) << 8) | wyhash_read(&rem[12..], 1), seed),
++        14 => wyhash_mix0(wyhash_swapped(rem), (wyhash_read(&rem[8..], 4) << 16) | wyhash_read(&rem[12..], 2), seed),
++        15 => wyhash_mix0(wyhash_swapped(rem), (wyhash_read(&rem[8..], 4) << 24) | (wyhash_read(&rem[12..], 2) << 8) | wyhash_read(&rem[14..], 1), seed),
++        16 => wyhash_mix0(wyhash_swapped(rem), wyhash_swapped(&rem[8..]), seed),
++        17..=31 => {
++            wyhash_mix0(wyhash_swapped(rem), wyhash_swapped(&rem[8..]), seed)
++                ^ wyhash_mix1(wyhash_read(&rem[16..], rem.len() - 16), WYHASH_PRIMES[4], seed)
++        }
++        _ => unreachable!(),
++    };
++    wyhash_mum(seed ^ input.len() as u64, WYHASH_PRIMES[4])
++}
++
 +#[derive(Debug, Deserialize)]
 +struct PackagesLock {
 +    #[serde(default)]
@@ -281,6 +400,10 @@ index 0000000..c8f9674
 +    /// Can't write the manifest.
 +    #[error("failed to write Bun dependency manifest {0}")]
 +    WriteManifest(PathBuf, #[source] io::Error),
++
++    /// A package version cannot be represented in Bun's cache naming scheme.
++    #[error("invalid package version {0}: {1}")]
++    InvalidVersion(String, &'static str),
 +}
 +
 +impl From<BunError> for ActionError {
@@ -316,6 +439,18 @@ index 0000000..c8f9674
 +            Some(("typescript".into(), "7.0.2".into()))
 +        );
 +        assert_eq!(parse_registry_spec("file:../local"), None);
++    }
++
++    #[test]
++    fn matches_bun_prerelease_cache_names() {
++        assert_eq!(
++            bun_cache_version("7.0.0-dev.20260624.1").unwrap(),
++            "7.0.0-d301056781780760"
++        );
++        assert_eq!(
++            bun_cache_version("7.0.0-dev.20260421.2").unwrap(),
++            "7.0.0-24d74c28e33bf26e"
++        );
 +    }
 +
 +    #[test]
