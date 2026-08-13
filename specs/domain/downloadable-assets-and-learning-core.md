@@ -1867,7 +1867,8 @@ transport in two complementary rehearsals. A restricted, privacy-reduced copy
 of the largest allocated-and-loaded production shard proves real schema,
 ledger-drift, row-shape, index, and foreign-key fidelity. Sanitization is
 mechanical and length-preserving: `schema_migrations` remains byte-for-byte
-unchanged; PK, FK, UNIQUE, and CHECK-participating columns are preserved; and
+unchanged; PK, FK, UNIQUE, and CHECK-participating columns are preserved
+schema-wide (CHECKs still execute while non-rebuilt tables are sanitized); and
 unconstrained text/blob content is replaced without changing its byte-length
 distribution. The resulting copy remains restricted operational evidence
 because preserved keys and constrained values are not promised anonymous.

@@ -32,13 +32,6 @@ export type SanitizationInventoryEntry = TextOrBlobColumn & {
   reason?: string
 }
 
-export const REBUILT_TABLES = new Set([
-  "posts",
-  "assets",
-  "post_publish_requests",
-  "moderation_actions",
-])
-
 function quoteIdentifier(value: string): string {
   return `"${value.replaceAll('"', '""')}"`
 }
@@ -111,7 +104,7 @@ function constrainedColumns(db: Database): Map<string, Set<string>> {
         if (column.key === 1) mark(table, column.name)
       }
     }
-    if (REBUILT_TABLES.has(table) && sql) {
+    if (sql) {
       const expressions = checkExpressions(sql)
       for (const column of columns) {
         const identifier = column.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")

@@ -61,6 +61,14 @@ function insertAsset(
 }
 
 describe("1157 generic assets and learning foundation migration", () => {
+  test("never relies on physical column order while rebuilding hot tables", () => {
+    const sql = readFileSync(join(MIGRATIONS_DIR, MIGRATION), "utf8")
+    expect(sql).not.toMatch(/INSERT\s+INTO\s+(?:posts|assets|post_publish_requests|moderation_actions)_next\s+SELECT\s+\*/iu)
+    for (const table of ["posts", "assets", "post_publish_requests", "moderation_actions"]) {
+      expect(sql).toMatch(new RegExp(`INSERT\\s+INTO\\s+${table}_next\\s*\\(`, "iu"))
+    }
+  })
+
   test("applies with the full history, retains canonical FKs, and installs every dormant table", () => {
     const db = freshDatabase()
     try {

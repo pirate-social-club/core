@@ -49,13 +49,23 @@ async function readRules(path: string): Promise<SanitizationRule[]> {
 }
 
 async function dumpSql(database: string, output: string): Promise<void> {
-  const outputFile = Bun.file(output)
+  const sqliteDump = `${output}.sqlite-dump.tmp`
+  const outputFile = Bun.file(sqliteDump)
   const process = Bun.spawn(["sqlite3", database, ".dump"], {
     stdout: outputFile,
     stderr: "pipe",
   })
   const [exitCode, stderr] = await Promise.all([process.exited, new Response(process.stderr).text()])
   if (exitCode !== 0) throw new Error(`sqlite3 dump failed: ${stderr.slice(0, 500)}`)
+  const raw = await readFile(sqliteDump, "utf8")
+  const d1Compatible = raw
+    .replace(/^BEGIN TRANSACTION;\n/mu, "")
+    .replace(/\nCOMMIT;\n?$/u, "\n")
+  if (d1Compatible === raw || /^(?:BEGIN TRANSACTION;|COMMIT;)$/mu.test(d1Compatible)) {
+    throw new Error("failed to remove sqlite3 transaction wrappers from D1 import SQL")
+  }
+  await writeFile(output, d1Compatible, { mode: 0o600 })
+  await Bun.file(sqliteDump).delete()
   await chmod(output, 0o600)
 }
 
