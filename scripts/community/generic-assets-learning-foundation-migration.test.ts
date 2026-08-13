@@ -61,6 +61,8 @@ function insertAsset(
 }
 
 describe("1158 generic assets and learning foundation migration", () => {
+  // Keep explicit target/source mappings for every rebuild. Production physical
+  // column order diverges from canonical order; see the 2026-08-13 shape rehearsal.
   test("never relies on physical column order while rebuilding hot tables", () => {
     const sql = readFileSync(join(MIGRATIONS_DIR, MIGRATION), "utf8")
     expect(sql).not.toMatch(/INSERT\s+INTO\s+(?:posts|assets|post_publish_requests|moderation_actions)_next\s+SELECT\s+\*/iu)

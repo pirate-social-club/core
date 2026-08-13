@@ -2149,6 +2149,12 @@ CDR keys, signed URLs, or raw wallet proofs.
 - The consolidated community schema foundation, generated schema snapshot, and
   schema requirement manifest change together in one fleet sweep; Phase 4 does
   not schedule a second learning-table sweep.
+- Treat the canonical baseline as an exception map, not a fleet inventory.
+  Immediately before apply, a fresh manifest from the exact pinned Core/API
+  revisions must classify every allocated-and-loaded shard. After 1158 is fully
+  applied and attested, regenerate and land the post-1158 production canonical
+  baseline before the next release gate; a manifest from older canonical
+  migrations is not valid baseline input.
 - The central Story projection migration has its own attestation and completes
   before generic writers deploy.
 - The exact consolidated migration passes the largest-shard production-D1 dry

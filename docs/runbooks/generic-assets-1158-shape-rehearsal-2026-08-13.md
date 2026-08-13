@@ -7,6 +7,13 @@ shards. `DB_CMTY_0073` was the largest by D1 `database_size` at 6,057,984 bytes
 (5.78 MiB), with 88 tables. This run proves production schema, ledger-drift,
 row-shape, index, and foreign-key fidelity. It is not the synthetic scale test.
 
+The production canonical-baseline file is an exception map, not a fleet
+inventory: its 90 shard entries identify non-canonical profiles. The production
+release-gate manifest classified all 106 allocated-and-loaded shards; the other
+16 were canonical and are therefore intentionally absent from the exception
+map. Rollout coverage is established by the manifest's live/classified counts,
+not by counting baseline entries.
+
 The restricted export was sanitized mechanically. All 1,198 `TEXT`/`BLOB`
 columns were classified: `schema_migrations` and schema-constrained columns were
 preserved, while 854 unconstrained text columns received length-preserving
@@ -54,3 +61,10 @@ authority for forward scale evidence.
 
 The real-shard shape rehearsal re-runs if the migration bytes change or when
 the largest allocated-and-loaded shard crosses a new 100 MiB boundary.
+
+Immediately before fleet apply, archive a fresh production gate manifest from
+the exact pinned Core/API revisions and require every allocated-and-loaded shard
+to be classified. After 1158 is fully applied and attested, regenerate the
+production canonical baseline from a fresh full-fleet manifest and land that
+post-1158 baseline before the next release gate. Never build a replacement
+baseline from a manifest produced against older canonical migrations.
