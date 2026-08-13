@@ -126,3 +126,18 @@ not require network access; CI and the operator must fetch the protected branch
 before building. A disconnected emergency requires an explicit
 `--break-glass-non-main <incident-or-change-reference>` argument, and the
 exception is written into release metadata.
+
+## 2026-08-13 host follow-up
+
+The removed `/etc/caddy/Caddyfile` was a rendered verifier rate-limiting
+configuration, not a copy of any tracked gateway Caddyfile example. Its
+SHA-256 was
+`62ea19fafaf2b8be47c400f3e9142f20a8aafb718ea61302ac14a934c6284fe2`.
+The captured artifact is retained at
+[`evidence/legacy-caddyfile-observed-2026-08-13.txt`](evidence/legacy-caddyfile-observed-2026-08-13.txt)
+for historical comparison; `/etc/caddy/caddy.json` is the active authoritative
+configuration.
+
+The observer bring-up now documents Docker Buildx as a required build-time host
+dependency because its Dockerfile uses BuildKit-only `COPY --chmod`. Runtime
+integrity remains bound to the recorded local image ID.
