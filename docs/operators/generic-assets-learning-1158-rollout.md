@@ -23,6 +23,33 @@ the actual remote import path and a failure after the first destructive
 drop/rename pair. It supplements, rather than replaces, D1 Time Travel and the
 runner's fail-closed intermediate-state probes.
 
+## Ambiguous import outcomes
+
+A client disconnect, polling failure, or network timeout is an uncertain
+outcome, not a failed import. The remote ingest may have committed the complete
+migration and ledger row after the client stopped receiving status. Never retry
+1158 based only on a transport error or missing client acknowledgement.
+
+Stop scheduling new writes to that shard and run the normal read-only
+classification without a resume-file skip. Decide from observed state:
+
+- `ok_recorded`: the import committed. Record the shard as complete and do not
+  retry it.
+- `needs_migration`: the canonical old shape remains, the 1158 ledger row and
+  all new markers are absent, every `*_next` table is absent, and pre-apply row
+  counts still match. It is safe to schedule one normal runner attempt.
+- `partial_objects`, `ledger_without_objects`, `checksum_mismatch`, or any
+  unknown combination: do not retry. Quarantine the shard and follow the partial
+  rebuild incident procedure below.
+
+The observation must cover the 1158 ledger checksum, all four canonical table
+definitions, required final indexes and new schema markers, and absence of all
+four `*_next` tables. Compare the four post-observation row counts with the
+captured pre-apply inventory. An execution resume ledger
+is operator bookkeeping, not database-state evidence; a shard enters it only
+after the runner receives success, and an ambiguous shard must be reclassified
+directly before the resume ledger is edited.
+
 Before production, the ordered column inventory must cover all live shards.
 The 2026-08-13 inventory found two `assets` orders across 106 shards, but the
 same 63-column set on every shard. The other three rebuilt tables had identical
