@@ -31,6 +31,11 @@ trap 'rm -rf "$work"' EXIT
 fail() { echo "FAIL: $1" >&2; exit 1; }
 pass() { echo "ok: $1"; }
 
+source "$tooling_dir/systemd-unit-hash.sh"
+[[ "$(systemd_unit_from_installed_path /etc/systemd/system/pirate-demo.service.d/override.conf)" == "pirate-demo.service" ]] \
+  || fail "systemd drop-in path did not resolve to its owning unit"
+pass "systemd drop-in paths resolve to their owning unit"
+
 # Stateful data and secret mounts must survive immutable release replacement.
 # A release-relative path silently creates a new empty state directory on the
 # next checkout and lets deployment verification bless the wrong bytes. This

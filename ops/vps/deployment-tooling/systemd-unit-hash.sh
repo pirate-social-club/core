@@ -30,7 +30,8 @@ systemd_unit_from_installed_path() {
     /etc/systemd/system/*.mount.d/*|/etc/systemd/system/*.path.d/*|/etc/systemd/system/*.target.d/*|\
     /etc/systemd/system/*.slice.d/*|/etc/systemd/system/*.scope.d/*|/etc/systemd/system/*.automount.d/*|\
     /etc/systemd/system/*.swap.d/*|/etc/systemd/system/*.device.d/*)
-      basename "$(dirname "$(dirname "$installed_path")")"
+      dropin_dir="$(basename "$(dirname "$installed_path")")"
+      printf '%s\n' "${dropin_dir%.d}"
       ;;
     *)
       return 1
