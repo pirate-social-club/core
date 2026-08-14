@@ -43,7 +43,7 @@
 The canonical local workspace is:
 
 ```text
-/home/t42/Documents/pirate-workspace/
+/run/media/x42/codedrive/Code/pirate-workspace/
   core/
   api/
   web/
@@ -54,7 +54,9 @@ The canonical local workspace is:
 
 These are sibling Git repos in one workspace, not Git submodules. `core/` is this repo.
 
-Work from `/home/t42/Documents/pirate-workspace` when reading shared context across repos.
+Work from the workspace root (`/run/media/x42/codedrive/Code/pirate-workspace`
+on this machine; use this checkout's parent if the workspace moves) when
+reading shared context across repos.
 Before editing, decide which repo owns the change.
 
 Typical ownership:
@@ -85,7 +87,7 @@ Another local AI/session may switch the active Infisical profile. Immediately be
 Infisical command that reads, writes, checks, or syncs secrets, switch back:
 
 ```bash
-printf '\n' | rtk infisical user switch >/dev/null
+printf '\n' | infisical user switch >/dev/null
 ```
 
 The first profile in the prompt should be `habitant_barber905@simplelogin.com`; the newline
@@ -132,7 +134,7 @@ Rules:
 ## Resource Safety
 
 - Treat the user's machine as resource-constrained by default. Prefer the slow path over aggressive parallelism.
-- Before starting any dev server, build, watcher, browser automation session, Bruno run, or long test run, check for existing project processes first with `rtk ps -ef` and avoid stacking a second copy on top of an active one.
+- Before starting any dev server, build, watcher, browser automation session, Bruno run, or long test run, check for existing project processes first with `ps -ef` and avoid stacking a second copy on top of an active one.
 - Do not start multiple background processes for the same repo at once. Reuse the existing process if possible.
 - Keep at most one `agent-browser` session active per repo. Do not run multiple browser sessions, tabs, screenshots, or snapshots in parallel.
 - If a long-running process is already active, do not start another heavy process in parallel unless it is clearly necessary and unlikely to increase load materially.
@@ -149,11 +151,11 @@ Rules:
 - After using a background process I started, clean it up promptly unless the user asked to keep it alive.
 - If the machine appears overloaded, stop spawning more work and switch to inspection, static review, or code changes until load is reduced.
 - For web work especially, assume builds/watchers can freeze the machine. Start with static analysis, narrow tests, and existing-process reuse before any heavy frontend command.
-- In `web/`, do not default to `rtk bun run build`. That full build can freeze the machine.
+- In `web/`, do not default to `bun run build`. That full build can freeze the machine.
 - Prefer this escalation order for frontend verification:
-  - `rtk bun run types:safe`
-  - `rtk bun run types` only when exact uncapped CI parity is required
-  - `rtk bun run locales:generate`
-  - `rtk ./node_modules/.bin/vite build --ssr src/worker.tsx --minify false --sourcemap false`
-  - `rtk ./node_modules/.bin/vite build --minify false --sourcemap false` only when a full production asset build is truly required
-- Use `rtk bun run build` only if the lighter Vite commands are insufficient or the user explicitly asks for the full scripted build.
+  - `bun run types:safe`
+  - `bun run types` only when exact uncapped CI parity is required
+  - `bun run locales:generate`
+  - `./node_modules/.bin/vite build --ssr src/worker.tsx --minify false --sourcemap false`
+  - `./node_modules/.bin/vite build --minify false --sourcemap false` only when a full production asset build is truly required
+- Use `bun run build` only if the lighter Vite commands are insufficient or the user explicitly asks for the full scripted build.
