@@ -17,8 +17,7 @@
     "@openai/codex": "^0.124.0",
     "@tinybirdco/sdk": "^0.0.66",
     "ethers": "^6.16.0",
-    "qrcode": "^1.5.4",
-    "yaml": "2.8.1"
+    "qrcode": "^1.5.4"
   },
   "overrides": {
     "esbuild": "^0.28.1",
