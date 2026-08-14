@@ -332,6 +332,7 @@ const TYPE_EXPORTS = [
   { name: "RewardCampaignIncidentRecoveryRequest", ref: "#/components/schemas/RewardCampaignIncidentRecoveryRequest" },
   { name: "RewardCampaignIncidentRecoveryResponse", ref: "#/components/schemas/RewardCampaignIncidentRecoveryResponse" },
   { name: "RewardCampaignEligibleActivity", ref: "#/components/schemas/RewardCampaignEligibleActivity" },
+  { name: "RewardCampaignObjective", ref: "#/components/schemas/RewardCampaignObjective" },
   { name: "RewardIdentityBindingCapability", ref: "#/components/schemas/RewardIdentityBindingCapability" },
   { name: "RewardIdentityBindingDocument", ref: "#/components/schemas/RewardIdentityBindingDocument" },
   { name: "RewardIdentityBinding", ref: "#/components/schemas/RewardIdentityBinding" },
