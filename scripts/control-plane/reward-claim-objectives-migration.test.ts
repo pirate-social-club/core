@@ -5,6 +5,10 @@ const migration = readFileSync(
   "db/control-plane/migrations/0229_control_plane_reward_claim_objectives.sql",
   "utf8",
 );
+const poolsMigration = readFileSync(
+  "db/control-plane/migrations/0228_control_plane_reward_objective_pools.sql",
+  "utf8",
+);
 
 describe("reward claim objectives control-plane migration", () => {
   test("adds an audited objective boundary without changing the reservation identity", () => {
@@ -13,8 +17,13 @@ describe("reward claim objectives control-plane migration", () => {
     expect(migration).toContain("JOIN reward_campaigns AS campaign");
   });
 
-  test("retains legacy Either claims as globally exclusive claims", () => {
+  test("retains legacy Either claims through pool occupancy, not this key alone", () => {
     expect(migration).toContain("campaign.eligible_activity");
     expect(migration).toContain("ALTER TABLE reward_song_period_claims RENAME TO reward_song_period_claims_legacy");
+    expect(migration).toContain("objective TEXT NOT NULL CHECK (objective IN ('study', 'karaoke', 'either'))");
+    expect(poolsMigration).toContain("PRIMARY KEY (community_id, post_id, objective)");
+    expect(poolsMigration).toContain("campaign.eligible_activity = 'either'");
+    expect(poolsMigration).toContain("SELECT 'study' AS objective");
+    expect(poolsMigration).toContain("SELECT 'karaoke' AS objective");
   });
 });
