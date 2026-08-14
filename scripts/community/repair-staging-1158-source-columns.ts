@@ -75,7 +75,7 @@ async function main() {
       await wranglerJson({ cwd, env: undefined }, database, ["--file", file]); const after = await probe(database); record.probe_after = after
       if (planRepair(after, checksums).kind !== "converged") throw new Error(`${database}: post-repair verification failed`)
     }
-    results.push(record); console.log(`${database} ${plan.kind}${execute && plan.kind === "repair" ? " -> applied" : ""}`)
+    results.push(record); console.log(`${database} ${plan.kind}${plan.reason ? ` — ${plan.reason}` : ""}${execute && plan.kind === "repair" ? " -> applied" : ""}`)
   }
   await mkdir(dirname(manifest), { recursive: true }); await writeFile(manifest, `${JSON.stringify({ repair: "1158 source columns", executed: execute, provenance: provenance.provenance, summary: results.reduce<Record<string, number>>((a, r) => { const k = String((r as { outcome: string }).outcome); a[k] = (a[k] ?? 0) + 1; return a }, {}), results }, null, 2)}\n`)
   if (results.some((r) => (r as { outcome: string }).outcome === "refuse")) process.exit(2)
