@@ -196,11 +196,11 @@ export function classificationSql(spec: MigrationSpec): string {
   const required = spec.requiredTables
     .map((t) => `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${t}') AS req_${t}`)
     .join(",\n  ")
-  const requiredColumns = (spec.requiredColumns ?? []).length > 0
-    ? `(SELECT COALESCE(GROUP_CONCAT(missing), '') FROM (${(spec.requiredColumns ?? []).map(({ table, column }) =>
-      `SELECT '${table}.${column}' AS missing WHERE (SELECT COUNT(*) FROM pragma_table_info('${table}') WHERE name='${column}') = 0`
-    ).join(" UNION ALL ")})) AS missing_required_columns`
-    : ""
+  const requiredColumnTables = [...new Set((spec.requiredColumns ?? []).map(({ table }) => table))]
+    .map((table) =>
+      `(SELECT COALESCE(json_group_array(json_object('name', name, 'type', type, 'notnull', "notnull", 'dflt_value', dflt_value, 'pk', pk)), '[]') FROM pragma_table_info('${table}')) AS source_columns__${table}`
+    )
+    .join(",\n  ")
   const objects = spec.creates.kind === "columns"
     ? spec.creates.columns
       .map((c) => `(SELECT COUNT(*) FROM pragma_table_info('${spec.creates.table}') WHERE name='${c}') AS obj_${c}`)
@@ -244,7 +244,7 @@ export function classificationSql(spec: MigrationSpec): string {
     "(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='schema_migrations') AS has_ledger",
     `(SELECT COALESCE(GROUP_CONCAT(checksum), '') FROM schema_migrations WHERE migration_name='${spec.migration}') AS ledger_checksum`,
     ...(required ? [required] : []),
-    ...(requiredColumns ? [requiredColumns] : []),
+    ...(requiredColumnTables ? [requiredColumnTables] : []),
     ...(objects ? [objects] : []),
   ]
   return `SELECT\n  ${probes.join(",\n  ")}`
@@ -315,9 +315,20 @@ export function classifyRow(
   if (missingRequired.length > 0) {
     return { status: "schema_not_ready", detail: `required table(s) absent: ${missingRequired.join(", ")}` }
   }
-  const missingRequiredColumns = String(typeof rows.missing_required_columns === "string" ? rows.missing_required_columns : "")
-    .split(",")
-    .filter(Boolean)
+  const sourceColumns = new Map<string, Set<string>>()
+  for (const table of [...new Set((spec.requiredColumns ?? []).map(({ table }) => table))]) {
+    const raw = rows[`source_columns__${table}`]
+    let names: unknown[] = []
+    if (typeof raw === "string") {
+      try { names = JSON.parse(raw) as unknown[] } catch { names = [] }
+    }
+    sourceColumns.set(table, new Set(names.flatMap((entry) =>
+      entry && typeof entry === "object" && "name" in entry && typeof entry.name === "string" ? [entry.name] : []
+    )))
+  }
+  const missingRequiredColumns = (spec.requiredColumns ?? [])
+    .filter(({ table, column }) => sourceColumns.has(table) && !sourceColumns.get(table)?.has(column))
+    .map(({ table, column }) => `${table}.${column}`)
   if (missingRequiredColumns.length > 0) {
     return {
       status: "schema_not_ready",
