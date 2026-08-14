@@ -159,6 +159,8 @@ export type Options = {
   allowNonMain: boolean
   repairQuarantinedOnly: boolean
   repairLedgerWithoutObjects: boolean
+  /** Permit eligible-only execution to skip schema_not_ready debris; never use for production. */
+  eligibleOnly: boolean
   manifest: string
   resumeFile?: string
   only?: string
@@ -457,6 +459,7 @@ export function parseArgs(spec: MigrationSpec, scriptPath: string): Options {
     allowNonMain: argv.includes("--allow-non-main"),
     repairQuarantinedOnly: argv.includes("--repair-quarantined-only"),
     repairLedgerWithoutObjects: argv.includes("--repair-ledger-without-objects"),
+    eligibleOnly: argv.includes("--eligible-only"),
     manifest: resolve(get("--manifest") ?? `tmp/${slug}-${prod ? "prod" : "staging"}-manifest.json`),
     resumeFile: get("--resume-file") ? resolve(get("--resume-file")!) : undefined,
     only: get("--only"),
@@ -475,6 +478,7 @@ export function parseArgs(spec: MigrationSpec, scriptPath: string): Options {
   if (options.repairLedgerWithoutObjects && spec.repairLedgerWithoutObjects !== true) {
     throw new Error(`--repair-ledger-without-objects is not authorized by ${spec.migration}`)
   }
+  if (options.eligibleOnly && prod) throw new Error("--eligible-only is staging-only")
   // A concurrency of 0 (or NaN, from a typo) would spawn no workers, do no work,
   // and still write a clean-looking manifest.
   if (!Number.isInteger(options.concurrency) || options.concurrency < 1) {
@@ -965,6 +969,7 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
         quarantine_registry: options.quarantineRegistry,
         quarantine_registry_checksum: partition.registryChecksum,
         quarantines: partition.quarantined,
+        eligible_only: options.eligibleOnly,
         quarantine_repair_override: selection.repairedQuarantineBinding
           ? {
               binding: selection.repairedQuarantineBinding,
@@ -991,7 +996,7 @@ export async function runFleetMigration(spec: MigrationSpec, scriptPath: string)
   console.log("\nsummary:", JSON.stringify(summary))
   console.log(`manifest: ${options.manifest}`)
 
-  const blocking = results.filter((r) => BLOCKING_STATUSES.includes(r.status))
+  const blocking = results.filter((r) => BLOCKING_STATUSES.includes(r.status) && !(options.eligibleOnly && r.status === "schema_not_ready"))
   if (blocking.length > 0) {
     console.error(`\n${blocking.length} shard(s) need human review — refusing to report success:`)
     for (const b of blocking) console.error(`  ${b.database_name} [${b.binding}]: ${b.status} — ${b.detail ?? ""}`)
