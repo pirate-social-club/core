@@ -367,12 +367,18 @@ function rowSelectSql(): string {
            (
              SELECT COUNT(*)::integer
              FROM identity_nullifiers n
-             WHERE n.source_user_attestation_id = a.user_attestation_id
+             WHERE (a.capability_key = 'nationality'
+                    AND n.identity_nullifier_id = a.source_identity_nullifier_id)
+                OR (a.capability_key <> 'nationality'
+                    AND n.source_user_attestation_id = a.user_attestation_id)
            ) AS nullifier_link_count,
            (
              SELECT COUNT(*)::integer
              FROM identity_nullifiers n
-             WHERE n.source_user_attestation_id = a.user_attestation_id
+             WHERE ((a.capability_key = 'nationality'
+                     AND n.identity_nullifier_id = a.source_identity_nullifier_id)
+                    OR (a.capability_key <> 'nationality'
+                        AND n.source_user_attestation_id = a.user_attestation_id))
                AND n.status = 'active'
                AND n.user_id = a.user_id
                AND n.provider = a.provider
@@ -380,7 +386,10 @@ function rowSelectSql(): string {
            (
              SELECT COUNT(*)::integer
              FROM identity_nullifiers n
-             WHERE n.source_user_attestation_id = a.user_attestation_id
+             WHERE ((a.capability_key = 'nationality'
+                     AND n.identity_nullifier_id = a.source_identity_nullifier_id)
+                    OR (a.capability_key <> 'nationality'
+                        AND n.source_user_attestation_id = a.user_attestation_id))
                AND NOT (
                  n.status = 'active'
                  AND n.user_id = a.user_id
