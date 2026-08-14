@@ -450,7 +450,8 @@ describe("classificationSql", () => {
     expect(sql).toContain("obj_table_fragment__review_state__0")
     expect(sql).not.toContain("metric_rows__attempts")
     expect(sql).toContain("forbidden_table__attempts_next")
-    expect(sql).toContain("req_column__attempts__idempotency_body_hash")
+    expect(sql).toContain("missing_required_columns")
+    expect(sql).toContain("attempts.idempotency_body_hash")
     expect(rowCountSql(spec)).toContain("metric_rows__attempts")
     expect(classifyRow(spec, {
       has_ledger: 1,
@@ -470,7 +471,7 @@ describe("classificationSql", () => {
       ledger_checksum: "",
       req_attempts: 1,
       req_review_state: 1,
-      req_column__attempts__idempotency_body_hash: 0,
+      missing_required_columns: "attempts.idempotency_body_hash",
     }, CHECKSUM)).toEqual({
       status: "schema_not_ready",
       detail: "required source column(s) absent: attempts.idempotency_body_hash",
