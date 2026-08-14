@@ -13,8 +13,10 @@ CREATE TABLE generic_asset_emergency_controls (
     created_at TIMESTAMPTZ NOT NULL,
     cleared_at TIMESTAMPTZ,
     cleared_by TEXT,
-    CHECK ((scope = 'all' AND target_ref IS NULL) OR (scope <> 'all' AND target_ref IS NOT NULL)),
-    CHECK ((state = 'active' AND cleared_at IS NULL AND cleared_by IS NULL)
+    CONSTRAINT generic_asset_emergency_controls_scope_target_check
+        CHECK ((scope = 'all' AND target_ref IS NULL) OR (scope <> 'all' AND target_ref IS NOT NULL)),
+    CONSTRAINT generic_asset_emergency_controls_state_clear_check
+        CHECK ((state = 'active' AND cleared_at IS NULL AND cleared_by IS NULL)
         OR (state = 'cleared' AND cleared_at IS NOT NULL AND cleared_by IS NOT NULL))
 );
 
