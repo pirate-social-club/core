@@ -196,11 +196,11 @@ export function classificationSql(spec: MigrationSpec): string {
   const required = spec.requiredTables
     .map((t) => `(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='${t}') AS req_${t}`)
     .join(",\n  ")
-  const requiredColumns = (spec.requiredColumns ?? [])
-    .map(({ table, column }) =>
-      `(SELECT COUNT(*) FROM pragma_table_info('${table}') WHERE name='${column}') AS req_column__${table}__${column}`
-    )
-    .join(",\n  ")
+  const requiredColumns = (spec.requiredColumns ?? []).length > 0
+    ? `(SELECT COALESCE(GROUP_CONCAT(missing), '') FROM (${(spec.requiredColumns ?? []).map(({ table, column }) =>
+      `SELECT '${table}.${column}' AS missing WHERE (SELECT COUNT(*) FROM pragma_table_info('${table}') WHERE name='${column}') = 0`
+    ).join(" UNION ALL ")})) AS missing_required_columns`
+    : ""
   const objects = spec.creates.kind === "columns"
     ? spec.creates.columns
       .map((c) => `(SELECT COUNT(*) FROM pragma_table_info('${spec.creates.table}') WHERE name='${c}') AS obj_${c}`)
@@ -315,13 +315,13 @@ export function classifyRow(
   if (missingRequired.length > 0) {
     return { status: "schema_not_ready", detail: `required table(s) absent: ${missingRequired.join(", ")}` }
   }
-  const missingRequiredColumns = (spec.requiredColumns ?? []).filter(
-    ({ table, column }) => Number(cell(rows, `req_column__${table}__${column}`)) !== 1,
-  )
+  const missingRequiredColumns = String(typeof rows.missing_required_columns === "string" ? rows.missing_required_columns : "")
+    .split(",")
+    .filter(Boolean)
   if (missingRequiredColumns.length > 0) {
     return {
       status: "schema_not_ready",
-      detail: `required source column(s) absent: ${missingRequiredColumns.map(({ table, column }) => `${table}.${column}`).join(", ")}`,
+      detail: `required source column(s) absent: ${missingRequiredColumns.join(", ")}`,
     }
   }
 
