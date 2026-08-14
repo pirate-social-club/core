@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 
 const migration = readFileSync(
-  "db/control-plane/migrations/0233_control_plane_reward_ticket_claim_net_accounting.sql",
+  "db/control-plane/migrations/0234_control_plane_reward_ticket_claim_net_accounting.sql",
   "utf8",
 )
 

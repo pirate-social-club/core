@@ -20,7 +20,7 @@ async function sqlState(operation: () => Promise<unknown>): Promise<string | nul
 }
 
 describe.skipIf(!RUN)("reward ticket full-chain Base Sepolia replay", () => {
-  test("replays no-win and net-winning cycles through 0232/0233 constraints", async () => {
+  test("replays no-win and net-winning cycles through 0233/0234 constraints", async () => {
     const connection = db()
     await connection.unsafe(`
       INSERT INTO users (
