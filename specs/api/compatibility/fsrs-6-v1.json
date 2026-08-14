@@ -1,0 +1,86 @@
+{
+  "algorithm": "fsrs_6_v1",
+  "parameters_version": 1,
+  "formula": "FSRS-6",
+  "upstream": {
+    "repository": "https://github.com/open-spaced-repetition/ts-fsrs",
+    "commit": "548e6d8b8ed2126f84bb6a430bd81e9461414961",
+    "release_provenance": "npm ts-fsrs@6.0.0-beta.2"
+  },
+  "runtime": {
+    "package": "ts-fsrs",
+    "version": "6.0.0-beta.2",
+    "dependency_lock_policy": "exact"
+  },
+  "parameters": {
+    "weights": [
+      0.212,
+      1.2931,
+      2.3065,
+      8.2956,
+      6.4133,
+      0.8334,
+      3.0194,
+      0.001,
+      1.8722,
+      0.1666,
+      0.796,
+      1.4835,
+      0.0614,
+      0.2629,
+      1.6483,
+      0.6014,
+      1.8729,
+      0.5425,
+      0.0912,
+      0.0658,
+      0.1542
+    ],
+    "request_retention": 0.9,
+    "maximum_interval_days": 36500,
+    "learning_steps": ["1m", "10m"],
+    "relearning_steps": ["10m"],
+    "enable_short_term": true,
+    "enable_fuzz": false
+  },
+  "time_units": {
+    "review_timestamp": "milliseconds since Unix epoch UTC",
+    "elapsed_time": "fractional days",
+    "learning_steps": "minutes",
+    "scheduled_interval": "days"
+  },
+  "rounding_rules": {
+    "formula_intermediates": "Math.round(value * 1e8) / 1e8",
+    "review_interval_days": "Math.round(candidate_days), clamped to [1, maximum_interval_days]",
+    "learning_step_minutes": "Math.round(candidate_minutes)",
+    "multi_day_learning_interval": "Math.floor(scheduled_minutes / 1440)",
+    "fuzz": "disabled"
+  },
+  "reference_vectors": {
+    "interval_days": {
+      "ratings": [
+        "good",
+        "good",
+        "good",
+        "good",
+        "good",
+        "good",
+        "again",
+        "again",
+        "good",
+        "good",
+        "good",
+        "good",
+        "good"
+      ],
+      "expected": [0, 2, 11, 46, 163, 498, 0, 0, 2, 4, 7, 12, 21]
+    },
+    "memory_state": {
+      "ratings": ["again", "good", "good", "good", "good", "good"],
+      "elapsed_days": [0, 0, 1, 3, 8, 21],
+      "expected_stability": 53.62691,
+      "expected_difficulty": 6.3574867,
+      "absolute_tolerance": 0.0001
+    }
+  }
+}
