@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 
 import {
   checkCommunityMigrationRollouts,
+  GRANDFATHERED_COMMUNITY_MIGRATIONS,
   rolloutContractPath,
 } from "./check-community-migration-rollout.mjs"
 
@@ -25,6 +26,30 @@ function check(contract = validContract, changedPaths = [migrationPath, contract
 }
 
 describe("community migration rollout contracts", () => {
+  test("records the reviewed pre-rule grandfathering dates", () => {
+    expect(GRANDFATHERED_COMMUNITY_MIGRATIONS.get("1156_song_study_fill_blank.sql")).toEqual({
+      mergedAt: "2026-08-12",
+      rule: "#531",
+      ruleIntroducedAt: "2026-08-13",
+      reviewedAt: "2026-08-14",
+    })
+    expect(GRANDFATHERED_COMMUNITY_MIGRATIONS.get("1158_generic_assets_learning_foundation.sql")).toEqual({
+      mergedAt: "2026-08-13",
+      rule: "#531",
+      ruleIntroducedAt: "2026-08-13",
+      reviewedAt: "2026-08-14",
+    })
+  })
+
+  test("allows migrations merged before rule #531 without fabricating contracts", () => {
+    const migration = "db/community-template/migrations/1156_song_study_fill_blank.sql"
+    expect(checkCommunityMigrationRollouts({
+      addedMigrationPaths: [migration],
+      changedPaths: [migration],
+      contracts: new Map(),
+    })).toEqual([])
+  })
+
   test("requires a contract in the same change as a new migration", () => {
     expect(check(validContract, [migrationPath])).toEqual([
       `${migrationPath}: add ${contractPath} in the same change with its rollout contract`,
