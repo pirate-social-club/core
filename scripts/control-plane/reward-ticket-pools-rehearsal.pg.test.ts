@@ -8,7 +8,7 @@ const JACKPOT = "0x465dA3c859f193A3807386387bEE941B2A4c3279"
 const BUYER = "0x53c04e7e5044B28Ea8A4F9c4b26E3Ac1aeb63746"
 const NFT = "0x45084829ac63f9dC6a3D4981A46FA896f9180ECd"
 const USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
-const CUSTODY = "0x79Cbc7b34a60c571655ad3a38E1d573492e1CE69"
+const CUSTODY = "0x1cd289B6b232E1378d606ba550019E553685ad4C"
 const REVENUE = "0xBc61B707dc52BCDF51D261DcdF72329723C9BB8F"
 
 function db(): SQL {
@@ -59,16 +59,16 @@ describe.skipIf(!RUN)("reward ticket full-chain Base Sepolia replay", () => {
       ) VALUES (${CHAIN_ID}, '${USDC}', '${CUSTODY}', 'active', 'single_custody_per_asset_v1', NOW())
     `)
     for (const [suffix, drawingId, postId] of [
-      ["no_win", 7751, "rt_post_no_win"],
-      ["win", 7752, "rt_post_win"],
+      ["no_win", 7779, "rt_post_no_win"],
+      ["win", 7780, "rt_post_win"],
     ] as const) {
-      const termsHash = (suffix === "win" ? "11" : "33").repeat(32)
+      const termsHash = "11".repeat(32)
       const commitmentTx = suffix === "win"
-        ? "0x3654c746651ad8c7cd83accac45f1937ac0357e4467b5461d9281a65b730bc5c"
-        : "0xf3fa34dd296c4f2dfb83bb57bb3a8293aa315fb763faf737c179294ebd4355d5"
+        ? "0x299334d02e60ff7eeec3ffc18345079ba779c5d7e524118e95d939b36388f5aa"
+        : "0x6cf131ba8ad1d0e4baa822cdb0113d64a5031b1b31c9a39c7139cd9af7dfa5a5"
       const purchaseTx = suffix === "win"
-        ? "0xf7dba31e74a4c8d713dbc154f995316d31a6645465bdf09bfa31caaf8f794c4d"
-        : "0x4ed5807344c87d133f3a79476e3be188260d96b8bcc5a9d32cf1ca792704125e"
+        ? "0xdcc29758ac401fcda368b406d4995c5d58631aa29b9cf2570f1fa47957c96f94"
+        : "0xdadd7335febcfd18e2733aa8d490d946b19ee48beee8870d4d2a315fb5116306"
       await connection.unsafe(`
         INSERT INTO reward_ticket_pools (
           reward_ticket_pool_id, community_id, post_id, song_artifact_bundle_id,
@@ -95,7 +95,7 @@ describe.skipIf(!RUN)("reward ticket full-chain Base Sepolia replay", () => {
         ) VALUES (
           'rt_commit_${suffix}', ${CHAIN_ID}, '${JACKPOT}', ${drawingId}, '${"44".repeat(32)}',
           'onchain', 'base-sepolia:${drawingId}',
-          '${commitmentTx}', 45441000,
+          '${commitmentTx}', ${suffix === "win" ? 45466466 : 45465552},
           'published', '2026-08-13T23:00:00Z', '2026-08-13T23:01:00Z'
         )
       `)
@@ -140,7 +140,7 @@ describe.skipIf(!RUN)("reward ticket full-chain Base Sepolia replay", () => {
         ) VALUES (
           'rt_purchase_${suffix}', 'rt_drawing_${suffix}', 'rt_purchase_key_${suffix}',
           'confirmed', 1, 1, 1, 10000, '${CUSTODY}',
-          '${purchaseTx}', 45441000,
+          '${purchaseTx}', ${suffix === "win" ? 45466471 : 45465557},
           '0x${"66".repeat(32)}', '2026-08-13T23:07:00Z', '2026-08-13T23:08:00Z'
         )
       `)
@@ -152,11 +152,11 @@ describe.skipIf(!RUN)("reward ticket full-chain Base Sepolia replay", () => {
         ticket_id, owner_address, status, payout_tier, protocol_drawing_id
       ) VALUES
         ('rt_ticket_no_win', 'rt_drawing_no_win', 'rt_purchase_no_win', ${CHAIN_ID}, '${NFT}',
-         92420927125596250538423787032474697404516859970969954717593621082445256310065,
-         '${CUSTODY}', 'no_win', 2, 7751),
+         44928936071602651772011246314840568663993266602938147578316113749132323306689,
+         '${CUSTODY}', 'no_win', 0, 7779),
         ('rt_ticket_win', 'rt_drawing_win', 'rt_purchase_win', ${CHAIN_ID}, '${NFT}',
-         47780366311146745931369859420870844192387511866622036115128456527386797623359,
-         '${CUSTODY}', 'claimed', 4, 7752)
+         99260296862274692944937490076696356047997256690784268744380105077013759748969,
+         '${CUSTODY}', 'claimed', 4, 7780)
     `)
     await connection.unsafe(`
       INSERT INTO reward_ticket_claim_effects (
@@ -166,10 +166,10 @@ describe.skipIf(!RUN)("reward ticket full-chain Base Sepolia replay", () => {
         confirmed_block_number, confirmed_block_hash, confirmed_at, finalized_at
       ) VALUES (
         'rt_claim_win', 'rt_drawing_win', 'rt_claim_key_win', 'confirmed',
-        '0x4d55a44e0d23a8db476977ae3ad547709524d1264a3fdb78a859c1915dd2c299',
-        10001, 10001, 11112, 1111, 45442146,
-        '0x243115fb3b6b3684101824e783eb3c2654fe85fcf8e4603ec6ec1c68d6b92673',
-        '2026-08-14T00:22:56Z', '2026-08-14T00:23:00Z'
+        '0x0a8262fed2d1cb02430bf90a9814ef112cd44e95b8c76adfcf1ca88efa17a14d',
+        10001, 10001, 11112, 1111, 45467393,
+        '0xdba9bf5c6c969df7a8e18977b2c28a0b6e3e5fe2f1b5e2df0671fcb7e7ef848b',
+        '2026-08-14T10:28:00Z', '2026-08-14T10:29:00Z'
       )
     `)
     await connection.unsafe("INSERT INTO reward_ticket_claim_tickets VALUES ('rt_claim_win', 'rt_ticket_win', NOW())")
@@ -182,9 +182,9 @@ describe.skipIf(!RUN)("reward ticket full-chain Base Sepolia replay", () => {
       ) VALUES (
         'rt_bad_win_referral', ${CHAIN_ID}, '${USDC}', '${REVENUE}',
         'winnings_referral_accrual', 1110, 'rt_claim_win',
-        '0x4d55a44e0d23a8db476977ae3ad547709524d1264a3fdb78a859c1915dd2c299',
-        0, 45442146,
-        '0x243115fb3b6b3684101824e783eb3c2654fe85fcf8e4603ec6ec1c68d6b92673', NOW()
+        '0x0a8262fed2d1cb02430bf90a9814ef112cd44e95b8c76adfcf1ca88efa17a14d',
+        0, 45467393,
+        '0xdba9bf5c6c969df7a8e18977b2c28a0b6e3e5fe2f1b5e2df0671fcb7e7ef848b', NOW()
       )
     `))).toBe("23514")
     await connection.unsafe(`
@@ -196,9 +196,9 @@ describe.skipIf(!RUN)("reward ticket full-chain Base Sepolia replay", () => {
       ) VALUES (
         'rt_win_referral', ${CHAIN_ID}, '${USDC}', '${REVENUE}',
         'winnings_referral_accrual', 1111, 'rt_claim_win',
-        '0x4d55a44e0d23a8db476977ae3ad547709524d1264a3fdb78a859c1915dd2c299',
-        1, 45442146,
-        '0x243115fb3b6b3684101824e783eb3c2654fe85fcf8e4603ec6ec1c68d6b92673', NOW()
+        '0x0a8262fed2d1cb02430bf90a9814ef112cd44e95b8c76adfcf1ca88efa17a14d',
+        1, 45467393,
+        '0xdba9bf5c6c969df7a8e18977b2c28a0b6e3e5fe2f1b5e2df0671fcb7e7ef848b', NOW()
       )
     `)
     await connection.begin(async (tx) => {
