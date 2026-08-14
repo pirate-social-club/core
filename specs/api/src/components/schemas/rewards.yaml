@@ -332,6 +332,12 @@ RewardCampaignEligibleActivity:
     - study
     - karaoke
     - either
+RewardCampaignObjective:
+  type: string
+  description: A new reward pool objective; legacy Either campaigns are represented by both objective slots.
+  enum:
+    - study
+    - karaoke
 RewardIdentityBindingCapability:
   type: string
   enum:

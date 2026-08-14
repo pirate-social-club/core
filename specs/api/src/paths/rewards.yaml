@@ -142,8 +142,7 @@ reward_campaigns:
         required: false
         description: Restrict resolution to the Study or Karaoke objective slot.
         schema:
-          type: string
-          enum: [study, karaoke]
+          $ref: ../components/schemas/rewards.yaml#/RewardCampaignObjective
     responses:
       "200":
         description: Current permanent song-pool campaign
@@ -293,8 +292,7 @@ public_reward_campaigns:
         required: false
         description: Restrict the active offer to the Study or Karaoke objective slot.
         schema:
-          type: string
-          enum: [study, karaoke]
+          $ref: ../components/schemas/rewards.yaml#/RewardCampaignObjective
     responses:
       "200":
         description: Active campaign offer
