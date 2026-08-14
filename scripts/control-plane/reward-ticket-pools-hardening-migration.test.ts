@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
 const migrationPath =
-  "db/control-plane/migrations/0232_control_plane_reward_ticket_pool_hardening.sql";
+  "db/control-plane/migrations/0233_control_plane_reward_ticket_pool_hardening.sql";
 const migration = readFileSync(migrationPath, "utf8");
 
 describe("reward ticket pool hardening migration", () => {

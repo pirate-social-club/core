@@ -45,7 +45,7 @@ async function expectSqlState(sql: SQL, statement: string, expected: string): Pr
   expect(caught?.errno).toBe(expected);
 }
 
-describe.skipIf(!RUN)("reward ticket pool migration 0232 (real Postgres)", () => {
+describe.skipIf(!RUN)("reward ticket pool migration 0233 (real Postgres)", () => {
   beforeAll(async () => {
     const root = connect({});
     await root.unsafe(`DROP DATABASE IF EXISTS ${TEST_DB} WITH (FORCE)`);
@@ -67,7 +67,7 @@ describe.skipIf(!RUN)("reward ticket pool migration 0232 (real Postgres)", () =>
     await applyMigration(db, "db/control-plane/migrations/0224_control_plane_reward_ticket_pools.sql");
     await applyMigration(
       db,
-      "db/control-plane/migrations/0232_control_plane_reward_ticket_pool_hardening.sql",
+      "db/control-plane/migrations/0233_control_plane_reward_ticket_pool_hardening.sql",
     );
     await db.unsafe("INSERT INTO communities VALUES ('community')");
     await db.unsafe("INSERT INTO users VALUES ('creator'), ('owner'), ('u0'), ('u1'), ('u2')");
