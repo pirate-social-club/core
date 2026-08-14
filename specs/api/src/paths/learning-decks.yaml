@@ -1,5 +1,6 @@
 communities_by_community_id_learning_decks:
   post:
+    x-implemented: true
     tags: [Learning Decks]
     summary: Create a learning deck draft
     parameters:
@@ -23,6 +24,7 @@ communities_by_community_id_learning_decks:
       "404": { $ref: ../components/responses.yaml#/NotFound }
 communities_by_community_id_learning_decks_by_asset:
   get:
+    x-implemented: true
     tags: [Learning Decks]
     summary: Read a published learning deck by asset
     parameters:
@@ -39,6 +41,7 @@ communities_by_community_id_learning_decks_by_asset:
       "404": { $ref: ../components/responses.yaml#/NotFound }
 communities_by_community_id_learning_decks_by_deck_id:
   get:
+    x-implemented: true
     tags: [Learning Decks]
     summary: Read an owned learning deck draft
     parameters:
@@ -55,6 +58,7 @@ communities_by_community_id_learning_decks_by_deck_id:
       "404": { $ref: ../components/responses.yaml#/NotFound }
 communities_by_community_id_learning_decks_by_deck_id_cards:
   post:
+    x-implemented: true
     tags: [Learning Decks]
     summary: Add or update a learning deck card
     parameters:
@@ -78,6 +82,7 @@ communities_by_community_id_learning_decks_by_deck_id_cards:
       "404": { $ref: ../components/responses.yaml#/NotFound }
 communities_by_community_id_learning_decks_by_deck_id_cards_by_card_id:
   patch:
+    x-implemented: true
     tags: [Learning Decks]
     summary: Update a learning deck card
     parameters:
@@ -101,6 +106,7 @@ communities_by_community_id_learning_decks_by_deck_id_cards_by_card_id:
       "401": { $ref: ../components/responses.yaml#/AuthError }
       "404": { $ref: ../components/responses.yaml#/NotFound }
   delete:
+    x-implemented: true
     tags: [Learning Decks]
     summary: Retire a learning deck card
     parameters:
@@ -118,6 +124,7 @@ communities_by_community_id_learning_decks_by_deck_id_cards_by_card_id:
       "404": { $ref: ../components/responses.yaml#/NotFound }
 communities_by_community_id_learning_decks_by_deck_id_validate:
   post:
+    x-implemented: true
     tags: [Learning Decks]
     summary: Validate a learning deck draft and produce its canonical package
     parameters:
@@ -134,6 +141,7 @@ communities_by_community_id_learning_decks_by_deck_id_validate:
       "404": { $ref: ../components/responses.yaml#/NotFound }
 communities_by_community_id_learning_decks_imports_preview:
   post:
+    x-implemented: true
     tags: [Learning Decks]
     summary: Queue or read a durable CSV import preview
     description: |
@@ -160,6 +168,7 @@ communities_by_community_id_learning_decks_imports_preview:
       "404": { $ref: ../components/responses.yaml#/NotFound }
 communities_by_community_id_learning_decks_imports_by_import_job_id:
   get:
+    x-implemented: true
     tags: [Learning Decks]
     summary: Read a durable CSV import job and preview
     parameters:
@@ -176,6 +185,7 @@ communities_by_community_id_learning_decks_imports_by_import_job_id:
       "404": { $ref: ../components/responses.yaml#/NotFound }
 communities_by_community_id_learning_decks_by_deck_id_imports_commit:
   post:
+    x-implemented: true
     tags: [Learning Decks]
     summary: Commit a ready CSV import into a learning deck draft
     parameters:
@@ -200,6 +210,7 @@ communities_by_community_id_learning_decks_by_deck_id_imports_commit:
       "409": { $ref: ../components/responses.yaml#/Conflict }
 communities_by_community_id_learning_decks_by_deck_id_study_sessions:
   post:
+    x-implemented: true
     tags: [Learning Decks]
     summary: Start or resume a deterministic learning deck study session
     parameters:
@@ -222,6 +233,7 @@ communities_by_community_id_learning_decks_by_deck_id_study_sessions:
       "404": { $ref: ../components/responses.yaml#/NotFound }
 communities_by_community_id_learning_study_sessions_by_session_id:
   get:
+    x-implemented: true
     tags: [Learning Decks]
     summary: Read a learning study session
     parameters:
@@ -238,6 +250,7 @@ communities_by_community_id_learning_study_sessions_by_session_id:
       "404": { $ref: ../components/responses.yaml#/NotFound }
 communities_by_community_id_learning_study_sessions_by_session_id_reveal:
   post:
+    x-implemented: true
     tags: [Learning Decks]
     summary: Reveal the current study answer
     parameters:
@@ -261,6 +274,7 @@ communities_by_community_id_learning_study_sessions_by_session_id_reveal:
       "404": { $ref: ../components/responses.yaml#/NotFound }
 communities_by_community_id_learning_study_sessions_by_session_id_rate:
   post:
+    x-implemented: true
     tags: [Learning Decks]
     summary: Record an idempotent FSRS study rating
     parameters:

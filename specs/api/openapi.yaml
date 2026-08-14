@@ -40,6 +40,7 @@ tags:
   - name: Feeds
   - name: Tracks
   - name: Song Study
+  - name: Learning Decks
   - name: Dance
   - name: Moderation
   - name: MPP
@@ -5046,6 +5047,355 @@ paths:
           $ref: "#/components/responses/AuthError"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/learning-decks:
+    post:
+      x-implemented: true
+      tags:
+        - Learning Decks
+      summary: Create a learning deck draft
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LearningDeckCreateRequest"
+      responses:
+        "201":
+          description: Learning deck draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningDeckDraft"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/learning-decks/by-asset/{asset_id}:
+    get:
+      x-implemented: true
+      tags:
+        - Learning Decks
+      summary: Read a published learning deck by asset
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/AssetId"
+      responses:
+        "200":
+          description: Published learning deck metadata and cards
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningDeckDraft"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/learning-decks/{deck_id}:
+    get:
+      x-implemented: true
+      tags:
+        - Learning Decks
+      summary: Read an owned learning deck draft
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/LearningDeckId"
+      responses:
+        "200":
+          description: Learning deck draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningDeckDraft"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/learning-decks/{deck_id}/cards:
+    post:
+      x-implemented: true
+      tags:
+        - Learning Decks
+      summary: Add or update a learning deck card
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/LearningDeckId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LearningDeckCardRequest"
+      responses:
+        "201":
+          description: Updated learning deck draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningDeckDraft"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/learning-decks/{deck_id}/cards/{card_id}:
+    patch:
+      x-implemented: true
+      tags:
+        - Learning Decks
+      summary: Update a learning deck card
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/LearningDeckId"
+        - $ref: "#/components/parameters/LearningCardId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LearningDeckCardRequest"
+      responses:
+        "200":
+          description: Updated learning deck draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningDeckDraft"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      x-implemented: true
+      tags:
+        - Learning Decks
+      summary: Retire a learning deck card
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/LearningDeckId"
+        - $ref: "#/components/parameters/LearningCardId"
+      responses:
+        "200":
+          description: Updated learning deck draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningDeckDraft"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/learning-decks/{deck_id}/validate:
+    post:
+      x-implemented: true
+      tags:
+        - Learning Decks
+      summary: Validate a learning deck draft and produce its canonical package
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/LearningDeckId"
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningDeckValidation"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/learning-decks/imports/preview:
+    post:
+      x-implemented: true
+      tags:
+        - Learning Decks
+      summary: Queue or read a durable CSV import preview
+      description: |
+        The server queues parsing of a verified `deck_import_csv_v1` content blob.
+        The returned job status is durable and idempotent; callers poll the import
+        status path until the bounded deterministic preview is ready.
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LearningDeckCsvImportPreviewRequest"
+      responses:
+        "200":
+          description: Durable import job status and optional preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningDeckCsvImportStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/learning-decks/imports/{import_job_id}:
+    get:
+      x-implemented: true
+      tags:
+        - Learning Decks
+      summary: Read a durable CSV import job and preview
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/ImportJobId"
+      responses:
+        "200":
+          description: Durable import job status and optional preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningDeckCsvImportStatus"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/learning-decks/{deck_id}/imports/commit:
+    post:
+      x-implemented: true
+      tags:
+        - Learning Decks
+      summary: Commit a ready CSV import into a learning deck draft
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/LearningDeckId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LearningDeckCsvImportCommitRequest"
+      responses:
+        "200":
+          description: Updated learning deck draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningDeckDraft"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /communities/{community_id}/learning-decks/{deck_id}/study-sessions:
+    post:
+      x-implemented: true
+      tags:
+        - Learning Decks
+      summary: Start or resume a deterministic learning deck study session
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/LearningDeckId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LearningDeckStudySessionRequest"
+      responses:
+        "201":
+          description: Study session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningDeckStudySession"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/learning-study-sessions/{session_id}:
+    get:
+      x-implemented: true
+      tags:
+        - Learning Decks
+      summary: Read a learning study session
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/LearningSessionId"
+      responses:
+        "200":
+          description: Study session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningDeckStudySession"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/learning-study-sessions/{session_id}/reveal:
+    post:
+      x-implemented: true
+      tags:
+        - Learning Decks
+      summary: Reveal the current study answer
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/LearningSessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LearningDeckRevealRequest"
+      responses:
+        "200":
+          description: Updated study session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningDeckStudySession"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /communities/{community_id}/learning-study-sessions/{session_id}/rate:
+    post:
+      x-implemented: true
+      tags:
+        - Learning Decks
+      summary: Record an idempotent FSRS study rating
+      parameters:
+        - $ref: "#/components/parameters/CommunityId"
+        - $ref: "#/components/parameters/LearningSessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LearningDeckRateRequest"
+      responses:
+        "200":
+          description: Updated study session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningDeckStudySession"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthError"
         "404":
           $ref: "#/components/responses/NotFound"
   /communities/{community_id}/song-artifacts:
@@ -17296,6 +17646,311 @@ components:
         created:
           type: integer
           format: int64
+    LearningDeckCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          nullable: true
+    LearningDeckCardRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - card_type
+        - prompt
+        - answer
+      properties:
+        card_id:
+          type: string
+          nullable: true
+        card_type:
+          type: string
+          enum:
+            - basic
+            - cloze
+        prompt:
+          type: string
+        answer:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        ordinal:
+          type: integer
+          minimum: 0
+          nullable: true
+    LearningDeckCard:
+      type: object
+      additionalProperties: false
+      required:
+        - cardId
+        - cardType
+        - prompt
+        - answer
+        - tags
+        - ordinal
+        - retiredAt
+      properties:
+        cardId:
+          type: string
+        cardType:
+          type: string
+          enum:
+            - basic
+            - cloze
+        prompt:
+          type: string
+        answer:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        ordinal:
+          type: integer
+        retiredAt:
+          type: string
+          nullable: true
+        contentHash:
+          type: string
+          nullable: true
+    LearningDeckDraft:
+      type: object
+      additionalProperties: false
+      required:
+        - deck
+        - version
+        - cards
+      properties:
+        deck:
+          type: object
+          additionalProperties: true
+          required:
+            - learning_deck_id
+            - title
+            - description
+            - status
+          properties:
+            learning_deck_id:
+              type: string
+            title:
+              type: string
+            description:
+              type: string
+              nullable: true
+            status:
+              type: string
+              enum:
+                - draft
+                - published
+                - archived
+        version:
+          type: object
+          additionalProperties: true
+          required:
+            - learning_deck_version_id
+            - version
+            - status
+          properties:
+            learning_deck_version_id:
+              type: string
+            version:
+              type: integer
+            status:
+              type: string
+        cards:
+          type: array
+          items:
+            $ref: "#/components/schemas/LearningDeckCard"
+    LearningDeckValidation:
+      type: object
+      additionalProperties: false
+      required:
+        - draft
+        - issues
+        - canonical
+      properties:
+        draft:
+          $ref: "#/components/schemas/LearningDeckDraft"
+        issues:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            required:
+              - message
+            properties:
+              message:
+                type: string
+        canonical:
+          type: object
+          nullable: true
+          additionalProperties: true
+          required:
+            - schema_version
+            - card_count
+            - content_hash
+            - json
+          properties:
+            schema_version:
+              type: integer
+            card_count:
+              type: integer
+            content_hash:
+              type: string
+            json:
+              type: string
+    LearningDeckCsvImportPreview:
+      type: object
+      additionalProperties: false
+      required:
+        - headers
+        - rows
+        - errors
+        - row_count
+        - error_count
+      properties:
+        headers:
+          type: array
+          items:
+            type: string
+        rows:
+          type: array
+          items:
+            type: array
+            items:
+              type: string
+        errors:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - row
+              - code
+              - message
+            properties:
+              row:
+                type: integer
+              code:
+                type: string
+              message:
+                type: string
+        row_count:
+          type: integer
+        error_count:
+          type: integer
+    LearningDeckCsvImportStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - import_job_id
+        - status
+        - preview
+        - error
+      properties:
+        import_job_id:
+          type: string
+        status:
+          type: string
+          enum:
+            - queued
+            - running
+            - succeeded
+            - failed
+        preview:
+          allOf:
+            - $ref: "#/components/schemas/LearningDeckCsvImportPreview"
+          nullable: true
+        error:
+          type: string
+          nullable: true
+    LearningDeckCsvImportPreviewRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - content_blob_id
+      properties:
+        content_blob_id:
+          type: string
+    LearningDeckCsvImportCommitRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - content_blob_id
+        - import_job_id
+        - prompt_column
+        - answer_column
+      properties:
+        content_blob_id:
+          type: string
+        import_job_id:
+          type: string
+        prompt_column:
+          type: integer
+          minimum: 0
+        answer_column:
+          type: integer
+          minimum: 0
+        tags_column:
+          type: integer
+          minimum: 0
+          nullable: true
+    LearningDeckStudySessionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        now_ms:
+          type: integer
+          format: int64
+        limit:
+          type: integer
+          minimum: 1
+    LearningDeckRevealRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - expected_session_revision
+      properties:
+        expected_session_revision:
+          type: integer
+          minimum: 0
+    LearningDeckRateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - item_id
+        - rating
+        - idempotency_key
+        - expected_session_revision
+      properties:
+        item_id:
+          type: string
+        rating:
+          type: string
+          enum:
+            - again
+            - hard
+            - good
+            - easy
+        idempotency_key:
+          type: string
+        expected_session_revision:
+          type: integer
+          minimum: 0
+        reviewed_at_ms:
+          type: integer
+          format: int64
+    LearningDeckStudySession:
+      type: object
+      additionalProperties: true
     CreatePostRequest:
       type: object
       description: |

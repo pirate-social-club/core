@@ -238,6 +238,21 @@ const SCHEMA_GROUPS: Record<string, readonly string[]> = {
     "ThreadExportRequest",
     "ThreadExportAcceptedResponse",
   ],
+  "learning-decks": [
+    "LearningDeckCreateRequest",
+    "LearningDeckCardRequest",
+    "LearningDeckCard",
+    "LearningDeckDraft",
+    "LearningDeckValidation",
+    "LearningDeckCsvImportPreview",
+    "LearningDeckCsvImportStatus",
+    "LearningDeckCsvImportPreviewRequest",
+    "LearningDeckCsvImportCommitRequest",
+    "LearningDeckStudySessionRequest",
+    "LearningDeckRevealRequest",
+    "LearningDeckRateRequest",
+    "LearningDeckStudySession",
+  ],
 };
 
 export const PATH_GROUP_ORDER = [
@@ -255,6 +270,7 @@ export const PATH_GROUP_ORDER = [
   "posts",
   "feeds",
   "tracks",
+  "learning-decks",
   "mpp",
   "jobs",
 ] as const;
@@ -309,6 +325,12 @@ export function classifyPath(pathname: string): string {
   }
   if (pathname.startsWith("/communities/") && pathname.includes("/questions/")) {
     return "questions";
+  }
+  if (
+    pathname.startsWith("/communities/")
+    && (pathname.includes("/learning-decks") || pathname.includes("/learning-study-sessions"))
+  ) {
+    return "learning-decks";
   }
   if (pathname.startsWith("/communities/")) {
     return "communities";
