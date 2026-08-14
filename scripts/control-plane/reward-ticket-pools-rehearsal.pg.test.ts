@@ -237,6 +237,19 @@ describe.skipIf(!RUN)("reward ticket full-chain Base Sepolia replay", () => {
       }
     })
 
+    await connection.unsafe(`
+      INSERT INTO reward_ticket_custody_solvency_observations (
+        reward_ticket_custody_solvency_observation_id, chain_id, token_address,
+        custody_address, custody_balance_atomic, outstanding_liability_atomic,
+        canonical_block_number, canonical_block_hash, status, observed_at
+      ) VALUES (
+        'rt_solvency_win', ${CHAIN_ID}, '${USDC}', '${CUSTODY}', 19910001, 10001,
+        45467393,
+        '0xdba9bf5c6c969df7a8e18977b2c28a0b6e3e5fe2f1b5e2df0671fcb7e7ef848b',
+        'solvent', NOW()
+      )
+    `)
+
     const noWinAllocations = await connection.unsafe(`
       SELECT COUNT(*)::INTEGER AS count FROM reward_ticket_allocations
       WHERE reward_ticket_pool_drawing_id='rt_drawing_no_win'
@@ -251,6 +264,18 @@ describe.skipIf(!RUN)("reward ticket full-chain Base Sepolia replay", () => {
       { user_id: "rt_u1", credited_atomic: "3334" },
       { user_id: "rt_u2", credited_atomic: "3333" },
     ])
+    const solvency = await connection.unsafe(`
+      SELECT custody_balance_atomic::TEXT AS custody_balance_atomic,
+             outstanding_liability_atomic::TEXT AS outstanding_liability_atomic,
+             status
+      FROM reward_ticket_custody_solvency_observations
+      WHERE reward_ticket_custody_solvency_observation_id='rt_solvency_win'
+    `)
+    expect(solvency).toEqual([{
+      custody_balance_atomic: "19910001",
+      outstanding_liability_atomic: "10001",
+      status: "solvent",
+    }])
     const lateState = await sqlState(() => connection.begin(async (tx) => {
       await tx.unsafe(`
         INSERT INTO reward_ticket_inventory (
