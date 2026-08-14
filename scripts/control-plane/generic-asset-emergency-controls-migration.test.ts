@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 
 const migration = readFileSync(
-  "db/control-plane/migrations/0231_control_plane_generic_asset_emergency_controls.sql",
+  "db/control-plane/migrations/0232_control_plane_generic_asset_emergency_controls.sql",
   "utf8",
 )
 
@@ -16,4 +16,3 @@ describe("generic asset emergency controls migration", () => {
     expect(migration).toContain("idx_generic_asset_emergency_controls_active")
   })
 })
-
