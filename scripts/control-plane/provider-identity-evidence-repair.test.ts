@@ -125,6 +125,25 @@ test("fails closed when provenance points at an invalid nullifier", () => {
   ], NOW)).toThrow("invalid nullifier link requires review");
 });
 
+test("supersedes accepted nationality evidence with an unusable nullifier link", () => {
+  const plan = buildRepairPlan([
+    row({
+      user_attestation_id: "att_invalid_nationality",
+      capability_key: "nationality",
+      attestation_type: "nationality",
+      source_identity_nullifier_id: "nul_inactive",
+      nullifier_link_count: 1,
+      invalid_nullifier_link_count: 1,
+    }),
+  ], NOW);
+
+  expect(plan.supersede).toEqual([{
+    userAttestationId: "att_invalid_nationality",
+    reason: "provenance_invalid",
+    duplicateGroupKey: null,
+  }]);
+});
+
 test("is idempotent after the planned status transitions", () => {
   const plan = buildRepairPlan([
     row({
