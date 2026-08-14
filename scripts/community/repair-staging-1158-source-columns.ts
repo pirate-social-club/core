@@ -13,14 +13,12 @@ export const REPAIRS = [
     ["posts", "lyrics_language_reliable", "INTEGER NOT NULL DEFAULT 0"], ["posts", "lyrics_language_detector", "TEXT"],
     ["posts", "lyrics_language_detected_at", "TEXT"], ["posts", "lyrics_language_source_hash", "TEXT"],
   ] },
-  { migration: "1148_post_age_gate_provenance.sql", columns: [
-    ["posts", "age_gate_source", "TEXT CHECK (age_gate_source IS NULL OR age_gate_source IN ('author','community_default','post_moderation','bundle_moderation','moderator','legacy_unknown'))"],
-    ["posts", "age_gate_evidence_ref", "TEXT"], ["posts", "age_gate_set_at", "TEXT"],
-  ] },
   { migration: "1100_asset_royalty_allocation_projection_synced.sql", columns: [
     ["assets", "royalty_allocation_projection_synced", "INTEGER NOT NULL DEFAULT 1 CHECK (royalty_allocation_projection_synced IN (0, 1))"],
   ] },
 ] as const
+
+export const NON_ADDITIVE_MIGRATIONS = ["1148_post_age_gate_provenance.sql"] as const
 
 type Column = { table: string; name: string }
 type Probe = { columns: Column[]; ledgers: Record<string, string> }
@@ -29,6 +27,11 @@ export type RepairPlan = { kind: "repair" | "converged" | "refuse"; statements?:
 export function planRepair(probe: Probe, checksums: Record<string, string>): RepairPlan {
   const present = new Set(probe.columns.map(({ table, name }) => `${table}.${name}`))
   const missingRepairs = REPAIRS.filter((repair) => repair.columns.some(([table, column]) => !present.has(`${table}.${column}`)))
+  const missingNonAdditive = NON_ADDITIVE_MIGRATIONS.filter((migration) =>
+    migration === "1148_post_age_gate_provenance.sql" &&
+    ["posts.age_gate_source", "posts.age_gate_evidence_ref", "posts.age_gate_set_at"].some((key) => !present.has(key))
+  )
+  if (missingNonAdditive.length > 0) return { kind: "refuse", reason: `${missingNonAdditive.join(", ")} requires the full migration replay (including its data backfill)` }
   const missingLedger = missingRepairs.filter(({ migration }) => probe.ledgers[migration] !== checksums[migration])
   if (missingLedger.length > 0) return { kind: "refuse", reason: `missing or mismatched ledger: ${missingLedger.map(({ migration }) => migration).join(", ")}` }
   const statements: string[] = []
