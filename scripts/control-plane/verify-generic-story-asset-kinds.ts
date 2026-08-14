@@ -15,6 +15,8 @@ type ConstraintRow = {
   constraint_definition: string;
 };
 
+type TableRow = { table_name: string | null };
+
 function usage(exitCode = 1): never {
   console.error(`Usage:
   bun scripts/control-plane/verify-generic-story-asset-kinds.ts --database-url-env ENV_NAME
@@ -56,6 +58,7 @@ if (!databaseUrl) {
 
 const db = new Bun.SQL(sanitizePostgresUrlForBunSql(databaseUrl));
 let rows: ConstraintRow[];
+let emergencyTables: TableRow[];
 try {
   rows = await db<ConstraintRow[]>`
     SELECT
@@ -64,6 +67,9 @@ try {
     FROM pg_constraint
     WHERE conrelid = 'public.story_registered_asset_projections'::regclass
       AND conname = 'story_registered_asset_projections_asset_kind_check'
+  `;
+  emergencyTables = await db<TableRow[]>`
+    SELECT to_regclass('public.generic_asset_emergency_controls') AS table_name
   `;
 } finally {
   await db.end();
@@ -75,8 +81,13 @@ if (!row || !constraintAdmitsGenericStoryAssetKinds(row.constraint_definition)) 
   if (row) console.error(`constraint: ${row.constraint_definition}`);
   process.exit(1);
 }
+if (!emergencyTables[0]?.table_name) {
+  console.error("production control plane is missing generic_asset_emergency_controls");
+  process.exit(1);
+}
 
 console.log("production control-plane Story asset-kind constraint verified");
 console.log(`constraint: ${row.constraint_name}`);
 console.log(`definition: ${row.constraint_definition}`);
 console.log(`required_kinds: ${GENERIC_STORY_ASSET_KINDS.join(", ")}`);
+console.log("emergency_controls: generic_asset_emergency_controls");
