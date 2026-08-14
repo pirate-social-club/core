@@ -21,8 +21,9 @@ Initial gate: `packages/karaoke-runtime` only.
 The promotion gate is shell-only. It checks the package identity and source
 layout, confirms that the package declares no runtime dependencies and that no
 `node_modules` tree is present, verifies the binary-codec contract fixtures,
-and scans runtime sources for forbidden imports and nondeterministic/browser-
-only constructs. It does not start Bun, install packages, or fetch a runtime.
+and scans the binary-codec dependency closure (`binary-codec.ts` and
+`transport.ts`) for forbidden imports and nondeterministic/browser-only
+constructs. It does not start Bun, install packages, or fetch a runtime.
 
 Hosted CI remains responsible for Bun tests, typechecking, build provenance,
 packaging, and the wider product matrix. This split is deliberate: the VPS is
