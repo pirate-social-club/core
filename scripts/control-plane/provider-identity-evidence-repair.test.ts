@@ -119,6 +119,46 @@ test("fails closed when a duplicate group has conflicting values", () => {
   ], NOW)).toThrow("conflicting duplicate values require review");
 });
 
+test("fails closed on conflicting same-document nationality without an explicit disposition", () => {
+  const shared = {
+    user_id: "usr_one",
+    provider: "zkpassport",
+    capability_key: "nationality",
+    attestation_type: "nationality",
+    source_identity_nullifier_id: "nul_same_document",
+    nullifier_link_count: 1,
+    valid_nullifier_link_count: 1,
+    expires_at: null,
+  } as const;
+  expect(() => buildRepairPlan([
+    row({ ...shared, user_attestation_id: "att_jpn", verified_at: "2026-08-06T08:52:26.652Z", value_json_text: '{"nationality":"JPN"}' }),
+    row({ ...shared, user_attestation_id: "att_usa", verified_at: "2026-08-06T08:53:04.625Z", value_json_text: '{"nationality":"USA"}' }),
+  ], NOW)).toThrow("conflicting duplicate document values require review");
+});
+
+test("explicitly supersedes the earlier same-document nationality repeat", () => {
+  const shared = {
+    user_id: "usr_one",
+    provider: "zkpassport",
+    capability_key: "nationality",
+    attestation_type: "nationality",
+    source_identity_nullifier_id: "nul_same_document",
+    nullifier_link_count: 1,
+    valid_nullifier_link_count: 1,
+    expires_at: null,
+  } as const;
+  const plan = buildRepairPlan([
+    row({ ...shared, user_attestation_id: "att_jpn", verified_at: "2026-08-06T08:52:26.652Z", value_json_text: '{"nationality":"JPN"}' }),
+    row({ ...shared, user_attestation_id: "att_usa", verified_at: "2026-08-06T08:53:04.625Z", value_json_text: '{"nationality":"USA"}' }),
+  ], NOW, "att_jpn");
+
+  expect(plan.supersede).toEqual([{
+    userAttestationId: "att_jpn",
+    reason: "superseded_by_repeat_same_document_verification",
+    duplicateGroupKey: "usr_one\u001fzkpassport\u001fnationality\u001fnul_same_document",
+  }]);
+});
+
 test("fails closed when provenance points at an invalid nullifier", () => {
   expect(() => buildRepairPlan([
     row({ user_attestation_id: "att_invalid", invalid_nullifier_link_count: 1 }),
