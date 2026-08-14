@@ -28,7 +28,11 @@ export type AttestationRepairRow = {
 
 export type SupersedeMutation = {
   userAttestationId: string;
-  reason: "provenance_unbound" | "provenance_invalid" | "duplicate_active_attestation";
+  reason:
+    | "provenance_unbound"
+    | "provenance_invalid"
+    | "duplicate_active_attestation"
+    | "superseded_by_repeat_same_document_verification";
   duplicateGroupKey: string | null;
 };
 
@@ -64,6 +68,7 @@ type Options = {
   decisionRef: string;
   execute: boolean;
   snapshotFile: string;
+  supersedeAttestationId: string | null;
 };
 
 const REQUIRED_CONFIRMATION = "provider-identity-evidence";
@@ -91,6 +96,9 @@ Options:
   --decision-ref REF            Human-reviewed decision/reference identifier.
   --execute                     Apply the planned transitions.
   --confirm-repair VALUE        Required with --execute: provider-identity-evidence.
+  --supersede-attestation-id ID
+                                Optional explicit staging disposition for a same-document
+                                conflicting nationality repeat verification.
   -h, --help                    Show this help text.`);
   process.exit(exitCode);
 }
@@ -103,6 +111,7 @@ function parseArgs(argv: string[]): Options {
     decisionRef: "",
     execute: false,
     snapshotFile: "",
+    supersedeAttestationId: null,
   };
 
   for (let index = 0; index < argv.length;) {
@@ -133,6 +142,10 @@ function parseArgs(argv: string[]): Options {
         options.snapshotFile = value ?? "";
         index += 2;
         break;
+      case "--supersede-attestation-id":
+        options.supersedeAttestationId = value ?? "";
+        index += 2;
+        break;
       case "-h":
       case "--help":
         usage(0);
@@ -151,6 +164,10 @@ function parseArgs(argv: string[]): Options {
   }
   if (options.execute && options.confirmRepair !== REQUIRED_CONFIRMATION) {
     throw new Error(`--execute requires --confirm-repair ${REQUIRED_CONFIRMATION}`);
+  }
+  if (options.supersedeAttestationId !== null
+    && !/^[A-Za-z0-9][A-Za-z0-9._:-]{2,159}$/u.test(options.supersedeAttestationId)) {
+    throw new Error("--supersede-attestation-id must be 3-160 characters of [A-Za-z0-9._:-]");
   }
   return options;
 }
@@ -207,7 +224,11 @@ function chooseDuplicateWinner(rows: AttestationRepairRow[]): AttestationRepairR
  * The function deliberately uses the source link only as a ranking signal;
  * invalid links are rejected rather than silently treated as provenance.
  */
-export function buildRepairPlan(rows: AttestationRepairRow[], nowMs = Date.now()): RepairPlan {
+export function buildRepairPlan(
+  rows: AttestationRepairRow[],
+  nowMs = Date.now(),
+  explicitSupersedeAttestationId: string | null = null,
+): RepairPlan {
   for (const row of rows) {
     if (row.expires_at !== null && !Number.isFinite(Date.parse(row.expires_at))) {
       throw new Error(`invalid expires_at requires review: ${row.user_attestation_id}`);
@@ -239,6 +260,52 @@ export function buildRepairPlan(rows: AttestationRepairRow[], nowMs = Date.now()
 
   const duplicateGroups: RepairPlan["duplicateGroups"] = [];
   const supersedeById = new Map<string, SupersedeMutation>();
+
+  const activeNationality = rows.filter((row) =>
+    row.status === "accepted"
+    && row.capability_key === "nationality"
+    && row.source_identity_nullifier_id !== null
+    && (row.expires_at === null || Date.parse(row.expires_at) > nowMs),
+  );
+  const nationalityDocumentGroups = new Map<string, AttestationRepairRow[]>();
+  for (const row of activeNationality) {
+    const key = [row.user_id, row.provider, row.capability_key, row.source_identity_nullifier_id].join("\u001f");
+    const group = nationalityDocumentGroups.get(key) ?? [];
+    group.push(row);
+    nationalityDocumentGroups.set(key, group);
+  }
+  for (const [key, group] of nationalityDocumentGroups) {
+    if (group.length < 2) continue;
+    const valueTexts = new Set(group.map((row) => row.value_json_text));
+    if (valueTexts.size !== 1) {
+      if (!explicitSupersedeAttestationId) {
+        throw new Error(`conflicting duplicate document values require review: ${key}`);
+      }
+      const target = group.find((row) => row.user_attestation_id === explicitSupersedeAttestationId);
+      if (!target) {
+        throw new Error(`explicit supersession target is not in the conflicting document group: ${explicitSupersedeAttestationId}`);
+      }
+      if (target.invalid_nullifier_link_count > 0 || target.valid_nullifier_link_count < 1) {
+        throw new Error(`explicit supersession target lacks a valid nullifier link: ${explicitSupersedeAttestationId}`);
+      }
+      const peers = group.filter((row) => row.user_attestation_id !== target.user_attestation_id);
+      if (peers.length !== 1 || !isEarlierVerifiedRow(target, peers[0]!)) {
+        throw new Error(`explicit supersession target must be the earlier row in a two-row repeat-verification conflict: ${explicitSupersedeAttestationId}`);
+      }
+      supersedeById.set(target.user_attestation_id, {
+        userAttestationId: target.user_attestation_id,
+        reason: "superseded_by_repeat_same_document_verification",
+        duplicateGroupKey: key,
+      });
+    } else if (!explicitSupersedeAttestationId) {
+      throw new Error(`duplicate document values require review: ${key}`);
+    }
+  }
+
+  if (explicitSupersedeAttestationId
+    && ![...supersedeById.values()].some((mutation) => mutation.userAttestationId === explicitSupersedeAttestationId)) {
+    throw new Error(`explicit supersession target was not a conflicting accepted nationality repeat: ${explicitSupersedeAttestationId}`);
+  }
   for (const [key, group] of groups) {
     if (group.length < 2) continue;
     const valueTexts = new Set(group.map((row) => row.value_json_text));
@@ -452,7 +519,7 @@ async function main(): Promise<void> {
         valid_nullifier_link_count: numericValue(row.valid_nullifier_link_count),
         invalid_nullifier_link_count: numericValue(row.invalid_nullifier_link_count),
       }));
-      const plan = buildRepairPlan(repairRows, Date.now());
+      const plan = buildRepairPlan(repairRows, Date.now(), options.supersedeAttestationId);
       const snapshot: RepairSnapshot = {
         snapshot_version: 1,
         generated_at: new Date().toISOString(),
