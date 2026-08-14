@@ -7279,6 +7279,13 @@ paths:
           required: true
           schema:
             type: string
+        - name: objective
+          in: query
+          required: false
+          description: Restrict resolution to the Study or Karaoke objective slot.
+          schema:
+            type: string
+            enum: [study, karaoke]
       responses:
         "200":
           description: Current permanent song-pool campaign
@@ -7442,6 +7449,13 @@ paths:
           required: true
           schema:
             type: string
+        - name: objective
+          in: query
+          required: false
+          description: Restrict the active offer to the Study or Karaoke objective slot.
+          schema:
+            type: string
+            enum: [study, karaoke]
       responses:
         "200":
           description: Active campaign offer
