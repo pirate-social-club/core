@@ -4,6 +4,9 @@ import { runFleetMigration, type MigrationSpec } from "./lib/fleet-d1-migration"
 
 export const SPEC: MigrationSpec = {
   migration: "1151_song_study_orchestration_v2.sql",
+  // Some shards recorded this migration without retaining its DDL. Permit
+  // only the exact ledger-without-objects repair path.
+  repairLedgerWithoutObjects: true,
   label: "community-template",
   requiredTables: ["song_study_session", "song_study_session_exercise"],
   creates: {
