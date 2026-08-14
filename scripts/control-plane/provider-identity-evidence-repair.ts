@@ -28,7 +28,7 @@ export type AttestationRepairRow = {
 
 export type SupersedeMutation = {
   userAttestationId: string;
-  reason: "provenance_unbound" | "duplicate_active_attestation";
+  reason: "provenance_unbound" | "provenance_invalid" | "duplicate_active_attestation";
   duplicateGroupKey: string | null;
 };
 
@@ -261,6 +261,28 @@ export function buildRepairPlan(rows: AttestationRepairRow[], nowMs = Date.now()
     }
   }
 
+  // Nationality evidence is constrained to an active, user/provider-matching
+  // nullifier. An accepted row with no usable link cannot remain authoritative;
+  // preserve it as history with an explicit provenance reason so the migration
+  // preflight and the repair audit agree.
+  for (const row of rows) {
+    if (row.status !== "accepted" || row.capability_key !== "nationality") continue;
+    if (row.expires_at !== null && Date.parse(row.expires_at) <= nowMs) continue;
+    if (row.invalid_nullifier_link_count > 0) {
+      supersedeById.set(row.user_attestation_id, {
+        userAttestationId: row.user_attestation_id,
+        reason: "provenance_invalid",
+        duplicateGroupKey: null,
+      });
+    } else if (row.nullifier_link_count === 0) {
+      supersedeById.set(row.user_attestation_id, {
+        userAttestationId: row.user_attestation_id,
+        reason: "provenance_unbound",
+        duplicateGroupKey: null,
+      });
+    }
+  }
+
   for (const row of activeUniqueHuman) {
     if (row.nullifier_link_count === 0 && !supersedeById.has(row.user_attestation_id)) {
       supersedeById.set(row.user_attestation_id, {
@@ -375,6 +397,7 @@ function rowSelectSql(): string {
           AND (a.expires_at IS NULL OR a.expires_at > CURRENT_TIMESTAMP)
         )
         OR (a.expires_at IS NOT NULL AND a.expires_at <= CURRENT_TIMESTAMP)
+        OR a.capability_key = 'nationality'
       )
     ORDER BY a.user_attestation_id ASC
     FOR UPDATE OF a`;
