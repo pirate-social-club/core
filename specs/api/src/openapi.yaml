@@ -39,6 +39,7 @@ tags:
   - name: Feeds
   - name: Tracks
   - name: Song Study
+  - name: Learning Decks
   - name: Dance
   - name: Moderation
   - name: MPP
@@ -336,6 +337,32 @@ paths:
     $ref: ./paths/content-blobs.yaml#/communities_by_community_id_content_blobs_by_content_blob_id
   /communities/{community_id}/content-blobs/{content_blob_id}/content:
     $ref: ./paths/content-blobs.yaml#/communities_by_community_id_content_blobs_by_content_blob_id_content
+  /communities/{community_id}/learning-decks:
+    $ref: ./paths/learning-decks.yaml#/communities_by_community_id_learning_decks
+  /communities/{community_id}/learning-decks/by-asset/{asset_id}:
+    $ref: ./paths/learning-decks.yaml#/communities_by_community_id_learning_decks_by_asset
+  /communities/{community_id}/learning-decks/{deck_id}:
+    $ref: ./paths/learning-decks.yaml#/communities_by_community_id_learning_decks_by_deck_id
+  /communities/{community_id}/learning-decks/{deck_id}/cards:
+    $ref: ./paths/learning-decks.yaml#/communities_by_community_id_learning_decks_by_deck_id_cards
+  /communities/{community_id}/learning-decks/{deck_id}/cards/{card_id}:
+    $ref: ./paths/learning-decks.yaml#/communities_by_community_id_learning_decks_by_deck_id_cards_by_card_id
+  /communities/{community_id}/learning-decks/{deck_id}/validate:
+    $ref: ./paths/learning-decks.yaml#/communities_by_community_id_learning_decks_by_deck_id_validate
+  /communities/{community_id}/learning-decks/imports/preview:
+    $ref: ./paths/learning-decks.yaml#/communities_by_community_id_learning_decks_imports_preview
+  /communities/{community_id}/learning-decks/imports/{import_job_id}:
+    $ref: ./paths/learning-decks.yaml#/communities_by_community_id_learning_decks_imports_by_import_job_id
+  /communities/{community_id}/learning-decks/{deck_id}/imports/commit:
+    $ref: ./paths/learning-decks.yaml#/communities_by_community_id_learning_decks_by_deck_id_imports_commit
+  /communities/{community_id}/learning-decks/{deck_id}/study-sessions:
+    $ref: ./paths/learning-decks.yaml#/communities_by_community_id_learning_decks_by_deck_id_study_sessions
+  /communities/{community_id}/learning-study-sessions/{session_id}:
+    $ref: ./paths/learning-decks.yaml#/communities_by_community_id_learning_study_sessions_by_session_id
+  /communities/{community_id}/learning-study-sessions/{session_id}/reveal:
+    $ref: ./paths/learning-decks.yaml#/communities_by_community_id_learning_study_sessions_by_session_id_reveal
+  /communities/{community_id}/learning-study-sessions/{session_id}/rate:
+    $ref: ./paths/learning-decks.yaml#/communities_by_community_id_learning_study_sessions_by_session_id_rate
   /communities/{community_id}/song-artifacts:
     $ref: ./paths/communities.yaml#/communities_by_community_id_song_artifacts
   /communities/{community_id}/song-artifacts/{song_artifact_bundle_id}:
@@ -1102,6 +1129,32 @@ components:
       $ref: ./components/schemas/content-blobs.yaml#/ContentBlobContentRequest
     ContentBlob:
       $ref: ./components/schemas/content-blobs.yaml#/ContentBlob
+    LearningDeckCreateRequest:
+      $ref: ./components/schemas/learning-decks.yaml#/LearningDeckCreateRequest
+    LearningDeckCardRequest:
+      $ref: ./components/schemas/learning-decks.yaml#/LearningDeckCardRequest
+    LearningDeckCard:
+      $ref: ./components/schemas/learning-decks.yaml#/LearningDeckCard
+    LearningDeckDraft:
+      $ref: ./components/schemas/learning-decks.yaml#/LearningDeckDraft
+    LearningDeckValidation:
+      $ref: ./components/schemas/learning-decks.yaml#/LearningDeckValidation
+    LearningDeckCsvImportPreview:
+      $ref: ./components/schemas/learning-decks.yaml#/LearningDeckCsvImportPreview
+    LearningDeckCsvImportStatus:
+      $ref: ./components/schemas/learning-decks.yaml#/LearningDeckCsvImportStatus
+    LearningDeckCsvImportPreviewRequest:
+      $ref: ./components/schemas/learning-decks.yaml#/LearningDeckCsvImportPreviewRequest
+    LearningDeckCsvImportCommitRequest:
+      $ref: ./components/schemas/learning-decks.yaml#/LearningDeckCsvImportCommitRequest
+    LearningDeckStudySessionRequest:
+      $ref: ./components/schemas/learning-decks.yaml#/LearningDeckStudySessionRequest
+    LearningDeckRevealRequest:
+      $ref: ./components/schemas/learning-decks.yaml#/LearningDeckRevealRequest
+    LearningDeckRateRequest:
+      $ref: ./components/schemas/learning-decks.yaml#/LearningDeckRateRequest
+    LearningDeckStudySession:
+      $ref: ./components/schemas/learning-decks.yaml#/LearningDeckStudySession
     CreatePostRequest:
       $ref: ./components/schemas/posts.yaml#/CreatePostRequest
     Post:

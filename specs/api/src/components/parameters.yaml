@@ -82,6 +82,30 @@ ContentBlobId:
   required: true
   schema:
     type: string
+LearningDeckId:
+  in: path
+  name: deck_id
+  required: true
+  schema:
+    type: string
+ImportJobId:
+  in: path
+  name: import_job_id
+  required: true
+  schema:
+    type: string
+LearningCardId:
+  in: path
+  name: card_id
+  required: true
+  schema:
+    type: string
+LearningSessionId:
+  in: path
+  name: session_id
+  required: true
+  schema:
+    type: string
 VerificationSessionId:
   in: path
   name: verification_session_id

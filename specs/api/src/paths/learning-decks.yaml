@@ -1,0 +1,284 @@
+communities_by_community_id_learning_decks:
+  post:
+    tags: [Learning Decks]
+    summary: Create a learning deck draft
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/learning-decks.yaml#/LearningDeckCreateRequest
+    responses:
+      "201":
+        description: Learning deck draft
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/learning-decks.yaml#/LearningDeckDraft
+      "400": { $ref: ../components/responses.yaml#/BadRequest }
+      "401": { $ref: ../components/responses.yaml#/AuthError }
+      "403": { $ref: ../components/responses.yaml#/Forbidden }
+      "404": { $ref: ../components/responses.yaml#/NotFound }
+communities_by_community_id_learning_decks_by_asset:
+  get:
+    tags: [Learning Decks]
+    summary: Read a published learning deck by asset
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/AssetId
+    responses:
+      "200":
+        description: Published learning deck metadata and cards
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/learning-decks.yaml#/LearningDeckDraft
+      "401": { $ref: ../components/responses.yaml#/AuthError }
+      "404": { $ref: ../components/responses.yaml#/NotFound }
+communities_by_community_id_learning_decks_by_deck_id:
+  get:
+    tags: [Learning Decks]
+    summary: Read an owned learning deck draft
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/LearningDeckId
+    responses:
+      "200":
+        description: Learning deck draft
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/learning-decks.yaml#/LearningDeckDraft
+      "401": { $ref: ../components/responses.yaml#/AuthError }
+      "404": { $ref: ../components/responses.yaml#/NotFound }
+communities_by_community_id_learning_decks_by_deck_id_cards:
+  post:
+    tags: [Learning Decks]
+    summary: Add or update a learning deck card
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/LearningDeckId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/learning-decks.yaml#/LearningDeckCardRequest
+    responses:
+      "201":
+        description: Updated learning deck draft
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/learning-decks.yaml#/LearningDeckDraft
+      "400": { $ref: ../components/responses.yaml#/BadRequest }
+      "401": { $ref: ../components/responses.yaml#/AuthError }
+      "404": { $ref: ../components/responses.yaml#/NotFound }
+communities_by_community_id_learning_decks_by_deck_id_cards_by_card_id:
+  patch:
+    tags: [Learning Decks]
+    summary: Update a learning deck card
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/LearningDeckId
+      - $ref: ../components/parameters.yaml#/LearningCardId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/learning-decks.yaml#/LearningDeckCardRequest
+    responses:
+      "200":
+        description: Updated learning deck draft
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/learning-decks.yaml#/LearningDeckDraft
+      "400": { $ref: ../components/responses.yaml#/BadRequest }
+      "401": { $ref: ../components/responses.yaml#/AuthError }
+      "404": { $ref: ../components/responses.yaml#/NotFound }
+  delete:
+    tags: [Learning Decks]
+    summary: Retire a learning deck card
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/LearningDeckId
+      - $ref: ../components/parameters.yaml#/LearningCardId
+    responses:
+      "200":
+        description: Updated learning deck draft
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/learning-decks.yaml#/LearningDeckDraft
+      "401": { $ref: ../components/responses.yaml#/AuthError }
+      "404": { $ref: ../components/responses.yaml#/NotFound }
+communities_by_community_id_learning_decks_by_deck_id_validate:
+  post:
+    tags: [Learning Decks]
+    summary: Validate a learning deck draft and produce its canonical package
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/LearningDeckId
+    responses:
+      "200":
+        description: Validation result
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/learning-decks.yaml#/LearningDeckValidation
+      "401": { $ref: ../components/responses.yaml#/AuthError }
+      "404": { $ref: ../components/responses.yaml#/NotFound }
+communities_by_community_id_learning_decks_imports_preview:
+  post:
+    tags: [Learning Decks]
+    summary: Queue or read a durable CSV import preview
+    description: |
+      The server queues parsing of a verified `deck_import_csv_v1` content blob.
+      The returned job status is durable and idempotent; callers poll the import
+      status path until the bounded deterministic preview is ready.
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/learning-decks.yaml#/LearningDeckCsvImportPreviewRequest
+    responses:
+      "200":
+        description: Durable import job status and optional preview
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/learning-decks.yaml#/LearningDeckCsvImportStatus
+      "400": { $ref: ../components/responses.yaml#/BadRequest }
+      "401": { $ref: ../components/responses.yaml#/AuthError }
+      "404": { $ref: ../components/responses.yaml#/NotFound }
+communities_by_community_id_learning_decks_imports_by_import_job_id:
+  get:
+    tags: [Learning Decks]
+    summary: Read a durable CSV import job and preview
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/ImportJobId
+    responses:
+      "200":
+        description: Durable import job status and optional preview
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/learning-decks.yaml#/LearningDeckCsvImportStatus
+      "401": { $ref: ../components/responses.yaml#/AuthError }
+      "404": { $ref: ../components/responses.yaml#/NotFound }
+communities_by_community_id_learning_decks_by_deck_id_imports_commit:
+  post:
+    tags: [Learning Decks]
+    summary: Commit a ready CSV import into a learning deck draft
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/LearningDeckId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/learning-decks.yaml#/LearningDeckCsvImportCommitRequest
+    responses:
+      "200":
+        description: Updated learning deck draft
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/learning-decks.yaml#/LearningDeckDraft
+      "400": { $ref: ../components/responses.yaml#/BadRequest }
+      "401": { $ref: ../components/responses.yaml#/AuthError }
+      "404": { $ref: ../components/responses.yaml#/NotFound }
+      "409": { $ref: ../components/responses.yaml#/Conflict }
+communities_by_community_id_learning_decks_by_deck_id_study_sessions:
+  post:
+    tags: [Learning Decks]
+    summary: Start or resume a deterministic learning deck study session
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/LearningDeckId
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/learning-decks.yaml#/LearningDeckStudySessionRequest
+    responses:
+      "201":
+        description: Study session
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/learning-decks.yaml#/LearningDeckStudySession
+      "401": { $ref: ../components/responses.yaml#/AuthError }
+      "404": { $ref: ../components/responses.yaml#/NotFound }
+communities_by_community_id_learning_study_sessions_by_session_id:
+  get:
+    tags: [Learning Decks]
+    summary: Read a learning study session
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/LearningSessionId
+    responses:
+      "200":
+        description: Study session
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/learning-decks.yaml#/LearningDeckStudySession
+      "401": { $ref: ../components/responses.yaml#/AuthError }
+      "404": { $ref: ../components/responses.yaml#/NotFound }
+communities_by_community_id_learning_study_sessions_by_session_id_reveal:
+  post:
+    tags: [Learning Decks]
+    summary: Reveal the current study answer
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/LearningSessionId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/learning-decks.yaml#/LearningDeckRevealRequest
+    responses:
+      "200":
+        description: Updated study session
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/learning-decks.yaml#/LearningDeckStudySession
+      "400": { $ref: ../components/responses.yaml#/BadRequest }
+      "401": { $ref: ../components/responses.yaml#/AuthError }
+      "404": { $ref: ../components/responses.yaml#/NotFound }
+communities_by_community_id_learning_study_sessions_by_session_id_rate:
+  post:
+    tags: [Learning Decks]
+    summary: Record an idempotent FSRS study rating
+    parameters:
+      - $ref: ../components/parameters.yaml#/CommunityId
+      - $ref: ../components/parameters.yaml#/LearningSessionId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/learning-decks.yaml#/LearningDeckRateRequest
+    responses:
+      "200":
+        description: Updated study session
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas/learning-decks.yaml#/LearningDeckStudySession
+      "400": { $ref: ../components/responses.yaml#/BadRequest }
+      "401": { $ref: ../components/responses.yaml#/AuthError }
+      "404": { $ref: ../components/responses.yaml#/NotFound }
