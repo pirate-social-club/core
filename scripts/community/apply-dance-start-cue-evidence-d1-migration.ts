@@ -4,6 +4,9 @@ import { runFleetMigration, type MigrationSpec } from "./lib/fleet-d1-migration"
 
 export const SPEC: MigrationSpec = {
   migration: "1153_dance_attempt_start_cue_evidence.sql",
+  // Some shards recorded this migration without retaining its DDL. Permit
+  // only the exact ledger-without-objects repair path.
+  repairLedgerWithoutObjects: true,
   label: "community-template",
   requiredTables: ["dance_attempt"],
   creates: {

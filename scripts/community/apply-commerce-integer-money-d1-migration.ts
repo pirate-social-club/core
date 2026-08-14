@@ -4,6 +4,9 @@ import { runFleetMigration, type MigrationSpec } from "./lib/fleet-d1-migration"
 
 export const SPEC: MigrationSpec = {
   migration: "1154_commerce_integer_money.sql",
+  // Some shards recorded this migration without retaining its DDL. Permit
+  // only the exact ledger-without-objects repair path.
+  repairLedgerWithoutObjects: true,
   label: "community-template",
   requiredTables: ["listings", "purchase_quotes", "purchases", "purchase_allocation_legs"],
   creates: {
