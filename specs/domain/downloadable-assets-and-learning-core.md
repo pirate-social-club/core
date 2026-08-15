@@ -150,6 +150,38 @@ idle-exit evidence below closes the shared PID-1 runtime prerequisite. The
 scanner's own image, real-scan, 30-second idle, and billed-duration evidence
 remain Phase 3 launch gates beside issue 625.
 
+### Current file-vertical readiness deferral (2026-08-15)
+
+The file runtime is deployed dark, with `GENERIC_DIGITAL_GOODS_ENABLED` set to
+`false`; no writer or ordinary creator path may be enabled from this state.
+The deployed scanner image is not launch evidence by itself because no
+production scanner has yet completed a real scan and the production source
+broker is not configured. This is an operational deferral, not a relaxation of
+the scanner or publication contract. Text-only files do not receive an
+anti-malware exception.
+
+Before operator dogfood or any ordinary creator enablement, the following
+evidence must be recorded and reviewed:
+
+- [ ] A definition-freshness promotion pipeline fetches and signature-verifies
+  definitions during the immutable image build, promotes only after the
+  clean/malicious corpus passes, alerts before the seven-day freshness limit,
+  and retains only the approved recent registry images with retryable pruning.
+- [ ] A real non-production scanner run records cold/warm latency, peak memory,
+  scans per container start, graceful idle exit, absence of repeated-stop
+  billing, and the fully loaded cost projection required by the Phase 3 gate.
+- [ ] The production `content-source-broker` Worker exists and its shared
+  secret is provisioned; the API production environment has the reviewed
+  `CONTENT_SOURCE_BROKER` binding and matching secret.
+- [ ] The enablement evidence is attached to the release record and the
+  mechanical writer latch is changed from false only as part of that reviewed
+  promotion. The latch must continue to require the broker binding and
+  non-empty secret at runtime.
+
+Until these items are complete, scanner operations may remain parked and the
+operator-only dogfood flag remains off. No feature flag, API route, or test
+fixture may turn this deferral into an alternate publication policy.
+
 Public/free publication has separate
 safety, compatibility, and quota gates and does not bypass them. A future
 mainnet launch remains subject to the existing mainnet-readiness contract.
