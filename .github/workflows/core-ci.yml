@@ -289,6 +289,13 @@ jobs:
           CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
         run: bun test scripts/control-plane/content-security-scans-migration.pg.test.ts
 
+      - name: Run reward ticket pool hardening migration integration test
+        env:
+          # Proves PostgreSQL enforces ticket custody, allocation, accounting,
+          # append-only evidence, and least-privilege invariants.
+          CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
+        run: bun test scripts/control-plane/reward-ticket-pools-hardening-migration.pg.test.ts
+
       - name: Run dance choreography migration integration test
         env:
           # Proves choreography and attempt coordination invariants in PostgreSQL.
