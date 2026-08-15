@@ -69,6 +69,10 @@ describe.skipIf(!RUN)("reward ticket pool migration 0233 (real Postgres)", () =>
       db,
       "db/control-plane/migrations/0233_control_plane_reward_ticket_pool_hardening.sql",
     );
+    await applyMigration(
+      db,
+      "db/control-plane/migrations/0234_control_plane_reward_ticket_claim_net_accounting.sql",
+    );
     await db.unsafe("INSERT INTO communities VALUES ('community')");
     await db.unsafe("INSERT INTO users VALUES ('creator'), ('owner'), ('u0'), ('u1'), ('u2')");
     await db.unsafe("INSERT INTO reward_qualification_events VALUES ('q0'), ('q1'), ('q2')");
@@ -201,11 +205,12 @@ describe.skipIf(!RUN)("reward ticket pool migration 0233 (real Postgres)", () =>
         INSERT INTO reward_ticket_claim_effects (
           reward_ticket_claim_effect_id, reward_ticket_pool_drawing_id,
           idempotency_key, status, tx_hash, protocol_reported_winnings_atomic,
-          received_amount_atomic, confirmed_block_number, confirmed_block_hash,
-          confirmed_at, finalized_at
+          received_amount_atomic, gross_tier_payout_atomic, referral_accrual_atomic,
+          confirmed_block_number, confirmed_block_hash, confirmed_at, finalized_at
         ) VALUES (
           'claim', 'drawing', 'claim-key', 'confirmed', '0x${"3".repeat(64)}', 2, 2,
-          20, '0x${"4".repeat(64)}', '2026-08-13T00:35:00Z', '2026-08-13T00:36:00Z'
+          3, 1, 20, '0x${"4".repeat(64)}', '2026-08-13T00:35:00Z',
+          '2026-08-13T00:36:00Z'
         )
       `);
       await tx.unsafe("INSERT INTO reward_ticket_claim_tickets VALUES ('claim', 'ticket', NOW())");
@@ -314,6 +319,35 @@ describe.skipIf(!RUN)("reward ticket pool migration 0233 (real Postgres)", () =>
     await expectSqlState(
       db,
       "UPDATE reward_ticket_platform_revenue_ledger_entries SET amount_atomic = 2 WHERE reward_ticket_platform_revenue_ledger_entry_id = 'platform-revenue'",
+      "23514",
+    );
+    await db.unsafe(`
+      INSERT INTO reward_ticket_platform_revenue_ledger_entries (
+        reward_ticket_platform_revenue_ledger_entry_id, chain_id, token_address,
+        platform_revenue_address, entry_kind, amount_atomic,
+        reward_ticket_claim_effect_id, tx_hash, log_index,
+        observed_block_number, observed_block_hash, observed_at
+      ) VALUES (
+        'winnings-referral', 84532, '0x4444444444444444444444444444444444444444',
+        '0x7777777777777777777777777777777777777777',
+        'winnings_referral_accrual', 1, 'claim', '0x${"3".repeat(64)}', 5,
+        20, '0x${"4".repeat(64)}', NOW()
+      )
+    `);
+    await expectSqlState(
+      db,
+      `INSERT INTO reward_ticket_platform_revenue_ledger_entries (
+         reward_ticket_platform_revenue_ledger_entry_id, chain_id, token_address,
+         platform_revenue_address, entry_kind, amount_atomic,
+         reward_ticket_claim_effect_id, tx_hash, log_index,
+         observed_block_number, observed_block_hash, observed_at
+       ) VALUES (
+         'winnings-referral-mismatch', 84532,
+         '0x4444444444444444444444444444444444444444',
+         '0x7777777777777777777777777777777777777777',
+         'winnings_referral_accrual', 2, 'claim', '0x${"3".repeat(64)}', 6,
+         20, '0x${"4".repeat(64)}', NOW()
+       )`,
       "23514",
     );
     await db.end();
