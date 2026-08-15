@@ -296,6 +296,13 @@ jobs:
           CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
         run: bun test scripts/control-plane/reward-ticket-pools-hardening-migration.pg.test.ts
 
+      - name: Run reward settlement asset registry migration integration test
+        env:
+          # Proves registry lifecycle, transition-bound evidence timestamps,
+          # rail binding, and least-privilege invariants in PostgreSQL.
+          CONTROL_PLANE_MIGRATION_TEST_ADMIN_URL: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
+        run: bun test scripts/control-plane/reward-settlement-asset-registry-migration.pg.test.ts
+
       - name: Run dance choreography migration integration test
         env:
           # Proves choreography and attempt coordination invariants in PostgreSQL.
