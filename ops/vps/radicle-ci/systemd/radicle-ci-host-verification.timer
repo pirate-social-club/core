@@ -1,0 +1,12 @@
+[Unit]
+Description=Periodically verify Radicle seed and CI host drift
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=1h
+RandomizedDelaySec=5min
+Persistent=true
+Unit=radicle-ci-host-verification.service
+
+[Install]
+WantedBy=timers.target

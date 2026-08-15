@@ -1,0 +1,190 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+[[ $(id -u) -eq 0 ]] || { echo 'run as root' >&2; exit 1; }
+role_dir=${1:?usage: install-ambient-npm-retry <tracked-role-directory>}
+version=0.16.0
+adapter_version=0.21.1
+expected_source_sha256=ca138d2325790fba012f668e0d114346a955c574ec288fef41097df98fcdfd4c
+expected_http_source_sha256=5c30341d9ddbc37ab7161597e340d02deaae14dfa9e033d3fc670e08a80a2bfb
+expected_action_source_sha256=6a4d2ac388afaad318edae4e9bd61fba6c2d54e08c5e36c9003e476108581ebc
+expected_action_impl_source_sha256=5ff1b4cf2ac181c552bf70a2e8bc7afa2f818655d0e48a0d3795a3d5176b1933
+expected_adapter_cargo_toml_sha256=dd5640e80f21ff460225241393986029d77a820c3391f5f1407654c5c38fcca6
+expected_adapter_cargo_lock_sha256=c619e432c99157528649b017d6c3f4273d682a4c2520ca3f6971267e547199ce
+patch_file="$role_dir/patches/ambient-ci-$version-npm-retry.patch"
+adapter_patch_file="$role_dir/patches/radicle-ci-ambient-$adapter_version-bun-get.patch"
+registry_root=/var/lib/radicle/.cargo/registry/src
+cargo_home=/var/lib/radicle/.cargo
+rustup_home=/var/lib/radicle/.rustup
+toolchain_bin="$rustup_home/toolchains/stable-x86_64-unknown-linux-gnu/bin"
+cargo_bin="$toolchain_bin/cargo"
+build_root=/var/lib/radicle/ci/tmp/ambient-ci-npm-retry
+install_destination=${AMBIENT_EXECUTOR_INSTALL_DESTINATION:-/usr/local/bin/ambient-execute-plan}
+ambient_cli_install_destination=${AMBIENT_CLI_INSTALL_DESTINATION:-/usr/local/bin/ambient}
+adapter_install_destination=${RADICLE_CI_AMBIENT_INSTALL_DESTINATION:-/var/lib/radicle/.cargo/bin/radicle-ci-ambient}
+
+for command in patch sha256sum sudo; do
+  command -v "$command" >/dev/null 2>&1 \
+    || { echo "required command not found: $command" >&2; exit 1; }
+done
+test -r "$patch_file"
+test -r "$adapter_patch_file"
+test -x "$cargo_bin"
+[[ "$install_destination" == /* && "$install_destination" != *$'\n'* ]] \
+  || { echo 'AMBIENT_EXECUTOR_INSTALL_DESTINATION must be an absolute single-line path' >&2; exit 1; }
+patch_sha256=$(sha256sum "$patch_file" | awk '{ print $1 }')
+adapter_patch_sha256=$(sha256sum "$adapter_patch_file" | awk '{ print $1 }')
+
+if [[ "$install_destination" == /usr/local/bin/ambient-execute-plan ]]; then
+  installed_manifest=/usr/local/share/pirate-radicle/ambient-npm-retry.manifest
+  installed_patch=/usr/local/share/pirate-radicle/ambient-ci-npm-retry.patch
+  if [[ -x "$install_destination" && -f "$installed_manifest" \
+    && -f "$installed_patch" ]] \
+    && grep -Fxq "ambient_version=$version" "$installed_manifest" \
+    && grep -Fxq "upstream_source_sha256=$expected_source_sha256" \
+      "$installed_manifest" \
+    && grep -Fxq "upstream_http_source_sha256=$expected_http_source_sha256" \
+      "$installed_manifest" \
+    && grep -Fxq "upstream_action_source_sha256=$expected_action_source_sha256" \
+      "$installed_manifest" \
+    && grep -Fxq \
+      "upstream_action_impl_source_sha256=$expected_action_impl_source_sha256" \
+      "$installed_manifest" \
+    && grep -Fxq \
+      "upstream_adapter_cargo_toml_sha256=$expected_adapter_cargo_toml_sha256" \
+      "$installed_manifest" \
+    && grep -Fxq \
+      "upstream_adapter_cargo_lock_sha256=$expected_adapter_cargo_lock_sha256" \
+      "$installed_manifest" \
+    && grep -Fxq "patch_sha256=$patch_sha256" "$installed_manifest" \
+    && grep -Fxq "adapter_patch_sha256=$adapter_patch_sha256" "$installed_manifest" \
+    && grep -Fxq \
+      "binary_sha256=$(sha256sum "$install_destination" | awk '{ print $1 }')" \
+      "$installed_manifest" \
+    && grep -Fxq \
+      "ambient_cli_binary_sha256=$(sha256sum "$ambient_cli_install_destination" | awk '{ print $1 }')" \
+      "$installed_manifest" \
+    && grep -Fxq \
+      "adapter_binary_sha256=$(sha256sum "$adapter_install_destination" | awk '{ print $1 }')" \
+      "$installed_manifest" \
+    && test "$(sha256sum "$installed_patch" | awk '{ print $1 }')" = \
+      "$patch_sha256" \
+    && test "$(sha256sum /usr/local/share/pirate-radicle/radicle-ci-ambient-$adapter_version-bun-get.patch | awk '{ print $1 }')" = \
+      "$adapter_patch_sha256"; then
+    echo 'reviewed Ambient npm retry build is already installed'
+    exit 0
+  fi
+fi
+
+mapfile -t sources < <(find "$registry_root" -mindepth 2 -maxdepth 2 \
+  -type d -name "ambient-ci-$version" -print)
+if (( ${#sources[@]} != 1 )); then
+  echo "expected exactly one cached ambient-ci-$version source tree" >&2
+  exit 1
+fi
+source_tree=${sources[0]}
+mapfile -t adapter_sources < <(find "$registry_root" -mindepth 2 -maxdepth 2 \
+  -type d -name "radicle-ci-ambient-$adapter_version" -print)
+if (( ${#adapter_sources[@]} != 1 )); then
+  echo "expected exactly one cached radicle-ci-ambient-$adapter_version source tree" >&2
+  exit 1
+fi
+adapter_source_tree=${adapter_sources[0]}
+source_file="$source_tree/src/action_impl/npm.rs"
+http_source_file="$source_tree/src/action_impl/http_get.rs"
+action_source_file="$source_tree/src/action.rs"
+action_impl_source_file="$source_tree/src/action_impl/mod.rs"
+test "$(sha256sum "$source_file" | awk '{ print $1 }')" = \
+  "$expected_source_sha256" \
+  || { echo 'cached Ambient npm source differs from the reviewed input' >&2; exit 1; }
+test "$(sha256sum "$http_source_file" | awk '{ print $1 }')" = \
+  "$expected_http_source_sha256" \
+  || { echo 'cached Ambient HTTP source differs from the reviewed input' >&2; exit 1; }
+test "$(sha256sum "$action_source_file" | awk '{ print $1 }')" = \
+  "$expected_action_source_sha256" \
+  || { echo 'cached Ambient action source differs from the reviewed input' >&2; exit 1; }
+test "$(sha256sum "$action_impl_source_file" | awk '{ print $1 }')" = \
+  "$expected_action_impl_source_sha256" \
+  || { echo 'cached Ambient action module source differs from the reviewed input' >&2; exit 1; }
+test "$(sha256sum "$adapter_source_tree/Cargo.toml" | awk '{ print $1 }')" = \
+  "$expected_adapter_cargo_toml_sha256" \
+  || { echo 'cached Ambient adapter manifest differs from the reviewed input' >&2; exit 1; }
+test "$(sha256sum "$adapter_source_tree/Cargo.lock" | awk '{ print $1 }')" = \
+  "$expected_adapter_cargo_lock_sha256" \
+  || { echo 'cached Ambient adapter lockfile differs from the reviewed input' >&2; exit 1; }
+
+build_parent=${build_root}-tree
+ambient_build_root="$build_parent/ambient-ci"
+adapter_build_root="$build_parent/radicle-ci-ambient"
+rm -rf -- "$build_parent"
+install -d -o radicle -g radicle -m 0700 "$build_parent"
+cp -a "$source_tree/." "$ambient_build_root"
+cp -a "$adapter_source_tree/." "$adapter_build_root"
+chown -R radicle:radicle "$build_parent"
+build_root="$ambient_build_root"
+sudo -u radicle patch --batch --forward -d "$build_root" -p1 < "$patch_file"
+build_env=(env HOME=/var/lib/radicle CARGO_HOME="$cargo_home"
+  RUSTUP_HOME="$rustup_home" PATH="$toolchain_bin:/usr/local/bin:/usr/bin:/bin"
+  CARGO_NET_RETRY=3)
+fetched=false
+for attempt in 1 2 3; do
+  if sudo -u radicle "${build_env[@]}" "$cargo_bin" fetch --locked \
+    --manifest-path "$build_root/Cargo.toml"; then
+    fetched=true
+    break
+  fi
+  (( attempt < 3 )) && sleep $((attempt * 2))
+done
+[[ "$fetched" == true ]] \
+  || { echo 'failed to fetch the locked Ambient build dependencies' >&2; exit 1; }
+sudo -u radicle "${build_env[@]}" "$cargo_bin" build --release --locked --offline \
+  --manifest-path "$build_root/Cargo.toml" --bin ambient-execute-plan
+sudo -u radicle "${build_env[@]}" "$cargo_bin" build --release --locked --offline \
+  --manifest-path "$build_root/Cargo.toml" --bin ambient
+
+candidate="$build_root/target/release/ambient-execute-plan"
+test -x "$candidate"
+install -o root -g root -m 0755 "$candidate" "$install_destination"
+ambient_cli_candidate="$build_root/target/release/ambient"
+test -x "$ambient_cli_candidate"
+install -o root -g root -m 0755 "$ambient_cli_candidate" \
+  "$ambient_cli_install_destination"
+
+sudo -u radicle patch --batch --forward -d "$adapter_build_root" -p1 < \
+  "$adapter_patch_file"
+sudo -u radicle "${build_env[@]}" "$cargo_bin" build --release --locked --offline \
+  --manifest-path "$adapter_build_root/Cargo.toml" --bin radicle-ci-ambient
+adapter_candidate="$adapter_build_root/target/release/radicle-ci-ambient"
+test -x "$adapter_candidate"
+install -o radicle -g radicle -m 0755 "$adapter_candidate" \
+  "$adapter_install_destination"
+
+if [[ "$install_destination" == /usr/local/bin/ambient-execute-plan ]]; then
+  install -d -o root -g root -m 0755 /usr/local/share/pirate-radicle
+  install -o root -g root -m 0644 "$patch_file" \
+    /usr/local/share/pirate-radicle/ambient-ci-npm-retry.patch
+  install -o root -g root -m 0644 "$adapter_patch_file" \
+    "/usr/local/share/pirate-radicle/radicle-ci-ambient-$adapter_version-bun-get.patch"
+  binary_sha256=$(sha256sum "$install_destination" | awk '{ print $1 }')
+  ambient_cli_binary_sha256=$(sha256sum "$ambient_cli_install_destination" | awk '{ print $1 }')
+  adapter_binary_sha256=$(sha256sum "$adapter_install_destination" | awk '{ print $1 }')
+  manifest="$build_root/ambient-npm-retry.manifest"
+  printf '%s\n' \
+    "ambient_version=$version" \
+    "upstream_source_sha256=$expected_source_sha256" \
+    "upstream_http_source_sha256=$expected_http_source_sha256" \
+    "upstream_action_source_sha256=$expected_action_source_sha256" \
+    "upstream_action_impl_source_sha256=$expected_action_impl_source_sha256" \
+    "upstream_adapter_cargo_toml_sha256=$expected_adapter_cargo_toml_sha256" \
+    "upstream_adapter_cargo_lock_sha256=$expected_adapter_cargo_lock_sha256" \
+    "patch_sha256=$patch_sha256" \
+    "adapter_patch_sha256=$adapter_patch_sha256" \
+    "binary_sha256=$binary_sha256" \
+    "ambient_cli_binary_sha256=$ambient_cli_binary_sha256" \
+    "adapter_binary_sha256=$adapter_binary_sha256" > "$manifest"
+  install -o root -g root -m 0644 "$manifest" \
+    /usr/local/share/pirate-radicle/ambient-npm-retry.manifest
+fi
+
+rm -rf -- "$build_parent"
+echo "installed Ambient 0.16.0 executor and Radicle CI Ambient adapter with Bun provisioning at $install_destination"

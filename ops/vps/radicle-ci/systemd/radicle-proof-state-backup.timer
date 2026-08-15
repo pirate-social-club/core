@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily encrypted backup of Radicle CI proof and promotion state
+
+[Timer]
+OnCalendar=*-*-* 04:37:00 UTC
+RandomizedDelaySec=30m
+Persistent=true
+Unit=radicle-proof-state-backup.service
+
+[Install]
+WantedBy=timers.target

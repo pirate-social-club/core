@@ -1,0 +1,28 @@
+db: /var/lib/radicle/ci/broker.db
+report_dir: /var/lib/radicle/ci/reports
+queue_len_interval: 1min
+max_run_time: 60min
+concurrent_adapters: 1
+update_job_cobs: true
+adapters:
+  ambient:
+    command: /var/lib/radicle/.cargo/bin/radicle-ci-ambient
+    env:
+      HOME: /var/lib/radicle
+      RAD_HOME: /var/lib/radicle
+      RADICLE_CI_AMBIENT: /var/lib/radicle/ci/radicle-ci-ambient.yaml
+      XDG_CONFIG_HOME: /var/lib/radicle/.config
+      PATH: /var/lib/radicle/.cargo/bin:/usr/local/bin:/usr/bin:/bin
+    sensitive_env: {}
+triggers:
+  - adapter: ambient
+    filters:
+      - !And
+        - !HasFile ".radicle/ambient.yaml"
+        - !Node z6MkpE2GsUNs7QxVYLuwpYowpJH9GXEFFGc6uuVuwWbfsV8k
+        - !Or
+@@REPOSITORY_FILTERS@@
+        - !Or
+          - !DefaultBranch
+          - !PatchCreated
+          - !PatchUpdated

@@ -1,0 +1,603 @@
+diff --git a/src/action.rs b/src/action.rs
+index 7726aed..b1d0a3c 100644
+--- a/src/action.rs
++++ b/src/action.rs
+@@ -193,6 +193,9 @@ pub enum RunnableAction {
+     /// Download `npm` packages.
+     NpmGet(NpmGet),
+ 
++    /// Download Bun packages listed in a `bun.lock` file.
++    BunGet(BunGet),
++
+     /// Upload files via `rsync`.
+     Rsync(Rsync),
+ 
+@@ -267,6 +270,7 @@ impl RunnableAction {
+             Self::DebGet(_) => "deb_get",
+             Self::DebInstall(_) => "deb_install",
+             Self::NpmGet(_) => "npm_get",
++            Self::BunGet(_) => "bun_get",
+             Self::Rsync(_) => "rsync",
+             Self::Dput(_) => "dput",
+             Self::Mkdir(_) => "mkdir",
+@@ -304,6 +308,7 @@ impl RunnableAction {
+             Self::DebGet(x) => x.execute(context),
+             Self::DebInstall(x) => x.execute(context),
+             Self::NpmGet(x) => x.execute(context),
++            Self::BunGet(x) => x.execute(context),
+             Self::Rsync(x) => x.execute(context),
+             Self::Dput(x) => x.execute(context),
+             Self::Mkdir(x) => x.execute(context),
+@@ -333,6 +338,7 @@ impl RunnableAction {
+             Self::DebGet(x) => x.set_plan_envs(context),
+             Self::DebInstall(x) => x.set_plan_envs(context),
+             Self::NpmGet(x) => x.set_plan_envs(context),
++            Self::BunGet(x) => x.set_plan_envs(context),
+             Self::Rsync(x) => x.set_plan_envs(context),
+             Self::Dput(x) => x.set_plan_envs(context),
+             Self::Mkdir(x) => x.set_plan_envs(context),
+@@ -373,6 +379,9 @@ impl From<&PrePlanAction> for RunnableAction {
+                 cert,
+             } => Self::DebGet(DebGet::new(suite, cert, packages)),
+             PrePlanAction::NpmGet => Self::NpmGet(NpmGet::default()),
++            PrePlanAction::BunGet { path, output } => {
++                Self::BunGet(BunGet::new(path.clone(), output.clone()))
++            }
+             PrePlanAction::Rustup {
+                 channel,
+                 target,
+@@ -468,6 +477,15 @@ pub enum PrePlanAction {
+     /// Download `npm` packages listed in a package lock file.
+     NpmGet,
+ 
++    /// Download registry packages listed in a Bun `bun.lock` file.
++    BunGet {
++        /// Relative source subdirectory containing `bun.lock`.
++        path: Option<PathBuf>,
++
++        /// Relative dependency output name under the dependencies directory.
++        output: Option<PathBuf>,
++    },
++
+     /// Install Rust toolchains and components with `rustup`.
+     Rustup {
+         /// Channel, defaults to `stable`.
+@@ -488,7 +506,7 @@ pub enum PrePlanAction {
+ impl PrePlanAction {
+     /// Names of all pre-plan actions.
+     pub fn names() -> &'static [&'static str] {
+-        &["dummy", "pwd", "cargo_fetch"]
++        &["dummy", "pwd", "cargo_fetch", "npm_get", "bun_get"]
+     }
+ }
+ 
+@@ -742,6 +760,10 @@ pub enum ActionError {
+     #[error("npm action failed")]
+     Npm(#[source] crate::action_impl::NpmError),
+ 
++    /// Problem in a `bun` action.
++    #[error("bun action failed")]
++    Bun(#[source] crate::action_impl::BunError),
++
+     /// Can't execute a command.
+     #[error("failed to execute {0}")]
+     Execute(String, #[source] CommandError),
+diff --git a/src/action_impl/bun.rs b/src/action_impl/bun.rs
+new file mode 100644
+index 0000000..c8f9674
+--- /dev/null
++++ b/src/action_impl/bun.rs
+@@ -0,0 +1,394 @@
++use std::{
++    collections::{BTreeMap, BTreeSet},
++    error::Error,
++    fs::{self, File},
++    io::{self, Write},
++    path::{Component, Path, PathBuf},
++    thread,
++    time::Duration,
++};
++
++use serde::{Deserialize, Serialize};
++use serde_json::Value;
++use url::Url;
++
++use crate::{
++    action::{ActionError, Context},
++    action_impl::ActionImpl,
++    util::{http_get_to_file, mkdir, UtilError},
++};
++
++const LOCK_FILE: &str = "bun.lock";
++const SUBDIR: &str = "bun";
++const DOWNLOAD_ATTEMPTS: u32 = 3;
++const DOWNLOAD_RETRY_BASE_DELAY: Duration = Duration::from_secs(2);
++
++/// Download registry packages from a Bun lock file into the pre-plan
++/// dependency directory. Local `file:`, `workspace:`, and `link:` entries are
++/// intentionally skipped; the plan must provision those source trees itself.
++#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
++pub struct BunGet {
++    /// Relative source subdirectory containing the lock file.
++    #[serde(default)]
++    path: Option<PathBuf>,
++
++    /// Relative output directory name below the Bun dependency directory.
++    #[serde(default)]
++    output: Option<PathBuf>,
++}
++
++impl BunGet {
++    /// Construct a Bun dependency action.
++    pub(crate) fn new(path: Option<PathBuf>, output: Option<PathBuf>) -> Self {
++        Self { path, output }
++    }
++
++    fn source_path(&self, source_dir: &Path) -> Result<PathBuf, BunError> {
++        let path = self.path.as_deref().unwrap_or_else(|| Path::new("."));
++        validate_relative(path)?;
++        Ok(source_dir.join(path))
++    }
++
++    fn output_path(&self, deps_dir: &Path) -> Result<PathBuf, BunError> {
++        let output = self
++            .output
++            .as_deref()
++            .unwrap_or_else(|| Path::new("default"));
++        validate_relative(output)?;
++        Ok(deps_dir.join(SUBDIR).join(output))
++    }
++
++    fn load_lock_file(&self, srcdir: &Path) -> Result<PackagesLock, BunError> {
++        let filename = srcdir.join(LOCK_FILE);
++        let data =
++            fs::read(&filename).map_err(|err| BunError::ReadLockFile(filename.clone(), err))?;
++        serde_norway::from_slice(&data).map_err(|err| BunError::ParseLockFile(filename, err))
++    }
++
++    fn download(&self, bun_dir: PathBuf, lockfile: PackagesLock) -> Result<(), BunError> {
++        mkdir(&bun_dir).map_err(|err| BunError::Mkdir(bun_dir.clone(), err))?;
++        let manifest_path = bun_dir.join("manifest.tsv");
++        let mut manifest = File::create(&manifest_path)
++            .map_err(|err| BunError::CreateManifest(manifest_path.clone(), err))?;
++        writeln!(manifest, "name\tversion\tcache_version\tfilename\tintegrity")
++            .map_err(|err| BunError::WriteManifest(manifest_path.clone(), err))?;
++
++        let mut seen = BTreeSet::new();
++        let mut ordinal = 0usize;
++        for (key, entry) in lockfile.packages {
++            if key.is_empty() {
++                continue;
++            }
++            let spec = entry.first().and_then(Value::as_str).ok_or_else(|| {
++                BunError::InvalidPackage(key.clone(), "missing package spec".into())
++            })?;
++            if is_local_spec(spec) {
++                continue;
++            }
++
++            let (name, version) = parse_registry_spec(spec)
++                .ok_or_else(|| BunError::InvalidPackage(key.clone(), spec.into()))?;
++            let cache_version = bun_cache_version(&version)
++                .map_err(|err| BunError::InvalidVersion(version.clone(), err))?;
++            if !seen.insert((name.clone(), version.clone())) {
++                continue;
++            }
++
++            let url = package_url(&name, &version)
++                .map_err(|err| BunError::UrlParse(name.clone(), err))?;
++            let filename = format!("{ordinal}.tgz");
++            let destination = bun_dir.join(&filename);
++            for attempt in 1..=DOWNLOAD_ATTEMPTS {
++                match http_get_to_file(url.as_str(), &destination) {
++                    Ok(_) => break,
++                    Err(err) => {
++                        let _ = fs::remove_file(&destination);
++                        if attempt == DOWNLOAD_ATTEMPTS {
++                            return Err(BunError::HttpGet(url.clone(), destination.clone(), err));
++                        }
++                        let multiplier = 2_u32.checked_pow(attempt - 1).unwrap_or(u32::MAX);
++                        let delay = DOWNLOAD_RETRY_BASE_DELAY.saturating_mul(multiplier);
++                        eprintln!(
++                            "bun_get download attempt {attempt}/{DOWNLOAD_ATTEMPTS} failed; retrying in {}s",
++                            delay.as_secs()
++                        );
++                        thread::sleep(delay);
++                    }
++                }
++            }
++            let integrity = entry.get(3).and_then(Value::as_str).unwrap_or("-");
++            writeln!(manifest, "{name}\t{version}\t{cache_version}\t{filename}\t{integrity}")
++                .map_err(|err| BunError::WriteManifest(manifest_path.clone(), err))?;
++            ordinal += 1;
++        }
++        manifest
++            .flush()
++            .map_err(|err| BunError::WriteManifest(manifest_path, err))?;
++        Ok(())
++    }
++}
++
++impl ActionImpl for BunGet {
++    fn execute(&self, context: &mut Context) -> Result<(), ActionError> {
++        let result = self
++            .load_lock_file(&self.source_path(context.source_dir())?)
++            .and_then(|lockfile| self.download(self.output_path(context.deps_dir())?, lockfile));
++        result.map_err(ActionError::from)
++    }
++}
++
++fn validate_relative(path: &Path) -> Result<(), BunError> {
++    if path.is_absolute()
++        || path
++            .components()
++            .any(|component| matches!(component, Component::ParentDir))
++    {
++        return Err(BunError::InvalidPath(path.to_path_buf()));
++    }
++    Ok(())
++}
++
++fn is_local_spec(spec: &str) -> bool {
++    ["file:", "workspace:", "link:"]
++        .iter()
++        .any(|prefix| spec.starts_with(prefix))
++}
++
++fn parse_registry_spec(spec: &str) -> Option<(String, String)> {
++    let (name, version) = spec.rsplit_once('@')?;
++    if name.is_empty() || version.is_empty() || name.starts_with("http") {
++        return None;
++    }
++    Some((name.to_string(), version.to_string()))
++}
++
++fn package_url(name: &str, version: &str) -> Result<Url, url::ParseError> {
++    let basename = name.rsplit('/').next().unwrap_or(name);
++    Url::parse(&format!(
++        "https://registry.npmjs.org/{name}/-/{basename}-{version}.tgz"
++    ))
++}
++
++fn bun_cache_version(version: &str) -> Result<String, &'static str> {
++    let (without_build, build) = version.split_once('+').unwrap_or((version, ""));
++    let (core, pre) = without_build.split_once('-').unwrap_or((without_build, ""));
++    let mut numbers = core.split('.');
++    let major = numbers.next().ok_or("missing major")?.parse::<u64>().map_err(|_| "invalid major")?;
++    let minor = numbers.next().ok_or("missing minor")?.parse::<u64>().map_err(|_| "invalid minor")?;
++    let patch = numbers.next().ok_or("missing patch")?.parse::<u64>().map_err(|_| "invalid patch")?;
++    if numbers.next().is_some() || core.is_empty() {
++        return Err("invalid core version");
++    }
++    let mut cached = format!("{major}.{minor}.{patch}");
++    if !pre.is_empty() {
++        cached.push('-');
++        cached.push_str(&format!("{:016x}", wyhash11_hash(pre.as_bytes())));
++    }
++    if !build.is_empty() {
++        cached.push('+');
++        cached.push_str(&format!("{:016x}", wyhash11_hash(build.as_bytes())));
++    }
++    Ok(cached)
++}
++
++const WYHASH_PRIMES: [u64; 5] = [
++    0xa0761d6478bd642f,
++    0xe7037ed1a0b428db,
++    0x8ebc6af09c88c6e3,
++    0x589965cc75374cc3,
++    0x1d8e4e27c47d124f,
++];
++
++fn wyhash_mum(a: u64, b: u64) -> u64 {
++    let product = (a as u128) * (b as u128);
++    ((product >> 64) ^ product) as u64
++}
++
++fn wyhash_read(data: &[u8], count: usize) -> u64 {
++    data.iter()
++        .take(count)
++        .enumerate()
++        .fold(0, |value, (index, byte)| value | ((*byte as u64) << (index * 8)))
++}
++
++fn wyhash_swapped(data: &[u8]) -> u64 {
++    (wyhash_read(data, 4) << 32) | wyhash_read(&data[4..], 4)
++}
++
++fn wyhash_mix0(a: u64, b: u64, seed: u64) -> u64 {
++    wyhash_mum(
++        a ^ seed ^ WYHASH_PRIMES[0],
++        b ^ seed ^ WYHASH_PRIMES[1],
++    )
++}
++
++fn wyhash_mix1(a: u64, b: u64, seed: u64) -> u64 {
++    wyhash_mum(
++        a ^ seed ^ WYHASH_PRIMES[2],
++        b ^ seed ^ WYHASH_PRIMES[3],
++    )
++}
++
++fn wyhash11_hash(input: &[u8]) -> u64 {
++    let mut seed = 0u64;
++    let mut offset = 0usize;
++    while input.len() - offset >= 32 {
++        let block = &input[offset..offset + 32];
++        seed = wyhash_mix0(wyhash_read(block, 8), wyhash_read(&block[8..], 8), seed)
++            ^ wyhash_mix1(wyhash_read(&block[16..], 8), wyhash_read(&block[24..], 8), seed);
++        offset += 32;
++    }
++    let rem = &input[offset..];
++    let seed = match rem.len() {
++        0 => seed,
++        1 => wyhash_mix0(wyhash_read(rem, 1), WYHASH_PRIMES[4], seed),
++        2 => wyhash_mix0(wyhash_read(rem, 2), WYHASH_PRIMES[4], seed),
++        3 => wyhash_mix0((wyhash_read(rem, 2) << 8) | wyhash_read(&rem[2..], 1), WYHASH_PRIMES[4], seed),
++        4 => wyhash_mix0(wyhash_read(rem, 4), WYHASH_PRIMES[4], seed),
++        5 => wyhash_mix0((wyhash_read(rem, 4) << 8) | wyhash_read(&rem[4..], 1), WYHASH_PRIMES[4], seed),
++        6 => wyhash_mix0((wyhash_read(rem, 4) << 16) | wyhash_read(&rem[4..], 2), WYHASH_PRIMES[4], seed),
++        7 => wyhash_mix0((wyhash_read(rem, 4) << 24) | (wyhash_read(&rem[4..], 2) << 8) | wyhash_read(&rem[6..], 1), WYHASH_PRIMES[4], seed),
++        8 => wyhash_mix0(wyhash_swapped(rem), WYHASH_PRIMES[4], seed),
++        9 => wyhash_mix0(wyhash_swapped(rem), wyhash_read(&rem[8..], 1), seed),
++        10 => wyhash_mix0(wyhash_swapped(rem), wyhash_read(&rem[8..], 2), seed),
++        11 => wyhash_mix0(wyhash_swapped(rem), (wyhash_read(&rem[8..], 2) << 8) | wyhash_read(&rem[10..], 1), seed),
++        12 => wyhash_mix0(wyhash_swapped(rem), wyhash_read(&rem[8..], 4), seed),
++        13 => wyhash_mix0(wyhash_swapped(rem), (wyhash_read(&rem[8..], 4) << 8) | wyhash_read(&rem[12..], 1), seed),
++        14 => wyhash_mix0(wyhash_swapped(rem), (wyhash_read(&rem[8..], 4) << 16) | wyhash_read(&rem[12..], 2), seed),
++        15 => wyhash_mix0(wyhash_swapped(rem), (wyhash_read(&rem[8..], 4) << 24) | (wyhash_read(&rem[12..], 2) << 8) | wyhash_read(&rem[14..], 1), seed),
++        16 => wyhash_mix0(wyhash_swapped(rem), wyhash_swapped(&rem[8..]), seed),
++        17..=31 => {
++            wyhash_mix0(wyhash_swapped(rem), wyhash_swapped(&rem[8..]), seed)
++                ^ wyhash_mix1(wyhash_read(&rem[16..], rem.len() - 16), WYHASH_PRIMES[4], seed)
++        }
++        _ => unreachable!(),
++    };
++    wyhash_mum(seed ^ input.len() as u64, WYHASH_PRIMES[4])
++}
++
++#[derive(Debug, Deserialize)]
++struct PackagesLock {
++    #[serde(default)]
++    packages: BTreeMap<String, Vec<Value>>,
++}
++
++/// Errors from the Bun dependency action.
++#[derive(Debug, thiserror::Error)]
++pub enum BunError {
++    /// Can't read the Bun lock file.
++    #[error("failed to read lock file {0}")]
++    ReadLockFile(PathBuf, #[source] io::Error),
++
++    /// Can't parse the Bun lock file.
++    #[error("failed to parse lock file {0}")]
++    ParseLockFile(PathBuf, #[source] serde_norway::Error),
++
++    /// Can't create the dependency directory.
++    #[error("could not create dependency directory {0}")]
++    Mkdir(PathBuf, #[source] UtilError),
++
++    /// A source or output path escaped its allowed root.
++    #[error("path must be relative and cannot contain '..': {0}")]
++    InvalidPath(PathBuf),
++
++    /// A lock entry was neither a local source nor a registry package.
++    #[error("unsupported Bun lock package {0}: {1}")]
++    InvalidPackage(String, String),
++
++    /// A package URL could not be parsed.
++    #[error("failed to build package URL for {0:?}")]
++    UrlParse(String, #[source] url::ParseError),
++
++    /// Download failed.
++    #[error("failed to download {0} to {1}")]
++    HttpGet(Url, PathBuf, #[source] UtilError),
++
++    /// Can't create the manifest.
++    #[error("failed to create Bun dependency manifest {0}")]
++    CreateManifest(PathBuf, #[source] io::Error),
++
++    /// Can't write the manifest.
++    #[error("failed to write Bun dependency manifest {0}")]
++    WriteManifest(PathBuf, #[source] io::Error),
++
++    /// A package version cannot be represented in Bun's cache naming scheme.
++    #[error("invalid package version {0}: {1}")]
++    InvalidVersion(String, &'static str),
++}
++
++impl From<BunError> for ActionError {
++    fn from(value: BunError) -> Self {
++        Self::Bun(value)
++    }
++}
++
++impl From<BunError> for String {
++    fn from(err: BunError) -> Self {
++        let mut msg = format!("ERROR: {err}");
++        let mut source = err.source();
++        while let Some(src) = source {
++            msg.push_str(&format!("caused by: {src}"));
++            source = src.source();
++        }
++        msg
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn parses_scoped_and_unscoped_registry_specs() {
++        assert_eq!(
++            parse_registry_spec("@types/node@24.12.3"),
++            Some(("@types/node".into(), "24.12.3".into()))
++        );
++        assert_eq!(
++            parse_registry_spec("typescript@7.0.2"),
++            Some(("typescript".into(), "7.0.2".into()))
++        );
++        assert_eq!(parse_registry_spec("file:../local"), None);
++    }
++
++    #[test]
++    fn matches_bun_prerelease_cache_names() {
++        assert_eq!(
++            bun_cache_version("7.0.0-dev.20260624.1").unwrap(),
++            "7.0.0-d301056781780760"
++        );
++        assert_eq!(
++            bun_cache_version("7.0.0-dev.20260421.2").unwrap(),
++            "7.0.0-24d74c28e33bf26e"
++        );
++    }
++
++    #[test]
++    fn parses_bun_lock_trailing_commas() {
++        let lock: PackagesLock = serde_norway::from_str(
++            r#"{
++              "packages": {
++                "@types/node": ["@types/node@24.12.3", "", {}, "sha512-test"],
++                "local": ["local@file:packages/local"]
++              },
++            }"#,
++        )
++        .expect("Bun lock should accept its trailing-comma JSON");
++        assert_eq!(lock.packages.len(), 2);
++    }
++
++    #[test]
++    fn package_urls_preserve_scoped_names() {
++        assert_eq!(
++            package_url("@types/node", "24.12.3").unwrap().as_str(),
++            "https://registry.npmjs.org/@types/node/-/node-24.12.3.tgz"
++        );
++    }
++
++    #[test]
++    fn paths_cannot_escape_the_checkout() {
++        assert!(validate_relative(Path::new("../outside")).is_err());
++        assert!(validate_relative(Path::new("/absolute")).is_err());
++        assert!(validate_relative(Path::new("packages/local")).is_ok());
++    }
++}
+diff --git a/src/action_impl/http_get.rs b/src/action_impl/http_get.rs
+index 206ff56..4b53f33 100644
+--- a/src/action_impl/http_get.rs
++++ b/src/action_impl/http_get.rs
+@@ -1,7 +1,11 @@
+ #![allow(clippy::result_large_err)]
+ 
++use std::{fs, thread, time::Duration};
++
+ use reqwest::StatusCode;
+ use serde::{Deserialize, Serialize};
++const HTTP_DOWNLOAD_ATTEMPTS: u32 = 3;
++const HTTP_DOWNLOAD_RETRY_BASE_DELAY: Duration = Duration::from_secs(2);
+ 
+ use crate::{
+     action::{ActionError, Context, Pair},
+@@ -33,7 +37,24 @@ impl ActionImpl for HttpGet {
+         let deps = context.deps_dir();
+         for pair in self.items.iter() {
+             let filename = deps.join(pair.filename());
+-            http_get_to_file(pair.url(), &filename).map_err(HttpGetError::Util)?;
++            for attempt in 1..=HTTP_DOWNLOAD_ATTEMPTS {
++                match http_get_to_file(pair.url(), &filename) {
++                    Ok(_) => break,
++                    Err(err) => {
++                        let _ = fs::remove_file(&filename);
++                        if attempt == HTTP_DOWNLOAD_ATTEMPTS {
++                            return Err(HttpGetError::Util(err).into());
++                        }
++                        let multiplier = 2_u32.checked_pow(attempt - 1).unwrap_or(u32::MAX);
++                        let delay = HTTP_DOWNLOAD_RETRY_BASE_DELAY.saturating_mul(multiplier);
++                        eprintln!(
++                            "http_get download attempt {attempt}/{HTTP_DOWNLOAD_ATTEMPTS} failed; retrying in {}s",
++                            delay.as_secs()
++                        );
++                        thread::sleep(delay);
++                    }
++                }
++            }
+         }
+         Ok(())
+     }
+diff --git a/src/action_impl/mod.rs b/src/action_impl/mod.rs
+index 2aa2f1b..0b25ad1 100644
+--- a/src/action_impl/mod.rs
++++ b/src/action_impl/mod.rs
+@@ -40,6 +40,9 @@ pub use mkdir::*;
+ mod npm;
+ pub use npm::*;
+ 
++mod bun;
++pub use bun::*;
++
+ mod pwd;
+ pub use pwd::*;
+ 
+diff --git a/src/action_impl/npm.rs b/src/action_impl/npm.rs
+index 240b9a4..e06c893 100644
+--- a/src/action_impl/npm.rs
++++ b/src/action_impl/npm.rs
+@@ -1,7 +1,10 @@
+ use std::{
+     collections::HashMap,
+     error::Error,
++    fs,
+     path::{Path, PathBuf},
++    thread,
++    time::Duration,
+ };
+ 
+ use serde::{Deserialize, Serialize};
+@@ -17,6 +20,8 @@ use crate::{
+ // From <https://docs.npmjs.com/cli/v10/configuring-npm/package-lock-json?v=true>.
+ const LOCK_FILES: &[&str] = &["npm-shrinkwrap.json", "package-lock.json"];
+ 
++const DOWNLOAD_ATTEMPTS: u32 = 3;
++const DOWNLOAD_RETRY_BASE_DELAY: Duration = Duration::from_secs(2);
+ const SUBDIR: &str = "npm";
+ 
+ /// Download npm packages based on lock file.
+@@ -46,6 +51,11 @@ impl NpmGet {
+         mkdir(&npm_dir).map_err(|err| NpmError::Mkdir2(npm_dir.to_path_buf(), err))?;
+ 
+         for (name, p) in lockfile.packages.iter().filter(|(n, _)| !n.is_empty()) {
++            if !p.resolved.starts_with("https://") && !p.resolved.starts_with("http://") {
++                eprintln!("npm_get skipping non-HTTP package {name}");
++                continue;
++            }
++
+             let filename = npm_dir.join(name);
+             let dir = filename
+                 .parent()
+@@ -57,8 +67,24 @@ impl NpmGet {
+             let url = Url::parse(&p.resolved)
+                 .map_err(|err| NpmError::UrlParse(p.resolved.clone(), err))?;
+             let filename = npm_dir.join(format!("{}.tgz", name));
+-            http_get_to_file(url.as_str(), &filename)
+-                .map_err(|err| NpmError::HttpGet(url, filename.clone(), err))?;
++            for attempt in 1..=DOWNLOAD_ATTEMPTS {
++                match http_get_to_file(url.as_str(), &filename) {
++                    Ok(_) => break,
++                    Err(err) => {
++                        let _ = fs::remove_file(&filename);
++                        if attempt == DOWNLOAD_ATTEMPTS {
++                            return Err(NpmError::HttpGet(url, filename, err));
++                        }
++                        let multiplier = 2_u32.checked_pow(attempt - 1).unwrap_or(u32::MAX);
++                        let delay = DOWNLOAD_RETRY_BASE_DELAY.saturating_mul(multiplier);
++                        eprintln!(
++                            "npm_get download attempt {attempt}/{DOWNLOAD_ATTEMPTS} failed; retrying in {}s",
++                            delay.as_secs()
++                        );
++                        thread::sleep(delay);
++                    }
++                }
++            }
+         }
+ 
+         Ok(())

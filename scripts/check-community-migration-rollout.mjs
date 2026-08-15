@@ -9,6 +9,24 @@ const repoRoot = path.resolve(path.dirname(__filename), "..");
 export const COMMUNITY_MIGRATION_ROOT = "db/community-template/migrations";
 export const COMMUNITY_ROLLOUT_ROOT = "db/community-template/rollouts";
 
+// Historical migrations merged before rule #531 introduced the tracked rollout
+// contract requirement. These are reviewed, dated exemptions—not templates
+// for new migrations. Any future migration still requires a contract.
+export const GRANDFATHERED_COMMUNITY_MIGRATIONS = new Map([
+  ["1156_song_study_fill_blank.sql", {
+    mergedAt: "2026-08-12",
+    rule: "#531",
+    ruleIntroducedAt: "2026-08-13",
+    reviewedAt: "2026-08-14",
+  }],
+  ["1158_generic_assets_learning_foundation.sql", {
+    mergedAt: "2026-08-13",
+    rule: "#531",
+    ruleIntroducedAt: "2026-08-13",
+    reviewedAt: "2026-08-14",
+  }],
+]);
+
 const migrationNamePattern = /^(\d{4})_[A-Za-z0-9][A-Za-z0-9_-]*\.sql$/u;
 const workflowPathPattern = /^[^/\s]+\/[^/\s]+\/\.github\/workflows\/[^/\s]+\.ya?ml$/u;
 const requiredTargets = ["production", "staging"];
@@ -190,6 +208,7 @@ export function checkCommunityMigrationRollouts({
   for (const migrationPath of addedMigrationPaths.filter(isCommunityMigration).sort()) {
     const contractPath = rolloutContractPath(migrationPath);
     if (!changedPathSet.has(contractPath)) {
+      if (GRANDFATHERED_COMMUNITY_MIGRATIONS.has(path.basename(migrationPath))) continue;
       failures.push(`${migrationPath}: add ${contractPath} in the same change with its rollout contract`);
       continue;
     }

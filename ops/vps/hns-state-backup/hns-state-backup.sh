@@ -3,6 +3,11 @@ set -euo pipefail
 
 umask 077
 
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+# Production runs from the tracked checkout; tests may override the library.
+# shellcheck disable=SC1090
+source "${IMMUTABLE_BACKUP_LIBRARY:-$script_dir/../lib/immutable-backup.sh}"
+
 require_env() {
   local name="$1"
   if [[ -z "${!name:-}" ]]; then
@@ -33,14 +38,7 @@ done
 
 case "$BACKUP_RETENTION_VERIFY" in
   true)
-    for name in BACKUP_S3_ENDPOINT BACKUP_S3_REGION BACKUP_S3_ACCESS_KEY_ID \
-      BACKUP_S3_SECRET_ACCESS_KEY BACKUP_MIN_RETENTION_DAYS; do
-      require_env "$name"
-    done
-    if ! [[ "$BACKUP_MIN_RETENTION_DAYS" =~ ^[0-9]+$ && "$BACKUP_MIN_RETENTION_DAYS" -ge 1 ]]; then
-      echo "BACKUP_MIN_RETENTION_DAYS must be a positive integer" >&2
-      exit 1
-    fi
+    backup_require_retention_config
     ;;
   false)
     # Without verification a misconfigured bucket silently produces deletable
@@ -174,67 +172,9 @@ remote_base="${BACKUP_RCLONE_REMOTE%/}"
 rclone copyto "$archive_path" "$remote_base/$archive_name" --immutable
 rclone copyto "$archive_path.sha256" "$remote_base/$archive_name.sha256" --immutable
 
-# `--immutable` only stops rclone overwriting; real immutability is the
-# provider's Object Lock. Prove the provider actually applied it to the objects
-# just uploaded — a bucket whose default retention was removed or weakened
-# after setup must fail the backup run, not silently produce deletable copies.
-verify_object_retention() {
-  local object_key="$1"
-  local url="${BACKUP_S3_ENDPOINT%/}/$s3_bucket/$object_key"
-  local sigv4="aws:amz:$BACKUP_S3_REGION:s3"
-
-  local head_output version_id
-  if ! head_output="$(curl --fail --silent --show-error --head --max-time 30 \
-    --aws-sigv4 "$sigv4" --user "$BACKUP_S3_ACCESS_KEY_ID:$BACKUP_S3_SECRET_ACCESS_KEY" \
-    "$url")"; then
-    echo "retention verification: HEAD failed for $object_key" >&2
-    return 1
-  fi
-  version_id="$(sed -nE 's/^x-amz-version-id:[[:space:]]*([^[:space:]]+).*$/\1/Ip' <<< "$head_output" | head -n 1)"
-  if [[ -z "$version_id" ]]; then
-    echo "retention verification: no x-amz-version-id on $object_key (bucket not versioned/locked?)" >&2
-    return 1
-  fi
-
-  local retention_xml mode retain_until retain_epoch minimum_epoch
-  if ! retention_xml="$(curl --fail --silent --show-error --max-time 30 \
-    --aws-sigv4 "$sigv4" --user "$BACKUP_S3_ACCESS_KEY_ID:$BACKUP_S3_SECRET_ACCESS_KEY" \
-    "$url?retention=&versionId=$version_id")"; then
-    echo "retention verification: GetObjectRetention failed for $object_key" >&2
-    return 1
-  fi
-  mode="$(sed -nE 's/.*<Mode>([^<]+)<\/Mode>.*/\1/p' <<< "$retention_xml" | head -n 1)"
-  retain_until="$(sed -nE 's/.*<RetainUntilDate>([^<]+)<\/RetainUntilDate>.*/\1/p' <<< "$retention_xml" | head -n 1)"
-  if [[ "${mode^^}" != "COMPLIANCE" ]]; then
-    echo "retention verification: $object_key mode is '${mode:-absent}', expected COMPLIANCE" >&2
-    return 1
-  fi
-  if ! retain_epoch="$(date -u -d "$retain_until" +%s 2>/dev/null)"; then
-    echo "retention verification: unparseable RetainUntilDate '$retain_until' on $object_key" >&2
-    return 1
-  fi
-  # One hour of slack covers upload duration and clock skew.
-  minimum_epoch=$(( $(date -u +%s) + BACKUP_MIN_RETENTION_DAYS * 86400 - 3600 ))
-  if (( retain_epoch < minimum_epoch )); then
-    echo "retention verification: $object_key locked only until $retain_until, weaker than the ${BACKUP_MIN_RETENTION_DAYS}-day policy" >&2
-    return 1
-  fi
-  echo "retention verified: $object_key COMPLIANCE until $retain_until"
-}
-
 if [[ "$BACKUP_RETENTION_VERIFY" == "true" ]]; then
-  # Derive bucket and key prefix from the rclone remote itself so the two
-  # configurations cannot drift apart: rclone remote form is name:bucket[/path].
-  remote_path="${remote_base#*:}"
-  s3_bucket="${remote_path%%/*}"
-  key_prefix="${remote_path#"$s3_bucket"}"
-  key_prefix="${key_prefix#/}"
-  if [[ -z "$s3_bucket" || "$remote_path" == "$remote_base" ]]; then
-    echo "retention verification: cannot derive bucket from BACKUP_RCLONE_REMOTE '$BACKUP_RCLONE_REMOTE'" >&2
-    exit 1
-  fi
   for object in "$archive_name" "$archive_name.sha256"; do
-    verify_object_retention "${key_prefix:+$key_prefix/}$object"
+    verify_object_retention "$object"
   done
 fi
 

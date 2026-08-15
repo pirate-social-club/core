@@ -1,0 +1,33 @@
+[Unit]
+Description=Radicle promotion controller (advisory overlap)
+After=radicle-node.service radicle-ci-broker.service
+Requires=radicle-node.service
+
+[Service]
+Type=simple
+User=promotion
+Group=promotion
+Slice=radicle-core.slice
+EnvironmentFile=/etc/pirate-radicle/promotion-controller.env
+ExecStart=/usr/local/libexec/pirate-radicle/promotion-controller run
+Restart=on-failure
+RestartSec=5s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/var/lib/radicle/ci/promotion-proofs
+ReadWritePaths=/var/lib/promotion
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

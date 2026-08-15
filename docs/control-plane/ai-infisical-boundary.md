@@ -8,15 +8,31 @@ AI environments must not have standing Infisical auth.
 
 Repo-level policy:
 
-- repo root `.infisical.json` is non-prod only (`pirate-dev-staging`)
-- production must use a separate human-only project config directory such as `ops/prod`
-- AI shells must not use `--project-config-dir=ops/prod`
+- the repo-root `.infisical.json` selects the application project for dev,
+  staging, and prod; environment and path flags provide command scope
+- production access remains human-approved and command-scoped under the
+  operator escape hatch below
+- the separate `pirate-recovery` organization may be selected only for an
+  explicitly authorized recovery setup operation
 
 This includes:
 
 - no Infisical service token in AI runtime env
 - no account-scoped Infisical credentials on agent machines by default
 - no automatic secret pulls from AI workflows
+- no unattended recovery machine identity, token, or committed project
+  configuration
+
+## Recovery organization
+
+Recovery escrow is still excluded from unattended automation. With explicit
+operator authorization, an AI shell may create or verify organization metadata,
+folders, and clearly unusable placeholders. It must not retrieve, print, or
+transform real recovery private-key values. Those values are replaced through
+the human-controlled Infisical UI. Application machine identities, VPS hosts,
+CI guests, and the controller must remain unable to access the recovery
+organization. Public recovery metadata remains safe for AI-assisted
+verification.
 
 ## Operator Escape Hatch
 
@@ -57,6 +73,8 @@ AI workflows may operate on:
 AI workflows must not:
 
 - fetch secrets directly from Infisical
+- retrieve, print, rotate, or delete real recovery-organization secret values
+- create or replace recovery placeholders without explicit operator approval
 - persist raw secrets into repo files
 - write secret values into machine-readable config inventories
 - expand access from one approved secret to broader secret inventory access

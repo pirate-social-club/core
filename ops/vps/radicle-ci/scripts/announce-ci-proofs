@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Broker 0.30.0 announces a finished job COB once with a hard-coded five-second
+# timeout. Reconcile all allowlisted repositories so transient seed discovery
+# cannot leave signed CI refs single-homed on this node.
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC1090
+source "${RADICLE_CI_ALLOWLIST_LIBRARY:-$script_dir/repository-allowlist.sh}"
+load_repository_allowlist
+
+failed=0
+for rid in "${RADICLE_CI_RIDS[@]}"; do
+  if ! rad sync --announce "$rid"; then
+    failed=1
+  fi
+done
+exit "$failed"

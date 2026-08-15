@@ -1,0 +1,26 @@
+[Unit]
+Description=Export minimal signed Radicle CI proofs for promotion controller
+After=radicle-node.service radicle-ci-broker.service
+
+[Service]
+Type=oneshot
+User=radicle
+Group=promotion
+EnvironmentFile=/etc/pirate-radicle/promotion-controller.env
+ExecStart=/usr/local/libexec/pirate-radicle/promotion-proof-exporter
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/var/lib/radicle/storage
+ReadWritePaths=/var/lib/radicle/ci/promotion-proofs
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX
+

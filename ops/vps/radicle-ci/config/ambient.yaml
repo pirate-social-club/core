@@ -1,0 +1,8 @@
+tmpdir: /var/lib/radicle/ci/tmp
+executor: /usr/local/bin/ambient-execute-plan
+artifacts_max_size: 2G
+cache_max_size: 20G
+state: /var/lib/radicle/ci/state
+qemu:
+  cpus: 3
+  memory: 5G

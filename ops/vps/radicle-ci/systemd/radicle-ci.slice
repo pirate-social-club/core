@@ -1,0 +1,9 @@
+[Unit]
+Description=Radicle CI guest resource boundary
+
+[Slice]
+CPUQuota=300%
+MemoryHigh=5G
+MemoryMax=6G
+TasksMax=2048
+IOWeight=50

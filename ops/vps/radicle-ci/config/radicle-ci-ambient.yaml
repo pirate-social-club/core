@@ -1,0 +1,5 @@
+image: /var/lib/radicle/ambient/ambient.qcow2
+logdir: /var/lib/radicle/ci/reports/ambient
+log: /var/lib/radicle/ci/logs/ambient.log
+base_url: "file:///var/lib/radicle/ci/reports/ambient"
+

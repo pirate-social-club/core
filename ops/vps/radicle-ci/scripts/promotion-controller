@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config=${PROMOTION_CONFIG:-/etc/pirate-radicle/promotion-controller.env}
+if [[ -r "$config" ]]; then
+  # The file contains configuration only; never put private key material here.
+  # shellcheck disable=SC1090
+  source "$config"
+fi
+
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC1090
+source "${RADICLE_CI_ALLOWLIST_LIBRARY:-$script_dir/repository-allowlist.sh}"
+load_repository_allowlist
+
+: "${PROMOTION_MODE:=advisory}"
+: "${PROMOTION_STATE_DIR:=/var/lib/promotion}"
+: "${PROMOTION_PROOF_DIR:=/var/lib/radicle/ci/promotion-proofs}"
+: "${CI_PRODUCER_NID:?CI_PRODUCER_NID is required}"
+: "${PROMOTION_UNKNOWN_RETRIES:=12}"
+: "${PROMOTION_UNKNOWN_DELAY_SECONDS:=5}"
+
+queue="$PROMOTION_STATE_DIR/queue"
+events="$PROMOTION_STATE_DIR/advisory-events.ndjson"
+audit="$PROMOTION_STATE_DIR/controller-audit.ndjson"
+
+die() {
+  printf 'promotion-controller: %s\n' "$*" >&2
+  exit 1
+}
+
+now() { date --utc +%Y-%m-%dT%H:%M:%SZ; }
+
+is_rid() { [[ "$1" =~ ^rad:z[1-9A-HJ-NP-Za-km-z]+$ ]]; }
+is_oid() { [[ "$1" =~ ^[0-9a-f]{40}$ ]]; }
+is_attempt() { [[ "$1" =~ ^[1-9][0-9]*$ ]]; }
+
+repo_name() {
+  repository_name "$1"
+}
+
+append_json() {
+  local target=$1 payload=$2
+  printf '%s\n' "$payload" >>"$target"
+  sync -d "$target"
+}
+
+audit_event() {
+  local action=$1 request_id=$2 rid=$3 commit=$4 detail=$5
+  append_json "$audit" "$(jq -cn \
+    --arg timestamp "$(now)" --arg action "$action" --arg request_id "$request_id" \
+    --arg rid "$rid" --arg commit "$commit" --arg detail "$detail" \
+    '{timestamp:$timestamp,action:$action,request_id:$request_id,rid:$rid,commit:$commit,detail:$detail}')"
+}
+
+init_state() {
+  install -d -m 0700 "$PROMOTION_STATE_DIR" \
+    "$queue/pending" "$queue/processing" "$queue/done" "$queue/failed" \
+    "$PROMOTION_STATE_DIR/locks"
+  touch "$events" "$audit"
+  chmod 0600 "$events" "$audit"
+}
+
+enqueue() {
+  [[ $# -eq 4 ]] || die 'usage: enqueue <rid> <commit> <job-id> <attempt>'
+  local rid=$1 commit=$2 job=$3 attempt=$4 id tmp final existing file
+  is_rid "$rid" || die 'invalid RID'
+  repo_name "$rid" >/dev/null || die 'RID is not allowlisted'
+  is_oid "$commit" || die 'commit must be 40 lowercase hex characters'
+  is_oid "$job" || die 'job ID must be 40 lowercase hex characters'
+  is_attempt "$attempt" || die 'attempt must be a positive integer'
+  exec 8>"$PROMOTION_STATE_DIR/locks/enqueue.lock"
+  flock 8
+  for file in "$queue"/{pending,processing,done,failed}/*.json; do
+    [[ -e "$file" ]] || continue
+    if jq -e --arg rid "$rid" --arg commit "$commit" --argjson attempt "$attempt" \
+      '.rid == $rid and .commit == $commit and .attempt == $attempt' "$file" >/dev/null; then
+      [[ $(jq -r '.job_id' "$file") == "$job" ]] \
+        || die 'idempotency conflict: attempt already references a different CI job'
+      jq -r '.request_id' "$file"
+      return 0
+    fi
+  done
+  existing=$(jq -r --arg rid "$rid" --arg commit "$commit" --argjson attempt "$attempt" \
+    'select(.rid == $rid and .commit == $commit and .attempt == $attempt) | [.request_id,.job_id] | @tsv' \
+    "$events" | tail -n 1)
+  if [[ -n "$existing" ]]; then
+    [[ ${existing#*$'\t'} == "$job" ]] \
+      || die 'idempotency conflict: attempt already references a different CI job'
+    printf '%s\n' "${existing%%$'\t'*}"
+    return 0
+  fi
+  id=$(cat /proc/sys/kernel/random/uuid)
+  tmp="$queue/pending/.${id}.tmp"
+  final="$queue/pending/${id}.json"
+  jq -cn --arg schema_version '1' --arg request_id "$id" --arg occurred_at "$(now)" \
+    --arg rid "$rid" --arg commit "$commit" --arg job_id "$job" \
+    --argjson attempt "$attempt" \
+    '{schema_version:($schema_version|tonumber),request_id:$request_id,occurred_at:$occurred_at,rid:$rid,commit:$commit,job_id:$job_id,attempt:$attempt}' \
+    >"$tmp"
+  chmod 0600 "$tmp"
+  sync "$tmp"
+  mv "$tmp" "$final"
+  sync -d "$queue/pending"
+  audit_event queued "$id" "$rid" "$commit" "mode=$PROMOTION_MODE"
+  printf '%s\n' "$id"
+}
+
+validate_job() {
+  local rid=$1 commit=$2 job=$3 proof
+  proof="$PROMOTION_PROOF_DIR/${rid#rad:}/$job.json"
+  [[ -r "$proof" ]] || return 2
+  jq -e --arg rid "$rid" --arg commit "$commit" --arg job "$job" \
+    --arg producer "$CI_PRODUCER_NID" \
+    '.rid == $rid and .commit == $commit and .job_id == $job and
+     .producer_nid == $producer and .signed_ref == true and
+     .result == "Succeeded" and (.run_uuid | length > 0)' "$proof" >/dev/null \
+    || return 1
+}
+
+process_file() {
+  local file=$1 id rid commit job attempt lock result tries=0
+  id=$(jq -er '.request_id' "$file") || die "invalid request file: $file"
+  rid=$(jq -er '.rid' "$file") || die "invalid request file: $file"
+  commit=$(jq -er '.commit' "$file") || die "invalid request file: $file"
+  job=$(jq -er '.job_id' "$file") || die "invalid request file: $file"
+  attempt=$(jq -er '.attempt' "$file") || die "invalid request file: $file"
+  repo_name "$rid" >/dev/null || die "request $id has non-allowlisted RID"
+  lock="$PROMOTION_STATE_DIR/locks/${rid#rad:}.lock"
+  exec 9>"$lock"
+  flock 9
+  while (( tries < PROMOTION_UNKNOWN_RETRIES )); do
+    if validate_job "$rid" "$commit" "$job"; then result=valid; break; else
+      case $? in
+        2) result=unknown ;;
+        *) result=invalid; break ;;
+      esac
+    fi
+    tries=$((tries + 1))
+    sleep "$PROMOTION_UNKNOWN_DELAY_SECONDS"
+  done
+  if [[ "$result" == valid ]]; then
+    if [[ "$PROMOTION_MODE" != advisory ]]; then
+      audit_event rejected "$id" "$rid" "$commit" 'enforcement mode is not enabled in this build'
+      mv "$file" "$queue/failed/${id}.json"
+      return 1
+    fi
+    append_json "$events" "$(jq -cn --arg timestamp "$(now)" --arg request_id "$id" \
+      --arg rid "$rid" --arg commit "$commit" --arg job_id "$job" --argjson attempt "$attempt" \
+      '{schema_version:1,event_type:"advisory_validation",occurred_at:$timestamp,request_id:$request_id,rid:$rid,commit:$commit,attempt:$attempt,job_id:$job_id,result:"eligible",authority:false}')"
+    audit_event validated "$id" "$rid" "$commit" 'signed CI job succeeded; no canonical ref changed'
+    mv "$file" "$queue/done/${id}.json"
+  else
+    audit_event rejected "$id" "$rid" "$commit" "proof=$result"
+    mv "$file" "$queue/failed/${id}.json"
+    return 1
+  fi
+  sync -d "$queue/done" "$queue/failed"
+}
+
+process_one() {
+  local pending processing
+  pending=$(find "$queue/pending" -maxdepth 1 -type f -name '*.json' -printf '%T@ %p\n' \
+    | sort -n | awk 'NR == 1 { print $2 }')
+  [[ -n "$pending" ]] || return 0
+  processing="$queue/processing/$(basename "$pending")"
+  mv "$pending" "$processing"
+  sync -d "$queue/pending" "$queue/processing"
+  process_file "$processing"
+}
+
+run_loop() {
+  while true; do
+    process_one || true
+    sleep 2
+  done
+}
+
+recover() {
+  local file
+  for file in "$queue/processing"/*.json; do
+    [[ -e "$file" ]] || continue
+    mv "$file" "$queue/pending/$(basename "$file")"
+  done
+  sync -d "$queue/pending" "$queue/processing"
+}
+
+status() {
+  jq -cn --arg mode "$PROMOTION_MODE" \
+    --argjson pending "$(find "$queue/pending" -maxdepth 1 -type f -name '*.json' | wc -l)" \
+    --argjson processing "$(find "$queue/processing" -maxdepth 1 -type f -name '*.json' | wc -l)" \
+    --argjson done "$(find "$queue/done" -maxdepth 1 -type f -name '*.json' | wc -l)" \
+    --argjson failed "$(find "$queue/failed" -maxdepth 1 -type f -name '*.json' | wc -l)" \
+    '{mode:$mode,authority:false,pending:$pending,processing:$processing,done:$done,failed:$failed}'
+}
+
+case "${1:-}" in
+  enqueue) init_state; shift; enqueue "$@" ;;
+  process-one) init_state; process_one ;;
+  run) init_state; recover; run_loop ;;
+  recover) init_state; recover ;;
+  status) status ;;
+  *) die 'usage: promotion-controller {enqueue|process-one|run|recover|status}' ;;
+esac

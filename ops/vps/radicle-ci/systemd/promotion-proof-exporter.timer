@@ -1,0 +1,12 @@
+[Unit]
+Description=Refresh signed Radicle CI promotion proofs
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=10s
+AccuracySec=1s
+Unit=promotion-proof-exporter.service
+
+[Install]
+WantedBy=timers.target
+

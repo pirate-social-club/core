@@ -1,0 +1,113 @@
+schema_version: 1
+reviewed_at: 2026-08-12T21:57:18Z
+
+# Public provenance only. Never add credentials, private keys, passphrases, or
+# decrypted state to this file.
+ambient_vm:
+  source_url: https://files.liw.fi/ambient/ambient.qcow2.xz
+  source_last_modified: Wed, 22 Jul 2026 12:04:57 GMT
+  source_etag: '"6fb9a560-65731f2be3cec"'
+  compressed_size_bytes: 1874437472
+  compressed_sha256: 25b457df9d389559170cf79e955ec68d0306b320fff8f4c36d8d4225bcc2855a
+  compression: xz
+  decompressed_size_bytes: 10042277888
+  decompressed_sha256: e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d173840b293
+  immutable_archive:
+    status: verified
+    bucket: pirate-radicle-ci-artifacts
+    locked_prefix: artifacts/
+    lock_retention: indefinite
+    object_prefix: artifacts/ambient-vm/e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d173840b293
+    split_size_bytes: 262144000
+    reassembly_order: ascending_part_number
+    reassembly_command: >-
+      cat ambient.qcow2.xz.part-{00,01,02,03,04,05,06,07} > ambient.qcow2.xz
+    verified_at: 2026-08-13T06:17:00Z
+    parts:
+      - number: 0
+        size_bytes: 262144000
+        sha256: 83994c26a3ddcdd82ef7b35159b741384e2071a18c2e20638240e38083fe32fe
+        key: artifacts/ambient-vm/e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d173840b293/ambient.qcow2.xz.part-00
+      - number: 1
+        size_bytes: 262144000
+        sha256: 9335e85fce1793a3d62e24cb1c902b41238ee8fc7a0ade038d21811d5fc9f905
+        key: artifacts/ambient-vm/e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d173840b293/ambient.qcow2.xz.part-01
+      - number: 2
+        size_bytes: 262144000
+        sha256: 068ecbcca9aced215479b2c37238f24fbb25716e0e81621a43071799b915f91c
+        key: artifacts/ambient-vm/e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d173840b293/parts/02-068ecbcca9aced215479b2c37238f24fbb25716e0e81621a43071799b915f91c
+      - number: 3
+        size_bytes: 262144000
+        sha256: eef9fd45e6108d7771caeeab23f873fb7f44ffcc599f2ade566fb775b72fb45a
+        key: artifacts/ambient-vm/e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d173840b293/parts/03-eef9fd45e6108d7771caeeab23f873fb7f44ffcc599f2ade566fb775b72fb45a
+      - number: 4
+        size_bytes: 262144000
+        sha256: e25e61621698926e274b043628bb42c7baf3c9b8a3d1317594f4e39facd7cf99
+        key: artifacts/ambient-vm/e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d173840b293/parts/04-e25e61621698926e274b043628bb42c7baf3c9b8a3d1317594f4e39facd7cf99
+      - number: 5
+        size_bytes: 262144000
+        sha256: 58d44ee0498c4cd1f21c95426ed57f7e4cb13e7f5e3ccb1cacb0d7d086991a95
+        key: artifacts/ambient-vm/e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d173840b293/parts/05-58d44ee0498c4cd1f21c95426ed57f7e4cb13e7f5e3ccb1cacb0d7d086991a95
+      - number: 6
+        size_bytes: 262144000
+        sha256: 439ab0f0d33048859e12017bb931286c5bfdd9da9a2d4526ebd9eea39e45607a
+        key: artifacts/ambient-vm/e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d173840b293/parts/06-439ab0f0d33048859e12017bb931286c5bfdd9da9a2d4526ebd9eea39e45607a
+      - number: 7
+        size_bytes: 39429472
+        sha256: f0e76116f9b41771259650ee6699ac6979f5da70d03c3392f8f944c0be7cb50c
+        key: artifacts/ambient-vm/e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d173840b293/parts/07-f0e76116f9b41771259650ee6699ac6979f5da70d03c3392f8f944c0be7cb50c
+    excluded_objects:
+      - key: artifacts/ambient-vm/e0e13e9e2d0225cbcb69a6f4f44d6136e9ca50a9a355295c07c90d173840b293/ambient.qcow2.xz.part-02
+        size_bytes: 35284
+        sha256: a2659d072f52ec3f40f372e872869154f0ccbdc5187cdfe8fa5473a90f9704c7
+        reason: interrupted_pipe_upload_locked_before_finalization
+
+ambient_executor:
+  package_version: 0.16.0-1
+  crate_version: 0.16.0
+  crate_source_url: https://crates.io/api/v1/crates/ambient-ci/0.16.0/download
+  crate_size_bytes: 142378
+  crate_sha256: 051d8698eac84847b56b8f39577ef186b2816ecf0fca073434ea62d67913f80a
+  package_deb_sha256: ebe2db704e7d6c93f2b12415866d436cb0e89085096f0954594d7b4f1683036e
+  immutable_archive:
+    status: verified
+    bucket: pirate-radicle-ci-artifacts
+    key: artifacts/ambient-ci/0.16.0/ambient-ci-0.16.0.crate
+    lock_retention: indefinite
+    size_bytes: 142378
+    sha256: 051d8698eac84847b56b8f39577ef186b2816ecf0fca073434ea62d67913f80a
+    verified_at: 2026-08-13T03:00:00Z
+
+# The adapter parses `.radicle/ambient.yaml` before invoking the executor. It
+# is rebuilt against the patched executor crate so `bun_get` is accepted at the
+# adapter boundary rather than rejected before the guest starts.
+ambient_adapter:
+  package_version: 0.21.1
+  crate_source_url: https://crates.io/api/v1/crates/radicle-ci-ambient/0.21.1/download
+  crate_size_bytes: 55572
+  crate_sha256: 99ad56ae407d25885bce98ab9c179a10d21efee0a736cf2f374cd9d777998b46
+  immutable_archive:
+    status: pending_before_enforcement
+    bucket: pirate-radicle-ci-artifacts
+    key: artifacts/radicle-ci-ambient/0.21.1/radicle-ci-ambient-0.21.1.crate
+    lock_retention: indefinite
+    note: >-
+      Upload and round-trip verify this public crate before enforcement; the
+      tracked source hashes and adapter patch remain the immediate build gate.
+
+# These refs are recovery entry points for the advisory bootstrap. Branch tips
+# may advance; verify the selected tip and its signed CI proof instead of
+# assuming the anchors below are current.
+tracked_sources:
+  core_role:
+    github_repository: pirate-social-club/core
+    github_branch: feat/radicle-ci-bootstrap-20260811
+    radicle_rid: rad:zK3mrwKm8bG7w9iiRuZAAX9eQyWw
+    radicle_patch: 22cfb3f83c6cac74537885e16ce08fcf9698e614
+    reviewed_anchor_commit: cc7789f3a427425ab17e1c7db127f831c3308ee1
+  freedom_browser_plan:
+    github_repository: pirate-social-club/freedom-browser
+    github_branch: main
+    radicle_rid: rad:z26RNpiPMzH8nyaca12meKeT2HMBy
+    radicle_patch: ffeaa383a953c036e61e4532c98a93d292d631e1
+    reviewed_anchor_commit: a0fba9e38d91cda8f318baaded318cd855f44633

@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+rad_storage=${RAD_STORAGE:-/var/lib/radicle/storage}
+proof_dir=${PROMOTION_PROOF_DIR:-/var/lib/radicle/ci/promotion-proofs}
+producer=${CI_PRODUCER_NID:?CI_PRODUCER_NID is required}
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC1090
+source "${RADICLE_CI_ALLOWLIST_LIBRARY:-$script_dir/repository-allowlist.sh}"
+load_repository_allowlist
+
+umask 0027
+for rid in "${RADICLE_CI_RIDS[@]}"; do
+  repo="$rad_storage/${rid#rad:}"
+  [[ -d "$repo" ]] || continue
+  destination="$proof_dir/${rid#rad:}"
+  install -d -m 0750 "$destination"
+  signed_ref="refs/namespaces/$producer/refs/rad/sigrefs"
+  refs=$(git --git-dir="$repo" show "$signed_ref:refs" 2>/dev/null) || continue
+  while read -r ref; do
+    [[ -n "$ref" ]] || continue
+    job=${ref##*/}
+    [[ "$job" =~ ^[0-9a-f]{40}$ ]] || continue
+    tip=$(git --git-dir="$repo" rev-parse --verify "$ref^{commit}" 2>/dev/null) || continue
+    signed_tip=$(awk -v wanted="refs/cobs/xyz.radworks.job/$job" \
+      '$2 == wanted { print $1 }' <<<"$refs")
+    [[ "$tip" == "$signed_tip" ]] || continue
+    cursor=$tip
+    commit='' run_uuid='' finished_uuid='' result=''
+    for _ in $(seq 1 32); do
+      op=$(git --git-dir="$repo" show "$cursor:0" 2>/dev/null) || break
+      if jq -e '.Request' >/dev/null 2>&1 <<<"$op"; then
+        commit=$(jq -r '.Request.oid' <<<"$op")
+        break
+      elif jq -e '.Finished' >/dev/null 2>&1 <<<"$op"; then
+        finished_uuid=$(jq -r '.Finished.uuid' <<<"$op")
+        result=$(jq -r '.Finished.reason' <<<"$op")
+      elif jq -e '.Run' >/dev/null 2>&1 <<<"$op"; then
+        run_uuid=$(jq -r '.Run.uuid' <<<"$op")
+      fi
+      cursor=$(git --git-dir="$repo" rev-parse "$cursor^1" 2>/dev/null) || break
+    done
+    [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || continue
+    [[ -n "$run_uuid" && "$run_uuid" == "$finished_uuid" ]] || continue
+    tmp="$destination/.$job.tmp"
+    jq -cn --arg rid "$rid" --arg commit "$commit" --arg job "$job" \
+      --arg producer "$producer" --arg tip "$tip" --arg run "$run_uuid" \
+      --arg result "$result" \
+      '{schema_version:1,rid:$rid,commit:$commit,job_id:$job,producer_nid:$producer,
+        signed_ref:true,signed_tip:$tip,run_uuid:$run,result:$result}' >"$tmp"
+    chmod 0640 "$tmp"
+    mv "$tmp" "$destination/$job.json"
+  done < <(git --git-dir="$repo" for-each-ref --format='%(refname)' \
+    "refs/namespaces/$producer/refs/cobs/xyz.radworks.job/")
+done
+sync -d "$proof_dir"

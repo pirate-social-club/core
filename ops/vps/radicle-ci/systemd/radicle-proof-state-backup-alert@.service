@@ -1,0 +1,24 @@
+[Unit]
+Description=Ops-alert notification for failed Radicle proof backup %i
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+EnvironmentFile=/etc/pirate-radicle/proof-state-backup.env
+Environment=BACKUP_ALERT_LIBRARY=/usr/local/libexec/pirate-radicle/backup-alert.sh
+ExecStart=/usr/local/libexec/pirate-radicle/proof-state-backup-alert %i
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectClock=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+RestrictRealtime=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+UMask=0077
