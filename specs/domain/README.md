@@ -70,6 +70,8 @@ Product and system design docs grouped by domain surface.
   Funded song-practice reward campaigns, nationality-tiered rates, verification, and payout semantics.
 - `song-practice-reward-decisions.md`
   Accepted V1 decisions for activity scope, qualification, reward periods, identity, and rollout.
+- `erc20-multi-asset-reward-settlement.md`
+  Ratified program spec for admitting a second USD-par settlement asset: registry/rails, per-asset payout partitioning, refunds, retirement.
 - `livestream.md`
   Live room and broadcast surface.
 - `live-access-runtime.md`
