@@ -84,7 +84,7 @@ Do not use human-readable phrases, short UUIDs, or tokens copied from tests.
 Set the production API token:
 
 ```bash
-cd /home/t42/Documents/pirate-workspace/core
+cd /media/t42/codedrive/Code/pirate-workspace/core
 rtk infisical secrets set PIRATE_ADMIN_TOKEN="$NEW_TOKEN" \
   --env prod \
   --path /services/api
@@ -104,7 +104,7 @@ Then sync API Worker secrets from Infisical:
 ```bash
 rtk infisical run --env prod --path /services/api -- \
   rtk ./scripts/infisical/sync-wrangler-api-secrets.sh \
-  --api-dir /home/t42/Documents/pirate-workspace/api/services/api \
+  --api-dir /media/t42/codedrive/Code/pirate-workspace/api/services/api \
   --wrangler-env production
 ```
 
@@ -119,7 +119,7 @@ lived shell.
 Example: run the community DB migration backfill for one community:
 
 ```bash
-cd /home/t42/Documents/pirate-workspace/core
+cd /media/t42/codedrive/Code/pirate-workspace/core
 rtk infisical run --env prod --path /services/api -- \
   rtk curl -sS -X POST \
     https://api.pirate.sc/communities/com_cmt_06c2ff60232d48d397c6d150e242a94d/admin/database-migrations \
@@ -180,14 +180,14 @@ See `core/docs/control-plane/ai-infisical-boundary.md`.
 Check Infisical contract:
 
 ```bash
-cd /home/t42/Documents/pirate-workspace/core
+cd /media/t42/codedrive/Code/pirate-workspace/core
 rtk bun scripts/infisical/check-infisical-env.ts --env prod
 ```
 
 Check Cloudflare has the secret without revealing it:
 
 ```bash
-cd /home/t42/Documents/pirate-workspace/api/services/api
+cd /media/t42/codedrive/Code/pirate-workspace/api/services/api
 rtk bunx wrangler secret list --env production
 ```
 

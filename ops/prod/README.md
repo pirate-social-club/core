@@ -19,7 +19,7 @@ Rules:
 Current commands:
 
 ```bash
-cd /home/t42/Documents/pirate-workspace/core
+cd /media/t42/codedrive/Code/pirate-workspace/core
 rtk infisical run --env prod --path /services/api -- \
   rtk bun scripts/control-plane/inventory-control-plane.ts \
   --database-url-env CONTROL_PLANE_DATABASE_URL \
@@ -29,7 +29,7 @@ rtk infisical run --env prod --path /services/api -- \
 Reset app data while preserving applied migrations:
 
 ```bash
-cd /home/t42/Documents/pirate-workspace/core
+cd /media/t42/codedrive/Code/pirate-workspace/core
 rtk infisical run --env prod --path /services/control-plane -- \
   rtk bun scripts/control-plane/reset-control-plane-app-data.ts \
   --database-url-env CONTROL_PLANE_MIGRATOR_DATABASE_URL \
@@ -40,7 +40,7 @@ rtk infisical run --env prod --path /services/control-plane -- \
 Migration command:
 
 ```bash
-cd /home/t42/Documents/pirate-workspace/core
+cd /media/t42/codedrive/Code/pirate-workspace/core
 rtk infisical run --env prod --path /services/control-plane -- \
   rtk bun scripts/control-plane/apply-postgres-migrations.ts \
   --database-url-env CONTROL_PLANE_MIGRATOR_DATABASE_URL \
@@ -53,7 +53,7 @@ first: owner enables `btree_gist` and the migrator holds `CREATE ON DATABASE` + 
 (see `db/README.md`).
 
 ```bash
-cd /home/t42/Documents/pirate-workspace/core
+cd /media/t42/codedrive/Code/pirate-workspace/core
 rtk infisical run --env prod --path /services/control-plane -- \
   rtk bun scripts/control-plane/apply-postgres-migrations.ts \
   --database-url-env CONTROL_PLANE_MIGRATOR_DATABASE_URL \

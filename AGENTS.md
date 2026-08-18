@@ -43,18 +43,18 @@
 The canonical local workspace is:
 
 ```text
-/home/t42/Documents/pirate-workspace/
+/media/t42/codedrive/Code/pirate-workspace/
   core/
   api/
+  api-next/
   web/
-  contracts/
-  desktop/
-  android/
+  pirate-web-solid/
+  pirate-solid-design-system/
 ```
 
 These are sibling Git repos in one workspace, not Git submodules. `core/` is this repo.
 
-Work from `/home/t42/Documents/pirate-workspace` when reading shared context across repos.
+Work from `/media/t42/codedrive/Code/pirate-workspace` when reading shared context across repos.
 Before editing, decide which repo owns the change.
 
 Typical ownership:

@@ -6,7 +6,7 @@
 
 `specs/api/openapi-implemented.yaml` is the generated SDK-facing artifact that keeps only operations explicitly marked `x-implemented: true`.
 
-`/home/t42/Documents/pirate-workspace/api/services/contracts/src/index.ts` is the generated shared contract package consumed by the worker and CLI. It is rebuilt from `specs/api/openapi-implemented.yaml`.
+`/media/t42/codedrive/Code/pirate-workspace/api/services/contracts/src/index.ts` is the generated shared contract package consumed by the worker and CLI. It is rebuilt from `specs/api/openapi-implemented.yaml`.
 
 ## Layout
 
