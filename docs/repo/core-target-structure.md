@@ -27,13 +27,10 @@ These roots belong in `core`:
 On this machine, the workspace is:
 
 ```text
-/home/t42/Documents/pirate-workspace/
+/media/t42/codedrive/Code/pirate-workspace/
   core/
-  api/
-  web/
-  contracts/
-  desktop/
-  android/
+  api-next/          current backend/API runtime
+  pirate-web-solid/  current frontend and Worker runtime
 ```
 
 The runtime directories are sibling checkouts of standalone repos. They are not part of tracked `core` state.
@@ -49,19 +46,23 @@ For sidecar-aware scripts:
 
 - `scripts/lib/*` no longer imports runtime repo source.
 - API contract generation and Wrangler secret sync are path-configurable.
-- Active runbook commands use checkout variables for API and web repo paths.
+- Active runbook commands use checkout variables for API and frontend runtime
+  checkout paths.
 - Plugin source has been extracted from tracked `core`.
 
 ## Do Not Add
 
-Do not add new top-level roots in `core` for:
+Do not add runtime repository checkouts or new product surfaces under `core`.
+In particular, do not add:
 
-- `api/`
-- `web/`
+- `api-next/`
+- `pirate-web-solid/`
 - `contracts/`
 - `android/`
 - `ios/`
 - `desktop/`
 - standalone plugin packages with their own release lifecycle
 
-Those belong in their own repos under `pirate`.
+Those belong in their own standalone repositories beside `core`. Runtime
+implementation work belongs in `api-next` or `pirate-web-solid`; `core` holds
+the shared definitions and operational material they may reference.

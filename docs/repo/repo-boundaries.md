@@ -26,8 +26,8 @@ These directories define system behavior, migrations, control-plane operations, 
 
 These production surfaces belong in standalone repos:
 
-- backend API services
-- web UI
+- `api-next` backend/API services
+- `pirate-web-solid` frontend, browser, and Worker runtime
 - contracts workspace
 - Android app
 - iOS app
@@ -39,16 +39,15 @@ These production surfaces belong in standalone repos:
 Runtime repos live beside `core` in the canonical local workspace:
 
 ```text
-/home/t42/Documents/pirate-workspace/
+/media/t42/codedrive/Code/pirate-workspace/
   core/
-  api/
-  web/
-  contracts/
-  desktop/
-  android/
+  api-next/
+  pirate-web-solid/
 ```
 
-They must not be tracked by `core`. They are local checkouts of standalone repos such as `pirate/api`, `pirate/web`, `pirate/contracts`, `pirate/desktop`, and `pirate/android`.
+They must not be tracked by `core`. They are independent local checkouts of
+standalone repositories. The legacy API and React application are historical
+references and must not become runtime dependencies of the clean-break target.
 
 Scripts and active runbooks that need sidecar paths should use checkout variables instead of assuming the repos live under `core`.
 
@@ -62,7 +61,8 @@ Rules for sidecar-aware material:
 
 - `scripts/lib/*` no longer imports helpers from runtime repos.
 - API contract generation and typechecking can be redirected with `API_CONTRACTS_DIR` or `API_CONTRACTS_OUTPUT_FILE`.
-- Wrangler secret sync resolves the sibling `pirate-workspace/api` path, and also accepts `API_DIR` or `--api-dir`.
+- Wrangler secret sync accepts an explicit API checkout through `API_DIR` or
+  `--api-dir`; current target API work uses `api-next`.
 - Active runbooks use `PIRATE_API_DIR`, `PIRATE_API_REPO`, `PIRATE_WEB_DIR`, or `PIRATE_CORE_REPO` for checkout-specific commands.
 - Plugin source has been extracted from tracked `core`.
 
@@ -71,8 +71,8 @@ Rules for sidecar-aware material:
 Canonical ownership:
 
 - `pirate/core`: specs, migrations, config, docs, scripts, Lit actions, ops, and references.
-- `pirate/api`: production backend services.
-- `pirate/web`: web UI and browser runtime.
+- `api-next`: current production backend services and API contracts.
+- `pirate-web-solid`: current frontend, browser, and Worker runtime.
 - `pirate/contracts`: contract workspaces and tests.
 - `pirate/android`: production Android app.
 - `pirate/ios`: production iOS app.
