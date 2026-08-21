@@ -20,7 +20,7 @@
     "lint:imports": "bun run scripts/check-forbidden-imports.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest",
+    "bun-types": "1.4.0",
     "@typescript/native-preview": "7.0.0-dev.20260512.1"
   }
 }

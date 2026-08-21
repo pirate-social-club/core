@@ -16,7 +16,7 @@
     "validate-examples": "bun scripts/validate-openapi-examples.ts"
   },
   "devDependencies": {
-    "bun-types": "latest",
+    "bun-types": "1.4.0",
     "typescript": "^6.0.3",
     "yaml": "^2.8.1"
   }

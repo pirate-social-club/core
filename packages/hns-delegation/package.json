@@ -15,7 +15,7 @@
     "test": "bun test tests/"
   },
   "devDependencies": {
-    "@types/bun": "latest",
+    "bun-types": "1.4.0",
     "typescript": "^5.9.2"
   }
 }
