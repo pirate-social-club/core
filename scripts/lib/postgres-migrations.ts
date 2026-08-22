@@ -102,6 +102,12 @@ export async function applyPostgresMigrations(
   let advisoryLockHeld = false;
 
   try {
+    // Do not inherit a role/database search_path such as "$user" with no
+    // matching schema. Control-plane migrations intentionally create their
+    // unqualified objects in public, so make that namespace explicit for the
+    // entire reserved migration session.
+    await connection.unsafe("SET search_path TO public");
+
     await connection`
       SELECT pg_advisory_lock(
         ${MIGRATION_ADVISORY_LOCK_KEYS[0]},
