@@ -43,6 +43,12 @@ It is the server-side counterpart to Freedom's HNS browsing path:
 - `HNS_PUBLIC_NAMESPACE_CACHE_TTL_MS` (default `30000`)
 - `HNS_PUBLIC_NAMESPACE_CACHE_STALE_MS` (default `300000` after the fresh TTL)
 - `HNS_PUBLIC_NAMESPACE_CACHE_MAX_ENTRIES` (default `2048`)
+- `HNS_PUBLIC_STATIC_SITE_ROUTES` — optional exact `host=https://*.workers.dev`
+  or `host=https://*.pages.dev` mappings for read-only static Handshake sites.
+
+Static-site routes are operator-configured and fail closed. The gateway only
+proxies `GET`/`HEAD`, strips credentials and internal routing headers, and the
+Caddy on-demand TLS ask handler authorizes only the exact configured hosts.
 - `HNS_PUBLIC_CADDY_ASK_PORT` (always bound to `127.0.0.1`)
 - `HNS_PUBLIC_CADDY_ASK_DB_PATH`
 - `HNS_PUBLIC_CADDY_MAX_HOSTS_PER_NAMESPACE`

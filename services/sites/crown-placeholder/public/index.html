@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a0a0f" />
+    <meta
+      name="description"
+      content="A sovereign name on the decentralized web."
+    />
+    <title>king.bitcoin</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <style>
+      :root {
+        --orange: #f7931a;
+        --gold: #ffd700;
+        --accent-rgb: 247, 147, 26;
+        --bg: #0a0a0f;
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      html, body {
+        height: 100%;
+        background: var(--bg);
+        color: #e8e8ec;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        overflow: hidden;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+
+      /* subtle radial glow behind everything */
+      body::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse 60% 50% at 50% 42%, rgba(var(--accent-rgb), 0.14), transparent 70%);
+        animation: glowPulse 6s ease-in-out infinite;
+        pointer-events: none;
+      }
+
+      @keyframes glowPulse {
+        0%, 100% { opacity: 0.7; }
+        50%      { opacity: 1; }
+      }
+
+      /* faint drifting particles */
+      .particle {
+        position: absolute;
+        width: 3px;
+        height: 3px;
+        border-radius: 50%;
+        background: var(--orange);
+        opacity: 0.35;
+        animation: drift linear infinite;
+        pointer-events: none;
+      }
+
+      @keyframes drift {
+        from { transform: translateY(105vh); }
+        to   { transform: translateY(-5vh); }
+      }
+
+      .stage {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3rem;
+        z-index: 1;
+        animation: fadeUp 1.2s ease-out both;
+      }
+
+      @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(24px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+
+      .coin-wrap {
+        position: relative;
+        animation: float 5s ease-in-out infinite;
+      }
+
+      @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50%      { transform: translateY(-14px); }
+      }
+
+      .coin {
+        width: 180px;
+        height: 180px;
+        filter: drop-shadow(0 0 40px rgba(247, 147, 26, 0.45));
+      }
+
+      .coin-symbol {
+        font-size: 72px;
+      }
+
+      .parked .crown {
+        display: none;
+      }
+
+      .parked .coin-wrap::after {
+        content: "PARKED";
+        position: absolute;
+        left: 50%;
+        bottom: -1.2rem;
+        transform: translateX(-50%);
+        color: #8a8a95;
+        font-size: 0.62rem;
+        letter-spacing: 0.28em;
+      }
+
+      .crown {
+        position: absolute;
+        top: -58px;
+        left: 50%;
+        width: 110px;
+        transform: translateX(-50%) rotate(-6deg);
+        filter: drop-shadow(0 0 18px rgba(255, 215, 0, 0.5));
+        animation: crownBob 5s ease-in-out infinite;
+      }
+
+      @keyframes crownBob {
+        0%, 100% { transform: translateX(-50%) rotate(-6deg) translateY(0); }
+        50%      { transform: translateX(-50%) rotate(-3deg) translateY(-6px); }
+      }
+
+      .domain {
+        font-size: clamp(2rem, 6vw, 3.4rem);
+        font-weight: 800;
+        letter-spacing: 0.04em;
+      }
+
+      .domain .tld {
+        background: linear-gradient(120deg, var(--orange), var(--gold));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      blockquote {
+        max-width: 620px;
+        text-align: center;
+        padding: 0 1.5rem;
+        animation: fadeUp 1.2s ease-out 0.4s both;
+      }
+
+      blockquote p {
+        font-size: clamp(1.05rem, 2.4vw, 1.4rem);
+        font-style: italic;
+        font-weight: 300;
+        line-height: 1.6;
+        color: #c9c9d2;
+      }
+
+      blockquote p::before { content: "“"; color: var(--orange); }
+      blockquote p::after  { content: "”"; color: var(--orange); }
+
+      cite {
+        display: block;
+        margin-top: 1.1rem;
+        font-style: normal;
+        font-size: 0.85rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #8a8a95;
+      }
+
+      footer {
+        position: absolute;
+        bottom: 2rem;
+        animation: fadeUp 1.2s ease-out 0.8s both;
+      }
+
+      footer a {
+        color: #8a8a95;
+        text-decoration: none;
+        font-size: 0.85rem;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        border-bottom: 1px solid transparent;
+        padding-bottom: 3px;
+        transition: color 0.3s, border-color 0.3s;
+      }
+
+      footer a:hover {
+        color: var(--gold);
+        border-color: var(--gold);
+      }
+
+      /* compact layout for short viewports so the crown never clips */
+      @media (max-height: 760px) {
+        .stage { gap: 1.6rem; }
+        .coin { width: 130px; height: 130px; }
+        .crown { width: 80px; top: -42px; }
+        .domain { font-size: clamp(1.6rem, 5vh, 2.4rem); }
+        blockquote p { font-size: clamp(0.95rem, 2.6vh, 1.15rem); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage">
+      <div class="coin-wrap">
+        <!-- Crown -->
+        <svg class="crown" viewBox="0 0 120 70" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M10 55 L5 18 L32 38 L60 8 L88 38 L115 18 L110 55 Z"
+                fill="url(#goldGrad)" stroke="#b8860b" stroke-width="2"/>
+          <circle cx="5"   cy="15" r="5" fill="#ffd700"/>
+          <circle cx="60"  cy="6"  r="6" fill="#ffd700"/>
+          <circle cx="115" cy="15" r="5" fill="#ffd700"/>
+          <rect x="10" y="55" width="100" height="9" rx="3" fill="#daa520"/>
+          <circle cx="60" cy="46" r="5" fill="#f7931a"/>
+          <circle cx="32" cy="48" r="3.5" fill="#ff6b6b"/>
+          <circle cx="88" cy="48" r="3.5" fill="#4ecdc4"/>
+          <defs>
+            <linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#ffe066"/>
+              <stop offset="100%" stop-color="#daa520"/>
+            </linearGradient>
+          </defs>
+        </svg>
+
+        <!-- Bitcoin coin -->
+        <svg class="coin" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Bitcoin with a crown">
+          <circle cx="100" cy="100" r="95" fill="url(#coinGrad)" stroke="var(--orange)" stroke-width="4"/>
+          <circle cx="100" cy="100" r="80" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
+          <text class="coin-symbol" x="100" y="124" text-anchor="middle" font-weight="bold"
+                fill="#ffffff" font-family="Arial, sans-serif">&#8383;</text>
+          <defs>
+            <radialGradient id="coinGrad" cx="0.35" cy="0.3" r="1">
+              <stop offset="0%" stop-color="var(--gold)"/>
+              <stop offset="60%" stop-color="var(--orange)"/>
+              <stop offset="100%" stop-color="var(--bg)"/>
+            </radialGradient>
+          </defs>
+        </svg>
+      </div>
+
+      <h1 class="domain"><span data-domain-label>king</span><span class="tld" data-domain-tld>.bitcoin</span></h1>
+
+      <blockquote>
+        <p data-message>it would be possible for BitDNS to be a completely separate network and separate block chain…</p>
+        <cite data-attribution>— Satoshi Nakamoto, December 9, 2010</cite>
+      </blockquote>
+    </div>
+
+    <footer>
+      <a href="https://smp12.simplex.im/a#xYH_zcEaAKpWZpFqaFStbJdl4jOFOTS7JA_A76kVxK8" target="_blank" rel="noopener noreferrer" data-simplex-link>Join us on SimpleX Chat</a>
+    </footer>
+
+    <script>
+      const sites = {
+        "king.bitcoin": {
+          symbol: "₿",
+          message: "it would be possible for BitDNS to be a completely separate network and separate block chain…",
+          attribution: "— Satoshi Nakamoto, December 9, 2010",
+          colors: ["#f7931a", "#ffd700", "247, 147, 26"],
+          crowned: true,
+        },
+        "wallet.sdk": {
+          symbol: "W",
+          message: "A sovereign name for the tools that hold value.",
+          attribution: "DOMAIN PARKED · INQUIRE ON SIMPLEX",
+          colors: ["#00c896", "#8affe1", "0, 200, 150"],
+        },
+        "agent.sdk": {
+          symbol: "A",
+          message: "A sovereign name for software that acts.",
+          attribution: "DOMAIN PARKED · INQUIRE ON SIMPLEX",
+          colors: ["#8b5cf6", "#d8b4fe", "139, 92, 246"],
+        },
+        "ai.sdk": {
+          symbol: "AI",
+          message: "A sovereign name for machine intelligence.",
+          attribution: "DOMAIN PARKED · INQUIRE ON SIMPLEX",
+          colors: ["#36a3ff", "#8ee8ff", "54, 163, 255"],
+        },
+        "ai.lab": {
+          symbol: "AI",
+          message: "A sovereign laboratory for machine intelligence.",
+          attribution: "DOMAIN PARKED · INQUIRE ON SIMPLEX",
+          colors: ["#36a3ff", "#8ee8ff", "54, 163, 255"],
+        },
+      };
+
+      const requestedHost = window.location.hostname.toLowerCase().replace(/\.+$/, "");
+      const domain = sites[requestedHost] ? requestedHost : "king.bitcoin";
+      const site = sites[domain];
+      const separator = domain.indexOf(".");
+
+      document.title = domain;
+      document.querySelector('meta[name="description"]').content = `${domain} — ${site.message}`;
+      document.querySelector("[data-domain-label]").textContent = domain.slice(0, separator);
+      document.querySelector("[data-domain-tld]").textContent = domain.slice(separator);
+      document.querySelector("[data-message]").textContent = site.message;
+      document.querySelector("[data-attribution]").textContent = site.attribution;
+      document.querySelector(".coin-symbol").textContent = site.symbol;
+      document.documentElement.style.setProperty("--orange", site.colors[0]);
+      document.documentElement.style.setProperty("--gold", site.colors[1]);
+      document.documentElement.style.setProperty("--accent-rgb", site.colors[2]);
+      document.body.classList.toggle("parked", !site.crowned);
+
+      // faint rising particles
+      const N = 18;
+      for (let i = 0; i < N; i++) {
+        const p = document.createElement("div");
+        p.className = "particle";
+        p.style.left = Math.random() * 100 + "vw";
+        p.style.animationDuration = 8 + Math.random() * 14 + "s";
+        p.style.animationDelay = -Math.random() * 14 + "s";
+        p.style.opacity = 0.15 + Math.random() * 0.3;
+        document.body.appendChild(p);
+      }
+    </script>
+  </body>
+</html>

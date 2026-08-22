@@ -14,6 +14,11 @@ import {
   type HnsForwarderContext,
 } from "./forwarder-signature";
 import { extractImportedNamespaceHost, extractPublicProfileHost } from "./hostnames";
+import {
+  EMPTY_STATIC_SITE_ROUTES,
+  loadStaticSiteRoutes,
+  staticSiteOriginForHost,
+} from "./static-site";
 
 export { extractImportedNamespaceHost, extractPublicProfileHost } from "./hostnames";
 
@@ -43,6 +48,7 @@ export type HnsPublicGatewayEnv = CaddyAskEnv & {
   HNS_PUBLIC_NAMESPACE_CACHE_STALE_MS?: string;
   HNS_PUBLIC_NAMESPACE_CACHE_MAX_ENTRIES?: string;
   HNS_PUBLIC_NAMESPACE_RESOLVE_TIMEOUT_MS?: string;
+  HNS_PUBLIC_STATIC_SITE_ROUTES?: string;
 };
 
 export type HnsForwarderMode = "dual" | "hmac_required" | "token_only" | "unconfigured";
@@ -443,6 +449,16 @@ function createCanonicalUrl(requestUrl: URL, scheme: string): string {
 const INTERNAL_HEADER_PREFIX = "x-pirate-hns-";
 const CREDENTIAL_HEADERS = ["authorization", "cookie", "proxy-authorization"];
 const READ_ONLY_METHODS = new Set(["GET", "HEAD"]);
+const HOP_BY_HOP_RESPONSE_HEADERS = [
+  "connection",
+  "keep-alive",
+  "proxy-authenticate",
+  "proxy-authorization",
+  "te",
+  "trailer",
+  "transfer-encoding",
+  "upgrade",
+];
 
 function canonicalForwarderHost(url: URL): string {
   return url.hostname.trim().toLowerCase().replace(/\.+$/u, "");
@@ -573,6 +589,59 @@ function buildProxyBodyInit(request: Request): RequestInit & { duplex?: "half" }
   return { body: request.body, duplex: "half" };
 }
 
+async function proxyStaticSiteRequest(input: {
+  request: Request;
+  targetOrigin: string;
+  fetchImpl: typeof fetch;
+}): Promise<Response> {
+  if (!READ_ONLY_METHODS.has(input.request.method)) {
+    return renderErrorPage(
+      "Read-only site",
+      "This static Handshake site accepts only GET and HEAD requests.",
+      405,
+    );
+  }
+
+  const headers = new Headers(input.request.headers);
+  headers.delete("host");
+  for (const name of [...headers.keys()]) {
+    if (
+      CREDENTIAL_HEADERS.includes(name.toLowerCase())
+      || name.toLowerCase().startsWith(INTERNAL_HEADER_PREFIX)
+    ) {
+      headers.delete(name);
+    }
+  }
+  headers.set("accept-encoding", "identity");
+
+  const targetUrl = new URL(input.request.url);
+  const originUrl = new URL(input.targetOrigin);
+  targetUrl.protocol = originUrl.protocol;
+  targetUrl.host = originUrl.host;
+  const upstream = await input.fetchImpl(targetUrl.toString(), {
+    headers,
+    method: input.request.method,
+    redirect: "manual",
+  });
+
+  const responseHeaders = new Headers(upstream.headers);
+  for (const name of HOP_BY_HOP_RESPONSE_HEADERS) {
+    responseHeaders.delete(name);
+  }
+  responseHeaders.delete("content-length");
+  const bodyForbidden = input.request.method === "HEAD"
+    || [101, 204, 205, 304].includes(upstream.status);
+  const body = bodyForbidden ? null : await upstream.arrayBuffer();
+  if (body) {
+    responseHeaders.set("content-length", String(body.byteLength));
+  }
+  return new Response(body, {
+    headers: responseHeaders,
+    status: upstream.status,
+    statusText: upstream.statusText,
+  });
+}
+
 // HNS clients without DANE validation browse over plain HTTP, so HTTP stays
 // served — but strictly read-only (see web/docs/auth-origin-spec.md:
 // non-canonical origins are public/read-first). Writes must use a canonical
@@ -695,6 +764,7 @@ export async function handleRequest(
   request: Request,
   env: HnsPublicGatewayEnv,
   fetchImpl: typeof fetch = fetch,
+  staticSiteRoutes: ReadonlyMap<string, string> = EMPTY_STATIC_SITE_ROUTES,
 ): Promise<Response> {
   const url = new URL(request.url);
   const unsafeOverHttp = rejectUnsafeMethodOverHttp(request);
@@ -716,6 +786,11 @@ export async function handleRequest(
   const appOrigin = env.HNS_PUBLIC_APP_ORIGIN?.trim() || "https://pirate.sc";
 
   const hostname = url.hostname.trim().toLowerCase().replace(/\.+$/u, "");
+  const staticSiteOrigin = staticSiteOriginForHost(staticSiteRoutes, hostname);
+  if (staticSiteOrigin) {
+    return proxyStaticSiteRequest({ request, targetOrigin: staticSiteOrigin, fetchImpl });
+  }
+
   if (hostname === rootSuffix) {
     const appUrl = new URL(request.url);
     appUrl.protocol = `${externalScheme}:`;
@@ -846,6 +921,7 @@ if (import.meta.main) {
     caddyAskDatabasePath,
     configuredNamespaceHostLimit,
   );
+  const staticSiteRoutes = loadStaticSiteRoutes(Bun.env.HNS_PUBLIC_STATIC_SITE_ROUTES);
 
   Bun.serve({
     // Security boundary: never make the certificate permission service
@@ -853,7 +929,13 @@ if (import.meta.main) {
     hostname: "127.0.0.1",
     port: caddyAskPort,
     fetch(request) {
-      return handleCaddyAskRequest(request, Bun.env, fetch, caddyNamespaceIssuanceStore);
+      return handleCaddyAskRequest(
+        request,
+        Bun.env,
+        fetch,
+        caddyNamespaceIssuanceStore,
+        staticSiteRoutes,
+      );
     },
   });
 
@@ -861,7 +943,7 @@ if (import.meta.main) {
     hostname: host,
     port,
     fetch(request) {
-      return handleRequest(request, Bun.env);
+      return handleRequest(request, Bun.env, fetch, staticSiteRoutes);
     },
   });
 
