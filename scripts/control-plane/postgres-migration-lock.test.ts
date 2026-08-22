@@ -125,6 +125,10 @@ describe.skipIf(!RUN)("Postgres migration invocation lock", () => {
     const admin = connect();
     await admin.unsafe(`DROP DATABASE IF EXISTS ${TEST_DB} WITH (FORCE)`);
     await admin.unsafe(`CREATE DATABASE ${TEST_DB}`);
+    // Reproduce hosted databases whose role/default path contains only
+    // "$user", but no schema matching that role. The migrator must select its
+    // intended public schema instead of failing its first CREATE TABLE.
+    await admin.unsafe(`ALTER DATABASE ${TEST_DB} SET search_path TO "$user"`);
     await admin.end();
   });
 
@@ -146,7 +150,7 @@ describe.skipIf(!RUN)("Postgres migration invocation lock", () => {
 
     const events = await inspection.unsafe(`
       SELECT event, backend_pid, recorded_at
-      FROM migration_lock_probe
+      FROM public.migration_lock_probe
       ORDER BY recorded_at
     `) as { event: string; backend_pid: number; recorded_at: Date }[];
     await inspection.end();
@@ -167,11 +171,11 @@ describe.skipIf(!RUN)("Postgres migration invocation lock", () => {
 
     const afterFailure = connect(TEST_DB);
     const committedRows = await afterFailure.unsafe(`
-      SELECT value FROM migration_partial_progress_probe
+      SELECT value FROM public.migration_partial_progress_probe
     `);
     const ledgerAfterFailure = await afterFailure.unsafe(`
       SELECT migration_name
-      FROM schema_migrations
+      FROM public.schema_migrations
       WHERE migration_name LIKE 'lock_p%'
       ORDER BY migration_name
     `);
