@@ -102,12 +102,6 @@ export async function applyPostgresMigrations(
   let advisoryLockHeld = false;
 
   try {
-    // Do not inherit a role/database search_path such as "$user" with no
-    // matching schema. Control-plane migrations intentionally create their
-    // unqualified objects in public, so make that namespace explicit for the
-    // entire reserved migration session.
-    await connection.unsafe("SET search_path TO public");
-
     await connection`
       SELECT pg_advisory_lock(
         ${MIGRATION_ADVISORY_LOCK_KEYS[0]},
@@ -117,7 +111,7 @@ export async function applyPostgresMigrations(
     advisoryLockHeld = true;
 
     await connection.unsafe(`
-CREATE TABLE IF NOT EXISTS schema_migrations (
+CREATE TABLE IF NOT EXISTS public.schema_migrations (
   migration_name TEXT PRIMARY KEY,
   migration_label TEXT NOT NULL,
   checksum TEXT NOT NULL,
@@ -131,7 +125,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 
     const existingMigrationRows = await connection<{ migration_name: string; checksum: string }[]>`
       SELECT migration_name, checksum
-      FROM schema_migrations
+      FROM public.schema_migrations
     `;
     const existingMigrations = new Map(
       existingMigrationRows.map((row) => [row.migration_name, row.checksum] as const),
@@ -173,12 +167,18 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 
       await connection.unsafe("BEGIN");
       try {
+        // SET at session scope can be lost by a transaction-pooling endpoint
+        // between statements. SET LOCAL is pinned to this explicit migration
+        // transaction and gives every legacy unqualified statement its
+        // intended creation namespace.
+        await connection.unsafe("SET LOCAL search_path TO public");
+
         for (const statement of postgresMigrationStatements(migrationSql)) {
           await connection.unsafe(statement);
         }
 
         await connection`
-          INSERT INTO schema_migrations (migration_name, migration_label, checksum)
+          INSERT INTO public.schema_migrations (migration_name, migration_label, checksum)
           VALUES (${migrationName}, ${label}, ${migrationChecksum})
         `;
         await connection.unsafe("COMMIT");
