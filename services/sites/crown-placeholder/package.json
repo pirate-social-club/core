@@ -1,0 +1,12 @@
+{
+  "name": "@pirate/site-crown-placeholder",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "deploy:dry": "wrangler deploy --dry-run"
+  },
+  "devDependencies": {
+    "wrangler": "^4.100.0"
+  }
+}

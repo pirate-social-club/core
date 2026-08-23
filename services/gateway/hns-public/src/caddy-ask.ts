@@ -4,6 +4,7 @@ import {
   extractPublicProfileHost,
   normalizeHnsHostname,
 } from "./hostnames";
+import { EMPTY_STATIC_SITE_ROUTES, staticSiteOriginForHost } from "./static-site";
 
 export type CaddyAskEnv = {
   HNS_PUBLIC_GATEWAY_ROOT_SUFFIX?: string;
@@ -167,6 +168,7 @@ export async function handleCaddyAskRequest(
   env: CaddyAskEnv,
   fetchImpl: typeof fetch = fetch,
   namespaceIssuanceStore?: CaddyNamespaceIssuanceStore,
+  staticSiteRoutes: ReadonlyMap<string, string> = EMPTY_STATIC_SITE_ROUTES,
 ): Promise<Response> {
   if (request.method !== "GET") {
     return new Response(null, { status: 405 });
@@ -189,6 +191,10 @@ export async function handleCaddyAskRequest(
   const apiOrigin = env.HNS_PUBLIC_API_ORIGIN?.trim() || "https://api.pirate.sc";
 
   if (domain === rootSuffix || domain === `app.${rootSuffix}` || domain === `api.${rootSuffix}`) {
+    return new Response(null, { status: 204 });
+  }
+
+  if (staticSiteOriginForHost(staticSiteRoutes, domain)) {
     return new Response(null, { status: 204 });
   }
 

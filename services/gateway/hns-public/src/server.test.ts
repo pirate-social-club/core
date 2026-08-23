@@ -16,6 +16,7 @@ import {
   handleRequest,
   resolveForwarderMode,
 } from "./server";
+import { loadStaticSiteRoutes, parseStaticSiteRoutes } from "./static-site";
 
 test("forwarder signature interoperability vector remains stable", async () => {
   const context = {
@@ -131,6 +132,37 @@ describe("handleCaddyAskRequest", () => {
       },
     );
     expect(denied.status).toBe(403);
+  });
+
+  test("allows an explicitly configured static site without an API lookup", async () => {
+    const staticSiteRoutes = parseStaticSiteRoutes(
+      "king.bitcoin=https://pirate-crown-placeholder.workers.dev",
+    );
+    const response = await handleCaddyAskRequest(
+      new Request("http://127.0.0.1:4050/ask?domain=king.bitcoin"),
+      {
+        ...env,
+        HNS_PUBLIC_STATIC_SITE_ROUTES: "king.bitcoin=https://pirate-crown-placeholder.workers.dev",
+      },
+      async () => {
+        throw new Error("static sites must not need the API");
+      },
+      undefined,
+      staticSiteRoutes,
+    );
+    expect(response.status).toBe(204);
+
+    const unknown = await handleCaddyAskRequest(
+      new Request("http://127.0.0.1:4050/ask?domain=other.bitcoin"),
+      {
+        ...env,
+        HNS_PUBLIC_STATIC_SITE_ROUTES: "king.bitcoin=https://pirate-crown-placeholder.workers.dev",
+      },
+      async () => new Response(null, { status: 404 }),
+      undefined,
+      staticSiteRoutes,
+    );
+    expect(unknown.status).toBe(403);
   });
 
   test("allows an existing public profile and denies a missing profile", async () => {
@@ -407,6 +439,72 @@ describe("handleRequest", () => {
       HNS_PUBLIC_FORWARDER_AUTH_TOKEN: "legacy-rollout-token",
       HNS_PUBLIC_FORWARDER_REQUIRE_HMAC: "true",
     })).toBe("unconfigured");
+  });
+
+  test("proxies an explicitly configured static HNS site and strips credentials", async () => {
+    const calls: Array<{ url: string; headers: Headers }> = [];
+    const response = await handleRequest(
+      new Request("http://king.bitcoin/docs/index.html?lang=en", {
+        headers: {
+          authorization: "Bearer secret-token",
+          cookie: "session=abc",
+          "x-pirate-hns-root": "attacker",
+        },
+      }),
+      {
+        ...env,
+        HNS_PUBLIC_STATIC_SITE_ROUTES: "king.bitcoin=https://pirate-crown-placeholder.workers.dev",
+      },
+      async (url, init) => {
+        calls.push({ url: String(url), headers: new Headers(init?.headers) });
+        return new Response("static page", {
+          headers: { "content-type": "text/html", "connection": "keep-alive" },
+        });
+      },
+      parseStaticSiteRoutes("king.bitcoin=https://pirate-crown-placeholder.workers.dev"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("static page");
+    expect(calls[0].url).toBe("https://pirate-crown-placeholder.workers.dev/docs/index.html?lang=en");
+    expect(calls[0].headers.has("authorization")).toBe(false);
+    expect(calls[0].headers.has("cookie")).toBe(false);
+    expect(calls[0].headers.has("x-pirate-hns-root")).toBe(false);
+    expect(response.headers.has("connection")).toBe(false);
+    expect(parseStaticSiteRoutes("king.bitcoin=https://pirate-crown-placeholder.workers.dev").get("king.bitcoin"))
+      .toBe("https://pirate-crown-placeholder.workers.dev");
+  });
+
+  test("rejects writes to a static HNS site", async () => {
+    const response = await handleRequest(
+      new Request("https://king.bitcoin/", { method: "POST", body: "hello", headers: { "x-forwarded-proto": "https" } }),
+      {
+        ...env,
+        HNS_PUBLIC_STATIC_SITE_ROUTES: "king.bitcoin=https://pirate-crown-placeholder.workers.dev",
+      },
+      async () => {
+        throw new Error("static-site writes must not reach the origin");
+      },
+      parseStaticSiteRoutes("king.bitcoin=https://pirate-crown-placeholder.workers.dev"),
+    );
+    expect(response.status).toBe(405);
+  });
+
+  test("keeps first-party routing available when the static-site map is malformed", async () => {
+    const errors: string[] = [];
+    const staticSiteRoutes = loadStaticSiteRoutes("not-a-route", (message) => errors.push(message));
+    const response = await handleRequest(
+      new Request("https://app.pirate/"),
+      env,
+      async (url) => new Response(`proxied:${String(url)}`),
+      staticSiteRoutes,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("proxied:https://pirate.sc/");
+    expect(errors).toEqual([
+      "[hns-public-gateway] ignoring invalid HNS_PUBLIC_STATIC_SITE_ROUTES",
+    ]);
   });
 
   test("does not exempt health from the plain-HTTP read-only policy", async () => {
