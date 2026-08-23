@@ -28,6 +28,9 @@ on:
       - "services/verifier/spaces/**"
       - "tools/spaces-publisher/**"
       - "packages/hns-delegation/**"
+      - "services/gateway/hns-public/**"
+      - "services/sites/crown-placeholder/**"
+      - "ops/vps/hns-public-gateway/**"
       - "services/verifier/hns/**"
       - "specs/api/**"
   push:
@@ -58,6 +61,9 @@ on:
       - "services/verifier/spaces/**"
       - "tools/spaces-publisher/**"
       - "packages/hns-delegation/**"
+      - "services/gateway/hns-public/**"
+      - "services/sites/crown-placeholder/**"
+      - "ops/vps/hns-public-gateway/**"
       - "services/verifier/hns/**"
       - "specs/api/**"
   workflow_dispatch:
